@@ -1,0 +1,27 @@
+# Catalogues of the installed game's sprites and item ids. Regenerate with:
+#   python tools/pzcatalog.py build
+# Several megabytes, machine-specific, and derived entirely from the game
+# install -- there is nothing to gain from committing them.
+tools/_catalog/
+
+# Scratch output from the model previewer and the font check.
+tools/_*.png
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Project Zomboid writes these next to the game, never here, but they turn up
+# if anyone copies a log across to look at it.
+console.txt
+*.log
