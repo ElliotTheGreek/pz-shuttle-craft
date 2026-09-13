@@ -641,7 +641,7 @@ end
 Events.OnTick.Add(serviceArrival)
 Events.EveryTenMinutes.Add(Core.refillWater)
 
-local rescueTick, fieldTick, ghostTick, strayTick = 0, 0, 0, 0
+local rescueTick, fieldTick, ghostTick, strayTick, voidTick = 0, 0, 0, 0, 0
 Events.OnPlayerUpdate.Add(function(player)
     rescueTick = rescueTick + 1
     if rescueTick >= 10 then
@@ -650,6 +650,16 @@ Events.OnPlayerUpdate.Add(function(player)
     end
     -- The field runs whether or not anyone is aboard, so the ramp stays clear
     -- and nothing gathers around the ship while it is parked.
+    -- Nearby wilderness chunks may stream after the initial cabin build.
+    -- Sweep them again while aboard so late trees cannot remain visible.
+    voidTick = voidTick + 1
+    if voidTick >= 180 then
+        voidTick = 0
+        if U.isInteriorPlayer(player) then
+            TREK.Build.clearLoadedSurroundings()
+        end
+    end
+
     fieldTick = fieldTick + 1
     if fieldTick >= 20 then
         fieldTick = 0

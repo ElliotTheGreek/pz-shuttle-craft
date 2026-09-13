@@ -25,3 +25,4 @@ desktop.ini
 # if anyone copies a log across to look at it.
 console.txt
 *.log
+/.flowdot

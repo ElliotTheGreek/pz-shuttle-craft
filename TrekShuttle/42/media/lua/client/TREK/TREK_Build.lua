@@ -77,6 +77,13 @@ local function clearSurroundings()
         end
     end
     U.debug("cleared %d objects from the margin", cleared)
+    return cleared
+end
+
+--- Re-run while aboard so chunks that streamed after construction are
+--- stripped as soon as they become available. Safe and idempotent.
+function B.clearLoadedSurroundings()
+    return clearSurroundings()
 end
 
 ---------------------------------------------------------------------------

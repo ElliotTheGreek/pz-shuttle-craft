@@ -28,10 +28,11 @@ INSTALLED = Path.home() / "Zomboid" / "Workshop" / "TrekShuttle"
 
 TITLE = "Starfleet Shuttlecraft (Build 42)"
 DESCRIPTION = [
-    "A Starfleet-inspired shuttlecraft for Project Zomboid Build 42.",
-    "Beam aboard from anywhere, travel to map coordinates, land on clear ground, and walk through the hatch.",
-    "The generated interior includes a helm, running water, berth, galley, sick bay, cargo bay, and rechargeable phasers.",
+    "A Starfleet Type 6 shuttlecraft for Project Zomboid Build 42.",
+    "Beam aboard from anywhere, travel to map coordinates, land on clear ground, and walk through the rear hatch.",
+    "Its compact interior includes paired flight stations, a fold-down berth, sink, emergency medical supplies, provisions, mission storage, and rechargeable phasers.",
     "The exterior requires a clear 3x5 landing area.",
+    "Type 6 shuttle 3D model by octave767, used under CC BY 4.0: https://sketchfab.com/3d-models/star-trek-type-6-shuttle-e2ca902b9115429ab20293617a9d3317",
     "This is an unofficial fan mod and is not affiliated with or endorsed by Paramount or The Indie Stone.",
 ]
 

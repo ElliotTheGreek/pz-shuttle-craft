@@ -12,7 +12,7 @@ def read_png_rgba(path):
         body = data[pos+8:pos+8+ln]
         if tag == b"IHDR":
             w, h, depth, ctype = struct.unpack(">IIBB", body[:10])
-            assert depth == 8 and ctype == 6, (depth, ctype)
+            assert depth == 8 and ctype in (2, 6), (depth, ctype)
         elif tag == b"IDAT":
             idat += body
         pos += 12 + ln
