@@ -104,7 +104,7 @@ def main():
     args = parser.parse_args()
 
     # Keep the mod-screen poster synchronized with the current generated hull.
-    build_poster(str(MOD / "42"), str(MOD / "42" / "poster.png"))
+
 
     if BUILD.exists():
         shutil.rmtree(BUILD)

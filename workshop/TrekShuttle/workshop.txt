@@ -1,0 +1,10 @@
+version=1
+title=Starfleet Shuttlecraft (Build 42)
+description=A Starfleet Type 6 shuttlecraft for Project Zomboid Build 42.
+description=Beam aboard from anywhere, travel to map coordinates, land on clear ground, and walk through the rear hatch.
+description=Its compact interior includes paired flight stations, a fold-down berth, sink, emergency medical supplies, provisions, mission storage, and rechargeable phasers.
+description=The exterior requires a clear 3x5 landing area.
+description=Type 6 shuttle 3D model by octave767, used under CC BY 4.0: https://sketchfab.com/3d-models/star-trek-type-6-shuttle-e2ca902b9115429ab20293617a9d3317
+description=This is an unofficial fan mod and is not affiliated with or endorsed by Paramount or The Indie Stone.
+tags=Build 42
+visibility=private

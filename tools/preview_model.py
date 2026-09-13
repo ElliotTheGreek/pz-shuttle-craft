@@ -4,41 +4,61 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pngwrite import Image
 
 def read_png_rgba(path):
+    """Read an unpaletted 8-bit RGB or RGBA PNG as RGBA pixels."""
     data = open(path, "rb").read()
-    pos, idat, w = 8, b"", 0
+    pos, idat, width = 8, b"", 0
     while pos < len(data):
-        ln = struct.unpack(">I", data[pos:pos+4])[0]
-        tag = data[pos+4:pos+8]
-        body = data[pos+8:pos+8+ln]
+        length = struct.unpack(">I", data[pos:pos + 4])[0]
+        tag = data[pos + 4:pos + 8]
+        body = data[pos + 8:pos + 8 + length]
         if tag == b"IHDR":
-            w, h, depth, ctype = struct.unpack(">IIBB", body[:10])
-            assert depth == 8 and ctype in (2, 6), (depth, ctype)
+            width, height, depth, color_type = struct.unpack(">IIBB", body[:10])
+            assert depth == 8 and color_type in (2, 6), (depth, color_type)
         elif tag == b"IDAT":
             idat += body
-        pos += 12 + ln
+        pos += 12 + length
+
+    channels = 3 if color_type == 2 else 4
+    stride = width * channels
     raw = zlib.decompress(idat)
-    px = bytearray(w * h * 4)
-    stride = w * 4
-    prev = bytearray(stride)
-    p = 0
-    for y in range(h):
-        f = raw[p]; p += 1
-        line = bytearray(raw[p:p+stride]); p += stride
-        for i in range(stride):
-            a = line[i - 4] if i >= 4 else 0
-            b = prev[i]
-            c = prev[i - 4] if i >= 4 else 0
-            if f == 1: line[i] = (line[i] + a) & 255
-            elif f == 2: line[i] = (line[i] + b) & 255
-            elif f == 3: line[i] = (line[i] + (a + b) // 2) & 255
-            elif f == 4:
-                pp = a + b - c
-                pa, pb, pc = abs(pp-a), abs(pp-b), abs(pp-c)
-                pr = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
-                line[i] = (line[i] + pr) & 255
-        px[y*stride:(y+1)*stride] = line
-        prev = line
-    return w, h, px
+    previous = bytearray(stride)
+    rows = []
+    offset = 0
+    for _ in range(height):
+        filter_type = raw[offset]
+        offset += 1
+        line = bytearray(raw[offset:offset + stride])
+        offset += stride
+        for index in range(stride):
+            left = line[index - channels] if index >= channels else 0
+            above = previous[index]
+            upper_left = previous[index - channels] if index >= channels else 0
+            if filter_type == 1:
+                line[index] = (line[index] + left) & 255
+            elif filter_type == 2:
+                line[index] = (line[index] + above) & 255
+            elif filter_type == 3:
+                line[index] = (line[index] + (left + above) // 2) & 255
+            elif filter_type == 4:
+                estimate = left + above - upper_left
+                distances = (abs(estimate - left), abs(estimate - above),
+                             abs(estimate - upper_left))
+                predictor = (left, above, upper_left)[distances.index(min(distances))]
+                line[index] = (line[index] + predictor) & 255
+            elif filter_type != 0:
+                raise ValueError("unsupported PNG filter %d" % filter_type)
+        rows.append(line)
+        previous = line
+
+    if channels == 4:
+        return width, height, bytearray().join(rows)
+    pixels = bytearray(width * height * 4)
+    for y, line in enumerate(rows):
+        for x in range(width):
+            source = x * 3
+            target = (y * width + x) * 4
+            pixels[target:target + 4] = line[source:source + 3] + b"\xff"
+    return width, height, pixels
 
 def parse_x(path):
     src = open(path).read()
