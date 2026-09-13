@@ -1,0 +1,206 @@
+# Shuttlecraft — a Project Zomboid build 42 mod
+
+A Starfleet shuttlecraft for Project Zomboid **42.20.4**. Beam up to it from
+anywhere in Kentucky, beam back down where you were standing or anywhere on
+the map, or call it down onto open ground and walk aboard through the hatch.
+
+Everything is generated at runtime — no TileZed map, no hand-authored art. The
+meshes, textures and icons are produced by scripts in `tools/`.
+
+![the shuttle](TrekShuttle/42/poster.png)
+
+## What it does
+
+| | |
+| --- | --- |
+| **Beam up** | Right-click anywhere → **Beam up to the shuttle**. No door to walk to and nothing to carry; the pad reaches you whether the ship is parked beside you or overhead. |
+| **Beam down** | From the pad, back to the exact spot you left — or set a course first and beam down anywhere on the map. |
+| **Call it down** | Right-click a patch of street or field → **Call the shuttle down here**. It needs 3×5 tiles of clear ground and tells you when it hasn't got them. |
+| **Fly it** | From the helm inside, click the map to lay in a course, then **take her down**. You are beamed to the site first so the ground actually loads, and the ship comes in after you. |
+| **Never stranded** | If there is not enough room at the destination you are beamed straight back aboard with the reason. A failed landing never leaves you on foot a hundred miles from the ship. |
+| **Phasers** | Four in a locker beside the pad. The charge never runs down, they never jam and they never wear out — and they are far quieter than a firearm, which is most of the point. |
+| **Running water** | A galley sink, a head and a shower, all topped up every ten in-game minutes. |
+| **A berth** | Somewhere to sleep, with a locker of linen. |
+| **A sick bay** | A biobed and eight wide medical cabinets, thirty items apiece. |
+| **Stores** | A galley with a hotplate, microwave, two fridges and a stocked pantry; a cargo bay of military crates packed with food and medical supplies; engineering shelves of tools. |
+| **A field at the hatch** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed — no free experience, no free loot. |
+| **Bookmarks** | Log any position and set a course back to it later. |
+| **No fog at the helm** | The map is fully revealed while the helm is open, so you can aim at somewhere you have never been. Your ordinary map keeps its fog. |
+
+## Installing
+
+```sh
+sh tools/deploy.sh
+```
+
+Copies `TrekShuttle/` to `%UserProfile%\Zomboid\mods\TrekShuttle`. Enable
+**Shuttlecraft** in the Mods screen and in the mod list of the world you are
+playing.
+
+## Playing
+
+1. Right-click anywhere → **Shuttlecraft ▸ Beam up to the shuttle**. You
+   materialise on the transporter pad amidships.
+2. Take a **phaser** from the locker right beside the pad before you go.
+3. Right-click aboard for the **Shuttlecraft** menu: the helm, beam down, log
+   this position, and — when the ship is on the ground — step out of the hatch.
+4. At the **helm**, click the map to lay in a course or pick a logged position,
+   then **Take her down**. You are beamed to the site, the ship follows, and
+   you end up at the foot of the ramp.
+5. On the ground, right-click the hull to **board** it or to **send it back
+   up**; right-click open ground to **call it down** somewhere new.
+
+The shuttle is either sitting on the ground somewhere or overhead. The
+transporter works either way; the hatch only works when it is down.
+
+## How much room it needs
+
+The hull is three tiles across and five long, and it will not set down unless
+all fifteen squares are clear floor with nothing solid, no vehicle and nobody
+standing on them. The square *you* are standing on does not count against it —
+you step aside as it comes in.
+
+When it refuses it says why, and the reasons are worth reading:
+
+- *"Not enough room to land. The shuttle needs 15 clear squares and 6 of them
+  are blocked."* — the usual one. Try a street, a car park or a field.
+- *"there is a vehicle in the way"* — move the car, or land elsewhere.
+- *"part of that ground is not solid"* — you are aiming at a hole, water, or
+  the edge of a floor.
+
+## Layout
+
+The cabin is one compartment on one storey, generated in cell 96,40 — clear of
+the vanilla map (which ends at cell x 77), of the Fifth-Wheel RV interior at
+cell 85,40, and of the TARDIS mod's decks at 92,40 if you have that installed
+too.
+
+```
+    01234567890123
+  0       ..           bow
+  1      V.V.          V viewscreens
+  2     ..H...         H helm console
+  3    .T.*..T.        T standing consoles
+  4   ...h..h...       h flight seats
+  5  ..T......T..
+  6 ..........*...
+  7 ......*.......
+  8 w..*......mB.M     w galley sink   m/B/M sick bay
+  9 cp.........B.M     c galley        p pantry
+ 10 cp...........M
+ 11 cph..........M
+ 12 cp....*...*..M
+ 13 F.h..........M     F fridges
+ 14 F..*.........M
+ 15 .....ooo.....M
+ 16 w....o@oP....e     @ transporter pad   P phaser locker
+ 17 w....ooo.....e     w head              e engineering
+ 18 w............e
+ 19  .bl..*..KKK.      b berth   l locker   K cargo
+ 20   b......KKK
+ 21    ..eeee..        stern
+```
+
+Run `python tests/test_layout.py` to print this from the source, so it can
+never drift out of date with the code.
+
+## Repository layout
+
+```
+TrekShuttle/42/media/lua/shared/TREK/   config, helpers, translations
+TrekShuttle/42/media/lua/client/TREK/   build, hull, transporter, helm,
+                                        phaser, menus, self test
+TrekShuttle/42/media/models_X/          shuttle and helm meshes (.x)
+TrekShuttle/42/media/textures/          generated textures and icons
+TrekShuttle/42/media/scripts/           item and model definitions
+tools/                                  asset generators and dev scripts
+tests/                                  static checks against the live game data
+```
+
+## Tools
+
+| | |
+| --- | --- |
+| `tools/pzapi.py` | Prints real Java method signatures out of the game jar. The game ships no `javap`, and guessing at engine method names is the most expensive mistake available here. |
+| `tools/pzcatalog.py` | Builds and queries catalogues of every build 42 sprite and item id. |
+| `tools/preview_model.py` | Software renderer for `.x` meshes — check a model without launching the game. Auto-fits the frame, so a five-tile hull is as viewable as a one-tile box. |
+| `tools/gen_shuttle.py` | Hull texture, mesh and inventory icon. |
+| `tools/gen_helm.py` | Helm console texture and mesh. |
+| `tools/gen_phaser.py` | Phaser inventory icon. |
+| `tools/gen_poster.py` | The mods-screen poster. |
+| `tools/luacheck.py` | Parses every Lua file through a real Lua VM. |
+| `tools/deploy.sh` | Copy the mod into the Zomboid mods folder. |
+| `tools/readtest.sh` | Pull the mod's own lines out of `console.txt`. |
+
+## Testing
+
+Static checks, seconds each, no game required:
+
+```sh
+python tools/luacheck.py TrekShuttle/42/media/lua   # every Lua file parses
+python tests/test_assets.py                         # sprites, items, models,
+                                                    # icons and translation keys
+python tests/test_stock.py                          # loot spreads across its list
+python tests/test_layout.py                         # floor plan, fittings, footprint
+```
+
+`test_layout.py` is the one worth knowing about: it parses every `fit`, `line`
+and `place` call out of `TREK_Build.lua` and checks each offset against the
+hull, because the bow tapers over six squares and a fitting placed outside it
+simply does not appear — with no error anywhere.
+
+In game: launch with `-debug` and load a **fresh** world with the mod enabled.
+The self-test runs itself and writes `TREK-TEST` lines to
+`%UserProfile%\Zomboid\console.txt`. On a world where the ship is already in
+use it stays out of the way; `TREK_SelfTest()` from the debug console forces
+it.
+
+```sh
+sh tools/readtest.sh
+```
+
+From the debug console:
+
+| | |
+| --- | --- |
+| `TREK_SelfTest()` | Run the whole test: beam up, inspect the cabin, land, board, recall. |
+| `TREK_Rebuild()` | Tear the cabin down and regenerate it, fully restocked. Stand aboard first. |
+| `TREK_Beam()` | Beam up if you are outside, down if you are aboard. |
+| `TREK_Room()` | Report whether the ship could land where you stand, and what is in the way. |
+| `TREK_Phaser()` | Report how many phasers the sweep can see on you and recharge them. |
+| `TREK_Ghosts()` | List hulls still waiting to be cleared and sweep up any near you. |
+
+## Changing it
+
+- **[DESIGN.md](DESIGN.md)** — how the ship is laid out: furnishing the cabin,
+  the footprint, picking sprites and items, regenerating the models, and the
+  engine constraints the whole design is shaped around.
+- **[DEV_GUIDE.md](DEV_GUIDE.md)** — how to work on it: the build loop, the
+  rules that exist because they were broken, failure signatures and what they
+  actually mean, and how to test.
+
+Almost every change is an edit to `TREK_Config.lua` plus one `furnish`
+function in `TREK_Build.lua`.
+
+## Known limits
+
+- **Single player.** Nothing is written for multiplayer; the build runs
+  client-side and there is no server command path.
+- **One shuttle.** The mod tracks a single ship, so a second is not supported.
+- **The hull does not block anything.** It is a world model, and world models
+  have no collision: zombies and players walk through it. The footprint is
+  enforced when it lands, not afterwards.
+- **The hull always faces the same way.** World inventory items cannot be
+  rotated, so the bow always points north.
+- **The phaser chambers 9mm on paper.** AmmoTypes are registered in Java and a
+  mod cannot declare one, so the item names a real vanilla type to be sure it
+  fires. Since the charge is restored far faster than it can be spent, none of
+  your own ammunition is ever touched — but reloading it by hand would use it.
+- **The phaser looks like a pistol in your hands.** In-hand weapon models need
+  a rigged attachment set rather than a static mesh; the inventory icon is the
+  mod's own.
+- **Changing a loot list does not restock a cabin that already exists.** The
+  ship is meant to be lived in, so a rebuild never refills a container. Use
+  `TREK_Rebuild()`, or a fresh world.
+- **Beaming down needs somewhere to stand.** It searches six tiles around the
+  target and gives up rather than putting you inside a wall.

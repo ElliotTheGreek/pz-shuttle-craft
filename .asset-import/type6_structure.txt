@@ -1,0 +1,64 @@
+asset {'extras': {'author': 'octave767 (https://sketchfab.com/octave767)', 'license': 'CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)', 'source': 'https://sketchfab.com/3d-models/star-trek-type-6-shuttle-e2ca902b9115429ab20293617a9d3317', 'title': 'Star Trek - Type 6 shuttle'}, 'generator': 'Sketchfab-16.99.0', 'version': '2.0'}
+scenes 1
+nodes 6
+meshes 1
+materials 1
+textures 4
+images 4
+accessors 14
+bufferViews 8
+
+scenes
+0 {'name': 'Sketchfab_Scene', 'nodes': [0]}
+
+nodes
+0 {'children': [1], 'matrix': [1.0, 0.0, 0.0, 0.0, 0.0, 2.220446049250313e-16, -1.0, 0.0, 0.0, 1.0, 2.220446049250313e-16, 0.0, 0.0, 0.0, 0.0, 1.0], 'name': 'Sketchfab_model'}
+1 {'children': [2], 'matrix': [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], 'name': 'type6.fbx'}
+2 {'children': [3], 'name': 'RootNode'}
+3 {'children': [4], 'matrix': [0.09523800015449524, 0.0, 0.0, 0.0, 0.0, 2.059663512517033e-17, -0.09275899827480316, 0.0, 0.0, 0.09523800015449524, 2.1147084118154966e-17, 0.0, -0.006424482446163893, 0.014625257812440395, -0.011431092396378517, 1.0], 'name': 'Plane008'}
+4 {'children': [5], 'matrix': [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.2325951644078307e-32, 0.0, 0.0, -1.2325951644078307e-32, 1.0, 0.0, -35.717506408691406, 4.6314849853515625, -0.30071398615837097, 1.0], 'name': 'Plane008-Pivot'}
+5 {'mesh': 0, 'name': 'Plane008-Pivot_saucer_0'}
+
+meshes
+0 {'name': 'Plane008-Pivot_saucer_0', 'primitives': [{'attributes': {'NORMAL': 1, 'POSITION': 0, 'TANGENT': 2, 'TEXCOORD_0': 3, 'TEXCOORD_1': 4, 'TEXCOORD_2': 5, 'TEXCOORD_3': 6, 'TEXCOORD_4': 7, 'TEXCOORD_5': 8, 'TEXCOORD_6': 9, 'TEXCOORD_7': 10, 'TEXCOORD_8': 11, 'TEXCOORD_9': 12}, 'indices': 13, 'material': 0, 'mode': 4}]}
+
+materials
+0 {'doubleSided': True, 'emissiveFactor': [1.0, 1.0, 1.0], 'emissiveTexture': {'index': 2}, 'extensions': {'KHR_materials_emissive_strength': {'emissiveStrength': 1.5}, 'KHR_materials_pbrSpecularGlossiness': {'diffuseFactor': [1.0, 1.0, 1.0, 1.0], 'diffuseTexture': {'index': 0}, 'glossinessFactor': 0.5, 'specularFactor': [1.0, 1.0, 1.0], 'specularGlossinessTexture': {'index': 1}}}, 'name': 'saucer', 'normalTexture': {'index': 3}}
+
+textures
+0 {'sampler': 0, 'source': 0}
+1 {'sampler': 0, 'source': 1}
+2 {'sampler': 0, 'source': 2}
+3 {'sampler': 0, 'source': 3}
+
+images
+0 {'bufferView': 4, 'mimeType': 'image/png'}
+1 {'bufferView': 5, 'mimeType': 'image/png'}
+2 {'bufferView': 6, 'mimeType': 'image/png'}
+3 {'bufferView': 7, 'mimeType': 'image/png'}
+
+accessors
+0 {'bufferView': 2, 'componentType': 5126, 'count': 3331, 'max': [54.67100143432617, 27.534713745117188, 13.464872360229492], 'min': [16.764019012451172, -37.15150833129883, -14.058121681213379], 'type': 'VEC3'}
+1 {'bufferView': 2, 'byteOffset': 39972, 'componentType': 5126, 'count': 3331, 'max': [1.0, 1.0, 1.0], 'min': [-1.0, -1.0, -1.0], 'type': 'VEC3'}
+2 {'bufferView': 3, 'componentType': 5126, 'count': 3331, 'max': [1.0, 1.0, 1.0, 1.0], 'min': [-1.0, -1.0, -1.0, -1.0], 'type': 'VEC4'}
+3 {'bufferView': 1, 'componentType': 5126, 'count': 3331, 'max': [0.9965479969978333, 0.9937000274658203], 'min': [0.0021730000153183937, 0.0026889999862760305], 'type': 'VEC2'}
+4 {'bufferView': 1, 'byteOffset': 26648, 'componentType': 5126, 'count': 3331, 'max': [0.9965479969978333, 0.9937000274658203], 'min': [0.0021730000153183937, 0.0026889999862760305], 'type': 'VEC2'}
+5 {'bufferView': 1, 'byteOffset': 53296, 'componentType': 5126, 'count': 3331, 'max': [0.9965479969978333, 0.9937000274658203], 'min': [0.0021730000153183937, 0.0026889999862760305], 'type': 'VEC2'}
+6 {'bufferView': 1, 'byteOffset': 79944, 'componentType': 5126, 'count': 3331, 'max': [0.9965479969978333, 0.9937000274658203], 'min': [0.0021730000153183937, 0.0026889999862760305], 'type': 'VEC2'}
+7 {'bufferView': 1, 'byteOffset': 106592, 'componentType': 5126, 'count': 3331, 'max': [0.9965479969978333, 0.9937000274658203], 'min': [0.0021730000153183937, 0.0026889999862760305], 'type': 'VEC2'}
+8 {'bufferView': 1, 'byteOffset': 133240, 'componentType': 5126, 'count': 3331, 'max': [0.9965479969978333, 0.9937000274658203], 'min': [0.0021730000153183937, 0.0026889999862760305], 'type': 'VEC2'}
+9 {'bufferView': 1, 'byteOffset': 159888, 'componentType': 5126, 'count': 3331, 'max': [0.9965479969978333, 0.9937000274658203], 'min': [0.0021730000153183937, 0.0026889999862760305], 'type': 'VEC2'}
+10 {'bufferView': 1, 'byteOffset': 186536, 'componentType': 5126, 'count': 3331, 'max': [0.9965479969978333, 0.9937000274658203], 'min': [0.0021730000153183937, 0.0026889999862760305], 'type': 'VEC2'}
+11 {'bufferView': 1, 'byteOffset': 213184, 'componentType': 5126, 'count': 3331, 'max': [0.9965479969978333, 0.9937000274658203], 'min': [0.0021730000153183937, 0.0026889999862760305], 'type': 'VEC2'}
+12 {'bufferView': 1, 'byteOffset': 239832, 'componentType': 5126, 'count': 3331, 'max': [0.9965479969978333, 0.9937000274658203], 'min': [0.0021730000153183937, 0.0026889999862760305], 'type': 'VEC2'}
+13 {'bufferView': 0, 'componentType': 5125, 'count': 7473, 'type': 'SCALAR'}
+
+bufferViews
+0 {'buffer': 0, 'byteLength': 29892, 'name': 'floatBufferViews', 'target': 34963}
+1 {'buffer': 0, 'byteLength': 266480, 'byteOffset': 29892, 'byteStride': 8, 'name': 'floatBufferViews', 'target': 34962}
+2 {'buffer': 0, 'byteLength': 79944, 'byteOffset': 296372, 'byteStride': 12, 'name': 'floatBufferViews', 'target': 34962}
+3 {'buffer': 0, 'byteLength': 53296, 'byteOffset': 376316, 'byteStride': 16, 'name': 'floatBufferViews', 'target': 34962}
+4 {'buffer': 0, 'byteLength': 719263, 'byteOffset': 429612, 'name': 'saucer_diffuse.png'}
+5 {'buffer': 0, 'byteLength': 155286, 'byteOffset': 1148875, 'name': 'saucer_specularGlossiness.png'}
+6 {'buffer': 0, 'byteLength': 8334, 'byteOffset': 1304161, 'name': 'saucer_emissive.png'}
+7 {'buffer': 0, 'byteLength': 575303, 'byteOffset': 1312495, 'name': 'saucer_normal.png'}

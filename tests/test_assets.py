@@ -1,0 +1,159 @@
+"""Static checks against the live build 42 data.
+
+Catches the failure mode that costs the most time in game: a sprite or item id
+that looks plausible, silently resolves to nothing, and leaves the cabin
+half-dressed with no error anywhere in the log.
+
+    python tests/test_assets.py
+"""
+import json, re, sys, os
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CATALOG = os.path.join(ROOT, "tools", "_catalog")
+MOD = os.path.join(ROOT, "TrekShuttle", "42")
+PZ = r"C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid\media"
+
+tiles = set(json.load(open(os.path.join(CATALOG, "tiles.json")))["tiles"])
+items = set(json.load(open(os.path.join(CATALOG, "items.json")))["Base"])
+
+# a tile sprite looks like  some_tileset_name_01_42
+SPRITE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*_\d+$")
+ITEM = re.compile(r"^Base\.([A-Za-z0-9_]+)$")
+MOD_ITEM = re.compile(r"^TrekShuttle\.([A-Za-z0-9_]+)$")
+
+# The mod's own items, declared in media/scripts/trekshuttle.txt. A Lua
+# reference to one that is not declared there resolves to nothing, exactly as
+# silently as a bad Base id does.
+script = open(os.path.join(MOD, "media", "scripts", "trekshuttle.txt"),
+              encoding="utf-8").read()
+mod_items = set(re.findall(r"^\s*item\s+([A-Za-z0-9_]+)", script, re.M))
+mod_models = set(re.findall(r"^\s*model\s+([A-Za-z0-9_]+)", script, re.M))
+mod_icons = set(re.findall(r"^\s*Icon\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.M))
+
+failures, checked_sprites, checked_items = [], 0, 0
+
+# --- the mod's own meshes and textures ---------------------------------
+# A model naming a mesh that is not on disk loads as nothing and draws as
+# nothing, with no error.
+for block in re.finditer(r"model\s+\w+\s*\{(.*?)\}", script, re.S):
+    body = block.group(1)
+    mesh = re.search(r"mesh\s*=\s*([\w/]+)\s*,", body)
+    tex = re.search(r"texture\s*=\s*([\w/]+)\s*,", body)
+    if mesh and not os.path.exists(
+            os.path.join(MOD, "media", "models_X", mesh.group(1) + ".x")):
+        failures.append(f"model mesh {mesh.group(1)}.x is not in media/models_X")
+    if tex and not os.path.exists(
+            os.path.join(MOD, "media", "textures", tex.group(1) + ".png")):
+        failures.append(f"model texture {tex.group(1)}.png is not in media/textures")
+
+# Every icon a mod item names has to exist as a file. A missing one shows as a
+# blank square in the inventory and reports nothing anywhere.
+for icon in sorted(mod_icons):
+    candidates = [os.path.join(MOD, "media", "textures", f"Item_{icon}.png"),
+                  os.path.join(MOD, "media", "ui", f"{icon}.png")]
+    if not any(os.path.exists(p) for p in candidates):
+        failures.append(f"trekshuttle.txt: Icon = {icon} has no texture; "
+                        f"expected media/textures/Item_{icon}.png")
+
+# Every WorldStaticModel / StaticModel must name a model declared above it.
+for ref in re.findall(r"^\s*(?:World)?StaticModel\s*=\s*([A-Za-z0-9_]+)\s*,",
+                      script, re.M):
+    if ref not in mod_models:
+        failures.append(f"trekshuttle.txt: StaticModel = {ref} is not declared")
+
+# --- the phaser's borrowed vanilla references --------------------------
+# The phaser leans on vanilla for its AmmoType, its in-hand model and its
+# sounds, all of which resolve in Java rather than through any script the mod
+# ships. A typo in one of them is silent, so they are checked against the
+# game's own scripts here.
+vanilla = ""
+for dp, _, fns in os.walk(os.path.join(PZ, "scripts")):
+    for fn in fns:
+        if fn.endswith(".txt"):
+            vanilla += open(os.path.join(dp, fn), encoding="utf-8",
+                            errors="replace").read()
+
+phaser = re.search(r"item TrekPhaser\s*\{(.*?)\n    \}", script, re.S)
+if not phaser:
+    failures.append("trekshuttle.txt: the TrekPhaser item block was not found")
+else:
+    body = phaser.group(1)
+    ammo = re.search(r"AmmoType\s*=\s*([\w:]+)\s*,", body)
+    if ammo and f"AmmoType = {ammo.group(1)}," not in vanilla:
+        failures.append(f"phaser AmmoType {ammo.group(1)} is not used by any "
+                        f"vanilla weapon, so it probably does not resolve")
+    sprite = re.search(r"WeaponSprite\s*=\s*(\w+)\s*,", body)
+    if sprite and not re.search(r"model\s+%s\s*\n?\s*\{" % sprite.group(1),
+                                vanilla):
+        failures.append(f"phaser WeaponSprite {sprite.group(1)} is not a "
+                        f"vanilla weapon model")
+    for key in ("SwingAnim", "RunAnim"):
+        if not re.search(key + r"\s*=", body):
+            failures.append(f"phaser has no {key}; it will not animate")
+
+# --- every literal in the Lua ------------------------------------------
+for dp, _, fns in os.walk(os.path.join(MOD, "media", "lua")):
+    for fn in fns:
+        if not fn.endswith(".lua"):
+            continue
+        path = os.path.join(dp, fn)
+        for lineno, ln in enumerate(open(path, encoding="utf-8"), 1):
+            if ln.strip().startswith("--"):
+                continue
+            for lit in re.findall(r'"([^"]+)"', ln):
+                m = ITEM.match(lit)
+                if m:
+                    checked_items += 1
+                    if m.group(1) not in items:
+                        failures.append(f"{fn}:{lineno} unknown item {lit}")
+                    continue
+                m = MOD_ITEM.match(lit)
+                if m:
+                    checked_items += 1
+                    if m.group(1) not in mod_items:
+                        failures.append(f"{fn}:{lineno} {lit} is not declared "
+                                        f"in media/scripts/trekshuttle.txt")
+                    continue
+                if SPRITE.match(lit) and not lit.startswith("Base"):
+                    checked_sprites += 1
+                    if lit not in tiles:
+                        failures.append(f"{fn}:{lineno} unknown sprite {lit}")
+
+# --- translations ------------------------------------------------------
+# Build 42 reads media/lua/shared/Translate/EN/<Category>.json and the category
+# is part of the *path*, not the key: an "ItemName_x" key inside IG_UI.json
+# resolves to nothing at all, silently. Every getText the Lua asks for has to
+# be in IG_UI.json, and every mod item wants a name in ItemName.json.
+TR = os.path.join(MOD, "media", "lua", "shared", "Translate", "EN")
+ig = json.load(open(os.path.join(TR, "IG_UI.json"), encoding="utf-8"))
+names = json.load(open(os.path.join(TR, "ItemName.json"), encoding="utf-8"))
+tips = json.load(open(os.path.join(TR, "Tooltip.json"), encoding="utf-8"))
+
+for key in ig:
+    if not key.startswith("IGUI_"):
+        failures.append(f"IG_UI.json holds {key}, which is not an IGUI_ key")
+asked = set()
+for dp, _, fns in os.walk(os.path.join(MOD, "media", "lua")):
+    for fn in fns:
+        if fn.endswith(".lua"):
+            body = open(os.path.join(dp, fn), encoding="utf-8").read()
+            asked |= set(re.findall(r'getText\(\s*"([^"]+)"', body))
+for key in sorted(asked):
+    if key.startswith("IGUI_") and key not in ig:
+        failures.append(f"getText(\"{key}\") has no entry in IG_UI.json")
+for item in sorted(mod_items):
+    if f"TrekShuttle.{item}" not in names:
+        failures.append(f"ItemName.json has no name for TrekShuttle.{item}")
+for tip in sorted(re.findall(r"^\s*Tooltip\s*=\s*(\w+)\s*,", script, re.M)):
+    if tip not in tips:
+        failures.append(f"Tooltip.json has no entry for {tip}")
+
+print(f"checked {checked_sprites} sprite names and {checked_items} item ids, "
+      f"{len(mod_items)} mod items, {len(mod_models)} models, "
+      f"{len(mod_icons)} icons and {len(asked)} translation keys")
+if failures:
+    print(f"\n{len(failures)} PROBLEM(S):")
+    for f in failures:
+        print("  " + f)
+    sys.exit(1)
+print("all asset references resolve")
