@@ -177,6 +177,17 @@ C.BeamScatter = 6
 C.MaxBookmarks        = 40
 C.LandingSearchRadius = 24   -- squares to spiral out from a chosen site
 
+-- Hands-on flight. Movement is world squares per tick; the screen-space lift
+-- separates the visible shuttle from its projected shadow.
+C.FlightSpeed          = 1.50
+C.FlightTakeoffTicks   = 75
+C.FlightModelLift      = 48
+C.FlightShadowW        = 150
+C.FlightShadowH        = 42
+C.FlightShadowAlpha    = 0.30
+C.FlightZoomLevels1x   = "25;50;75;100;125;150;175;200;225;250"
+C.FlightZoomLevels2x   = "25;50;75;100;125;150;175;200;225;250"
+
 -- How long to keep trying to set down at a destination before giving up and
 -- beaming the player back aboard. Ticks; the first few hundred are spent
 -- waiting for the area to stream in at all.

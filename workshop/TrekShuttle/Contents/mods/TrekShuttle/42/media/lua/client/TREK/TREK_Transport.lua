@@ -150,6 +150,23 @@ end
 --- standing on ground the ship could not reach. They are already committed to
 --- being aboard by then, so there is nothing to announce and no reason to
 --- make them wait through it again.
+--- Starts the normal delayed beam at the ground directly below hands-on
+--- flight. The player is the flight proxy rather than physically aboard.
+function T.beamDownFromFlight(player, dest)
+    if not player or not dest then return false, "nowhere" end
+    if not TREK.Flight or not TREK.Flight.isActive() then
+        return false, "not flying"
+    end
+    if T.pending then return false, "busy" end
+
+    begin(player, "down", math.floor(dest.x), math.floor(dest.y),
+          math.floor(dest.z or 0))
+    T.pending.fromFlight = true
+    U.note(player, getText("IGUI_TREK_Energising"))
+    U.log("beaming down below the shuttle at %d,%d", dest.x, dest.y)
+    return true
+end
+
 function T.recoverAboard(player, message)
     if not player then return false end
     T.pending = nil

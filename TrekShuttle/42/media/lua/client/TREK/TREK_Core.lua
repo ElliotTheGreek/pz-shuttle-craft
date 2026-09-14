@@ -163,7 +163,9 @@ function Core.sweepStrays(player)
                 -- makes would be 441 pointless trips out to Java.
                 local sq = U.square(x, y, pz, false)
                 local obj = sq and Core.hullOn(sq)
-                if obj and U.try("removeStray", function()
+                local isFlightModel = obj and TREK.Flight
+                                      and TREK.Flight.isModelObject(obj)
+                if obj and not isFlightModel and U.try("removeStray", function()
                     sq:removeWorldObject(obj)
                     return true
                 end) then

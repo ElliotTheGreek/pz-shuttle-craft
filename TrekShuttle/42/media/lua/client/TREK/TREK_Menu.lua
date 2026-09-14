@@ -17,6 +17,7 @@
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+require "TREK/TREK_Flight"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -98,7 +99,27 @@ function M.onRecall(_, player)
 end
 
 function M.onEnter(_, player)
-    TREK.Core.enter(player)
+    local ok, why = TREK.Flight.start(player)
+    if not ok then
+        local key = why == "busy" and "IGUI_TREK_FlightBusy"
+                    or "IGUI_TREK_FlightUnavailable"
+        U.note(player, getText(key), 255, 170, 90)
+    end
+end
+
+function M.onLandFlight(_, player)
+    TREK.Flight.land(player)
+end
+
+function M.onEnterInterior(_, player)
+    TREK.Flight.enterInterior(player)
+end
+
+function M.onBeamBelow(_, player)
+    local ok, why = TREK.Flight.beamBelow(player)
+    if not ok and why == "busy" then
+        U.note(player, getText("IGUI_TREK_TransporterBusy"), 255, 170, 90)
+    end
 end
 
 function M.onExit(_, player)
@@ -129,6 +150,7 @@ local function aboardMenu(context, player, worldobjects, test)
     local menu = ISContextMenu:getNew(context)
     context:addSubMenu(sub, menu)
 
+    menu:addOption(getText("IGUI_TREK_Pilot"), worldobjects, M.onEnter, player)
     menu:addOption(getText("IGUI_TREK_Helm"), worldobjects, M.onHelm, player)
     menu:addOption(getText("IGUI_TREK_BeamDown"), worldobjects, M.onBeamDown, player)
     -- The ramp only exists when the ship is on the ground. Overhead, the
@@ -139,6 +161,21 @@ local function aboardMenu(context, player, worldobjects, test)
     end
     menu:addOption(getText("IGUI_TREK_BookmarkHere"), worldobjects,
                    M.onBookmarkHere, player)
+    return true
+end
+
+local function flightMenu(context, player, worldobjects, test)
+    if test then return ISWorldObjectContextMenu.setTest() end
+
+    local sub = context:addOption(getText("IGUI_TREK_Name"), worldobjects, nil)
+    local menu = ISContextMenu:getNew(context)
+    context:addSubMenu(sub, menu)
+    menu:addOption(getText("IGUI_TREK_LandHere"), worldobjects,
+                   M.onLandFlight, player)
+    menu:addOption(getText("IGUI_TREK_EnterInterior"), worldobjects,
+                   M.onEnterInterior, player)
+    menu:addOption(getText("IGUI_TREK_BeamBelow"), worldobjects,
+                   M.onBeamBelow, player)
     return true
 end
 
@@ -174,6 +211,10 @@ local function onPreFill(playerIndex, context, worldobjects, test)
     local player = U.player(playerIndex)
     if not player then return end
 
+    if TREK.Flight.isActive() then
+        return flightMenu(context, player, worldobjects, test)
+    end
+
     if U.isInteriorPlayer(player) then
         return aboardMenu(context, player, worldobjects, test)
     end
@@ -185,7 +226,6 @@ end
 
 Events.OnPreFillWorldObjectContextMenu.Add(onPreFill)
 
-U.log("loaded v%s -- menus registered on OnPreFillWorldObjectContextMenu",
-      C.Version)
+U.log("FLIGHT BUILD 1.4: menus registered on OnPreFillWorldObjectContextMenu")
 
 return M

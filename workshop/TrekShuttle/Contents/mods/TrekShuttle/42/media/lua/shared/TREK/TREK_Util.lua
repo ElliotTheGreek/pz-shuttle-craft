@@ -111,6 +111,11 @@ function U.state()
     -- can be missing a list every read of it assumes is a table.
     s.ghosts = s.ghosts or {}
     s.bookmarks = s.bookmarks or {}
+    -- Additive flight fields keep old saves compatible. Active piloting is
+    -- transient; only the ground directly below the airborne ship is saved.
+    s.flightX = s.flightX or (s.landed and s.x or s.returnX)
+    s.flightY = s.flightY or (s.landed and s.y or s.returnY)
+    s.flightZ = s.flightZ or (s.landed and s.z or s.returnZ or 0)
     return s
 end
 
