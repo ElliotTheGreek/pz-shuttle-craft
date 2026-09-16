@@ -4,13 +4,15 @@
     shipped as a map, so the mod needs no TileZed-built lots. It is raised
     lazily: nothing exists until somebody is aboard for the first time.
 
-    One compartment, one storey, laid out fore to aft:
+    One compartment, one storey. The hull, the deck, the lighting and the helm
+    item are generated here; everything else -- every fitting, every locker --
+    is authored in BuildingEd and read out of TREK_InteriorLayout.lua, so the
+    arrangement of the cabin is changed in the map editor and not in this file:
 
-        bow      helm console, viewscreens, two flight seats
-        port     galley and dry stores, then the head and the berth
-        stbd     sick bay, then engineering stores
-        amidships the transporter pad, with the phaser locker beside it
-        stern    the cargo bay
+        bow (oy 0)   consoles and viewscreen over the galley counters
+        port (ox 0)  fridges, ovens and the microwave, berth aft
+        stbd (ox 5)  eight lockers: sick bay, engineering, stores, armoury
+        amidships    the transporter pad at 2,6
 
     Nothing may be built into a chunk that has not streamed in, and chunks
     only stream around a player, so every entry point here refuses to do
@@ -19,6 +21,7 @@
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+local L = require "TREK/TREK_InteriorLayout"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -99,7 +102,7 @@ local function buildFloor()
                or inShape(ox - 1, oy) or inShape(ox + 1, oy)
                or inShape(ox, oy - 1) or inShape(ox, oy + 1) then
                 local x, y = at(ox, oy)
-                local sprite = C.Sprites.deckFloor
+                local sprite = L.floor or C.Sprites.deckFloor
                 if C.isLanding(ox, oy) then sprite = C.Sprites.padFloor end
                 if U.addFloor(x, y, C.CabinZ, sprite) then made = made + 1 end
             end
@@ -115,7 +118,10 @@ end
 --- A wall lives on the north or west edge of its own square, so a hull edge
 --- facing east or south is drawn on the square just outside the cabin.
 local function buildWalls()
-    local S = C.Sprites
+    local S = {
+        wallW = L.wallW or C.Sprites.wallW,
+        wallN = L.wallN or C.Sprites.wallN,
+    }
     local z = C.CabinZ
     local placed = 0
 
@@ -178,12 +184,17 @@ local function claim(ox, oy, tag)
     return true
 end
 
---- One object at one offset, stocked if a loot list is given.
+--- One object at one offset, on a square nothing else has claimed.
 ---
 --- Returns false when the offset is outside the hull, on the transporter pad,
---- or already taken, so a layout that has drifted past the bow taper reports
---- itself rather than silently leaving gaps.
-local function fit(ox, oy, sprite, tag, loot, amount)
+--- or already taken, so a layout that has drifted reports itself rather than
+--- silently leaving gaps.
+---
+--- The furniture comes from BuildingEd now and is placed by
+--- furnishAuthoredInterior, which layers deliberately and so bypasses this.
+--- What is left for fit() is the deckhead lighting, which must *not* land on
+--- top of anything.
+local function fit(ox, oy, sprite, tag)
     if not sprite then
         U.warnOnce("fit:" .. tostring(tag), "no sprite for " .. tostring(tag))
         return false
@@ -194,64 +205,16 @@ local function fit(ox, oy, sprite, tag, loot, amount)
     local x, y = at(ox, oy)
     local sq = U.square(x, y, C.CabinZ, true)
     if not sq then return false end
-    if not loot then
-        return U.addObject(sq, sprite, tag) ~= nil
-    end
-    local obj, made = U.addContainer(sq, sprite, tag)
-    -- Only ever stock a container the moment it is made. A rebuild leaves a
-    -- lived-in ship exactly as the player left it.
-    if obj and (made or C.DevRestock) then U.stock(obj, loot, amount or 6) end
-    return obj ~= nil
-end
-
---- Places `count` copies of a sprite along a line, stocking each one.
---- `opts` may carry { loot = list, amount = n, tag = string }.
-local function line(sprite, ox, oy, dx, dy, count, opts)
-    opts = opts or {}
-    local placed = 0
-    for i = 0, count - 1 do
-        if fit(ox + dx * i, oy + dy * i, sprite, opts.tag, opts.loot, opts.amount) then
-            placed = placed + 1
-        end
-    end
-    return placed
-end
-
---- Places a multi-tile piece from C.Pieces at an offset.
----
---- Each half carries its own offset taken from the tileset, so the head and
---- foot of a bed land the right way round. Nothing is placed unless every
---- square the piece needs is free, inside the hull and clear of the pad.
-local function place(pieceName, ox, oy, tag)
-    local piece = C.Pieces[pieceName]
-    if not piece then
-        U.warnOnce("piece:" .. tostring(pieceName), "no such piece")
-        return false
-    end
-    for _, part in ipairs(piece) do
-        local px, py = ox + part[2], oy + part[3]
-        if not inShape(px, py) or C.isLanding(px, py) then return false end
-        if claimed[claimKey(px, py)] then
-            U.log("layout: %s wants %d,%d but %s is already there",
-                  tostring(tag), px, py, tostring(claimed[claimKey(px, py)]))
-            return false
-        end
-    end
-    for _, part in ipairs(piece) do
-        claim(ox + part[2], oy + part[3], tag)
-        local x, y = at(ox + part[2], oy + part[3])
-        U.addObject(U.square(x, y, C.CabinZ, true), part[1], tag)
-    end
-    return true
+    return U.addObject(sq, sprite, tag) ~= nil
 end
 
 ---------------------------------------------------------------------------
 -- The layout
 ---------------------------------------------------------------------------
 -- Offsets run 0..CabinW across and 0..CabinL fore to aft, with oy 0 at the
--- bow. The hull tapers at both ends, so an offset that is fine amidships can
--- be outside the ship forward of about oy 6 or aft of about oy 18 --
--- tests/test_layout.py checks every offset below against the floor plan.
+-- bow. Everything except the lamps and the helm item is authored in
+-- BuildingEd and lives in TREK_InteriorLayout.lua; tests/test_layout.py
+-- checks every offset in both against the floor plan.
 
 --- Deckhead lighting. Kept as a table on B so the layout test can check these
 --- offsets the same way it checks the furniture.
@@ -259,94 +222,108 @@ B.lampSpots = {
     { 3, 1 }, { 2, 3 }, { 3, 6 },
 }
 
---- Type 6 cockpit: paired flight stations under the forward windows.
-local function furnishHelm()
-    local S = C.Sprites
-
-    if claim(2, 1, "helm") then
-        local hx, hy = at(2, 1)
-        local sq = U.square(hx, hy, C.CabinZ, true)
-        if sq then
-            local already = false
-            U.try("scanHelm", function()
-                local items = sq:getWorldObjects()
-                if not items then return end
-                for i = 0, items:size() - 1 do
-                    local it = items:get(i)
-                    local item = it and it:getItem()
-                    if item and item:getFullType() == C.HelmItem then already = true end
-                end
-            end)
-            if not already then
-                U.try("addHelm", function()
-                    sq:AddWorldInventoryItem(C.HelmItem, 0.5, 0.5, 0.0)
-                end)
-            end
-        end
-    end
-
-    fit(1, 0, S.monitors.S, "viewscreen")
-    fit(3, 0, S.monitors.S, "viewscreen")
-    fit(0, 1, S.terminal.E, "terminal")
-    fit(5, 1, S.terminal.W, "terminal")
-    fit(1, 2, S.chair.N, "chair")
-    fit(4, 2, S.chair.N, "chair")
-    fit(0, 2, S.computer.E, "computer")
-    fit(5, 2, S.computer.W, "computer")
-end
-
---- Compact wash point and emergency provisions along the starboard wall.
-local function furnishGalley()
-    local S = C.Sprites
-    fit(5, 4, S.sink.W, "sink")
-    fit(5, 5, S.locker.W, "provisions", C.Loot.food, 12)
-end
-
---- A shuttle emergency cabinet replaces the old full sick bay.
-local function furnishSickBay()
-    local S = C.Sprites
-    fit(0, 5, S.medCabinet.E, "medical", C.Loot.medical, 16)
-end
-
---- The port passenger bench converts into a two-square emergency berth.
-local function furnishQuarters()
-    local S = C.Sprites
-    place("bunkS", 0, 3, "bunk")
-    fit(5, 3, S.chair.W, "passenger")
-end
-
---- Compact mission storage around the aft hatch approach.
-local function furnishCargo()
-    local S = C.Sprites
-    fit(1, 8, S.crate, "storage", C.Loot.food, 12)
-    fit(3, 8, S.metalShelf.N, "equipment", C.Loot.tools, 10)
-    fit(5, 7, S.locker.W, "storage", C.Loot.linen, 6)
-end
-
---- The phaser locker, stood beside the transporter pad, so anyone who beams
---- aboard is looking straight at it.
+--- True when a layout entry is meant to be openable.
 ---
---- Stocked with U.stockEach rather than U.stock: there is exactly one item
---- type in it, and reading the container back proves all four arrived instead
---- of hoping they did.
-local function furnishPhasers()
-    local S = C.Sprites
-    local ox, oy = C.PhaserRack.x, C.PhaserRack.y
-    if not inShape(ox, oy) or C.isLanding(ox, oy) then
-        U.warnOnce("phaserRack", "C.PhaserRack falls outside the cabin or on the pad")
-        return
-    end
-    if not claim(ox, oy, "phasers") then return end
+--- The flag is what the layout declares, but an entry carrying loot and no
+--- flag is a container whose flag was forgotten, and treating it as scenery is
+--- the worst of both worlds: the stores never appear and nothing says so. This
+--- reads either as intent. tests/test_layout.py fails the missing flag so it
+--- gets fixed in the layout rather than relied on here.
+local function wantsContainer(entry)
+    return entry.container == true or entry.loot ~= nil or entry.special ~= nil
+end
 
-    local x, y = at(ox, oy)
-    local rack, made = U.addContainer(U.square(x, y, C.CabinZ, true),
-                                      S.locker.W, "phasers")
-    if rack and (made or C.DevRestock) then
-        local present = U.stockEach(rack, { C.PhaserItem }, C.PhaserCount)
-        local n = present[C.PhaserItem] or 0
-        if n < C.PhaserCount then
-            U.log("phaser locker holds %d of %d", n, C.PhaserCount)
+--- Stocks one authored container. Returns true when something went in.
+---
+--- The phaser locker is stocked in two passes, and the order is the point:
+--- U.stockEach puts the phasers in and reads the container back to prove all
+--- four arrived, then the armoury list fills what is left. Filling first would
+--- let a long weapons list reach the target on its own and leave the locker
+--- the mod is built around holding no phasers at all.
+local function stockAuthored(obj, entry)
+    local added = 0
+
+    if entry.special == "phasers" then
+        local present = U.stockEach(obj, { C.PhaserItem }, C.PhaserCount)
+        local count = present[C.PhaserItem] or 0
+        added = added + count
+        if count < C.PhaserCount then
+            U.log("WARN phaser locker holds %d of %d", count, C.PhaserCount)
         end
+    end
+
+    local list = entry.loot and C.Loot[entry.loot]
+    if entry.loot and not list then
+        U.warnOnce("loot:" .. tostring(entry.loot),
+                   "no C.Loot list named " .. tostring(entry.loot))
+    elseif list then
+        added = added + U.fill(obj, list, entry.fill, entry.cap)
+    end
+
+    return added > 0
+end
+
+--- Places furniture authored in BuildingEd. Layering is intentional: an
+--- appliance and its counter may occupy the same square, so this bypasses
+--- claim() while the object helpers keep repeated builds idempotent.
+local function furnishAuthoredInterior()
+    for _, entry in ipairs(L.tiles) do
+        if inShape(entry.x, entry.y) and not C.isLanding(entry.x, entry.y) then
+            local x, y = at(entry.x, entry.y)
+            local sq = U.square(x, y, C.CabinZ, true)
+            if wantsContainer(entry) then
+                local obj, made = U.addContainer(sq, entry.sprite, entry.tag)
+                if obj then
+                    U.try("stockAuthored:" .. tostring(entry.tag), function()
+                        local data = obj:getModData()
+                        -- Revision-specific initialization lets a corrected
+                        -- build repair containers that an older broken build
+                        -- incorrectly marked as stocked.
+                        local initialize = made or C.DevRestock
+                                           or data.TREKStockRev ~= C.BuildRev
+                        if not initialize then return end
+
+                        if stockAuthored(obj, entry) then
+                            data.TREKStockRev = C.BuildRev
+                            data.TREKAuthoredStocked = nil
+                            obj:transmitModData()
+                        else
+                            U.log("WARN container %s at %d,%d received no stock",
+                                  tostring(entry.tag), entry.x, entry.y)
+                        end
+                    end)
+                end
+            else
+                U.addObject(sq, entry.sprite, entry.tag)
+            end
+        else
+            U.warnOnce("authored:" .. tostring(entry.x) .. ":" .. tostring(entry.y),
+                string.format("layout entry %s at %d,%d is outside the cabin or on the pad",
+                    tostring(entry.tag), entry.x, entry.y))
+        end
+    end
+end
+
+--- BuildingEd owns the scenery, but the helm remains a special world item.
+local function furnishHelmItem()
+    local hx, hy = at(3, 7)
+    local sq = U.square(hx, hy, C.CabinZ, true)
+    if not sq then return end
+
+    local already = false
+    U.try("scanHelm", function()
+        local items = sq:getWorldObjects()
+        if not items then return end
+        for i = 0, items:size() - 1 do
+            local worldItem = items:get(i)
+            local item = worldItem and worldItem:getItem()
+            if item and item:getFullType() == C.HelmItem then already = true end
+        end
+    end)
+    if not already then
+        U.try("addHelm", function()
+            sq:AddWorldInventoryItem(C.HelmItem, 0.5, 0.5, 0.0)
+        end)
     end
 end
 
@@ -376,6 +353,53 @@ local function lightCabin()
         local px, py = at(C.Landing.x, C.Landing.y)
         lamp(function() cell:addLamppost(px, py, z, 0.70, 0.88, 1.0, 6) end)
     end
+end
+
+---------------------------------------------------------------------------
+-- Reporting
+---------------------------------------------------------------------------
+--- Writes one line per authored container to console.txt.
+---
+--- An empty locker is the failure this mod keeps having, and it is silent
+--- every time: a container placed without an ItemContainer looks exactly like
+--- a stocked one until somebody walks up to it in game. Reading every
+--- container back after the build turns a trip into the game into a grep.
+---
+--- Exposed on B because `TREK_Stock()` calls it from the debug console.
+function B.stockReport()
+    local lines, empty = 0, 0
+    for _, entry in ipairs(L.tiles) do
+        if wantsContainer(entry) then
+            local x, y = at(entry.x, entry.y)
+            local sq = U.square(x, y, C.CabinZ, false)
+            local obj = sq and U.findSprite(sq, entry.sprite)
+            local held = obj and U.itemCount(obj) or 0
+            local level = obj and U.fillLevel(obj)
+            if not obj then
+                U.log("stock %-11s %d,%d MISSING -- nothing placed",
+                      tostring(entry.tag), entry.x, entry.y)
+                empty = empty + 1
+            elseif not U.containerOf(obj) then
+                U.log("stock %-11s %d,%d NOT A CONTAINER -- %s has no inventory",
+                      tostring(entry.tag), entry.x, entry.y, entry.sprite)
+                empty = empty + 1
+            else
+                if held == 0 then empty = empty + 1 end
+                U.log("stock %-11s %d,%d %2d items, %s full",
+                      tostring(entry.tag), entry.x, entry.y, held,
+                      level and string.format("%d%%", math.floor(level * 100 + 0.5))
+                            or "capacity unknown")
+            end
+            lines = lines + 1
+        end
+    end
+    U.log("stock: %d containers, %d empty", lines, empty)
+    return lines - empty, lines
+end
+
+--- Exposed for the debug console: TREK_Stock()
+function TREK_Stock()
+    return B.stockReport()
 end
 
 ---------------------------------------------------------------------------
@@ -422,14 +446,12 @@ function B.buildCabin()
         { "furnish", function()
               claimed = {}
               U.resetStockCursors()
-              furnishHelm()
-              furnishGalley()
-              furnishSickBay()
-              furnishQuarters()
-              furnishCargo()
-              furnishPhasers()
+              U.resetItemStrategy()
+              furnishAuthoredInterior()
+              furnishHelmItem()
           end },
         { "lightCabin",     lightCabin },
+        { "stockReport", function() B.stockReport() end },
         { "clearMargin",    clearSurroundings },
     }
     for _, phase in ipairs(phases) do

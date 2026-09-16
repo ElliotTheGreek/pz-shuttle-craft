@@ -315,7 +315,16 @@ end
 function U.addContainer(sq, sprite, tag)
     local obj, created = U.addObject(sq, sprite, tag)
     if not obj then return nil, false end
-    if created then
+
+    -- BuildingEd-derived furniture may already exist as a visual IsoObject
+    -- without the ItemContainer that map-loaded objects receive automatically.
+    -- Initialize whenever the inventory is absent, not only when the sprite
+    -- object itself was created during this call.
+    local container = U.try("getContainer", function() return obj:getContainer() end)
+    if not container then
+        container = U.try("getItemContainer", function() return obj:getItemContainer() end)
+    end
+    if created or not container then
         U.try("createContainers", function()
             obj:createContainersFromSpriteProperties()
         end)
@@ -333,6 +342,87 @@ end
 -- Where each loot list got to, so the next container carries on from there.
 local stockCursor = {}
 
+--- The ways an item can be made and put in a container.
+---
+--- There is more than one because which of them exists is a property of the
+--- build and not of the jar. `zombie.inventory.InventoryItemFactory` is a real
+--- class with a real static `CreateItem(String)` on it -- pzapi.py will show
+--- it to you -- and in build 42 it is **not exposed to Lua**: the global is
+--- null and every call throws `attempted index: CreateItem of non-table`.
+--- That is how nineteen containers came to be built perfectly and stocked
+--- with nothing at all, twice.
+---
+--- Only `zombie.Lua.LuaManager$GlobalObject` statics are Lua globals, which is
+--- what `instanceItem` is and what vanilla uses in 187 places. It goes first;
+--- the others are kept because being wrong about this is expensive and the
+--- cost of carrying them is two pcalls, once.
+local addStrategies = {
+    { name = "instanceItem", add = function(container, id)
+        local item = instanceItem(id)
+        if not item then return false end
+        container:AddItem(item)
+        return true
+    end },
+    { name = "container:AddItem(id)", add = function(container, id)
+        return container:AddItem(id) ~= nil
+    end },
+    { name = "InventoryItemFactory", add = function(container, id)
+        local item = InventoryItemFactory.CreateItem(id)
+        if not item then return false end
+        container:AddItem(item)
+        return true
+    end },
+}
+
+-- The one that worked, remembered after the first item.
+local addStrategy = nil
+
+local function sizeOf(container)
+    local items = U.try("getItems", function() return container:getItems() end)
+    return items and items:size() or 0
+end
+
+--- Adds one item and proves that the inventory actually grew.
+---
+--- The proof is the point. Every one of these strategies can fail silently --
+--- a nil back, a throw swallowed by pcall, a container at capacity dropping
+--- what it was handed -- and all three look identical from here. Counting the
+--- contents before and after is the only answer that cannot lie.
+local function addVerified(container, id)
+    if not container or not id then return false end
+    local before = sizeOf(container)
+
+    local function attempt(way)
+        local ok = pcall(way.add, container, id)
+        return ok and sizeOf(container) > before
+    end
+
+    if addStrategy then
+        if attempt(addStrategy) then return true end
+        -- A strategy that has worked before and fails on one id means a bad
+        -- id, not a broken build. Name the id and keep the strategy.
+        U.warnOnce("item:" .. id, "could not add " .. id)
+        return false
+    end
+
+    for _, way in ipairs(addStrategies) do
+        if attempt(way) then
+            addStrategy = way
+            U.log("stocking containers via %s", way.name)
+            return true
+        end
+    end
+    U.warnOnce("item:" .. id,
+               "no way to put " .. id .. " in a container works in this build")
+    return false
+end
+
+local function finishStock(container)
+    U.try("container.explored", function() container:setExplored(true) end)
+    U.try("container.dirty", function() container:setDirty(true) end)
+    U.try("container.drawDirty", function() container:setDrawDirty(true) end)
+end
+
 --- Fills a container with `count` picks from `list`.
 ---
 --- Each list keeps a rolling position, so consecutive containers continue
@@ -348,12 +438,10 @@ function U.stock(obj, list, count)
     local added = 0
     for i = 0, count - 1 do
         local id = list[((start + i) % #list) + 1]
-        local ok = U.try("AddItems:" .. id, function()
-            return container:AddItems(id, 1)
-        end)
-        if ok then added = added + 1 end
+        if addVerified(container, id) then added = added + 1 end
     end
     stockCursor[key] = (start + count) % #list
+    if added > 0 then finishStock(container) end
     return added
 end
 
@@ -361,6 +449,101 @@ end
 --- same way it did the first time.
 function U.resetStockCursors()
     stockCursor = {}
+end
+
+--- Forgets which way of adding items worked, so the next build probes again.
+---
+--- Called at the start of a build rather than left latched for the session:
+--- the probe costs two pcalls once, and it makes every build log the line
+--- that says which path it is using. That line is what turns "the containers
+--- are empty again" into a one-line answer.
+function U.resetItemStrategy()
+    addStrategy = nil
+end
+
+--- A container's capacity and what it is currently carrying, or nil when the
+--- engine will not say.
+---
+--- Capacity is the tile's own ContainerCapacity property -- 40 for a locker,
+--- 15 for an oven, 5 for a microwave -- which is why this is read back off the
+--- object rather than guessed at per fitting.
+local function loadOf(container)
+    local cap = U.try("container.capacity", function()
+        return container:getCapacity()
+    end)
+    if type(cap) ~= "number" or cap <= 0 then return nil end
+    local held = U.try("container.weight", function()
+        return container:getContentsWeight()
+    end)
+    if type(held) ~= "number" then return nil end
+    return cap, held
+end
+
+--- How full a container is, 0..1, or nil when the engine will not say.
+function U.fillLevel(obj)
+    local container = U.containerOf(obj)
+    if not container then return nil end
+    local cap, held = loadOf(container)
+    if not cap then return nil end
+    return held / cap
+end
+
+--- How many items a container holds.
+function U.itemCount(obj)
+    local container = U.containerOf(obj)
+    if not container then return 0 end
+    local items = U.try("container.items", function() return container:getItems() end)
+    return items and items:size() or 0
+end
+
+--- Stocks a container until it is `fraction` full by weight.
+---
+--- This is the difference between a cabin that looks provisioned and one that
+--- looks staged. U.stock puts a fixed number of items in, which cannot be
+--- right for every fitting at once: eight tins fill a microwave past the brim
+--- and leave a 40-unit locker at a fifth. Filling to a fraction of the
+--- container's own capacity gives every one of them the same look.
+---
+--- `cap` bounds the item count whatever the weight says, because a list of
+--- bandages at 0.1 each would need two hundred of them to reach half a locker.
+--- Whichever limit binds first stops the fill, so a light list gives a heaped
+--- container that is under target by weight and that is the intended trade.
+---
+--- Falls back to filling to the item cap when the engine will not report a
+--- capacity, so a container type with no ContainerCapacity property is still
+--- stocked rather than skipped.
+---
+--- Returns the number of items added and the fill level reached.
+function U.fill(obj, list, fraction, cap)
+    local container = U.containerOf(obj)
+    if not container or not list or #list == 0 then return 0, nil end
+
+    fraction = fraction or C.FillFraction
+    cap = cap or C.FillItemCap
+
+    local capacity, held = loadOf(container)
+    local target = capacity and capacity * fraction or nil
+
+    local key = tostring(list)
+    local start = stockCursor[key] or 0
+    local added, taken = 0, 0
+
+    while taken < cap do
+        if target and held >= target then break end
+        local id = list[((start + taken) % #list) + 1]
+        taken = taken + 1
+        if addVerified(container, id) then added = added + 1 end
+        if target then
+            local _, now = loadOf(container)
+            -- A reading that fails mid-fill must not stall the loop: `taken`
+            -- still climbs, so the item cap ends it either way.
+            held = now or held
+        end
+    end
+
+    stockCursor[key] = (start + taken) % #list
+    if added > 0 then finishStock(container) end
+    return added, U.fillLevel(obj)
 end
 
 --- Puts `copies` of every entry in `list` into a container, then reads the
@@ -375,11 +558,13 @@ function U.stockEach(obj, list, copies)
     if not container or not list then return {}, list or {} end
     copies = copies or 1
 
+    local added = 0
     for _, id in ipairs(list) do
         for _ = 1, copies do
-            U.try("AddItems:" .. id, function() return container:AddItems(id, 1) end)
+            if addVerified(container, id) then added = added + 1 end
         end
     end
+    if added > 0 then finishStock(container) end
 
     local present = {}
     U.try("readBack", function()

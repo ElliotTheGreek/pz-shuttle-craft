@@ -19,9 +19,15 @@ shutil.copytree(SOURCE, DESTINATION)
 # Workshop package keep the release ID; only the deployed copy is rewritten.
 info = DESTINATION / "42" / "mod.info"
 text = info.read_text(encoding="utf-8")
-text = text.replace("name=Shuttlecraft\n", "name=Shuttlecraft [DEV FLIGHT]\n", 1)
-text = text.replace("id=TrekShuttle\n", "id=TrekShuttleDev\n", 1)
-text = text.replace("modversion=1.0.0\n", "modversion=1.4.0-dev\n", 1)
+lines = text.splitlines()
+lines = [
+    "name=Shuttlecraft [DEV FLIGHT]" if line == "name=Shuttlecraft" else
+    "id=TrekShuttleDev" if line == "id=TrekShuttle" else
+    line + "-dev" if line.startswith("modversion=") and not line.endswith("-dev") else
+    line
+    for line in lines
+]
+text = "\n".join(lines) + "\n"
 info.write_text(text, encoding="utf-8")
 
 source_files = sorted(path.relative_to(SOURCE) for path in SOURCE.rglob("*") if path.is_file())
@@ -36,18 +42,25 @@ def digest(path):
             value.update(chunk)
     return value.hexdigest()
 
-if ("id=TrekShuttleDev" not in text
-        or "name=Shuttlecraft [DEV FLIGHT]" not in text
-        or "modversion=1.4.0-dev" not in text):
+dev_version = next((line.split("=", 1)[1] for line in lines
+                    if line.startswith("modversion=")), "")
+if ("id=TrekShuttleDev" not in lines
+        or "name=Shuttlecraft [DEV FLIGHT]" not in lines
+        or not dev_version.endswith("-dev")):
     raise SystemExit("development mod identity was not written")
-print("42\\mod.info", "TrekShuttleDev 1.4.0-dev")
+print("42\\mod.info", "TrekShuttleDev " + dev_version)
 
 critical = [
     Path("42/media/models_X/TREK_Shuttle.x"),
     Path("42/media/textures/TREK_Shuttle.png"),
     Path("42/media/scripts/trekshuttle.txt"),
+    Path("42/media/sound/TREK_PhaserPulse.wav"),
+    Path("42/media/lua/client/TREK/TREK_Build.lua"),
+    Path("42/media/lua/client/TREK/TREK_InteriorLayout.lua"),
     Path("42/media/lua/client/TREK/TREK_Flight.lua"),
     Path("42/media/lua/client/TREK/TREK_Menu.lua"),
+    Path("42/media/lua/shared/TREK/TREK_Config.lua"),
+    Path("42/media/lua/shared/TREK/TREK_Util.lua"),
     Path("42/media/lua/shared/Translate/EN/IG_UI.json"),
 ]
 for relative in critical:
@@ -64,8 +77,8 @@ if "FLIGHT BUILD 1.4" not in flight:
     raise SystemExit("deployed flight controller marker is missing")
 if 'require "TREK/TREK_Flight"' not in menu:
     raise SystemExit("deployed menu does not load the flight controller")
-if "Pilot the shuttle [FLIGHT 1.4]" not in labels:
+if '"IGUI_TREK_Pilot": "Pilot the shuttle"' not in labels:
     raise SystemExit("deployed visible flight label is missing")
 
 print("deployed", len(deployed_files), "files ->", DESTINATION)
-print("critical deployed files and FLIGHT BUILD 1.4 markers verified")
+print("critical deployed files and flight markers verified")

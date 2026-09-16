@@ -517,38 +517,90 @@ end
 ---------------------------------------------------------------------------
 -- Upkeep
 ---------------------------------------------------------------------------
---- The ship's water never runs dry: the galley sink, the head and the shower
---- are topped up on a timer. Anything the build tagged sink, shower or toilet
---- is included, so adding another fixture needs no change here.
-function Core.refillWater()
-    local s = U.state()
-    if not s.built then return end
-    local count = 0
-    for ox = 0, C.CabinW do
-        for oy = 0, C.CabinL do
-            local x, y = U.at(ox, oy)
-            local sq = U.square(x, y, C.CabinZ, false)
-            if sq then
-                U.eachObject(sq, function(o)
-                    local md = o:getModData()
-                    local tag = md and md.TREK
-                    if tag == "sink" or tag == "shower" or tag == "toilet" then
-                        U.try("refill", function()
-                            local cap = o:getFluidCapacity()
-                            if cap and cap > 0 then
-                                local have = o:getFluidAmount() or 0
-                                if have < cap then
-                                    o:addFluid(FluidType.Water, cap - have)
-                                end
-                            end
-                        end)
-                        count = count + 1
-                    end
-                end)
+--- Tops one fixture up, and returns whether it is holding water afterwards.
+---
+--- Two mechanisms, because build 42 has two and a fixture may use either.
+--- A sink's water is *reserve* water -- the waterAmount / waterMaxAmount
+--- sprite properties -- reached through getReserveWaterAmount and
+--- setReserveWaterAmount. A rain barrel, or anything else carrying a
+--- FluidContainer, holds a *fluid* and wants addFluid instead.
+---
+--- A sink has no FluidContainer at all, so getFluidCapacity returns 0 and the
+--- fluid path on its own tops up precisely nothing, without complaining. That
+--- is what this function used to do. Both paths run, and then hasWater() is
+--- asked, because it is the same question the game asks before it will let
+--- anybody drink.
+local function refillFixture(o)
+    U.try("reserveWater", function()
+        local max = o:getReserveWaterMax()
+        if max and max > 0 and (o:getReserveWaterAmount() or 0) < max then
+            o:setReserveWaterAmount(max)
+        end
+    end)
+    U.try("fluidWater", function()
+        local cap = o:getFluidCapacity()
+        if cap and cap > 0 then
+            local have = o:getFluidAmount() or 0
+            if have < cap then o:addFluid(FluidType.Water, cap - have) end
+        end
+    end)
+    return U.try("hasWater", function() return o:hasWater() end) == true
+end
+
+-- Where the layout puts plumbed fixtures. Worked out once from the authored
+-- interior rather than by sweeping the cabin, so this can run every couple of
+-- seconds while somebody is aboard without costing anything.
+local waterSpots = nil
+
+local function findWaterSpots()
+    if waterSpots then return waterSpots end
+    waterSpots = {}
+    local ok, L = pcall(require, "TREK/TREK_InteriorLayout")
+    if ok and L and L.tiles then
+        for _, entry in ipairs(L.tiles) do
+            if C.WaterTags[entry.tag] then
+                table.insert(waterSpots, { entry.x, entry.y })
             end
         end
     end
-    U.debug("topped up %d water fixtures", count)
+    return waterSpots
+end
+
+--- The ship's water never runs dry: the galley sink, the head and the shower
+--- are kept full. Anything the layout tagged sink, shower or toilet is
+--- included, so adding another fixture in BuildingEd needs no change here.
+---
+--- Returns the number holding water and the number that would not fill.
+function Core.refillWater()
+    local s = U.state()
+    if not s.built then return 0, 0 end
+    local wet, dry = 0, 0
+    for _, spot in ipairs(findWaterSpots()) do
+        local x, y = U.at(spot[1], spot[2])
+        local sq = U.square(x, y, C.CabinZ, false)
+        if sq then
+            U.eachObject(sq, function(o)
+                local md = U.try("md", function() return o:getModData() end)
+                local tag = md and md.TREK
+                if tag and C.WaterTags[tag] then
+                    if refillFixture(o) then wet = wet + 1 else dry = dry + 1 end
+                end
+            end)
+        end
+    end
+    if dry > 0 then
+        U.warnOnce("waterDry",
+            string.format("%d water fixture(s) will not hold water", dry))
+    end
+    U.debug("water: %d fixtures full, %d dry", wet, dry)
+    return wet, dry
+end
+
+--- Exposed for the debug console: TREK_Water()
+function TREK_Water()
+    local wet, dry = Core.refillWater()
+    U.log("water: %d fixtures holding water, %d dry", wet, dry)
+    return wet, dry
 end
 
 ---------------------------------------------------------------------------
@@ -644,6 +696,7 @@ Events.OnTick.Add(serviceArrival)
 Events.EveryTenMinutes.Add(Core.refillWater)
 
 local rescueTick, fieldTick, ghostTick, strayTick, voidTick = 0, 0, 0, 0, 0
+local waterTick = 0
 Events.OnPlayerUpdate.Add(function(player)
     rescueTick = rescueTick + 1
     if rescueTick >= 10 then
@@ -660,6 +713,16 @@ Events.OnPlayerUpdate.Add(function(player)
         if U.isInteriorPlayer(player) then
             TREK.Build.clearLoadedSurroundings()
         end
+    end
+
+    -- Water, while somebody is aboard to use it. The ten-minute timer keeps
+    -- the fixtures full the rest of the time; this is what makes them
+    -- impossible to drain while you are standing at them. It visits only the
+    -- squares the layout puts fixtures on, so it is a handful of lookups.
+    waterTick = waterTick + 1
+    if waterTick >= C.WaterInterval then
+        waterTick = 0
+        if U.isInteriorPlayer(player) then Core.refillWater() end
     end
 
     fieldTick = fieldTick + 1

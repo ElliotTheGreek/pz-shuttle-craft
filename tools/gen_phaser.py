@@ -1,14 +1,12 @@
-"""Generates the phaser inventory icon.
+"""Generates the phaser inventory icon and original firing sound.
 
-Like every other asset here it is drawn rather than hand-authored, so the mod
-stays reproducible from source. pngwrite gives rectangles and a 5x7 font and
-nothing else, which suits a 64x64 icon: the phaser reads as a wedge -- a
-squared grip under a tapering body, emitter forward, with the beam aperture
-lit.
+Like every other asset here they are generated rather than hand-authored, so
+the mod stays reproducible from source. The firing sound is a brief electronic
+chirp synthesized with the Python standard library, not copied franchise audio.
 
     python tools/gen_phaser.py TrekShuttle/42
 """
-import sys, os, math
+import sys, os, math, struct, wave
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pngwrite import Image
 
@@ -94,8 +92,39 @@ def build_icon(path):
     return img
 
 
+def build_sound(path):
+    """Write a short mono energy pulse using deterministic oscillators."""
+    rate = 44100
+    duration = 0.28
+    frames = []
+    phase_a = 0.0
+    phase_b = 0.0
+
+    for i in range(int(rate * duration)):
+        t = i / rate
+        progress = t / duration
+        attack = min(1.0, t / 0.006)
+        envelope = attack * math.exp(-10.5 * progress)
+        freq_a = 1000.0 - 580.0 * progress
+        freq_b = 1500.0 - 850.0 * progress
+        phase_a += 2.0 * math.pi * freq_a / rate
+        phase_b += 2.0 * math.pi * freq_b / rate
+        carrier = 0.62 * math.sin(phase_a) + 0.25 * math.sin(phase_b)
+        shimmer = 0.13 * math.sin(2.0 * phase_a + 0.35 * math.sin(phase_b))
+        sample = max(-1.0, min(1.0, (carrier + shimmer) * envelope))
+        frames.append(struct.pack("<h", int(sample * 28500)))
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with wave.open(path, "wb") as output:
+        output.setnchannels(1)
+        output.setsampwidth(2)
+        output.setframerate(rate)
+        output.writeframes(b"".join(frames))
+
+
 if __name__ == "__main__":
     root = sys.argv[1]
     build_icon(os.path.join(root, "media", "ui", "TREK_Phaser.png"))
     build_icon(os.path.join(root, "media", "textures", "Item_TREK_Phaser.png"))
-    print("phaser icon written")
+    build_sound(os.path.join(root, "media", "sound", "TREK_PhaserPulse.wav"))
+    print("phaser icon and firing sound written")

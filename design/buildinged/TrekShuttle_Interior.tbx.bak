@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<building version="3" width="6" height="9">
+ <properties>
+  <property name="Description" value="TrekShuttle runtime cabin design source"/>
+  <property name="Mod" value="TrekShuttle"/>
+ </properties>
+ <user_tiles/>
+ <used_tiles/>
+ <used_furniture/>
+ <room Name="Shuttle Interior" InternalName="livingroom" Color="72 132 160"/>
+ <floor>
+  <rooms>
+1,1,1,1,1,1,
+1,1,1,1,1,1,
+1,1,1,1,1,1,
+1,1,1,1,1,1,
+1,1,1,1,1,1,
+1,1,1,1,1,1,
+1,1,1,1,1,1,
+1,1,1,1,1,1,
+1,1,1,1,1,1
+  </rooms>
+  <attributes>
+0,0,0,0,0,0,
+0,0,0,0,0,0,
+0,0,0,0,0,0,
+0,0,0,0,0,0,
+0,0,0,0,0,0,
+0,0,0,0,0,0,
+0,0,0,0,0,0,
+0,0,0,0,0,0,
+0,0,0,0,0,0
+  </attributes>
+ </floor>
+</building>

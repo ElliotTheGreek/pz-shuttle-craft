@@ -80,6 +80,54 @@ The game ships no `javap`; `tools/pzapi.py` parses the class files out of
 `projectzomboid.jar` directly. **Use it.** In the TARDIS this cost a whole
 session (`props:UnSet` for `props:unset`, throwing once per square).
 
+### The jar is not the API
+
+**This one cost three attempts and two trips into the game.** It is the single
+most expensive mistake this project has made.
+
+`tools/pzapi.py` reads `projectzomboid.jar`. A method being in the jar means
+the *engine* has it. It does **not** mean Lua can reach it.
+
+Only two things are reachable from Lua: methods on an object the engine handed
+you, and globals. And the globals are `zombie.Lua.LuaManager$GlobalObject`
+statics — nothing else. `zombie.inventory.InventoryItemFactory` is a real class
+with a real `static CreateItem(String)` on it, `pzapi.py` shows it happily, and
+in build 42 the Lua global is **null**:
+
+```
+[TREK] WARN (CreateItem:Base.Pistol) attempted index: CreateItem of non-table: null
+```
+
+Every container in the cabin was built perfectly and stocked with nothing, and
+the only symptom was empty lockers. Use `instanceItem(id)` — it is a
+`GlobalObject` static, and vanilla calls it in 187 places.
+
+**So: before calling a global, grep the game's own Lua for it.**
+
+```sh
+PZ="/c/Program Files (x86)/Steam/steamapps/common/ProjectZomboid/media/lua"
+grep -ran "instanceItem(" "$PZ" | wc -l          # 187 -- real
+grep -ran "InventoryItemFactory" "$PZ" | wc -l   # 0 in practice -- not real
+```
+
+`pzapi.py` answers "does this method exist". Grepping vanilla Lua answers "may
+I call it". **You need both, and the second one is the one that was skipped.**
+
+The same reasoning applies to *which* API a given object actually uses — see
+*Two APIs for water* below.
+
+### Never trust one way of doing it when the cost of being wrong is silence
+
+`U.addVerified` tries `instanceItem`, then `container:AddItem(id)`, then
+`InventoryItemFactory`, keeps whichever works, and logs which one it used. The
+fallbacks cost two `pcall`s once per build. Being wrong cost two sessions.
+
+The important half is not the fallbacks, it is the **proof**: it counts the
+container before and after and only reports success if the contents actually
+grew. Every one of those three paths can fail silently — a nil back, a throw
+swallowed by `pcall`, a full container dropping what it was handed — and from
+Lua they all look identical. Counting is the only answer that cannot lie.
+
 ### Prefer the overload that says what it does
 
 `getItemsFromFullType(String, boolean)` and `getAllTypeRecurse(String)` both
@@ -191,31 +239,93 @@ position down to retry — `s.ghosts` and `Core.sweepGhosts` are the pattern. In
 the TARDIS, getting this wrong left a second police box at every place the ship
 had ever been.
 
-### One object per square, and prove it
+### The interior is authored in BuildingEd, not in the code
 
-`fit`, `line` and `place` claim the square they are about to use and refuse one
-already taken. Overlaps do not fail on their own: `U.addObject` only looks for
-its own sprite, so two objects stack, both are drawn, and which one is reachable
-is a matter of draw order.
+`TREK_Build.lua` builds the hull, the deck, the lighting and the helm item.
+**Everything else — every fitting, every locker — comes from
+`design/buildinged/TrekShuttle_Interior.tbx`** and is read at runtime out of
+`TREK_InteriorLayout.lua`. To move a locker, open the map editor, not the Lua.
 
-`tests/test_layout.py` catches this before the game runs, by parsing every
-placement call out of `TREK_Build.lua`.
+Layering on one square is deliberate here (a counter with a microwave on it, a
+console over a desk), so `furnishAuthoredInterior` bypasses the `claim()` check
+that `fit` uses. The lamps and the helm still go through `fit`, and it is only
+`tests/test_layout.py` that would notice a lamp landing on top of a locker.
 
-### Watch the taper
+**Dead placement code is worse than none.** For a while every `furnish*`
+function in `TREK_Build.lua` was unreachable — the BuildingEd switch had
+replaced them — and `test_layout.py` was busy validating *those* offsets. It
+drew a confident picture of a ship that no longer existed and passed while the
+real interior went unchecked. If a furnishing function stops being called,
+delete it, and check what the tests are actually reading.
 
-The hull cuts six squares off the bow and three off the stern. An offset that
-is fine amidships is in open space at oy 3, and a placement that lands outside
-the hull simply does not happen — no error, no object, nothing in the log. The
-first draft of the layout had a toilet and two showers outside the ship and
-looked completely fine in the source.
+### Verify a placement against the layout, not the source
 
-Add a fitting, then run `python tests/test_layout.py` and look at the picture.
+A placement outside the hull simply does not happen — no error, no object,
+nothing in the log. An early draft had a toilet and two showers outside the
+ship and looked completely fine in the source.
+
+`tests/test_layout.py` loads `TREK_InteriorLayout.lua` for real (it is pure
+data — no engine calls — so it can be `require`d under lupa) and prints the
+deck plan with every fitting on it. Run it and **look at the picture**. It also
+checks the Lua against the `.tbx` it came from, so a locker added in the map
+editor and not carried across fails rather than quietly never appearing.
 
 ### Tag every object you place
 
 `U.clearSquare` keeps tagged objects and destroys untagged ones, so an untagged
 shelf is wiped on the next rebuild. Tags also drive behaviour (`sink`,
 `shower` and `toilet` get refilled) and the self-test counts fittings by tag.
+
+### Two APIs for water, and a sink only answers to one
+
+A sink's water is **reserve** water — the `waterAmount` / `waterMaxAmount`
+sprite properties — reached with `getReserveWaterMax()` and
+`setReserveWaterAmount()`. A rain barrel, or anything else carrying a
+`FluidContainer`, holds a **fluid** and wants `addFluid(FluidType.Water, n)`.
+
+A sink has no `FluidContainer` at all, so `getFluidCapacity()` returns 0 and
+the fluid path tops up nothing without complaining. `Core.refillWater` does
+both and then asks `hasWater()`, which is the question the game itself asks
+before it will let anybody drink.
+
+Note `getWaterAmount()` does **not** exist on `IsoObject` in build 42.
+
+And the reason the refill exists at all: the vanilla sink sprites carry
+`waterPiped`, so they are fed by the town mains — which shut off a few weeks
+into any world. A ship that makes its own power should not lose its tap when
+Louisville does.
+
+### Containers built at runtime are not containers
+
+A sprite being a container in the tileset is not enough. A map-loaded object
+gets its `ItemContainer` for free; one built at runtime does not, and
+`obj:createContainersFromSpriteProperties()` is what makes the difference —
+`U.addContainer` calls it whenever the inventory is absent.
+
+Without it the locker is placed, drawn, and cannot be opened, and it looks
+exactly like a stocked one. `TREK_InteriorLayout.lua` marks every stocked entry
+`container = true`, `TREK_Build` also treats any entry carrying `loot` or
+`special` as one so a forgotten flag cannot repeat it, and
+`tests/test_layout.py` cross-checks the flag against the tile catalogue **both
+ways** — a stocked entry whose sprite cannot hold anything fails, and so does a
+container sprite that nothing stocks.
+
+### Stock containers by weight, not by item count
+
+Item count says nothing about how full a container looks. A locker holds 40
+units, a microwave 5 — `amount = 8` heaps the microwave and leaves the locker
+at a fifth. `U.fill` reads `getCapacity()` off the object and fills to
+`C.FillFraction` of it, so every fitting the map editor drops in ends up
+looking the same whatever size it is.
+
+`C.FillItemCap` bounds the item count, because the lightest lists cannot reach
+the target any other way: a bandage is 0.1 of a 40-unit locker, so half a
+locker of dressings is two hundred items. When a list is too light to make the
+target at a sane count, **put heavier things in the list** rather than raising
+the cap — a sick bay stocked with kits, boxes and splints is both better
+loot and better reading than one holding ninety bandages.
+
+`python tests/test_stock.py` prints the fill each container size reaches.
 
 ### Never restock an existing container
 
@@ -309,9 +419,13 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **The game locks up during a landing** | A search that is not sliced. See *Slice any search…* above. |
 | **Black screen, character falling, game unresponsive** | An exception thrown inside a per-tick or per-square loop, flooding the log. Look for repeated stack traces in `console.txt`. |
 | **The player falls on beaming aboard** | The cabin never finished building. Check for `arrival tick N: pad chunk loaded=false`. |
-| **A fitting is missing and nothing is logged** | Either a sprite name that does not exist, or an offset outside the tapered hull. `tests/test_assets.py` catches the first, `tests/test_layout.py` the second. |
+| **A fitting is missing and nothing is logged** | Either a sprite name that does not exist, or an offset outside the hull. `tests/test_assets.py` catches the first, `tests/test_layout.py` the second. |
 | **Two things on one square** | A placement that was not claimed, or a hand-placed object outside `fit`. `test_layout.py` catches it. |
+| **Every container in the cabin is empty** | Items are not being created. `grep "CreateItem\|stocking containers via" console.txt` — the second is logged once per build and names the path that worked. See *The jar is not the API*. |
+| **One container is empty and the rest are fine** | Either its sprite is not a container in the tileset, or its `loot` names a `C.Loot` list that does not exist. Both fail in `test_layout.py`; in game, `TREK_Stock()` names the square. |
 | **A container is missing item types** | Container capacity. `AddItems` drops items silently once full. Use `U.stockEach`, which reads the container back and reports what did not land. |
+| **A container looks under-stocked** | Its list is too light to reach `C.FillFraction` before `C.FillItemCap` binds. Put heavier items in the list; `tests/test_stock.py` prints what each size reaches. |
+| **The sink runs dry after a few weeks** | The vanilla mains shut off and the top-up used the fluid API instead of reserve water. See *Two APIs for water*. |
 | **The phaser runs out** | The sweep is not seeing it. `TREK_Phaser()` reports how many it found; zero while one is in your hands means the inventory lookup is wrong. |
 | **The cabin looks like a hut in a forest** | The margin clearing did not run, or the chunks streamed in late. It re-runs on every rebuild. |
 | **Two shuttles** | Something was removed at a position whose chunk was not loaded, and the failure was read as success. `TREK_Ghosts()` lists hulls known to be pending and forces a sweep. |
@@ -327,17 +441,21 @@ Learn these; they map to causes that are not obvious from the symptom.
 |---|---|
 | `tools/luacheck.py` | Lua syntax, via a real Lua VM |
 | `tests/test_assets.py` | sprites, items, meshes, textures, icons, the phaser's borrowed vanilla references, and every translation key |
-| `tests/test_stock.py` | loot that does not spread across its list |
-| `tests/test_layout.py` | fittings outside the hull or on top of each other; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
+| `tests/test_stock.py` | items that cannot be created at all; loot that does not spread across its list; containers that do not reach `C.FillFraction` |
+| `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
 
-`test_layout.py` parses the layout back out of `TREK_Build.lua` with a regex.
-That is less elegant than loading the module and it is not optional: the module
-pulls in `Events`, `IsoObject` and the rest of the engine. If you add a new kind
-of placement call, extend the regexes — the test fails loudly if it parses fewer
-than 40 placements, precisely so a stale regex cannot quietly stop checking.
+`test_stock.py` stubs the engine **the way it really behaves** — `instanceItem`
+present, `InventoryItemFactory` nil — and its first assertion is simply that an
+item can be created. Against the old code that assertion prints `0 items` and
+fails. Keep it first: with item creation broken, every other check in the file
+still passes on an empty container, which is exactly how this reached the game
+twice.
 
 These have caught more real bugs than the in-game test has. Extend them in
-preference to adding in-game checks.
+preference to adding in-game checks — but note what they cannot do: they run a
+Lua VM with *stubs*, so they prove the mod's own logic and never that an engine
+call is real. Only the game does that, which is what the log lines below are
+for.
 
 ### In game
 
@@ -349,6 +467,8 @@ back, which is unwelcome mid-game.
 | Console function | Does |
 |---|---|
 | `TREK_SelfTest()` | Force the whole run |
+| `TREK_Stock()` | One line per container: items held and how full. **The first thing to run when loot looks wrong.** |
+| `TREK_Water()` | Top the fixtures up and report how many hold water |
 | `TREK_Rebuild()` | Tear down and regenerate the cabin, restocked. Stand aboard. |
 | `TREK_Beam()` | Beam up if outside, down if aboard |
 | `TREK_Room()` | Report whether the ship could land here and what is in the way |
@@ -391,34 +511,40 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.0.0**, build revision **1**.
+Version **1.1.0**, build revision **10**.
 
-**Verified by static checks only. Nothing in this mod has been seen in game
-yet.** Everything below passes `luacheck`, `test_assets`, `test_stock` and
-`test_layout`, and every engine method it calls was checked against
-`projectzomboid.jar` with `pzapi.py` — but that is not the same as working, and
-the distinction matters more here than usual because several of the mechanisms
-are new rather than inherited from the TARDIS.
+**Seen working in game:** flying the shuttle, the BuildingEd interior, and the
+nineteen stocked containers — lockers, counters, fridges, ovens, microwave —
+including the phaser locker. Container capacity and contents weight read back
+correctly off real objects, so `U.fill`'s weight targeting is confirmed against
+the engine and not just the stub.
 
-Highest-risk items, in the order they are worth checking in game:
+**Not yet seen in game**, in the order worth checking:
 
-1. **The hull model at 3×5 tiles.** No world model this large has been tried in
-   either mod. It may be culled oddly, sorted wrongly against tiles it
-   overhangs, or simply read as too big. `scale` in `trekshuttle.txt` is the
-   dial.
-2. **The phaser firing at all.** The whole ammunition argument in DESIGN.md is
-   reasoning from the jar, not observation. If it will not fire, that is the
-   first thing to look at.
+1. **The water fixtures.** `setReserveWaterAmount` is the right API by every
+   check available here, but the previous water code was wrong in exactly this
+   way and passed every static test. `TREK_Water()` answers it in one line.
+   The sink will *look* fine either way until the mains shut off.
+2. **The phaser firing.** The ammunition argument in DESIGN.md is reasoning
+   from the jar, not observation. Four of them now reach the locker, which is
+   as far as this has been proven.
 3. **The landing search's cost in practice.** 48 positions a tick is a guess at
    a safe slice, not a measurement.
-4. **The transporter's delayed job** interacting with the arrival hold in
-   `TREK_Core`.
-5. **`security_01` and `industry_01` sprite appearance.** They were chosen by
-   name and properties from the catalogue; nobody has seen the cabin.
+4. **The self test's authored-fitting expectations.** Rewritten to read the
+   layout rather than a hand-written list; the run has not been watched since.
 
 Inherited from the TARDIS and already proven there: runtime cell generation,
-the arrival hold, chunk gating, the void margin, water refilling, the zombie
-field, world-model placement, map picking, and the ghost sweep.
+the arrival hold, chunk gating, the void margin, the zombie field, world-model
+placement, map picking, and the ghost sweep.
+
+**The pattern worth carrying forward.** Three separate bugs in this mod have
+had the same shape: a plausible engine call that fails silently, leaving a
+thing that is present, drawn, and inert — an unopenable locker, a container
+handed items that were never created, a tap topped up through an API it does
+not have. Static checks caught none of them, because the mod's logic was
+correct every time. What caught them was **reading the result back and logging
+it**: `B.stockReport()` turned three sessions of guessing into one grep. When
+you add something to the cabin, add the line that proves it arrived.
 
 Known limits are listed at the bottom of `README.md`.
 
@@ -427,10 +553,12 @@ Known limits are listed at the bottom of `README.md`.
 ## Layout
 
 ```
+design/buildinged/TrekShuttle_Interior.tbx                the interior, in the map editor
+TrekShuttle/42/media/lua/client/TREK/TREK_InteriorLayout.lua   that interior as data + loot
 TrekShuttle/42/media/lua/shared/TREK/TREK_Config.lua      all constants — start here
 TrekShuttle/42/media/lua/shared/TREK/TREK_Util.lua        safe wrappers, state, geometry
 TrekShuttle/42/media/lua/client/TREK/TREK_Build.lua       cabin construction, furnishing
-TrekShuttle/42/media/lua/client/TREK/TREK_Core.lua        hull, landing room, hatch, field
+TrekShuttle/42/media/lua/client/TREK/TREK_Core.lua        hull, landing room, hatch, field, water
 TrekShuttle/42/media/lua/client/TREK/TREK_Transport.lua   the transporter
 TrekShuttle/42/media/lua/client/TREK/TREK_Travel.lua      helm, courses, landing search
 TrekShuttle/42/media/lua/client/TREK/TREK_Phaser.lua      keeping phasers charged
@@ -438,4 +566,50 @@ TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua        right-click menus
 TrekShuttle/42/media/lua/client/TREK/TREK_SelfTest.lua    in-game step machine
 ```
 
-Almost every change is `TREK_Config.lua` plus one `furnish` function.
+---
+
+## Changing the interior or what is in it
+
+The two common jobs, end to end.
+
+### Moving or adding furniture
+
+1. Edit `design/buildinged/TrekShuttle_Interior.tbx` in BuildingEd.
+2. `python tools/import_tbx_layout.py` — prints every furniture tile it
+   expands and, separately, **every one the tileset says is a container**.
+3. Carry the changes into `L.tiles` in `TREK_InteriorLayout.lua`. Geometry
+   (`x`, `y`, `sprite`) comes from the `.tbx`; `tag`, `container` and `loot`
+   are yours, which is why the file is not simply regenerated over the top.
+4. Every container needs **`container = true` and a `loot` list**, or it is
+   placed as scenery and can never be opened.
+5. Bump `C.BuildRev`.
+6. `python tests/test_layout.py` — it fails if the Lua and the `.tbx` disagree
+   about containers, and prints the deck plan. Look at it.
+
+### Changing what is in a container
+
+Edit the `C.Loot` list in `TREK_Config.lua`, or point the entry's `loot` at a
+different one. Then:
+
+```sh
+python tests/test_assets.py     # every id exists in build 42
+python tests/test_stock.py      # the lists spread, and fill to target
+```
+
+`test_assets.py` checks ids against `tools/_catalog/items.json`. It does **not**
+check for items flagged `Obsolete` — those exist in the scripts and still
+return nil from `instanceItem`, which looks exactly like an empty container. If
+a new id misbehaves, grep the game's scripts for its block and look.
+
+Amounts are not set per container: everything fills to `C.FillFraction` of its
+own capacity. To make one container fuller than the rest, give its entry a
+`fill` (fraction) or `cap` (item count) override.
+
+**Bump `C.BuildRev` either way.** A cabin only restocks when its revision is
+stale — that is what let the empty lockers be repaired on an existing save
+instead of needing a new world.
+
+---
+
+Almost every change is `TREK_Config.lua`, or the `.tbx` plus
+`TREK_InteriorLayout.lua`.

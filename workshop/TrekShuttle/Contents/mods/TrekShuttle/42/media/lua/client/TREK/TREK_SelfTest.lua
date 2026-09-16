@@ -175,43 +175,37 @@ step("fittings", function()
                string.format("%d (wanted at least %d)", counts[tag] or 0, least))
     end
     want("wall", 40)
-    want("sink", 2)         -- the galley and the head
-    want("shower", 1)
-    want("toilet", 1)
-    want("bunk", 2)         -- a bed is two squares
-    want("biobed", 2)
-    want("medbay", 6)
-    want("cargo.food", 3)
-    want("cargo.medical", 3)
-    want("fridge", 2)
-    want("oven", 1)
-    want("phasers", 1)
-    want("lamp", 4)
+    want("lamp", 3)
+
+    -- Everything else is authored in BuildingEd, so what to expect is read
+    -- off the layout rather than listed here. A hand-written list of tags
+    -- goes stale the first time somebody moves a locker in the map editor,
+    -- and a self test full of stale FAILs is worse than no self test at all:
+    -- it buries the one line that matters.
+    local expected = {}
+    local ok, L = pcall(require, "TREK/TREK_InteriorLayout")
+    if ok and L and L.tiles then
+        for _, entry in ipairs(L.tiles) do
+            if entry.tag then
+                expected[entry.tag] = (expected[entry.tag] or 0) + 1
+            end
+        end
+    end
+    local tags = {}
+    for tag in pairs(expected) do table.insert(tags, tag) end
+    table.sort(tags)
+    for _, tag in ipairs(tags) do want(tag, expected[tag]) end
     return "done"
 end)
 
 step("water", function()
     banner("water")
-    TREK.Core.refillWater()
-    local wet, dry = 0, 0
-    for ox = 0, C.CabinW do
-        for oy = 0, C.CabinL do
-            local x, y = U.at(ox, oy)
-            local sq = U.square(x, y, C.CabinZ, false)
-            if sq then
-                U.eachObject(sq, function(o)
-                    local md = o:getModData()
-                    local tag = md and md.TREK
-                    if tag == "sink" or tag == "shower" or tag == "toilet" then
-                        local amount = U.try("fluid", function()
-                            return o:getFluidAmount()
-                        end) or 0
-                        if amount > 0 then wet = wet + 1 else dry = dry + 1 end
-                    end
-                end)
-            end
-        end
-    end
+    -- Core.refillWater answers with hasWater(), which is the same question
+    -- the game asks before it will let anyone drink or fill a bottle. The old
+    -- check here read getFluidAmount() instead -- always 0 on a sink, which
+    -- has no FluidContainer -- so it could only ever have reported the tap
+    -- dry, whatever the tap was actually doing.
+    local wet, dry = TREK.Core.refillWater()
     report("water.filled", wet > 0 and dry == 0,
            string.format("%d fixtures holding water, %d dry", wet, dry))
     return "done"

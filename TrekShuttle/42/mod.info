@@ -1,8 +1,8 @@
 name=Shuttlecraft
 id=TrekShuttle
 poster=poster.png
-description=A Starfleet shuttlecraft for Project Zomboid. Beam up to it from anywhere, beam back down where you were or anywhere on the map, or call it down onto open ground and walk aboard through the hatch. Inside: a helm you fly it from, running water, a berth, a galley, a sick bay of stocked medical cabinets, a cargo bay, and a locker of phasers that never run out of charge. It needs three tiles by five of clear ground to land, and says so when it does not have them.
+description=A Starfleet shuttlecraft for Project Zomboid. Pilot the shuttle directly with WASD above buildings and trees, rotate the 3D craft in flight, land on clear ground, enter its interior, or beam down below it. Inside: a helm, running water, a berth, a galley, a sick bay of stocked medical cabinets, a cargo bay, and rechargeable phasers. It needs three tiles by five of clear ground to land.
 author=built for Arcade
 category=build
 versionMin=42.0
-modversion=1.0.0
+modversion=1.1.0

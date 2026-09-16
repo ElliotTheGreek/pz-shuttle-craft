@@ -1,21 +1,27 @@
-"""Checks the cabin floor plan, the furnishing offsets and the footprint.
+"""Checks the cabin floor plan, the authored interior and the footprint.
 
-Three things this catches that nothing else does:
+The interior is authored in BuildingEd and read at runtime out of
+TREK_InteriorLayout.lua. That file is data with no engine calls in it, so this
+loads it for real rather than parsing it, and checks the things that fail
+silently in game:
 
-  * A fitting placed outside the hull. The bow tapers over six squares and the
-    stern over three, so an offset that is fine amidships can be in open space
-    forward of oy 6 -- and a placement that misses simply does not happen, with
-    no error anywhere. Every fit/line/place call in TREK_Build.lua is parsed
-    out and checked against the floor plan.
-  * Two fittings on one square. U.addObject only looks for its own sprite, so
-    an overlap stacks silently and one of the two becomes unreachable.
-  * A multi-tile piece whose halves are declared in the wrong order. The
-    tileset says where each half belongs via SpriteGridPos; getting it
-    backwards puts the foot of the bed where its head should be.
+  * A fitting outside the hull, or on the transporter pad. A placement that
+    misses simply does not happen -- no error, no object, nothing in the log.
+  * A container that is not flagged as one. `container = true` is what makes
+    TREK_Build build an ItemContainer for it; without the flag the locker is
+    placed as scenery and can never be opened, and it looks identical until
+    somebody walks up to it. Checked both ways against the tile catalogue, so
+    a flag on a sprite that cannot hold anything fails too.
+  * A loot list that does not exist. `loot = "supplies"` with no C.Loot.supplies
+    leaves the container empty and says nothing.
+  * The Lua drifting from the .tbx it was generated from.
+  * A lamp stacked on top of a fitting: the lamps are placed by TREK_Build and
+    claim their square, but the authored furniture bypasses claim() by design,
+    so nothing at runtime would report the collision.
 
     python tests/test_layout.py
 """
-import json, os, re, sys
+import json, os, re, subprocess, sys
 from lupa import LuaRuntime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,12 +32,15 @@ tiles = json.load(open(os.path.join(ROOT, "tools", "_catalog",
                                     "tiles.json")))["tiles"]
 
 lua = LuaRuntime(unpack_returned_tuples=True)
-lua.execute(f'package.path = "{LUA}/shared/?.lua;" .. package.path')
+lua.execute(f'package.path = "{LUA}/shared/?.lua;{LUA}/client/?.lua;" '
+            f'.. package.path')
 lua.execute("_G.unpack = _G.unpack or table.unpack")
 lua.execute('require "TREK/TREK_Config"')
 C = lua.globals().TREK.Config
+lua.execute('_interior = require "TREK/TREK_InteriorLayout"')
+L = lua.globals()._interior
 
-W, L = int(C.CabinW), int(C.CabinL)
+W, L_LEN = int(C.CabinW), int(C.CabinL)
 failures = []
 
 
@@ -43,117 +52,184 @@ def is_pad(ox, oy):
     return bool(C.isLanding(ox, oy))
 
 
+def rows(table):
+    return [table[i] for i in range(1, len(table) + 1)]
+
+
 # --- floor plan --------------------------------------------------------
-area = sum(inside(ox, oy) for ox in range(W + 1) for oy in range(L + 1))
-print(f"cabin {W + 1} x {L + 1}, nose cut {int(C.NoseCut)}, "
-      f"stern cut {int(C.TailCut)} -- {area} deck squares of {(W + 1) * (L + 1)}")
+area = sum(inside(ox, oy) for ox in range(W + 1) for oy in range(L_LEN + 1))
+print(f"cabin {W + 1} x {L_LEN + 1}, nose cut {int(C.NoseCut)}, "
+      f"stern cut {int(C.TailCut)} -- {area} deck squares of "
+      f"{(W + 1) * (L_LEN + 1)}")
 print()
 
-# --- parse the layout out of TREK_Build.lua ----------------------------
-# The offsets live in the build code rather than the config, because they are
-# a layout and not a setting. Reading them back out with a regex is less
-# elegant than loading the module, and loading it is not an option: it pulls in
-# Events, IsoObject and the rest of the engine.
-src = open(BUILD, encoding="utf-8").read()
-placements = []          # (ox, oy, label)
+# --- the authored interior ---------------------------------------------
+entries = []
+for e in rows(L.tiles):
+    entries.append({
+        "x": int(e.x), "y": int(e.y), "sprite": e.sprite,
+        "tag": e.tag or "?", "container": e.container is True,
+        "loot": e.loot, "special": e.special,
+    })
 
-for m in re.finditer(r"\bfit\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*"
-                     r"[\w.]+\s*,\s*\"([\w.]+)\"", src):
-    placements.append((int(m.group(1)), int(m.group(2)), m.group(3)))
+for e in entries:
+    where = f"{e['tag']} ({e['sprite']}) at {e['x']},{e['y']}"
 
-for m in re.finditer(r"\bline\(\s*[\w.]+\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*"
-                     r"(-?\d+)\s*,\s*(-?\d+)\s*,\s*(\d+)\s*,\s*"
-                     r"\{[^}]*tag\s*=\s*\"([\w.]+)\"", src, re.S):
-    ox, oy, dx, dy, n = (int(m.group(i)) for i in range(1, 6))
-    tag = m.group(6)
-    for i in range(n):
-        placements.append((ox + dx * i, oy + dy * i, tag))
+    if not inside(e["x"], e["y"]):
+        failures.append(f"{where} is outside the hull")
+    if is_pad(e["x"], e["y"]):
+        failures.append(f"{where} stands on the transporter pad")
 
-for m in re.finditer(r'\bplace\(\s*"(\w+)"\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*'
-                     r'"([\w.]+)"', src):
-    piece, ox, oy, tag = m.group(1), int(m.group(2)), int(m.group(3)), m.group(4)
-    parts = C.Pieces[piece]
-    if parts is None:
-        failures.append(f"{tag}: no piece named {piece} in C.Pieces")
+    props = tiles.get(e["sprite"])
+    if props is None:
+        failures.append(f"{where}: sprite does not exist")
         continue
-    for i in range(1, len(parts) + 1):
-        entry = parts[i]
-        placements.append((ox + int(entry[2]), oy + int(entry[3]), tag))
 
+    # `container` in the tileset is the container type ("locker", "counter").
+    holds = bool(props.get("container"))
+    wants = e["container"] or e["loot"] is not None or e["special"] is not None
+    if wants and not holds:
+        failures.append(f"{where} is stocked but {e['sprite']} is not a "
+                        f"container in the tileset -- it can never be opened")
+    if wants and not e["container"]:
+        failures.append(f"{where} carries loot but has no container = true; "
+                        f"TREK_Build will place it as scenery")
+    if holds and not wants:
+        failures.append(f"{where} is a container in the tileset but nothing "
+                        f"stocks it -- it will be empty in game")
+
+    if e["loot"] is not None and C.Loot[e["loot"]] is None:
+        failures.append(f"{where}: no C.Loot.{e['loot']}")
+
+containers = [e for e in entries if e["container"]]
+phasers = [e for e in entries if e["special"] == "phasers"]
+if len(phasers) != 1:
+    failures.append(f"{len(phasers)} phaser lockers in the layout; expected 1")
+else:
+    # C.PhaserRack is what the rest of the mod points at -- menus, the self
+    # test -- while the locker that actually gets the phasers is the authored
+    # entry. Nothing at runtime would notice the two disagreeing.
+    rack = (int(C.PhaserRack.x), int(C.PhaserRack.y))
+    if rack != (phasers[0]["x"], phasers[0]["y"]):
+        failures.append(f"C.PhaserRack says {rack[0]},{rack[1]} but the "
+                        f"authored phaser locker is at {phasers[0]['x']},"
+                        f"{phasers[0]['y']}")
+
+# --- the lamps and the helm, which TREK_Build still places by hand -----
+src = open(BUILD, encoding="utf-8").read()
+lamps = []
 for m in re.finditer(r"B\.lampSpots\s*=\s*\{(.*?)\n\}", src, re.S):
     for lx, ly in re.findall(r"\{\s*(-?\d+)\s*,\s*(-?\d+)\s*\}", m.group(1)):
-        placements.append((int(lx), int(ly), "lamp"))
+        lamps.append((int(lx), int(ly)))
+helm = re.search(r"local hx, hy = at\((\d+), (\d+)\)", src)
+helm = (int(helm.group(1)), int(helm.group(2))) if helm else None
 
-# the helm console and the phaser locker are placed by hand
-for m in re.finditer(r'claim\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*"(\w+)"\s*\)', src):
-    placements.append((int(m.group(1)), int(m.group(2)), m.group(3)))
-placements.append((int(C.PhaserRack.x), int(C.PhaserRack.y), "phasers"))
+if not lamps:
+    failures.append("no lamp spots parsed out of TREK_Build.lua; the regex "
+                    "has probably gone stale")
 
-if len(placements) < 18:
-    failures.append(f"only {len(placements)} placements parsed out of "
-                    f"TREK_Build.lua; the layout regex has probably gone stale")
+# A lamp shares its square with nothing: fit() claims it, but the authored
+# furniture bypasses claim(), so only this check would catch the overlap.
+solid = {(e["x"], e["y"]) for e in entries if not e["tag"].startswith("rug")}
+for lx, ly in lamps:
+    if not inside(lx, ly):
+        failures.append(f"lamp at {lx},{ly} is outside the hull")
+    elif is_pad(lx, ly):
+        failures.append(f"lamp at {lx},{ly} stands on the transporter pad")
+    elif (lx, ly) in solid:
+        tag = next(e["tag"] for e in entries if (e["x"], e["y"]) == (lx, ly))
+        failures.append(f"lamp at {lx},{ly} lands on top of {tag}")
+
+if helm:
+    if not inside(*helm):
+        failures.append(f"the helm item at {helm[0]},{helm[1]} is outside the hull")
+    elif helm in solid:
+        tag = next(e["tag"] for e in entries if (e["x"], e["y"]) == helm)
+        failures.append(f"the helm item at {helm[0]},{helm[1]} lands on {tag}")
 
 # --- draw it -----------------------------------------------------------
-GLYPH = {"sink": "w", "toilet": "w", "shower": "w", "counter": "c",
-         "oven": "c", "microwave": "c", "fridge": "F", "pantry": "p",
-         "medbay": "M", "meddrawers": "m", "biobed": "B", "bunk": "b",
-         "locker": "l", "cargo.food": "K", "cargo.medical": "K",
-         "engineering": "e", "lamp": "*", "chair": "h", "terminal": "T",
-         "computer": "T", "viewscreen": "V", "helm": "H", "phasers": "P"}
+GLYPH = {"rug": ".", "console": "T", "helmDesk": "T", "viewscreen": "V",
+         "freshFood": "F", "cookware": "c", "provisions": "p", "snacks": "c",
+         "readyKit": "s", "computer": "T", "sink": "w", "chair": "h",
+         "medical": "M", "engineering": "e", "phasers": "P", "armoury": "A",
+         "survival": "s", "bunk": "b"}
 grid = {}
-for ox, oy, tag in placements:
-    grid.setdefault((ox, oy), []).append(tag)
+for e in entries:
+    grid.setdefault((e["x"], e["y"]), []).append(e["tag"])
 
 print("    " + "".join(str(x % 10) for x in range(W + 1)))
-for oy in range(L + 1):
+for oy in range(L_LEN + 1):
     row = ""
     for ox in range(W + 1):
         if not inside(ox, oy):
             row += " "
-        elif (ox, oy) in grid:
-            row += GLYPH.get(grid[(ox, oy)][0], "?")
         elif ox == int(C.Landing.x) and oy == int(C.Landing.y):
             row += "@"
-        elif is_pad(ox, oy):
-            row += "o"
+        elif (ox, oy) in grid:
+            # the topmost non-rug layer is what you actually walk up to
+            tags = [t for t in grid[(ox, oy)] if t != "rug"] or grid[(ox, oy)]
+            row += GLYPH.get(tags[-1], "?")
+        elif (ox, oy) in lamps:
+            row += "*"
+        elif helm and (ox, oy) == helm:
+            row += "H"
         else:
             row += "."
     print(f"{oy:3d} {row}")
-print("\n   @ transporter pad   o kept clear   H helm   V viewscreen   T console")
-print("   h seat   w water   c galley   F fridge   p pantry   M/m sick bay")
-print("   B biobed   b berth   l locker   K cargo   e stores   P phasers   * lamp")
+print("\n   @ transporter pad   H helm   V viewscreen   T console   h seat")
+print("   w water   c galley   F fridge   p provisions   M sick bay")
+print("   e engineering   A armoury   P phasers   s survival   b berth   * lamp")
 
-# --- the checks --------------------------------------------------------
-for (ox, oy), tags in sorted(grid.items()):
-    if not inside(ox, oy):
-        failures.append(f"{'/'.join(tags)} at {ox},{oy} is outside the hull")
-    elif is_pad(ox, oy):
-        failures.append(f"{'/'.join(tags)} at {ox},{oy} stands on the "
-                        f"transporter pad")
-    if len(tags) > 1:
-        failures.append(f"{ox},{oy} has {len(tags)} things on it: "
-                        f"{', '.join(tags)}")
+print(f"\n{len(entries)} authored fittings, {len(containers)} of them stocked:")
+for e in containers:
+    what = "phasers + " + (e["loot"] or "-") if e["special"] else e["loot"]
+    print(f"  {e['x']},{e['y']}  {e['tag']:11s} {what}")
 
-# The pad and its clearance ring must be inside the hull, or arrivals land in
-# open space.
+# --- the Lua against the .tbx it came from -----------------------------
+# The geometry is authored in BuildingEd; the loot is not. Only the geometry
+# is checked, and only that every container the editor placed is accounted
+# for -- which is the drift that matters, because a locker added in the editor
+# and not here is a locker that never appears in game.
+try:
+    out = subprocess.run([sys.executable, os.path.join(ROOT, "tools",
+                                                       "import_tbx_layout.py"),
+                          "--json"], capture_output=True, text=True, check=True)
+    tbx = json.loads(out.stdout)
+except Exception as exc:                                  # noqa: BLE001
+    print(f"\ncould not decode the .tbx ({exc}); skipping the drift check")
+else:
+    want = sorted((c["x"], c["y"], c["sprite"]) for c in tbx["containers"])
+    have = sorted((e["x"], e["y"], e["sprite"]) for e in containers)
+    print(f"\n.tbx holds {len(want)} container tiles, the Lua stocks {len(have)}")
+    for missing in set(want) - set(have):
+        failures.append(f"the .tbx places a container at {missing[0]},"
+                        f"{missing[1]} ({missing[2]}) that the Lua does not stock")
+    for extra in set(have) - set(want):
+        failures.append(f"the Lua stocks a container at {extra[0]},{extra[1]} "
+                        f"({extra[2]}) that is not in the .tbx")
+
+# --- the pad -----------------------------------------------------------
 for dx in (-1, 0, 1):
     for dy in (-1, 0, 1):
         px, py = int(C.Landing.x) + dx, int(C.Landing.y) + dy
         if not inside(px, py):
             failures.append(f"the pad's clearance square {px},{py} is outside "
                             f"the hull")
+        elif (px, py) in solid:
+            tag = next(e["tag"] for e in entries if (e["x"], e["y"]) == (px, py))
+            failures.append(f"{tag} at {px},{py} blocks the pad approach")
 
-if area < (W + 1) * (L + 1) * 0.55:
+if area < (W + 1) * (L_LEN + 1) * 0.55:
     failures.append(f"the hull keeps only {area} squares; the cuts are too deep")
 
 # --- the exterior footprint -------------------------------------------
 offsets = C.footprintOffsets()
 n = len(offsets)
-want = int(C.Footprint.w) * int(C.Footprint.h)
+want_n = int(C.Footprint.w) * int(C.Footprint.h)
 print(f"\nexterior footprint: {int(C.Footprint.w)} x {int(C.Footprint.h)} "
       f"= {n} squares")
-if n != want:
-    failures.append(f"footprintOffsets returns {n} squares, not {want}")
+if n != want_n:
+    failures.append(f"footprintOffsets returns {n} squares, not {want_n}")
 seen = set()
 for i in range(1, n + 1):
     d = offsets[i]
@@ -202,10 +278,9 @@ for name in C.Pieces:
     print(f"  {name:10s} {' '.join(shown):22s} "
           f"facing={facings.pop() if facings else '?'}")
 
-print(f"\n{len(placements)} placements checked")
 if failures:
     print(f"\n{len(failures)} PROBLEM(S):")
     for f in failures:
         print("  " + f)
     sys.exit(1)
-print("floor plan, fittings and footprint are consistent")
+print("\nfloor plan, authored interior and footprint are consistent")

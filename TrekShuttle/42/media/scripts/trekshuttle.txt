@@ -53,6 +53,20 @@ module TrekShuttle
         StaticModel = TrekHelmConsoleModel,
     }
 
+    sound TREK_PhaserPulse
+    {
+        category = Weapon,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_PhaserPulse.wav,
+            distanceMin = 2,
+            distanceMax = 35,
+            volume = 0.85,
+        }
+    }
+
     /*  The phaser.
 
         An ordinary build 42 sidearm in every respect except that TREK_Phaser
@@ -141,24 +155,24 @@ module TrekShuttle
         SoundRadius = 12,
         SoundGain = 0.6,
         NPCSoundBoost = 1.0,
-        SwingSound = M9Shoot,
-        HitSound = BulletImpact,
+        SwingSound = TREK_PhaserPulse,
+        HitSound = null,
         ImpactSound = null,
         EquipSound = M9Equip,
         UnequipSound = M9UnEquip,
         DropSound = M9Drop,
-        BreakSound = M9Break,
-        ClickSound = M9Jam,
-        RackSound = M9Rack,
-        AimReleaseSound = M9AimRelease,
-        BringToBearSound = M9BringToBear,
-        InsertAmmoSound = M9InsertAmmo,
-        InsertAmmoStartSound = M9InsertAmmoStart,
-        InsertAmmoStopSound = M9InsertAmmoStop,
-        EjectAmmoSound = M9EjectAmmo,
-        EjectAmmoStartSound = M9EjectAmmoStart,
-        EjectAmmoStopSound = M9EjectAmmoStop,
-        ShellFallSound = M9CartridgeFall,
+        BreakSound = null,
+        ClickSound = null,
+        RackSound = null,
+        AimReleaseSound = null,
+        BringToBearSound = null,
+        InsertAmmoSound = null,
+        InsertAmmoStartSound = null,
+        InsertAmmoStopSound = null,
+        EjectAmmoSound = null,
+        EjectAmmoStartSound = null,
+        EjectAmmoStopSound = null,
+        ShellFallSound = null,
 
         SubCategory = Firearm,
         Tooltip = Tooltip_TREK_Phaser,

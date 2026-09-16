@@ -23,7 +23,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 3
+C.BuildRev = 10
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -214,7 +214,7 @@ C.PhaserInterval = 30
 
 -- The locker they are kept in, just off the transporter pad, and how many are
 -- in it.
-C.PhaserRack  = { x = 4, y = 6 }
+C.PhaserRack  = { x = 5, y = 6 }
 C.PhaserCount = 4
 
 ---------------------------------------------------------------------------
@@ -298,6 +298,23 @@ C.Pieces = {
 }
 
 ---------------------------------------------------------------------------
+-- Water
+---------------------------------------------------------------------------
+-- Which layout tags are plumbed. Anything tagged one of these is kept full,
+-- so adding a fixture in BuildingEd needs no code change -- only the tag.
+C.WaterTags = { sink = true, shower = true, toilet = true }
+
+-- The ship makes its own water, so the fixtures are topped up rather than
+-- piped. This matters more than it sounds: the sink sprites carry the
+-- vanilla `waterPiped` property, which feeds them from the town mains, and
+-- the mains shut off a few weeks into any world. A shuttle whose tap stops
+-- working the same week Louisville's does is not much of a shuttle.
+--
+-- Ticks between top-ups while somebody is aboard. The ten-minute timer keeps
+-- it full when nobody is; this makes it impossible to drain in front of you.
+C.WaterInterval = 120
+
+---------------------------------------------------------------------------
 -- Items placed in the cabin
 ---------------------------------------------------------------------------
 -- The hull outside and the helm console inside are world models, defined in
@@ -310,16 +327,50 @@ C.HelmItem     = "TrekShuttle.TrekHelmConsole"
 ---------------------------------------------------------------------------
 C.Loot = {}
 
--- Sick bay. Deliberately long: U.stock walks a list with a rolling cursor, so
--- a longer list spreads further across the cabinets rather than repeating.
+-- How full a stocked container should end up, as a fraction of its capacity.
+--
+-- Containers are filled by weight, not by item count, because item count says
+-- nothing about how full a container looks: a locker holds 40 units and a
+-- microwave 5, so "eight items" is a heaped microwave and a nearly empty
+-- locker. The capacity comes from the tile's own ContainerCapacity property,
+-- read back off the object at build time, so every fitting the map editor
+-- drops in gets stocked to the same lived-in level whatever size it is.
+--
+-- Slightly over a half: weight comes in coarse steps (a tin is 0.8 of the 40
+-- a locker holds) and stopping at the first item past the line can otherwise
+-- land just under it.
+C.FillFraction = 0.55
+
+-- Ceiling on the item count for one container, whatever the weight says.
+-- Medical is mostly bandages and pills at 0.1 each, and half a locker of those
+-- is two hundred items -- a full container by weight and an absurd one to look
+-- at. Whichever limit is reached first stops the fill.
+--
+-- Set from the two lists that need the most items to reach the target: at 48
+-- every container in the cabin makes FillFraction, and the heavy lists stop
+-- on weight long before this binds. tests/test_stock.py holds it to the cap.
+C.FillItemCap = 48
+
+-- Sick bay. Deliberately long: the fill walks a list with a rolling cursor,
+-- so a longer list spreads further across the cabinets rather than repeating.
+--
+-- The order is not arbitrary and the boxes are not padding. Containers fill
+-- by weight, and medical supplies are the lightest loot in the game -- a
+-- bandage is 0.1 of the 40 a locker holds, so a list of nothing but dressings
+-- and pills cannot fill a locker at any sane item count. Every third or
+-- fourth entry is therefore something substantial (a box, a kit, a splint),
+-- which is both what carries the cabinet to a believable fill and what a
+-- ship's sick bay would actually be stocked with.
 C.Loot.medical = {
-    "Base.Bandage", "Base.BandageBox", "Base.Antibiotics", "Base.Disinfectant",
-    "Base.AlcoholWipes", "Base.AlcoholBandage", "Base.FirstAidKit",
-    "Base.Pills", "Base.PillsAntiDep", "Base.PillsBeta", "Base.PillsVitamins",
-    "Base.PillsSleepingTablets", "Base.WaterPurificationTablets",
-    "Base.Splint", "Base.SutureNeedle", "Base.SutureNeedleHolder",
-    "Base.Tweezers", "Base.Scalpel", "Base.Bleach",
-    "Base.CottonBalls", "Base.CottonBallsBox", "Base.AlcoholedCottonBalls",
+    "Base.FirstAidKit", "Base.Bandage", "Base.Antibiotics", "Base.Disinfectant",
+    "Base.BandageBox", "Base.AlcoholWipes", "Base.AlcoholBandage", "Base.Pills",
+    "Base.AdhesiveBandageBox", "Base.PillsAntiDep", "Base.PillsBeta",
+    "Base.PillsVitamins", "Base.Bag_MedicalBag", "Base.SutureNeedle",
+    "Base.SutureNeedleHolder", "Base.PillsSleepingTablets",
+    "Base.CottonBallsBox", "Base.Tweezers", "Base.Scalpel",
+    "Base.WaterPurificationTablets", "Base.Splint", "Base.Bleach",
+    "Base.AdhesiveTapeBox", "Base.CottonBalls", "Base.HottieZ",
+    "Base.AlcoholedCottonBalls", "Base.Sheet", "Base.Gloves_Surgical",
 }
 
 -- Ship's stores. Long-life first: this is what a shuttle is provisioned with,
@@ -334,10 +385,16 @@ C.Loot.food = {
     "Base.WaterBottle", "Base.WaterRationCan",
 }
 
+-- The two galley fridges. Produce is light -- an apple is 0.2 of the 40 a
+-- fridge holds -- so the same rule as the sick bay applies: the hams, the
+-- pumpkin and the watermelon are what let a fridge look stocked without
+-- putting eighty eggs in it.
 C.Loot.fresh = {
-    "Base.Bread", "Base.Cheese", "Base.Butter", "Base.Milk", "Base.Egg",
-    "Base.Potato", "Base.Carrots", "Base.Onion", "Base.Tomato", "Base.Apple",
-    "Base.Orange", "Base.Steak", "Base.Chicken",
+    "Base.Ham", "Base.Bread", "Base.Cheese", "Base.Butter", "Base.Milk",
+    "Base.Pumpkin", "Base.Egg", "Base.Potato", "Base.Carrots", "Base.Onion",
+    "Base.Watermelon", "Base.Tomato", "Base.Apple", "Base.Orange",
+    "Base.RoastingPan", "Base.Steak", "Base.Chicken", "Base.Bacon",
+    "Base.Pie", "Base.Cabbage", "Base.Lettuce", "Base.BellPepper",
 }
 
 C.Loot.cookware = {
@@ -355,5 +412,28 @@ C.Loot.tools = {
 }
 
 C.Loot.linen = { "Base.Sheet", "Base.Pillow", "Base.Pillow_Crafted" }
+
+-- The armoury, stowed beside the phasers. A phaser never runs dry, so this is
+-- not there to be needed -- it is there because a weapons locker holding four
+-- sidearms and nothing else reads as a prop rather than a locker. Heavy on
+-- purpose: this is the list that carries the phaser locker to a believable
+-- fill without putting thirty phasers in it.
+C.Loot.weapons = {
+    "Base.Pistol", "Base.Pistol2", "Base.Pistol3", "Base.Shotgun",
+    "Base.Bullets9mmBox", "Base.9mmClip", "Base.ShotgunShellsBox",
+    "Base.Bullets45Box", "Base.45Clip",
+    "Base.HuntingKnife", "Base.Machete", "Base.Nightstick", "Base.HandAxe",
+    "Base.Vest_BulletCivilian", "Base.HolsterSimple", "Base.Crowbar",
+}
+
+-- Crucial kit: what is worth more than its weight the moment the ship sets
+-- down somewhere dark and the hatch opens.
+C.Loot.survival = {
+    "Base.Torch", "Base.Battery", "Base.Lighter", "Base.Matches",
+    "Base.Rope", "Base.SheetRope", "Base.DuctTape", "Base.FirstAidKit",
+    "Base.WaterRationCan", "Base.Extinguisher", "Base.Map",
+    "Base.WalkieTalkie2", "Base.LightBulb", "Base.Bag_DuffelBag",
+    "Base.Needle", "Base.Thread", "Base.Sheet", "Base.Pillow",
+}
 
 return C
