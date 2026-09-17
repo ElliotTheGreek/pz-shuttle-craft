@@ -76,6 +76,17 @@ function U.try(label, fn, ...)
     return result
 end
 
+--- Runs fn and says only whether it worked, logging nothing.
+---
+--- For a call that is *expected* to fail sometimes and whose failure is the
+--- answer -- asking a container whether its vehicle is still there, when a
+--- vehicle that has gone throws. U.try would warn, and a warning that is
+--- normal teaches everyone to ignore warnings.
+function U.probe(fn, ...)
+    local args = { ... }
+    return (pcall(function() return fn(unpack(args)) end))
+end
+
 ---------------------------------------------------------------------------
 -- Persisted state
 ---------------------------------------------------------------------------

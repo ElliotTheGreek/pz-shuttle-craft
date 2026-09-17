@@ -443,6 +443,15 @@ def single_player():
           "single player: the ship did not follow its vehicle when it was driven")
     sx, sy = ship(rt, "x"), ship(rt, "y")
 
+    # --- a removed vehicle must not be left in anyone's loot window ---------
+    # Standing beside the ship puts its seat containers there. Recall it and
+    # the window is holding a container of a vehicle that no longer exists:
+    # vanilla throws on that every frame (a black screen, seen in game).
+    rt.run(f"""
+        local vehicle = SIM.findVehicle({vid})
+        getPlayerLoot(0):setNewContainer(vehicle:seatContainer())
+    """)
+
     # --- recall is refused while someone sits in it -------------------------
     rt.run(f"SIM.findVehicle({vid}).seats[0] = {P}")
     rt.run(f"TREK.Menu.onRecall(nil, {P})")
@@ -471,6 +480,10 @@ def single_player():
     rt.run(f"TREK.Menu.onRecall(nil, {P})")
     net.pump(2)
     check(ship(rt, "landed") is False, "single player: recall did not lift the ship")
+    net.pump(35)
+    check(rt.eval("getPlayerLoot(0).inventory:isVehiclePart()") is False,
+          "single player: the loot window still holds a container of the removed "
+          "vehicle -- vanilla throws on that every frame")
     check(not hull_at(rt, 5003, 5000, 0), "single player: recall left the hull behind")
     check(shuttles(rt) == 0, "single player: recall left a shuttle vehicle behind")
 

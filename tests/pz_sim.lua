@@ -453,6 +453,25 @@ function VehicleMT:getPartById(id)
     }
 end
 function VehicleMT:transmitPartModData() end
+
+--- A seat container, as the loot window holds when you stand by a vehicle.
+--- Once the vehicle is gone, asking it anything throws -- which is exactly
+--- what makes vanilla's inventory page flood the log and black the screen.
+function VehicleMT:seatContainer()
+    if self.seatContainerObj then return self.seatContainerObj end
+    local vehicle = self
+    self.seatContainerObj = {
+        isVehiclePart = function() return true end,
+        isOccupiedVehicleSeat = function()
+            if vehicle.removed then
+                error("Cannot invoke BaseVehicle.getCharacter(int) because " ..
+                      "VehiclePart.getVehicle() is null")
+            end
+            return false
+        end,
+    }
+    return self.seatContainerObj
+end
 function VehicleMT:permanentlyRemove()
     self.removed = true
     if isServer() then py_replicate("vehicleRemove", { x = 0, y = 0, z = 0, simId = self.simId }) end
@@ -659,6 +678,18 @@ ISButton = derivable("ISButton")
 ISWorldMap = { onMouseUp = function() end, render = function() end,
                onJoypadDown = function() end }
 ISWorldObjectContextMenu = { setTest = function() return true end }
+-- One loot window per player, as the game has.
+SIM.loot = {}
+function getPlayerLoot(i)
+    SIM.loot[i] = SIM.loot[i] or { inventory = nil, refreshed = 0 }
+    local page = SIM.loot[i]
+    page.setNewContainer = function(self, c) self.inventory = c end
+    page.refreshBackpacks = function(self) self.refreshed = self.refreshed + 1 end
+    return page
+end
+SIM.floorContainer = { isVehiclePart = function() return false end }
+ISInventoryPage = { GetFloorContainer = function() return SIM.floorContainer end }
+
 ISVehicleMenu = {
     showRadialMenu = function() end, showRadialMenuOutside = function() end,
     FillMenuOutsideVehicle = function() end, onEnter = function() end,

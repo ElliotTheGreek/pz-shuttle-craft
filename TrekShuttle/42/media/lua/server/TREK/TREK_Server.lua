@@ -209,17 +209,24 @@ function S.refuel(vehicle)
     end)
 end
 
---- Removes a shuttle vehicle, putting anyone sitting in it out first (the
---- engine does that as part of the removal).
+--- Removes a shuttle vehicle.
+---
+--- Every client is told first: anyone standing near it has its seats and trunk
+--- in their loot window, and a window left holding a container whose vehicle
+--- has gone makes vanilla throw every frame -- a black screen, seen in game.
 local function removeVehicle(vehicle, why)
     local x, y = math.floor(vehicle:getX()), math.floor(vehicle:getY())
+    local id = V.idOf(vehicle)
+    Net.toAll("vehicleGone", {})
     local ok = U.try("vehicleRemove", function()
         vehicle:permanentlyRemove()
         return true
     end) == true
-    if ok then U.log("removed a shuttle vehicle at %d,%d (%s)", x, y, why) end
+    U.log("removing shuttle vehicle %s at %d,%d (%s): %s",
+          tostring(id), x, y, why, ok and "done" or "FAILED")
     return ok
 end
+
 
 --- Spawns the shuttle vehicle on a square and makes it the ship.
 local function spawnVehicle(sq)
@@ -227,10 +234,22 @@ local function spawnVehicle(sq)
     local vehicle = U.try("addVehicle", function()
         return addVehicleDebug(V.SCRIPT, IsoDirections.N, 0, sq)
     end)
-    if not vehicle then return nil end
+    if not vehicle then
+        U.log("WARN could not spawn the shuttle vehicle at %d,%d,%d",
+              sq:getX(), sq:getY(), sq:getZ())
+        return nil
+    end
     s.vehicleSerial = (s.vehicleSerial or 0) + 1
     s.vehicleId = s.vehicleSerial
     prepareVehicle(vehicle, s.vehicleId)
+    -- Proof it is tagged: an untagged vehicle looks like a leftover to the
+    -- sweep below, which is how the ship could come to delete itself.
+    local tagged = V.idOf(vehicle)
+    U.log("shuttle vehicle %s spawned at %d,%d,%d",
+          tostring(tagged), sq:getX(), sq:getY(), sq:getZ())
+    if tagged ~= s.vehicleId then
+        U.log("WARN the shuttle vehicle could not be tagged; it will be left alone")
+    end
     return vehicle
 end
 
@@ -312,14 +331,50 @@ function S.serviceVehicle()
     local s = U.state()
     local found = nil
 
+    -- What makes a vehicle the ship is its tag, not being in view: a leftover
+    -- is by definition somewhere the ship is not, so its removal must never
+    -- depend on the ship's own vehicle being loaded at the same time.
+    local others = {}
     V.each(function(vehicle)
         local id = V.idOf(vehicle)
         if s.landed and id and id == s.vehicleId then
             found = vehicle
-        elseif not V.occupied(vehicle) then
-            removeVehicle(vehicle, "not the ship")
+        elseif id then
+            -- Tagged, and not the ship's tag: a ship the crew left behind when
+            -- it landed somewhere its old spot was not loaded.
+            table.insert(others, vehicle)
+        elseif s.landed and not s.vehicleId then
+            -- An untagged shuttle where the ship is: adopt it rather than
+            -- delete it (a save from before the tag, or a tagging that failed).
+            found = vehicle
+            s.vehicleSerial = (s.vehicleSerial or 0) + 1
+            s.vehicleId = s.vehicleSerial
+            U.try("adoptVehicle", function()
+                vehicle:getModData().TREKShipId = s.vehicleId
+            end)
+            U.log("adopted the shuttle vehicle at %d,%d as the ship",
+                  math.floor(vehicle:getX()), math.floor(vehicle:getY()))
+            Ship.commit()
+        else
+            -- Untagged and not adoptable: another mod's, or a tagging that
+            -- failed. Never removed -- deleting an unknown vehicle is worse
+            -- than leaving one standing.
+            U.warnOnce("untaggedShuttle",
+                       "a shuttle vehicle with no id is standing at " ..
+                       math.floor(vehicle:getX()) .. "," .. math.floor(vehicle:getY()) ..
+                       "; leaving it alone")
         end
     end)
+
+    for _, vehicle in ipairs(others) do
+        -- Only a vehicle that is certainly not the ship, and only when nobody
+        -- is sitting in it. Anyone standing beside it has its containers in
+        -- their loot window; the client clears those when this is sent
+        -- ("vehicleGone"), which is what stops the black screen.
+        if not V.occupied(vehicle) then
+            removeVehicle(vehicle, "not the ship")
+        end
+    end
 
     if found then
         s.missingChecks = nil

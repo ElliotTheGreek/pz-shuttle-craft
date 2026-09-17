@@ -21,6 +21,7 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Vehicle"
+require "TREK/TREK_Net"
 require "TREK/TREK_Core"
 -- Vanilla's vehicle menus are wrapped below, so they must exist first rather
 -- than by the luck of load order.
@@ -126,6 +127,59 @@ function ISVehicleMenu.FillMenuOutsideVehicle(player, context, vehicle, test)
     menu:addOption(getText("IGUI_TREK_Recall"), playerObj, VM.onRecall)
     return result
 end
+
+---------------------------------------------------------------------------
+-- Containers of a vehicle that is gone
+---------------------------------------------------------------------------
+-- Standing next to a vehicle puts its seats and trunk in the loot window. If
+-- that vehicle is then removed -- the ship recalled, an old one swept up, an
+-- admin deleting it -- the window is left holding a container whose part no
+-- longer has a vehicle, and vanilla's own drawing code throws on it *every
+-- frame*: a wall of errors and a black screen. Seen in game, 2026-09-17.
+--
+-- So the loot window is checked with the very call that throws. U.try turns
+-- the exception into a nil, and a container that cannot answer is a dead one:
+-- the window goes back to the floor.
+local function eachLootPage(fn)
+    for i = 0, 3 do
+        local page = U.try("playerLoot", function() return getPlayerLoot(i) end)
+        if page then fn(i, page) end
+    end
+end
+
+function VM.dropDeadContainers()
+    eachLootPage(function(i, page)
+        local inv = page.inventory
+        local isVehicle = inv and U.try("isVehiclePart", function()
+            return inv:isVehiclePart()
+        end) == true
+        if not isVehicle then return end
+        -- Silent on purpose: throwing *is* the answer here.
+        local alive = U.probe(function() inv:isOccupiedVehicleSeat() end)
+        if alive then return end
+        U.log("a vehicle container in the loot window belongs to a vehicle that " ..
+              "is gone; clearing it")
+        U.try("clearLootWindow", function()
+            local floor = ISInventoryPage.GetFloorContainer(i)
+            if floor then page:setNewContainer(floor) end
+            page:refreshBackpacks()
+        end)
+    end)
+end
+
+-- The server says when it removes the ship's vehicle, so the window is put
+-- right at once rather than on the next sweep.
+TREK.Net.onClient("vehicleGone", function()
+    VM.dropDeadContainers()
+end)
+
+local deadTick = 0
+Events.OnPlayerUpdate.Add(function()
+    deadTick = deadTick + 1
+    if deadTick < 30 then return end
+    deadTick = 0
+    VM.dropDeadContainers()
+end)
 
 ---------------------------------------------------------------------------
 -- Access
