@@ -26,7 +26,7 @@ from lupa import LuaRuntime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LUA = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua").replace(os.sep, "/")
-BUILD = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua", "client",
+BUILD = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua", "server",
                      "TREK", "TREK_Build.lua")
 tiles = json.load(open(os.path.join(ROOT, "tools", "_catalog",
                                     "tiles.json")))["tiles"]
@@ -115,18 +115,15 @@ else:
                         f"authored phaser locker is at {phasers[0]['x']},"
                         f"{phasers[0]['y']}")
 
-# --- the lamps and the helm, which TREK_Build still places by hand -----
+# --- the lamps (C.LampSpots) and the helm, which the server build places --
 src = open(BUILD, encoding="utf-8").read()
-lamps = []
-for m in re.finditer(r"B\.lampSpots\s*=\s*\{(.*?)\n\}", src, re.S):
-    for lx, ly in re.findall(r"\{\s*(-?\d+)\s*,\s*(-?\d+)\s*\}", m.group(1)):
-        lamps.append((int(lx), int(ly)))
+lamps = [(int(C.LampSpots[i][1]), int(C.LampSpots[i][2]))
+         for i in range(1, len(C.LampSpots) + 1)]
 helm = re.search(r"local hx, hy = at\((\d+), (\d+)\)", src)
 helm = (int(helm.group(1)), int(helm.group(2))) if helm else None
 
 if not lamps:
-    failures.append("no lamp spots parsed out of TREK_Build.lua; the regex "
-                    "has probably gone stale")
+    failures.append("C.LampSpots is empty; the cabin would have no lights")
 
 # A lamp shares its square with nothing: fit() claims it, but the authored
 # furniture bypasses claim(), so only this check would catch the overlap.

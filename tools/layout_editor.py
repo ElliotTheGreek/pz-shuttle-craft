@@ -11,7 +11,7 @@ from pathlib import Path
 from tkinter import messagebox, ttk
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_BUILD = ROOT / "TrekShuttle/42/media/lua/client/TREK/TREK_Build.lua"
+DEFAULT_BUILD = ROOT / "TrekShuttle/42/media/lua/server/TREK/TREK_Build.lua"
 DEFAULT_CATALOG = ROOT / "tools/_catalog/tiles.json"
 CALL_RE = re.compile(r"\b(fit|line|place)\s*\(([^\n)]*)\)")
 INT_RE = re.compile(r"^-?\d+$")

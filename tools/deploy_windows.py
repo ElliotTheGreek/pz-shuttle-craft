@@ -21,7 +21,7 @@ info = DESTINATION / "42" / "mod.info"
 text = info.read_text(encoding="utf-8")
 lines = text.splitlines()
 lines = [
-    "name=Shuttlecraft [DEV FLIGHT]" if line == "name=Shuttlecraft" else
+    "name=Shuttlecraft [DEV]" if line == "name=Shuttlecraft" else
     "id=TrekShuttleDev" if line == "id=TrekShuttle" else
     line + "-dev" if line.startswith("modversion=") and not line.endswith("-dev") else
     line
@@ -45,7 +45,7 @@ def digest(path):
 dev_version = next((line.split("=", 1)[1] for line in lines
                     if line.startswith("modversion=")), "")
 if ("id=TrekShuttleDev" not in lines
-        or "name=Shuttlecraft [DEV FLIGHT]" not in lines
+        or "name=Shuttlecraft [DEV]" not in lines
         or not dev_version.endswith("-dev")):
     raise SystemExit("development mod identity was not written")
 print("42\\mod.info", "TrekShuttleDev " + dev_version)
@@ -55,17 +55,23 @@ critical = [
     Path("42/media/textures/TREK_Shuttle.png"),
     Path("42/media/scripts/trekshuttle.txt"),
     Path("42/media/sound/TREK_PhaserPulse.wav"),
-    Path("42/media/lua/client/TREK/TREK_Build.lua"),
-    Path("42/media/lua/client/TREK/TREK_InteriorLayout.lua"),
-    Path("42/media/lua/client/TREK/TREK_Flight.lua"),
+    Path("42/media/sandbox-options.txt"),
+    Path("42/media/lua/shared/TREK/TREK_Config.lua"),
+    Path("42/media/lua/shared/TREK/TREK_Util.lua"),
+    Path("42/media/lua/shared/TREK/TREK_Net.lua"),
+    Path("42/media/lua/shared/TREK/TREK_Ship.lua"),
+    Path("42/media/lua/shared/TREK/TREK_World.lua"),
+    Path("42/media/lua/shared/TREK/TREK_InteriorLayout.lua"),
+    Path("42/media/lua/server/TREK/TREK_Build.lua"),
+    Path("42/media/lua/server/TREK/TREK_Server.lua"),
+    Path("42/media/lua/client/TREK/TREK_Core.lua"),
     Path("42/media/lua/client/TREK/TREK_Helm.lua"),
+    Path("42/media/lua/client/TREK/TREK_Menu.lua"),
     Path("42/media/ui/TREK_LcarsDot.png"),
     Path("42/media/ui/TREK_HelmBackdrop.png"),
     Path("42/media/ui/TREK_HelmEmblem.png"),
-    Path("42/media/lua/client/TREK/TREK_Menu.lua"),
-    Path("42/media/lua/shared/TREK/TREK_Config.lua"),
-    Path("42/media/lua/shared/TREK/TREK_Util.lua"),
     Path("42/media/lua/shared/Translate/EN/IG_UI.json"),
+    Path("42/media/lua/shared/Translate/EN/Sandbox.json"),
 ]
 for relative in critical:
     source_hash = digest(SOURCE / relative)
@@ -74,15 +80,14 @@ for relative in critical:
         raise SystemExit("hash mismatch: " + str(relative))
     print(relative, source_hash[:16])
 
-flight = (DESTINATION / "42/media/lua/client/TREK/TREK_Flight.lua").read_text(encoding="utf-8")
-menu = (DESTINATION / "42/media/lua/client/TREK/TREK_Menu.lua").read_text(encoding="utf-8")
-labels = (DESTINATION / "42/media/lua/shared/Translate/EN/IG_UI.json").read_text(encoding="utf-8")
-if "FLIGHT BUILD 1.4" not in flight:
-    raise SystemExit("deployed flight controller marker is missing")
-if 'require "TREK/TREK_Flight"' not in menu:
-    raise SystemExit("deployed menu does not load the flight controller")
-if '"IGUI_TREK_Pilot": "Pilot the shuttle"' not in labels:
-    raise SystemExit("deployed visible flight label is missing")
+# Files from before the multiplayer split must not survive in the deployed
+# copy: an old client-side TREK_Build.lua would build a second cabin locally.
+for stale in ("42/media/lua/client/TREK/TREK_Build.lua",
+              "42/media/lua/client/TREK/TREK_Flight.lua",
+              "42/media/lua/client/TREK/TREK_SelfTest.lua",
+              "42/media/lua/client/TREK/TREK_InteriorLayout.lua"):
+    if (DESTINATION / stale).exists():
+        raise SystemExit("stale pre-multiplayer file deployed: " + stale)
 
 print("deployed", len(deployed_files), "files ->", DESTINATION)
-print("critical deployed files and flight markers verified")
+print("critical deployed files verified; no pre-multiplayer files left")

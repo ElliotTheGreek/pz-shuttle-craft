@@ -1,218 +1,155 @@
 --[[ Shuttlecraft -- the transporter.
 
-    The transporter is the shuttle's own trick and the reason this mod is not
-    just a TARDIS with different paint. There is no door to walk to: from
-    anywhere in the world you beam up to the pad, and from the pad you beam
-    back down to where you were standing or to anywhere a course has been set
-    for.
+    Beaming is the shuttle's own trick and works wherever the ship is: landed,
+    or overhead. It is the one way aboard that needs no clear ground.
 
-    It deliberately does not care whether the ship is on the ground. When the
-    shuttle is not landed it is overhead, which is not a position at all, and
-    the pad reaches you either way. The hatch is the part that needs the ship
-    to be sitting somewhere.
+    A beam moves this client's own character, which only this client can do
+    for an ordinary player. It asks the server first (Core.requestMove):
+    on a server with the speed anti-cheat on, every beam is rationed, and a
+    refused one is explained ("the transporter is recharging") instead of the
+    server kicking the player.
 
-    Two things shape how this is written.
-
-    A beam is a two-stage job, not a teleport. An instant snap reads as a
-    debug command; a second and a half of dematerialising reads as a
-    transporter and gives the halo note time to be seen. So a beam is a
-    pending record serviced on a tick, in the same shape as the landing job in
-    TREK_Travel.
-
-    And a beam-down has to land somewhere a person can stand. The square you
-    left may have a zombie on it by the time you come back, so the arrival
-    spirals outward from the target and gives up rather than putting anybody
-    inside a wall.
+    A beam is two stages: the request, then a short delay while the player
+    dematerialises -- an instant snap reads as a debug teleport -- then the
+    move. Beaming down waits a little longer if the ground there has not
+    streamed in yet.
 ]]
+
+if isServer() then return end
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+require "TREK/TREK_Ship"
+require "TREK/TREK_World"
+require "TREK/TREK_Core"
 
 TREK = TREK or {}
 local C = TREK.Config
 local U = TREK.Util
+local Ship = TREK.Ship
+local W = TREK.World
+local Core = TREK.Core
 
 local T = {}
 TREK.Transport = T
 
--- The beam in progress, if any:
---   { dir = "up"|"down", tries, player, x, y, z }
--- Only one at a time; asking for another replaces it.
+-- The beam in progress, if any. One at a time; beams are per local player,
+-- and split-screen players wait for each other rather than share a pad.
 T.pending = nil
 
----------------------------------------------------------------------------
--- Where a beam can put somebody down
----------------------------------------------------------------------------
---- Squares in rings outward from a centre, nearest first.
-local function spiral(cx, cy, radius)
-    local out = {}
-    for r = 0, radius do
-        for dx = -r, r do
-            for dy = -r, r do
-                if math.max(math.abs(dx), math.abs(dy)) == r then
-                    table.insert(out, { x = cx + dx, y = cy + dy })
-                end
-            end
-        end
-    end
-    return out
-end
+--- Kept for anything that still calls it through the transporter.
+T.spotNear = W.spotNear
 
---- A square a person can stand on at or near a target, or nil.
----
---- One person needs one square, which is the whole difference between this
---- and Core.roomToLand: the ship needs its whole footprint, a crewman needs
---- somewhere to put their feet.
-function T.spotNear(cx, cy, z, radius)
-    for _, p in ipairs(spiral(cx, cy, radius or C.BeamScatter)) do
-        local sq = U.square(p.x, p.y, z, false)
-        if sq then
-            local ok = U.try("beamSpot", function()
-                if not sq:getFloor() then return false end
-                if sq:isSolid() or sq:isSolidTrans() then return false end
-                if not sq:isFree(false) then return false end
-                return true
-            end)
-            if ok == true then return { x = p.x, y = p.y, z = z } end
-        end
-    end
-    return nil
-end
-
----------------------------------------------------------------------------
--- Starting a beam
----------------------------------------------------------------------------
 local function begin(player, dir, x, y, z)
-    T.pending = {
-        dir = dir, tries = 0, player = player,
-        x = x, y = y, z = z,
-    }
+    T.pending = { dir = dir, tries = 0, player = player, x = x, y = y, z = z }
+    U.note(player, getText("IGUI_TREK_Energising"))
+end
+
+local function busy()
+    return T.pending ~= nil or Core.moveWaiting()
 end
 
 --- Beams the player up to the transporter pad from wherever they are.
 ---
---- Where they were is written down first: that is what "beam me back" means
---- later, and it is recorded here rather than at beam-down time so that a
---- player who wanders around the cabin still returns to the spot they left.
+--- Where they were is written down when the beam goes: that is what "beam me
+--- back" means later. It is kept on the character, not the ship -- in a crew
+--- of four, each of them came from somewhere different.
 function T.beamUp(player)
     if not player then return false, "no player" end
     if U.isInteriorPlayer(player) then return false, "aboard" end
-    if T.pending then return false, "busy" end
+    if busy() then return false, "busy" end
 
-    -- Beaming up abandons a landing in progress. Otherwise both jobs run:
-    -- the ship comes down at the destination and immediately teleports the
-    -- player back out of the cabin to stand beside it.
-    if TREK.Travel and TREK.Travel.pending then
-        TREK.Travel.pending = nil
-        U.log("beam up cancelled the landing in progress")
-    end
-
-    local s = U.state()
-    s.returnX = math.floor(player:getX())
-    s.returnY = math.floor(player:getY())
-    s.returnZ = math.floor(player:getZ())
-
-    begin(player, "up")
-    U.note(player, getText("IGUI_TREK_Energising"))
-    U.log("beaming up from %d,%d,%d", s.returnX, s.returnY, s.returnZ)
+    Core.requestMove(player, "beamUp", function(p)
+        -- Beaming up abandons a landing in progress, or both would run.
+        if TREK.Travel and TREK.Travel.pending then
+            TREK.Travel.pending = nil
+            U.log("beam up cancelled the landing in progress")
+        end
+        Ship.setReturnPoint(p, p:getX(), p:getY(), p:getZ())
+        begin(p, "up")
+        U.log("beaming up from %d,%d,%d", math.floor(p:getX()),
+              math.floor(p:getY()), math.floor(p:getZ()))
+    end)
     return true
 end
 
 --- Beams the player down. With no destination this is the return trip to
---- wherever they beamed up from; with one it is a landing party anywhere on
---- the map.
+--- wherever they beamed up from; with one it is a landing party.
 function T.beamDown(player, dest)
     if not player then return false, "no player" end
     if not U.isInteriorPlayer(player) then return false, "not aboard" end
-    if T.pending then return false, "busy" end
+    if busy() then return false, "busy" end
 
-    local s = U.state()
     local x, y, z
     if dest then
         x, y, z = dest.x, dest.y, dest.z or 0
-    elseif s.returnX then
-        x, y, z = s.returnX, s.returnY, s.returnZ
-    elseif s.landed then
-        x, y, z = s.x, s.y, s.z
     else
-        return false, "nowhere"
+        x, y, z = Ship.returnPoint(player)
+        local s = Ship.get()
+        if not x and s.landed then x, y, z = s.x, s.y, s.z end
     end
+    if not x then return false, "nowhere" end
+    x, y, z = math.floor(x), math.floor(y), math.floor(z)
 
-    begin(player, "down", math.floor(x), math.floor(y), math.floor(z))
-    U.note(player, getText("IGUI_TREK_Energising"))
-    U.log("beaming down to %d,%d", x, y)
+    Core.requestMove(player, "beamDown", function(p)
+        begin(p, "down", x, y, z)
+        U.log("beaming down to %d,%d", x, y)
+    end)
     return true
 end
 
---- Beams the player up with no ceremony and no delay.
----
---- The recovery path, used when a landing has failed and the player is
---- standing on ground the ship could not reach. They are already committed to
---- being aboard by then, so there is nothing to announce and no reason to
---- make them wait through it again.
---- Starts the normal delayed beam at the ground directly below hands-on
---- flight. The player is the flight proxy rather than physically aboard.
-function T.beamDownFromFlight(player, dest)
-    if not player or not dest then return false, "nowhere" end
-    if not TREK.Flight or not TREK.Flight.isActive() then
-        return false, "not flying"
-    end
-    if T.pending then return false, "busy" end
-
-    begin(player, "down", math.floor(dest.x), math.floor(dest.y),
-          math.floor(dest.z or 0))
-    T.pending.fromFlight = true
-    U.note(player, getText("IGUI_TREK_Energising"))
-    U.log("beaming down below the shuttle at %d,%d", dest.x, dest.y)
-    return true
-end
-
+--- Beams the player straight back aboard after a landing with no room. The
+--- charge for this was held back when the landing was asked for.
 function T.recoverAboard(player, message)
     if not player then return false end
     T.pending = nil
-    local s = U.state()
-    s.inside = true
-    TREK.Core.beginArrival(player, true)
-    if message then U.note(player, message, 255, 170, 90) end
+    Core.requestMove(player, "recover", function(p)
+        Core.beginArrival(p, true)
+        if message then U.note(p, message, 255, 170, 90) end
+    end)
     return true
 end
 
 ---------------------------------------------------------------------------
 -- Servicing a beam
 ---------------------------------------------------------------------------
-local function finishUp(job)
-    local s = U.state()
-    s.inside = true
-    -- Core owns arrival: it holds the player on the pad, unfalling and
-    -- unhurt, and raises the cabin the moment its chunks stream in.
-    TREK.Core.beginArrival(job.player, true)
-    U.log("materialised aboard")
-end
-
+--- Materialises the player at the target, then settles them on the nearest
+--- clear square.
+---
+--- In that order, because the ground far from the ship is not loaded -- not
+--- on this client, not on the server -- until a player stands there. Looking
+--- for a clear square first finds nothing and the beam fails. The settling
+--- step is a short move within sight, not a second long jump.
 local function finishDown(job)
     local player = job.player
-    local s = U.state()
-
-    local spot = T.spotNear(job.x, job.y, job.z)
-    if not spot then
-        -- The world may simply not have streamed that ground in yet, which is
-        -- the normal case for anywhere the player has not just come from. Keep
-        -- trying for a few seconds before admitting it cannot be done.
-        if job.tries < C.BeamDelay + 300 then return false end
-        T.pending = nil
-        U.note(player, getText("IGUI_TREK_NoBeamSite"), 255, 90, 90)
-        U.log("no clear ground to beam down to near %d,%d", job.x, job.y)
-        return true
+    if not job.arrived then
+        U.teleport(player, job.x, job.y, job.z)
+        Ship.playerData(player).aboard = false
+        job.arrived = true
+        job.arrivedAt = job.tries
+        return false
     end
 
+    local spot = W.spotNear(job.x, job.y, job.z)
+    if not spot then
+        -- The ground is still streaming in; hold the player still meanwhile.
+        if job.tries - job.arrivedAt < 300 then
+            U.try("holdBeam", function()
+                player:setbFalling(false)
+                player:setFallTime(0)
+            end)
+            return false
+        end
+        U.note(player, getText("IGUI_TREK_NoBeamSite"), 255, 90, 90)
+        U.log("no clear ground to beam down to near %d,%d", job.x, job.y)
+        spot = { x = job.x, y = job.y, z = job.z }
+    end
     U.teleport(player, spot.x, spot.y, spot.z)
-    s.inside = false
-    s.returnX, s.returnY, s.returnZ = spot.x, spot.y, spot.z
+    Ship.setReturnPoint(player, spot.x, spot.y, spot.z)
     U.log("materialised at %d,%d,%d", spot.x, spot.y, spot.z)
     return true
 end
 
---- Runs once a tick while a beam is outstanding.
 local function serviceBeam()
     local job = T.pending
     if not job then return end
@@ -221,23 +158,21 @@ local function serviceBeam()
     job.tries = job.tries + 1
     if job.tries < C.BeamDelay then return end
 
-    -- A beam-down that is still waiting for its ground to load keeps the job
-    -- alive; everything else is done in one step.
     if job.dir == "down" then
+        -- A beam-down still waiting for its ground keeps the job alive.
         if finishDown(job) then T.pending = nil end
         return
     end
 
     T.pending = nil
-    finishUp(job)
+    Core.beginArrival(job.player, true)
+    U.log("materialised aboard")
 end
 
 Events.OnTick.Add(serviceBeam)
 
 --- Exposed for the debug console: TREK_Beam()
----
---- Beams you up if you are outside and back down if you are aboard, so the
---- round trip can be exercised without going through the menus.
+--- Beams you up if you are outside and back down if you are aboard.
 function TREK_Beam()
     local player = U.player(0)
     if not player then return false end

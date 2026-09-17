@@ -1,0 +1,13 @@
+VERSION = 1,
+
+/***** SHUTTLECRAFT *****/
+
+option TrekShuttle.Access = {
+    type = enum, numValues = 2, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.Access, valueTranslation = TrekShuttle.Access,
+}
+
+option TrekShuttle.TransporterLimit = {
+    type = enum, numValues = 2, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.TransporterLimit, valueTranslation = TrekShuttle.TransporterLimit,
+}

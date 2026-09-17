@@ -79,84 +79,90 @@ end
 ---------------------------------------------------------------------------
 -- Persisted state
 ---------------------------------------------------------------------------
--- One table, saved with the world.
+-- The ship: one table, global mod data, saved with the world. It has exactly
+-- one writer -- single player, or the server -- and TREK_Ship.lua is how it is
+-- published to clients and changed. Read it through here everywhere.
 --
 -- `landed` is the whole model of where the ship is: true and it is sitting on
 -- the ground at x,y,z; false and it is overhead, which is not a position at
--- all. The transporter works either way, the hatch only works landed, and
--- nothing else needs to know.
+-- all. The transporter works either way, the hatch only works landed.
+--
+-- Schema 2 (multiplayer):
+--   landed, x, y, z, everLanded       where the hull stands
+--   destination {x,y,z} | nil         the course laid in
+--   bookmarks {{name,x,y,z}}          logged positions
+--   shields                           the field around the landed hull
+--   owner (username) | nil, crew {}   who may use it, when the server limits it
+--   built, rev                        the cabin, and the build that made it
+--   ghosts {{x,y,z}}                  old hulls still to be removed
+--
+-- Per-player facts (where *you* beamed up from) moved to the character's own
+-- mod data in schema 2. A single-player save keeps its old ship-wide return
+-- point so its player still has somewhere to beam back to (Ship.returnPoint).
 function U.state()
     local s = ModData.getOrCreate(C.StateKey)
+    -- A client's copy is whatever the server last sent. It is never migrated
+    -- or repaired here, because doing so would be a client writing the ship.
+    if isClient() then
+        s.bookmarks = s.bookmarks or {}
+        s.ghosts = s.ghosts or {}
+        return s
+    end
     -- Every field falls back to what is already there, so raising the schema
     -- re-runs this block without losing anything.
-    if s.schema ~= 1 then
-        s.schema      = 1
+    if s.schema ~= 2 then
+        s.schema      = 2
         s.version     = C.Version
         s.landed      = s.landed == true
         s.x           = s.x or 0
         s.y           = s.y or 0
         s.z           = s.z or 0
         s.everLanded  = s.everLanded == true
-        s.inside      = s.inside == true
-        s.returnX     = s.returnX or nil
-        s.returnY     = s.returnY or nil
-        s.returnZ     = s.returnZ or nil
         s.built       = s.built == true
         s.rev         = s.rev or 0
         s.bookmarks   = s.bookmarks or {}
         s.destination = s.destination or nil
         s.ghosts      = s.ghosts or {}
+        s.crew        = s.crew or {}
+        -- Hands-on flight is gone, and with it everything it saved.
+        s.flightX, s.flightY, s.flightZ, s.speedStep, s.inside = nil, nil, nil, nil, nil
     end
     -- Belt and braces: a world saved between two builds at the same schema
     -- can be missing a list every read of it assumes is a table.
     s.ghosts = s.ghosts or {}
     s.bookmarks = s.bookmarks or {}
-    -- Additive flight fields keep old saves compatible. Active piloting is
-    -- transient; only the ground directly below the airborne ship is saved.
-    s.flightX = s.flightX or (s.landed and s.x or s.returnX)
-    s.flightY = s.flightY or (s.landed and s.y or s.returnY)
-    s.flightZ = s.flightZ or (s.landed and s.z or s.returnZ or 0)
-    -- Helm settings, additive like the flight fields. `shields` is compared
-    -- with nil rather than tested for truth: false is a real answer.
+    s.crew = s.crew or {}
+    -- `shields` is compared with nil rather than tested for truth: false is a
+    -- real answer.
     if s.shields == nil then s.shields = C.ShieldsDefault end
-    local steps = #C.FlightSpeedSteps
-    if type(s.speedStep) ~= "number" or s.speedStep < 1 or s.speedStep > steps then
-        s.speedStep = C.FlightSpeedDefaultStep
-    end
     return s
 end
 
----------------------------------------------------------------------------
--- Helm settings
----------------------------------------------------------------------------
 function U.shieldsUp()
-    return U.state().shields == true
+    return U.state().shields ~= false
 end
 
-function U.setShields(up)
-    local s = U.state()
-    s.shields = up == true
-    U.log("shields %s", s.shields and "up" or "down")
-    return s.shields
+--- True in single player, where this process is both the client and the
+--- server and there is nobody else to consider.
+function U.isSinglePlayer()
+    return not isClient() and not isServer()
 end
 
---- The multiplier the helm has selected, e.g. 2 for twice normal speed.
-function U.flightMultiplier()
-    return C.FlightSpeedSteps[U.state().speedStep] or 1
-end
-
---- Squares per tick the ship flies at right now.
-function U.flightSpeed()
-    return C.FlightSpeed * U.flightMultiplier()
-end
-
-function U.setFlightStep(step)
-    local s = U.state()
-    if type(step) ~= "number" or not C.FlightSpeedSteps[step] then return false end
-    s.speedStep = step
-    U.log("flight speed x%s (%.2f squares a tick)",
-          tostring(C.FlightSpeedSteps[step]), U.flightSpeed())
-    return true
+--- Every player character this process knows about: the online players on a
+--- server or a connected client, the local players in single player.
+function U.players()
+    local out = {}
+    local list = U.try("playerList", function()
+        if isServer() or isClient() then return getOnlinePlayers() end
+        return IsoPlayer.getPlayers()
+    end)
+    if not list then return out end
+    local n = U.try("playerCount", function() return list:size() end) or 0
+    for i = 0, n - 1 do
+        local p = U.try("playerAt", function() return list:get(i) end)
+        if p then table.insert(out, p) end
+    end
+    return out
 end
 
 ---------------------------------------------------------------------------
@@ -417,6 +423,22 @@ local addStrategies = {
 -- The one that worked, remembered after the first item.
 local addStrategy = nil
 
+--- Called with (container, item) after every item U.stock, U.fill and
+--- U.stockEach put in. Nil by default. The server sets it while it restocks a
+--- container that clients can already see, so each item is sent to them; a
+--- container still being built is sent whole when its object is, and needs
+--- nothing.
+U.onItemAdded = nil
+
+local function lastItem(container)
+    return U.try("lastItem", function()
+        local items = container:getItems()
+        local n = items and items:size() or 0
+        if n == 0 then return nil end
+        return items:get(n - 1)
+    end)
+end
+
 local function sizeOf(container)
     local items = U.try("getItems", function() return container:getItems() end)
     return items and items:size() or 0
@@ -434,7 +456,12 @@ local function addVerified(container, id)
 
     local function attempt(way)
         local ok = pcall(way.add, container, id)
-        return ok and sizeOf(container) > before
+        if not (ok and sizeOf(container) > before) then return false end
+        if U.onItemAdded then
+            local item = lastItem(container)
+            if item then U.try("onItemAdded", U.onItemAdded, container, item) end
+        end
+        return true
     end
 
     if addStrategy then

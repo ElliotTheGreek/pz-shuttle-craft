@@ -13,15 +13,27 @@
     the option would be tidier and much worse: a player who cannot see the
     option has no way to learn that the ship needs five tiles of clear ground,
     and would conclude the mod was broken.
+
+    The same rule covers access. On a server that limits the ship to its
+    owner and crew, everyone still sees the options and is told why when the
+    server refuses -- never a menu that silently does nothing.
 ]]
+
+if isServer() then return end
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
-require "TREK/TREK_Flight"
+require "TREK/TREK_Ship"
+require "TREK/TREK_World"
+require "TREK/TREK_Core"
+require "TREK/TREK_Transport"
+require "TREK/TREK_Travel"
 
 TREK = TREK or {}
-local C = TREK.Config
 local U = TREK.Util
+local Ship = TREK.Ship
+local W = TREK.World
+local Core = TREK.Core
 
 local M = {}
 TREK.Menu = M
@@ -40,90 +52,58 @@ local function clickedSquare(playerIndex, context, player)
     return U.square(x, y, z, false)
 end
 
+local function busyNote(player)
+    U.note(player, getText("IGUI_TREK_TransporterBusy"), 255, 170, 90)
+end
+
 ---------------------------------------------------------------------------
 -- Actions
 ---------------------------------------------------------------------------
 function M.onBeamUp(_, player)
     local ok, why = TREK.Transport.beamUp(player)
-    if not ok and why == "busy" then
-        U.note(player, getText("IGUI_TREK_TransporterBusy"), 255, 170, 90)
-    end
+    if not ok and why == "busy" then busyNote(player) end
 end
 
 function M.onBeamDown(_, player)
     local ok, why = TREK.Transport.beamDown(player)
     if ok then return end
     if why == "busy" then
-        U.note(player, getText("IGUI_TREK_TransporterBusy"), 255, 170, 90)
+        busyNote(player)
     elseif why == "nowhere" then
         U.note(player, getText("IGUI_TREK_NoReturnPoint"), 255, 90, 90)
     end
 end
 
---- Calls the ship down onto a square, or says why it will not come.
----
---- This is where a player finds out how much room the shuttle needs, so the
---- message carries the numbers rather than a flat refusal.
+--- Calls the ship down onto a square, or says why it will not come. This is
+--- where a player finds out how much room the shuttle needs, so the message
+--- carries the numbers. The server looks again before it lands.
 function M.onCallDown(_, player, x, y, z)
-    local sq = U.square(x, y, z, false)
-    if not sq then return end
-
-    local ok, why, blocked = TREK.Core.roomToLand(x, y, z)
-    if ok then
-        local landed, failed = TREK.Core.land(sq, player)
-        if landed then
-            U.note(player, getText("IGUI_TREK_Landed"))
-        else
-            U.note(player, getText("IGUI_TREK_NoRoom",
-                                   TREK.Core.footprintArea(), 1), 255, 90, 90)
-            U.log("call down refused after passing the check: %s", tostring(failed))
-        end
+    local ok, why, blocked = W.roomToLand(x, y, z, W.exemptFor(player))
+    if not ok then
+        U.note(player, TREK.Travel.refusalText(why, blocked), 255, 90, 90)
         return
     end
-
-    local text
-    if why == "vehicle" then
-        text = getText("IGUI_TREK_NoRoomVehicle")
-    elseif why == "void" then
-        text = getText("IGUI_TREK_NoRoomVoid")
-    else
-        text = getText("IGUI_TREK_NoRoom", TREK.Core.footprintArea(), blocked)
-    end
-    U.note(player, text, 255, 90, 90)
+    Core.send(player, "land", { x = x, y = y, z = z })
 end
 
 function M.onRecall(_, player)
-    if TREK.Core.recall() then
-        U.note(player, getText("IGUI_TREK_Recalled"))
-    end
+    Core.send(player, "recall", {})
 end
 
 function M.onEnter(_, player)
-    local ok, why = TREK.Flight.start(player)
-    if not ok then
-        local key = why == "busy" and "IGUI_TREK_FlightBusy"
-                    or "IGUI_TREK_FlightUnavailable"
-        U.note(player, getText(key), 255, 170, 90)
+    if Core.moveWaiting() or TREK.Transport.pending then
+        busyNote(player)
+        return
     end
-end
-
-function M.onLandFlight(_, player)
-    TREK.Flight.land(player)
-end
-
-function M.onEnterInterior(_, player)
-    TREK.Flight.enterInterior(player)
-end
-
-function M.onBeamBelow(_, player)
-    local ok, why = TREK.Flight.beamBelow(player)
-    if not ok and why == "busy" then
-        U.note(player, getText("IGUI_TREK_TransporterBusy"), 255, 170, 90)
-    end
+    Core.enter(player)
 end
 
 function M.onExit(_, player)
-    TREK.Core.exit(player)
+    if Core.moveWaiting() or TREK.Transport.pending then
+        busyNote(player)
+        return
+    end
+    Core.exit(player)
 end
 
 function M.onHelm(_, player)
@@ -131,7 +111,7 @@ function M.onHelm(_, player)
 end
 
 function M.onBookmarkHere(_, player)
-    local ok, err = TREK.Travel.addBookmark(nil)
+    local ok, err = TREK.Travel.addBookmark(player, nil)
     if not ok then
         U.note(player, tostring(err), 255, 90, 90)
     else
@@ -139,52 +119,71 @@ function M.onBookmarkHere(_, player)
     end
 end
 
+function M.onSetCrew(_, player, name, on)
+    Core.send(player, "setCrew", { name = name, on = on })
+end
+
 ---------------------------------------------------------------------------
 -- Menu assembly
 ---------------------------------------------------------------------------
+--- Crew management, offered only where it means something: a server set to
+--- owner-and-crew access, to the owner or an admin.
+local function crewMenu(menu, player, worldobjects)
+    if not isClient() then return end
+    if Ship.accessMode() ~= 2 or not Ship.canManageCrew(player) then return end
+
+    local s = Ship.get()
+    local me = Ship.usernameOf(player)
+    local sub = menu:addOption(getText("IGUI_TREK_Crew"), worldobjects, nil)
+    local crew = ISContextMenu:getNew(menu)
+    menu:addSubMenu(sub, crew)
+
+    local any = false
+    for _, other in ipairs(U.players()) do
+        local name = Ship.usernameOf(other)
+        if name ~= me and name ~= s.owner then
+            any = true
+            if s.crew and s.crew[name] then
+                crew:addOption(getText("IGUI_TREK_CrewRemove", name), worldobjects,
+                               M.onSetCrew, player, name, false)
+            else
+                crew:addOption(getText("IGUI_TREK_CrewAdd", name), worldobjects,
+                               M.onSetCrew, player, name, true)
+            end
+        end
+    end
+    if not any then
+        local none = crew:addOption(getText("IGUI_TREK_CrewNobody"), worldobjects, nil)
+        none.notAvailable = true
+    end
+end
+
 local function aboardMenu(context, player, worldobjects, test)
     if test then return ISWorldObjectContextMenu.setTest() end
-    local s = U.state()
+    local s = Ship.get()
 
     local sub = context:addOption(getText("IGUI_TREK_Name"), worldobjects, nil)
     local menu = ISContextMenu:getNew(context)
     context:addSubMenu(sub, menu)
 
-    menu:addOption(getText("IGUI_TREK_Pilot"), worldobjects, M.onEnter, player)
     menu:addOption(getText("IGUI_TREK_Helm"), worldobjects, M.onHelm, player)
     menu:addOption(getText("IGUI_TREK_BeamDown"), worldobjects, M.onBeamDown, player)
     -- The ramp only exists when the ship is on the ground. Overhead, the
-    -- transporter is the only way off, and offering a door that cannot open
-    -- would just be a dead menu entry.
+    -- transporter is the only way off.
     if s.landed then
         menu:addOption(getText("IGUI_TREK_StepOutside"), worldobjects, M.onExit, player)
     end
     menu:addOption(getText("IGUI_TREK_BookmarkHere"), worldobjects,
                    M.onBookmarkHere, player)
-    return true
-end
-
-local function flightMenu(context, player, worldobjects, test)
-    if test then return ISWorldObjectContextMenu.setTest() end
-
-    local sub = context:addOption(getText("IGUI_TREK_Name"), worldobjects, nil)
-    local menu = ISContextMenu:getNew(context)
-    context:addSubMenu(sub, menu)
-    menu:addOption(getText("IGUI_TREK_LandHere"), worldobjects,
-                   M.onLandFlight, player)
-    menu:addOption(getText("IGUI_TREK_EnterInterior"), worldobjects,
-                   M.onEnterInterior, player)
-    menu:addOption(getText("IGUI_TREK_BeamBelow"), worldobjects,
-                   M.onBeamBelow, player)
+    crewMenu(menu, player, worldobjects)
     return true
 end
 
 local function groundMenu(context, player, worldobjects, sq, test)
-    local onHull = TREK.Core.hullCovers(sq:getX(), sq:getY(), sq:getZ())
+    local onHull = W.hullCovers(sq:getX(), sq:getY(), sq:getZ())
 
     -- Somewhere a person could stand is somewhere worth *offering* to land,
-    -- even when the footprint will not fit. The refusal, with its reasons, is
-    -- the whole point.
+    -- even when the footprint will not fit. The refusal is the point.
     local standable = U.try("standable", function()
         return sq:getFloor() ~= nil and not sq:isSolid()
     end) == true
@@ -211,10 +210,6 @@ local function onPreFill(playerIndex, context, worldobjects, test)
     local player = U.player(playerIndex)
     if not player then return end
 
-    if TREK.Flight.isActive() then
-        return flightMenu(context, player, worldobjects, test)
-    end
-
     if U.isInteriorPlayer(player) then
         return aboardMenu(context, player, worldobjects, test)
     end
@@ -225,7 +220,5 @@ local function onPreFill(playerIndex, context, worldobjects, test)
 end
 
 Events.OnPreFillWorldObjectContextMenu.Add(onPreFill)
-
-U.log("FLIGHT BUILD 1.4: menus registered on OnPreFillWorldObjectContextMenu")
 
 return M

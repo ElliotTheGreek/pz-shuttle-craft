@@ -10,12 +10,16 @@ This drives the real TREK_Helm.lua through construction, several frames of
 drawing and every control, against stubs of ISPanel, ISButton and the rest
 that record each draw call. It checks:
 
-  * nothing throws, in any state -- shields up and down, every speed step,
-    with and without the artwork textures installed
+  * nothing throws, in any state -- shields up and down, with and without
+    the artwork textures installed
   * every draw lands inside the panel with non-negative size
   * every text label fits the width it is drawn in (estimated)
-  * the controls change the saved state, and the defaults are right
-  * a corrupt saved speed step is repaired rather than indexing nil
+  * the controls ask for the right changes, and the defaults are right
+  * a player who is not crew is told so on the console
+
+The helm never writes the ship itself: every control is a request. Here the
+request is applied straight to the state, the way single player's in-process
+server would (tests/test_multiplayer.py plays the real round trip).
 
     python tests/test_helm.py
 """
@@ -70,6 +74,13 @@ def make_lua():
 
     lua.execute(r"""
         _G.unpack = _G.unpack or table.unpack
+        _G.isServer = function() return false end
+        _G.isClient = function() return false end
+        _G.Events = setmetatable({}, { __index = function(t, k)
+            local ev = { Add = function() end }
+            rawset(t, k, ev)
+            return ev
+        end })
         _G.print = function(...) end
         _G.instanceof = function() return false end
         _G.getCellSizeInSquares = function() return 256 end
@@ -262,7 +273,16 @@ def make_lua():
         TREK = TREK or {}
         require "TREK/TREK_Config"
         require "TREK/TREK_Util"
-        TREK.Core = { footprintArea = function() return 15 end }
+        require "TREK/TREK_Ship"
+        sent = {}
+        TREK.Core = {
+            footprintArea = function() return 15 end,
+            send = function(player, cmd, args)
+                table.insert(sent, { cmd = cmd, args = args })
+                local s = TREK.Util.state()
+                if cmd == "setShields" then s.shields = args.up end
+            end,
+        }
         TREK.Travel = {
             addBookmark = function() end, setDestination = function() end,
             removeBookmark = function() return true end, descend = function() end,
@@ -336,8 +356,6 @@ def main():
         # --- defaults ------------------------------------------------------
         if U.shieldsUp() is not True:
             failures.append(f"{label}: a new world does not start with shields up")
-        if abs(float(U.flightMultiplier()) - 1.0) > 1e-9:
-            failures.append(f"{label}: default flight speed is x{U.flightMultiplier()}, not x1")
 
         lua.execute("win = TREKHelmWindow:new(60, 80, player); win:createChildren()")
         win = lua.globals().win
@@ -353,18 +371,6 @@ def main():
         lua.execute("win.shieldsBtn:click()")
         if U.shieldsUp() is not True:
             failures.append(f"{label}: the shields button did not raise them again")
-
-        # --- every speed step ---------------------------------------------
-        steps = [C.FlightSpeedSteps[i] for i in range(1, len(C.FlightSpeedSteps) + 1)]
-        if float(steps[-1]) != 5 or float(steps[0]) >= 1:
-            failures.append(f"{label}: speed steps {steps} do not run from below 1x to 5x")
-        for i in range(1, len(steps) + 1):
-            lua.execute(f"win.speedChips[{i}]:click()")
-            want = float(C.FlightSpeed) * float(steps[i - 1])
-            if abs(float(U.flightSpeed()) - want) > 1e-9:
-                failures.append(f"{label}: step {i} flies at {U.flightSpeed()}, not {want}")
-            check_bounds(lua, run_frames(lua, f"{label}, speed step {i}", 1),
-                         f"{label}, speed step {i}")
 
         # --- a populated log, a course, and the navigation buttons ---------
         lua.execute("""
@@ -456,12 +462,14 @@ def main():
         if len(log) != 1:
             failures.append(f"{label}: closing with a controller did not release its focus")
 
-        # --- a corrupt saved step is repaired -----------------------------
-        lua.execute("TREK.Util.state().speedStep = 99")
-        if abs(float(U.flightMultiplier()) - 1.0) > 1e-9:
-            failures.append(f"{label}: a saved speed step of 99 was not reset to x1")
-        if U.setFlightStep(0) is not False:
-            failures.append(f"{label}: setFlightStep(0) was accepted")
+        # --- not crew -------------------------------------------------------
+        lua.execute('''
+            TREK.Ship.canUse = function() return false end
+            win:refresh()
+        ''')
+        if "IGUI_TREK_NotCrew" not in IG or IG["IGUI_TREK_NotCrew"] not in str(win.info.text):
+            failures.append(f"{label}: a player who is not crew is not told so at the helm")
+        lua.execute("TREK.Ship.canUse = function() return true end")
 
         for key in sorted(set(missing)):
             failures.append(f"{label}: getText({key!r}) has no entry in IG_UI.json")

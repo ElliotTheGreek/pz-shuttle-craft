@@ -1,8 +1,8 @@
 name=Shuttlecraft
 id=TrekShuttle
 poster=poster.png
-description=A Starfleet shuttlecraft for Project Zomboid. Pilot the shuttle directly with WASD above buildings and trees, rotate the 3D craft in flight, land on clear ground, enter its interior, or beam down below it. Inside: a helm and viewscreen, a galley with running water, a berth, and eight starboard lockers holding sick bay supplies, engineering stores, provisions, survival kit, an armoury and rechargeable phasers. It needs three tiles by five of clear ground to land.
+description=A Starfleet shuttlecraft for Project Zomboid, for single player and multiplayer. Beam up from anywhere, lay in a course at the LCARS helm and take her down anywhere with room to land, then board through the hatch. Inside: a galley with running water, a berth, and eight starboard lockers holding sick bay supplies, engineering stores, provisions, survival kit, an armoury and rechargeable phasers. Shields hold the dead back from a landed shuttle. On servers the crew shares one ship; sandbox options limit it to its owner and crew. It needs three tiles by five of clear ground to land.
 author=built for Arcade
 category=build
 versionMin=42.0
-modversion=1.2.0
+modversion=1.3.0

@@ -15,7 +15,9 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.2.0"
+C.Version   = "1.3.0"
+-- The key predates multiplayer and is kept so single-player saves carry over;
+-- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
 C.ModPrefix = "[TREK]"
 
@@ -81,6 +83,13 @@ function C.isLanding(ox, oy)
     return math.abs(ox - C.Landing.x) <= C.Landing.clearance
        and math.abs(oy - C.Landing.y) <= C.Landing.clearance
 end
+
+-- Deckhead lighting. The server places the fittings; each client hangs the
+-- light itself, because a light source is not a synced world object.
+-- tests/test_layout.py checks these offsets against the floor plan.
+C.LampSpots = {
+    { 3, 1 }, { 2, 3 }, { 3, 6 },
+}
 
 ---------------------------------------------------------------------------
 -- Hull shape
@@ -176,38 +185,24 @@ C.BeamDelay = 90
 -- How far a beam-down may miss by when the exact square is occupied.
 C.BeamScatter = 6
 
+-- Transporter charges. On a server whose speed anti-cheat kicks or bans
+-- (AntiCheatSpeed 1 or 2), every long move of a character is one strike and
+-- four uncleared strikes remove the player; one strike clears every 150
+-- seconds. So each player gets that budget as charges, and the fourth beam is
+-- refused in lore ("recharging") instead of the server kicking them. Single
+-- player, and servers that only log or ignore the check, are unlimited.
+C.TransporterCharges       = 3
+C.TransporterRechargeSecs  = 150
+
 ---------------------------------------------------------------------------
--- Flight
+-- Travel
 ---------------------------------------------------------------------------
+-- Travel is by the helm: lay in a course, then take her down. Hands-on flight
+-- was removed because it could not be made safe or multiplayer-correct; it
+-- returns as a vehicle (MULTIPLAYER.md, "Flight -- the decision").
 C.MaxBookmarks        = 40
+C.MaxBookmarkName     = 40   -- characters; a name is sent to the server
 C.LandingSearchRadius = 24   -- squares to spiral out from a chosen site
-
--- Hands-on flight. Movement is world squares per tick; the screen-space lift
--- separates the visible shuttle from its projected shadow.
-C.FlightSpeed          = 1.50
-
--- Multipliers on C.FlightSpeed the helm offers, slowest first. 1 is the
--- original speed; the top step is five times it, 7.5 squares a tick. The
--- world streams in around the invisible proxy the flight camera rides on, and
--- at the top step the ship can outrun it for a moment -- the hull simply waits
--- a tick for ground to appear, which is logged once as flightModelMissing.
-C.FlightSpeedSteps       = { 0.25, 0.5, 1, 2, 3, 5 }
-C.FlightSpeedDefaultStep = 3
-C.FlightTakeoffTicks   = 75
-C.FlightModelLift      = 48
-
--- How many floors above the ground the pilot's body is held during flight.
--- The zombie attack code compares heights before it scratches, so a body
--- above the ground is out of reach of the dead standing on it.
---
--- KNOWN NOT TO BE ENOUGH: a pilot still took fatal damage in testing. Holding
--- a body in mid-air fights the engine's fall simulation every tick (it tracks
--- more than the fall time reset here, and even rewrites roofs under a falling
--- character), and over a two-storey building the body is level with anyone
--- upstairs. Flight is being redesigned rather than patched -- MULTIPLAYER.md.
-C.FlightHoverHeight    = 1.5
-C.FlightZoomLevels1x   = "25;50;75;100;125;150;175;200;225;250"
-C.FlightZoomLevels2x   = "25;50;75;100;125;150;175;200;225;250"
 
 -- How long to keep trying to set down at a destination before giving up and
 -- beaming the player back aboard. Ticks; the first few hundred are spent
@@ -334,6 +329,11 @@ C.WaterTags = { sink = true, shower = true, toilet = true }
 -- Ticks between top-ups while somebody is aboard. The ten-minute timer keeps
 -- it full when nobody is; this makes it impossible to drain in front of you.
 C.WaterInterval = 120
+
+-- How much each plumbed fixture holds, in litres. A runtime sink has no water
+-- store of its own, so the server gives it one this size (vanilla's own
+-- addWaterContainer command does exactly this) and keeps it topped up.
+C.WaterCapacity = 20
 
 ---------------------------------------------------------------------------
 -- Items placed in the cabin

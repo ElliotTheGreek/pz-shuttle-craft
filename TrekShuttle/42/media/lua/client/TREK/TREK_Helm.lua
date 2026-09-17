@@ -14,12 +14,15 @@
 
         shields        up or down, saved with the world -- the field in
                        Core.repelZombies is the shields
-        flight speed   a multiplier on C.FlightSpeed, 1/4x to 5x
-        navigation     the course, logged positions and "take her down",
-                       unchanged in behaviour from the old helm window
+        navigation     the course, logged positions and "take her down"
 
-    TREK_Travel.openHelm opens it beside the world map. Map clicks still set
-    the course through TREK.Travel and call refresh() here.
+    TREK_Travel.openHelm opens it beside the world map. Every control is a
+    request to the server, which owns the ship; the panel draws from the ship
+    state and refreshes when a change comes back -- this player's own, or a
+    crewman's at another helm.
+
+    The flight-speed control went with hands-on flight, and returns when the
+    shuttle flies as a vehicle (MULTIPLAYER.md).
 
     Controllers and the Steam Deck. The panel is an ISPanelJoypad, so the
     stick walks its buttons and A presses one. A mouse click on the map is the
@@ -34,12 +37,16 @@
         LB / RB     step through the logged positions
 ]]
 
+if isServer() then return end
+
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+require "TREK/TREK_Ship"
 
 TREK = TREK or {}
 local C = TREK.Config
 local U = TREK.Util
+local Ship = TREK.Ship
 
 local H = {}
 TREK.Helm = H
@@ -62,7 +69,7 @@ H.P = {
 }
 local P = H.P
 
-H.W, H.H = 440, 640          -- panel size
+H.W, H.H = 440, 568          -- panel size
 -- The course prompt. Sized for its text plus the "course laid in" line: the
 -- panel clips, so a line that does not fit is not wrapped, it is hidden.
 H.InfoH = 84
@@ -170,14 +177,6 @@ end
 ---------------------------------------------------------------------------
 TREKHelmWindow = ISPanelJoypad:derive("TREKHelmWindow")
 
---- The multiplier as it reads on a chip: 1/4, 1/2, 1, 2 ...
-function H.speedLabel(m)
-    if m == 0.25 then return "1/4" end
-    if m == 0.5 then return "1/2" end
-    if m == math.floor(m) then return tostring(math.floor(m)) end
-    return tostring(m)
-end
-
 function TREKHelmWindow:new(x, y, player)
     local o = ISPanelJoypad.new(self, x, y, H.W, H.H)
     o.player = player
@@ -209,26 +208,6 @@ function TREKHelmWindow:createChildren()
     self:addChild(self.shieldsBtn)
     y = y + 34 + 6
     self.shieldsStatusY = y
-    y = y + 18 + 14
-
-    -- Flight speed: one chip per step.
-    self.speedHeaderY = y
-    y = y + 20
-    self.speedChips = {}
-    local steps = C.FlightSpeedSteps
-    local chipGap = 6
-    local chipW = (cw - chipGap * (#steps - 1)) / #steps
-    for i, m in ipairs(steps) do
-        local chip = TREKLcarsButton:new(cx + (i - 1) * (chipW + chipGap), y,
-            chipW, 26, H.speedLabel(m) .. "x", self, TREKHelmWindow.onSpeed, P.dim)
-        chip.step = i
-        chip.centreText = true
-        chip:initialise()
-        self:addChild(chip)
-        self.speedChips[i] = chip
-    end
-    y = y + 26 + 6
-    self.speedStatusY = y
     y = y + 18 + 14
 
     -- Navigation.
@@ -286,7 +265,6 @@ function TREKHelmWindow:createChildren()
     -- Controller navigation, top to bottom. Close is on B rather than in the
     -- grid, the way vanilla panels do it.
     self:insertNewLineOfButtons(self.shieldsBtn)
-    self:insertNewListOfButtons(self.speedChips)
     self:insertNewLineOfButtons(self.crosshairBtn)
     self:insertNewLineOfButtons(self.landBtn, self.bookmarkBtn)
     self:insertNewLineOfButtons(self.gotoBtn, self.deleteBtn)
@@ -395,16 +373,6 @@ function TREKHelmWindow:render()
     self:drawText(status, cx, self.shieldsStatusY,
                   statusC[1], statusC[2], statusC[3], 0.95, UIFont.Small)
 
-    self:heading(self.speedHeaderY, "IGUI_TREK_SpeedHeader", P.gold)
-    local step = U.state().speedStep
-    for i, chip in ipairs(self.speedChips) do
-        chip.colour = (i == step) and P.gold or P.dim
-    end
-    self:drawText(getText("IGUI_TREK_SpeedStatus",
-                          H.speedLabel(U.flightMultiplier()),
-                          string.format("%.2f", U.flightSpeed())),
-                  cx, self.speedStatusY, P.text[1], P.text[2], P.text[3], 0.95, UIFont.Small)
-
     self:heading(self.navHeaderY, "IGUI_TREK_NavHeader", P.lilac)
 
     -- Button prompts in the bottom bar, only while a controller drives it.
@@ -442,13 +410,16 @@ function TREKHelmWindow:setInfo(text)
 end
 
 function TREKHelmWindow:refresh()
-    local s = U.state()
+    local s = Ship.get()
     self.list:clear()
     for _, b in ipairs(s.bookmarks) do
         self.list:addItem(b.name, b)
     end
 
     local text = getText("IGUI_TREK_HelmPrompt", TREK.Core.footprintArea())
+    if not Ship.canUse(self.player) then
+        text = text .. " <LINE> <RGB:0.8,0.4,0.4> " .. getText("IGUI_TREK_NotCrew")
+    end
     if s.destination then
         text = text .. " <LINE> <RGB:1.0,0.8,0.4> " ..
                getText("IGUI_TREK_CourseSet", s.destination.x, s.destination.y)
@@ -460,7 +431,8 @@ end
 -- Controls
 ---------------------------------------------------------------------------
 function TREKHelmWindow:onShields()
-    local up = U.setShields(not U.shieldsUp())
+    local up = not U.shieldsUp()
+    TREK.Core.send(self.player, "setShields", { up = up })
     U.note(self.player, getText(up and "IGUI_TREK_ShieldsUp" or "IGUI_TREK_ShieldsDown"),
            up and 150 or 230, up and 200 or 110, up and 255 or 110)
 end
@@ -512,25 +484,22 @@ function TREKHelmWindow:onLoseJoypadFocus(joypadData)
     self:clearJoypadFocus(joypadData)
 end
 
-function TREKHelmWindow:onSpeed(button)
-    if button and button.step then U.setFlightStep(button.step) end
-end
-
 --- "Take her down": beams the player to the course and brings the ship in.
 function TREKHelmWindow:onLand()
-    local s = U.state()
+    local s = Ship.get()
     if not s.destination then
         self:setInfo(getText("IGUI_TREK_NoCourse"))
         return
     end
-    local dest = s.destination
-    s.destination = nil
+    -- The course stays laid in until the ship is actually down: the server
+    -- clears it when it lands, and a refused landing can simply be retried.
+    local dest = { x = s.destination.x, y = s.destination.y, z = s.destination.z }
     self:close()
     TREK.Travel.descend(self.player, dest)
 end
 
 function TREKHelmWindow:onBookmark()
-    local s = U.state()
+    local s = Ship.get()
     local x, y, z
     if s.destination then
         x, y, z = s.destination.x, s.destination.y, s.destination.z
@@ -540,12 +509,12 @@ function TREKHelmWindow:onBookmark()
         return
     end
 
+    local player = self.player
     local modal = ISTextBox:new(0, 0, 280, 120,
         getText("IGUI_TREK_NameBookmark"), "", nil,
         function(_, button, bx, by, bz)
             if button.internal == "OK" then
-                TREK.Travel.addBookmark(button.parent.entry:getText(), bx, by, bz)
-                if TREK.Travel.window then TREK.Travel.window:refresh() end
+                TREK.Travel.addBookmark(player, button.parent.entry:getText(), bx, by, bz)
             end
         end, nil, x, y, z)
     modal:initialise()
@@ -556,12 +525,11 @@ function TREKHelmWindow:onUseBookmark()
     local item = self.list.items[self.list.selected]
     if not item then return end
     local b = item.item
-    TREK.Travel.setDestination(b.x, b.y, b.z)
-    self:refresh()
+    TREK.Travel.setDestination(self.player, b.x, b.y, b.z)
 end
 
 function TREKHelmWindow:onDeleteBookmark()
-    if TREK.Travel.removeBookmark(self.list.selected) then self:refresh() end
+    TREK.Travel.removeBookmark(self.player, self.list.selected)
 end
 
 function TREKHelmWindow:close()
@@ -593,19 +561,14 @@ end
 ---------------------------------------------------------------------------
 -- Debug console
 ---------------------------------------------------------------------------
---- TREK_Shields() reports; TREK_Shields(true) / TREK_Shields(false) sets.
+--- TREK_Shields() reports; TREK_Shields(true) / TREK_Shields(false) asks.
 function TREK_Shields(up)
-    if up ~= nil then U.setShields(up) end
+    local player = U.player(0)
+    if up ~= nil and player then
+        TREK.Core.send(player, "setShields", { up = up == true })
+    end
     U.log("shields are %s", U.shieldsUp() and "up" or "down")
     return U.shieldsUp()
-end
-
---- TREK_Speed() reports; TREK_Speed(n) selects step n of C.FlightSpeedSteps.
-function TREK_Speed(step)
-    if step ~= nil then U.setFlightStep(step) end
-    U.log("flight speed step %d: x%s, %.2f squares a tick",
-          U.state().speedStep, tostring(U.flightMultiplier()), U.flightSpeed())
-    return U.flightSpeed()
 end
 
 return H
