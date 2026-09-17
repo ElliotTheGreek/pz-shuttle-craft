@@ -513,6 +513,174 @@ def single_player():
           f"refusal and return all checked")
 
 
+# ---------------------------------------------------------------------------
+# Flight
+# ---------------------------------------------------------------------------
+def seat(rt, n=0, who=1):
+    """Puts the player in a seat of the ship's vehicle."""
+    rt.run(f"""
+        local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+        v.seats[{n}] = SIM.players[{who}]
+        SIM.players[{who}].vehicle = v
+    """)
+
+
+def vehicle_z(rt):
+    return rt.eval("""(function()
+        local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+        return v and v:getZ() or -1
+    end)()""")
+
+
+def flight():
+    """Taking her up, keeping her up, and every way of coming back down.
+
+    The heart of it is that a vehicle's z is not its physics height: build 42
+    zeroes it every tick and only restores it where a floor exists underneath.
+    The simulation models that rule, so a flight that forgets to lay the sky
+    plane shows the ship on the deck here exactly as it would in game.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+
+    # Put her on the ground with the pilot at the controls.
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    check(ship(rt, "landed") is True, "flight: the ship would not land to start with")
+    seat(rt)
+
+    # --- take off ---------------------------------------------------------
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+    check(ship(rt, "flying") is True,
+          "flight: she never got off the ground")
+    check(ship(rt, "level") == rt.eval("TREK.Config.FlightCruise"),
+          f"flight: airborne at level {ship(rt, 'level')}, not the cruise level")
+    check(vehicle_z(rt) == rt.eval("TREK.Config.FlightCruise"),
+          f"flight: the engine puts the ship at z {vehicle_z(rt)}, not the flight "
+          f"level -- the sky plane is not holding it up")
+    check(ship(rt, "pilot") == "pilot", "flight: the ship does not know who is flying it")
+
+    # The plane is the one world edit a client may make, and it must be the
+    # only one: invisible floor, above the ground, and nothing else.
+    check(rt.eval("SIM.skyEdit") and rt.eval("SIM.skyEdit") > 0,
+          "flight: no sky plane was laid at all")
+    check(rt.eval("TREK.Sky.count()") > 0,
+          "flight: the sky module is not holding any squares")
+    check(rt.eval("SIM.clientWorldEdit") is None,
+          "flight: the world was edited for something other than the sky plane")
+
+    # s.z is the ground she will come back to, never the altitude. Everything
+    # from the cabin hatch to the shields measures from it.
+    check(ship(rt, "z") == 0,
+          f"flight: the altitude leaked into s.z ({ship(rt, 'z')}); the hatch would "
+          f"drop anyone who used it")
+
+    # --- the hatch is shut while she is up --------------------------------
+    before = pos(rt)
+    rt.run(f"TREK.Core.exit({P})")
+    net.pump(60)
+    check(pos(rt) == before,
+          "flight: stepping out of the hatch in mid-air was allowed")
+
+    # --- the pilot goes aft, and she stays up -----------------------------
+    rt.run(f"""
+        local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+        v:exit(SIM.players[1])
+        local x, y, z = TREK.Util.padSpot()
+        SIM.players[1].x, SIM.players[1].y = x + 0.5, y + 0.5
+        SIM.players[1].z, SIM.players[1].lastZ = z, z
+    """)
+    net.pump(500)
+    check(ship(rt, "flying") is True,
+          "flight: she came down the moment the pilot stepped aft to the cabin")
+    check(shuttles(rt) == 1,
+          "flight: the ship's own vehicle was swept up as a leftover in flight")
+
+    # --- and back to the seat, then down ----------------------------------
+    # Back to the ship first, and a moment for its ground to stream in again:
+    # while the pilot was in the cabin the vehicle was not loaded here at all,
+    # which is exactly why flight must not read "the vehicle is not in the
+    # cell's list" as "the vehicle is gone".
+    rt.run("""
+        local p = SIM.players[1]
+        p.x, p.y, p.z, p.lastZ = 3004.5, 3000.5, 3, 3
+    """)
+    net.pump(70)
+    seat(rt)
+    net.pump(70)
+    rt.run(f"TREK.Flight.land({P})")
+    net.pump(200)
+    check(ship(rt, "flying") is None, "flight: she would not come down")
+    check(ship(rt, "landed") is True, "flight: she came down but is not landed")
+    check(shuttles(rt) == 1,
+          "flight: landing respawned the vehicle -- the trunk and seats are gone")
+    check(rt.eval("TREK.Sky.count()") == 0,
+          f"flight: {rt.eval('TREK.Sky.count()')} invisible floors were left in the sky")
+
+    for w in rt.warnings():
+        fail(f"flight: {w}")
+    print("flight: take-off, the sky plane, the shut hatch, the pilot going aft "
+          "and the landing all checked")
+
+
+def flight_endings():
+    """Flight must not survive its pilot, or a world load."""
+    # --- the pilot dies in the air ----------------------------------------
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    seat(rt)
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+    check(ship(rt, "flying") is True, "flight endings: she never got up")
+
+    rt.run(f"""
+        local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+        v:exit(SIM.players[1])
+        SIM.players[1].dead = true
+    """)
+    net.pump(600)
+    check(ship(rt, "flying") is None,
+          "flight endings: flight outlived its pilot -- the 1.1 bug, back again")
+    check(ship(rt, "pilot") is None,
+          "flight endings: the dead pilot is still recorded at the controls")
+
+    # --- a world saved in flight opens on the ground ----------------------
+    net2 = Net("sp")
+    rt2 = net2.server
+    rt2.run("""
+        SIM.player('later', 3000.5, 3000.5, 0)
+        local s = ModData.getOrCreate("TREK_State_v1")
+        s.schema, s.landed, s.x, s.y, s.z = 2, true, 3004, 3000, 0
+        s.flying, s.level, s.pilot = true, 3, 'someone'
+        s.skyAt = { x = 3004, y = 3000, level = 3 }
+        s.built, s.rev, s.bookmarks, s.ghosts, s.crew = true, 10, {}, {}, {}
+    """)
+    net2.start()
+    check(ship(rt2, "flying") is None,
+          "flight endings: a world saved in flight reopened still flying, with a "
+          "pilot who is not even connected")
+    check(ship(rt2, "skyAt") is not None,
+          "flight endings: the record of where the sky plane was is gone, so its "
+          "invisible floors can never be lifted")
+
+    for r in (rt, rt2):
+        for w in r.warnings():
+            if "SIM DEATH" not in str(w):
+                fail(f"flight endings: {w}")
+    print("flight endings: a dead pilot and a world reload both bring her down")
+
+
 def migration():
     net = Net("sp")
     rt = net.server
@@ -736,6 +904,8 @@ def main():
     static()
     migration()
     single_player()
+    flight()
+    flight_endings()
     multiplayer()
     if failures:
         print(f"\n{len(failures)} PROBLEM(S):")

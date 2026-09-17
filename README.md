@@ -19,7 +19,8 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Beam down** | From the pad, back to the exact spot you left — or set a course first and beam down anywhere on the map. |
 | **Call it down** | Right-click a patch of street or field → **Call the shuttle down here**. It needs 3×5 tiles of clear ground and tells you when it hasn't got them. |
 | **Travel** | From the helm inside, click the map to lay in a course, then **take her down**. You are beamed to the site first so the ground actually loads, and the ship comes in after you. |
-| **Fly it like a truck** | The landed shuttle is a vehicle with four seats. Get in as you would a car, pick a seat on its chart, switch seats, drive. No seat has a door, so nothing can bite you in one. Going up is still to come. |
+| **Fly it like a truck** | The landed shuttle is a vehicle with four seats. Get in as you would a car, pick a seat on its chart, switch seats, drive. No seat has a door, so nothing can bite you in one. |
+| **Take her up** | From the pilot's seat, **Shuttlecraft ▸ Take her up**. She climbs above the rooftops and flies over buildings and trees — and she flies by *driving*, so the throttle, the steering, the seat chart and a controller all work exactly as they do on the ground. Climb, dive, pick a flight speed at the helm, and set her down below. The crew can go aft to the cabin in flight and come back; she waits where you left her. |
 | **Never stranded** | If there is not enough room at the destination you are beamed straight back aboard with the reason. A failed landing never leaves you on foot a hundred miles from the ship. |
 | **Phasers** | Four in a locker beside the pad. The charge never runs down, they never jam and they never wear out — and they are far quieter than a firearm, which is most of the point. |
 | **Running water** | The galley sink has its own water supply, topped up every in-game minute, so it keeps running after the mains shut off. |
@@ -234,7 +235,7 @@ interior plus `TREK_InteriorLayout.lua`.
 
 - **One shuttle per world.** In multiplayer the crew shares it; a second
   ship is not supported.
-- **No hands-on flight** until the vehicle shuttle arrives.
+- **Flight is new and has had one test.** The shuttle flies on an invisible floor the mod lays at altitude, because a vehicle's height in build 42 is decided by whether there is a floor under it, not by its physics. See `PILOTING.md`.
 - **The hull does not block anything.** It is a world model, and world models
   have no collision: zombies and players walk through it. The footprint is
   enforced when it lands, not afterwards.

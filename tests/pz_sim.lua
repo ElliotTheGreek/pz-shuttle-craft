@@ -38,6 +38,16 @@ end
 function isClient() return SIM_ROLE == "client" end
 function isServer() return SIM_ROLE == "server" end
 function getCellSizeInSquares() return 256 end
+
+-- getDebug() is false on purpose. A mechanism that only works under -debug is
+-- no use to a Workshop subscriber, so the simulation never pretends otherwise.
+local core = {
+    getDebug = function() return false end,
+    getKey = function(_, name) return 0 end,
+    getScreenWidth = function() return 1920 end,
+    getScreenHeight = function() return 1080 end,
+}
+function getCore() return core end
 function getText(key, ...)
     local out = key
     for i = 1, select("#", ...) do out = out .. "|" .. tostring(select(i, ...)) end
@@ -218,7 +228,10 @@ function SquareMT:isFree() return not self.occupied end
 --- shuttle's size; the only vehicle the tests spawn).
 function SquareMT:getVehicleContainer()
     for _, v in ipairs(SIM.vehicles or {}) do
-        if not v.removed and self.z == math.floor(v.z)
+        -- v:getZ(), not v.z: a vehicle in the air stands over nothing on the
+        -- ground, which is what lets a flying shuttle be set down beneath
+        -- itself without its own hull refusing the landing.
+        if not v.removed and self.z == math.floor(v:getZ())
            and math.abs(self.x - math.floor(v.x)) <= 1
            and math.abs(self.y - math.floor(v.y)) <= 2 then
             return v
@@ -236,7 +249,23 @@ function SquareMT:addFloor(sprite)
     if isServer() then
         py_replicate("floor", { x = self.x, y = self.y, z = self.z, sprite = sprite })
     elseif isClient() then
+        -- The sky plane is the one thing a client may lay, and it is counted
+        -- apart so the "no client ever edits the world" assertion keeps its
+        -- teeth for everything else. A test can then insist that the only
+        -- client-side floors are this sprite, and only above the ground.
         SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1
+    end
+    -- Counted whatever the role, because single player is a client too as far
+    -- as the sky plane is concerned, and a test needs to see it either way.
+    if sprite == "invisible_01_0" and self.z > 0 then
+        SIM.skyEdit = (SIM.skyEdit or 0) + 1
+        if isClient() then
+            -- The one world edit a client may make. Taken back out of the
+            -- general count so that "no client ever edits the world" keeps its
+            -- teeth for everything else.
+            SIM.clientWorldEdit = SIM.clientWorldEdit - 1
+            if SIM.clientWorldEdit == 0 then SIM.clientWorldEdit = nil end
+        end
     end
     return f
 end
@@ -413,6 +442,32 @@ SIM.vehicles = {}
 SIM.vehicleSerial = 0
 IsoDirections = { N = "N", S = "S", E = "E", W = "W" }
 
+---------------------------------------------------------------------------
+-- Physics transforms
+---------------------------------------------------------------------------
+-- zombie.core.physics.Transform and org.joml.Vector3f are both on the engine's
+-- Lua exposure allow-list, so mod code can construct them. getOrigin() hands
+-- back the live vector rather than a copy, which is what makes the read,
+-- mutate, write-back round trip work -- so the stub does the same.
+Vector3f = {}
+Vector3f.__index = Vector3f
+function Vector3f.new(x, y, z)
+    return setmetatable({ _x = x or 0, _y = y or 0, _z = z or 0 }, Vector3f)
+end
+function Vector3f:x() return self._x end
+function Vector3f:y() return self._y end
+function Vector3f:z() return self._z end
+function Vector3f:set(x, y, z) self._x, self._y, self._z = x, y, z return self end
+
+Transform = {}
+Transform.__index = Transform
+function Transform.new()
+    return setmetatable({ origin = Vector3f.new() }, Transform)
+end
+function Transform:getOrigin() return self.origin end
+
+function SIM.transform() return Transform.new() end
+
 local VehicleMT = {}
 VehicleMT.__index = VehicleMT
 
@@ -438,9 +493,79 @@ function VehicleMT:getScriptName() return self.script end
 function VehicleMT:getModData() return self.modData end
 function VehicleMT:getX() return self.x end
 function VehicleMT:getY() return self.y end
-function VehicleMT:getZ() return self.z end
 function VehicleMT:getMaxPassengers() return 4 end
 function VehicleMT:getCharacter(seat) return self.seats[seat] end
+
+---------------------------------------------------------------------------
+-- Height, the way build 42 really does it
+---------------------------------------------------------------------------
+-- This is the trap that killed the first design for flight, so the simulation
+-- reproduces it rather than being kind. BaseVehicle.update() sets a vehicle's
+-- z to 0 every single tick, and only puts it back to the physics level if a
+-- floor tile exists under the vehicle's centre square at that level or the one
+-- below. Raise the physics body with nothing under it and getZ() reads 0 for
+-- ever: the ship flies in Bullet and sits on the ground in the game.
+--
+-- So getZ() here is derived, never stored. A test that forgets to lay the sky
+-- plane sees the ship on the deck, exactly as the engine would show it.
+local LEVEL_UNITS = 2.4494900703430176
+
+function VehicleMT:getZ()
+    local level = math.floor((self.bulletY or 0) / LEVEL_UNITS + 0.05)
+    if level <= 0 then return 0 end
+    local function floored(l)
+        local sq = squares[key(math.floor(self.x), math.floor(self.y), l)]
+        return sq ~= nil and sq:getFloor() ~= nil
+    end
+    if floored(level) or floored(level - 1) then return level end
+    return 0
+end
+
+--- The physics body's own height, which is what setWorldTransform writes.
+function VehicleMT:setBulletY(v) self.bulletY = v end
+function VehicleMT:getBulletY() return self.bulletY or 0 end
+
+function VehicleMT:getWorldTransform(t)
+    t = t or SIM.transform()
+    t:getOrigin():set(self.x, self.bulletY or 0, self.y)
+    t.vehicle = self
+    return t
+end
+
+function VehicleMT:setWorldTransform(t)
+    local o = t:getOrigin()
+    self.bulletY = o:y()
+    -- A client moving the world's ship is not the same as a client building
+    -- in the world, but it is still worth counting separately so a test can
+    -- assert that only the driver's machine ever did it.
+    if isClient() then
+        SIM.vehicleTransformEdit = (SIM.vehicleTransformEdit or 0) + 1
+    end
+end
+
+function VehicleMT:setPhysicsActive(a) self.physicsActive = a end
+function VehicleMT:isPhysicsActive() return self.physicsActive ~= false end
+function VehicleMT:isLocalPhysicSim() return SIM_ROLE ~= "server" end
+function VehicleMT:setAngles(_, y) self.angleY = y end
+function VehicleMT:getAngleY() return self.angleY or 0 end
+function VehicleMT:getMaxSpeed() return self.maxSpeed or 70 end
+function VehicleMT:setMaxSpeed(v) self.maxSpeed = v end
+function VehicleMT:getThrottle() return self.throttle or 0 end
+function VehicleMT:getCurrentSteering() return self.steering or 0 end
+function VehicleMT:getDriver() return self.seats[0] end
+function VehicleMT:getSeat(chr)
+    for seat, who in pairs(self.seats) do
+        if who == chr then return seat end
+    end
+    return nil
+end
+function VehicleMT:isDriver(chr) return self.seats[0] == chr end
+function VehicleMT:exit(chr)
+    for seat, who in pairs(self.seats) do
+        if who == chr then self.seats[seat] = nil end
+    end
+    chr.vehicle = nil
+end
 function VehicleMT:repair() self.repaired = true end
 function VehicleMT:cheatHotwire(h) self.hotwired = h end
 function VehicleMT:getPartById(id)
@@ -531,7 +656,16 @@ function PlayerMT:clearFallDamage() self.fallDamage = 0 end
 function SIM.gravity()
     if SIM_ROLE == "server" then return end
     for _, p in ipairs(SIM.players) do
-        if not p.dead then
+        -- Somebody riding in a vehicle is placed by the engine, not by
+        -- gravity: BaseVehicle.update() sets every seated character's x, y and
+        -- z from the vehicle each tick, with the z taken from the vehicle's
+        -- own (floor-clamped) height. So the crew ride up with the ship and
+        -- come down with it, and cannot fall out of a seat.
+        if not p.dead and p.vehicle and not p.vehicle.removed then
+            p.x, p.y = p.vehicle.x, p.vehicle.y
+            p.z = p.vehicle:getZ()
+            p.lastZ, p.fallFrom = p.z, nil
+        elseif not p.dead then
             local z = p.lastZ or p.z
             local sq = squares[math.floor(p.x) .. "," .. math.floor(p.y) .. "," .. math.floor(z)]
                        or (math.floor(z) == 0 and SIM.loaded(p.x, p.y) and cell:getGridSquare(math.floor(p.x), math.floor(p.y), 0))
@@ -550,6 +684,9 @@ function SIM.gravity()
         end
     end
 end
+function PlayerMT:getVehicle() return self.vehicle end
+function PlayerMT:isbFalling() return false end
+function PlayerMT:getJoypadBind() return -1 end
 function PlayerMT:getUsername() return self.name end
 function PlayerMT:isDead() return self.dead end
 function PlayerMT:getModData() return self.modData end

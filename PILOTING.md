@@ -8,6 +8,14 @@ how to work on the mod. `ROADMAP.md` is the order of work.
 
 ---
 
+Status: **built, awaiting its first test in the game.** The mechanism is
+settled on the bench (§5.1); what the game still has to say is whether the
+level change is reachable from Lua at all, what the sky plane costs, and
+whether a ship at level 3 looks right. The mod reports all three into
+`console.txt` by itself — nothing needs a debug console.
+
+---
+
 ## 1. The goal
 
 **Fly the shuttle by hand, over buildings and trees, at a speed the pilot
@@ -139,9 +147,31 @@ Confidence in brackets.
   identifies its own vehicle. [HIGH]
 - `IsoCell:getVehicles()` returns a **Set** in build 42 — iterate it, there is
   no `get(index)`. [HIGH]
-- `setPhysicsActive`, `setWorldTransform`, `setAngles`, `flipUpright` exist and
-  are public on `BaseVehicle`. Whether they can hold a vehicle in the air is
-  **unproven**. [UNKNOWN]
+- **One PZ z-level is `2.4494900703430176` Bullet Y units**, from
+  `BaseVehicle.setDebugZ`'s own constants. World X is `origin.x + offsetX` and
+  world Y is `origin.z + offsetY` — 1:1 in scale, but against a **floating
+  origin** that moves, so only *deltas* are meaningful and `WorldSimulation` is
+  not exposed to Lua. [HIGH]
+- `setDebugZ` clamps to the fraction *within the current level*: it poses, it
+  cannot climb. [HIGH]
+- `setAngles(x, y, z)` writes only the rotation, leaving the origin alone, and
+  `flipUpright()` rotates about `_UNIT_Y` — so **Y is the up axis**. [HIGH]
+- `Transform` and `org.joml.Vector3f` are on the Lua exposure allow-list and
+  `Transform.getOrigin()` returns the live vector; `Bullet`, `CarController`,
+  `WorldSimulation`, `Quaternionf` and `Matrix3f/4f` are **not** exposed, so a
+  rotation cannot be built from Lua and everything must go through
+  `BaseVehicle`. [HIGH]
+- **The server runs no vehicle physics at all** — `setPhysicsActive` and
+  `setWorldTransform` both skip their `Bullet` calls when `GameServer.server`.
+  It is a relay, and it does **not** validate a vehicle's position:
+  `VehiclePhysicsPacket` carries a full 3-D position and
+  `checkPhysicsValidWithServer` compares x and y only. [HIGH]
+- `update()` deletes a vehicle whose chunk references are empty
+  (bci 83–106) — outrunning chunk streaming does not merely desync the ship, it
+  destroys it. The pilot being seated aboard is what keeps chunks streaming
+  around it. [HIGH]
+- `damageObjects` and `breakingObjects` both return immediately unless the
+  engine is running, and scan squares at `getZ()`. [HIGH]
 - Vehicle physics is simulated on the **driver's client**; the server and other
   clients follow. So a lift-off must be driven from the driver's machine and
   must survive the engine re-asserting gravity. [MEDIUM-HIGH]
@@ -152,30 +182,86 @@ Confidence in brackets.
 
 ## 5. Open problems
 
-### 5.1 Holding a vehicle in the air (the unsolved one)
+### 5.1 Holding a vehicle in the air — settled
 
-Nothing in vanilla flies a vehicle. The engine snaps vehicles to the ground and
-re-enables physics. Candidate approaches, in the order worth trying:
+**Approach 1 is disproven. Approach 2 is built and is what the mod now does.**
+This section used to list three candidates; the bytecode settled it before a
+line of flight was written, and that is the most valuable thing this work
+produced, so it is recorded in full.
 
-1. **Physics off, transform driven.** `setPhysicsActive(false)` on the driver's
-   client, then set the world transform each tick. Questions: does the server
-   accept the position; do other clients see it; does the engine re-enable
-   physics; what happens at a chunk edge.
-2. **Wheels on an invisible floor.** Keep physics, and give the vehicle
-   something to stand on: raise the collision under it as it moves. Questions:
-   what the floor is made of, whether it can move with the ship, whether it is
-   visible to anyone.
-3. **Not a vehicle in the air.** The vehicle is the ship on the ground; on
-   take-off the server removes it and the ship becomes a moving *model* with
-   the crew held aboard the cabin (they are already in an interior cell, which
-   is where they are safe and where the engine never fights their position).
-   The pilot flies from the helm with the camera on the ship. This trades the
-   "sit in the cockpit and fly" feel for something the engine cannot argue
-   with, and needs no character to be moved at all.
+#### Approach 1 (physics off, transform driven) cannot work
 
-Approach 3 is the one that satisfies every requirement in 3.1 and 3.2 except
-the feel of sitting in the seat while airborne. If 1 and 2 fail, take 3 and
-give the cockpit a viewscreen instead.
+`BaseVehicle.update()` runs every tick. Disassembled at bci 1385–1537:
+
+```java
+setX(jniTransform.origin.x + WorldSimulation.instance.offsetX);
+setY(jniTransform.origin.z + WorldSimulation.instance.offsetY);
+setZ(0.0f);                                              // bci 1429 — UNCONDITIONAL
+int lvl = PZMath.fastfloor(jniTransform.origin.y / 2.4494900703430176f + 0.05f);
+IsoGridSquare sq  = getCell().getGridSquare(getX(), getY(), lvl);
+IsoGridSquare sqB = getCell().getGridSquare(getX(), getY(), lvl - 1);
+if (sq != null && (sq.getFloor() != null
+                   || (sqB != null && sqB.getFloor() != null)))
+    setZ((float) lvl);                                   // bci 1530 — only with a FLOOR
+```
+
+**A vehicle's physics height is not its game z.** The engine zeroes z every
+tick and restores the level only where a floor tile exists under the vehicle's
+centre square. Everything that matters reads that clamped value:
+
+| Reader | Consequence at altitude with no floor |
+|---|---|
+| `ModelCameraRenderData.init` (the render camera) | the ship is **drawn on the ground** |
+| `getPassengerPositionWorldPos` → `setX/setY/setZ` | the crew are drawn on the ground too |
+| `isIntersectingSquare`, `breakingObjects`, `damageObjects` | it **bulldozes fences and trees** it flies over |
+| `VehicleManager.clientUpdateVehiclePos` | hard-writes `setZ(0)` — every **other player** sees it on the road |
+
+The hold does not hold either: `isAtRest()` is false more than 0.2 levels above
+its own square, so `CarController.checkShouldBeActive()` re-enables physics,
+every tick, from two call sites. Vanilla's own `ISVehicleAngles.lua` re-asserts
+`setPhysicsActive(false, false)` *and* the height on **every frame**, which is
+the authors saying neither sticks. And its only caller is behind
+`if getCore():getDebug()` in `ISVehicleMenu.lua:724` — the `-debug`-only trap
+`DEV_GUIDE.md` names.
+
+Approach 1 would have produced a ship that flies in the physics engine and sits
+on the ground in the game: **present, drawn, and inert.**
+
+#### Approach 2 is what the mod does
+
+The same bytecode names the fix: put a floor there. Build 42 ships
+**`invisible_01_0`**, whose only two properties are `attachedFloor` and
+`solidfloor` — an invisible solid floor. With it under the ship:
+
+- the height is legitimate, so ship and crew are drawn in the air;
+- collision resolves at the flight level, so a two-storey building is passed
+  over rather than demolished;
+- remote clients re-derive the level the same way;
+- the wheels have something to rest on, so **the ship simply drives** — no part
+  of the mod fights gravity, and **nothing falls out of the sky when the pilot
+  leaves the seat**, which is what lets the crew go aft in flight (§3.2.4).
+
+`TREK_Sky.lua` lays it, per chunk around the ship rather than per tile as it
+moves, so there is no churn and no outrunning it. `TREK_Flight.lua` moves the
+ship between levels and watches. Vanilla does the driving, the steering, the
+controller, the seats, the camera, the sync and the physics.
+
+**The one call still unproven in the game** is the level change itself —
+`Transform.new()` → `getWorldTransform` → mutate `getOrigin()` →
+`setWorldTransform`. Every piece is public, ungated, and on the engine's Lua
+exposure allow-list (`Transform` is entry #754, `org.joml.Vector3f` #31, and
+`shouldExpose` is strict set membership), and `Transform.getOrigin()` returns
+the live vector rather than a copy. But **none of those four has a vanilla Lua
+call site**, so §3.1.6 is not satisfied for them. The mod therefore does not
+trust the lift: it performs it, reads `getZ()` back off the engine a tick
+later, and writes the verdict to the log either way.
+
+#### Approach 3 remains the fallback
+
+If the lift turns out to be unreachable in game, the ship becomes a flown model
+with the crew in the cabin and a viewscreen in the cockpit. Nothing built for
+approach 2 is wasted: the state, the authority split, the guards and the
+landing path are the same either way.
 
 ### 5.2 Speed and streaming
 

@@ -293,11 +293,68 @@ function S.land(x, y, z, player)
     return true, nil, 0
 end
 
+---------------------------------------------------------------------------
+-- Flight
+---------------------------------------------------------------------------
+--- Takes the ship out of flight, whatever the reason.
+---
+--- One function, called from every ending, because the 1.1 flight's worst bug
+--- was an ending it did not cover: flight outlived the pilot's death and flew
+--- on for the respawned character. Landing, a dead pilot, a pilot who got out,
+--- a disconnect and a world reload all come through here.
+function S.endFlight(why)
+    local s = U.state()
+    if not s.flying then return false end
+    s.flying = nil
+    s.pilot = nil
+    s.level = nil
+    s.pilotGrace = nil
+    U.log("flight ended: %s", tostring(why))
+    Ship.commit()
+    -- The clients bring her down and take the plane up; only they can, since
+    -- build 42's server runs no vehicle physics at all.
+    Net.toAll("flightEnded", { why = why, z = s.z })
+    return true
+end
+
+--- Is the ship's pilot still aboard and alive?
+---
+--- Not simply "is that name online": a pilot who dies and respawns keeps their
+--- username, and a ship that stayed up for a dead pilot is the exact bug that
+--- got the 1.1 flight removed -- it outlived its pilot and flew on for the
+--- replacement character.
+---
+--- But not "is that pilot in the seat", either. The whole point of the plane
+--- holding the ship up is that the crew can go aft to the cabin in flight and
+--- come back, so a pilot standing in the cabin still counts.
+local function pilotAboard(vehicle)
+    local s = U.state()
+    if not s.pilot then return false end
+    for _, p in ipairs(U.players()) do
+        if Ship.usernameOf(p) == s.pilot then
+            if U.try("pilotDead", function() return p:isDead() end) ~= false then
+                return false
+            end
+            if U.isInteriorPlayer(p) then return true end
+            if vehicle and U.try("pilotSeated", function()
+                return vehicle:getSeat(p) ~= nil
+            end) ~= nil then
+                return true
+            end
+            return false
+        end
+    end
+    return false      -- not online at all
+end
+
 --- Sends the ship back up. Refused while anyone is sitting in it: recalling a
 --- vehicle out from under its crew would drop them in the road.
 function S.recall()
     local s = U.state()
     if not s.landed then return false end
+    -- And never out from under a ship that is in the air: the crew would be
+    -- left standing on nothing three levels up.
+    if s.flying then return false, "inFlight" end
     local vehicle = V.find(s.vehicleId)
     if vehicle and V.occupied(vehicle) then return false, "crewSeated" end
     if vehicle then removeVehicle(vehicle, "recalled") end
@@ -334,10 +391,16 @@ function S.serviceVehicle()
     -- What makes a vehicle the ship is its tag, not being in view: a leftover
     -- is by definition somewhere the ship is not, so its removal must never
     -- depend on the ship's own vehicle being loaded at the same time.
+    -- `landed` is the ship being *here*; `flying` is it being here and off the
+    -- ground. Both mean the vehicle is ours. Testing only `landed` would drop
+    -- the ship's own vehicle into the leftover list below, and the leftover
+    -- sweep removes anything nobody is sitting in -- so the ship would be
+    -- deleted out of the sky the first time the pilot stepped aft.
+    local ours = s.landed or s.flying
     local others = {}
     V.each(function(vehicle)
         local id = V.idOf(vehicle)
-        if s.landed and id and id == s.vehicleId then
+        if ours and id and id == s.vehicleId then
             found = vehicle
         elseif id then
             -- Tagged, and not the ship's tag: a ship the crew left behind when
@@ -381,11 +444,48 @@ function S.serviceVehicle()
         S.refuel(found)
         local x = math.floor(found:getX())
         local y = math.floor(found:getY())
-        local z = math.floor(found:getZ())
-        if x ~= s.x or y ~= s.y or z ~= s.z then
-            s.x, s.y, s.z = x, y, z
-            Ship.commit()
+        local changed = false
+
+        -- s.z is the ground the ship stands on, and stays that way even when
+        -- the ship is three levels above it. Letting the flying z in here is
+        -- the most expensive mistake available: s.z is what Core.exit steps a
+        -- player out onto, what W.hullCovers compares against, what the
+        -- shields measure from and what S.land's "already here" check reads.
+        -- The altitude is s.level, and only the pilot's client sets it.
+        if not s.flying then
+            local z = math.floor(found:getZ())
+            if z ~= s.z then s.z = z changed = true end
         end
+        if x ~= s.x or y ~= s.y then s.x, s.y = x, y changed = true end
+
+        -- The pilot has to be in the seat for the ship to be flown. Nobody
+        -- there for long enough -- they died, they logged out, they walked
+        -- off -- and she comes down by herself rather than hanging in the sky
+        -- for the rest of the world's life.
+        if s.flying then
+            if pilotAboard(found) then
+                s.pilotGrace = nil
+            else
+                s.pilotGrace = (s.pilotGrace or 0) + 1
+                if s.pilotGrace >= C.FlightPilotGrace then
+                    S.endFlight("nobody is flying her")
+                    return
+                end
+                changed = true
+            end
+        end
+
+        if changed then Ship.commit() end
+        return
+    end
+
+    -- A ship in the air is not a ship that has gone missing. The vehicle can
+    -- drop out of the cell's list for a moment while the ground under it
+    -- streams, and counting that as "the vehicle is gone" would clear the id
+    -- and let the next landing spawn a second shuttle -- the "Two shuttles"
+    -- signature in DEV_GUIDE.md.
+    if s.flying then
+        s.missingChecks = nil
         return
     end
 
@@ -542,8 +642,12 @@ Net.onServer("move", function(player, args)
     local rule = MOVES[kind]
     if not rule or not alive(player) then return end
     if rule.access and not mayUse(player) then return end
-    if kind == "hatchIn" and not U.state().landed then
-        deny(player, "notLanded")
+    local s = U.state()
+    -- The ramp only exists when she is on the ground. While she is flying the
+    -- hatch is three levels up, and walking into it would be a walk into open
+    -- air; the same goes for stepping back out of it.
+    if (kind == "hatchIn" or kind == "hatchOut") and (not s.landed or s.flying) then
+        deny(player, s.flying and "inFlight" or "notLanded")
         return
     end
 
@@ -589,6 +693,132 @@ Net.onServer("recall", function(player)
     elseif why then
         deny(player, why)
     end
+end)
+
+---------------------------------------------------------------------------
+-- Flight commands
+---------------------------------------------------------------------------
+--- The vehicle the ship is, if this machine can see it, and whether this
+--- player is in its driver's seat.
+local function drivenBy(player)
+    local s = U.state()
+    local vehicle = V.find(s.vehicleId)
+    if not vehicle then return nil end
+    local driving = U.try("isDriver", function()
+        return vehicle:isDriver(player)
+    end) == true
+    return vehicle, driving
+end
+
+--- A pilot asks to take her up. The server says who may; the client does the
+--- lifting, because build 42's server runs no vehicle physics at all.
+Net.onServer("takeoff", function(player)
+    if not mayUse(player) then return end
+    local s = U.state()
+    if s.flying then return end
+    if not s.landed then
+        deny(player, "notLanded")
+        return
+    end
+    local _, driving = drivenBy(player)
+    if not driving then
+        deny(player, "notPilot")
+        return
+    end
+    claim(player)
+    Net.toClient(player, "takeoffGranted", { level = C.FlightCruise })
+    U.log("%s has the helm; clearing her for level %d",
+          Ship.usernameOf(player), C.FlightCruise)
+end)
+
+--- The client got her up and the engine held the height. Only now is the ship
+--- recorded as flying: a lift that failed must never leave the state saying
+--- she is in the air when she is sitting on the grass.
+Net.onServer("airborne", function(player, args)
+    if not mayUse(player) then return end
+    local s = U.state()
+    if not s.landed then return end
+    local _, driving = drivenBy(player)
+    if not driving then return end
+    local level = int(args.level)
+    if not level or level < C.FlightMinLevel or level > C.FlightMaxLevel then return end
+    s.flying = true
+    s.level = level
+    s.pilot = Ship.usernameOf(player)
+    s.pilotGrace = nil
+    -- Where the plane is, so that a flight ending in a crash rather than a
+    -- landing still gets its invisible floors taken up by whoever next loads
+    -- that ground.
+    s.skyAt = { x = s.x, y = s.y, level = level }
+    Ship.commit()
+    U.log("shuttle airborne at %d,%d level %d, flown by %s",
+          s.x, s.y, level, s.pilot)
+end)
+
+Net.onServer("setAltitude", function(player, args)
+    if not mayUse(player) then return end
+    local s = U.state()
+    if not s.flying then return end
+    local _, driving = drivenBy(player)
+    if not driving then
+        deny(player, "notPilot")
+        return
+    end
+    local level = int(args.level)
+    if not level then return end
+    level = math.max(C.FlightMinLevel, math.min(C.FlightMaxLevel, level))
+    if level == s.level then return end
+    s.level = level
+    s.skyAt = { x = s.x, y = s.y, level = level }
+    Ship.commit()
+    U.log("shuttle changing to level %d", level)
+end)
+
+--- Setting her down. Deliberately *not* S.land: that path lifts the old ship
+--- and spawns a new one, which would destroy the seats, the trunk and
+--- everything the crew had stowed in it, every single landing.
+Net.onServer("touchdown", function(player, args)
+    if not mayUse(player) then return end
+    local s = U.state()
+    if not s.flying then return end
+    local vehicle, driving = drivenBy(player)
+    if not driving then
+        deny(player, "notPilot")
+        return
+    end
+    local x, y, z = position(args)
+    if not x then return end
+
+    local ok, why, blocked = W.roomToLand(x, y, z, W.exemptFor(player),
+                                          vehicle and V.idOf(vehicle) or nil)
+    if not ok then
+        Net.toClient(player, "landingRefused",
+                     { why = why, blocked = blocked, x = x, y = y, z = z })
+        return
+    end
+
+    s.flying = nil
+    s.pilot = nil
+    s.level = nil
+    s.pilotGrace = nil
+    s.skyAt = nil
+    s.landed = true
+    s.everLanded = true
+    s.x, s.y, s.z = x, y, z
+    s.destination = nil
+    Ship.commit()
+    Net.toClient(player, "touchdownGranted", { x = x, y = y, z = z })
+    U.log("shuttle set down at %d,%d,%d", x, y, z)
+end)
+
+--- A client has finished lifting the invisible floors a past flight left
+--- behind, so nobody need look for them again.
+Net.onServer("skyCleared", function(player)
+    if not alive(player) then return end
+    local s = U.state()
+    if not s.skyAt or s.flying then return end
+    s.skyAt = nil
+    Ship.commit()
 end)
 
 Net.onServer("setCourse", function(player, args)
@@ -732,6 +962,20 @@ end)
 -- there, and is published, so no client ever sees a schema 1 table.
 Events.OnInitGlobalModData.Add(function()
     local s = U.state()
+    -- Flight never survives a world load. Nothing about a vehicle's physics is
+    -- saved, so a world that shut down with the ship in the air reopens with
+    -- it on the ground -- and U.state() only runs its migration block when the
+    -- schema changes, so `flying` would otherwise persist with a pilot who is
+    -- not even connected. s.skyAt is deliberately kept: it is how the
+    -- invisible floors that flight left behind get taken up again.
+    if s.flying then
+        U.log("the world was saved with the shuttle in flight; she is on the " ..
+              "ground now")
+        s.flying = nil
+        s.pilot = nil
+        s.level = nil
+        s.pilotGrace = nil
+    end
     Ship.commit()
     U.log("ship authority ready (%s, v%s, build %d): landed=%s built=%s rev=%s owner=%s, " ..
           "beams limited=%s", isServer() and "server" or "single player", C.Version,

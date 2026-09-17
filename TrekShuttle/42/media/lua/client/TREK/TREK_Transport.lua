@@ -21,6 +21,7 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Ship"
 require "TREK/TREK_World"
+require "TREK/TREK_Vehicle"
 require "TREK/TREK_Core"
 
 TREK = TREK or {}
@@ -73,11 +74,22 @@ function T.beamUp(player)
     return true
 end
 
+--- True for somebody sitting in the shuttle's cockpit rather than in the
+--- cabin. A pilot is "aboard" as far as beaming is concerned: while the ship
+--- is flying it is the only way out of the seat that does not involve
+--- stepping into open air.
+local function inCockpit(player)
+    return TREK.Vehicle ~= nil and TREK.Vehicle.isShuttle(
+        U.try("playerVehicle", function() return player:getVehicle() end))
+end
+
 --- Beams the player down. With no destination this is the return trip to
 --- wherever they beamed up from; with one it is a landing party.
 function T.beamDown(player, dest)
     if not player then return false, "no player" end
-    if not U.isInteriorPlayer(player) then return false, "not aboard" end
+    if not U.isInteriorPlayer(player) and not inCockpit(player) then
+        return false, "not aboard"
+    end
     if busy() then return false, "busy" end
 
     local x, y, z
@@ -86,12 +98,22 @@ function T.beamDown(player, dest)
     else
         x, y, z = Ship.returnPoint(player)
         local s = Ship.get()
+        -- From the cockpit the way down is the ground directly below, not
+        -- wherever this character last beamed up from.
+        if inCockpit(player) and s.landed then x, y, z = s.x, s.y, s.z end
         if not x and s.landed then x, y, z = s.x, s.y, s.z end
     end
     if not x then return false, "nowhere" end
     x, y, z = math.floor(x), math.floor(y), math.floor(z)
 
     Core.requestMove(player, "beamDown", function(p)
+        -- Out of the seat first, or the engine still believes the character is
+        -- riding and puts them back in it. vehicle:exit is what vanilla's own
+        -- ISExitVehicle timed action calls.
+        local vehicle = U.try("playerVehicle", function() return p:getVehicle() end)
+        if vehicle then
+            U.try("vehicleExit", function() vehicle:exit(p) end)
+        end
         begin(p, "down", x, y, z)
         U.log("beaming down to %d,%d", x, y)
     end)

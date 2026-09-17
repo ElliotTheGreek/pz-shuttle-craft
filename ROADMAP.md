@@ -140,12 +140,15 @@ the shuttle only.
    again (vehicle id in the ship state).
 5. Seat chart art: the exact image size and the `CarList` offsets vanilla expects.
 
-### Stage 2 — lift off (Hard, unproven)
+### Stage 2 — lift off — **built, awaiting in-game test**
 
-The pilot takes the vehicle up and flies it over buildings: the driver's client
-moves the physics body, with height held above the rooftops. Nothing in vanilla
-does this, so it starts as a spike: if a vehicle cannot be flown reliably and in
-sync, stage 1 stands on its own and travel stays helm-based.
+The pilot takes her up and flies over buildings. Moving the physics body was
+the obvious way and is **disproven**: build 42 zeroes a vehicle's z every tick
+and restores it only where a floor exists underneath, so a lifted ship flies in
+the physics engine and is drawn on the road. The mod instead lays an invisible
+floor (`invisible_01_0`) at altitude and the ship **drives** on it, which means
+vanilla keeps doing the input, the controller, the seats, the sync and the
+physics. `PILOTING.md` §5.1 has the bytecode.
 
 Returns with stage 2:
 

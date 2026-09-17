@@ -87,11 +87,16 @@ function Core.moveWaiting(kind)
     return false
 end
 
+-- Every reason the server can refuse something needs a line here, or the
+-- refusal arrives and says nothing at all -- a menu option that silently does
+-- nothing, which is the one thing TREK_Menu.lua's own header forbids.
 local DENIALS = {
     access        = "IGUI_TREK_NotCrew",
     notLanded     = "IGUI_TREK_NotLanded",
     bookmarksFull = "IGUI_TREK_BookmarksFull",
     crewSeated    = "IGUI_TREK_CrewSeated",
+    notPilot      = "IGUI_TREK_NotPilot",
+    inFlight      = "IGUI_TREK_InFlight",
 }
 
 Net.onClient("denied", function(args)
@@ -276,7 +281,10 @@ end
 --- Walks the player up the ramp into the cabin. Only while the ship is down.
 function Core.enter(player)
     if not player or U.isInteriorPlayer(player) then return false end
-    if not Ship.get().landed then return false end
+    local s = Ship.get()
+    -- The ramp is only there when she is down. Flying, the hatch is three
+    -- levels overhead; the transporter is the way aboard.
+    if not s.landed or s.flying then return false end
     return Core.requestMove(player, "hatchIn", function(p)
         local s = Ship.get()
         if not s.landed then return end
@@ -304,7 +312,17 @@ local STEP_OUT_OFFSET = 4
 --- it loads -- a short step, never under the hull.
 function Core.exit(player)
     if not player then return false end
-    if not Ship.get().landed then return false end
+    local s = Ship.get()
+    if not s.landed then return false end
+    -- Never out of a flying ship. This would put the player down at s.y + 4 on
+    -- ground that is not there, and serviceSettling below would hold them for
+    -- three hundred ticks looking for a floor before dropping them anyway --
+    -- a fall of several levels, which is exactly what got hands-on flight
+    -- removed in 1.1. The transporter is the way out.
+    if s.flying then
+        U.note(player, getText("IGUI_TREK_InFlight"), 255, 90, 90)
+        return false
+    end
     return Core.requestMove(player, "hatchOut", function(p)
         local s = Ship.get()
         if not s.landed then return end

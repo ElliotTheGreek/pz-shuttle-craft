@@ -69,7 +69,10 @@ H.P = {
 }
 local P = H.P
 
-H.W, H.H = 440, 568          -- panel size
+-- Taller than it was: the flight section below the shields costs a heading, a
+-- button and a status line, and taking that out of the logged-position list
+-- instead would leave a list too short to scroll.
+H.W, H.H = 440, 660          -- panel size
 -- The course prompt. Sized for its text plus the "course laid in" line: the
 -- panel clips, so a line that does not fit is not wrapped, it is hidden.
 H.InfoH = 84
@@ -210,6 +213,19 @@ function TREKHelmWindow:createChildren()
     self.shieldsStatusY = y
     y = y + 18 + 14
 
+    -- Flight speed. The shuttle flies by driving, so this is the ship's own
+    -- top speed and nothing more mysterious than that; the button cycles it
+    -- the way the shields button toggles.
+    self.flightHeaderY = y
+    y = y + 20
+    self.speedBtn = TREKLcarsButton:new(cx, y, cw - 60, 34, "", self,
+        TREKHelmWindow.onFlightSpeed, P.gold)
+    self.speedBtn:initialise()
+    self:addChild(self.speedBtn)
+    y = y + 34 + 6
+    self.flightStatusY = y
+    y = y + 18 + 14
+
     -- Navigation.
     self.navHeaderY = y
     y = y + 20
@@ -265,6 +281,7 @@ function TREKHelmWindow:createChildren()
     -- Controller navigation, top to bottom. Close is on B rather than in the
     -- grid, the way vanilla panels do it.
     self:insertNewLineOfButtons(self.shieldsBtn)
+    self:insertNewLineOfButtons(self.speedBtn)
     self:insertNewLineOfButtons(self.crosshairBtn)
     self:insertNewLineOfButtons(self.landBtn, self.bookmarkBtn)
     self:insertNewLineOfButtons(self.gotoBtn, self.deleteBtn)
@@ -373,6 +390,18 @@ function TREKHelmWindow:render()
     self:drawText(status, cx, self.shieldsStatusY,
                   statusC[1], statusC[2], statusC[3], 0.95, UIFont.Small)
 
+    self:heading(self.flightHeaderY, "IGUI_TREK_FlightHeader", P.gold)
+    local F = TREK.Flight
+    local step = F and C.FlightSpeedSteps[F.speedStep] or 1
+    self.speedBtn.title = getText("IGUI_TREK_FlightSpeed", tostring(step))
+    local s = Ship.get()
+    local flightText = s.flying
+        and getText("IGUI_TREK_FlightStatusAir", tostring(s.level or "?"), tostring(step))
+        or getText("IGUI_TREK_FlightStatusGround")
+    local fc = s.flying and P.gold or P.dim
+    self:drawText(flightText, cx, self.flightStatusY,
+                  fc[1] * 1.3, fc[2] * 1.3, fc[3] * 1.3, 0.95, UIFont.Small)
+
     self:heading(self.navHeaderY, "IGUI_TREK_NavHeader", P.lilac)
 
     -- Button prompts in the bottom bar, only while a controller drives it.
@@ -435,6 +464,16 @@ function TREKHelmWindow:onShields()
     TREK.Core.send(self.player, "setShields", { up = up })
     U.note(self.player, getText(up and "IGUI_TREK_ShieldsUp" or "IGUI_TREK_ShieldsDown"),
            up and 150 or 230, up and 200 or 110, up and 255 or 110)
+end
+
+--- Steps the flight speed. The ship is genuinely driving, so this ends up as
+--- vehicle:setMaxSpeed() and nothing else.
+function TREKHelmWindow:onFlightSpeed()
+    local F = TREK.Flight
+    if not F then return end
+    local step = F.speedStep + 1
+    if step > #C.FlightSpeedSteps then step = 1 end
+    F.setSpeedStep(self.player, step)
 end
 
 function TREKHelmWindow:onCourseToCrosshair()

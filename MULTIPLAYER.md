@@ -276,6 +276,25 @@ Server -> client (`OnServerCommand` / direct in SP):
   `isRemoteZombie()` zombies; single player pushes all. Reads `shields` and
   the hull position from `TREK_Ship`.
 
+### The sky plane (each client, its own copy)
+
+Flight is driving on an invisible floor laid at altitude, and **each client
+lays its own**. That is a deliberate exception to "a client never edits the
+world", and it is narrower than it sounds:
+
+- build 42's server runs **no vehicle physics at all** — `setPhysicsActive` and
+  `setWorldTransform` both skip their `Bullet` calls when `GameServer.server` —
+  so the server has no use for a floor;
+- the driver's client needs one to drive on, and every client needs one to draw
+  the ship in the air; all of them derive it from the same synced vehicle
+  position, so they agree without a packet;
+- it is only ever `invisible_01_0`, only ever above ground level, and it is
+  always taken up again — the same class as the cabin's lights and powered
+  squares, which every client also makes for itself.
+
+The ship's *state* is untouched by this: `flying`, `level` and `pilot` are the
+server's, set by validated commands, exactly like everything else.
+
 ### Phaser (carrying client)
 
 - Unchanged in principle: top up the charge of phasers in the local player's

@@ -168,9 +168,9 @@ local function aboardMenu(context, player, worldobjects, test)
 
     menu:addOption(getText("IGUI_TREK_Helm"), worldobjects, M.onHelm, player)
     menu:addOption(getText("IGUI_TREK_BeamDown"), worldobjects, M.onBeamDown, player)
-    -- The ramp only exists when the ship is on the ground. Overhead, the
-    -- transporter is the only way off.
-    if s.landed then
+    -- The ramp only exists when the ship is on the ground. Overhead or in
+    -- flight, the transporter is the only way off.
+    if s.landed and not s.flying then
         menu:addOption(getText("IGUI_TREK_StepOutside"), worldobjects, M.onExit, player)
     end
     menu:addOption(getText("IGUI_TREK_BookmarkHere"), worldobjects,

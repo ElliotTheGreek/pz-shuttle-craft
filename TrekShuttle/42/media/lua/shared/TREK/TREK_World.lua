@@ -16,6 +16,10 @@
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+-- For TREK.Vehicle.idOf, so a landing can tell the ship's own hull from
+-- somebody else's car. TREK_Vehicle depends on nothing here, so there is no
+-- cycle.
+require "TREK/TREK_Vehicle"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -65,7 +69,14 @@ end
 -- Room to land
 ---------------------------------------------------------------------------
 --- Whether one square could take part of the hull. Returns `ok, reason`.
-function W.squareIsClear(sq)
+---
+--- `exemptId` is the ship's own vehicle id (TREK.Vehicle.idOf). Setting a
+--- flying shuttle down means asking about the ground it is directly above, and
+--- without this the ship's own hull is read as somebody else's car parked in
+--- the way -- a landing the shuttle refuses because it is already there.
+--- Compared by the id in its mod data rather than by object identity, which is
+--- not dependable across the Lua/Java boundary.
+function W.squareIsClear(sq, exemptId)
     if not sq then return false, "unloaded" end
     if U.isInterior(sq:getX(), sq:getY()) then return false, "interior" end
 
@@ -74,7 +85,12 @@ function W.squareIsClear(sq)
     local why = U.try("squareIsClear", function()
         if not sq:getFloor() then return "void" end
         if sq:isSolid() or sq:isSolidTrans() then return "blocked" end
-        if sq:getVehicleContainer() then return "vehicle" end
+        local veh = sq:getVehicleContainer()
+        if veh then
+            local ours = exemptId ~= nil and TREK.Vehicle ~= nil
+                         and TREK.Vehicle.idOf(veh) == exemptId
+            if not ours then return "vehicle" end
+        end
         if not sq:isFree(false) then return "occupied" end
         return "ok"
     end)
@@ -86,16 +102,17 @@ end
 ---
 --- Returns `ok, reason, blocked`. `exempt` is the square the player who
 --- ordered the landing stands on: they are inside the footprint by definition
---- and step aside as the ship comes in. "unloaded" is reported only when every
---- bad square was unloaded.
-function W.roomToLand(cx, cy, z, exempt)
+--- and step aside as the ship comes in. `exemptId` is the ship's own vehicle,
+--- for setting a flying shuttle down on the ground beneath itself.
+--- "unloaded" is reported only when every bad square was unloaded.
+function W.roomToLand(cx, cy, z, exempt, exemptId)
     local blocked, first = 0, nil
     for _, d in ipairs(C.footprintOffsets()) do
         local x, y = cx + d[1], cy + d[2]
         local skip = W.hullCovers(x, y, z)
                      or (exempt and exempt.x == x and exempt.y == y)
         if not skip then
-            local ok, why = W.squareIsClear(U.square(x, y, z, false))
+            local ok, why = W.squareIsClear(U.square(x, y, z, false), exemptId)
             if not ok then
                 blocked = blocked + 1
                 if why ~= "unloaded" and not first then first = why end

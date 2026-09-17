@@ -23,6 +23,7 @@ require "TREK/TREK_Ship"
 require "TREK/TREK_Vehicle"
 require "TREK/TREK_Net"
 require "TREK/TREK_Core"
+require "TREK/TREK_Flight"
 -- Vanilla's vehicle menus are wrapped below, so they must exist first rather
 -- than by the luck of load order.
 require "Vehicles/ISUI/ISVehicleMenu"
@@ -30,6 +31,7 @@ require "Vehicles/ISUI/ISCarMechanicsOverlay"
 require "Vehicles/ISUI/ISVehicleSeatUI"
 
 TREK = TREK or {}
+local C = TREK.Config
 local U = TREK.Util
 local Ship = TREK.Ship
 local V = TREK.Vehicle
@@ -65,10 +67,28 @@ function VM.onBoard(player)
 end
 
 --- From a seat: get out, then go aboard.
+---
+--- On the ground that is a walk: leave the seat, then up the ramp. In the air
+--- it cannot be, because leaving the seat means standing beside a ship three
+--- levels up -- so it is a transporter trip instead, out of the seat and onto
+--- the pad in one move with no tick spent falling. That is what lets the crew
+--- go aft in flight and come back (PILOTING.md section 3.2.4).
 function VM.onBoardFromSeat(player)
     if not Ship.canUse(player) then return refuse(player) end
     local vehicle = player:getVehicle()
     if not vehicle then return VM.onBoard(player) end
+
+    if TREK.Flight and TREK.Flight.flying() then
+        Core.requestMove(player, "beamUp", function(p)
+            local v = U.try("playerVehicle", function() return p:getVehicle() end)
+            if v then U.try("vehicleExit", function() v:exit(p) end) end
+            Ship.setReturnPoint(p, Ship.get().x, Ship.get().y, Ship.get().z)
+            Core.beginArrival(p, true)
+            U.log("beamed aft to the cabin from the cockpit in flight")
+        end)
+        return
+    end
+
     boarding[player] = true
     ISVehicleMenu.onExit(player)
 end
@@ -86,6 +106,40 @@ function VM.onRecall(player)
     Core.send(player, "recall", {})
 end
 
+---------------------------------------------------------------------------
+-- Flying her
+---------------------------------------------------------------------------
+-- Every one of these is a menu entry rather than a key binding, which is the
+-- whole reason a controller and a Steam Deck work with no input code: the
+-- radial menu is already reachable with a stick. Driving is vanilla's job.
+function VM.onTakeOff(player)  TREK.Flight.takeOff(player) end
+function VM.onLandBelow(player) TREK.Flight.land(player) end
+function VM.onClimb(player)    TREK.Flight.climb(player) end
+function VM.onDive(player)     TREK.Flight.dive(player) end
+
+function VM.onFlightSpeed(player)
+    local F = TREK.Flight
+    local step = F.speedStep + 1
+    if step > #C.FlightSpeedSteps then step = 1 end
+    F.setSpeedStep(player, step)
+end
+
+--- Adds the flying options to a menu, if this player is at the controls.
+local function addFlightOptions(menu, playerObj, worldobjects)
+    local F = TREK.Flight
+    if not F or not F.isPilot(playerObj) then return end
+    if F.flying() then
+        menu:addOption(getText("IGUI_TREK_Climb"), worldobjects, VM.onClimb, playerObj)
+        menu:addOption(getText("IGUI_TREK_Dive"), worldobjects, VM.onDive, playerObj)
+        menu:addOption(getText("IGUI_TREK_LandBelow"), worldobjects, VM.onLandBelow, playerObj)
+    elseif Ship.get().landed then
+        menu:addOption(getText("IGUI_TREK_TakeOff"), worldobjects, VM.onTakeOff, playerObj)
+    end
+    menu:addOption(getText("IGUI_TREK_FlightSpeed",
+                           tostring(C.FlightSpeedSteps[F.speedStep])),
+                   worldobjects, VM.onFlightSpeed, playerObj)
+end
+
 local function shipIcon()
     return getTexture("media/ui/TREK_Shuttle.png")
 end
@@ -99,6 +153,16 @@ function ISVehicleMenu.showRadialMenu(playerObj)
     local menu = getPlayerRadialMenu(playerObj:getPlayerNum())
     if not menu or not menu:isReallyVisible() then return end
     menu:addSlice(getText("IGUI_TREK_BoardCabin"), shipIcon(), VM.onBoardFromSeat, playerObj)
+
+    local F = TREK.Flight
+    if not F or not F.isPilot(playerObj) then return end
+    if F.flying() then
+        menu:addSlice(getText("IGUI_TREK_LandBelow"), shipIcon(), VM.onLandBelow, playerObj)
+        menu:addSlice(getText("IGUI_TREK_Climb"), shipIcon(), VM.onClimb, playerObj)
+        menu:addSlice(getText("IGUI_TREK_Dive"), shipIcon(), VM.onDive, playerObj)
+    elseif Ship.get().landed then
+        menu:addSlice(getText("IGUI_TREK_TakeOff"), shipIcon(), VM.onTakeOff, playerObj)
+    end
 end
 
 -- The radial menu beside the vehicle.
@@ -125,7 +189,25 @@ function ISVehicleMenu.FillMenuOutsideVehicle(player, context, vehicle, test)
     context:addSubMenu(sub, menu)
     menu:addOption(getText("IGUI_TREK_BoardCabin"), playerObj, VM.onBoard)
     menu:addOption(getText("IGUI_TREK_Recall"), playerObj, VM.onRecall)
+    addFlightOptions(menu, playerObj, playerObj)
     return result
+end
+
+-- The right-click menu from the driver's seat.
+local baseFillInside = ISVehicleMenu.FillMenuInsideVehicle
+if baseFillInside then
+    function ISVehicleMenu.FillMenuInsideVehicle(player, context, vehicle, test)
+        local result = baseFillInside(player, context, vehicle, test)
+        if test or not V.isShuttle(vehicle) then return result end
+        local playerObj = getSpecificPlayer(player)
+        if not playerObj then return result end
+        local sub = context:addOption(getText("IGUI_TREK_Name"), nil, nil)
+        local menu = ISContextMenu:getNew(context)
+        context:addSubMenu(sub, menu)
+        menu:addOption(getText("IGUI_TREK_BoardCabin"), playerObj, VM.onBoardFromSeat)
+        addFlightOptions(menu, playerObj, playerObj)
+        return result
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -242,6 +324,18 @@ local baseOnExit = ISVehicleMenu.onExit
 function ISVehicleMenu.onExit(playerObj, seatFrom)
     local vehicle = playerObj and playerObj:getVehicle()
     if not V.isShuttle(vehicle) then return baseOnExit(playerObj, seatFrom) end
+
+    -- Not into thin air. Vanilla's exit walks the character out to a square
+    -- beside the vehicle, and beside a vehicle three levels up is a drop. The
+    -- two ways out of a flying shuttle both move the character rather than
+    -- walk them: through to the cabin, or down on the transporter. The one
+    -- exception is going aboard, which leaves the seat on purpose and is
+    -- caught by the boarding watcher before the character can fall.
+    if TREK.Flight and TREK.Flight.flying() and not boarding[playerObj] then
+        U.note(playerObj, getText("IGUI_TREK_SeatLocked"), 255, 170, 90)
+        return
+    end
+
     seatFrom = seatFrom or vehicle:getSeat(playerObj)
     if not vehicle:isExitBlocked(playerObj, seatFrom) then
         return baseOnExit(playerObj, seatFrom)

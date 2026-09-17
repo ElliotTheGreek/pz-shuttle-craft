@@ -87,8 +87,12 @@ for relative in critical:
 
 # Files from before the multiplayer split must not survive in the deployed
 # copy: an old client-side TREK_Build.lua would build a second cabin locally.
+#
+# TREK_Flight.lua is deliberately not on this list any more. It was, because
+# the 1.1 hands-on flight had been deleted and a leftover copy would have flown
+# the pilot's body around; the name is now a new file that flies the shuttle as
+# a vehicle on the sky plane, so its presence is correct rather than stale.
 for stale in ("42/media/lua/client/TREK/TREK_Build.lua",
-              "42/media/lua/client/TREK/TREK_Flight.lua",
               "42/media/lua/client/TREK/TREK_SelfTest.lua",
               "42/media/lua/client/TREK/TREK_InteriorLayout.lua"):
     if (DESTINATION / stale).exists():

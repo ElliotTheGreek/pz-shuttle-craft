@@ -202,11 +202,91 @@ C.TransporterCharges       = 3
 C.TransporterRechargeSecs  = 150
 
 ---------------------------------------------------------------------------
+-- Flight: the sky plane
+---------------------------------------------------------------------------
+-- The shuttle flies by *driving*, on an invisible floor the mod lays at
+-- altitude. This is not a flourish, it is the only thing build 42 allows.
+--
+-- BaseVehicle.update() sets a vehicle's z to 0 every single tick, and then
+-- puts it back to its physics level only if a floor tile exists under the
+-- vehicle's centre square at that level (or the one below). Everything that
+-- matters reads that clamped z: the render camera, where the occupants are
+-- drawn, isIntersectingSquare, breakingObjects/damageObjects, and -- on every
+-- other player's machine -- clientUpdateVehiclePos, which writes setZ(0)
+-- outright. Lifting the physics body alone therefore gives a ship that flies
+-- in the physics engine and sits on the ground in the game, ploughing through
+-- fences as it goes. That was tried on paper and disproved from the bytecode
+-- before a line of it was written (PILOTING.md section 5.1).
+--
+-- Put a floor there and the whole problem dissolves: the z is legitimate, so
+-- the ship and its crew are drawn in the air; collision resolves at the flight
+-- level, so it passes over a two-storey building instead of demolishing it;
+-- the wheels have something to rest on, so the engine's own physics drives it
+-- and no part of this mod has to fight gravity; and because the floor holds
+-- the ship up, nothing falls out of the sky when the pilot leaves the seat.
+--
+-- The tile is vanilla. invisible_01_0's only two properties are attachedFloor
+-- and solidfloor: a floor that is solid and cannot be seen.
+C.SkyTile = "invisible_01_0"
+
+-- Bullet units per z level, read straight out of BaseVehicle.setDebugZ's
+-- bytecode: it computes fastfloor(origin.y / 2.4494900703430176). Three times
+-- 0.8164966702461243 is the same number; both constants are in that method.
+C.LevelUnits = 2.4494900703430176
+
+-- How far around the ship the plane extends, in squares. Big enough that the
+-- ship cannot outrun its own floor at any speed it is allowed to reach, and
+-- small enough that the first pass is over in a second.
+C.SkyRadius = 16
+
+-- Squares paved per tick. The plane is laid the way the landing search is
+-- walked -- a cursor and a slice -- because a thousand addFloor calls in one
+-- frame is not slow, it is the hard lock described in DEV_GUIDE.md under
+-- "Slice any search that touches thousands of squares".
+C.SkyTilesPerTick = 96
+
+-- A ceiling on the plane, so a long flight cannot grow the list without
+-- bound. Past this the squares furthest behind the ship are lifted first.
+C.SkyMaxTiles = 40000
+
+-- Cruising height, and the levels the pilot may climb and dive between. Level
+-- 0 is the ground and is never paved -- a floor laid there would be a floor
+-- laid on Kentucky. Three clears a two-storey building with room to spare.
+C.FlightCruise   = 3
+C.FlightMinLevel = 1
+C.FlightMaxLevel = 6
+
+-- Ticks to wait for the engine to accept a level before giving up on the lift
+-- and trying the next way of doing it.
+C.FlightLiftTicks = 60
+
+-- Top speed at each helm step, as a multiplier on C.FlightSpeedBase, which is
+-- handed to vehicle:setMaxSpeed(). The ship is genuinely driving, so this is
+-- the vehicle's own speed setting and nothing more.
+--
+-- The numbers are deliberately conservative until the game measures them.
+-- PILOTING.md section 3.3 reads the server's SpeedLimit as 70 tiles/s, but
+-- that option is a 10-150 vehicle limiter the game's own UI presents in km/h,
+-- and 70 km/h is about 19 tiles/s -- *below* the 20 tiles/s a character may
+-- do, not thirty-five times it. Shipping a cap derived from an unverified
+-- unit is how the 1.1 flight came to move at 450 tiles/s and get its pilots
+-- kicked, so TREK_Fly() logs the measured speed beside the server's setting
+-- and the cap stays a fraction of whatever that turns out to mean.
+C.FlightSpeedSteps       = { 0.25, 0.5, 1, 2, 3, 5 }
+C.FlightSpeedDefaultStep = 3
+C.FlightSpeedBase        = 30
+C.FlightSpeedCapFraction = 0.6
+
+-- Consecutive server checks with no pilot in the driver's seat before the
+-- ship is brought down by itself. A ship left parked in the sky by somebody's
+-- disconnect would otherwise stay there for the life of the world.
+C.FlightPilotGrace = 5
+
+---------------------------------------------------------------------------
 -- Travel
 ---------------------------------------------------------------------------
--- Travel is by the helm: lay in a course, then take her down. Hands-on flight
--- was removed because it could not be made safe or multiplayer-correct; it
--- returns as a vehicle (MULTIPLAYER.md, "Flight -- the decision").
+-- Travel is also by the helm: lay in a course, then take her down. That is
+-- the way to cross the map; flight above is the way to fly it by hand.
 C.MaxBookmarks        = 40
 C.MaxBookmarkName     = 40   -- characters; a name is sent to the server
 C.LandingSearchRadius = 24   -- squares to spiral out from a chosen site

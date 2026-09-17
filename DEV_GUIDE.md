@@ -306,6 +306,46 @@ position down to retry — `s.ghosts` and `TREK.Server.sweepGhosts` are the patt
 the TARDIS, getting this wrong left a second police box at every place the ship
 had ever been.
 
+### A vehicle's altitude is a floor, not a height
+
+**New in this mod, and it disproved a whole design before it was written.**
+
+Raising a vehicle's physics body does not put it in the air.
+`BaseVehicle.update()` sets `setZ(0.0f)` **unconditionally** every tick, then
+restores the physics level *only* if a floor tile exists under the vehicle's
+centre square at that level or the one below:
+
+```java
+setZ(0.0f);                                              // bci 1429
+int lvl = PZMath.fastfloor(jniTransform.origin.y / 2.4494900703430176f + 0.05f);
+if (sq != null && (sq.getFloor() != null || (sqB != null && sqB.getFloor() != null)))
+    setZ((float) lvl);                                   // bci 1530
+```
+
+Rendering, the crew's drawn position, collision, world damage and every other
+client all read that clamped `getZ()`. Lift the body with nothing under it and
+you get a ship that flies in Bullet and sits on the road in the game, mowing
+down fences — *present, drawn, and inert*, the same shape as the three bugs
+above it in this file.
+
+So flight is **driving on an invisible floor**: `invisible_01_0` is a vanilla
+tile whose only properties are `attachedFloor` and `solidfloor`.
+`TREK_Sky.lua` lays it around the ship, and everything else is vanilla's own
+vehicle code, untouched.
+
+Two things this cost that are worth keeping:
+
+- **The bytecode is the documentation.** `tools/pzapi.py` says a method exists;
+  `tools/javarefs.py` says what it touches; only a real instruction-level
+  disassembly says *under what condition*. `javarefs` lists references in
+  bytecode order with no branches, so it cannot tell you that `setZ(0)` is
+  unconditional and the one after it is not.
+- **The exposure allow-list is knowable.** `LuaManager$Exposer.shouldExpose` is
+  strict `exposed.contains(c)` over an explicit list built in `exposeAll()`.
+  If a class is not in that list, no amount of it being public matters. That is
+  the definitive answer to "can Lua touch this", and it is worth grepping
+  before designing around any engine type.
+
 ### The black outside the cabin is a map, not a clearing
 
 The cabin's cell is off the vanilla map, and build 42's world generator fills
@@ -594,6 +634,9 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **The phaser runs out** | The sweep is not seeing it. `TREK_Phaser()` reports how many it found; zero while one is in your hands means the inventory lookup is wrong. |
 | **Grass, trees or zombies outside the cabin** | The void map is not loaded (server log: `the 'TrekShuttle' map is not loaded` -- add it to `Map=`), or the save visited that area before the map existed. Test in a new world. |
 | **Two shuttles** | Something was removed at a position whose chunk was not loaded, and the failure was read as success. `TREK_Ghosts()` lists hulls known to be pending and forces a sweep. |
+| **The shuttle "flies" but is drawn on the ground** | Its z is not its physics height. `BaseVehicle.update()` zeroes a vehicle's z every tick and restores the level only where a floor exists under its centre square — so the sky plane is not being laid. `grep "sky plane" console.txt`. See *A vehicle's altitude is a floor, not a height*. |
+| **The shuttle flies and ploughs through fences** | Same cause. Collision resolves at `getZ()`, which is 0 without a floor. |
+| **A ship parked in the sky for ever** | Flight ended without `Sky.clear()`. The floors are world objects and they are saved. `s.skyAt` is how they get lifted; if that was lost, they are permanent. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
 ---
@@ -749,6 +792,8 @@ TrekShuttle/42/media/lua/server/TREK/TREK_Build.lua            cabin constructio
 TrekShuttle/42/media/lua/server/TREK/TREK_Server.lua           command handlers, hull, ghosts, charges
 TrekShuttle/42/media/lua/client/TREK/TREK_Core.lua             asking to move, arrival, hatch, shields, lights
 TrekShuttle/42/media/lua/client/TREK/TREK_Transport.lua        the transporter
+TrekShuttle/42/media/lua/client/TREK/TREK_Sky.lua              the invisible floor the ship flies on
+TrekShuttle/42/media/lua/client/TREK/TREK_Flight.lua           taking her up, changing level, setting down
 TrekShuttle/42/media/lua/client/TREK/TREK_Helm.lua             the LCARS helm console
 TrekShuttle/42/media/lua/client/TREK/TREK_Travel.lua           courses, map picking, landing search
 TrekShuttle/42/media/lua/client/TREK/TREK_Phaser.lua           keeping phasers charged
