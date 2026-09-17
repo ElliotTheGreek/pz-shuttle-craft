@@ -28,61 +28,14 @@ local F = {}
 TREK.Flight = F
 
 F.active = nil
-F.overlay = nil
 
-TREKFlightOverlay = ISUIElement:derive("TREKFlightOverlay")
-
-function TREKFlightOverlay:new()
-    local core = getCore()
-    local o = ISUIElement:new(0, 0, core:getScreenWidth(), core:getScreenHeight())
-    setmetatable(o, self)
-    self.__index = self
-    return o
-end
-
---- The overlay covers the whole screen and must not swallow clicks: right-
---- click in flight is the land / enter / beam-down menu. setConsumeMouseEvents
---- is a method of the Java UIElement, which only exists once the element is
---- instantiated -- calling it on the Lua table in new() threw on every
---- takeoff, and the overlay never appeared at all.
-function TREKFlightOverlay:instantiate()
-    ISUIElement.instantiate(self)
-    U.try("overlayPassClicks", function()
-        self.javaObject:setConsumeMouseEvents(false)
-    end)
-end
-
-function TREKFlightOverlay:prerender()
-    ISUIElement.prerender(self)
-    local flight = F.active
-    if not flight then return end
-
-    local rise = math.min(1, flight.ticks / C.FlightTakeoffTicks)
-    local w = C.FlightShadowW * (0.80 + rise * 0.20)
-    local h = C.FlightShadowH * (0.80 + rise * 0.20)
-    -- The ground under the ship. The camera follows the pilot's raised body,
-    -- so screen centre is no longer the ground; project the actual square.
-    local playerNum = U.try("overlayPlayerNum", function()
-        return flight.player:getPlayerNum()
-    end) or 0
-    local cx = U.try("shadowX", function()
-        return isoToScreenX(playerNum, flight.x + 0.5, flight.y + 0.5, flight.groundZ)
-    end) or self.width / 2
-    local groundY = U.try("shadowY", function()
-        return isoToScreenY(playerNum, flight.x + 0.5, flight.y + 0.5, flight.groundZ)
-    end) or (self.height / 2 + 58)
-
-    -- The actual 3D hull is rendered in the world. This layer only draws its
-    -- projected shadow and the controls.
-    for i = 0, 5 do
-        local inset = i * 7
-        self:drawRect(cx - w / 2 + inset, groundY - h / 2 + i * 2,
-                      w - inset * 2, h - i * 3,
-                      C.FlightShadowAlpha / 6, 0, 0, 0)
-    end
-    self:drawTextCentre(getText("IGUI_TREK_FlightControls"), cx,
-        self.height - 72, 0.80, 0.92, 1.0, 0.95, UIFont.Small)
-end
+-- There is no full-screen flight overlay. One was written, and until today it
+-- crashed on creation and so never appeared; the build that made it appear
+-- showed why it cannot exist: a UI element covering the screen takes the
+-- right-clicks the flight menu depends on, and survived the pilot's death to
+-- block every click after. The control hint is in the takeoff note instead.
+-- Flight is being redesigned for multiplayer (MULTIPLAYER.md); any HUD comes
+-- back as part of that, sized to what it draws.
 
 --- Hides the pilot's body for the flight and shows it again afterwards.
 ---
@@ -277,12 +230,7 @@ function F.start(player)
     setFlightZoom(flight, true)
     placeModel(flight, 0)
 
-    local overlay = TREKFlightOverlay:new()
-    overlay:initialise()
-    overlay:addToUIManager()
-    F.overlay = overlay
-
-    U.note(player, getText("IGUI_TREK_TakingOff"))
+    U.note(player, getText("IGUI_TREK_TakingOff") .. " -- " .. getText("IGUI_TREK_FlightControls"))
     U.log("FLIGHT BUILD 1.4: takeoff over %.1f,%.1f,%d", x, y, flight.groundZ)
     return true
 end
@@ -293,10 +241,6 @@ function F.stop(putOnGround)
     local player = flight.player
     local spot = F.position()
 
-    if F.overlay then
-        F.overlay:removeFromUIManager()
-        F.overlay = nil
-    end
     removeModel(flight)
     setFlightZoom(flight, false)
     F.active = nil
@@ -345,10 +289,29 @@ function F.resume()
     if F.active then F.active.suspended = false end
 end
 
+--- True while the flight's pilot is still the living character at the
+--- controls. Flight used to carry on after the pilot died: WASD flew the ship
+--- around for the respawned character, and every right-click went to the
+--- flight menu instead of the world.
+function F.pilotValid(flight)
+    local player = flight and flight.player
+    if not player then return false end
+    if U.try("pilotDead", function() return player:isDead() end) ~= false then
+        return false
+    end
+    local num = U.try("pilotNum", function() return player:getPlayerNum() end)
+    local current = num and U.player(num)
+    return current == nil or current == player
+end
+
 local function serviceFlight()
     local flight = F.active
     if not flight then return end
-    if not flight.player then F.stop(false) return end
+    if not F.pilotValid(flight) then
+        U.log("flight ended: the pilot is no longer at the controls")
+        F.stop(false)
+        return
+    end
 
     flight.ticks = flight.ticks + 1
     if not flight.suspended then
@@ -386,6 +349,16 @@ local function serviceFlight()
 end
 
 Events.OnTick.Add(serviceFlight)
+
+-- Death ends flight at once rather than on the next tick, so nothing -- the
+-- flying model, the zoom, the pinning -- outlives the pilot even for a frame.
+Events.OnPlayerDeath.Add(function(player)
+    local flight = F.active
+    if flight and flight.player == player then
+        U.log("flight ended: the pilot died")
+        F.stop(false)
+    end
+end)
 U.log("FLIGHT BUILD 1.4 loaded -- hands-on controller registered")
 
 return F

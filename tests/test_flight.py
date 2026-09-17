@@ -36,7 +36,8 @@ lua.execute("""
     local md = {}
     _G.ModData = { getOrCreate = function(k) md[k] = md[k] or {}; return md[k] end }
     _G.getPlayer = function() return nil end
-    _G.getSpecificPlayer = function() return nil end
+    currentPlayer = nil
+    _G.getSpecificPlayer = function() return currentPlayer end
     _G.getCell = function() return nil end
     handlers = {}
     _G.Events = setmetatable({}, { __index = function(_, name)
@@ -52,7 +53,9 @@ lua.execute("""
 
     function makePlayer()
         local p = { x = 0, y = 0, z = 0, lastZ = 0, fallTime = 7, falling = true,
-                    alpha = 1, targetAlpha = 1 }
+                    alpha = 1, targetAlpha = 1, dead = false }
+        function p:isDead() return self.dead end
+        function p:getPlayerNum() return 0 end
         function p:setX(v) self.x = v end
         function p:setY(v) self.y = v end
         function p:setZ(v) self.z = v end
@@ -95,6 +98,7 @@ print(f"hover height {H}: body stays at least one floor above the ground")
 # --- the tick pins the body up there, with no fall building ----------------
 lua.execute("""
     p = makePlayer()
+    currentPlayer = p
     TREK.Flight.active = { player = p, x = 10, y = 20, groundZ = 0, ticks = 0,
                            suspended = true, heading = 0 }
 """)
@@ -110,6 +114,47 @@ else:
         failures.append("a flight tick left a fall pending on the hovering body")
     print(f"flight tick: body pinned at z {float(p.z)}, no fall pending")
 
+# --- flight ends with its pilot --------------------------------------------
+# It used to outlive a dead pilot: the respawned character's WASD flew the
+# ship, and every right-click went to the flight menu.
+def fresh_flight(name):
+    lua.execute(f'''
+        {name} = makePlayer()
+        currentPlayer = {name}
+        TREK.Flight.active = {{ player = {name}, x = 1, y = 1, groundZ = 0, ticks = 0,
+                               suspended = true, heading = 0 }}
+    ''')
+
+if tick:
+    fresh_flight("dying")
+    lua.execute("dying.dead = true")
+    tick()
+    if F.active is not None:
+        failures.append("a flight tick with a dead pilot did not end the flight")
+    else:
+        print("dead pilot: the next tick ends the flight")
+
+    fresh_flight("replaced")
+    lua.execute("currentPlayer = makePlayer()")   # respawned: a new character at the controls
+    tick()
+    if F.active is not None:
+        failures.append("flight carried on for a respawned character")
+    else:
+        print("respawned character: the old flight ends")
+
+death = g.handlers["OnPlayerDeath"]
+if not death:
+    failures.append("TREK_Flight does not end flight on OnPlayerDeath")
+else:
+    fresh_flight("victim")
+    death(g.victim)
+    if F.active is not None:
+        failures.append("OnPlayerDeath did not end the flight")
+    elif float(g.victim.z) != 0:
+        failures.append("the dead pilot's body was left in mid-air")
+    else:
+        print("OnPlayerDeath: flight ends at once, body on the ground")
+
 # --- landing puts the body down, visible ----------------------------------
 lua.execute("""
     p2 = makePlayer()
@@ -117,6 +162,7 @@ lua.execute("""
     TREK.Flight.protect(p2, flight, true)
     p2.z = flight.groundZ + TREK.Config.FlightHoverHeight
     p2.fallTime = 9; p2.falling = true
+    currentPlayer = p2
     TREK.Flight.active = flight
     TREK.Flight.stop(false)
 """)
@@ -130,6 +176,14 @@ if float(p2.alpha) != 1 or float(p2.targetAlpha) != 1:
 if F.active is not None:
     failures.append("stopping flight left it marked active")
 print("stop: body on the ground, no fall pending, visible again")
+
+# --- no full-screen UI in flight ---------------------------------------------
+# A UI element over the whole screen takes the right-clicks the flight menu
+# needs, and a stale one blocked every click after the pilot died.
+flight_src = open(os.path.join(ROOT, "TrekShuttle", "42", "media", "lua", "client",
+                               "TREK", "TREK_Flight.lua"), encoding="utf-8").read()
+if re.search(r"getScreenWidth\(\)\s*,\s*[^)]*getScreenHeight\(\)", flight_src.split("--[[", 1)[-1]):
+    failures.append("TREK_Flight creates a full-screen UI element again")
 
 # --- never again ------------------------------------------------------------
 # Role-gated in build 42: public, callable, and silently refused for an

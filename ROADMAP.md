@@ -124,6 +124,18 @@ call for the author.
 
 The original plan for the console follows.
 
+## Open: flight is not safe yet
+
+In testing a pilot still took fatal damage while flying, the fog of war
+glitched with the pilot's body held above the ground, and flight outlived the
+pilot's death (fixed: flight now ends on death or respawn, and the
+full-screen overlay that blocked right-click afterwards is gone).
+
+Holding a character in mid-air fights the engine's fall simulation every
+tick, and multiplayer would make that worse. Flight is to be **redesigned**
+as part of the multiplayer design (MULTIPLAYER.md) -- the leading candidate is
+a real vehicle the pilot sits in -- not patched further.
+
 ## Built, awaiting in-game test: fixes
 
 - **No damage while hovering.** Zombies crowding under a stationary ship could

@@ -197,13 +197,15 @@ C.FlightTakeoffTicks   = 75
 C.FlightModelLift      = 48
 
 -- How many floors above the ground the pilot's body is held during flight.
--- Zombies only attack on their own floor, so anything at or above 1 is out of
--- reach; the half keeps the body's floor at 1 even if the engine's fall has
--- dropped it a little before the next tick's pin puts it back.
+-- The zombie attack code compares heights before it scratches, so a body
+-- above the ground is out of reach of the dead standing on it.
+--
+-- KNOWN NOT TO BE ENOUGH: a pilot still took fatal damage in testing. Holding
+-- a body in mid-air fights the engine's fall simulation every tick (it tracks
+-- more than the fall time reset here, and even rewrites roofs under a falling
+-- character), and over a two-storey building the body is level with anyone
+-- upstairs. Flight is being redesigned rather than patched -- MULTIPLAYER.md.
 C.FlightHoverHeight    = 1.5
-C.FlightShadowW        = 150
-C.FlightShadowH        = 42
-C.FlightShadowAlpha    = 0.30
 C.FlightZoomLevels1x   = "25;50;75;100;125;150;175;200;225;250"
 C.FlightZoomLevels2x   = "25;50;75;100;125;150;175;200;225;250"
 
