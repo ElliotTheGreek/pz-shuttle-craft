@@ -119,6 +119,23 @@ for dp, _, fns in os.walk(os.path.join(MOD, "media", "lua")):
                     if lit not in tiles:
                         failures.append(f"{fn}:{lineno} unknown sprite {lit}")
 
+# --- UI textures -------------------------------------------------------
+# A getTexture on a file that is not there returns nil, and the helm then
+# quietly draws flat rectangles instead of its artwork. Every media/ui file the
+# Lua names -- directly or through the helm's load("key", "FILE.png") -- must
+# exist.
+UI = os.path.join(MOD, "media", "ui")
+ui_named = set()
+for dp, _, fns in os.walk(os.path.join(MOD, "media", "lua")):
+    for fn in fns:
+        if fn.endswith(".lua"):
+            body = open(os.path.join(dp, fn), encoding="utf-8").read()
+            ui_named |= set(re.findall(r'media/ui/([\w.]+\.png)', body))
+            ui_named |= set(re.findall(r'load\(\s*"\w+"\s*,\s*"([\w.]+\.png)"', body))
+for f in sorted(ui_named):
+    if not os.path.isfile(os.path.join(UI, f)):
+        failures.append(f"Lua names media/ui/{f}, which does not exist")
+
 # --- translations ------------------------------------------------------
 # Build 42 reads media/lua/shared/Translate/EN/<Category>.json and the category
 # is part of the *path*, not the key: an "ItemName_x" key inside IG_UI.json
@@ -138,6 +155,10 @@ for dp, _, fns in os.walk(os.path.join(MOD, "media", "lua")):
         if fn.endswith(".lua"):
             body = open(os.path.join(dp, fn), encoding="utf-8").read()
             asked |= set(re.findall(r'getText\(\s*"([^"]+)"', body))
+            # Keys are not always the first argument of getText: the helm picks
+            # one with `up and "A" or "B"` and hands others to a helper. Any
+            # IGUI_TREK_ literal anywhere in the Lua is a key it will ask for.
+            asked |= set(re.findall(r'"(IGUI_TREK_[A-Za-z0-9_]+)"', body))
 for key in sorted(asked):
     if key.startswith("IGUI_") and key not in ig:
         failures.append(f"getText(\"{key}\") has no entry in IG_UI.json")

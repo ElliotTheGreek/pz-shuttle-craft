@@ -616,6 +616,9 @@ end
 function Core.repelZombies()
     local s = U.state()
     if not s.landed then return 0 end
+    -- Lowered from the helm. The field is the shields; there is nothing else
+    -- to switch off.
+    if s.shields == false then return 0 end
 
     local cell = U.cell()
     if not cell then return 0 end

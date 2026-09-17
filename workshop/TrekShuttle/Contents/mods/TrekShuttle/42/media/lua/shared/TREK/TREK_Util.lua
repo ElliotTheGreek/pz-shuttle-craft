@@ -116,7 +116,47 @@ function U.state()
     s.flightX = s.flightX or (s.landed and s.x or s.returnX)
     s.flightY = s.flightY or (s.landed and s.y or s.returnY)
     s.flightZ = s.flightZ or (s.landed and s.z or s.returnZ or 0)
+    -- Helm settings, additive like the flight fields. `shields` is compared
+    -- with nil rather than tested for truth: false is a real answer.
+    if s.shields == nil then s.shields = C.ShieldsDefault end
+    local steps = #C.FlightSpeedSteps
+    if type(s.speedStep) ~= "number" or s.speedStep < 1 or s.speedStep > steps then
+        s.speedStep = C.FlightSpeedDefaultStep
+    end
     return s
+end
+
+---------------------------------------------------------------------------
+-- Helm settings
+---------------------------------------------------------------------------
+function U.shieldsUp()
+    return U.state().shields == true
+end
+
+function U.setShields(up)
+    local s = U.state()
+    s.shields = up == true
+    U.log("shields %s", s.shields and "up" or "down")
+    return s.shields
+end
+
+--- The multiplier the helm has selected, e.g. 2 for twice normal speed.
+function U.flightMultiplier()
+    return C.FlightSpeedSteps[U.state().speedStep] or 1
+end
+
+--- Squares per tick the ship flies at right now.
+function U.flightSpeed()
+    return C.FlightSpeed * U.flightMultiplier()
+end
+
+function U.setFlightStep(step)
+    local s = U.state()
+    if type(step) ~= "number" or not C.FlightSpeedSteps[step] then return false end
+    s.speedStep = step
+    U.log("flight speed x%s (%.2f squares a tick)",
+          tostring(C.FlightSpeedSteps[step]), U.flightSpeed())
+    return true
 end
 
 ---------------------------------------------------------------------------

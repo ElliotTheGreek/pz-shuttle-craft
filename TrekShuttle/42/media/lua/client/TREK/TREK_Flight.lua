@@ -311,9 +311,11 @@ local function serviceFlight()
             elseif dx < 0 and dy == 0 then flight.heading = 270
             else flight.heading = 315 end
 
+            -- Read every tick, so a speed chosen at the helm applies at once.
             local length = math.sqrt(dx * dx + dy * dy)
-            flight.x = flight.x + dx / length * C.FlightSpeed
-            flight.y = flight.y + dy / length * C.FlightSpeed
+            local speed = U.flightSpeed()
+            flight.x = flight.x + dx / length * speed
+            flight.y = flight.y + dy / length * speed
             local s = U.state()
             s.flightX, s.flightY, s.flightZ = flight.x, flight.y, flight.groundZ
             s.returnX, s.returnY, s.returnZ = math.floor(flight.x),

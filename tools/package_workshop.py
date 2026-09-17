@@ -26,11 +26,30 @@ MOD = ROOT / "TrekShuttle"
 BUILD = ROOT / "workshop" / "TrekShuttle"
 INSTALLED = Path.home() / "Zomboid" / "Workshop" / "TrekShuttle"
 
+# The published Steam Workshop item.
+#
+# This one line is the whole difference between updating the mod and
+# publishing a second copy of it. The in-game uploader has no other way to
+# know which item it is looking at: the id lives in workshop.txt and nowhere
+# else. Upload without it and Steam makes a *new* item with a new id, no
+# subscribers and no ratings, while the original sits there with the old
+# files in it -- and there is no undo.
+#
+# It used to live only in ~/Zomboid/Workshop/TrekShuttle/workshop.txt, which
+# --install deletes and rewrites. It is kept here so the repo owns it.
+WORKSHOP_ID = "3801178990"
+
+# Public, because the item already is. Writing visibility=private into an
+# update hides a mod people are subscribed to. Set this to "private" only for
+# a genuinely unpublished first upload.
+VISIBILITY = "public"
+
 TITLE = "Starfleet Shuttlecraft (Build 42)"
 DESCRIPTION = [
     "A Starfleet Type 6 shuttlecraft for Project Zomboid Build 42.",
     "Beam aboard from anywhere, travel to map coordinates, land on clear ground, and walk through the rear hatch.",
-    "Its compact interior includes paired flight stations, a fold-down berth, sink, emergency medical supplies, provisions, mission storage, and rechargeable phasers.",
+    "Its interior is a working compartment: helm consoles and a viewscreen forward, a galley with fridges, ovens and running water, a berth aft, and eight starboard lockers -- sick bay, engineering stores, provisions, survival kit, an armoury, and the phaser locker.",
+    "Every locker, counter and cabinet aboard is stocked.",
     "The exterior requires a clear 3x5 landing area.",
     "Type 6 shuttle 3D model by octave767, used under CC BY 4.0: https://sketchfab.com/3d-models/star-trek-type-6-shuttle-e2ca902b9115429ab20293617a9d3317",
     "This is an unofficial fan mod and is not affiliated with or endorsed by Paramount or The Indie Stone.",
@@ -64,10 +83,21 @@ def square_preview(source, output, size=256):
 
 
 def workshop_text():
-    lines = ["version=1", "title=" + TITLE]
+    lines = ["version=1"]
+    if WORKSHOP_ID:
+        lines.append("id=" + WORKSHOP_ID)
+    lines.append("title=" + TITLE)
     lines.extend("description=" + line for line in DESCRIPTION)
-    lines.extend(["tags=Build 42", "visibility=private"])
+    lines.extend(["tags=Build 42", "visibility=" + VISIBILITY])
     return "\n".join(lines) + "\n"
+
+
+def published_id(text):
+    """The id= from a workshop.txt, or None."""
+    for line in text.splitlines():
+        if line.startswith("id="):
+            return line[3:].strip()
+    return None
 
 
 def validate(package):
@@ -91,10 +121,15 @@ def validate(package):
     for field in ("version=", "title=", "description=", "tags=", "visibility="):
         if field not in text:
             raise SystemExit("workshop.txt is missing " + field)
+    staged = published_id(text)
+    if WORKSHOP_ID and staged != WORKSHOP_ID:
+        raise SystemExit("workshop.txt does not carry id=" + WORKSHOP_ID +
+                         "; uploading it would publish a new item")
     count = sum(1 for path in package.rglob("*") if path.is_file())
     print("validated", count, "Workshop package files")
     print("preview", png_dimensions(preview))
-    print("visibility private (change after testing on Steam)")
+    print("workshop item", staged or "UNPUBLISHED (a new item will be created)")
+    print("visibility", VISIBILITY)
 
 
 def main():
@@ -117,6 +152,21 @@ def main():
     print("package ->", BUILD)
 
     if args.install:
+        # --install wipes the staging folder, which is where the published id
+        # used to be the only copy. Read it back first and refuse to point the
+        # uploader at a different item than the one already staged: silently
+        # retargeting an upload is not a recoverable mistake.
+        existing = INSTALLED / "workshop.txt"
+        if existing.is_file():
+            staged = published_id(existing.read_text(encoding="utf-8"))
+            if staged and staged != WORKSHOP_ID:
+                raise SystemExit(
+                    f"{INSTALLED} is staged as Workshop item {staged} but this "
+                    f"package is {WORKSHOP_ID}. Fix WORKSHOP_ID before "
+                    f"installing; uploading the wrong one cannot be undone.")
+            if staged:
+                print("updating staged Workshop item", staged)
+
         if INSTALLED.exists():
             shutil.rmtree(INSTALLED)
         INSTALLED.parent.mkdir(parents=True, exist_ok=True)

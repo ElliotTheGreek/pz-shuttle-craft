@@ -22,6 +22,7 @@
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+require "TREK/TREK_Helm"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -314,166 +315,44 @@ function ISWorldMap:render()
         marker(self, s.destination.x, s.destination.y, 0.95, 0.55, 0.30,
                getText("IGUI_TREK_MapDestination"))
     end
+
+    -- The crosshair "Course to crosshair" lays a course on. A controller has
+    -- no pointer to click the map with, so this is how it picks a site.
+    local cx, cy = math.floor(self.width / 2), math.floor(self.height / 2)
+    local r, g, b = 0.60, 0.60, 1.00
+    self:drawRect(cx - 18, cy, 12, 2, 0.9, r, g, b)
+    self:drawRect(cx + 7, cy, 12, 2, 0.9, r, g, b)
+    self:drawRect(cx, cy - 18, 2, 12, 0.9, r, g, b)
+    self:drawRect(cx, cy + 7, 2, 12, 0.9, r, g, b)
+    if self.joyfocus then
+        self:drawTextCentre(getText("IGUI_TREK_MapJoypadHint"), cx, cy + 28,
+                            r, g, b, 1, UIFont.Small)
+    end
+end
+
+-- While the helm is open, the map's own controller handling is borrowed:
+-- A lays in a course on the crosshair and B or Y hand the stick back to the
+-- helm. Vanilla B would close the map out from under the helm instead.
+local baseOnJoypadDown = ISWorldMap.onJoypadDown
+function ISWorldMap:onJoypadDown(button, joypadData)
+    if T.picking and T.window then
+        if button == Joypad.AButton then
+            T.window:onCourseToCrosshair()
+            setJoypadFocus(joypadData.player, T.window)
+            return
+        elseif button == Joypad.BButton or button == Joypad.YButton then
+            setJoypadFocus(joypadData.player, T.window)
+            return
+        end
+    end
+    return baseOnJoypadDown(self, button, joypadData)
 end
 
 ---------------------------------------------------------------------------
 -- The helm window
 ---------------------------------------------------------------------------
-TREKHelmWindow = ISCollapsableWindow:derive("TREKHelmWindow")
-
-function TREKHelmWindow:createChildren()
-    ISCollapsableWindow.createChildren(self)
-    local pad = 10
-    local top = self:titleBarHeight() + pad
-    local btnH = 25
-    local w = self.width - pad * 2
-
-    self.info = ISRichTextPanel:new(pad, top, w, 62)
-    self.info:initialise()
-    self:addChild(self.info)
-
-    local listY = top + 68
-    local listH = self.height - listY - btnH * 3 - pad * 4
-    self.list = ISScrollingListBox:new(pad, listY, w, listH)
-    self.list:initialise()
-    self.list:instantiate()
-    self.list.itemheight = 22
-    self.list.selected = 0
-    self.list.joypadParent = self
-    self.list.drawBorder = true
-    self.list.doDrawItem = self.drawBookmark
-    self.list.target = self
-    self:addChild(self.list)
-
-    local y = listY + listH + pad
-    self.landBtn = ISButton:new(pad, y, w / 2 - 4, btnH,
-        getText("IGUI_TREK_TakeHerDown"), self, TREKHelmWindow.onLand)
-    self.landBtn:initialise()
-    self:addChild(self.landBtn)
-
-    self.bookmarkBtn = ISButton:new(pad + w / 2 + 4, y, w / 2 - 4, btnH,
-        getText("IGUI_TREK_SaveBookmark"), self, TREKHelmWindow.onBookmark)
-    self.bookmarkBtn:initialise()
-    self:addChild(self.bookmarkBtn)
-
-    y = y + btnH + 4
-    self.gotoBtn = ISButton:new(pad, y, w / 2 - 4, btnH,
-        getText("IGUI_TREK_UseBookmark"), self, TREKHelmWindow.onUseBookmark)
-    self.gotoBtn:initialise()
-    self:addChild(self.gotoBtn)
-
-    self.deleteBtn = ISButton:new(pad + w / 2 + 4, y, w / 2 - 4, btnH,
-        getText("IGUI_TREK_DeleteBookmark"), self, TREKHelmWindow.onDeleteBookmark)
-    self.deleteBtn:initialise()
-    self:addChild(self.deleteBtn)
-
-    self:refresh()
-end
-
-function TREKHelmWindow:drawBookmark(y, item, alt)
-    if self.selected == item.itemindex then
-        self:drawRect(0, y, self:getWidth(), item.height - 1, 0.3, 0.35, 0.62, 0.85)
-    end
-    self:drawRectBorder(0, y, self:getWidth(), item.height - 1, 0.5, 0.4, 0.4, 0.4)
-    local b = item.item
-    self:drawText(b.name, 8, y + 3, 1, 1, 1, 0.9, UIFont.Small)
-    self:drawText(string.format("%d, %d", b.x, b.y),
-                  self:getWidth() - 100, y + 3, 0.7, 0.7, 0.7, 0.9, UIFont.Small)
-    return y + item.height
-end
-
-function TREKHelmWindow:refresh()
-    local s = U.state()
-    self.list:clear()
-    for _, b in ipairs(s.bookmarks) do
-        self.list:addItem(b.name, b)
-    end
-
-    local text = getText("IGUI_TREK_HelmPrompt", TREK.Core.footprintArea())
-    if s.destination then
-        text = text .. " <LINE> " ..
-               getText("IGUI_TREK_CourseSet", s.destination.x, s.destination.y)
-    end
-    self.info:setText(text)
-    self.info.textDirty = true
-    self.info:paginate()
-end
-
---- "Take her down": beams the player to the course and brings the ship in.
-function TREKHelmWindow:onLand()
-    local s = U.state()
-    if not s.destination then
-        self.info:setText(getText("IGUI_TREK_NoCourse"))
-        self.info.textDirty = true
-        self.info:paginate()
-        return
-    end
-    local dest = s.destination
-    s.destination = nil
-    self:close()
-    TREK.Travel.descend(self.player, dest)
-end
-
-function TREKHelmWindow:onBookmark()
-    local s = U.state()
-    local x, y, z
-    if s.destination then
-        x, y, z = s.destination.x, s.destination.y, s.destination.z
-    elseif s.landed then
-        x, y, z = s.x, s.y, s.z
-    else
-        return
-    end
-
-    local modal = ISTextBox:new(0, 0, 280, 120,
-        getText("IGUI_TREK_NameBookmark"), "", nil,
-        function(_, button, bx, by, bz)
-            if button.internal == "OK" then
-                T.addBookmark(button.parent.entry:getText(), bx, by, bz)
-                if T.window then T.window:refresh() end
-            end
-        end, nil, x, y, z)
-    modal:initialise()
-    modal:addToUIManager()
-end
-
-function TREKHelmWindow:onUseBookmark()
-    local item = self.list.items[self.list.selected]
-    if not item then return end
-    local b = item.item
-    T.setDestination(b.x, b.y, b.z)
-    self:refresh()
-end
-
-function TREKHelmWindow:onDeleteBookmark()
-    if T.removeBookmark(self.list.selected) then self:refresh() end
-end
-
-function TREKHelmWindow:close()
-    T.picking = false
-    T.window = nil
-    U.try("restoreMapSettings", function()
-        local map = ISWorldMap_instance
-        if not map then return end
-        if T.restoreShowPlayers ~= nil then
-            map:setShowPlayers(T.restoreShowPlayers)
-        end
-        if T.restoreHideUnvisited ~= nil then
-            map:setHideUnvisitedAreas(T.restoreHideUnvisited)
-        end
-    end)
-    ISCollapsableWindow.close(self)
-end
-
-function TREKHelmWindow:new(x, y, w, h, player)
-    local o = ISCollapsableWindow:new(x, y, w, h)
-    setmetatable(o, self)
-    self.__index = self
-    o.player = player
-    o.title = getText("IGUI_TREK_Helm")
-    o:setResizable(false)
-    return o
-end
+-- The console itself -- the LCARS panel, shields, flight speed and the
+-- navigation controls -- lives in TREK_Helm.lua.
 
 --- Opens the world map plus the helm window beside it.
 function T.openHelm(player)
@@ -512,11 +391,25 @@ function T.openHelm(player)
     end)
 
     T.picking = true
-    local win = TREKHelmWindow:new(60, 120, 330, 430, player)
+    -- Kept on screen at small resolutions: the console is taller than the
+    -- old window, and a helm whose buttons are off the bottom edge is no helm.
+    local screenH = getCore():getScreenHeight()
+    local y = math.max(10, math.min(80, screenH - TREK.Helm.H - 10))
+    local win = TREKHelmWindow:new(60, y, player)
     win:initialise()
     win:addToUIManager()
     win:setVisible(true)
     T.window = win
+
+    -- A controller player starts on the helm's buttons. ShowWorldMap has just
+    -- given the map focus; without this the stick would pan the map and the
+    -- helm could not be reached at all.
+    U.try("helmJoypadFocus", function()
+        local playerNum = player:getPlayerNum()
+        if JoypadState.players[playerNum + 1] then
+            setJoypadFocus(playerNum, win)
+        end
+    end)
     return win
 end
 

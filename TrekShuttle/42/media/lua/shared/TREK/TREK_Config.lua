@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.0.0"
+C.Version   = "1.2.0"
 C.StateKey  = "TREK_State_v1"
 C.ModPrefix = "[TREK]"
 
@@ -156,6 +156,11 @@ end
 -- Radius, in tiles, of the field that holds the dead back from the hatch.
 C.FieldRadius = 10
 
+-- Whether a new world starts with the shields up. They can be lowered and
+-- raised from the helm; there is deliberately no radius control, only the
+-- state. The setting is saved with the world, so this is only the default.
+C.ShieldsDefault = true
+
 ---------------------------------------------------------------------------
 -- The transporter
 ---------------------------------------------------------------------------
@@ -180,6 +185,14 @@ C.LandingSearchRadius = 24   -- squares to spiral out from a chosen site
 -- Hands-on flight. Movement is world squares per tick; the screen-space lift
 -- separates the visible shuttle from its projected shadow.
 C.FlightSpeed          = 1.50
+
+-- Multipliers on C.FlightSpeed the helm offers, slowest first. 1 is the
+-- original speed; the top step is five times it, 7.5 squares a tick. The
+-- world streams in around the invisible proxy the flight camera rides on, and
+-- at the top step the ship can outrun it for a moment -- the hull simply waits
+-- a tick for ground to appear, which is logged once as flightModelMissing.
+C.FlightSpeedSteps       = { 0.25, 0.5, 1, 2, 3, 5 }
+C.FlightSpeedDefaultStep = 3
 C.FlightTakeoffTicks   = 75
 C.FlightModelLift      = 48
 C.FlightShadowW        = 150

@@ -23,9 +23,10 @@ python tools/luacheck.py TrekShuttle/42/media/lua
 python tests/test_assets.py
 python tests/test_stock.py
 python tests/test_layout.py
+python tests/test_helm.py
 ```
 
-If all five succeed you have a working setup. `test_layout.py` prints the cabin
+If all six succeed you have a working setup. `test_layout.py` prints the cabin
 floor plan with every fitting on it — the fastest way to see the shape of the
 thing.
 
@@ -46,7 +47,7 @@ Target is **build 42.20.4**. Single player only.
 ```sh
 # 1. edit, then always:
 python tools/luacheck.py TrekShuttle/42/media/lua
-python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py
+python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py && python tests/test_helm.py
 
 # 2. install
 sh tools/deploy.sh
@@ -340,6 +341,36 @@ The cabin rebuilds lazily the next time somebody is aboard. Rebuilds preserve
 furniture, container contents and dropped items. **Moving geometry is a
 migration, not a rebuild.**
 
+### UI runs every frame: test it before the game does
+
+`prerender` and `render` run sixty times a second, so one nil in them is not
+one error but a stack trace per frame for as long as the panel is open. And a
+label that runs off its button can otherwise only be seen in game.
+
+`tests/test_helm.py` drives the real `TREK_Helm.lua` against stubs of
+`ISPanelJoypad`, `ISButton` and friends that record every draw call, and fails
+on a throw, a draw outside the panel, a label wider than its button, a
+control that does not change state, or a button a controller cannot reach.
+`tools/preview_helm.py` replays the same draw calls into a PNG with the real
+textures. **Look at the render**: it found a clipped course line that every
+test passed.
+
+Two things the harness taught:
+
+- **Compare Lua tables in Lua.** lupa hands Python a fresh proxy on every
+  access, so `a != b` in Python is always true. Use `rawequal` inside Lua.
+- **Mutation-check a new test.** Break the code on purpose and confirm it
+  fails before trusting a first-time pass.
+
+### Every panel must work with a controller
+
+The Steam Deck runs PZ with a gamepad. Derive panels from `ISPanelJoypad`,
+register every button with `insertNewLineOfButtons` / `insertNewListOfButtons`,
+put close on B with `setISButtonForB`, draw a visible focus state (there is
+no pointer), and give anything that needs a mouse click a controller route --
+the helm's map crosshair is the pattern. Hand focus back on close
+(`setJoypadFocus`), or the controller is left driving a panel that is gone.
+
 ### Translations are one JSON file per category
 
 Build 42 reads `media/lua/shared/Translate/EN/<Category>.json`, and the
@@ -442,6 +473,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | `tools/luacheck.py` | Lua syntax, via a real Lua VM |
 | `tests/test_assets.py` | sprites, items, meshes, textures, icons, the phaser's borrowed vanilla references, and every translation key |
 | `tests/test_stock.py` | items that cannot be created at all; loot that does not spread across its list; containers that do not reach `C.FillFraction` |
+| `tests/test_helm.py` | helm console throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
 | `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
 
 `test_stock.py` stubs the engine **the way it really behaves** — `instanceItem`
@@ -469,6 +501,8 @@ back, which is unwelcome mid-game.
 | `TREK_SelfTest()` | Force the whole run |
 | `TREK_Stock()` | One line per container: items held and how full. **The first thing to run when loot looks wrong.** |
 | `TREK_Water()` | Top the fixtures up and report how many hold water |
+| `TREK_Shields()` | Report the shields; `TREK_Shields(false)` / `(true)` sets them |
+| `TREK_Speed()` | Report flight speed; `TREK_Speed(n)` picks step n (1 = 1/4x ... 6 = 5x) |
 | `TREK_Rebuild()` | Tear down and regenerate the cabin, restocked. Stand aboard. |
 | `TREK_Beam()` | Beam up if outside, down if aboard |
 | `TREK_Room()` | Report whether the ship could land here and what is in the way |
@@ -560,7 +594,8 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_Util.lua        safe wrappers, state, 
 TrekShuttle/42/media/lua/client/TREK/TREK_Build.lua       cabin construction, furnishing
 TrekShuttle/42/media/lua/client/TREK/TREK_Core.lua        hull, landing room, hatch, field, water
 TrekShuttle/42/media/lua/client/TREK/TREK_Transport.lua   the transporter
-TrekShuttle/42/media/lua/client/TREK/TREK_Travel.lua      helm, courses, landing search
+TrekShuttle/42/media/lua/client/TREK/TREK_Helm.lua        the LCARS helm console
+TrekShuttle/42/media/lua/client/TREK/TREK_Travel.lua      courses, map picking, landing search
 TrekShuttle/42/media/lua/client/TREK/TREK_Phaser.lua      keeping phasers charged
 TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua        right-click menus
 TrekShuttle/42/media/lua/client/TREK/TREK_SelfTest.lua    in-game step machine

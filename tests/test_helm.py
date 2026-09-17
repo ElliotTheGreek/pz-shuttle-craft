@@ -1,0 +1,487 @@
+"""Runs the helm console under a real Lua VM with the vanilla UI stubbed.
+
+A UI bug is the most expensive kind this mod can ship. prerender and render
+run every frame, so one nil there is not one error -- it is sixty a second,
+each with a Java stack trace, for as long as the helm is open. And a layout
+that only looks wrong ("the buttons are off the bottom", "the label runs out of
+the panel") can otherwise only be found by opening the game.
+
+This drives the real TREK_Helm.lua through construction, several frames of
+drawing and every control, against stubs of ISPanel, ISButton and the rest
+that record each draw call. It checks:
+
+  * nothing throws, in any state -- shields up and down, every speed step,
+    with and without the artwork textures installed
+  * every draw lands inside the panel with non-negative size
+  * every text label fits the width it is drawn in (estimated)
+  * the controls change the saved state, and the defaults are right
+  * a corrupt saved speed step is repaired rather than indexing nil
+
+    python tests/test_helm.py
+"""
+import json
+import os
+import re
+import sys
+from lupa import LuaRuntime
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MOD = os.path.join(ROOT, "TrekShuttle", "42")
+LUA = os.path.join(MOD, "media", "lua").replace(os.sep, "/")
+UI = os.path.join(MOD, "media", "ui")
+IG = json.load(open(os.path.join(MOD, "media", "lua", "shared", "Translate",
+                                 "EN", "IG_UI.json"), encoding="utf-8"))
+
+# Average glyph widths for PZ's UI fonts at 1x. Deliberately a little generous:
+# a label that only fits under an optimistic estimate will not fit in game.
+CHAR_W = {1: 6.5, 2: 9.0, 3: 11.0}
+
+failures = []
+texture_files = {"on": True}
+
+
+def make_lua():
+    lua = LuaRuntime(unpack_returned_tuples=True)
+    lua.execute(f'package.path = "{LUA}/shared/?.lua;{LUA}/client/?.lua;" .. package.path')
+
+    missing_keys = []
+
+    def get_text(key, *args):
+        if key not in IG:
+            missing_keys.append(key)
+            return key
+        text = IG[key]
+        for i, a in enumerate(args, 1):
+            text = text.replace(f"%{i}", str(a))
+        return text
+
+    def get_texture(path):
+        if not texture_files["on"]:
+            return None
+        return path if os.path.isfile(os.path.join(MOD, path)) else None
+
+    def measure_x(_, font, text):
+        return int(len(text or "") * CHAR_W.get(font, 6.5))
+
+    g = lua.globals()
+    g.py_getText = get_text
+    g.py_getTexture = get_texture
+    g.py_measureX = measure_x
+
+    lua.execute(r"""
+        _G.unpack = _G.unpack or table.unpack
+        _G.print = function(...) end
+        _G.instanceof = function() return false end
+        _G.getCellSizeInSquares = function() return 256 end
+        local md = {}
+        _G.ModData = { getOrCreate = function(k) md[k] = md[k] or {}; return md[k] end }
+        _G.getPlayer = function() return nil end
+        _G.getSpecificPlayer = function() return nil end
+        _G.getCell = function() return nil end
+        _G.UIFont = { Small = 1, Medium = 2, Large = 3, NewSmall = 1 }
+        _G.getText = function(key, ...) return py_getText(key, ...) end
+        _G.getTexture = function(p) return py_getTexture(p) end
+        local tm = {
+            MeasureStringX = function(self, font, text) return py_measureX(self, font, text) end,
+            MeasureStringY = function() return 14 end,
+        }
+        _G.getTextManager = function() return tm end
+
+        -- Every draw call is recorded against the element that made it.
+        draws = {}
+        local function rec(el, kind, x, y, w, h, extra)
+            -- Identity is decided here, in Lua: every access to a table from
+            -- Python yields a fresh proxy, so a Python-side comparison never
+            -- matches and the panel would be offset by its own position.
+            table.insert(draws, { el = el, own = rawequal(el, win), kind = kind,
+                                  x = x, y = y, w = w, h = h, extra = extra })
+        end
+
+        ISUIElement = {}
+        ISUIElement.__index = ISUIElement
+        function ISUIElement:derive(name)
+            local cls = {}
+            setmetatable(cls, self)
+            cls.__index = cls
+            cls.Type = name
+            return cls
+        end
+        function ISUIElement:new(x, y, w, h)
+            local o = { x = x, y = y, width = w, height = h, children = {} }
+            setmetatable(o, self)
+            return o
+        end
+        function ISUIElement:initialise() end
+        function ISUIElement:instantiate() end
+        function ISUIElement:createChildren() end
+        function ISUIElement:render() end
+        function ISUIElement:prerender() end
+        function ISUIElement:addChild(c) c.parent = self; table.insert(self.children, c) end
+        function ISUIElement:getWidth() return self.width end
+        function ISUIElement:isMouseOver() return self.mouseOver end
+        function ISUIElement:setVisible(v) self.visible = v end
+        function ISUIElement:removeFromUIManager() self.removed = true end
+        function ISUIElement:drawRect(x, y, w, h, a, r, g, b)
+            rec(self, "rect", x, y, w, h, { a, r, g, b })
+        end
+        function ISUIElement:drawTextureScaled(t, x, y, w, h, a, r, g, b)
+            if t == nil then error("drawTextureScaled with a nil texture") end
+            rec(self, "tex", x, y, w, h, { a, r, g, b })
+        end
+        function ISUIElement:drawText(s, x, y, r, g, b, a, font)
+            if s == nil then error("drawText with nil text") end
+            rec(self, "text", x, y, getTextManager():MeasureStringX(font, s), 14, s)
+        end
+        function ISUIElement:drawTextCentre(s, x, y, r, g, b, a, font)
+            if s == nil then error("drawTextCentre with nil text") end
+            local w = getTextManager():MeasureStringX(font, s)
+            rec(self, "text", x - w / 2, y, w, 14, s)
+        end
+        function ISUIElement:drawTextRight(s, x, y, r, g, b, a, font)
+            if s == nil then error("drawTextRight with nil text") end
+            local w = getTextManager():MeasureStringX(font, s)
+            rec(self, "text", x - w, y, w, 14, s)
+        end
+
+        ISPanel = ISUIElement:derive("ISPanel")
+        function ISPanel:new(x, y, w, h)
+            local o = ISUIElement.new(self, x, y, w, h)
+            o.background = true
+            o.moveWithMouse = false
+            return o
+        end
+
+        -- A faithful-enough ISPanelJoypad: rows of buttons, a focus index,
+        -- A presses the focused button and B presses the one set for B.
+        Joypad = { AButton = 0, BButton = 1, XButton = 2, YButton = 3,
+                   LBumper = 4, RBumper = 5 }
+        JoypadState = { players = {} }
+        focusLog = {}
+        function setJoypadFocus(playerNum, target)
+            table.insert(focusLog, target or "nothing")
+        end
+        ISPanelJoypad = ISUIElement:derive("ISPanelJoypad")
+        function ISPanelJoypad:new(x, y, w, h)
+            local o = ISUIElement.new(self, x, y, w, h)
+            o.joypadButtonsY = {}
+            o.joypadIndexY, o.joypadIndex = 0, 0
+            return o
+        end
+        function ISPanelJoypad:insertNewLineOfButtons(...)
+            table.insert(self.joypadButtonsY, { ... })
+        end
+        function ISPanelJoypad:insertNewListOfButtons(list)
+            table.insert(self.joypadButtonsY, list)
+        end
+        function ISPanelJoypad:setISButtonForB(b) self.ISButtonB = b end
+        function ISPanelJoypad:getJoypadFocus()
+            local row = self.joypadButtonsY[self.joypadIndexY]
+            return row and row[self.joypadIndex]
+        end
+        function ISPanelJoypad:setJoypadFocus(child)
+            for y, row in ipairs(self.joypadButtonsY) do
+                for x, b in ipairs(row) do
+                    if b == child then
+                        self:clearJoypadFocus()
+                        self.joypadIndexY, self.joypadIndex = y, x
+                        b.joypadFocused = true
+                        return true
+                    end
+                end
+            end
+            return false
+        end
+        function ISPanelJoypad:setJoypadFocusTopLeft()
+            return self:setJoypadFocus(self.joypadButtonsY[1][1])
+        end
+        function ISPanelJoypad:restoreJoypadFocus()
+            local c = self:getJoypadFocus()
+            if c then c.joypadFocused = true end
+        end
+        function ISPanelJoypad:clearJoypadFocus()
+            for _, row in ipairs(self.joypadButtonsY) do
+                for _, b in ipairs(row) do b.joypadFocused = false end
+            end
+        end
+        function ISPanelJoypad:onJoypadDown(button)
+            local c = self:getJoypadFocus()
+            if button == Joypad.AButton and c then c:click()
+            elseif button == Joypad.BButton and self.ISButtonB then self.ISButtonB:click() end
+        end
+        function ISPanelJoypad:onGainJoypadFocus(jd) self.joyfocus = jd end
+        function ISPanelJoypad:onLoseJoypadFocus(jd) self.joyfocus = nil end
+
+        ISWorldMap_instance = {
+            visible = true,
+            isVisible = function(self) return self.visible end,
+            mapAPI = {
+                getCenterWorldX = function() return 10612.6 end,
+                getCenterWorldY = function() return 9412.2 end,
+            },
+        }
+
+        ISButton = ISUIElement:derive("ISButton")
+        function ISButton:new(x, y, w, h, title, target, onclick)
+            local o = ISUIElement.new(self, x, y, w, h)
+            o.title = title
+            o.target = target
+            o.onclick = onclick
+            o.enable = true
+            o.pressed = false
+            o.mouseOver = false
+            o.onClickArgs = {}
+            return o
+        end
+        function ISButton:click()
+            self.onclick(self.target, self)
+        end
+
+        ISScrollingListBox = ISUIElement:derive("ISScrollingListBox")
+        function ISScrollingListBox:new(x, y, w, h)
+            local o = ISUIElement.new(self, x, y, w, h)
+            o.items = {}
+            o.itemheight = 20
+            o.selected = 0
+            return o
+        end
+        function ISScrollingListBox:clear() self.items = {} end
+        function ISScrollingListBox:addItem(name, item)
+            local row = { text = name, item = item, height = self.itemheight,
+                          itemindex = #self.items + 1 }
+            table.insert(self.items, row)
+            return row
+        end
+
+        ISRichTextPanel = ISUIElement:derive("ISRichTextPanel")
+        function ISRichTextPanel:new(x, y, w, h)
+            return ISUIElement.new(self, x, y, w, h)
+        end
+        function ISRichTextPanel:setText(t) self.text = t end
+        function ISRichTextPanel:paginate() end
+
+        TREK = TREK or {}
+        require "TREK/TREK_Config"
+        require "TREK/TREK_Util"
+        TREK.Core = { footprintArea = function() return 15 end }
+        TREK.Travel = {
+            addBookmark = function() end, setDestination = function() end,
+            removeBookmark = function() return true end, descend = function() end,
+            onMapPick = function(x, y) picked = { x = x, y = y } end,
+        }
+        require "TREK/TREK_Helm"
+
+        haloNotes = {}
+        player = { setHaloNote = function(self, text) table.insert(haloNotes, text) end,
+                   getPlayerNum = function() return 0 end }
+
+        function frame(win)
+            win:prerender()
+            win:render()
+            for _, c in ipairs(win.children) do
+                c:prerender()
+                c:render()
+            end
+        end
+    """)
+    return lua, missing_keys
+
+
+def run_frames(lua, label, n=3):
+    """Draws n frames, returning the draw log, recording any Lua error."""
+    lua.execute("draws = {}")
+    try:
+        for _ in range(n):
+            lua.eval("frame")(lua.globals().win)
+    except Exception as exc:                                  # noqa: BLE001
+        failures.append(f"{label}: a frame threw -- {exc}")
+        return []
+    d = lua.globals().draws
+    return [d[i] for i in range(1, len(d) + 1)]
+
+
+def check_bounds(lua, draws, label):
+    win = lua.globals().win
+    W, H = float(win.width), float(win.height)
+    for d in draws:
+        el = d.el
+        # Children draw in their own coordinates; place them in the panel's.
+        ox = 0.0 if d.own else float(el.x)
+        oy = 0.0 if d.own else float(el.y)
+        x, y, w, h = ox + float(d.x), oy + float(d.y), float(d.w), float(d.h)
+        what = d.extra if d.kind == "text" else d.kind
+        if w < 0 or h < 0:
+            failures.append(f"{label}: {what} drawn with negative size {w:.0f}x{h:.0f}")
+        if x < -0.5 or y < -0.5 or x + w > W + 0.5 or y + h > H + 0.5:
+            failures.append(f"{label}: {what!r} at {x:.0f},{y:.0f} {w:.0f}x{h:.0f} "
+                            f"leaves the {W:.0f}x{H:.0f} panel")
+        if d.kind == "text" and not d.own:
+            if float(d.w) > float(el.width) + 0.5:
+                failures.append(f"{label}: label {what!r} ({float(d.w):.0f}px) is wider "
+                                f"than its {float(el.width):.0f}px button")
+        if d.kind in ("rect", "tex"):
+            for v in list(d.extra.values()):
+                if v is not None and not (0 <= float(v) <= 1.0001):
+                    failures.append(f"{label}: {d.kind} colour/alpha {v} is outside 0..1")
+                    break
+
+
+def main():
+    for textures in (True, False):
+        texture_files["on"] = textures
+        label = "art installed" if textures else "no textures"
+        lua, missing = make_lua()
+        U = lua.globals().TREK.Util
+        C = lua.globals().TREK.Config
+
+        # --- defaults ------------------------------------------------------
+        if U.shieldsUp() is not True:
+            failures.append(f"{label}: a new world does not start with shields up")
+        if abs(float(U.flightMultiplier()) - 1.0) > 1e-9:
+            failures.append(f"{label}: default flight speed is x{U.flightMultiplier()}, not x1")
+
+        lua.execute("win = TREKHelmWindow:new(60, 80, player); win:createChildren()")
+        win = lua.globals().win
+        check_bounds(lua, run_frames(lua, f"{label}, shields up"), f"{label}, shields up")
+
+        # --- shields -------------------------------------------------------
+        lua.execute("win.shieldsBtn:click()")
+        if U.shieldsUp() is not False:
+            failures.append(f"{label}: the shields button did not lower the shields")
+        check_bounds(lua, run_frames(lua, f"{label}, shields down"), f"{label}, shields down")
+        if win.shieldsBtn.title != IG["IGUI_TREK_ShieldsDown"]:
+            failures.append(f"{label}: shields button reads {win.shieldsBtn.title!r} while down")
+        lua.execute("win.shieldsBtn:click()")
+        if U.shieldsUp() is not True:
+            failures.append(f"{label}: the shields button did not raise them again")
+
+        # --- every speed step ---------------------------------------------
+        steps = [C.FlightSpeedSteps[i] for i in range(1, len(C.FlightSpeedSteps) + 1)]
+        if float(steps[-1]) != 5 or float(steps[0]) >= 1:
+            failures.append(f"{label}: speed steps {steps} do not run from below 1x to 5x")
+        for i in range(1, len(steps) + 1):
+            lua.execute(f"win.speedChips[{i}]:click()")
+            want = float(C.FlightSpeed) * float(steps[i - 1])
+            if abs(float(U.flightSpeed()) - want) > 1e-9:
+                failures.append(f"{label}: step {i} flies at {U.flightSpeed()}, not {want}")
+            check_bounds(lua, run_frames(lua, f"{label}, speed step {i}", 1),
+                         f"{label}, speed step {i}")
+
+        # --- a populated log, a course, and the navigation buttons ---------
+        lua.execute("""
+            local s = TREK.Util.state()
+            s.bookmarks = {
+                { name = "Muldraugh water tower", x = 10612, y = 9412, z = 0 },
+                { name = "West Point", x = 11900, y = 6900, z = 0 },
+            }
+            s.destination = { x = 10612, y = 9412, z = 0 }
+            win:refresh()
+            win.list.selected = 1
+            win.gotoBtn:click()
+            win.deleteBtn:click()
+        """)
+        draws = run_frames(lua, f"{label}, with bookmarks")
+        check_bounds(lua, draws, f"{label}, with bookmarks")
+        # The list's own rows draw through drawBookmark with the list as self.
+        try:
+            lua.execute("""
+                draws = {}
+                local y = 0
+                for _, row in ipairs(win.list.items) do
+                    y = win.drawBookmark(win.list, y, row, false)
+                end
+            """)
+        except Exception as exc:                              # noqa: BLE001
+            failures.append(f"{label}: drawBookmark threw -- {exc}")
+
+        # --- a controller ---------------------------------------------------
+        # Every button a player can use must be reachable from the stick.
+        lua.execute('''
+            reachable = {}
+            for _, row in ipairs(win.joypadButtonsY) do
+                for _, b in ipairs(row) do reachable[b] = true end
+            end
+            unreachable = {}
+            for _, c in ipairs(win.children) do
+                if c.onclick and not reachable[c] and c ~= win.ISButtonB then
+                    table.insert(unreachable, c.title or "?")
+                end
+            end
+        ''')
+        unreachable = lua.globals().unreachable
+        for i in range(1, len(unreachable) + 1):
+            failures.append(f"{label}: button {unreachable[i]!r} cannot be reached with a controller")
+
+        lua.execute("jd = { player = 0, id = 0 }; win:onGainJoypadFocus(jd)")
+        if not win.shieldsBtn.joypadFocused:
+            failures.append(f"{label}: a controller does not start on the shields button")
+        check_bounds(lua, run_frames(lua, f"{label}, controller focus"), f"{label}, controller focus")
+        if not any(str(d.extra) == IG["IGUI_TREK_HelmJoypadHint"].upper()
+                   for d in run_frames(lua, f"{label}, controller hint", 1) if d.kind == "text"):
+            failures.append(f"{label}: no button prompts are shown to a controller player")
+
+        was = U.shieldsUp()
+        lua.execute("win:onJoypadDown(Joypad.AButton, jd)")
+        if U.shieldsUp() == was:
+            failures.append(f"{label}: A on the focused shields button did nothing")
+
+        lua.execute('''
+            local s = TREK.Util.state()
+            s.bookmarks = { { name = "a", x = 1, y = 1, z = 0 }, { name = "b", x = 2, y = 2, z = 0 } }
+            win:refresh()
+            win.list.selected = 0
+            win:onJoypadDown(Joypad.RBumper, jd); first = win.list.selected
+            win:onJoypadDown(Joypad.RBumper, jd); second = win.list.selected
+            win:onJoypadDown(Joypad.RBumper, jd); wrapped = win.list.selected
+            win:onJoypadDown(Joypad.LBumper, jd); back = win.list.selected
+        ''')
+        g = lua.globals()
+        if (g.first, g.second, g.wrapped, g.back) != (1, 2, 1, 2):
+            failures.append(f"{label}: RB/LB step the log as {(g.first, g.second, g.wrapped, g.back)}, "
+                            f"not (1, 2, 1, 2)")
+
+        lua.execute("picked = nil; win.crosshairBtn:click()")
+        picked = lua.globals().picked
+        if picked is None or (int(picked.x), int(picked.y)) != (10612, 9412):
+            failures.append(f"{label}: 'course to crosshair' did not pick the map centre")
+
+        lua.execute("focusLog = {}; win:onJoypadDown(Joypad.YButton, jd)")
+        if len(lua.globals().focusLog) != 1:
+            failures.append(f"{label}: Y did not hand the stick to the map")
+
+        # --- closing -------------------------------------------------------
+        lua.execute("focusLog = {}; win:onJoypadDown(Joypad.BButton, jd)")
+        if not win.removed:
+            failures.append(f"{label}: B did not close the helm")
+        log = lua.globals().focusLog
+        if len(log) != 1:
+            failures.append(f"{label}: closing with a controller did not release its focus")
+
+        # --- a corrupt saved step is repaired -----------------------------
+        lua.execute("TREK.Util.state().speedStep = 99")
+        if abs(float(U.flightMultiplier()) - 1.0) > 1e-9:
+            failures.append(f"{label}: a saved speed step of 99 was not reset to x1")
+        if U.setFlightStep(0) is not False:
+            failures.append(f"{label}: setFlightStep(0) was accepted")
+
+        for key in sorted(set(missing)):
+            failures.append(f"{label}: getText({key!r}) has no entry in IG_UI.json")
+
+        print(f"{label}: drew {len(draws)} calls a frame with bookmarks; "
+              f"every control exercised")
+
+    # --- the textures the console loads exist -----------------------------
+    src = open(os.path.join(MOD, "media", "lua", "client", "TREK", "TREK_Helm.lua"),
+               encoding="utf-8").read()
+    for f in re.findall(r'load\(\s*"\w+"\s*,\s*"([\w.]+\.png)"', src):
+        if not os.path.isfile(os.path.join(UI, f)):
+            failures.append(f"TREK_Helm.lua loads media/ui/{f}, which does not exist")
+
+    if failures:
+        print(f"\n{len(failures)} PROBLEM(S):")
+        for f in dict.fromkeys(failures):
+            print("  " + f)
+        sys.exit(1)
+    print("\nhelm console draws cleanly and every control works")
+
+
+main()

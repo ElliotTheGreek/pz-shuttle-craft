@@ -26,3 +26,4 @@ desktop.ini
 console.txt
 *.log
 /.flowdot
+.mcp.json
