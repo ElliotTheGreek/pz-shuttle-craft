@@ -19,6 +19,7 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Beam down** | From the pad, back to the exact spot you left — or set a course first and beam down anywhere on the map. |
 | **Call it down** | Right-click a patch of street or field → **Call the shuttle down here**. It needs 3×5 tiles of clear ground and tells you when it hasn't got them. |
 | **Travel** | From the helm inside, click the map to lay in a course, then **take her down**. You are beamed to the site first so the ground actually loads, and the ship comes in after you. |
+| **Fly it like a truck** | The landed shuttle is a vehicle with four seats. Get in as you would a car, pick a seat on its chart, switch seats, drive. No seat has a door, so nothing can bite you in one. Going up is still to come. |
 | **Never stranded** | If there is not enough room at the destination you are beamed straight back aboard with the reason. A failed landing never leaves you on foot a hundred miles from the ship. |
 | **Phasers** | Four in a locker beside the pad. The charge never runs down, they never jam and they never wear out — and they are far quieter than a firearm, which is most of the point. |
 | **Running water** | The galley sink has its own water supply, topped up every in-game minute, so it keeps running after the mains shut off. |
@@ -87,9 +88,9 @@ counts each one. If your players want unlimited beaming, set
 The shuttle is either sitting on the ground somewhere or overhead. The
 transporter works either way; the hatch only works when it is down.
 
-Hands-on piloting was removed in 1.3: it could not be made safe, and flying a
-character across the map is exactly what a server's anti-cheat kicks. It is
-coming back as a vehicle you board like a car.
+Piloting works the way the game does vehicles: the landed shuttle is a vehicle
+you get into, with four seats you can switch between. Lifting off and flying
+over buildings is the next stage; until then the helm is how you travel far.
 
 ## How much room it needs
 

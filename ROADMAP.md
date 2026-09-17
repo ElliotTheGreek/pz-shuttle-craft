@@ -90,7 +90,15 @@ travel. A seat with no door cannot be bitten, vehicles may move at the server's
 vehicle speed limit without anti-cheat strikes, and the engine syncs vehicle
 position for every player. It is everything hands-on flight had to fake.
 
-### Stage 1 — board it, sit in it, drive it (Medium–Hard)
+### Stage 1 — board it, sit in it, drive it — **built, awaiting in-game test**
+
+Built 2026-09-17 and passing the simulation; **nothing below has been seen in
+the game yet**, and the physics numbers (how it sits, how it drives) can only
+be judged there. Research settled every unknown first: `addVehicleDebug` on the
+server has no role or debug gate and does what the admin command does;
+`permanentlyRemove` is what vanilla's own server code uses; vanilla handles
+doorless seats everywhere except three fallback paths, which the mod guards for
+the shuttle only.
 
 - **Vehicle script** `TrekShuttle.Shuttle` (`media/scripts/vehicles/`):
   - **Four seats**: pilot, co-pilot, two aft. No door parts, so no seat can be
