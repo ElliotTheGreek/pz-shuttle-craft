@@ -509,10 +509,10 @@ end)
 ---------------------------------------------------------------------------
 -- Timers
 ---------------------------------------------------------------------------
-local tick = 0
+-- Every tick while anyone is waiting: they are standing over nothing until the
+-- cabin exists, and each tick of delay is a tick they can fall. With nobody
+-- waiting the check is one empty table walk.
 Events.OnTick.Add(function()
-    tick = tick + 1
-    if tick % 30 ~= 0 then return end
     U.try("serviceWaiting", serviceWaiting)
 end)
 

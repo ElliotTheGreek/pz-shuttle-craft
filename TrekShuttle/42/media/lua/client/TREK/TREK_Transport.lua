@@ -134,10 +134,7 @@ local function finishDown(job)
     if not spot then
         -- The ground is still streaming in; hold the player still meanwhile.
         if job.tries - job.arrivedAt < 300 then
-            U.try("holdBeam", function()
-                player:setbFalling(false)
-                player:setFallTime(0)
-            end)
+            Core.hold(player, job.x, job.y, job.z)
             return false
         end
         U.note(player, getText("IGUI_TREK_NoBeamSite"), 255, 90, 90)

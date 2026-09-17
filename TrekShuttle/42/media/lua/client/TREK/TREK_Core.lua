@@ -159,6 +159,27 @@ end
 ---------------------------------------------------------------------------
 local arrival = nil   -- { x, y, z, tries, player }
 
+-- Ticks to keep holding the player after the deck exists under the pad.
+local SETTLE_TICKS = 15
+
+--- Pins a character to a spot with nothing under them, or nothing yet.
+---
+--- Setting the height alone is not enough, and cost a player's life: the
+--- engine moves a character from its *last* position and keeps its own fall
+--- state, so a player re-placed at z 4 every tick still fell four floors in
+--- the time the cabin took to build, and died in the wilderness below. So the
+--- last position is set too, and every piece of fall state is cleared --
+--- including the damage the fall had already banked.
+function Core.hold(player, x, y, z)
+    U.teleport(player, x, y, z)
+    U.try("holdFall", function()
+        player:setbFalling(false)
+        player:setFallTime(0)
+        player:setLastFallSpeed(0)
+        player:clearFallDamage()
+    end)
+end
+
 --- Starts an arrival on the transporter pad. When `move` is true the player is
 --- put there first; when false they are already standing aboard.
 function Core.beginArrival(player, move)
@@ -169,7 +190,7 @@ function Core.beginArrival(player, move)
     else
         arrival = { x = x, y = y, z = z, tries = 0, player = player }
     end
-    if move then U.teleport(player, x, y, z) end
+    if move then Core.hold(player, x, y, z) end
     Ship.playerData(player).aboard = true
     Core.send(player, "boarded", {})
     return true
@@ -204,14 +225,7 @@ local function serviceArrival()
               tostring(arrival.serverReady == true), tostring(padHasFloor()))
     end
 
-    -- Hold position so the player cannot drift or drop while waiting.
-    U.try("hold", function()
-        player:setX(arrival.x + 0.5)
-        player:setY(arrival.y + 0.5)
-        player:setZ(arrival.z)
-        player:setbFalling(false)
-        player:setFallTime(0)
-    end)
+    Core.hold(player, arrival.x, arrival.y, arrival.z)
 
     -- The server may have answered before this client had the chunks, and a
     -- request sent before the server had them is simply waiting there; ask
@@ -219,6 +233,11 @@ local function serviceArrival()
     if arrival.tries % 120 == 0 then Core.send(player, "boarded", {}) end
 
     if (Core.cabinCurrent() or arrival.serverReady) and padHasFloor() then
+        -- Keep holding a moment after the deck appears: the engine settles a
+        -- new floor into its collision data over the next few frames, and a
+        -- player let go on the same tick can still drop through it.
+        arrival.settled = (arrival.settled or 0) + 1
+        if arrival.settled < SETTLE_TICKS then return end
         U.log("materialised on the transporter pad")
         lightCabin()
         endArrival(true)
@@ -373,7 +392,7 @@ end)
 
 local rescueTick, fieldTick = 0, 0
 Events.OnPlayerUpdate.Add(function(player)
-    if not player or not player:isLocalPlayer() then return end
+    if not player or not player:isLocalPlayer() or player:isDead() then return end
     rescueTick = rescueTick + 1
     if rescueTick >= 10 then
         rescueTick = 0

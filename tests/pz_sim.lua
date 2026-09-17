@@ -305,15 +305,39 @@ function SquareMT:removeWorldObject(w)
     end
 end
 
---- Whether a square is loaded here: near one of this runtime's players.
+--- Whether a square is loaded here: near where one of this runtime's players
+--- has been standing long enough for the ground to stream in. A long jump
+--- leaves nothing loaded around the new spot for STREAM_TICKS -- in game the
+--- cabin took 26 ticks to appear after a beam, and a player held badly fell
+--- to their death in that time.
 local LOAD_RADIUS = 70
+SIM.STREAM_TICKS = 30
 function SIM.loaded(x, y)
     for _, p in ipairs(SIM.players) do
-        if math.abs(p.x - x) <= LOAD_RADIUS and math.abs(p.y - y) <= LOAD_RADIUS then
+        local cx, cy = p.streamX or p.x, p.streamY or p.y
+        if math.abs(cx - x) <= LOAD_RADIUS and math.abs(cy - y) <= LOAD_RADIUS then
             return true
         end
     end
     return false
+end
+
+--- Advances streaming by one tick for every player here.
+function SIM.stream()
+    for _, p in ipairs(SIM.players) do
+        local cx, cy = p.streamX or p.x, p.streamY or p.y
+        local far = math.abs(cx - p.x) > LOAD_RADIUS / 2 or math.abs(cy - p.y) > LOAD_RADIUS / 2
+        if not p.streamX then
+            p.streamX, p.streamY = p.x, p.y
+        elseif far then
+            p.streamWait = (p.streamWait or SIM.STREAM_TICKS) - 1
+            if p.streamWait <= 0 then
+                p.streamX, p.streamY, p.streamWait = p.x, p.y, nil
+            end
+        else
+            p.streamX, p.streamY, p.streamWait = p.x, p.y, nil
+        end
+    end
 end
 
 --- The ground: grass everywhere on the map, a wood of trees in the void
@@ -381,9 +405,37 @@ function PlayerMT:setY(v) self.y = v end
 function PlayerMT:setZ(v) self.z = v end
 function PlayerMT:setLastX() end
 function PlayerMT:setLastY() end
-function PlayerMT:setLastZ() end
+function PlayerMT:setLastZ(v) self.lastZ = v end
 function PlayerMT:setbFalling() end
 function PlayerMT:setFallTime() end
+function PlayerMT:setLastFallSpeed() end
+function PlayerMT:clearFallDamage() self.fallDamage = 0 end
+
+--- Gravity, the way the engine moves a character: from its *last* height, not
+--- the height Lua last set. A hold that only calls setZ still falls. Landing
+--- two or more floors down kills, which is what happened in game.
+function SIM.gravity()
+    if SIM_ROLE == "server" then return end
+    for _, p in ipairs(SIM.players) do
+        if not p.dead then
+            local z = p.lastZ or p.z
+            local sq = squares[math.floor(p.x) .. "," .. math.floor(p.y) .. "," .. math.floor(z)]
+                       or (math.floor(z) == 0 and SIM.loaded(p.x, p.y) and cell:getGridSquare(math.floor(p.x), math.floor(p.y), 0))
+            local floored = sq and sq:getFloor() ~= nil
+            if z > 0 and not floored then
+                p.fallFrom = p.fallFrom or z
+                z = math.max(0, z - 0.25)
+            elseif p.fallFrom then
+                if p.fallFrom - z >= 2 then
+                    p.dead = true
+                    table.insert(SIM.log, "SIM DEATH " .. p.name .. " fell from " .. p.fallFrom)
+                end
+                p.fallFrom = nil
+            end
+            p.z, p.lastZ = z, z
+        end
+    end
+end
 function PlayerMT:getUsername() return self.name end
 function PlayerMT:isDead() return self.dead end
 function PlayerMT:getModData() return self.modData end

@@ -117,7 +117,8 @@ class Runtime:
 
     def warnings(self):
         log = self.lua.globals().SIM.log
-        return [log[i] for i in range(1, len(log) + 1) if "WARN" in str(log[i])]
+        return [log[i] for i in range(1, len(log) + 1)
+                if "WARN" in str(log[i]) or "SIM DEATH" in str(log[i])]
 
     def notes(self, who=None):
         n = self.lua.globals().SIM.notes
@@ -234,6 +235,7 @@ class Net:
                 self.deliver(self.queue.popleft())
             self.clock += 16
             for rt in self.all():
+                rt.run("SIM.stream(); SIM.gravity()")
                 rt.fire("OnTick", 0)
                 rt.run("for _, p in ipairs(SIM.players) do SIM.fire('OnPlayerUpdate', p) end")
             # Each client reports its own character's position to the server.
@@ -250,6 +252,14 @@ class Net:
         for rt in self.all():
             rt.fire("OnInitGlobalModData", False)
         self.pump(2)
+
+
+def died(rt, label):
+    """True, and a failure, if a player here fell to their death."""
+    dead = [str(x) for x in rt.warnings() if "SIM DEATH" in str(x)]
+    for d in dead:
+        fail(f"{label}: {d} -- the arrival hold did not hold")
+    return bool(dead)
 
 
 def pos(rt, who=1):
@@ -311,7 +321,9 @@ def single_player():
 
     # --- beam up: the cabin is built around the player ---------------------
     rt.run(f"TREK.Transport.beamUp({P})")
-    net.pump(120)
+    net.pump(180)
+    if died(rt, "single player, beaming up"):
+        return
     check(at_pad(rt), f"single player: beam up left the player at {pos(rt)}, not the pad")
     check(ship(rt, "built") is True, "single player: the cabin was never built")
     containers, stocked, wet = cabin_objects(rt)
@@ -362,7 +374,7 @@ def single_player():
 
     # --- take her down -----------------------------------------------------
     rt.run(f"TREK.Travel.descend({P}, {{ x = 3000, y = 3000, z = 0 }})")
-    net.pump(20)
+    net.pump(80)
     check(ship(rt, "landed") is True, "single player: taking her down did not land the ship")
     sx, sy = ship(rt, "x"), ship(rt, "y")
     check(abs(sx - 3000) <= 24 and abs(sy - 3000) <= 24,
@@ -376,28 +388,31 @@ def single_player():
 
     # --- the hatch -----------------------------------------------------------
     rt.run(f"TREK.Core.enter({P})")
-    net.pump(10)
+    net.pump(70)
     check(at_pad(rt), "single player: boarding through the hatch did not reach the pad")
     rt.run(f"TREK.Core.exit({P})")
-    net.pump(5)
+    net.pump(65)
     x, y, _ = pos(rt)
     check(abs(x - sx) <= 4 and abs(y - sy) <= 4,
           f"single player: stepping out put the player at {x},{y}, not beside the hull")
 
     # --- call down far away: the old hull becomes a ghost ---------------------
     rt.run(f"{P}.x, {P}.y = 5000.5, 5000.5")
+    net.pump(40)   # the ground streams in around the player
     rt.run(f"TREK.Menu.onCallDown(nil, {P}, 5003, 5000, 0)")
     net.pump(2)
     check(ship(rt, "x") == 5003, "single player: calling the ship down did not move it")
     check(rt.eval("#TREK.Util.state().ghosts") == 1,
           "single player: the unreachable old hull was not remembered")
     rt.run(f"{P}.x, {P}.y = {sx}.5, {sy + 8}.5")
+    net.pump(40)
     rt.fire("EveryOneMinute")
     check(not hull_at(rt, sx, sy, 0), "single player: the ghost hull was not cleared once loaded")
     check(rt.eval("#TREK.Util.state().ghosts") == 0, "single player: ghost list not emptied")
 
     # --- recall ------------------------------------------------------------
     rt.run(f"{P}.x, {P}.y = 5000.5, 5003.5")
+    net.pump(40)
     rt.run(f"TREK.Menu.onRecall(nil, {P})")
     net.pump(2)
     check(ship(rt, "landed") is False, "single player: recall did not lift the ship")
@@ -405,11 +420,11 @@ def single_player():
 
     # --- a landing with no room beams the player home ----------------------
     rt.run(f"TREK.Transport.beamUp({P})")
-    net.pump(120)
+    net.pump(180)
     rt.run("""for x = 7900, 8100 do for y = 7900, 8100 do
         SIM.rawSquare(x, y, 0).solid = true end end""")
     rt.run(f"TREK.Travel.descend({P}, {{ x = 8000, y = 8000, z = 0 }})")
-    net.pump(460)
+    net.pump(520)
     check(at_pad(rt), f"single player: a landing with no room left the player at {pos(rt)}")
     check(ship(rt, "landed") is False, "single player: the ship landed somewhere solid")
     check(any("IGUI_TREK_NoRoom" in n for n in rt.notes()),
@@ -417,13 +432,14 @@ def single_player():
 
     # --- beam down goes back where you came from --------------------------
     rt.run(f"TREK.Transport.beamDown({P})")
-    net.pump(100)
+    net.pump(160)
     x, y, _ = pos(rt)
     check(abs(x - 5000) <= 6 and abs(y - 5003) <= 6,
           f"single player: beam down went to {x},{y}, not the return point")
 
     for w in rt.warnings():
-        fail(f"single player: {w}")
+        if "SIM DEATH" not in str(w) or not died(rt, "single player"):
+            fail(f"single player: {w}")
     print(f"single player: cabin {containers} containers, landed, hatch, ghosts, "
           f"refusal and return all checked")
 
@@ -473,7 +489,9 @@ def multiplayer():
 
     # --- the first to beam up owns the ship; the cabin reaches their client --
     A.run(f"TREK.Transport.beamUp({P})")
-    net.pump(150)
+    net.pump(210)
+    if died(A, "multiplayer, alice beaming up"):
+        return
     check(ship(srv, "owner") == "alice", f"multiplayer: owner is {ship(srv, 'owner')!r}, not alice")
     check(ship(srv, "built") is True, "multiplayer: the server never built the cabin")
     check(at_pad(A), f"multiplayer: alice is at {pos(A)}, not on the pad")
@@ -488,7 +506,7 @@ def multiplayer():
     # --- a stranger is refused, then added to the crew ---------------------
     before = pos(B)
     B.run(f"TREK.Transport.beamUp({P})")
-    net.pump(120)
+    net.pump(180)
     check(pos(B) == before, "multiplayer: bob beamed up without being crew")
     check(any("IGUI_TREK_NotCrew" in n for n in B.notes()), "multiplayer: bob was not told why")
 
@@ -498,26 +516,26 @@ def multiplayer():
     check(srv.eval("TREK.Util.state().crew.bob") is True,
           "multiplayer: the owner could not add bob, or bob removed himself")
     B.run(f"TREK.Transport.beamUp({P})")
-    net.pump(120)
+    net.pump(180)
     check(at_pad(B), f"multiplayer: crewman bob is at {pos(B)}, not on the pad")
     check(tuple(cabin_objects(B)) == tuple(sc), "multiplayer: bob sees a different cabin")
 
     # --- transporter charges -------------------------------------------------
     # alice has spent 1 (up). down = 2, up = 3, down = refused.
     A.run(f"TREK.Transport.beamDown({P})")
-    net.pump(110)
+    net.pump(170)
     check(not A.eval(f"TREK.Util.isInteriorPlayer({P})"), "multiplayer: alice's beam down failed")
     A.run(f"TREK.Transport.beamUp({P})")
-    net.pump(120)
+    net.pump(180)
     check(at_pad(A), "multiplayer: alice's third beam failed")
     A.run(f"TREK.Transport.beamDown({P})")
-    net.pump(110)
+    net.pump(170)
     check(A.eval(f"TREK.Util.isInteriorPlayer({P})"), "multiplayer: a fourth beam was allowed")
     check(any("IGUI_TREK_Recharging" in n for n in A.notes()),
           "multiplayer: alice was not told the transporter is recharging")
     net.clock += 151_000
     A.run(f"TREK.Transport.beamDown({P})")
-    net.pump(110)
+    net.pump(170)
     check(not A.eval(f"TREK.Util.isInteriorPlayer({P})"),
           "multiplayer: a charge did not come back after 150 seconds")
 
@@ -528,7 +546,7 @@ def multiplayer():
     check(A.eval("TREK.Util.state().destination.x") == 2600,
           "multiplayer: bob's course did not reach alice")
     B.run(f"TREK.Travel.descend({P}, {{ x = 2600, y = 2600, z = 0 }})")
-    net.pump(40)
+    net.pump(100)
     check(ship(srv, "landed") is True, "multiplayer: bob's landing did not set the ship down")
     lx, ly = ship(srv, "x"), ship(srv, "y")
     check(A.eval(f"TREK.World.hullOn(SIM.rawSquare({lx}, {ly}, 0)) ~= nil"),
