@@ -177,4 +177,88 @@ module TrekShuttle
         SubCategory = Firearm,
         Tooltip = Tooltip_TREK_Phaser,
     }
+
+    /*  Galley food.
+
+        The icons are the mod's own, generated and vetted at 32x32 through the
+        FlowDot Gemini toolkit (see ROADMAP.md). The world and in-hand models
+        are borrowed from vanilla items of the same shape -- a sealed bar, a
+        bowl of noodles, a bowl of soup -- and tests/test_assets.py checks
+        every borrowed name against the game's own scripts, because a model
+        that does not resolve draws nothing and says nothing.
+
+        UnhappyChange is negative for a morale boost, positive for a penalty.  */
+
+    /*  Starfleet field rations: dense, keeps forever, and -- unlike almost
+        everything else in Kentucky -- actually cheering to eat. No DaysFresh,
+        so it never spoils.  */
+    item TrekRationPack
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.3,
+        Icon = TREK_RationPack,
+        Packaged = true,
+        CantBeFrozen = true,
+        HungerChange = -40.0,
+        UnhappyChange = -25,
+        BoredomChange = -10,
+        Calories = 1200.0,
+        Carbohydrates = 150.0,
+        Lipids = 45.0,
+        Proteins = 60.0,
+        StaticModel = GranolaBar_Ground,
+        WorldStaticModel = GranolaBar_Ground,
+        Tooltip = Tooltip_TREK_RationPack,
+    }
+
+    /*  Klingon serpent worms, served live. Very filling, and miserable to eat
+        for anyone who is not a Klingon, which in a zombie apocalypse is
+        everyone. Worms, so FoodType = Insect, as vanilla's own worm is.  */
+    item TrekGagh
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.8,
+        Icon = TREK_Gagh,
+        EatType = 2handbowl,
+        ReplaceOnUse = Base.Bowl,
+        FoodType = Insect,
+        DaysFresh = 3,
+        DaysTotallyRotten = 6,
+        HungerChange = -45.0,
+        UnhappyChange = 15,
+        Calories = 900.0,
+        Carbohydrates = 20.0,
+        Lipids = 35.0,
+        Proteins = 90.0,
+        StaticModel = BowlPasta_Ground,
+        WorldStaticModel = BowlPasta_Ground,
+        Tooltip = Tooltip_TREK_Gagh,
+    }
+
+    /*  Neelix's leola root stew. The joke is in the numbers: as nourishing as
+        anything in the galley, and it still takes a little out of you.  */
+    item TrekLeolaStew
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 1.0,
+        Icon = TREK_LeolaStew,
+        EatType = 2handbowl,
+        ReplaceOnUse = Base.Bowl,
+        CustomEatSound = EatingSoup,
+        GoodHot = true,
+        DaysFresh = 4,
+        DaysTotallyRotten = 8,
+        HungerChange = -45.0,
+        UnhappyChange = 5,
+        Calories = 850.0,
+        Carbohydrates = 110.0,
+        Lipids = 25.0,
+        Proteins = 30.0,
+        StaticModel = BowlSoup_Ground,
+        WorldStaticModel = BowlSoup_Ground,
+        Tooltip = Tooltip_TREK_LeolaStew,
+    }
 }

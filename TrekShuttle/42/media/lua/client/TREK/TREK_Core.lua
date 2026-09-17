@@ -354,13 +354,18 @@ end
 ---------------------------------------------------------------------------
 -- Arrival: holding the player while the cabin streams in and is built
 ---------------------------------------------------------------------------
-local arrival = nil   -- { x, y, z, tries, player, wasGod, wasNoClip }
+local arrival = nil   -- { x, y, z, tries, player }
 
+--- Holds the player still while the cabin streams in. It used to switch god
+--- mode and no-clip on as well; both are role-gated in build 42 and silently
+--- refused for an ordinary player, so they did nothing except behave
+--- differently under -debug, where a tester might have the capability and a
+--- Workshop player never does. The hold is the pinning in serviceArrival.
 local function protect(player, on)
+    if not on then return end
     U.try("protect", function()
-        player:setGodMod(on)
-        player:setNoClip(on)
-        if on then player:setbFalling(false) end
+        player:setbFalling(false)
+        player:setFallTime(0)
     end)
 end
 
@@ -373,11 +378,7 @@ function Core.beginArrival(player, move)
     if arrival then
         arrival.x, arrival.y, arrival.z, arrival.tries = x, y, z, 0
     else
-        arrival = {
-            x = x, y = y, z = z, tries = 0, player = player,
-            wasGod = U.try("wasGod", function() return player:isGodMod() end) == true,
-            wasNoClip = U.try("wasNoClip", function() return player:isNoClip() end) == true,
-        }
+        arrival = { x = x, y = y, z = z, tries = 0, player = player }
         protect(player, true)
     end
 
@@ -391,10 +392,6 @@ local function endArrival(restorePosition)
     local player = job.player
     arrival = nil
     if player then
-        U.try("unprotect", function()
-            player:setGodMod(job.wasGod == true)
-            player:setNoClip(job.wasNoClip == true)
-        end)
         if restorePosition then
             U.teleport(player, job.x, job.y, job.z)
         end
@@ -530,16 +527,31 @@ end
 --- is what this function used to do. Both paths run, and then hasWater() is
 --- asked, because it is the same question the game asks before it will let
 --- anybody drink.
+---
+--- Correction, after it failed in game: the reserve-water methods are
+--- *private* in build 42 (getReserveWaterMax, setReserveWaterAmount). They are
+--- in the jar and looked callable; from Lua they are nil, and the top-up threw
+--- on every refill. The water test still passed, because a fresh world's mains
+--- were on -- the tap would have run dry the day they shut off.
+---
+--- The public route is the sink's FluidContainer. A map-loaded sink gets one
+--- from its sprite's waterAmount properties automatically; a sink placed at
+--- runtime does not, exactly as a runtime locker gets no ItemContainer. So:
+--- give it one if its capacity reads 0, then top it up with addFluid, then ask
+--- hasWater(), the question the game itself asks before anyone can drink.
+---
+--- In multiplayer this is authoritative world state and belongs on the server
+--- (vanilla's own server/ClientCommands.lua does exactly this: emptyFluid,
+--- addFluid, transmitModData). It is kept to one self-contained function so
+--- the migration can move it there unchanged.
 local function refillFixture(o)
-    U.try("reserveWater", function()
-        local max = o:getReserveWaterMax()
-        if max and max > 0 and (o:getReserveWaterAmount() or 0) < max then
-            o:setReserveWaterAmount(max)
-        end
-    end)
     U.try("fluidWater", function()
-        local cap = o:getFluidCapacity()
-        if cap and cap > 0 then
+        local cap = o:getFluidCapacity() or 0
+        if cap <= 0 then
+            o:createFluidContainersFromSpriteProperties()
+            cap = o:getFluidCapacity() or 0
+        end
+        if cap > 0 then
             local have = o:getFluidAmount() or 0
             if have < cap then o:addFluid(FluidType.Water, cap - have) end
         end
@@ -597,8 +609,26 @@ function Core.refillWater()
 end
 
 --- Exposed for the debug console: TREK_Water()
+--- Exposed for the debug console: TREK_Water()
+---
+--- Reports each fixture's own reading as well as the count. "Holding water"
+--- alone passed while the mains were on and the top-up was broken; the
+--- capacity and amount show whether the ship's supply is really doing it.
 function TREK_Water()
     local wet, dry = Core.refillWater()
+    for _, spot in ipairs(findWaterSpots()) do
+        local x, y = U.at(spot[1], spot[2])
+        local sq = U.square(x, y, C.CabinZ, false)
+        U.eachObject(sq, function(o)
+            local md = U.try("md", function() return o:getModData() end)
+            if md and md.TREK and C.WaterTags[md.TREK] then
+                U.log("water: %s at %d,%d capacity %s, holding %s",
+                      md.TREK, spot[1], spot[2],
+                      tostring(U.try("cap", function() return o:getFluidCapacity() end)),
+                      tostring(U.try("amt", function() return o:getFluidAmount() end)))
+            end
+        end)
+    end
     U.log("water: %d fixtures holding water, %d dry", wet, dry)
     return wet, dry
 end

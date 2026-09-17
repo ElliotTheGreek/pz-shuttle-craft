@@ -6,6 +6,19 @@ square and froze the build. Check the name here before calling it from Lua.
 
     python tools/pzapi.py zombie.iso.IsoGridSquare stairs
     python tools/pzapi.py zombie.iso.IsoObject container
+    python tools/pzapi.py zombie.iso.IsoObject water --all
+
+Only PUBLIC methods are callable from Lua, so only public methods are listed
+unless --all is given, and then private ones are marked. This used to list
+everything unmarked: IsoObject's getReserveWaterMax / setReserveWaterAmount are
+private, looked perfectly callable here, and the infinite-water top-up threw
+"tried to call nil" on every refill in game.
+
+A method being listed here still only proves it exists and is public. Whether
+it does anything for an ordinary player is another question -- build 42's
+setGodMod, setZombiesDontAttack, setInvincible, setNoClip and setInvisible are
+all public and all silently refuse unless the character's role has the matching
+capability. Read DEV_GUIDE.md, "The jar is not the API".
 """
 import sys, zipfile, struct
 JAR = r"C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid\projectzomboid.jar"
@@ -49,11 +62,17 @@ def parse(data):
     return fields, methods
 
 cls = sys.argv[1].replace(".", "/") + ".class"
-pat = sys.argv[2].lower() if len(sys.argv) > 2 else None
+_args = [a for a in sys.argv[1:] if not a.startswith("--")]
+pat = _args[1].lower() if len(_args) > 1 else None
 with zipfile.ZipFile(JAR) as z:
     data = z.read(cls)
+show_all = "--all" in sys.argv
 f, m = parse(data)
 for acc, n, d in m:
     line = f"{n}{d}"
+    public = bool(acc & 1)
+    if not public and not show_all:
+        continue
     if pat is None or pat in line.lower():
-        print(("static " if acc & 8 else "") + line)
+        prefix = "" if public else "PRIVATE (not callable from Lua) "
+        print(prefix + ("static " if acc & 8 else "") + line)

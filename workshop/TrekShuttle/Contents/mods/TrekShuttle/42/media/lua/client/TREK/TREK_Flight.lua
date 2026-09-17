@@ -1,9 +1,21 @@
 --[[ Shuttlecraft -- hands-on local flight.
 
     The exterior hull is a square-bound world item, not a vehicle. During
-    flight an invisible, protected, no-clip player acts as the camera and
-    chunk-streaming proxy. A UI-layer shuttle rises above a projected shadow.
-    Core and Travel remain authoritative for hull cleanup and safe landing.
+    flight the pilot's own body is the camera and chunk-streaming proxy: hidden
+    from view, and held above the ground rather than on it. A UI-layer shadow
+    marks the ground under the ship. Core and Travel remain authoritative for
+    hull cleanup and safe landing.
+
+    Why the body hovers instead of being "protected". Build 42's setGodMod,
+    setZombiesDontAttack, setInvincible, setNoClip and setInvisible all check
+    the character's role for a matching capability and silently do nothing
+    for an ordinary player -- god mode during flight never worked, and the dead
+    scratched a pilot hovering still over them. There is a route around the
+    role check, but it is gated on Core.debug: it would pass every test run
+    with -debug and fail for every Workshop player. Zombies attack only on
+    their own floor, so a body C.FlightHoverHeight above the ground is out of
+    reach with no permissions, no cheats and no zombie handling at all, and
+    the dead still see the ship and gather beneath it.
 ]]
 
 require "TREK/TREK_Config"
@@ -25,8 +37,19 @@ function TREKFlightOverlay:new()
     local o = ISUIElement:new(0, 0, core:getScreenWidth(), core:getScreenHeight())
     setmetatable(o, self)
     self.__index = self
-    o:setConsumeMouseEvents(false)
     return o
+end
+
+--- The overlay covers the whole screen and must not swallow clicks: right-
+--- click in flight is the land / enter / beam-down menu. setConsumeMouseEvents
+--- is a method of the Java UIElement, which only exists once the element is
+--- instantiated -- calling it on the Lua table in new() threw on every
+--- takeoff, and the overlay never appeared at all.
+function TREKFlightOverlay:instantiate()
+    ISUIElement.instantiate(self)
+    U.try("overlayPassClicks", function()
+        self.javaObject:setConsumeMouseEvents(false)
+    end)
 end
 
 function TREKFlightOverlay:prerender()
@@ -37,8 +60,17 @@ function TREKFlightOverlay:prerender()
     local rise = math.min(1, flight.ticks / C.FlightTakeoffTicks)
     local w = C.FlightShadowW * (0.80 + rise * 0.20)
     local h = C.FlightShadowH * (0.80 + rise * 0.20)
-    local cx = self.width / 2
-    local groundY = self.height / 2 + 58
+    -- The ground under the ship. The camera follows the pilot's raised body,
+    -- so screen centre is no longer the ground; project the actual square.
+    local playerNum = U.try("overlayPlayerNum", function()
+        return flight.player:getPlayerNum()
+    end) or 0
+    local cx = U.try("shadowX", function()
+        return isoToScreenX(playerNum, flight.x + 0.5, flight.y + 0.5, flight.groundZ)
+    end) or self.width / 2
+    local groundY = U.try("shadowY", function()
+        return isoToScreenY(playerNum, flight.x + 0.5, flight.y + 0.5, flight.groundZ)
+    end) or (self.height / 2 + 58)
 
     -- The actual 3D hull is rendered in the world. This layer only draws its
     -- projected shadow and the controls.
@@ -52,40 +84,63 @@ function TREKFlightOverlay:prerender()
         self.height - 72, 0.80, 0.92, 1.0, 0.95, UIFont.Small)
 end
 
-local function protect(player, flight, enabled)
-    U.try("flightProtection", function()
-        if enabled then
-            flight.wasGod = player:isGodMod() == true
-            flight.wasNoClip = player:isNoClip() == true
-            flight.wasInvisible = player:isInvisible() == true
+--- Hides the pilot's body for the flight and shows it again afterwards.
+---
+--- Alpha is the only part of the old "protection" that ever worked: it needs
+--- no permission. It is local rendering, so in multiplayer other players see
+--- the body until visibility is handled on the server (see MULTIPLAYER.md).
+function F.protect(player, flight, enabled)
+    if enabled then
+        U.try("flightAlpha", function()
             flight.wasAlpha = player:getAlpha()
             flight.wasTargetAlpha = player:getTargetAlpha()
-            player:setGodMod(true)
-            player:setNoClip(true)
-            player:setInvisible(true)
             player:setAlpha(0)
             player:setTargetAlpha(0)
-        else
-            player:setGodMod(flight.wasGod == true)
-            player:setNoClip(flight.wasNoClip == true)
-            player:setInvisible(flight.wasInvisible == true)
+        end)
+    else
+        U.try("flightAlpha", function()
             player:setAlpha(flight.wasAlpha or 1)
             player:setTargetAlpha(flight.wasTargetAlpha or 1)
-        end
+        end)
+    end
+end
+
+--- Where the pilot's body is held during flight: C.FlightHoverHeight floors
+--- above the ground the ship is over.
+function F.hoverZ(flight)
+    return flight.groundZ + C.FlightHoverHeight
+end
+
+--- Puts the body back on the ground under the ship, with no fall pending.
+--- Every way out of flight goes through here before anything else moves the
+--- player, so none of them can drop a body from hover height.
+function F.settle(player, flight)
+    if not player or not flight then return end
+    U.try("flightSettle", function()
+        player:setZ(flight.groundZ)
+        player:setLastZ(flight.groundZ)
+        player:setFallTime(0)
+        player:setbFalling(false)
     end)
 end
+local protect = F.protect
 
 local function pin(flight)
     local player = flight and flight.player
     if not player then return end
     U.try("flightPin", function()
+        -- Held above the ground, out of the dead's reach. There is no floor up
+        -- here, so the engine starts a fall every tick; resetting the fall
+        -- time each tick means none accumulates to be applied on landing.
+        local z = F.hoverZ(flight)
         player:setX(flight.x + 0.5)
         player:setY(flight.y + 0.5)
-        player:setZ(flight.groundZ)
+        player:setZ(z)
         player:setLastX(flight.x + 0.5)
         player:setLastY(flight.y + 0.5)
-        player:setLastZ(flight.groundZ)
+        player:setLastZ(z)
         player:setbFalling(false)
+        player:setFallTime(0)
     end)
 end
 
@@ -246,6 +301,7 @@ function F.stop(putOnGround)
     setFlightZoom(flight, false)
     F.active = nil
     if player then
+        F.settle(player, flight)
         protect(player, flight, false)
         if putOnGround then U.teleport(player, spot.x, spot.y, spot.z) end
     end

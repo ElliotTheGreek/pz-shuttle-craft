@@ -24,9 +24,10 @@ python tests/test_assets.py
 python tests/test_stock.py
 python tests/test_layout.py
 python tests/test_helm.py
+python tests/test_flight.py
 ```
 
-If all six succeed you have a working setup. `test_layout.py` prints the cabin
+If all seven succeed you have a working setup. `test_layout.py` prints the cabin
 floor plan with every fitting on it — the fastest way to see the shape of the
 thing.
 
@@ -47,7 +48,7 @@ Target is **build 42.20.4**. Single player only.
 ```sh
 # 1. edit, then always:
 python tools/luacheck.py TrekShuttle/42/media/lua
-python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py && python tests/test_helm.py
+python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py && python tests/test_helm.py && python tests/test_flight.py
 
 # 2. install
 sh tools/deploy.sh
@@ -113,6 +114,29 @@ grep -ran "InventoryItemFactory" "$PZ" | wc -l   # 0 in practice -- not real
 
 `pzapi.py` answers "does this method exist". Grepping vanilla Lua answers "may
 I call it". **You need both, and the second one is the one that was skipped.**
+
+**Two more ways a method in the jar is not usable, both learned in game:**
+
+1. **It is private.** `pzapi.py` used to list every method unmarked; it now
+   lists only public ones (add `--all` to see private ones, flagged). The
+   sink's reserve-water methods are private and looked perfectly callable.
+2. **It is public and refuses.** Build 42's `setGodMod`,
+   `setZombiesDontAttack`, `setInvincible`, `setNoClip` and `setInvisible` all
+   check the character's *role* for a capability first and silently do
+   nothing without it -- which is every ordinary player. God mode during
+   flight never worked. Worse, there is a route around the role check
+   (`setGodModCheat`) that is gated on `Core.debug`: **it works under -debug
+   and nowhere else**, so a test run passes and every Workshop player fails.
+   `tests/test_flight.py` fails if any of these setters is called again.
+
+When a method's behaviour matters, read what it does, not just its name. The
+game's own bytecode says which fields and capabilities a method touches; that
+is how the role check was found.
+
+**And design out the permission instead of fighting it.** The pilot is not
+made invulnerable; the body hovers `C.FlightHoverHeight` floors up, where
+zombies -- who only attack on their own floor -- cannot reach it. No cheat, no
+zombie handling, same in single player and multiplayer.
 
 The same reasoning applies to *which* API a given object actually uses — see
 *Two APIs for water* below.
@@ -277,24 +301,28 @@ editor and not carried across fails rather than quietly never appearing.
 shelf is wiped on the next rebuild. Tags also drive behaviour (`sink`,
 `shower` and `toilet` get refilled) and the self-test counts fittings by tag.
 
-### Two APIs for water, and a sink only answers to one
+### Sink water goes through the FluidContainer -- the reserve API is private
 
-A sink's water is **reserve** water — the `waterAmount` / `waterMaxAmount`
-sprite properties — reached with `getReserveWaterMax()` and
-`setReserveWaterAmount()`. A rain barrel, or anything else carrying a
-`FluidContainer`, holds a **fluid** and wants `addFluid(FluidType.Water, n)`.
+**This section was wrong once, and the mistake shipped to a test.** It said a
+sink's water was *reserve* water, set with `setReserveWaterAmount`. Those
+methods exist in the jar and are **private**; from Lua they are nil, and the
+top-up threw on every refill. The in-game water test still passed, because a
+fresh world's mains were on. The tap would have run dry the week they shut off.
 
-A sink has no `FluidContainer` at all, so `getFluidCapacity()` returns 0 and
-the fluid path tops up nothing without complaining. `Core.refillWater` does
-both and then asks `hasWater()`, which is the question the game itself asks
-before it will let anybody drink.
+The public route: a sink has a `FluidContainer` built from its sprite's
+`waterAmount` properties. A map-loaded sink gets it automatically; **a sink
+placed at runtime does not**, exactly as a runtime locker gets no
+`ItemContainer` (see below). `Core.refillWater` calls
+`createFluidContainersFromSpriteProperties()` when `getFluidCapacity()` reads
+0, tops up with `addFluid(FluidType.Water, n)`, then asks `hasWater()`.
 
-Note `getWaterAmount()` does **not** exist on `IsoObject` in build 42.
+**To test water honestly, turn the mains off**: sandbox *Water Shutoff* set to
+instant. With the mains on, a broken top-up and a working one look identical.
+`TREK_Water()` logs each fixture's capacity and amount, not just a count.
 
-And the reason the refill exists at all: the vanilla sink sprites carry
-`waterPiped`, so they are fed by the town mains — which shut off a few weeks
-into any world. A ship that makes its own power should not lose its tap when
-Louisville does.
+The reason the refill exists at all: the vanilla sink sprites carry
+`waterPiped`, so they are fed by the town mains. A ship that makes its own
+power should not lose its tap when Louisville does.
 
 ### Containers built at runtime are not containers
 
@@ -328,12 +356,39 @@ loot and better reading than one holding ninety bandages.
 
 `python tests/test_stock.py` prints the fill each container size reaches.
 
+### Item icons: generate on magenta, key it, vet it at 32px
+
+Image models paint backgrounds; they do not emit alpha. So every icon is
+generated on flat `#FF00FF` and `tools/key_icon.py` turns it into a 64x64
+transparent `media/textures/Item_*.png`: soft alpha from the distance to
+magenta, then a full de-spill so no pink survives (the stew's steam came back
+lilac until it did). Nothing in this mod is meant to be pink; an icon that
+genuinely needs magenta should be generated on a different key colour.
+
+**Vet at 32x32, on the dark inventory background.** Detail that sells an image
+at 1024 is mush at 32. The first gagh was a lovely bowl of worms and read as
+chili in the inventory; the fix was fewer, fatter, lighter worms spilling over
+the rim. Big simple shapes and strong contrast survive the shrink.
+
+Borrow vanilla world and hand models where an item's shape already exists
+(bowls, bars) -- `test_assets.py` checks every borrowed name.
+
 ### Never restock an existing container
 
 The ship is meant to be lived in: what the player eats stays eaten.
 `U.addContainer` returns a `created` flag; stock only when it is true.
 Restocking an existing container does not refill it — it stacks a *second*
 helping on the first, so loot multiplies with every rebuild.
+
+A container is stocked **once, ever**: when it is made, or when it has never
+been stocked (no `TREKStockRev` in its mod data) and is still empty -- the
+repair path for saves left behind by the builds that could not create items.
+The rule used to be "restock when the revision differs", which would have
+doubled every locker in every save on the next `C.BuildRev` bump.
+
+The consequence to remember: **new loot never reaches an existing save.** Test
+new items in a new world, or hand them over from the debug console
+(`TREK_Galley()` for the food).
 
 ### Bump `C.BuildRev` when generation changes
 
@@ -473,6 +528,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | `tools/luacheck.py` | Lua syntax, via a real Lua VM |
 | `tests/test_assets.py` | sprites, items, meshes, textures, icons, the phaser's borrowed vanilla references, and every translation key |
 | `tests/test_stock.py` | items that cannot be created at all; loot that does not spread across its list; containers that do not reach `C.FillFraction` |
+| `tests/test_flight.py` | flight protections not all on in the air, or not restored exactly on landing (a permanently invincible player) |
 | `tests/test_helm.py` | helm console throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
 | `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
 
@@ -500,6 +556,7 @@ back, which is unwelcome mid-game.
 |---|---|
 | `TREK_SelfTest()` | Force the whole run |
 | `TREK_Stock()` | One line per container: items held and how full. **The first thing to run when loot looks wrong.** |
+| `TREK_Galley()` | Put one of each galley dish in your inventory |
 | `TREK_Water()` | Top the fixtures up and report how many hold water |
 | `TREK_Shields()` | Report the shields; `TREK_Shields(false)` / `(true)` sets them |
 | `TREK_Speed()` | Report flight speed; `TREK_Speed(n)` picks step n (1 = 1/4x ... 6 = 5x) |

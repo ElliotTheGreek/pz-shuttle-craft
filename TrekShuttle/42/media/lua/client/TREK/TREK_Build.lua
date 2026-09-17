@@ -276,11 +276,17 @@ local function furnishAuthoredInterior()
                 if obj then
                     U.try("stockAuthored:" .. tostring(entry.tag), function()
                         local data = obj:getModData()
-                        -- Revision-specific initialization lets a corrected
-                        -- build repair containers that an older broken build
-                        -- incorrectly marked as stocked.
+                        -- Stock a container once, ever. A container that has
+                        -- never been successfully stocked (no TREKStockRev) and
+                        -- is still empty is the repair case -- the builds that
+                        -- could not create items left exactly that behind.
+                        --
+                        -- It used to restock whenever the revision differed,
+                        -- which would have been harmless exactly once: the
+                        -- next C.BuildRev bump would have poured a second
+                        -- helping into every stocked locker in every save.
                         local initialize = made or C.DevRestock
-                                           or data.TREKStockRev ~= C.BuildRev
+                            or (data.TREKStockRev == nil and U.itemCount(obj) == 0)
                         if not initialize then return end
 
                         if stockAuthored(obj, entry) then
@@ -400,6 +406,37 @@ end
 --- Exposed for the debug console: TREK_Stock()
 function TREK_Stock()
     return B.stockReport()
+end
+
+--- The galley's own dishes. Kept as a list so the debug helper below and any
+--- future replicator menu agree on what the ship can serve.
+B.GalleyItems = {
+    "TrekShuttle.TrekRationPack",
+    "TrekShuttle.TrekGagh",
+    "TrekShuttle.TrekLeolaStew",
+}
+
+--- Exposed for the debug console: TREK_Galley()
+---
+--- Puts one of each galley dish in the player's inventory. An existing save
+--- never sees new loot -- its lockers were stocked once and are left alone --
+--- so this is how new food is tried without starting a new world. Reports
+--- each item by name, so an id that will not resolve is a named line.
+function TREK_Galley()
+    local player = U.player(0)
+    if not player then return 0 end
+    local inv = player:getInventory()
+    local given = 0
+    for _, id in ipairs(B.GalleyItems) do
+        local item = U.try("galley:" .. id, function() return inv:AddItem(id) end)
+        if item then
+            given = given + 1
+            U.log("galley: %s", id)
+        else
+            U.log("WARN galley: could not create %s", id)
+        end
+    end
+    return given
 end
 
 ---------------------------------------------------------------------------

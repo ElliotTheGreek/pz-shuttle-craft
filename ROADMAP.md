@@ -52,7 +52,7 @@ bug so far has been a plausible call that failed silently.
   `InventoryItemFactory`, which is not a Lua global in build 42; and a water
   top-up using the fluid API on a sink that only has reserve water.
 - **Infinite water.** The galley sink is kept full while aboard and survives
-  the vanilla mains shutoff. *Awaiting in-game confirmation — `TREK_Water()`.*
+  the vanilla mains shutoff. Confirmed in game.
 - **Diagnostics.** `TREK_Stock()` and `TREK_Water()` report from the debug
   console; every build logs a manifest line per container.
 - **Tests that check the real ship.** `test_layout.py` loads the authored layout
@@ -98,7 +98,7 @@ script, and checked by `tests/test_assets.py`.
 
 ---
 
-## Built, awaiting in-game test: the helm console
+## Built: the helm console
 
 `TREK_Helm.lua`. An LCARS panel drawn from tinted shape textures
 (`tools/gen_helm_ui.py`) over a Gemini-generated backdrop and emblem, both
@@ -114,12 +114,34 @@ the same way from a render made by `tools/preview_helm.py`.
 - `tests/test_helm.py` drives it against stubbed vanilla UI, including every
   controller path.
 
+**Confirmed in game:** the console, shields, flight speeds and the infinite
+water.
+
 **Open question:** the emblem's reviewer judged it a near-exact copy of the
 Picard-era Starfleet insignia. The mod is already labelled an unofficial fan
 work; whether to keep it or have Gemini draw something more distinct is a
 call for the author.
 
 The original plan for the console follows.
+
+## Built, awaiting in-game test: fixes
+
+- **No damage while hovering.** Zombies crowding under a stationary ship could
+  scratch the pilot through it: god mode alone does not stop build 42's attack
+  path. Flight now also sets `ZombiesDontAttack`, `AvoidDamage` and
+  `Invincible` -- deliberately not ghost mode, so the dead still see the ship
+  and gather beneath it. Each protection is applied on its own, and landing
+  restores exactly what was there before; `tests/test_flight.py` fails if a
+  player could land still invincible. **Test:** hover still over a crowd.
+- **"THIS WAS YOUR AWAY MISSION".** The intro title card's `UI_Intro3` is
+  overridden in `Translate/EN/UI.json`. The engine merges mod translations
+  over vanilla (`Translator.tryFillMapFromMods`), but the intro plays early in
+  loading, so whether the override is in place by then is only provable in
+  game. **Test:** start a new world and watch the three title cards. If it
+  still says "HOW YOU DIED", the fallback is to redraw the intro from Lua.
+  `UI_Intro1` and `UI_Intro2` could be rethemed the same way if wanted.
+
+---
 
 ## Plan: the helm console
 
@@ -154,12 +176,88 @@ doubles as the test run for every item below.
 
 ---
 
+## Next: galley, second course
+
+Chosen as next because it is mostly the proven food pipeline, and the one new
+system in it -- drinks -- is one the replicator will need to understand too.
+
+**Food** (trivial, same as the first batch):
+
+- **Plomeek soup** -- Vulcan broth. Bowl, soup model, gentle morale boost.
+- **Jumja stick** -- Bajoran sweet on a stick. Light snack, happiness, keeps.
+
+**Drinks** (Medium). Build 42 drinks are not food items: they are *fluids*
+(`fluid Wine { Properties { ThirstChange, alcohol, ... } }`) held in a
+container item with a `FluidContainer` component. Each drink is therefore a
+fluid definition plus a vessel.
+
+- **Raktajino** -- Klingon coffee, in a mug. Thirst, fatigue down.
+- **Earl Grey tea, hot** -- in a teacup. Thirst, stress down.
+- **Romulan ale** -- the blue one, in a bottle. Alcoholic, strong.
+- **Klingon bloodwine** -- dark red, in a bottle. Very alcoholic.
+
+*Verify first:* that a mod can define its own `fluid` block and reference it
+from a `FluidContainer` (vanilla fluids live in `module Base`), what the fluid
+colour and icon mask (`IconFluidMask`) need, and whether a mod fluid needs a
+`Fluid_Name_*` translation. If mod fluids turn out not to register, the
+fallback is food items with `ThirstChange`, which lose the pour-and-share
+behaviour but keep the drinks.
+
+---
+
+## Then: Klingon, Vulcan and Andorian blades
+
+Build 42 melee weapons are a static mesh plus two attachment points (on the
+ground, and in the hand), with animation borrowed by name -- no rigging. So
+custom weapons are within reach of the existing mesh tools
+(`tools/meshbuild.py`, `tools/import_gltf.py`), with fal.ai image-to-3D as the
+likely source of the meshes and Gemini for the icons.
+
+| Weapon | Borrow from vanilla | Notes |
+|---|---|---|
+| **Bat'leth** | two-handed long blade, `SwingAnim = Bat` | The iconic one; the crescent shape is the modelling job |
+| **Mek'leth** | one-handed short blade | Klingon short sword |
+| **Lirpa** | spear category and animations | Vulcan polearm: blade one end, weight the other |
+| **Ushaan-tor** | one-handed short blade | Andorian ice-miner's blade |
+
+**Medium each, and the first is the expensive one**: it proves the mesh ->
+`.x` -> in-hand attachment path, and the attachment offsets can only really be
+tuned by looking at a character holding it in game. The other three reuse it.
+
+---
+
+## Then: photon torpedoes
+
+Fire at zombies from the air while piloting. **Medium–Hard.**
+
+- **Controls need a decision.** Right-click in flight is currently the
+  land / enter / beam-down menu. Options: a key arms torpedoes and left-click
+  fires at the cursor; or hold right mouse to aim and left-click to fire, with
+  the menu moved to a key. The controller path needs the same thought as the
+  helm had (a target reticle the stick moves).
+- *Verify first:* converting the mouse position to a world square during
+  flight (the camera rides an invisible proxy), the engine call that kills a
+  zombie cleanly, and whether an explosion effect and sound can be triggered
+  without also setting the street on fire.
+- Drawn as a glowing projectile on the flight overlay, so no model is needed.
+- A cooldown rather than ammunition, in keeping with the phaser.
+
+---
+
 ## Then: items
 
 Mostly icon work, with a few genuine systems mixed in. Grouped roughly from
 cheapest to most involved.
 
-### Food
+### Food — built, confirmed in game
+
+Ration pack, gagh and leola root stew are in (`trekshuttle.txt`), stocked in
+the provisions and survival lockers and the galley fridges. `TREK_Galley()`
+puts one of each in your inventory, for trying them in an existing save.
+Icons generated on flat magenta, keyed by `tools/key_icon.py`, and vetted at
+32x32 -- the first gagh failed that vet (worms read as chili) and was redrawn
+with fewer, fatter worms over the rim.
+
 
 - **Starfleet ration pack** — high nutrition, high happiness.
   Item script + icon. **Trivial.**
@@ -174,13 +272,9 @@ All three go into the galley `C.Loot` lists as well as the replicator menu.
 
 ### Medical
 
-- **Hypospray** — a strong treatment, and possibly a **cure for being bitten**.
-  The item is easy; the cure is a design call, because curing zombie infection
-  changes what kind of game the mod makes. Worth deciding deliberately —
-  single use, rare, or replicator-only are all ways to keep it special.
-  **Medium** — *verify first*: the build 42 `BodyDamage` API for clearing
-  infection per body part. Check `pzapi.py` **and** grep vanilla Lua for a real
-  call site before trusting a method name.
+- **Hypospray** — a strong medical treatment. **Decided: it does not cure a
+  bite.** The cure belongs to the EMH, which keeps it tied to the ship rather
+  than something carried in a pocket. **Easy–Medium.**
 
 - **Medical tricorder** — full medical diagnosis of yourself or a target,
   regardless of the Doctor skill. The vanilla health panel hides detail by
@@ -220,6 +314,10 @@ All three go into the galley `C.Loot` lists as well as the replicator menu.
     the medical emergency").
   - Provides the medical tricorder's full diagnosis **and treatment**, with
     **infinite medical supplies**.
+  - **Cures zombie infection** — decided: this is the only cure in the mod.
+    *Verify first*: the build 42 `BodyDamage` API for clearing infection per
+    body part. Check `pzapi.py` **and** grep vanilla Lua for a real call site
+    before trusting a method name.
   - Deactivating removes the model.
   - **Difficulty: Medium–Hard.** Each piece is modest; there are simply several.
     Should come after the hypospray and medical tricorder, since it reuses both.

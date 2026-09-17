@@ -1,4 +1,7 @@
 {
     "Tooltip_TREK_Shuttle": "A Starfleet shuttlecraft. It needs a street or a field to set down on, not a hallway.",
-    "Tooltip_TREK_Phaser": "Starfleet sidearm. The charge never runs down, it never jams and it never wears out. Quieter than a firearm, which is most of the point."
+    "Tooltip_TREK_Phaser": "Starfleet sidearm. The charge never runs down, it never jams and it never wears out. Quieter than a firearm, which is most of the point.",
+    "Tooltip_TREK_RationPack": "Starfleet emergency rations. Dense, keeps forever, and tastes better than anything you will find in a dead man's pantry.",
+    "Tooltip_TREK_Gagh": "Klingon serpent worms, best served live. Very filling. A Klingon would enjoy this. You are not a Klingon.",
+    "Tooltip_TREK_LeolaStew": "Neelix's signature dish. Genuinely nourishing. Nobody has ever asked for seconds."
 }

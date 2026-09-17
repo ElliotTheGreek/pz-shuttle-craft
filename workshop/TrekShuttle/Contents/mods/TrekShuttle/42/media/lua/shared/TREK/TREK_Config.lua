@@ -195,6 +195,12 @@ C.FlightSpeedSteps       = { 0.25, 0.5, 1, 2, 3, 5 }
 C.FlightSpeedDefaultStep = 3
 C.FlightTakeoffTicks   = 75
 C.FlightModelLift      = 48
+
+-- How many floors above the ground the pilot's body is held during flight.
+-- Zombies only attack on their own floor, so anything at or above 1 is out of
+-- reach; the half keeps the body's floor at 1 even if the engine's fall has
+-- dropped it a little before the next tick's pin puts it back.
+C.FlightHoverHeight    = 1.5
 C.FlightShadowW        = 150
 C.FlightShadowH        = 42
 C.FlightShadowAlpha    = 0.30
@@ -389,10 +395,12 @@ C.Loot.medical = {
 -- Ship's stores. Long-life first: this is what a shuttle is provisioned with,
 -- not what somebody left in a fridge.
 C.Loot.food = {
+    "TrekShuttle.TrekRationPack",
     "Base.TinnedBeans", "Base.TinnedSoup", "Base.CannedCorn", "Base.CannedPeas",
     "Base.CannedCarrots", "Base.CannedPotato", "Base.CannedChili",
     "Base.CannedBolognese", "Base.CannedMushroomSoup", "Base.CannedTomato",
     "Base.CannedSardines", "Base.CannedFruitCocktail", "Base.CannedPeaches",
+    "TrekShuttle.TrekRationPack",
     "Base.Rice", "Base.Pasta", "Base.Flour2", "Base.Sugar", "Base.Salt",
     "Base.Coffee2", "Base.Crisps", "Base.GranolaBar", "Base.BeefJerky",
     "Base.WaterBottle", "Base.WaterRationCan",
@@ -403,6 +411,7 @@ C.Loot.food = {
 -- pumpkin and the watermelon are what let a fridge look stocked without
 -- putting eighty eggs in it.
 C.Loot.fresh = {
+    "TrekShuttle.TrekLeolaStew", "TrekShuttle.TrekGagh",
     "Base.Ham", "Base.Bread", "Base.Cheese", "Base.Butter", "Base.Milk",
     "Base.Pumpkin", "Base.Egg", "Base.Potato", "Base.Carrots", "Base.Onion",
     "Base.Watermelon", "Base.Tomato", "Base.Apple", "Base.Orange",
@@ -442,6 +451,7 @@ C.Loot.weapons = {
 -- Crucial kit: what is worth more than its weight the moment the ship sets
 -- down somewhere dark and the hatch opens.
 C.Loot.survival = {
+    "TrekShuttle.TrekRationPack",
     "Base.Torch", "Base.Battery", "Base.Lighter", "Base.Matches",
     "Base.Rope", "Base.SheetRope", "Base.DuctTape", "Base.FirstAidKit",
     "Base.WaterRationCan", "Base.Extinguisher", "Base.Map",

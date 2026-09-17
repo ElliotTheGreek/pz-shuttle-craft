@@ -1,5 +1,8 @@
 {
     "TrekShuttle.TrekShuttleHull": "Shuttlecraft",
     "TrekShuttle.TrekHelmConsole": "Helm Console",
-    "TrekShuttle.TrekPhaser": "Phaser"
+    "TrekShuttle.TrekPhaser": "Phaser",
+    "TrekShuttle.TrekRationPack": "Starfleet Ration Pack",
+    "TrekShuttle.TrekGagh": "Gagh",
+    "TrekShuttle.TrekLeolaStew": "Leola Root Stew"
 }

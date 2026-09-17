@@ -55,12 +55,6 @@ for icon in sorted(mod_icons):
         failures.append(f"trekshuttle.txt: Icon = {icon} has no texture; "
                         f"expected media/textures/Item_{icon}.png")
 
-# Every WorldStaticModel / StaticModel must name a model declared above it.
-for ref in re.findall(r"^\s*(?:World)?StaticModel\s*=\s*([A-Za-z0-9_]+)\s*,",
-                      script, re.M):
-    if ref not in mod_models:
-        failures.append(f"trekshuttle.txt: StaticModel = {ref} is not declared")
-
 # --- the phaser's borrowed vanilla references --------------------------
 # The phaser leans on vanilla for its AmmoType, its in-hand model and its
 # sounds, all of which resolve in Java rather than through any script the mod
@@ -72,6 +66,22 @@ for dp, _, fns in os.walk(os.path.join(PZ, "scripts")):
         if fn.endswith(".txt"):
             vanilla += open(os.path.join(dp, fn), encoding="utf-8",
                             errors="replace").read()
+
+# Every WorldStaticModel / StaticModel must name a model: the mod's own, or a
+# vanilla one it borrows. The galley food borrows vanilla bowls and bars, and a
+# borrowed name that is misspelt draws nothing, silently.
+vanilla_models = set(re.findall(r"^\s*model\s+([A-Za-z0-9_]+)\s*$", vanilla, re.M))
+for ref in re.findall(r"^\s*(?:World)?StaticModel\s*=\s*([A-Za-z0-9_]+)\s*,",
+                      script, re.M):
+    if ref not in mod_models and ref not in vanilla_models:
+        failures.append(f"trekshuttle.txt: StaticModel = {ref} is neither a mod "
+                        f"model nor a vanilla one")
+
+# ReplaceOnUse hands the player an item back -- the empty bowl. A bad id means
+# the bowl simply vanishes when the food is eaten.
+for ref in re.findall(r"^\s*ReplaceOnUse\s*=\s*Base\.([A-Za-z0-9_]+)\s*,", script, re.M):
+    if ref not in items:
+        failures.append(f"trekshuttle.txt: ReplaceOnUse = Base.{ref} is not a vanilla item")
 
 phaser = re.search(r"item TrekPhaser\s*\{(.*?)\n    \}", script, re.S)
 if not phaser:
@@ -145,6 +155,18 @@ TR = os.path.join(MOD, "media", "lua", "shared", "Translate", "EN")
 ig = json.load(open(os.path.join(TR, "IG_UI.json"), encoding="utf-8"))
 names = json.load(open(os.path.join(TR, "ItemName.json"), encoding="utf-8"))
 tips = json.load(open(os.path.join(TR, "Tooltip.json"), encoding="utf-8"))
+
+# UI.json only overrides vanilla strings -- the intro's "THIS IS HOW YOU DIED"
+# becomes "THIS WAS YOUR AWAY MISSION". An override whose key vanilla does not
+# have changes nothing and reports nothing, so every key must exist in the
+# game's own UI.json.
+ui_override = os.path.join(TR, "UI.json")
+if os.path.isfile(ui_override):
+    vanilla_ui = json.load(open(os.path.join(PZ, "lua", "shared", "Translate", "EN", "UI.json"),
+                                encoding="utf-8"))
+    for key in json.load(open(ui_override, encoding="utf-8")):
+        if key not in vanilla_ui:
+            failures.append(f"UI.json overrides {key}, which vanilla does not have")
 
 for key in ig:
     if not key.startswith("IGUI_"):
