@@ -193,22 +193,12 @@ function ISVehicleMenu.FillMenuOutsideVehicle(player, context, vehicle, test)
     return result
 end
 
--- The right-click menu from the driver's seat.
-local baseFillInside = ISVehicleMenu.FillMenuInsideVehicle
-if baseFillInside then
-    function ISVehicleMenu.FillMenuInsideVehicle(player, context, vehicle, test)
-        local result = baseFillInside(player, context, vehicle, test)
-        if test or not V.isShuttle(vehicle) then return result end
-        local playerObj = getSpecificPlayer(player)
-        if not playerObj then return result end
-        local sub = context:addOption(getText("IGUI_TREK_Name"), nil, nil)
-        local menu = ISContextMenu:getNew(context)
-        context:addSubMenu(sub, menu)
-        menu:addOption(getText("IGUI_TREK_BoardCabin"), playerObj, VM.onBoardFromSeat)
-        addFlightOptions(menu, playerObj, playerObj)
-        return result
-    end
-end
+-- There is deliberately no right-click menu from inside the seat: build 42 has
+-- no ISVehicleMenu.FillMenuInsideVehicle to hang one on. A draft of this file
+-- wrapped that name behind an "if it exists" guard, which meant it silently
+-- never ran -- dead code that looked like a feature, which DEV_GUIDE.md warns
+-- is worse than none. The radial menu is the way in from a seat, and it is
+-- also the one a controller and a Steam Deck can reach.
 
 ---------------------------------------------------------------------------
 -- Containers of a vehicle that is gone
@@ -219,15 +209,40 @@ end
 -- longer has a vehicle, and vanilla's own drawing code throws on it *every
 -- frame*: a wall of errors and a black screen. Seen in game, 2026-09-17.
 --
--- So the loot window is checked with the very call that throws. U.try turns
--- the exception into a nil, and a container that cannot answer is a dead one:
--- the window goes back to the floor.
+-- It is asked *without* throwing, and that correction is the whole of this
+-- section's history. The first version probed with the very call that throws
+-- (`isOccupiedVehicleSeat`) and read the exception as the answer, wrapped in
+-- U.probe so the Lua side stayed quiet. It was quiet. The engine was not:
+-- a method that throws out of Java dumps a full stack trace *per call*, and
+-- this runs on a timer, so it produced 2932 traces in one short session --
+-- the log flood that is DEV_GUIDE.md's own "black screen, character falling,
+-- game unresponsive" signature. It did not merely fail to fix the black
+-- screen described above; it was a second, larger cause of one.
+--
+-- DEV_GUIDE.md says it in as many words under "Batch anything repeated per
+-- square": pcall silences Lua and the engine keeps dumping. A repeated check
+-- must never be built on a throw.
+--
+-- `getVehiclePart():getVehicle()` answers the same question with two plain
+-- null checks, and is the chain vanilla's own loot window uses
+-- (client/ISUI/LootWindow/ISLootWindowContainerControls.lua:212).
 local function eachLootPage(fn)
     for i = 0, 3 do
         local page = U.try("playerLoot", function() return getPlayerLoot(i) end)
         if page then fn(i, page) end
     end
 end
+
+--- The vehicle a loot-window container still belongs to, or nil. Never throws.
+local function vehicleBehind(inv)
+    local part = U.try("lootVehiclePart", function() return inv:getVehiclePart() end)
+    if not part then return nil end
+    return U.try("lootPartVehicle", function() return part:getVehicle() end)
+end
+
+-- Reported once rather than once per sweep: if clearing does not take, the
+-- line would otherwise be its own flood.
+local reportedDead = false
 
 function VM.dropDeadContainers()
     eachLootPage(function(i, page)
@@ -236,11 +251,13 @@ function VM.dropDeadContainers()
             return inv:isVehiclePart()
         end) == true
         if not isVehicle then return end
-        -- Silent on purpose: throwing *is* the answer here.
-        local alive = U.probe(function() inv:isOccupiedVehicleSeat() end)
-        if alive then return end
-        U.log("a vehicle container in the loot window belongs to a vehicle that " ..
-              "is gone; clearing it")
+        if vehicleBehind(inv) then return end
+
+        if not reportedDead then
+            reportedDead = true
+            U.log("a vehicle container in the loot window belongs to a vehicle " ..
+                  "that is gone; clearing it")
+        end
         U.try("clearLootWindow", function()
             local floor = ISInventoryPage.GetFloorContainer(i)
             if floor then page:setNewContainer(floor) end

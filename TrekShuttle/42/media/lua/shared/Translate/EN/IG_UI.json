@@ -54,6 +54,7 @@
     "IGUI_TREK_BoardCabin": "Go aboard (cabin)",
     "IGUI_TREK_CrewSeated": "Someone is still sitting in the shuttle",
     "IGUI_TREK_TakeOff": "Take her up",
+    "IGUI_TREK_AtControls": "At the controls -- press V for Take her up",
     "IGUI_TREK_TakingOff": "Taking her up...",
     "IGUI_TREK_LandBelow": "Set her down below",
     "IGUI_TREK_Climb": "Climb",

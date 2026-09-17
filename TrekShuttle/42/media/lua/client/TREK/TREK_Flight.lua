@@ -501,6 +501,33 @@ Events.OnPlayerUpdate.Add(function(player)
 end)
 
 ---------------------------------------------------------------------------
+-- Telling the pilot she can fly
+---------------------------------------------------------------------------
+-- Taking off is a radial-menu choice, and a menu nobody knows to open is a
+-- feature nobody has. So sitting down at the controls says so, over the
+-- pilot's head and in the log -- which also means a session where flight was
+-- never offered can be told apart from one where it was offered and refused.
+local told = false
+
+local function atTheControls(character)
+    if not character or not character:isLocalPlayer() then return end
+    if not F.isPilot(character) then return end
+    local s = Ship.get()
+    if s.flying then return end
+    if not s.landed then return end
+    U.note(character, getText("IGUI_TREK_AtControls"), 255, 200, 120)
+    if not told then
+        told = true
+        U.log("a pilot is at the shuttle's controls; 'take her up' is on the " ..
+              "radial menu (landed=%s, flying=%s)",
+              tostring(s.landed), tostring(s.flying))
+    end
+end
+
+Events.OnEnterVehicle.Add(function(ch) U.try("atControls", atTheControls, ch) end)
+Events.OnSwitchVehicleSeat.Add(function(ch) U.try("atControls", atTheControls, ch) end)
+
+---------------------------------------------------------------------------
 -- Debug console
 ---------------------------------------------------------------------------
 -- Extras, not the plan. Everything these report is already written to the log

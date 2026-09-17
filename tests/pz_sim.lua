@@ -585,10 +585,25 @@ function VehicleMT:transmitPartModData() end
 function VehicleMT:seatContainer()
     if self.seatContainerObj then return self.seatContainerObj end
     local vehicle = self
+    -- The part survives its vehicle; that is the whole shape of the bug. Once
+    -- the vehicle is gone the part is still there and getVehicle() answers
+    -- null, which is how a dead container can be spotted *without* throwing.
+    local part = {
+        getVehicle = function()
+            if vehicle.removed then return nil end
+            return vehicle
+        end,
+    }
     self.seatContainerObj = {
         isVehiclePart = function() return true end,
+        getVehiclePart = function() return part end,
+        -- Throws exactly as the engine does, and is left here on purpose: a
+        -- repeated check built on this call dumps a Java stack trace per call
+        -- and floods the log. Nothing in the mod may call it on a timer, and
+        -- if something starts to, this is what will fail the test.
         isOccupiedVehicleSeat = function()
             if vehicle.removed then
+                SIM.throwingProbes = (SIM.throwingProbes or 0) + 1
                 error("Cannot invoke BaseVehicle.getCharacter(int) because " ..
                       "VehiclePart.getVehicle() is null")
             end

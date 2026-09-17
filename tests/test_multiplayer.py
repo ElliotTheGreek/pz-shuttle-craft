@@ -481,6 +481,14 @@ def single_player():
     net.pump(2)
     check(ship(rt, "landed") is False, "single player: recall did not lift the ship")
     net.pump(35)
+    # Spotting a dead container must never be done by calling something that
+    # throws: the engine dumps a Java stack trace per call, and on a timer that
+    # is a log flood and a black screen -- 2932 traces in one session, seen in
+    # game on 2026-09-17. getVehiclePart():getVehicle() answers with nulls.
+    check(rt.eval("SIM.throwingProbes") is None,
+          "single player: the mod probed a removed vehicle with a call that "
+          "throws out of Java; on a timer that floods the log and blacks the "
+          "screen. Use getVehiclePart():getVehicle().")
     check(rt.eval("getPlayerLoot(0).inventory:isVehiclePart()") is False,
           "single player: the loot window still holds a container of the removed "
           "vehicle -- vanilla throws on that every frame")
