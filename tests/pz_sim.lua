@@ -496,6 +496,17 @@ function getServerOptions()
 end
 SandboxVars = { TrekShuttle = { Access = 1, TransporterLimit = 1 } }
 
+-- The world's map folders, void map included.
+function getLotDirectories()
+    local dirs = { "TrekShuttle", "Muldraugh, KY" }
+    local list = jlist(dirs)
+    list.contains = function(_, name)
+        for _, d in ipairs(dirs) do if d == name then return true end end
+        return false
+    end
+    return list
+end
+
 ---------------------------------------------------------------------------
 -- Global mod data and the network
 ---------------------------------------------------------------------------

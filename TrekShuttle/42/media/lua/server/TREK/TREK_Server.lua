@@ -546,6 +546,24 @@ Events.OnInitGlobalModData.Add(function()
           "beams limited=%s", isServer() and "server" or "single player", C.Version,
           C.BuildRev, tostring(s.landed), tostring(s.built), tostring(s.rev),
           tostring(s.owner), tostring(S.chargesLimited()))
+    S.checkVoidMap()
 end)
+
+--- Says, once, whether the void map is loaded. Without it the cabin still
+--- works, but the world generator fills the space outside with wilderness and
+--- zombies that runtime clearing can only partly remove -- worth a clear line
+--- in a server owner's log.
+function S.checkVoidMap()
+    local dirs = U.try("lotDirectories", function() return getLotDirectories() end)
+    if not dirs then return end
+    local found = U.try("voidMapListed", function() return dirs:contains(C.VoidMap) end)
+    if found then
+        U.log("void map '%s' is loaded", C.VoidMap)
+    else
+        U.log("NOTICE: the '%s' map is not loaded, so the space outside the cabin " ..
+              "will show wilderness. Add it before the base map in the server's Map " ..
+              "setting, e.g. Map=%s;Muldraugh, KY", C.VoidMap, C.VoidMap)
+    end
+end
 
 return S

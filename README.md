@@ -45,9 +45,21 @@ Mods screen and in the mod list of the world or server you are playing.
 ## Running it on a server
 
 The mod is server-authoritative: the ship, the cabin, its stores and the hull
-live on the server and every player sees the same ones. Nothing extra is
-needed -- add it to the server's mods like any other. Two sandbox options, on
-the **Shuttlecraft** page:
+live on the server and every player sees the same ones. Add it to the server's
+mods like any other, **and add its map folder in front of the base map**:
+
+```ini
+Map=TrekShuttle;Muldraugh, KY
+```
+
+The `TrekShuttle` map is a handful of empty cells around the cabin, so the
+space outside it is black instead of wilderness with zombies in it. Single
+player and the in-game Host settings add it for you; a dedicated server's
+`.ini` needs the line above. Without it the shuttle still works, the server
+log says `the 'TrekShuttle' map is not loaded`, and the view outside the cabin
+shows grass and trees.
+
+Two sandbox options, on the **Shuttlecraft** page:
 
 | Option | Choices | Default |
 |---|---|---|

@@ -306,6 +306,28 @@ position down to retry — `s.ghosts` and `TREK.Server.sweepGhosts` are the patt
 the TARDIS, getting this wrong left a second police box at every place the ship
 had ever been.
 
+### The black outside the cabin is a map, not a clearing
+
+The cabin's cell is off the vanilla map, and build 42's world generator fills
+any cell with no map data -- grass, trees, zombies. Clearing that at runtime
+never fully works: the view reaches past any margin, chunks stream in late,
+and zombies walk in. The user compared it with the Fifth-Wheel RV interior,
+which is black outside, and that mod's answer is the right one: it ships a map
+whose cells are **empty**. A mapped cell is never generated, and a map cell
+with no tiles renders as nothing.
+
+`tools/gen_void_map.py` writes `media/maps/TrekShuttle`: the interior cell and
+its eight neighbours as empty cells (the format is documented in the script;
+the output is byte-identical to the RV's empty cells). `tests/test_assets.py`
+reads every file back. If `C.InteriorCell` ever moves, regenerate.
+
+- Single player (`Map=DEFAULT`) and the in-game Host settings add a mod's map
+  folders automatically. A dedicated server's `.ini` must list it:
+  `Map=TrekShuttle;Muldraugh, KY`. The server logs whether it is loaded.
+- A map only affects cells never visited: an existing save that already
+  generated the cabin's surroundings keeps them. The runtime clearing stays as
+  the fallback for that case.
+
 ### The interior is authored in BuildingEd, not in the code
 
 `server/TREK/TREK_Build.lua` builds the deck, walls, lamp fittings and the
@@ -569,7 +591,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **"You are not on this shuttle's crew"** | Sandbox *Who may use the shuttle* is *Owner and crew*. The owner or an admin adds crew from the aboard menu. |
 | **Stuck on the pad, then put back outside** | The server never reported the cabin ready. Look for `[TREK] cabin ready` in the server's log and `arrival tick` lines on the client. |
 | **The phaser runs out** | The sweep is not seeing it. `TREK_Phaser()` reports how many it found; zero while one is in your hands means the inventory lookup is wrong. |
-| **The cabin looks like a hut in a forest** | The margin clearing did not run, or the chunks streamed in late. It re-runs on every rebuild. |
+| **Grass, trees or zombies outside the cabin** | The void map is not loaded (server log: `the 'TrekShuttle' map is not loaded` -- add it to `Map=`), or the save visited that area before the map existed. Test in a new world. |
 | **Two shuttles** | Something was removed at a position whose chunk was not loaded, and the failure was read as success. `TREK_Ghosts()` lists hulls known to be pending and forces a sweep. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
@@ -632,6 +654,7 @@ PZ="$USERPROFILE/Zomboid/PZ-Worlds.ps1"
 powershell -File "$PZ" list                               # worlds
 powershell -File "$PZ" new trektest -Template servertest  # accounts copied, no mods
 powershell -File "$PZ" mods trektest enable TrekShuttleDev
+# and in Zomboid/Server/trektest.ini:  Map=TrekShuttle;Muldraugh, KY
 powershell -File "$PZ" start trektest                     # join at 127.0.0.1:16261
 powershell -File "$PZ" stop
 ```

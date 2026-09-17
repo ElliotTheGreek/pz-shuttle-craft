@@ -191,6 +191,47 @@ for tip in sorted(re.findall(r"^\s*Tooltip\s*=\s*(\w+)\s*,", script, re.M)):
     if tip not in tips:
         failures.append(f"Tooltip.json has no entry for {tip}")
 
+# --- the void map ------------------------------------------------------
+# Empty map cells around the interior cell keep the world generator out, so
+# the space outside the cabin is black. Each file is read back in the build 42
+# format tools/gen_void_map.py writes; a malformed lot fails to load in game
+# and the wilderness comes back, silently.
+import struct
+cfg = open(os.path.join(MOD, "media", "lua", "shared", "TREK", "TREK_Config.lua"),
+           encoding="utf-8").read()
+cell = re.search(r"C\.InteriorCell\s*=\s*\{\s*x\s*=\s*(\d+),\s*y\s*=\s*(\d+)", cfg)
+void = re.search(r'C\.VoidMap\s*=\s*"([^"]+)"', cfg)
+if not cell or not void:
+    failures.append("TREK_Config.lua: C.InteriorCell or C.VoidMap not found")
+else:
+    cx, cy = int(cell.group(1)), int(cell.group(2))
+    mapdir = os.path.join(MOD, "media", "maps", void.group(1))
+    info = os.path.join(mapdir, "map.info")
+    if not os.path.isfile(info):
+        failures.append(f"media/maps/{void.group(1)}/map.info is missing "
+                        f"(python tools/gen_void_map.py)")
+    elif "lots=Muldraugh, KY" not in open(info, encoding="utf-8").read():
+        failures.append("the void map's map.info does not group it with Muldraugh, KY")
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            x, y = cx + dx, cy + dy
+            try:
+                h = open(os.path.join(mapdir, f"{x}_{y}.lotheader"), "rb").read()
+                p = open(os.path.join(mapdir, f"world_{x}_{y}.lotpack"), "rb").read()
+                c = open(os.path.join(mapdir, f"chunkdata_{x}_{y}.bin"), "rb").read()
+            except OSError:
+                failures.append(f"void map cell {x},{y} is missing a file")
+                continue
+            ok = (h[:4] == b"LOTH" and struct.unpack_from("<ii", h, 4) == (1, 1)
+                  and len(h) == 12 + len(b"invisible_01_0\n") + 24 + 1024
+                  and p[:4] == b"LOTP" and struct.unpack_from("<ii", p, 4) == (1, 1024)
+                  and len(p) == 12 + 8 * 1024 + 8 * 1024
+                  and struct.unpack_from("<q", p, 12)[0] == 12 + 8 * 1024
+                  and struct.unpack_from("<ii", p, 12 + 8 * 1024) == (-1, 64)
+                  and c == b"\x00\x01" + bytes(1024))
+            if not ok:
+                failures.append(f"void map cell {x},{y} is not a well-formed empty cell")
+
 print(f"checked {checked_sprites} sprite names and {checked_items} item ids, "
       f"{len(mod_items)} mod items, {len(mod_models)} models, "
       f"{len(mod_icons)} icons and {len(asked)} translation keys")
