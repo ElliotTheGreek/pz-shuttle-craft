@@ -124,34 +124,35 @@ call for the author.
 
 The original plan for the console follows.
 
-## Open: flight is not safe yet
+## Now: multiplayer -- 1.3, built, awaiting in-game test
 
-In testing a pilot still took fatal damage while flying, the fog of war
-glitched with the pilot's body held above the ground, and flight outlived the
-pilot's death (fixed: flight now ends on death or respawn, and the
-full-screen overlay that blocked right-click afterwards is gone).
+**Priority: nothing new until this is proven.** The mod was single-player only;
+1.3 makes the server own the ship (MULTIPLAYER.md, migration steps 1-6):
 
-Holding a character in mid-air fights the engine's fall simulation every
-tick, and multiplayer would make that worse. Flight is to be **redesigned**
-as part of the multiplayer design (MULTIPLAYER.md) -- the leading candidate is
-a real vehicle the pilot sits in -- not patched further.
+- Ship state, cabin build, loot, water and the hull on the server; clients ask
+  through validated commands and see the same ship.
+- One shared ship; sandbox option for owner-and-crew access, crew managed from
+  the aboard menu.
+- Transporter charges when the server's speed anti-cheat would kick (3, one
+  back every 150 s).
+- Shields push only the zombies each client simulates.
+- The sink has its own water store (vanilla's `addWaterContainer` pattern), so
+  it runs with the mains off.
+- **Hands-on flight removed**: pilots took damage, flight outlived death, and
+  a flying body is kicked by the anti-cheat on any server. Travel is by the
+  helm.
+- `tests/test_multiplayer.py` simulates single player and a server with two
+  clients.
 
-## Built, awaiting in-game test: fixes
+**Test:** single player first, then the local dedicated server, then two
+players. The intro card "THIS WAS YOUR AWAY MISSION" is confirmed.
 
-- **No damage while hovering.** Zombies crowding under a stationary ship could
-  scratch the pilot through it: god mode alone does not stop build 42's attack
-  path. Flight now also sets `ZombiesDontAttack`, `AvoidDamage` and
-  `Invincible` -- deliberately not ghost mode, so the dead still see the ship
-  and gather beneath it. Each protection is applied on its own, and landing
-  restores exactly what was there before; `tests/test_flight.py` fails if a
-  player could land still invincible. **Test:** hover still over a crowd.
-- **"THIS WAS YOUR AWAY MISSION".** The intro title card's `UI_Intro3` is
-  overridden in `Translate/EN/UI.json`. The engine merges mod translations
-  over vanilla (`Translator.tryFillMapFromMods`), but the intro plays early in
-  loading, so whether the override is in place by then is only provable in
-  game. **Test:** start a new world and watch the three title cards. If it
-  still says "HOW YOU DIED", the fallback is to redraw the intro from Lua.
-  `UI_Intro1` and `UI_Intro2` could be rethemed the same way if wanted.
+## Next: the shuttle as a vehicle
+
+Decided 2026-09-17: the crew enters the shuttle like a car. Stage 1 -- a vehicle
+script with the hull model and doorless seats, spawned where the ship lands,
+driveable on the ground. Stage 2 -- lift-off and flight over buildings. The
+flight speed control and photon torpedoes return with stage 2.
 
 ---
 

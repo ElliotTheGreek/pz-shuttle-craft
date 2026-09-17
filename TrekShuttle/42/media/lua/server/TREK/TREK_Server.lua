@@ -525,8 +525,12 @@ end)
 -- The schema migration runs on the authority as soon as the world's data is
 -- there, and is published, so no client ever sees a schema 1 table.
 Events.OnInitGlobalModData.Add(function()
-    U.state()
+    local s = U.state()
     Ship.commit()
+    U.log("ship authority ready (%s, v%s, build %d): landed=%s built=%s rev=%s owner=%s, " ..
+          "beams limited=%s", isServer() and "server" or "single player", C.Version,
+          C.BuildRev, tostring(s.landed), tostring(s.built), tostring(s.rev),
+          tostring(s.owner), tostring(S.chargesLimited()))
 end)
 
 return S

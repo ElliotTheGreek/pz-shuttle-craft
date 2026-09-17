@@ -3,9 +3,11 @@
 How the Shuttlecraft mod works correctly in **single player, hosted co-op and
 dedicated servers**, for anyone who subscribes on the Workshop.
 
-Status: **design, before migration.** The mod as shipped is single-player
-only: every system runs on the client. This document is the plan to fix that,
-and the record of why each decision was made.
+Status: **migration steps 1-6 built (1.3.0), awaiting in-game test**; the
+vehicle shuttle (steps 7-8) is next. This document is the plan and the record
+of why each decision was made. Steps 1-6 are verified against
+`tests/test_multiplayer.py`, which runs the real Lua as single player and as a
+server with two clients over a simulated network -- not yet in the game.
 
 ---
 
@@ -90,6 +92,8 @@ So a server-side file guarded by `if isClient() then return end` runs in
 - Items added later: `container:AddItem(item)` then
   `sendAddItemToContainer(container, item)`. [HIGH]
 - `instanceItem(id)` works on the server. [HIGH]
+- `isWaterInfinite()` needs the fixture's square to be in a *room* with the
+  mains on; the runtime cabin has no rooms, so it never applies. [HIGH]
 - **`createFluidContainersFromSpriteProperties` is an empty method.** A
   runtime sink gets water by adding a component, as vanilla's own
   `addWaterContainer` command does:
@@ -239,12 +243,17 @@ Server -> client (`OnServerCommand` / direct in SP):
 - The beaming client moves its own character (`teleportTo`, then exact
   position), exactly as today, and tells the server `boarded` / left.
 - **Transporter charge.** On a server whose `AntiCheatSpeed` would kick or ban
-  (read with `getServerOptions():getInteger("AntiCheatSpeed")`), each player
-  has **3 charges, one restored every 150 s** -- the anti-cheat's own budget,
+  (read with `getServerOptions():getInteger("AntiCheatSpeed")`: 1 ban, 2 kick,
+  3 log, 4 disabled), each player has **3 charges, one restored every 150 s** -- the anti-cheat's own budget,
   so the mod refuses the 4th beam in-lore ("the transporter is recharging")
   instead of the server kicking the player. In single player, co-op without
   anti-cheat, or with the check set to log/off, charges are unlimited.
 - Walking out of the hatch is also a long move, so it spends a charge too.
+- Taking her down needs 2 charges and spends 1: the other is held for the
+  beam home if there is no room to land (`recover` is free).
+- **Beaming down arrives first, then settles** on the nearest clear square:
+  the ground at the destination is not loaded -- on the client or the server
+  -- until someone stands there.
 - A server owner can remove the limit entirely with `AntiCheatSpeed=3` (log)
   or `4` (off); the Workshop description says so.
 
@@ -270,7 +279,8 @@ Server -> client (`OnServerCommand` / direct in SP):
 ### Phaser (carrying client)
 
 - Unchanged in principle: top up the charge of phasers in the local player's
-  own inventory. *Verify on a dedicated server* that the charge sticks.
+  own inventory, only for local players (`isLocalPlayer`). *Verify on a
+  dedicated server* that the charge sticks.
 
 ### Access and ownership (server, sandbox options)
 

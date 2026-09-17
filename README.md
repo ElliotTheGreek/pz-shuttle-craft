@@ -1,8 +1,10 @@
 # Shuttlecraft — a Project Zomboid build 42 mod
 
-A Starfleet shuttlecraft for Project Zomboid **42.20.4**. Beam up to it from
-anywhere in Kentucky, beam back down where you were standing or anywhere on
-the map, or call it down onto open ground and walk aboard through the hatch.
+A Starfleet shuttlecraft for Project Zomboid **42.20.4**, in single player,
+hosted co-op and on dedicated servers. Beam up to it from anywhere in
+Kentucky, beam back down where you were standing or anywhere on the map, or
+call it down onto open ground and walk aboard through the hatch. On a server
+the whole crew shares one ship.
 
 Everything is generated at runtime — no TileZed map, no hand-authored art. The
 meshes, textures and icons are produced by scripts in `tools/`.
@@ -16,26 +18,46 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Beam up** | Right-click anywhere → **Beam up to the shuttle**. No door to walk to and nothing to carry; the pad reaches you whether the ship is parked beside you or overhead. |
 | **Beam down** | From the pad, back to the exact spot you left — or set a course first and beam down anywhere on the map. |
 | **Call it down** | Right-click a patch of street or field → **Call the shuttle down here**. It needs 3×5 tiles of clear ground and tells you when it hasn't got them. |
-| **Fly it** | From the helm inside, click the map to lay in a course, then **take her down**. You are beamed to the site first so the ground actually loads, and the ship comes in after you. |
+| **Travel** | From the helm inside, click the map to lay in a course, then **take her down**. You are beamed to the site first so the ground actually loads, and the ship comes in after you. |
 | **Never stranded** | If there is not enough room at the destination you are beamed straight back aboard with the reason. A failed landing never leaves you on foot a hundred miles from the ship. |
 | **Phasers** | Four in a locker beside the pad. The charge never runs down, they never jam and they never wear out — and they are far quieter than a firearm, which is most of the point. |
-| **Running water** | A galley sink, a head and a shower, all topped up every ten in-game minutes. |
+| **Running water** | The galley sink has its own water supply, topped up every in-game minute, so it keeps running after the mains shut off. |
 | **A berth** | Somewhere to sleep, with a locker of linen. |
 | **A sick bay** | A biobed and eight wide medical cabinets, thirty items apiece. |
 | **Stores** | A galley with a hotplate, microwave, two fridges and a stocked pantry; a cargo bay of military crates packed with food and medical supplies; engineering shelves of tools. |
-| **A field at the hatch** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed — no free experience, no free loot. |
+| **Shields** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed — no free experience, no free loot. Raise and lower them at the helm. |
+| **A shared ship** | In multiplayer there is one shuttle for everyone. Server owners can limit it to its owner and crew. |
 | **Bookmarks** | Log any position and set a course back to it later. |
 | **No fog at the helm** | The map is fully revealed while the helm is open, so you can aim at somewhere you have never been. Your ordinary map keeps its fog. |
 
 ## Installing
 
+From the Steam Workshop, or for development:
+
 ```sh
-sh tools/deploy.sh
+python tools/deploy_windows.py
 ```
 
-Copies `TrekShuttle/` to `%UserProfile%\Zomboid\mods\TrekShuttle`. Enable
-**Shuttlecraft** in the Mods screen and in the mod list of the world you are
-playing.
+Copies `TrekShuttle/` to `%UserProfile%\Zomboid\mods\TrekShuttle` as
+`TrekShuttleDev` (so it cannot clash with a Workshop copy). Enable it in the
+Mods screen and in the mod list of the world or server you are playing.
+
+## Running it on a server
+
+The mod is server-authoritative: the ship, the cabin, its stores and the hull
+live on the server and every player sees the same ones. Nothing extra is
+needed -- add it to the server's mods like any other. Two sandbox options, on
+the **Shuttlecraft** page:
+
+| Option | Choices | Default |
+|---|---|---|
+| **Who may use the shuttle** | *Everyone*, or *Owner and crew*: the first player to use it owns it; the owner or an admin adds crew from the aboard menu (**Shuttlecraft ▸ Crew**). Anyone may always beam down or step out. | Everyone |
+| **Transporter charges** | *Match anti-cheat*: when `AntiCheatSpeed` is set to kick or ban, each player gets 3 beams with one back every 150 seconds, and a fourth is refused ("recharging") instead of the server kicking them. *Always unlimited*: never refused. | Match anti-cheat |
+
+Every beam moves a character a long way at once, and the speed anti-cheat
+counts each one. If your players want unlimited beaming, set
+`AntiCheatSpeed=3` (log) or `4` (disabled) in the server's `.ini`, or choose
+*Always unlimited* only with one of those.
 
 ## Playing
 
@@ -52,6 +74,10 @@ playing.
 
 The shuttle is either sitting on the ground somewhere or overhead. The
 transporter works either way; the hatch only works when it is down.
+
+Hands-on piloting was removed in 1.3: it could not be made safe, and flying a
+character across the map is exactly what a server's anti-cheat kicks. It is
+coming back as a vehicle you board like a car.
 
 ## How much room it needs
 
@@ -107,15 +133,22 @@ never drift out of date with the code.
 ## Repository layout
 
 ```
-TrekShuttle/42/media/lua/shared/TREK/   config, helpers, translations
-TrekShuttle/42/media/lua/client/TREK/   build, hull, transporter, helm,
-                                        phaser, menus, self test
+TrekShuttle/42/media/lua/shared/TREK/   config, helpers, protocol, ship state,
+                                        world queries, interior layout
+TrekShuttle/42/media/lua/server/TREK/   the authority: cabin build, stock, water,
+                                        hull, commands, transporter charges
+TrekShuttle/42/media/lua/client/TREK/   transporter, arrival, helm, menus,
+                                        shields, phaser
+TrekShuttle/42/media/sandbox-options.txt  server-owner settings
 TrekShuttle/42/media/models_X/          shuttle and helm meshes (.x)
 TrekShuttle/42/media/textures/          generated textures and icons
 TrekShuttle/42/media/scripts/           item and model definitions
 tools/                                  asset generators and dev scripts
-tests/                                  static checks against the live game data
+tests/                                  static checks and the multiplayer simulation
 ```
+
+`MULTIPLAYER.md` is the design: who owns what, the command protocol, and the
+engine facts it rests on.
 
 ## Tools
 
@@ -129,7 +162,8 @@ tests/                                  static checks against the live game data
 | `tools/gen_phaser.py` | Phaser inventory icon. |
 | `tools/gen_poster.py` | The mods-screen poster. |
 | `tools/luacheck.py` | Parses every Lua file through a real Lua VM. |
-| `tools/deploy.sh` | Copy the mod into the Zomboid mods folder. |
+| `tools/deploy_windows.py` | Copy the mod into the Zomboid mods folder as `TrekShuttleDev` and verify the copy. |
+| `tools/package_workshop.py` | Stage the Workshop upload (keeps the published item id). |
 | `tools/readtest.sh` | Pull the mod's own lines out of `console.txt`. |
 
 ## Testing
@@ -140,35 +174,36 @@ Static checks, seconds each, no game required:
 python tools/luacheck.py TrekShuttle/42/media/lua   # every Lua file parses
 python tests/test_assets.py                         # sprites, items, models,
                                                     # icons and translation keys
-python tests/test_stock.py                          # loot spreads across its list
+python tests/test_stock.py                          # loot spreads and fills
 python tests/test_layout.py                         # floor plan, fittings, footprint
+python tests/test_helm.py                           # the helm console draws and works
+python tests/test_multiplayer.py                    # single player and a server with
+                                                    # two clients, simulated
 ```
 
-`test_layout.py` is the one worth knowing about: it parses every `fit`, `line`
-and `place` call out of `TREK_Build.lua` and checks each offset against the
-hull, because the bow tapers over six squares and a fitting placed outside it
-simply does not appear — with no error anywhere.
+`test_multiplayer.py` is the one worth knowing about: it loads every Lua file
+into separate runtimes -- one for single player, then a server and two clients
+joined by a fake network that carries only plain data -- and plays the mod:
+beaming, the cabin build reaching every client, ownership and crew, transporter
+charges, landing, ghosts and shields. It fails if a client ever edits the world
+or the ship itself.
 
-In game: launch with `-debug` and load a **fresh** world with the mod enabled.
-The self-test runs itself and writes `TREK-TEST` lines to
-`%UserProfile%\Zomboid\console.txt`. On a world where the ship is already in
-use it stays out of the way; `TREK_SelfTest()` from the debug console forces
-it.
-
-```sh
-sh tools/readtest.sh
-```
-
-From the debug console:
+In game, load a **fresh** world with the mod enabled. From the debug console
+(the reports go to the server's log, `console.txt` in single player):
 
 | | |
 | --- | --- |
-| `TREK_SelfTest()` | Run the whole test: beam up, inspect the cabin, land, board, recall. |
+| `TREK_Stock()` | One line per container: items held and how full. |
+| `TREK_Water()` | Top up the water fixtures and log each one's reading. |
+| `TREK_Galley()` | One of each galley dish into your inventory. |
 | `TREK_Rebuild()` | Tear the cabin down and regenerate it, fully restocked. Stand aboard first. |
 | `TREK_Beam()` | Beam up if you are outside, down if you are aboard. |
 | `TREK_Room()` | Report whether the ship could land where you stand, and what is in the way. |
 | `TREK_Phaser()` | Report how many phasers the sweep can see on you and recharge them. |
-| `TREK_Ghosts()` | List hulls still waiting to be cleared and sweep up any near you. |
+| `TREK_Ghosts()` | Sweep hulls still waiting to be cleared, and any near you. |
+| `TREK_Charges()` | Report whether beams are rationed and your charges. |
+
+The design and diagnostic ones need single player or an admin on a server.
 
 ## Changing it
 
@@ -179,14 +214,14 @@ From the debug console:
   rules that exist because they were broken, failure signatures and what they
   actually mean, and how to test.
 
-Almost every change is an edit to `TREK_Config.lua` plus one `furnish`
-function in `TREK_Build.lua`.
+Almost every change is an edit to `TREK_Config.lua`, or the BuildingEd
+interior plus `TREK_InteriorLayout.lua`.
 
 ## Known limits
 
-- **Single player.** Nothing is written for multiplayer; the build runs
-  client-side and there is no server command path.
-- **One shuttle.** The mod tracks a single ship, so a second is not supported.
+- **One shuttle per world.** In multiplayer the crew shares it; a second
+  ship is not supported.
+- **No hands-on flight** until the vehicle shuttle arrives.
 - **The hull does not block anything.** It is a world model, and world models
   have no collision: zombies and players walk through it. The footprint is
   enforced when it lands, not afterwards.

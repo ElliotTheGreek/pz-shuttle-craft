@@ -24,7 +24,7 @@ python tests/test_assets.py
 python tests/test_stock.py
 python tests/test_layout.py
 python tests/test_helm.py
-python tests/test_flight.py
+python tests/test_multiplayer.py
 ```
 
 If all seven succeed you have a working setup. `test_layout.py` prints the cabin
@@ -36,10 +36,14 @@ thing.
 | `C:\Users\Arcade\pz_trekship` | this repo |
 | `C:\Users\Arcade\tardis` | the mod this one is built on; its DESIGN/DEV_GUIDE are worth reading |
 | `C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid` | game install |
-| `C:\Users\Arcade\Zomboid\mods\TrekShuttle` | where `tools/deploy.sh` installs to |
+| `C:\Users\Arcade\Zomboid\mods\TrekShuttle` | where `tools/deploy_windows.py` installs to (as `TrekShuttleDev`) |
 | `C:\Users\Arcade\Zomboid\console.txt` | the game log, **overwritten each launch** |
+| `C:\Users\Arcade\Zomboid\server-console.txt` | the local dedicated server's log |
 
-Target is **build 42.20.4**. Single player only.
+Target is **build 42.20.4**: single player, hosted co-op **and dedicated
+servers**, for anyone who subscribes on the Workshop. `MULTIPLAYER.md` is the
+design and the record of what the engine actually does; read it before
+changing anything that touches the world or the ship's state.
 
 ---
 
@@ -48,10 +52,10 @@ Target is **build 42.20.4**. Single player only.
 ```sh
 # 1. edit, then always:
 python tools/luacheck.py TrekShuttle/42/media/lua
-python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py && python tests/test_helm.py && python tests/test_flight.py
+python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py && python tests/test_helm.py && python tests/test_multiplayer.py
 
 # 2. install
-sh tools/deploy.sh
+python tools/deploy_windows.py
 
 # 3. run it
 "/c/Program Files (x86)/Steam/steamapps/common/ProjectZomboid/ProjectZomboid64.exe" -debug
@@ -70,6 +74,36 @@ user. Never skip step 1 to save time.
 ---
 
 ## Rules that exist because they were broken
+
+### The server owns the ship; a client asks
+
+**The rule every other rule now sits under.** Build 42 loads `shared/`,
+`client/` and `server/` Lua in *every* process -- single player, a co-op host,
+a co-op guest, a dedicated server -- and the mod decides where each piece runs:
+
+| Folder | Guard on line one | Runs in | Owns |
+|---|---|---|---|
+| `server/TREK/` | `if isClient() then return end` | single player, any server | the ship state, the cabin, loot, water, the hull, charges |
+| `client/TREK/` | `if isServer() then return end` | single player, any client | UI, menus, **its own character**, the zombies it simulates, lights |
+| `shared/TREK/` | none | everywhere | config, helpers, the protocol (`TREK_Net`), read-only world queries |
+
+- **A client never writes the ship.** It reads `TREK.Ship.get()` and asks with
+  `Core.send(player, "command", args)`; a handler in `TREK_Server.lua`
+  validates it and calls `Ship.commit()`, which publishes the state.
+- **A client moves only its own character**, and asks first
+  (`Core.requestMove`), because a server with the speed anti-cheat rations
+  long moves. Only a client can move an ordinary player at all.
+- **The server changes the world only through transmit calls**:
+  `transmitAddObjectToSquare` (object built complete first), `addFloor`,
+  `transmitRemoveItemFromSquare`, `sendAddItemToContainer`,
+  `AddWorldInventoryItem`. In single player the same calls act locally, so
+  there is one code path for all three setups.
+- **No admin-only or -debug-only calls** (see *The jar is not the API*).
+
+`tests/test_multiplayer.py` runs the real Lua as single player and as a server
+with two clients over a simulated network, and fails on a client edit, a
+command with no handler, a missing guard, or any `WARN` the mod logs. The
+local dedicated server (*Testing*, below) is how the engine side is checked.
 
 ### Verify engine methods before calling them
 
@@ -127,16 +161,18 @@ I call it". **You need both, and the second one is the one that was skipped.**
    flight never worked. Worse, there is a route around the role check
    (`setGodModCheat`) that is gated on `Core.debug`: **it works under -debug
    and nowhere else**, so a test run passes and every Workshop player fails.
-   `tests/test_flight.py` fails if any of these setters is called again.
+   `tests/test_multiplayer.py` fails if any of these setters is called again.
 
 When a method's behaviour matters, read what it does, not just its name. The
 game's own bytecode says which fields and capabilities a method touches; that
 is how the role check was found.
 
-**And design out the permission instead of fighting it.** The pilot is not
-made invulnerable; the body hovers `C.FlightHoverHeight` floors up, where
-zombies -- who only attack on their own floor -- cannot reach it. No cheat, no
-zombie handling, same in single player and multiplayer.
+**And design out the permission instead of fighting it.** Hands-on flight
+tried to keep the pilot safe with those setters, then by holding the body in
+mid-air; both failed in game, and flying a body at 90 tiles a second would be
+kicked by the speed anti-cheat on any server. It was removed. Flight returns as
+a *vehicle* -- a seat with no door cannot be bitten, and vehicles may travel
+fast -- which is the engine's own answer rather than a fight with it.
 
 The same reasoning applies to *which* API a given object actually uses — see
 *Two APIs for water* below.
@@ -233,9 +269,9 @@ a destination for the ship to follow them to is standing in the *middle* of it.
 exemption the ship refuses every landing anyone ever orders — and the refusal
 looks entirely plausible ("not enough room"), which is what makes it nasty.
 
-`Core.roomToLand(cx, cy, z, exempt)` takes one square to ignore, and
-`Core.exemptFor(player)` builds it. `Core.land` then steps the player clear as
-the ship arrives.
+`TREK.World.roomToLand(cx, cy, z, exempt)` takes one square to ignore, and
+`World.exemptFor(player)` builds it. The client steps the player clear when the
+server replies `landed`.
 
 ### Never let a failure strand the player
 
@@ -251,30 +287,37 @@ their ship.
 
 ### Never build where no player is standing
 
-Chunks only stream around a player. `getOrCreateGridSquare` on an unloaded
-chunk returns an orphan square, and the first engine call touching it throws.
-`U.square(..., create=true)` returns `nil` instead; `U.chunkLoaded` gates
-everything. Arrival moves the player **first**, holds them safe, and builds once
-the chunks appear.
+Chunks only stream around a player -- on the server as much as on a client.
+`getOrCreateGridSquare` on an unloaded chunk returns an orphan square, and the
+first engine call touching it throws. `U.square(..., create=true)` returns
+`nil` instead; `U.chunkLoaded` gates everything. Arrival moves the player
+**first** and holds them on the pad; the client reports `boarded`, and the
+server builds once the cabin's chunks are loaded around them there.
+
+**Beaming down follows the same rule.** The transporter used to look for clear
+ground at the destination *before* moving -- and far from the ship nothing is
+loaded, so it found none. It now materialises the player first and settles
+them on the nearest clear square once the ground streams in.
 
 **The same goes for removing things.** `U.square(x, y, z, false)` returns `nil`
 for an unloaded chunk, and a function that reads that as "nothing there" is
 wrong: it means "cannot tell yet". Return a reason, not a boolean, and write the
-position down to retry — `s.ghosts` and `Core.sweepGhosts` are the pattern. In
+position down to retry — `s.ghosts` and `TREK.Server.sweepGhosts` are the pattern. In
 the TARDIS, getting this wrong left a second police box at every place the ship
 had ever been.
 
 ### The interior is authored in BuildingEd, not in the code
 
-`TREK_Build.lua` builds the hull, the deck, the lighting and the helm item.
+`server/TREK/TREK_Build.lua` builds the deck, walls, lamp fittings and the
+helm item.
 **Everything else — every fitting, every locker — comes from
 `design/buildinged/TrekShuttle_Interior.tbx`** and is read at runtime out of
 `TREK_InteriorLayout.lua`. To move a locker, open the map editor, not the Lua.
 
 Layering on one square is deliberate here (a counter with a microwave on it, a
 console over a desk), so `furnishAuthoredInterior` bypasses the `claim()` check
-that `fit` uses. The lamps and the helm still go through `fit`, and it is only
-`tests/test_layout.py` that would notice a lamp landing on top of a locker.
+that the lamps use. It is only `tests/test_layout.py` that would notice a
+lamp (`C.LampSpots`) landing on top of a locker.
 
 **Dead placement code is worse than none.** For a while every `furnish*`
 function in `TREK_Build.lua` was unreachable — the BuildingEd switch had
@@ -297,39 +340,48 @@ editor and not carried across fails rather than quietly never appearing.
 
 ### Tag every object you place
 
-`U.clearSquare` keeps tagged objects and destroys untagged ones, so an untagged
-shelf is wiped on the next rebuild. Tags also drive behaviour (`sink`,
-`shower` and `toilet` get refilled) and the self-test counts fittings by tag.
+The server build's `clearSquare` keeps tagged objects (and the deck floor)
+and destroys untagged ones, so an untagged shelf is wiped on the next rebuild.
+Tags also drive behaviour: `sink`, `shower` and `toilet` get water.
 
-### Sink water goes through the FluidContainer -- the reserve API is private
+### Sink water: give the fixture a water store -- nothing else works
 
-**This section was wrong once, and the mistake shipped to a test.** It said a
-sink's water was *reserve* water, set with `setReserveWaterAmount`. Those
-methods exist in the jar and are **private**; from Lua they are nil, and the
-top-up threw on every refill. The in-game water test still passed, because a
-fresh world's mains were on. The tap would have run dry the week they shut off.
+**This section has been wrong twice.** First it said a sink's water was
+*reserve* water (`setReserveWaterAmount`): those methods are **private**, nil
+from Lua, and the top-up threw on every refill. Then it said to call
+`createFluidContainersFromSpriteProperties()`: **that method is empty** in
+build 42. Both passed the in-game water test, because a fresh world's mains
+were on.
 
-The public route: a sink has a `FluidContainer` built from its sprite's
-`waterAmount` properties. A map-loaded sink gets it automatically; **a sink
-placed at runtime does not**, exactly as a runtime locker gets no
-`ItemContainer` (see below). `Core.refillWater` calls
-`createFluidContainersFromSpriteProperties()` when `getFluidCapacity()` reads
-0, tops up with `addFluid(FluidType.Water, n)`, then asks `hasWater()`.
+What works is what vanilla's own `addWaterContainer` command does, and the
+server build does it to each plumbed fixture before sending it:
+
+```lua
+local f = ComponentType.FluidContainer:CreateComponent()
+f:setCapacity(C.WaterCapacity)
+f:addFluid(FluidType.Water, C.WaterCapacity)
+GameEntityFactory.AddComponent(obj, true, f)
+```
+
+Top-ups use `obj:addFluid(FluidType.Water, n)`, which syncs itself on a server;
+the server refills every game minute. A fixture from an older build with no
+store is removed and placed again with one -- the only way every client is
+sure to get the new component.
+
+The game's own "infinite water" (`isWaterInfinite`) needs the square to be in
+a *room* with the mains on; the cabin has no rooms, so it never applies.
 
 **To test water honestly, turn the mains off**: sandbox *Water Shutoff* set to
-instant. With the mains on, a broken top-up and a working one look identical.
-`TREK_Water()` logs each fixture's capacity and amount, not just a count.
-
-The reason the refill exists at all: the vanilla sink sprites carry
-`waterPiped`, so they are fed by the town mains. A ship that makes its own
-power should not lose its tap when Louisville does.
+instant. `TREK_Water()` logs each fixture's capacity, amount and `hasWater`.
 
 ### Containers built at runtime are not containers
 
 A sprite being a container in the tileset is not enough. A map-loaded object
 gets its `ItemContainer` for free; one built at runtime does not, and
-`obj:createContainersFromSpriteProperties()` is what makes the difference —
-`U.addContainer` calls it whenever the inventory is absent.
+`obj:createContainersFromSpriteProperties()` is what makes the difference.
+The server build calls it on the new object, stocks it and marks it explored
+**before** sending it, so the object reaches clients with its contents -- and
+without `setExplored(true)` vanilla rolls its own loot into it on first open.
 
 Without it the locker is placed, drawn, and cannot be opened, and it looks
 exactly like a stocked one. `TREK_InteriorLayout.lua` marks every stocked entry
@@ -376,7 +428,7 @@ Borrow vanilla world and hand models where an item's shape already exists
 ### Never restock an existing container
 
 The ship is meant to be lived in: what the player eats stays eaten.
-`U.addContainer` returns a `created` flag; stock only when it is true.
+The build's `place()` returns a `created` flag; stock only when it is true.
 Restocking an existing container does not refill it — it stacks a *second*
 helping on the first, so loot multiplies with every rebuild.
 
@@ -405,7 +457,7 @@ label that runs off its button can otherwise only be seen in game.
 `tests/test_helm.py` drives the real `TREK_Helm.lua` against stubs of
 `ISPanelJoypad`, `ISButton` and friends that record every draw call, and fails
 on a throw, a draw outside the panel, a label wider than its button, a
-control that does not change state, or a button a controller cannot reach.
+control that asks for nothing, or a button a controller cannot reach.
 `tools/preview_helm.py` replays the same draw calls into a PNG with the real
 textures. **Look at the render**: it found a clipped course line that every
 test passed.
@@ -511,7 +563,11 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **One container is empty and the rest are fine** | Either its sprite is not a container in the tileset, or its `loot` names a `C.Loot` list that does not exist. Both fail in `test_layout.py`; in game, `TREK_Stock()` names the square. |
 | **A container is missing item types** | Container capacity. `AddItems` drops items silently once full. Use `U.stockEach`, which reads the container back and reports what did not land. |
 | **A container looks under-stocked** | Its list is too light to reach `C.FillFraction` before `C.FillItemCap` binds. Put heavier items in the list; `tests/test_stock.py` prints what each size reaches. |
-| **The sink runs dry after a few weeks** | The vanilla mains shut off and the top-up used the fluid API instead of reserve water. See *Two APIs for water*. |
+| **The sink runs dry after a few weeks** | The fixture has no water store of its own and was living on the mains. See *Sink water*. `TREK_Water()` shows capacity 0. |
+| **It works for the host and not for anyone else** | Something is being done on a client that only the server may do, or only locally. `tests/test_multiplayer.py` should catch it; if it did not, add the case. |
+| **"The transporter is recharging"** | Working as designed on a server whose `AntiCheatSpeed` kicks or bans: 3 beams, one back every 150 s. `TREK_Charges()` reports it. |
+| **"You are not on this shuttle's crew"** | Sandbox *Who may use the shuttle* is *Owner and crew*. The owner or an admin adds crew from the aboard menu. |
+| **Stuck on the pad, then put back outside** | The server never reported the cabin ready. Look for `[TREK] cabin ready` in the server's log and `arrival tick` lines on the client. |
 | **The phaser runs out** | The sweep is not seeing it. `TREK_Phaser()` reports how many it found; zero while one is in your hands means the inventory lookup is wrong. |
 | **The cabin looks like a hut in a forest** | The margin clearing did not run, or the chunks streamed in late. It re-runs on every rebuild. |
 | **Two shuttles** | Something was removed at a position whose chunk was not loaded, and the failure was read as success. `TREK_Ghosts()` lists hulls known to be pending and forces a sweep. |
@@ -528,7 +584,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | `tools/luacheck.py` | Lua syntax, via a real Lua VM |
 | `tests/test_assets.py` | sprites, items, meshes, textures, icons, the phaser's borrowed vanilla references, and every translation key |
 | `tests/test_stock.py` | items that cannot be created at all; loot that does not spread across its list; containers that do not reach `C.FillFraction` |
-| `tests/test_flight.py` | flight protections not all on in the air, or not restored exactly on landing (a permanently invincible player) |
+| `tests/test_multiplayer.py` | the real code as single player and as a server with two clients: cabin build and stock reaching every client, ownership and crew, transporter charges, landing round trips, ghosts, shields pushing only local zombies, a client editing the world or ship state, commands without handlers, missing file guards, role-gated setters, any logged `WARN` |
 | `tests/test_helm.py` | helm console throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
 | `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
 
@@ -547,24 +603,42 @@ for.
 
 ### In game
 
-Launch with `-debug` and load a **fresh** world; the self-test runs itself and
-writes `TREK-TEST` lines. On a world where the ship is already in use it
-deliberately stays out of the way — it beams the character across the map and
-back, which is unwelcome mid-game.
+Load a **fresh** world. Nothing runs by itself any more: the old in-game
+self-test beamed the character across the map and was removed with flight.
+The debug console functions ask the server, which allows them in single player
+or for an admin, and write their report to the server's log (`console.txt` in
+single player, `server-console.txt` on a server).
 
 | Console function | Does |
 |---|---|
-| `TREK_SelfTest()` | Force the whole run |
 | `TREK_Stock()` | One line per container: items held and how full. **The first thing to run when loot looks wrong.** |
 | `TREK_Galley()` | Put one of each galley dish in your inventory |
-| `TREK_Water()` | Top the fixtures up and report how many hold water |
-| `TREK_Shields()` | Report the shields; `TREK_Shields(false)` / `(true)` sets them |
-| `TREK_Speed()` | Report flight speed; `TREK_Speed(n)` picks step n (1 = 1/4x ... 6 = 5x) |
-| `TREK_Rebuild()` | Tear down and regenerate the cabin, restocked. Stand aboard. |
+| `TREK_Water()` | Top the fixtures up and log capacity, amount and `hasWater` for each |
+| `TREK_Shields()` | Report the shields; `TREK_Shields(false)` / `(true)` asks to set them |
+| `TREK_Rebuild()` | Tear down and regenerate the cabin, restocked. Stand aboard. **Destroys contents.** |
 | `TREK_Beam()` | Beam up if outside, down if aboard |
-| `TREK_Room()` | Report whether the ship could land here and what is in the way |
+| `TREK_Room()` | Report whether the ship could land here and what is in the way (this client's view) |
 | `TREK_Phaser()` | Report phasers found on you and recharge them |
-| `TREK_Ghosts()` | List hulls waiting to be cleared and sweep up nearby ones |
+| `TREK_Ghosts()` | Sweep hulls waiting to be cleared, and strays near you |
+| `TREK_Charges()` | Log whether beams are rationed on this server and your charges |
+
+### On a dedicated server
+
+A local dedicated server is installed for testing; it is a **test harness
+only** -- nothing in the mod may depend on it.
+
+```sh
+PZ="$USERPROFILE/Zomboid/PZ-Worlds.ps1"
+powershell -File "$PZ" list                               # worlds
+powershell -File "$PZ" new trektest -Template servertest  # accounts copied, no mods
+powershell -File "$PZ" mods trektest enable TrekShuttleDev
+powershell -File "$PZ" start trektest                     # join at 127.0.0.1:16261
+powershell -File "$PZ" stop
+```
+
+Deploy first (`tools/deploy_windows.py` installs `TrekShuttleDev` where the
+server reads it). A fresh world takes 3-6 minutes to generate. The in-game Host
+button has never worked on this PC; test co-op when another machine can.
 
 ### Watching the log
 
@@ -602,31 +676,26 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.1.0**, build revision **10**.
+Version **1.3.0**, build revision **10**.
 
-**Seen working in game:** flying the shuttle, the BuildingEd interior, and the
-nineteen stocked containers — lockers, counters, fridges, ovens, microwave —
-including the phaser locker. Container capacity and contents weight read back
-correctly off real objects, so `U.fill`'s weight targeting is confirmed against
-the engine and not just the stub.
+**1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-6):
+server-owned ship and cabin, request protocol, transporter charges, shields per
+client, owner-and-crew access, and hands-on flight removed. It passes every
+static test and the simulated server; **none of it has been seen in game yet**.
+
+**Seen working in game before the rewrite:** the BuildingEd interior, the
+nineteen stocked containers including the phaser locker, the helm console and
+its shields toggle, the galley food.
 
 **Not yet seen in game**, in the order worth checking:
 
-1. **The water fixtures.** `setReserveWaterAmount` is the right API by every
-   check available here, but the previous water code was wrong in exactly this
-   way and passed every static test. `TREK_Water()` answers it in one line.
-   The sink will *look* fine either way until the mains shut off.
-2. **The phaser firing.** The ammunition argument in DESIGN.md is reasoning
-   from the jar, not observation. Four of them now reach the locker, which is
-   as far as this has been proven.
-3. **The landing search's cost in practice.** 48 positions a tick is a guess at
-   a safe slice, not a measurement.
-4. **The self test's authored-fitting expectations.** Rewritten to read the
-   layout rather than a hand-written list; the run has not been watched since.
-
-Inherited from the TARDIS and already proven there: runtime cell generation,
-the arrival hold, chunk gating, the void margin, the zombie field, world-model
-placement, map picking, and the ghost sweep.
+1. **Single player still works end to end** through the new request path:
+   beam up, cabin, helm, take her down, hatch, beam down.
+2. **The dedicated server**: the interior cell loads there, the server-built
+   cabin reaches the client with its stock, water fills with the mains off.
+3. **Two players**: one cabin, loot taken by one gone for the other, crew
+   access, charges.
+4. **The phaser firing** and staying charged on a server.
 
 **The pattern worth carrying forward.** Three separate bugs in this mod have
 had the same shape: a plausible engine call that fails silently, leaving a
@@ -644,18 +713,23 @@ Known limits are listed at the bottom of `README.md`.
 ## Layout
 
 ```
-design/buildinged/TrekShuttle_Interior.tbx                the interior, in the map editor
-TrekShuttle/42/media/lua/client/TREK/TREK_InteriorLayout.lua   that interior as data + loot
-TrekShuttle/42/media/lua/shared/TREK/TREK_Config.lua      all constants — start here
-TrekShuttle/42/media/lua/shared/TREK/TREK_Util.lua        safe wrappers, state, geometry
-TrekShuttle/42/media/lua/client/TREK/TREK_Build.lua       cabin construction, furnishing
-TrekShuttle/42/media/lua/client/TREK/TREK_Core.lua        hull, landing room, hatch, field, water
-TrekShuttle/42/media/lua/client/TREK/TREK_Transport.lua   the transporter
-TrekShuttle/42/media/lua/client/TREK/TREK_Helm.lua        the LCARS helm console
-TrekShuttle/42/media/lua/client/TREK/TREK_Travel.lua      courses, map picking, landing search
-TrekShuttle/42/media/lua/client/TREK/TREK_Phaser.lua      keeping phasers charged
-TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua        right-click menus
-TrekShuttle/42/media/lua/client/TREK/TREK_SelfTest.lua    in-game step machine
+design/buildinged/TrekShuttle_Interior.tbx                     the interior, in the map editor
+TrekShuttle/42/media/sandbox-options.txt                       server-owner settings
+TrekShuttle/42/media/lua/shared/TREK/TREK_Config.lua           all constants — start here
+TrekShuttle/42/media/lua/shared/TREK/TREK_Util.lua             safe wrappers, state schema, geometry, stocking
+TrekShuttle/42/media/lua/shared/TREK/TREK_Net.lua              client -> server commands, replies
+TrekShuttle/42/media/lua/shared/TREK/TREK_Ship.lua             publishing the ship state, access rules
+TrekShuttle/42/media/lua/shared/TREK/TREK_World.lua            read-only landing and standing queries
+TrekShuttle/42/media/lua/shared/TREK/TREK_InteriorLayout.lua   the interior as data + loot
+TrekShuttle/42/media/lua/server/TREK/TREK_Build.lua            cabin construction, stock, water
+TrekShuttle/42/media/lua/server/TREK/TREK_Server.lua           command handlers, hull, ghosts, charges
+TrekShuttle/42/media/lua/client/TREK/TREK_Core.lua             asking to move, arrival, hatch, shields, lights
+TrekShuttle/42/media/lua/client/TREK/TREK_Transport.lua        the transporter
+TrekShuttle/42/media/lua/client/TREK/TREK_Helm.lua             the LCARS helm console
+TrekShuttle/42/media/lua/client/TREK/TREK_Travel.lua           courses, map picking, landing search
+TrekShuttle/42/media/lua/client/TREK/TREK_Phaser.lua           keeping phasers charged
+TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua             right-click menus, crew
+tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network
 ```
 
 ---
@@ -697,9 +771,9 @@ Amounts are not set per container: everything fills to `C.FillFraction` of its
 own capacity. To make one container fuller than the rest, give its entry a
 `fill` (fraction) or `cap` (item count) override.
 
-**Bump `C.BuildRev` either way.** A cabin only restocks when its revision is
-stale — that is what let the empty lockers be repaired on an existing save
-instead of needing a new world.
+**Bump `C.BuildRev` either way**, so the cabin is revisited -- but remember
+*Never restock an existing container*: new loot reaches new worlds, and
+`TREK_Galley()` or `TREK_Rebuild()` for testing.
 
 ---
 

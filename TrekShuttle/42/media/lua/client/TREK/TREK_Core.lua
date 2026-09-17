@@ -366,6 +366,11 @@ end
 
 Events.OnTick.Add(serviceArrival)
 
+Events.OnGameStart.Add(function()
+    U.log("client ready (%s, v%s)", isClient() and "connected to a server" or "single player",
+          C.Version)
+end)
+
 local rescueTick, fieldTick = 0, 0
 Events.OnPlayerUpdate.Add(function(player)
     if not player or not player:isLocalPlayer() then return end
