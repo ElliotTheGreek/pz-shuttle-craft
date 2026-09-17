@@ -317,7 +317,8 @@ whose cells are **empty**. A mapped cell is never generated, and a map cell
 with no tiles renders as nothing.
 
 `tools/gen_void_map.py` writes `media/maps/TrekShuttle`: the interior cell and
-its eight neighbours as empty cells (the format is documented in the script;
+two rings of cells around it (5x5; one ring left trees in view from the
+cabin's height) as empty cells (the format is documented in the script;
 the output is byte-identical to the RV's empty cells). `tests/test_assets.py`
 reads every file back. If `C.InteriorCell` ever moves, regenerate.
 

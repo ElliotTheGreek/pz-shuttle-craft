@@ -212,8 +212,9 @@ else:
                         f"(python tools/gen_void_map.py)")
     elif "lots=Muldraugh, KY" not in open(info, encoding="utf-8").read():
         failures.append("the void map's map.info does not group it with Muldraugh, KY")
-    for dx in (-1, 0, 1):
-        for dy in (-1, 0, 1):
+    # Two rings: from the cabin's height one ring left trees in view.
+    for dx in range(-2, 3):
+        for dy in range(-2, 3):
             x, y = cx + dx, cy + dy
             try:
                 h = open(os.path.join(mapdir, f"{x}_{y}.lotheader"), "rb").read()

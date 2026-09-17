@@ -30,12 +30,15 @@ ROOT = Path(__file__).resolve().parent.parent
 MAP_NAME = "TrekShuttle"
 OUT = ROOT / "TrekShuttle" / "42" / "media" / "maps" / MAP_NAME
 
-# The cabin's cell and every neighbour: the cabin sits 16 squares inside its
-# cell's north-west corner, so the loaded area reaches into the cells beside it.
+# The cabin's cell and two rings of cells around it, 5x5. One ring was not
+# enough: the cabin is four floors up, and from that height the camera shows
+# ground well past the neighbouring cells -- trees were visible to the north in
+# game. The Fifth-Wheel RV covers 5x5 around its interior for the same reason.
 # Must agree with C.InteriorCell in TREK_Config.lua (tests/test_assets.py checks).
 INTERIOR_CELL = (96, 40)
+RING = 2
 CELLS = [(INTERIOR_CELL[0] + dx, INTERIOR_CELL[1] + dy)
-         for dx in (-1, 0, 1) for dy in (-1, 0, 1)]
+         for dx in range(-RING, RING + 1) for dy in range(-RING, RING + 1)]
 
 CHUNKS_PER_SIDE = 32          # 256 squares / 8
 CHUNK_SQUARES = 8 * 8         # one level
