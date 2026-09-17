@@ -243,7 +243,7 @@ Server -> client (`OnServerCommand` / direct in SP):
 - The beaming client moves its own character (`teleportTo`, then exact
   position), exactly as today, and tells the server `boarded` / left.
 - **Transporter charge.** On a server whose `AntiCheatSpeed` would kick or ban
-  (read with `getServerOptions():getInteger("AntiCheatSpeed")`: 1 ban, 2 kick,
+  (read with `getServerOptions():getOption("AntiCheatSpeed")`: 1 ban, 2 kick,
   3 log, 4 disabled), each player has **3 charges, one restored every 150 s** -- the anti-cheat's own budget,
   so the mod refuses the 4th beam in-lore ("the transporter is recharging")
   instead of the server kicking the player. In single player, co-op without

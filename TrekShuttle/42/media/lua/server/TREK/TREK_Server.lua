@@ -246,8 +246,9 @@ function S.chargesLimited()
         return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.TransporterLimit
     end)
     if tonumber(mode) == 2 then return false end
+    -- An enum option: getInteger answers nil for it, getOption gives "1".."4".
     local speed = U.try("antiCheatSpeed", function()
-        return getServerOptions():getInteger("AntiCheatSpeed")
+        return getServerOptions():getOption("AntiCheatSpeed")
     end)
     speed = tonumber(speed)
     return speed == 1 or speed == 2

@@ -427,10 +427,15 @@ end
 ---------------------------------------------------------------------------
 SIM.antiCheatSpeed = 2
 function getServerOptions()
-    return { getInteger = function(_, name)
-        if name == "AntiCheatSpeed" then return SIM.antiCheatSpeed end
-        return nil
-    end }
+    -- As the engine does: AntiCheatSpeed is an enum option, so getInteger
+    -- answers nil and getOption answers the value as a string.
+    return {
+        getInteger = function() return nil end,
+        getOption = function(_, name)
+            if name == "AntiCheatSpeed" then return tostring(SIM.antiCheatSpeed) end
+            return nil
+        end,
+    }
 end
 SandboxVars = { TrekShuttle = { Access = 1, TransporterLimit = 1 } }
 
