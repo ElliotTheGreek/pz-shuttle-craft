@@ -306,6 +306,43 @@ position down to retry — `s.ghosts` and `TREK.Server.sweepGhosts` are the patt
 the TARDIS, getting this wrong left a second police box at every place the ship
 had ever been.
 
+### A hook on a toggle must ask before it calls through
+
+**New in this mod, and it hid a whole feature in plain sight.**
+
+Vanilla's `ISVehicleMenu.showRadialMenu` is a *toggle*. Its first act is
+`menu:clear()`, and then:
+
+```lua
+if menu:isReallyVisible() then ... menu:undisplay() return end
+```
+
+So `isReallyVisible()` is true only on the press that **closes** the menu. And
+it is false on the press that opens it, because `addToUIManager()` reaches
+`UIManager.AddUI`, which appends to the pending `toAdd` list, while
+`isReallyVisible()` asks whether the element is in the **live** `getUI()` list.
+It only becomes true a frame later.
+
+A wrapper that added its slices behind `if not menu:isReallyVisible() then
+return end` therefore ran at no useful moment at all: never on open, and on
+close only after vanilla had already cleared and dismissed the menu. The
+shuttle's *Go aboard* and *Take her up* were never added in any build, and from
+inside the game flight simply looked broken.
+
+**Take the reading you need before calling the original, not after** — by then
+the state has flipped either way:
+
+```lua
+local closing = menu ~= nil and menu:isReallyVisible()
+baseRadial(playerObj)
+if closing then return end
+```
+
+`tests/pz_sim.lua` models the radial menu as the toggle it is, including the
+one-frame delay before it is really visible, and `tests/test_multiplayer.py`
+opens it for real and reads its slices back. Mutation-check that test if you
+touch it: with the old guard it must report only vanilla's two slices.
+
 ### A vehicle's altitude is a floor, not a height
 
 **New in this mod, and it disproved a whole design before it was written.**

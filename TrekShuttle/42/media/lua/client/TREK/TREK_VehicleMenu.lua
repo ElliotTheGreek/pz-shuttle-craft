@@ -141,40 +141,98 @@ local function addFlightOptions(menu, playerObj, worldobjects)
 end
 
 local function shipIcon()
-    return getTexture("media/ui/TREK_Shuttle.png")
+    return U.try("shipIcon", function()
+        return getTexture("media/ui/TREK_Shuttle.png")
+    end)
+end
+
+-- Written out in full rather than built from the key, so that
+-- tests/test_assets.py -- which scans the Lua for "media/ui/*.png" literals --
+-- can see them and fail if one is not on disk. A concatenated path would hide
+-- them from it, and a radial slice with a nil texture draws no picture at all
+-- rather than complaining.
+local ICONS = {
+    aboard  = "media/ui/TREK_Aboard.png",
+    ascend  = "media/ui/TREK_Ascend.png",
+    descend = "media/ui/TREK_Descend.png",
+    land    = "media/ui/TREK_Land.png",
+}
+
+local function icon(key)
+    local path = ICONS[key]
+    if not path then return shipIcon() end
+    return U.try("radialIcon:" .. key, function()
+        return getTexture(path)
+    end) or shipIcon()
 end
 
 -- The radial menu inside the vehicle.
+--
+-- The `closing` dance is not defensive habit, it is the whole reason these
+-- slices exist at all. Vanilla's showRadialMenu is a *toggle*: its first act
+-- is `menu:clear()`, and then
+--
+--     if menu:isReallyVisible() then ... menu:undisplay() return end
+--
+-- so `isReallyVisible()` is true only on the press that shuts the menu, and
+-- false on the press that opens it. An earlier draft added its slices behind
+-- `if not menu:isReallyVisible() then return end`, which is exactly backwards:
+-- it bailed on every open and only ran while the menu was being taken down.
+-- Neither "go aboard" nor "take her up" was ever added, in any build, and from
+-- the outside it looked like flight simply did not work. Ask *before* calling
+-- through, because afterwards the state has flipped either way.
 local baseRadial = ISVehicleMenu.showRadialMenu
 function ISVehicleMenu.showRadialMenu(playerObj)
+    local num = playerObj and U.try("radialPlayerNum", function()
+        return playerObj:getPlayerNum()
+    end)
+    local menu = num and U.try("radialMenu", function()
+        return getPlayerRadialMenu(num)
+    end)
+    local closing = menu ~= nil and U.try("radialVisible", function()
+        return menu:isReallyVisible()
+    end) == true
+
     baseRadial(playerObj)
+
+    if closing or not menu then return end
     local vehicle = playerObj and playerObj:getVehicle()
     if not V.isShuttle(vehicle) then return end
-    local menu = getPlayerRadialMenu(playerObj:getPlayerNum())
-    if not menu or not menu:isReallyVisible() then return end
-    menu:addSlice(getText("IGUI_TREK_BoardCabin"), shipIcon(), VM.onBoardFromSeat, playerObj)
+
+    menu:addSlice(getText("IGUI_TREK_BoardCabin"), icon("aboard"),
+                  VM.onBoardFromSeat, playerObj)
 
     local F = TREK.Flight
     if not F or not F.isPilot(playerObj) then return end
     if F.flying() then
-        menu:addSlice(getText("IGUI_TREK_LandBelow"), shipIcon(), VM.onLandBelow, playerObj)
-        menu:addSlice(getText("IGUI_TREK_Climb"), shipIcon(), VM.onClimb, playerObj)
-        menu:addSlice(getText("IGUI_TREK_Dive"), shipIcon(), VM.onDive, playerObj)
+        menu:addSlice(getText("IGUI_TREK_Climb"), icon("ascend"), VM.onClimb, playerObj)
+        menu:addSlice(getText("IGUI_TREK_Dive"), icon("descend"), VM.onDive, playerObj)
+        menu:addSlice(getText("IGUI_TREK_LandBelow"), icon("land"), VM.onLandBelow, playerObj)
     elseif Ship.get().landed then
-        menu:addSlice(getText("IGUI_TREK_TakeOff"), shipIcon(), VM.onTakeOff, playerObj)
+        menu:addSlice(getText("IGUI_TREK_TakeOff"), icon("ascend"), VM.onTakeOff, playerObj)
     end
 end
 
--- The radial menu beside the vehicle.
+-- The radial menu beside the vehicle. Toggles exactly as the one inside does,
+-- so it is asked the same question in the same order.
 local baseRadialOutside = ISVehicleMenu.showRadialMenuOutside
 function ISVehicleMenu.showRadialMenuOutside(playerObj)
+    if not playerObj then return baseRadialOutside(playerObj) end
+    local num = U.try("radialPlayerNum", function() return playerObj:getPlayerNum() end)
+    local menu = num and U.try("radialMenu", function()
+        return getPlayerRadialMenu(num)
+    end)
+    local closing = menu ~= nil and U.try("radialVisible", function()
+        return menu:isReallyVisible()
+    end) == true
+
     baseRadialOutside(playerObj)
-    if not playerObj or playerObj:getVehicle() then return end
+
+    if closing or not menu then return end
+    if playerObj:getVehicle() then return end
     local vehicle = ISVehicleMenu.getVehicleToInteractWith(playerObj)
     if not V.isShuttle(vehicle) then return end
-    local menu = getPlayerRadialMenu(playerObj:getPlayerNum())
-    if not menu or not menu:isReallyVisible() then return end
-    menu:addSlice(getText("IGUI_TREK_BoardCabin"), shipIcon(), VM.onBoard, playerObj)
+    menu:addSlice(getText("IGUI_TREK_BoardCabin"), icon("aboard"), VM.onBoard, playerObj)
 end
 
 -- The right-click menu beside the vehicle.

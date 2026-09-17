@@ -240,7 +240,7 @@ class Net:
                 self.deliver(self.queue.popleft())
             self.clock += 16
             for rt in self.all():
-                rt.run("SIM.stream(); SIM.gravity()")
+                rt.run("SIM.stream(); SIM.gravity(); SIM.settleUI()")
                 rt.fire("OnTick", 0)
                 rt.run("for _, p in ipairs(SIM.players) do SIM.fire('OnPlayerUpdate', p) end")
             # Each client reports its own character's position to the server.
@@ -560,6 +560,19 @@ def flight():
     net.pump(40)
     check(ship(rt, "landed") is True, "flight: the ship would not land to start with")
     seat(rt)
+
+    # --- the radial menu actually offers it --------------------------------
+    # Vanilla's radial is a toggle, and a hook that adds slices only when the
+    # menu reports itself visible runs solely while it is being dismissed. That
+    # is invisible from the source and cost a whole test session, so the menu is
+    # opened here for real and its slices read back.
+    rt.run("SIM.radial.visible = false")
+    rt.run(f"ISVehicleMenu.showRadialMenu({P})")
+    titles = rt.eval("getPlayerRadialMenu():titles()")
+    check("IGUI_TREK_TakeOff" in (titles or ""),
+          f"flight: the radial menu offers no way to take off (slices: {titles})")
+    check("IGUI_TREK_BoardCabin" in (titles or ""),
+          f"flight: the radial menu offers no way into the cabin (slices: {titles})")
 
     # --- take off ---------------------------------------------------------
     rt.run(f"TREK.Flight.takeOff({P})")

@@ -48,6 +48,10 @@ local core = {
     getScreenHeight = function() return 1080 end,
 }
 function getCore() return core end
+
+-- Textures are not modelled; the tests that care assert on the *name* of an
+-- icon file existing on disk (tests/test_assets.py), not on pixels.
+function getTexture(path) return { path = path } end
 function getText(key, ...)
     local out = key
     for i = 1, select("#", ...) do out = out .. "|" .. tostring(select(i, ...)) end
@@ -668,6 +672,10 @@ function PlayerMT:clearFallDamage() self.fallDamage = 0 end
 --- Gravity, the way the engine moves a character: from its *last* height, not
 --- the height Lua last set. A hold that only calls setZ still falls. Landing
 --- two or more floors down kills, which is what happened in game.
+function SIM.settleUI()
+    if SIM.radial and SIM.radial.settle then SIM.radial:settle() end
+end
+
 function SIM.gravity()
     if SIM_ROLE == "server" then return end
     for _, p in ipairs(SIM.players) do
@@ -842,11 +850,65 @@ end
 SIM.floorContainer = { isVehiclePart = function() return false end }
 ISInventoryPage = { GetFloorContainer = function() return SIM.floorContainer end }
 
+-- The radial menu, modelled as the toggle it really is.
+--
+-- Vanilla's showRadialMenu clears the menu and, if it was already up, takes it
+-- down and returns -- so isReallyVisible() is true only on the press that
+-- closes it. A mod hook that adds its slices behind "if the menu is visible"
+-- therefore runs only while the menu is being dismissed and never when it is
+-- being built, which is a feature that silently does not exist. That happened
+-- (2026-09-17): neither "go aboard" nor "take her up" was ever added, in any
+-- build, and from the outside flight simply looked broken.
+SIM.radial = { slices = {}, visible = false }
+
+-- isReallyVisible() is false for a frame after the menu is opened, and that
+-- single fact is the whole trap. addToUIManager() calls UIManager.AddUI, which
+-- appends to a *pending* list (UIManager.toAdd); isReallyVisible() asks whether
+-- the element is in the live list (UIManager.getUI().contains). So it answers
+-- false on the press that opens the menu, and vanilla returns early on the
+-- press that closes it -- there is no moment at which a hook guarded on
+-- "is it visible" can add anything at all. Modelled here so that guard fails
+-- the test instead of the player.
+function getPlayerRadialMenu()
+    local m = SIM.radial
+    if m.addSlice then return m end
+    function m:isReallyVisible() return self.visible end
+    function m:clear() self.slices = {} end
+    function m:undisplay() self.visible, self.pending = false, false end
+    --- Promotes a just-opened menu to really visible, a tick later.
+    function m:settle()
+        if self.pending then self.visible, self.pending = true, false end
+    end
+    function m:addSlice(text, texture, fn, ...)
+        table.insert(self.slices, { text = text, texture = texture, fn = fn })
+    end
+    function m:titles()
+        local out = {}
+        for _, s in ipairs(self.slices) do table.insert(out, s.text) end
+        return table.concat(out, ",")
+    end
+    return m
+end
+
 ISVehicleMenu = {
-    showRadialMenu = function() end, showRadialMenuOutside = function() end,
+    showRadialMenu = function(playerObj)
+        local m = getPlayerRadialMenu()
+        m:clear()
+        if m:isReallyVisible() then m:undisplay() return end
+        m:addSlice("IGUI_SwitchSeat")
+        m:addSlice("IGUI_ExitVehicle")
+        m.pending = true          -- addToUIManager: live only from next frame
+    end,
+    showRadialMenuOutside = function(playerObj)
+        local m = getPlayerRadialMenu()
+        if m:isReallyVisible() then m:undisplay() return end
+        m:clear()
+        m.pending = true
+    end,
     FillMenuOutsideVehicle = function() end, onEnter = function() end,
     processEnter = function() end, processShiftEnter = function() end,
     onExit = function() end,
+    getVehicleToInteractWith = function() return nil end,
 }
 ISCarMechanicsOverlay = { CarList = {} }
 ImageScale = {}
