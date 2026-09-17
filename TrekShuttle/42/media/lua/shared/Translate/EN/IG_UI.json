@@ -50,5 +50,8 @@
     "IGUI_TREK_Crew": "Crew",
     "IGUI_TREK_CrewAdd": "Add %1 to the crew",
     "IGUI_TREK_CrewRemove": "Remove %1 from the crew",
-    "IGUI_TREK_CrewNobody": "Nobody else is online"
+    "IGUI_TREK_CrewNobody": "Nobody else is online",
+    "IGUI_TREK_BoardCabin": "Go aboard (cabin)",
+    "IGUI_TREK_CrewSeated": "Someone is still sitting in the shuttle",
+    "IGUI_VehicleNameTrekShuttleCraft": "Shuttlecraft"
 }

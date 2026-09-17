@@ -145,6 +145,30 @@ function W.landingBeside(x, y, z)
     return nil
 end
 
+--- A square a person can stand on clear of the landed ship, nearest first,
+--- at least `inner` squares from its centre so they are not put under the
+--- hull. The ship is a vehicle that may have been driven and turned, so its
+--- footprint is not assumed: any square with a vehicle on it is skipped.
+function W.clearOfShip(cx, cy, z, inner, outer)
+    inner, outer = inner or 3, outer or 8
+    for r = inner, outer do
+        for dx = -r, r do
+            for dy = -r, r do
+                if math.max(math.abs(dx), math.abs(dy)) == r then
+                    local sq = U.square(cx + dx, cy + dy, z, false)
+                    local ok = sq and U.try("clearOfShip", function()
+                        return sq:getFloor() ~= nil and not sq:isSolid()
+                               and not sq:isSolidTrans() and sq:isFree(false)
+                               and sq:getVehicleContainer() == nil
+                    end)
+                    if ok == true then return { x = cx + dx, y = cy + dy, z = z } end
+                end
+            end
+        end
+    end
+    return nil
+end
+
 local function spiral(cx, cy, radius)
     local out = {}
     for r = 0, radius do

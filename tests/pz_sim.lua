@@ -214,7 +214,18 @@ end
 function SquareMT:isSolid() return self.solid end
 function SquareMT:isSolidTrans() return false end
 function SquareMT:isFree() return not self.occupied end
-function SquareMT:getVehicleContainer() return nil end
+--- A vehicle stands over a 3x5 box of squares around its position (the
+--- shuttle's size; the only vehicle the tests spawn).
+function SquareMT:getVehicleContainer()
+    for _, v in ipairs(SIM.vehicles or {}) do
+        if not v.removed and self.z == math.floor(v.z)
+           and math.abs(self.x - math.floor(v.x)) <= 1
+           and math.abs(self.y - math.floor(v.y)) <= 2 then
+            return v
+        end
+    end
+    return nil
+end
 function SquareMT:setHaveElectricity(v) self.power = v end
 
 function SquareMT:addFloor(sprite)
@@ -377,10 +388,94 @@ function cell:getChunkForGridSquare(x, y)
     return SIM.loaded(x, y) and {} or nil
 end
 function cell:getZombieList() return jlist(SIM.zombies) end
+function cell:getVehicles()
+    local loaded = {}
+    for _, v in ipairs(SIM.vehicles) do
+        if not v.removed and SIM.loaded(v.x, v.y) then table.insert(loaded, v) end
+    end
+    local i = 0
+    return { iterator = function()
+        return {
+            hasNext = function() return i < #loaded end,
+            next = function() i = i + 1; return loaded[i] end,
+        }
+    end }
+end
 function cell:addLamppost() SIM.lamps = SIM.lamps + 1 end
 function getCell() return cell end
 function getWorld() return { getCell = function() return cell end } end
 SIM.zombies = {}
+
+---------------------------------------------------------------------------
+-- Vehicles
+---------------------------------------------------------------------------
+SIM.vehicles = {}
+SIM.vehicleSerial = 0
+IsoDirections = { N = "N", S = "S", E = "E", W = "W" }
+
+local VehicleMT = {}
+VehicleMT.__index = VehicleMT
+
+function SIM.vehicle(script, x, y, z, simId)
+    if not simId then
+        SIM.vehicleSerial = SIM.vehicleSerial + 1
+        simId = SIM.vehicleSerial
+    end
+    local v = setmetatable({ script = script, x = x, y = y, z = z, simId = simId,
+                             modData = {}, seats = {}, hotwired = false,
+                             tank = { cap = 20, amount = 0 } }, VehicleMT)
+    table.insert(SIM.vehicles, v)
+    return v
+end
+
+function SIM.findVehicle(simId)
+    for _, v in ipairs(SIM.vehicles) do
+        if v.simId == simId and not v.removed then return v end
+    end
+end
+
+function VehicleMT:getScriptName() return self.script end
+function VehicleMT:getModData() return self.modData end
+function VehicleMT:getX() return self.x end
+function VehicleMT:getY() return self.y end
+function VehicleMT:getZ() return self.z end
+function VehicleMT:getMaxPassengers() return 4 end
+function VehicleMT:getCharacter(seat) return self.seats[seat] end
+function VehicleMT:repair() self.repaired = true end
+function VehicleMT:cheatHotwire(h) self.hotwired = h end
+function VehicleMT:getPartById(id)
+    if id ~= "GasTank" then return nil end
+    local tank = self.tank
+    return {
+        getContainerCapacity = function() return tank.cap end,
+        getContainerContentAmount = function() return tank.amount end,
+        setContainerContentAmount = function(_, n) tank.amount = n end,
+    }
+end
+function VehicleMT:transmitPartModData() end
+function VehicleMT:permanentlyRemove()
+    self.removed = true
+    if isServer() then py_replicate("vehicleRemove", { x = 0, y = 0, z = 0, simId = self.simId }) end
+    if isClient() then SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1 end
+end
+
+--- Spawns a vehicle, as build 42's addVehicleDebug does: on the server the
+--- game's vehicle sync then streams it to clients.
+function addVehicleDebug(script, dir, skin, sq)
+    if isClient() then error("addVehicleDebug on a client") end
+    if not sq then return nil end
+    local v = SIM.vehicle(script, sq.x + 0.5, sq.y + 0.5, sq.z)
+    if isServer() then
+        py_replicate("vehicle", { x = sq.x, y = sq.y, z = sq.z, script = script, simId = v.simId })
+    end
+    return v
+end
+
+--- Test helper: a vehicle driven somewhere.
+function SIM.driveVehicle(simId, x, y)
+    local v = SIM.findVehicle(simId)
+    if v then v.x, v.y = x, y end
+end
 
 ---------------------------------------------------------------------------
 -- Players
@@ -564,4 +659,15 @@ ISButton = derivable("ISButton")
 ISWorldMap = { onMouseUp = function() end, render = function() end,
                onJoypadDown = function() end }
 ISWorldObjectContextMenu = { setTest = function() return true end }
+ISVehicleMenu = {
+    showRadialMenu = function() end, showRadialMenuOutside = function() end,
+    FillMenuOutsideVehicle = function() end, onEnter = function() end,
+    processEnter = function() end, processShiftEnter = function() end,
+    onExit = function() end,
+}
+ISCarMechanicsOverlay = { CarList = {} }
+ImageScale = {}
+package.preload["Vehicles/ISUI/ISVehicleMenu"] = function() return true end
+package.preload["Vehicles/ISUI/ISCarMechanicsOverlay"] = function() return true end
+package.preload["Vehicles/ISUI/ISVehicleSeatUI"] = function() return true end
 UIFont = { Small = 1, Medium = 2 }

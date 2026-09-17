@@ -172,6 +172,11 @@ APPLY = r"""
         elseif op == "fluid" then
             local o = find(sq.objects, d.sprite)
             if o and o.fluid then o.fluid.amount = d.amount end
+        elseif op == "vehicle" then
+            SIM.vehicle(d.script, d.x + 0.5, d.y + 0.5, d.z, d.simId)
+        elseif op == "vehicleRemove" then
+            local v = SIM.findVehicle(d.simId)
+            if v then v.removed = true end
         elseif op == "modData" then
             local o = find(sq.objects, d.sprite)
             if o then o.modData = copy(d.modData) end
@@ -299,9 +304,36 @@ def cabin_objects(rt):
 
 
 def hull_at(rt, x, y, z):
+    """True when the ship stands here: its vehicle, or a hull from before it."""
     return rt.eval(f"""(function()
-        local sq = SIM.rawSquare({x}, {y}, {z})
-        return TREK.World.hullOn(sq) ~= nil
+        for _, v in ipairs(SIM.vehicles) do
+            if not v.removed and v.script == "Base.TrekShuttleCraft"
+               and math.floor(v.x) == {x} and math.floor(v.y) == {y} then
+                return true
+            end
+        end
+        return TREK.World.hullOn(SIM.rawSquare({x}, {y}, {z})) ~= nil
+    end)()""")
+
+
+def shuttles(rt):
+    """Shuttle vehicles that exist here, loaded or not."""
+    return rt.eval("""(function()
+        local n = 0
+        for _, v in ipairs(SIM.vehicles) do
+            if not v.removed and v.script == "Base.TrekShuttleCraft" then n = n + 1 end
+        end
+        return n
+    end)()""")
+
+
+def ship_vehicle(rt):
+    """The simulated id of the vehicle the ship state points at, or None."""
+    return rt.eval("""(function()
+        local id = TREK.Util.state().vehicleId
+        for _, v in ipairs(SIM.vehicles) do
+            if not v.removed and v.modData.TREKShipId == id then return v.simId end
+        end
     end)()""")
 
 
@@ -379,7 +411,11 @@ def single_player():
     sx, sy = ship(rt, "x"), ship(rt, "y")
     check(abs(sx - 3000) <= 24 and abs(sy - 3000) <= 24,
           f"single player: landed at {sx},{sy}, far from the course")
-    check(hull_at(rt, sx, sy, 0), "single player: no hull on the landing square")
+    check(hull_at(rt, sx, sy, 0), "single player: no shuttle vehicle on the landing square")
+    check(shuttles(rt) == 1, f"single player: {shuttles(rt)} shuttle vehicles after landing")
+    check(ship_vehicle(rt) is not None, "single player: the ship state does not name its vehicle")
+    check(rt.eval("SIM.vehicles[1].hotwired and SIM.vehicles[1].tank.amount > 0"),
+          "single player: the shuttle vehicle cannot be started (no hotwire or no fuel)")
     check(ship(rt, "destination") is None, "single player: the course was not cleared on landing")
     x, y, _ = pos(rt)
     check(not rt.eval(f"TREK.World.hullCovers({x}, {y}, 0)"),
@@ -393,22 +429,41 @@ def single_player():
     rt.run(f"TREK.Core.exit({P})")
     net.pump(65)
     x, y, _ = pos(rt)
-    check(abs(x - sx) <= 4 and abs(y - sy) <= 4,
+    check(abs(x - sx) <= 8 and abs(y - sy) <= 8,
           f"single player: stepping out put the player at {x},{y}, not beside the hull")
+    check(not rt.eval(f"SIM.rawSquare({int(x)}, {int(y)}, 0):getVehicleContainer() ~= nil"),
+          "single player: stepping out put the player under the shuttle vehicle")
 
-    # --- call down far away: the old hull becomes a ghost ---------------------
+    # --- driving it: the ship follows its vehicle -------------------------
+    vid = ship_vehicle(rt)
+    rt.run(f"SIM.driveVehicle({vid}, {sx} + 12.5, {sy} + 3.5)")
+    rt.run(f"{P}.x, {P}.y = {sx} + 12.5, {sy} + 8.5")
+    net.pump(70)
+    check(ship(rt, "x") == sx + 12 and ship(rt, "y") == sy + 3,
+          "single player: the ship did not follow its vehicle when it was driven")
+    sx, sy = ship(rt, "x"), ship(rt, "y")
+
+    # --- recall is refused while someone sits in it -------------------------
+    rt.run(f"SIM.findVehicle({vid}).seats[0] = {P}")
+    rt.run(f"TREK.Menu.onRecall(nil, {P})")
+    net.pump(2)
+    check(ship(rt, "landed") is True, "single player: recalled the ship out from under its pilot")
+    check(any("IGUI_TREK_CrewSeated" in n for n in rt.notes()),
+          "single player: no reason given for refusing to recall an occupied ship")
+    rt.run(f"SIM.findVehicle({vid}).seats[0] = nil")
+
+    # --- call down far away: the old vehicle is a leftover until it loads -----
     rt.run(f"{P}.x, {P}.y = 5000.5, 5000.5")
     net.pump(40)   # the ground streams in around the player
     rt.run(f"TREK.Menu.onCallDown(nil, {P}, 5003, 5000, 0)")
     net.pump(2)
     check(ship(rt, "x") == 5003, "single player: calling the ship down did not move it")
-    check(rt.eval("#TREK.Util.state().ghosts") == 1,
-          "single player: the unreachable old hull was not remembered")
+    check(shuttles(rt) == 2, "single player: expected the old vehicle to wait, unloaded, "
+                             f"alongside the new one; found {shuttles(rt)}")
     rt.run(f"{P}.x, {P}.y = {sx}.5, {sy + 8}.5")
-    net.pump(40)
-    rt.fire("EveryOneMinute")
-    check(not hull_at(rt, sx, sy, 0), "single player: the ghost hull was not cleared once loaded")
-    check(rt.eval("#TREK.Util.state().ghosts") == 0, "single player: ghost list not emptied")
+    net.pump(130)   # streaming, then the next vehicle pass
+    check(not hull_at(rt, sx, sy, 0), "single player: the old vehicle was not removed once loaded")
+    check(shuttles(rt) == 1, f"single player: {shuttles(rt)} shuttle vehicles after the sweep")
 
     # --- recall ------------------------------------------------------------
     rt.run(f"{P}.x, {P}.y = 5000.5, 5003.5")
@@ -417,6 +472,7 @@ def single_player():
     net.pump(2)
     check(ship(rt, "landed") is False, "single player: recall did not lift the ship")
     check(not hull_at(rt, 5003, 5000, 0), "single player: recall left the hull behind")
+    check(shuttles(rt) == 0, "single player: recall left a shuttle vehicle behind")
 
     # --- a landing with no room beams the player home ----------------------
     rt.run(f"TREK.Transport.beamUp({P})")
@@ -463,6 +519,9 @@ def migration():
           "migration: the landed position was lost")
     check(rt.eval("(TREK.Ship.returnPoint(SIM.players[1]))") == 1201,
           "migration: the old save's return point was lost")
+    net.pump(70)
+    check(hull_at(rt, 1203, 1200, 0) and shuttles(rt) == 1,
+          "migration: a ship landed before the vehicle did not get one")
     for w in rt.warnings():
         fail(f"migration: {w}")
     print("migration: schema 1 save upgraded with its position and return point")
@@ -549,8 +608,20 @@ def multiplayer():
     net.pump(100)
     check(ship(srv, "landed") is True, "multiplayer: bob's landing did not set the ship down")
     lx, ly = ship(srv, "x"), ship(srv, "y")
-    check(A.eval(f"TREK.World.hullOn(SIM.rawSquare({lx}, {ly}, 0)) ~= nil"),
-          "multiplayer: alice's world has no hull where the server landed it")
+    check(hull_at(A, lx, ly, 0),
+          "multiplayer: alice's world has no shuttle vehicle where the server landed it")
+    check(shuttles(A) == 1 and shuttles(srv) == 1,
+          f"multiplayer: shuttle vehicles -- server {shuttles(srv)}, alice {shuttles(A)}")
+
+    # Driven by a client: the vehicle moves on every machine (the game syncs
+    # vehicles); the server's ship position follows it.
+    vid = ship_vehicle(srv)
+    for rt in net.all():
+        rt.run(f"SIM.driveVehicle({vid}, {lx} + 6.5, {ly} + 1.5)")
+    net.pump(70)
+    check(ship(srv, "x") == lx + 6 and A.eval("TREK.Util.state().x") == lx + 6,
+          "multiplayer: the ship's position did not follow its vehicle to every client")
+    lx, ly = ship(srv, "x"), ship(srv, "y")
 
     # --- shields: each client pushes only its own zombies --------------------
     B.run(f"""

@@ -27,6 +27,7 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_World"
+require "TREK/TREK_Vehicle"
 require "TREK/TREK_Build"
 
 TREK = TREK or {}
@@ -35,6 +36,7 @@ local U = TREK.Util
 local Net = TREK.Net
 local Ship = TREK.Ship
 local W = TREK.World
+local V = TREK.Vehicle
 local B = TREK.Build
 
 local S = {}
@@ -180,58 +182,181 @@ function S.sweepStrays(player)
     return removed
 end
 
---- Sets the hull down centred on a square, lifting it from wherever it was.
+---------------------------------------------------------------------------
+-- The shuttle vehicle
+---------------------------------------------------------------------------
+--- Readies a freshly spawned shuttle: whole, no key needed, a full tank.
+--- Everything here is set on the server before the vehicle's first update
+--- reaches any client, and cheatHotwire flags itself for sync.
+local function prepareVehicle(vehicle, id)
+    U.try("vehicleRepair", function() vehicle:repair() end)
+    U.try("vehicleHotwire", function() vehicle:cheatHotwire(true, false) end)
+    U.try("vehicleTag", function() vehicle:getModData().TREKShipId = id end)
+    S.refuel(vehicle)
+end
+
+--- The ship never runs dry: its tank is topped up whenever it falls below
+--- half. The same call vanilla's own refuelling command makes.
+function S.refuel(vehicle)
+    U.try("vehicleRefuel", function()
+        local tank = vehicle:getPartById("GasTank")
+        if not tank then return end
+        local cap = tank:getContainerCapacity()
+        if tank:getContainerContentAmount() < cap * 0.5 then
+            tank:setContainerContentAmount(cap)
+            if isServer() then vehicle:transmitPartModData(tank) end
+        end
+    end)
+end
+
+--- Removes a shuttle vehicle, putting anyone sitting in it out first (the
+--- engine does that as part of the removal).
+local function removeVehicle(vehicle, why)
+    local x, y = math.floor(vehicle:getX()), math.floor(vehicle:getY())
+    local ok = U.try("vehicleRemove", function()
+        vehicle:permanentlyRemove()
+        return true
+    end) == true
+    if ok then U.log("removed a shuttle vehicle at %d,%d (%s)", x, y, why) end
+    return ok
+end
+
+--- Spawns the shuttle vehicle on a square and makes it the ship.
+local function spawnVehicle(sq)
+    local s = U.state()
+    local vehicle = U.try("addVehicle", function()
+        return addVehicleDebug(V.SCRIPT, IsoDirections.N, 0, sq)
+    end)
+    if not vehicle then return nil end
+    s.vehicleSerial = (s.vehicleSerial or 0) + 1
+    s.vehicleId = s.vehicleSerial
+    prepareVehicle(vehicle, s.vehicleId)
+    return vehicle
+end
+
+--- Sets the ship down centred on a square, lifting it from wherever it was.
 --- Returns `ok, reason, blocked`.
 function S.land(x, y, z, player)
     if not U.chunkLoaded(x, y, z) then return false, "unloaded", 0 end
     local sq = U.square(x, y, z, false)
     if not sq then return false, "unloaded", 0 end
 
+    local s = U.state()
+    local here = s.landed and s.x == x and s.y == y and s.z == z
+    if here and V.find(s.vehicleId) then
+        return true, nil, 0
+    end
+
     local ok, why, blocked = W.roomToLand(x, y, z, W.exemptFor(player))
     if not ok then return false, why, blocked end
 
-    local s = U.state()
-    if s.landed and not (s.x == x and s.y == y and s.z == z) then
+    -- The old ship goes: its vehicle now if it is loaded, otherwise the leftover
+    -- sweep removes it when that ground next loads (its id stops matching).
+    -- A hull from before the vehicle is lifted the old way.
+    if s.landed then
+        local old = V.find(s.vehicleId)
+        if old then removeVehicle(old, "the ship landed elsewhere") end
         local _, gone = S.removeHullAt(s.x, s.y, s.z)
         if gone == "unloaded" or gone == "failed" then
             S.forgetHull(s.x, s.y, s.z)
         end
     end
 
-    if not (s.landed and s.x == x and s.y == y and s.z == z) then
-        local placed = U.try("placeHull", function()
-            -- The four-argument form sends the world item to clients.
-            local item = sq:AddWorldInventoryItem(C.ExteriorItem, 0.5, 0.5, 0.0)
-            local world = item and item:getWorldItem()
-            if world and world.setIgnoreRemoveSandbox then
-                -- keep the world-item cleanup rules from sweeping the ship away
-                world:setIgnoreRemoveSandbox(true)
-            end
-            return item ~= nil
-        end)
-        if not placed then return false, "failed", 0 end
-    end
+    if not spawnVehicle(sq) then return false, "failed", 0 end
 
     s.landed = true
     s.everLanded = true
     s.x, s.y, s.z = x, y, z
     s.destination = nil
+    s.missingChecks = nil
     Ship.commit()
-    U.log("shuttle down at %d,%d,%d", x, y, z)
+    U.log("shuttle down at %d,%d,%d (vehicle %d)", x, y, z, s.vehicleId)
     return true, nil, 0
 end
 
+--- Sends the ship back up. Refused while anyone is sitting in it: recalling a
+--- vehicle out from under its crew would drop them in the road.
 function S.recall()
     local s = U.state()
     if not s.landed then return false end
+    local vehicle = V.find(s.vehicleId)
+    if vehicle and V.occupied(vehicle) then return false, "crewSeated" end
+    if vehicle then removeVehicle(vehicle, "recalled") end
     local _, why = S.removeHullAt(s.x, s.y, s.z)
     if why == "unloaded" or why == "failed" then
         S.forgetHull(s.x, s.y, s.z)
     end
     s.landed = false
+    s.vehicleId = nil
     Ship.commit()
     U.log("shuttle recalled from %d,%d,%d", s.x, s.y, s.z)
     return true
+end
+
+-- Checks in a row that the ship's ground was loaded and its vehicle was not
+-- there. A vehicle loads with its chunk, so a few in a row means it is gone
+-- (burnt out, removed by an admin) rather than late.
+local MISSING_LIMIT = 5
+
+--- Keeps the ship state in step with its vehicle, and tidies up. Runs on a
+--- timer on the authority.
+---
+---  * the ship's position follows its vehicle as it is driven, so the hatch,
+---    the shields and the helm all find it where it now is;
+---  * the tank is kept topped up;
+---  * a shuttle vehicle that is not the ship is removed once nobody is in it;
+---  * a save from before the vehicle gets one, in place of its hull;
+---  * a ship whose vehicle has gone is treated as overhead, so it can be
+---    called down again rather than being lost.
+function S.serviceVehicle()
+    local s = U.state()
+    local found = nil
+
+    V.each(function(vehicle)
+        local id = V.idOf(vehicle)
+        if s.landed and id and id == s.vehicleId then
+            found = vehicle
+        elseif not V.occupied(vehicle) then
+            removeVehicle(vehicle, "not the ship")
+        end
+    end)
+
+    if found then
+        s.missingChecks = nil
+        S.refuel(found)
+        local x = math.floor(found:getX())
+        local y = math.floor(found:getY())
+        local z = math.floor(found:getZ())
+        if x ~= s.x or y ~= s.y or z ~= s.z then
+            s.x, s.y, s.z = x, y, z
+            Ship.commit()
+        end
+        return
+    end
+
+    if not s.landed or not U.chunkLoaded(s.x, s.y, s.z) then return end
+
+    if not s.vehicleId then
+        -- A ship landed by a build before the vehicle: swap its hull for one.
+        local sq = U.square(s.x, s.y, s.z, false)
+        if not sq then return end
+        S.removeHullAt(s.x, s.y, s.z)
+        if spawnVehicle(sq) then
+            U.log("the ship at %d,%d,%d is now a vehicle", s.x, s.y, s.z)
+            Ship.commit()
+        end
+        return
+    end
+
+    s.missingChecks = (s.missingChecks or 0) + 1
+    if s.missingChecks >= MISSING_LIMIT then
+        U.log("the ship's vehicle is gone from %d,%d,%d; it is overhead now",
+              s.x, s.y, s.z)
+        s.landed = false
+        s.vehicleId = nil
+        s.missingChecks = nil
+        Ship.commit()
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -403,7 +528,12 @@ end)
 
 Net.onServer("recall", function(player)
     if not mayUse(player) then return end
-    if S.recall() then Net.toClient(player, "recalled", {}) end
+    local ok, why = S.recall()
+    if ok then
+        Net.toClient(player, "recalled", {})
+    elseif why then
+        deny(player, why)
+    end
 end)
 
 Net.onServer("setCourse", function(player, args)
@@ -512,8 +642,14 @@ end)
 -- Every tick while anyone is waiting: they are standing over nothing until the
 -- cabin exists, and each tick of delay is a tick they can fall. With nobody
 -- waiting the check is one empty table walk.
+local vehicleTick = 0
 Events.OnTick.Add(function()
     U.try("serviceWaiting", serviceWaiting)
+    vehicleTick = vehicleTick + 1
+    if vehicleTick >= 60 then
+        vehicleTick = 0
+        U.try("serviceVehicle", S.serviceVehicle)
+    end
 end)
 
 Events.EveryOneMinute.Add(function()

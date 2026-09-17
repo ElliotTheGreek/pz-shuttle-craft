@@ -187,8 +187,10 @@ Net.onClient("landed", function(args)
     local player = job and job.player or Core.lastAsker or U.player(0)
     T.pending = nil
     if not player then return end
-    local beside = W.landingBeside(args.x, args.y, args.z)
-    if beside and W.hullCovers(player:getX(), player:getY(), player:getZ()) then
+    local beside = W.clearOfShip(args.x, args.y, args.z) or W.landingBeside(args.x, args.y, args.z)
+    local dx, dy = player:getX() - args.x, player:getY() - args.y
+    if beside and (W.hullCovers(player:getX(), player:getY(), player:getZ())
+                   or dx * dx + dy * dy < 9) then
         U.teleport(player, beside.x, beside.y, beside.z)
     end
     if job and beside then

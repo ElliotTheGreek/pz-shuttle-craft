@@ -32,6 +32,15 @@ mod_icons = set(re.findall(r"^\s*Icon\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.M))
 
 failures, checked_sprites, checked_items = [], 0, 0
 
+# The mod's vehicle scripts. "Base.TrekShuttleCraft" is a vehicle, not an item.
+mod_vehicles = set()
+for dp, _, fns in os.walk(os.path.join(MOD, "media", "scripts")):
+    for fn in fns:
+        if fn.endswith(".txt"):
+            mod_vehicles |= set(re.findall(r"^\s*vehicle\s+(\w+)",
+                                           open(os.path.join(dp, fn), encoding="utf-8").read(),
+                                           re.M))
+
 # --- the mod's own meshes and textures ---------------------------------
 # A model naming a mesh that is not on disk loads as nothing and draws as
 # nothing, with no error.
@@ -114,7 +123,7 @@ for dp, _, fns in os.walk(os.path.join(MOD, "media", "lua")):
                 m = ITEM.match(lit)
                 if m:
                     checked_items += 1
-                    if m.group(1) not in items:
+                    if m.group(1) not in items and m.group(1) not in mod_vehicles:
                         failures.append(f"{fn}:{lineno} unknown item {lit}")
                     continue
                 m = MOD_ITEM.match(lit)
@@ -181,8 +190,11 @@ for dp, _, fns in os.walk(os.path.join(MOD, "media", "lua")):
             # one with `up and "A" or "B"` and hands others to a helper. Any
             # IGUI_TREK_ literal anywhere in the Lua is a key it will ask for.
             asked |= set(re.findall(r'"(IGUI_TREK_[A-Za-z0-9_]+)"', body))
+# Vanilla's own keys (the vehicle menus reuse a few) resolve from the game.
+vanilla_ig = json.load(open(os.path.join(PZ, "lua", "shared", "Translate", "EN", "IG_UI.json"),
+                            encoding="utf-8", errors="replace"))
 for key in sorted(asked):
-    if key.startswith("IGUI_") and key not in ig:
+    if key.startswith("IGUI_") and key not in ig and key not in vanilla_ig:
         failures.append(f"getText(\"{key}\") has no entry in IG_UI.json")
 for item in sorted(mod_items):
     if f"TrekShuttle.{item}" not in names:
@@ -190,6 +202,42 @@ for item in sorted(mod_items):
 for tip in sorted(re.findall(r"^\s*Tooltip\s*=\s*(\w+)\s*,", script, re.M)):
     if tip not in tips:
         failures.append(f"Tooltip.json has no entry for {tip}")
+
+# --- the shuttle vehicle -----------------------------------------------
+# A vehicle whose mesh, texture or wheel model does not resolve loads as
+# nothing, silently, and the seat chart art is projected from the mesh at the
+# vehicle's length: if the script's length drifts from the mesh, the seat
+# markers stop landing on the seats.
+vscript_path = os.path.join(MOD, "media", "scripts", "vehicles", "trekshuttle_vehicle.txt")
+if not os.path.isfile(vscript_path):
+    failures.append("media/scripts/vehicles/trekshuttle_vehicle.txt is missing")
+else:
+    vs = open(vscript_path, encoding="utf-8").read()
+    for mesh in re.findall(r"^\s*mesh\s*=\s*([\w/]+)\s*,", vs, re.M):
+        if not os.path.isfile(os.path.join(MOD, "media", "models_X", mesh + ".x")):
+            failures.append(f"vehicle mesh {mesh}.x is not in media/models_X "
+                            f"(python tools/gen_vehicle_assets.py)")
+    for key in ("texture", "textureMask"):
+        for tex in re.findall(rf"^\s*{key}\s*=\s*([\w/]+)\s*,", vs, re.M):
+            local = os.path.join(MOD, "media", "textures", tex + ".png")
+            vanilla_tex = tex.startswith("Vehicles/")
+            if not vanilla_tex and not os.path.isfile(local):
+                failures.append(f"vehicle {key} {tex}.png is not in media/textures")
+    ext = re.search(r"^\s*extents\s*=\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*,", vs, re.M)
+    mesh_text = open(os.path.join(MOD, "media", "models_X", "TREK_Shuttle.x"),
+                     encoding="utf-8", errors="replace").read()
+    zs = [float(z) for z in re.findall(r"-?\d+\.\d+;-?\d+\.\d+;(-?\d+\.\d+);,", mesh_text)]
+    if ext and zs and abs(float(ext.group(3)) - (max(zs) - min(zs))) > 0.1:
+        failures.append(f"vehicle extents length {ext.group(3)} does not match the hull "
+                        f"mesh length {max(zs) - min(zs):.2f}; the seat chart will misalign")
+    seats = re.findall(r"^\s*passenger\s+(\w+)", vs, re.M)
+    if len(seats) != 4:
+        failures.append(f"the shuttle vehicle has {len(seats)} seats, not 4")
+    if re.search(r"^\s*door\s*=\s*\w", vs, re.M) or "template = Door" in vs:
+        failures.append("the shuttle vehicle has a door: a doored seat can be bitten through")
+for art in ("seatui/trekshuttle_base_small.png", "mechanic overlay/trekshuttle_base.png"):
+    if not os.path.isfile(os.path.join(MOD, "media", "ui", "vehicles", *art.split("/"))):
+        failures.append(f"media/ui/vehicles/{art} is missing (python tools/gen_vehicle_assets.py)")
 
 # --- the void map ------------------------------------------------------
 # Empty map cells around the interior cell keep the world generator out, so

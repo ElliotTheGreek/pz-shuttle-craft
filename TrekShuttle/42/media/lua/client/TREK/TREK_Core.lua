@@ -91,6 +91,7 @@ local DENIALS = {
     access        = "IGUI_TREK_NotCrew",
     notLanded     = "IGUI_TREK_NotLanded",
     bookmarksFull = "IGUI_TREK_BookmarksFull",
+    crewSeated    = "IGUI_TREK_CrewSeated",
 }
 
 Net.onClient("denied", function(args)
@@ -261,7 +262,8 @@ function Core.ejectToOutside(player, why)
     local bx, by, bz = Ship.returnPoint(player)
     if not bx and s.landed then bx, by, bz = s.x, s.y, s.z end
     if not bx then return false end
-    local target = W.landingBeside(bx, by, bz) or { x = bx, y = by, z = bz }
+    local target = W.clearOfShip(bx, by, bz) or W.landingBeside(bx, by, bz)
+                   or { x = bx, y = by, z = bz }
     U.teleport(player, target.x, target.y, target.z)
     Ship.playerData(player).aboard = false
     U.note(player, getText("IGUI_TREK_ArrivalFailed"), 255, 90, 90)
@@ -285,6 +287,21 @@ function Core.enter(player)
 end
 
 --- Puts the player back down the ramp.
+-- A player who has stepped out and is waiting for the ground by the ship to
+-- load before being settled on a clear square: { player, x, y, z, tries }.
+local settling = nil
+
+-- Squares from the ship's centre a player first arrives at when stepping out:
+-- clear of a hull five long, in any orientation.
+local STEP_OUT_OFFSET = 4
+
+--- Puts the player back down beside the ship.
+---
+--- Two steps, for the same reason a beam-down has two: the ground by the ship
+--- is not loaded while the player is in the cabin, so a clear square cannot be
+--- found until they are standing near it. They arrive a few squares off the
+--- ship's centre, then settle on the nearest square clear of the vehicle once
+--- it loads -- a short step, never under the hull.
 function Core.exit(player)
     if not player then return false end
     if not Ship.get().landed then return false end
@@ -293,13 +310,34 @@ function Core.exit(player)
         if not s.landed then return end
         endArrival(false)
         Core.repelZombies()
-        local target = W.landingBeside(s.x, s.y, s.z) or { x = s.x, y = s.y, z = s.z }
-        if not U.teleport(p, target.x, target.y, target.z) then return end
+        local x, y, z = s.x, s.y + STEP_OUT_OFFSET, s.z
+        if not U.teleport(p, x, y, z) then return end
         Ship.playerData(p).aboard = false
-        Ship.setReturnPoint(p, target.x, target.y, target.z)
-        U.log("stepped out at %d,%d,%d", target.x, target.y, target.z)
+        settling = { player = p, x = s.x, y = s.y, z = s.z, tries = 0 }
+        U.log("stepping out beside the ship at %d,%d,%d", s.x, s.y, s.z)
     end)
 end
+
+local function serviceSettling()
+    local job = settling
+    if not job then return end
+    local p = job.player
+    job.tries = job.tries + 1
+    local spot = W.clearOfShip(job.x, job.y, job.z) or W.landingBeside(job.x, job.y, job.z)
+    if not spot then
+        if job.tries < 300 then
+            Core.hold(p, job.x, job.y + STEP_OUT_OFFSET, job.z)
+            return
+        end
+        spot = { x = job.x, y = job.y + STEP_OUT_OFFSET, z = job.z }
+    end
+    settling = nil
+    U.teleport(p, spot.x, spot.y, spot.z)
+    Ship.setReturnPoint(p, spot.x, spot.y, spot.z)
+    U.log("stepped out at %d,%d,%d", spot.x, spot.y, spot.z)
+end
+
+Events.OnTick.Add(function() serviceSettling() end)
 
 ---------------------------------------------------------------------------
 -- The shields

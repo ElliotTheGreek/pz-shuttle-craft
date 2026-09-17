@@ -1,0 +1,365 @@
+/*  The shuttle as a vehicle: four seats, driven like a truck.
+
+    Module Base, like every working build 42 vehicle mod, so the vanilla part
+    templates (Seat, Tire, Engine, ...) resolve without qualification.
+
+    Deliberately doorless. A seat with no door part cannot be reached by the
+    dead (AttackVehicleState only bites through an open door or a broken
+    window), which is the safety hands-on flight never had. Vanilla's enter
+    and exit menus assume doors in a few fallback paths; TREK_VehicleMenu.lua
+    guards those for this vehicle only.
+
+    Units: model scale 1, so every offset and extent is in tiles. The hull mesh
+    (models_X/TREK_Shuttle.x) is 3.0 wide, 2.18 tall, 5.0 long, nose towards
+    +Z, which is the vehicle's forward. Keep extents length at 5.0: the seat
+    chart art is projected from the mesh at that length
+    (tools/gen_vehicle_assets.py) and tests/test_assets.py checks it.
+
+    The wheels are real -- a vehicle drives on its wheels -- and invisible:
+    their model is TREK_Empty. They hang below the chassis, so the hull rides
+    half a tile off the ground, which reads as hovering.
+*/
+
+module Base
+{
+    model TrekShuttleCraftBody
+    {
+        mesh = TREK_Shuttle,
+        shader = vehicle,
+        scale = 1.0,
+    }
+
+    model TrekShuttleCraftNoWheel
+    {
+        mesh = TREK_Empty,
+        texture = TREK_Shuttle,
+        shader = vehiclewheel,
+        scale = 1.0,
+    }
+
+    vehicle TrekShuttleCraft
+    {
+        mechanicType = 1,
+        offRoadEfficiency = 1.5,
+        engineRepairLevel = 4,
+        playerDamageProtection = 1.0,
+
+        model
+        {
+            file = TrekShuttleCraftBody,
+            scale = 1.0,
+            offset = 0.0 0.0 0.0,
+        }
+
+        skin
+        {
+            texture = TREK_Shuttle,
+        }
+
+        textureMask = TREK_Shuttle_mask,
+        textureRust = Vehicles/Veh_Rust,
+        textureDamage1Overlay = Vehicles/Veh_Blood_Mask,
+        textureDamage2Overlay = Vehicles/Veh_Blood_Hvy,
+        textureDamage1Shell = Vehicles/Veh_Damage1,
+        textureDamage2Shell = Vehicles/Veh_Damage2,
+
+        sound
+        {
+            engine = VehicleEngineCarLuxury,
+            engineStart = VehicleEngineCarLuxury,
+            engineTurnOff = VehicleEngineCarLuxury,
+            horn = VehicleHornStandard,
+            ignitionFail = VehicleIgnitionFailCarLuxury,
+        }
+
+        extents = 2.6 1.6 5.0,
+        physicsChassisShape = 2.6 1.6 5.0,
+        centerOfMassOffset = 0.0 0.8 0.0,
+        shadowExtents = 2.8 5.0,
+        shadowOffset = 0.0 0.0,
+        mass = 1200,
+        engineForce = 5200,
+        engineQuality = 100,
+        engineLoudness = 25,
+        maxSpeed = 70.0,
+        brakingForce = 90,
+        stoppingMovementForce = 3.0,
+        rollInfluence = 0.2,
+        steeringIncrement = 0.04,
+        steeringClamp = 0.35,
+        suspensionStiffness = 40.0,
+        suspensionCompression = 3.5,
+        suspensionDamping = 3.5,
+        maxSuspensionTravelCm = 10.0,
+        suspensionRestLength = 0.2,
+        wheelFriction = 2.0,
+        frontEndHealth = 400,
+        rearEndHealth = 400,
+        seats = 4,
+
+        wheel FrontLeft
+        {
+            front = true,
+            offset = 1.0 0.0 1.6,
+            radius = 0.3,
+            width = 0.3,
+        }
+        wheel FrontRight
+        {
+            front = true,
+            offset = -1.0 0.0 1.6,
+            radius = 0.3,
+            width = 0.3,
+        }
+        wheel RearLeft
+        {
+            front = false,
+            offset = 1.0 0.0 -1.6,
+            radius = 0.3,
+            width = 0.3,
+        }
+        wheel RearRight
+        {
+            front = false,
+            offset = -1.0 0.0 -1.6,
+            radius = 0.3,
+            width = 0.3,
+        }
+
+        area Engine
+        {
+            xywh = 0.0 -2.9 1.4 0.8,
+        }
+        area TruckBed
+        {
+            xywh = 0.0 -2.9 1.4 0.8,
+        }
+        area GasTank
+        {
+            xywh = -2.0 -1.6 0.8 0.8,
+        }
+        area SeatFrontLeft
+        {
+            xywh = 2.0 1.2 1.0 1.2,
+        }
+        area SeatFrontRight
+        {
+            xywh = -2.0 1.2 1.0 1.2,
+        }
+        area SeatRearLeft
+        {
+            xywh = 2.0 -0.2 1.0 1.2,
+        }
+        area SeatRearRight
+        {
+            xywh = -2.0 -0.2 1.0 1.2,
+        }
+        area TireFrontLeft
+        {
+            xywh = 2.0 1.6 0.6 0.6,
+        }
+        area TireFrontRight
+        {
+            xywh = -2.0 1.6 0.6 0.6,
+        }
+        area TireRearLeft
+        {
+            xywh = 2.0 -1.6 0.6 0.6,
+        }
+        area TireRearRight
+        {
+            xywh = -2.0 -1.6 0.6 0.6,
+        }
+
+        /* Seats, each with its own way in, so vanilla never has to enter one
+           seat through another (the path that assumes a door). Switching
+           seats inside works between any two, like a truck cab. */
+        passenger FrontLeft
+        {
+            area = SeatFrontLeft,
+            position inside
+            {
+                offset = 0.55 0.25 1.3,
+                rotate = 0.0 0.0 0.0,
+            }
+            position outside
+            {
+                offset = 2.0 0.0 1.2,
+                rotate = 0.0 0.0 0.0,
+                area = SeatFrontLeft,
+            }
+            switchSeat FrontRight
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+            switchSeat RearLeft
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+            switchSeat RearRight
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+        }
+        passenger FrontRight
+        {
+            area = SeatFrontRight,
+            position inside
+            {
+                offset = -0.55 0.25 1.3,
+                rotate = 0.0 0.0 0.0,
+            }
+            position outside
+            {
+                offset = -2.0 0.0 1.2,
+                rotate = 0.0 0.0 0.0,
+                area = SeatFrontRight,
+            }
+            switchSeat FrontLeft
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+            switchSeat RearLeft
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+            switchSeat RearRight
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+        }
+        passenger RearLeft
+        {
+            area = SeatRearLeft,
+            position inside
+            {
+                offset = 0.55 0.25 0.1,
+                rotate = 0.0 0.0 0.0,
+            }
+            position outside
+            {
+                offset = 2.0 0.0 -0.2,
+                rotate = 0.0 0.0 0.0,
+                area = SeatRearLeft,
+            }
+            switchSeat FrontLeft
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+            switchSeat FrontRight
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+            switchSeat RearRight
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+        }
+        passenger RearRight
+        {
+            area = SeatRearRight,
+            position inside
+            {
+                offset = -0.55 0.25 0.1,
+                rotate = 0.0 0.0 0.0,
+            }
+            position outside
+            {
+                offset = -2.0 0.0 -0.2,
+                rotate = 0.0 0.0 0.0,
+                area = SeatRearRight,
+            }
+            switchSeat FrontLeft
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+            switchSeat FrontRight
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+            switchSeat RearLeft
+            {
+                anim = Climb_WindowB,
+                rate = 0.3,
+                sound = VehicleChangeSeat,
+            }
+        }
+
+        /* Enter, idle and exit animations, and a roof, for every seat. */
+        template = PassengerCommon,
+
+        template = Seat/part/SeatFrontLeft,
+        template = Seat/part/SeatFrontRight,
+        template = Seat/part/SeatRearLeft,
+        template = Seat/part/SeatRearRight,
+        template = GasTank,
+        template = Battery,
+        template = Engine,
+        template = Heater,
+        template = PassengerCompartment,
+        template = Tire,
+        template = Brake,
+        template = Suspension,
+        template = Trunk/part/TruckBed,
+
+        part TruckBed
+        {
+            itemType = Base.SmallTrunk,
+            container
+            {
+                capacity = 100,
+            }
+        }
+
+        part TireFrontLeft
+        {
+            model InflatedTirePlusWheel
+            {
+                file = TrekShuttleCraftNoWheel,
+            }
+        }
+        part TireFrontRight
+        {
+            model InflatedTirePlusWheel
+            {
+                file = TrekShuttleCraftNoWheel,
+            }
+        }
+        part TireRearLeft
+        {
+            model InflatedTirePlusWheel
+            {
+                file = TrekShuttleCraftNoWheel,
+            }
+        }
+        part TireRearRight
+        {
+            model InflatedTirePlusWheel
+            {
+                file = TrekShuttleCraftNoWheel,
+            }
+        }
+    }
+}
