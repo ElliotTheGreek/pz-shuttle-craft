@@ -22,6 +22,11 @@
 ]]
 
 _G.unpack = _G.unpack or table.unpack
+
+-- Kahlua, the game's Lua, lacks some of the standard library. Remove what the
+-- game does not have, so using it fails here instead of in game.
+next = nil
+math.huge = nil
 SIM = { log = {}, notes = {}, lamps = 0, voidX = 24000 }
 
 function print(...)

@@ -44,7 +44,9 @@ TREK.Server = S
 -- Validation helpers
 ---------------------------------------------------------------------------
 local function int(v)
-    if type(v) ~= "number" or v ~= v or v == math.huge or v == -math.huge then
+    -- NaN is the one value not equal to itself; infinities fail the range
+    -- checks callers make. (Kahlua has no math.huge.)
+    if type(v) ~= "number" or v ~= v then
         return nil
     end
     return math.floor(v)
@@ -310,7 +312,10 @@ end
 --- Builds the cabin for players waiting aboard, once its chunks are loaded
 --- around them, and tells them when it is ready.
 local function serviceWaiting()
-    if next(waiting) == nil then return end
+    -- The game's Lua (Kahlua) has no `next`; pairs is how to ask "empty?".
+    local any = false
+    for _ in pairs(waiting) do any = true break end
+    if not any then return end
     if not B.cabinLoaded() then return end
 
     local wasCurrent = B.cabinCurrent()
@@ -425,7 +430,16 @@ Net.onServer("addBookmark", function(player, args)
         return
     end
     local name = type(args.name) == "string" and args.name or ""
-    name = name:gsub("[%c<>]", ""):sub(1, C.MaxBookmarkName)
+    -- Printable characters only, and no rich-text markup. Done by byte rather
+    -- than with a pattern class, which Kahlua may not support.
+    local clean = {}
+    for i = 1, #name do
+        local b = string.byte(name, i)
+        if b >= 32 and b ~= 60 and b ~= 62 and b ~= 127 then
+            clean[#clean + 1] = string.sub(name, i, i)
+        end
+    end
+    name = table.concat(clean):sub(1, C.MaxBookmarkName)
     if name == "" then name = string.format("%d, %d", x, y) end
     table.insert(s.bookmarks, { name = name, x = x, y = y, z = z })
     Ship.commit()
