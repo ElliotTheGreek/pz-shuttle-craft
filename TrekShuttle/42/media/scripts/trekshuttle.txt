@@ -261,4 +261,52 @@ module TrekShuttle
         WorldStaticModel = BowlSoup_Ground,
         Tooltip = Tooltip_TREK_LeolaStew,
     }
+
+    /*  Vulcan plomeek soup: a light, clear vegetable broth. Less filling
+        than the stew, better for the spirit, and a soup, so it takes the edge
+        off thirst as well. Vulcans are vegetarian, so it is too.  */
+    item TrekPlomeekSoup
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 1.0,
+        Icon = TREK_PlomeekSoup,
+        EatType = 2handbowl,
+        ReplaceOnUse = Base.Bowl,
+        CustomEatSound = EatingSoup,
+        GoodHot = true,
+        DaysFresh = 3,
+        DaysTotallyRotten = 6,
+        HungerChange = -25.0,
+        ThirstChange = -15.0,
+        UnhappyChange = -15,
+        Calories = 320.0,
+        Carbohydrates = 45.0,
+        Lipids = 8.0,
+        Proteins = 12.0,
+        StaticModel = BowlSoup_Ground,
+        WorldStaticModel = BowlSoup_Ground,
+        Tooltip = Tooltip_TREK_PlomeekSoup,
+    }
+
+    /*  Bajoran jumja stick: crystallised tree sap on a stick. Barely food,
+        entirely morale, and sugar keeps -- so no DaysFresh. The vanilla
+        lollipop is the closest shape on hand for the world and hand models.  */
+    item TrekJumjaStick
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.1,
+        Icon = TREK_JumjaStick,
+        HungerChange = -8.0,
+        UnhappyChange = -20,
+        BoredomChange = -10,
+        Calories = 260.0,
+        Carbohydrates = 65.0,
+        Lipids = 0.0,
+        Proteins = 0.0,
+        StaticModel = Lollipop,
+        WorldStaticModel = Lollipop,
+        Tooltip = Tooltip_TREK_JumjaStick,
+    }
 }

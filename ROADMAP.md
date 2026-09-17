@@ -181,10 +181,15 @@ doubles as the test run for every item below.
 Chosen as next because it is mostly the proven food pipeline, and the one new
 system in it -- drinks -- is one the replicator will need to understand too.
 
-**Food** (trivial, same as the first batch):
+**Food -- built, awaiting in-game test:**
 
-- **Plomeek soup** -- Vulcan broth. Bowl, soup model, gentle morale boost.
-- **Jumja stick** -- Bajoran sweet on a stick. Light snack, happiness, keeps.
+- **Plomeek soup** -- clear Vulcan broth in a bronze bowl. Hunger -25, thirst
+  -15, morale boost. In the galley fridges.
+- **Jumja stick** -- Bajoran sap candy. Barely food, big morale boost, keeps.
+  In the provisions and survival stores.
+
+Both icons passed the 32px vet first time, and distinct from the first
+batch. `TREK_Galley()` now hands out all five dishes.
 
 **Drinks** (Medium). Build 42 drinks are not food items: they are *fluids*
 (`fluid Wine { Properties { ThirstChange, alcohol, ... } }`) held in a

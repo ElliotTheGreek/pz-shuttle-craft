@@ -414,6 +414,8 @@ B.GalleyItems = {
     "TrekShuttle.TrekRationPack",
     "TrekShuttle.TrekGagh",
     "TrekShuttle.TrekLeolaStew",
+    "TrekShuttle.TrekPlomeekSoup",
+    "TrekShuttle.TrekJumjaStick",
 }
 
 --- Exposed for the debug console: TREK_Galley()

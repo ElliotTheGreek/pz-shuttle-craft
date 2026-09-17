@@ -400,7 +400,7 @@ C.Loot.food = {
     "Base.CannedCarrots", "Base.CannedPotato", "Base.CannedChili",
     "Base.CannedBolognese", "Base.CannedMushroomSoup", "Base.CannedTomato",
     "Base.CannedSardines", "Base.CannedFruitCocktail", "Base.CannedPeaches",
-    "TrekShuttle.TrekRationPack",
+    "TrekShuttle.TrekRationPack", "TrekShuttle.TrekJumjaStick",
     "Base.Rice", "Base.Pasta", "Base.Flour2", "Base.Sugar", "Base.Salt",
     "Base.Coffee2", "Base.Crisps", "Base.GranolaBar", "Base.BeefJerky",
     "Base.WaterBottle", "Base.WaterRationCan",
@@ -411,7 +411,7 @@ C.Loot.food = {
 -- pumpkin and the watermelon are what let a fridge look stocked without
 -- putting eighty eggs in it.
 C.Loot.fresh = {
-    "TrekShuttle.TrekLeolaStew", "TrekShuttle.TrekGagh",
+    "TrekShuttle.TrekLeolaStew", "TrekShuttle.TrekGagh", "TrekShuttle.TrekPlomeekSoup",
     "Base.Ham", "Base.Bread", "Base.Cheese", "Base.Butter", "Base.Milk",
     "Base.Pumpkin", "Base.Egg", "Base.Potato", "Base.Carrots", "Base.Onion",
     "Base.Watermelon", "Base.Tomato", "Base.Apple", "Base.Orange",
@@ -451,7 +451,7 @@ C.Loot.weapons = {
 -- Crucial kit: what is worth more than its weight the moment the ship sets
 -- down somewhere dark and the hatch opens.
 C.Loot.survival = {
-    "TrekShuttle.TrekRationPack",
+    "TrekShuttle.TrekRationPack", "TrekShuttle.TrekJumjaStick",
     "Base.Torch", "Base.Battery", "Base.Lighter", "Base.Matches",
     "Base.Rope", "Base.SheetRope", "Base.DuctTape", "Base.FirstAidKit",
     "Base.WaterRationCan", "Base.Extinguisher", "Base.Map",
