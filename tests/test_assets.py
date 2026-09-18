@@ -6,7 +6,7 @@ half-dressed with no error anywhere in the log.
 
     python tests/test_assets.py
 """
-import json, re, sys, os
+import glob, json, re, sys, os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CATALOG = os.path.join(ROOT, "tools", "_catalog")
@@ -132,31 +132,42 @@ for ref in re.findall(r"^\s*SwingAnim\s*=\s*(\w+)\s*,", script, re.M):
                         f"vanilla uses ({', '.join(sorted(SWING_ANIMS))})")
 
 # --- the galley's fluids -----------------------------------------------
-# A drink is a fluid plus a vessel, and every join between the two fails
-# quietly if it is wrong: an unknown ColorReference, a whitelist naming a fluid
-# that does not exist, a DisplayName with no translation, a fluid mask with no
-# texture. None of them stops the item loading, so all of them look like "the
-# drink is there but wrong" in game.
+# A drink is a fluid plus a vessel, and every join between the two can fail on
+# a name: a whitelist naming a fluid that does not exist, a DisplayName with no
+# translation, a fluid mask with no texture. Most look like "the drink is there
+# but wrong" in game -- but ColorReference does not, it takes the whole world
+# down with it. See below.
 mod_fluids = set(re.findall(r"^\s*fluid\s+([A-Za-z0-9_]+)\s*$", script, re.M))
 
-# ColorReference is a name out of zombie.core.Colors, not a hex value. The
-# engine logs "Cannot find color:" and carries on, so a typo is a drink that
-# draws in the wrong colour rather than an error. The valid names are read
-# back out of the jar the same way tools/pzapi.py reads everything else.
-JAR = os.path.join(os.path.dirname(PZ), "projectzomboid.jar")
-colour_names = set()
-try:
-    import zipfile
-    with zipfile.ZipFile(JAR) as z:
-        blob = z.read("zombie/core/Colors.class")
-    colour_names = {m.decode() for m in re.findall(rb"[A-Za-z][A-Za-z]{2,24}", blob)}
-except Exception as exc:                      # no jar on this machine
-    print(f"  (skipped the ColorReference check: {exc})")
-if colour_names:
+# ColorReference is a name out of zombie.core.Colors, not a hex value, and an
+# unknown one is **fatal**: FluidDefinitionScript.getColor throws
+# RuntimeException("Cannot find color: X"), which aborts ScriptManager
+# .loadScripts, and the world then refuses to load at all with "there are
+# script load errors". It is not a cosmetic typo. `ClearBlue` cost a crash.
+#
+# The list checked against is the set of colours **vanilla's own fluids use**,
+# not every string in Colors.class. Scraping the class file is what let
+# `ClearBlue` through: a string being present in a class is not the same as it
+# being a registered colour name, which is the identical mistake to "the jar is
+# not the API" one level down. This set is conservative -- it would reject a
+# real colour that no vanilla fluid happens to use -- and that is the right way
+# round when being wrong stops the game booting. If you need one that is not
+# here, prove it in game first and add it with a note.
+VANILLA_FLUIDS = ""
+for fn in glob.glob(os.path.join(PZ, "scripts", "generated", "fluids*.txt")):
+    VANILLA_FLUIDS += open(fn, encoding="utf-8", errors="replace").read()
+colour_names = set(re.findall(r"ColorReference\s*=\s*([A-Za-z0-9_]+)\s*,",
+                              VANILLA_FLUIDS))
+if not colour_names:
+    print("  (skipped the ColorReference check: no vanilla fluid scripts found)")
+else:
     for ref in re.findall(r"^\s*ColorReference\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.M):
         if ref not in colour_names:
-            failures.append(f"trekshuttle.txt: ColorReference = {ref} is not a "
-                            f"name in zombie.core.Colors")
+            failures.append(
+                f"trekshuttle.txt: ColorReference = {ref} is not a colour any "
+                f"vanilla fluid uses, and an unknown colour is fatal -- the "
+                f"world will not load. Known good: "
+                f"{', '.join(sorted(colour_names))}")
 
 # A FluidContainer's Fluids block is a whitelist. A name that is not a declared
 # fluid means the vessel refuses the drink it exists to hold.

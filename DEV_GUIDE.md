@@ -551,7 +551,13 @@ A build 42 drink is a `fluid` block plus a vessel item with a
   `FluidType.Modded`, so `FluidType.<yourname>` is nil. The handle from Lua is
   `Fluid.Get("<name>")`. `addFluid` takes a `String`, a `FluidType` or a
   `Fluid`.
-- `ColorReference` is a name from `zombie.core.Colors`, not hex.
+- **`ColorReference` is fatal if it is wrong.** Not a warning, not a black
+  drink: `FluidDefinitionScript.getColor` throws `Cannot find color: X`, which
+  aborts `ScriptManager.loadScripts`, and the world refuses to load with
+  "there are script load errors". Use only a colour a vanilla fluid already
+  uses -- `tests/test_assets.py` enforces that -- because a name being a string
+  inside `Colors.class` does **not** make it a registered colour. That is "the
+  jar is not the API" one level down, and it cost a crash.
 - The `Fluids { }` block inside the component is a **whitelist**: without it
   the vessel refuses the drink it was made for.
 - Fluid names live in `Translate/EN/Fluids.json`, their own category file.

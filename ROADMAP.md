@@ -128,9 +128,9 @@ Four drinks, each a `fluid` block plus a vessel item carrying a
 
 | Drink | Vessel | Colour | Notes |
 |---|---|---|---|
-| **Raktajino** | vanilla `Mug` | `SaddleBrown` | fatigue -25, more than twice vanilla coffee |
+| **Raktajino** | vanilla `Mug` | `Cola` | fatigue -25, more than twice vanilla coffee |
 | **Earl Grey** | vanilla `MugWhite` | `Peru` | stress -35, morale -40 |
-| **Romulan ale** | vanilla `CuracaoBottle` | `ClearBlue` | `alcohol = 0.25` |
+| **Romulan ale** | vanilla `CuracaoBottle` | `DeepSkyBlue` | `alcohol = 0.25` |
 | **Bloodwine** | vanilla `RedWineBottle` | `DarkRed` | `alcohol = 0.4`, vanilla's ceiling |
 
 The verify-first question is answered, and the `ThirstChange` fallback is not
@@ -144,8 +144,11 @@ needed:
   fixed Java enum and every modded fluid is `FluidType.Modded`. From Lua the
   handle is `Fluid.Get("<name>")`; `addFluid` has `(String, float)`,
   `(FluidType, float)` and `(Fluid, float)` overloads and vanilla uses all three.
-- **`ColorReference` is a name from `zombie.core.Colors`** (~200 of them), not
-  a hex value. An unknown one logs `Cannot find color:`.
+- **`ColorReference` must be a colour vanilla's own fluids use.** An unknown
+  one is **fatal** -- `FluidDefinitionScript.getColor` throws, script loading
+  aborts, and the world will not load at all. `ClearBlue` cost a crash on the
+  first launch. Reading names out of `Colors.class` is what let it through: a
+  string in a class file is not a registered name.
 - **`IconFluidMask` is optional** — 61 of vanilla's 133 fluid containers ship
   without one. It is not used here: how it composites has only been reasoned
   about, so the liquid is painted into the icon instead, which is right either

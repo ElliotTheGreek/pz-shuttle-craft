@@ -350,9 +350,20 @@ module TrekShuttle
            name is a string. From Lua the handle is Fluid.Get("<name>"), and
            FluidContainer:addFluid has (String, float), (FluidType, float) and
            (Fluid, float) overloads -- vanilla Lua uses all three.
-        3. ColorReference takes a name out of zombie.core.Colors (about 200 of
-           them), not a hex value. A name it does not know logs "Cannot find
-           color:" rather than drawing black, so a typo is visible.
+        3. ColorReference takes a registered colour name, not a hex value, and
+           an unknown one is **fatal**. This comment used to say it "logs
+           Cannot find color: rather than drawing black, so a typo is visible".
+           It does not log and carry on: FluidDefinitionScript.getColor throws
+           RuntimeException("Cannot find color: X"), that aborts
+           ScriptManager.loadScripts, and the world then refuses to load at all
+           with "there are script load errors". `ClearBlue` cost exactly that.
+
+           The colours below are ones vanilla's own fluids use, which is the
+           only list proven to resolve. Reading names out of Colors.class is
+           what produced `ClearBlue` in the first place -- a string being
+           present in a class file is not the same as it being a registered
+           name, which is "the jar is not the API" one level down.
+           tests/test_assets.py checks against the vanilla set now.
 
         InitialPercentMin/Max fill the vessel when the item is created, so a
         bottle found in the galley is a full bottle.
@@ -375,7 +386,7 @@ module TrekShuttle
         than twice that, which is the whole point of the drink.  */
     fluid TrekRaktajino
     {
-        ColorReference = SaddleBrown,
+        ColorReference = Cola,
         DisplayName = Fluid_Name_TrekRaktajino,
         Categories
         {
@@ -424,7 +435,7 @@ module TrekShuttle
         well above wine without pretending it is whisky.  */
     fluid TrekRomulanAle
     {
-        ColorReference = ClearBlue,
+        ColorReference = DeepSkyBlue,
         DisplayName = Fluid_Name_TrekRomulanAle,
         Categories
         {
