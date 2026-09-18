@@ -149,7 +149,7 @@ GLYPH = {"rug": ".", "console": "T", "helmDesk": "T", "viewscreen": "V",
          "freshFood": "F", "cookware": "c", "provisions": "p", "snacks": "c",
          "readyKit": "s", "computer": "T", "sink": "w", "chair": "h",
          "medical": "M", "engineering": "e", "phasers": "P", "armoury": "A",
-         "survival": "s", "bunk": "b"}
+         "survival": "s", "bunk": "b", "drinks": "d"}
 grid = {}
 for e in entries:
     grid.setdefault((e["x"], e["y"]), []).append(e["tag"])
@@ -175,7 +175,8 @@ for oy in range(L_LEN + 1):
     print(f"{oy:3d} {row}")
 print("\n   @ transporter pad   H helm   V viewscreen   T console   h seat")
 print("   w water   c galley   F fridge   p provisions   M sick bay")
-print("   e engineering   A armoury   P phasers   s survival   b berth   * lamp")
+print("   e engineering   A armoury   P phasers   s survival   b berth")
+print("   d drinks      * lamp")
 
 print(f"\n{len(entries)} authored fittings, {len(containers)} of them stocked:")
 for e in containers:
