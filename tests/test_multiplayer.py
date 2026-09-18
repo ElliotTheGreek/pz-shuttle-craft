@@ -601,6 +601,18 @@ def flight():
           f"flight: the altitude leaked into s.z ({ship(rt, 'z')}); the hatch would "
           f"drop anyone who used it")
 
+    # --- the plane must survive the flight it is holding up ----------------
+    # s.skyAt is written on take-off so a flight that ends in a crash still
+    # gets its floors lifted. Read without checking whether she is still up, it
+    # swept away the plane she was resting on one second after take-off,
+    # physics took over and she tipped into the ground. Seen in game.
+    net.pump(300)
+    check(rt.eval("TREK.Sky.count()") > 0,
+          "flight: the sky plane was swept away while she was still flying on it")
+    check(vehicle_z(rt) == rt.eval("TREK.Config.FlightCruise"),
+          f"flight: she dropped to z {vehicle_z(rt)} while airborne")
+    check(ship(rt, "flying") is True, "flight: she did not stay up")
+
     # --- the hatch is shut while she is up --------------------------------
     before = pos(rt)
     rt.run(f"TREK.Core.exit({P})")

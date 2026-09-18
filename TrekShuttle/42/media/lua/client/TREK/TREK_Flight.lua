@@ -111,6 +111,14 @@ end
 --- cannot tell those apart is how an unreachable call reads as success.
 function F.lift(vehicle, level)
     return U.try("liftTransform", function()
+        -- Wake her first. setWorldTransform reaches Bullet.teleportVehicle,
+        -- and a body the engine has put to sleep does not necessarily take the
+        -- teleport: the first attempt in game reported "physics active=false"
+        -- and the height simply did not stick, while the second, with the body
+        -- awake, worked at once. This is the vanilla "Drop" call and is
+        -- ungated.
+        U.try("wakePhysics", function() vehicle:setPhysicsActive(true, true) end)
+
         local t = Transform.new()
         vehicle:getWorldTransform(t)
         local o = t:getOrigin()
@@ -120,6 +128,32 @@ function F.lift(vehicle, level)
         vehicle:setWorldTransform(t)
         return "ok"
     end) == "ok"
+end
+
+--- The Bullet height, in levels. This is where altitude actually lives -- the
+--- game's getZ() is derived from it and thrown away wherever there is no floor
+--- -- so a lift that "did nothing" is told apart from one the floor check
+--- refused only by reading both.
+function F.bulletLevel(vehicle)
+    return U.try("bulletLevel", function()
+        local t = Transform.new()
+        vehicle:getWorldTransform(t)
+        return t:getOrigin():y() / C.LevelUnits
+    end)
+end
+
+--- Keeps her flat. She is resting on an invisible floor with real physics on,
+--- and a nudge can tip a 1200kg box: seen in game, where she went over
+--- backwards. flipUpright sets the rotation to level and leaves the origin
+--- alone, so it cannot cost any height.
+local function keepLevel(vehicle)
+    local ax = U.try("angleX", function() return vehicle:getAngleX() end) or 0
+    local az = U.try("angleZ", function() return vehicle:getAngleZ() end) or 0
+    if math.abs(ax) < C.FlightLevelTolerance and math.abs(az) < C.FlightLevelTolerance then
+        return false
+    end
+    U.try("flipUpright", function() vehicle:flipUpright() end)
+    return true
 end
 
 --- Reads back what the engine actually did with the height.
@@ -147,7 +181,10 @@ local function report(vehicle, want, got)
           tostring(U.try("transformNew", function()
               return Transform.new() ~= nil
           end) == true))
-    U.log("asked for level %d, engine reports %s", want, tostring(got))
+    U.log("asked for level %d: engine reports z %s, physics body is at level %s",
+          want, tostring(got), tostring(F.bulletLevel(vehicle)))
+    U.log("  (if the body is at the level and z is 0, the floor check refused it; "
+          .. "if the body is at 0 too, the teleport itself did not take)")
     U.log("vehicle position %.2f,%.2f,%.2f  physics active=%s",
           U.try("vx", function() return vehicle:getX() end) or -1,
           U.try("vy", function() return vehicle:getY() end) or -1,
@@ -414,13 +451,18 @@ local function serviceFlight()
     Sky.pave(x, y, level)
 
     holdTick = holdTick + 1
-    if holdTick >= 10 then
+    if holdTick >= 6 then
         holdTick = 0
-        if ownsPhysics(vehicle) and Sky.holds(x, y, level) then
-            local got = levelOf(vehicle)
-            if got ~= level then
-                U.debug("re-asserting level %d (engine had %s)", level, tostring(got))
-                F.lift(vehicle, level)
+        if ownsPhysics(vehicle) then
+            if keepLevel(vehicle) then
+                U.debug("levelling her off")
+            end
+            if Sky.holds(x, y, level) then
+                local got = levelOf(vehicle)
+                if got ~= level then
+                    U.debug("re-asserting level %d (engine had %s)", level, tostring(got))
+                    F.lift(vehicle, level)
+                end
             end
         end
     end
@@ -463,6 +505,13 @@ local sweeping = nil
 
 local function serviceSweep()
     local s = Ship.get()
+    -- Never while she is up. s.skyAt is written the moment she goes airborne
+    -- so that a flight ending in a crash still gets its floors lifted, and an
+    -- earlier version read it without this check -- so one second after
+    -- take-off it began sweeping away the very plane the ship was resting on,
+    -- physics took over, and she tipped backwards into the ground. Seen in
+    -- game, 2026-09-17 20:00:18.
+    if s.flying then sweeping = nil return end
     local at = s.skyAt
     if not at then sweeping = nil return end
     local player = U.player(0)

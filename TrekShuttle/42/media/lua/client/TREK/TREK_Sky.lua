@@ -194,18 +194,26 @@ function Sky.service()
         end
     end
 
-    if count > C.SkyMaxTiles then Sky.trim() end
+    -- Every pass, not only when some ceiling is hit. The plane is a patch that
+    -- travels with the ship: anything she has left behind is lifted at once,
+    -- so the darkness a floor casts over the ground moves with her instead of
+    -- being painted across the county.
+    Sky.trim()
 end
 
---- Lifts the squares furthest from the ship, when a long flight has grown the
---- plane past its ceiling.
+--- Lifts the squares the ship has left behind.
 function Sky.trim()
     if not job then return end
     local take = U.batch("sky.removeFloor")
-    local limit = C.SkyRadius + 8
+    local limit = C.SkyRadius + C.SkyTrailMargin
     for k, t in pairs(laid) do
-        if math.abs(t.x - job.x) > limit or math.abs(t.y - job.y) > limit then
+        if t.z ~= job.level
+           or math.abs(t.x - job.x) > limit or math.abs(t.y - job.y) > limit then
             if liftOne(t, take) then
+                laid[k] = nil
+                count = count - 1
+            else
+                table.insert(pending, t)
                 laid[k] = nil
                 count = count - 1
             end

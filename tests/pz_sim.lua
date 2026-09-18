@@ -550,8 +550,14 @@ end
 function VehicleMT:setPhysicsActive(a) self.physicsActive = a end
 function VehicleMT:isPhysicsActive() return self.physicsActive ~= false end
 function VehicleMT:isLocalPhysicSim() return SIM_ROLE ~= "server" end
-function VehicleMT:setAngles(_, y) self.angleY = y end
+function VehicleMT:setAngles(x, y, z)
+    self.angleX, self.angleY, self.angleZ = x, y, z
+end
+function VehicleMT:getAngleX() return self.angleX or 0 end
 function VehicleMT:getAngleY() return self.angleY or 0 end
+function VehicleMT:getAngleZ() return self.angleZ or 0 end
+--- Levels her off: rotation only, the height is untouched.
+function VehicleMT:flipUpright() self.angleX, self.angleZ = 0, 0 end
 function VehicleMT:getMaxSpeed() return self.maxSpeed or 70 end
 function VehicleMT:setMaxSpeed(v) self.maxSpeed = v end
 function VehicleMT:getThrottle() return self.throttle or 0 end

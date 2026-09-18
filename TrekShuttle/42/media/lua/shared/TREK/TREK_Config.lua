@@ -234,10 +234,25 @@ C.SkyTile = "invisible_01_0"
 -- 0.8164966702461243 is the same number; both constants are in that method.
 C.LevelUnits = 2.4494900703430176
 
--- How far around the ship the plane extends, in squares. Big enough that the
--- ship cannot outrun its own floor at any speed it is allowed to reach, and
--- small enough that the first pass is over in a second.
-C.SkyRadius = 16
+-- How far around the ship the plane extends, in squares.
+--
+-- Deliberately small, and it was not always. A floor is a floor: the engine
+-- treats everything under one as being indoors and stops drawing the ground
+-- below it, so a wide plane put a disc of blackness around the ship and hid
+-- the very world she was flying over. Seen in game, 2026-09-17 -- "I can see
+-- the world but near me is a sphere of blackness."
+--
+-- The hull is 3 by 5, so 4 squares out covers it with a margin for turning
+-- and leaves the dark patch no bigger than the ship's own shadow. Only the
+-- centre square actually decides the height (BaseVehicle.update checks
+-- getGridSquare(getX(), getY(), lvl) and nothing else); the rest is there for
+-- the wheels to rest on.
+C.SkyRadius = 4
+
+-- How far beyond that to let the plane linger before it is lifted again. Two
+-- squares: enough that the ship is never chasing its own floor, small enough
+-- that the dark patch travels with her instead of smearing across the map.
+C.SkyTrailMargin = 2
 
 -- Squares paved per tick. The plane is laid the way the landing search is
 -- walked -- a cursor and a slice -- because a thousand addFloor calls in one
@@ -256,9 +271,14 @@ C.FlightCruise   = 3
 C.FlightMinLevel = 1
 C.FlightMaxLevel = 6
 
--- Ticks to wait for the engine to accept a level before giving up on the lift
--- and trying the next way of doing it.
+-- Ticks to wait for the engine to accept a level before giving up on the lift.
 C.FlightLiftTicks = 60
+
+-- Degrees of pitch or roll tolerated before she is levelled off again. She
+-- rests on an invisible floor with real physics running, and a 1200kg box on a
+-- one-tile-thick shelf will tip if it is nudged -- she went over backwards in
+-- game. flipUpright touches only the rotation, never the height.
+C.FlightLevelTolerance = 4
 
 -- Top speed at each helm step, as a multiplier on C.FlightSpeedBase, which is
 -- handed to vehicle:setMaxSpeed(). The ship is genuinely driving, so this is
