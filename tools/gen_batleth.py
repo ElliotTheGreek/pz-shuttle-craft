@@ -187,8 +187,8 @@ def build_mesh(path, texture_file):
     return nv, nf, radius
 
 
-def build_icon(mesh_path, tex_path, out, render_size=512, icon=64, margin=0.04,
-               tilt=38.0):
+def build_icon(mesh_path, tex_path, out, render_size=512, icon=64, margin=0.12,
+               tilt=34.0):
     """The inventory icon, rendered from the mesh this tool just built.
 
     Two goes at drawing a bat'leth with the image model missed the silhouette:

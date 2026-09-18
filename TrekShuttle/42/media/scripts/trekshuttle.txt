@@ -619,14 +619,12 @@ module TrekShuttle
         for the hand, `world` for the ground -- are optional, and the offsets
         are six numbers that can only honestly be chosen by looking at the
         thing in a fist. Vanilla's Katana is the baseline to start from when
-        that happens. Until then the engine's default placement applies, which
-        is the one thing here that has not been seen in game.  */
+        that happens.
 
-    model TrekBatlethModel
-    {
-        mesh = weapons/2handed/TREK_Batleth,
-        texture = weapons/2handed/TREK_Batleth,
-    }
+        **The model block is in `module Base`, over in trekweapons.txt**, and
+        not here with the hull and the helm. Declaring it in module TrekShuttle
+        drew nothing in hand at all -- `WeaponSprite` does not resolve the way
+        `StaticModel` does. That file has the log line and the reasoning.  */
 
     /*  The bat'leth: a two-handed crescent swung from the middle, so it hits
         like an axe and sweeps like a bat. Strong, but a long way short of

@@ -24,8 +24,16 @@ MOD_ITEM = re.compile(r"^TrekShuttle\.([A-Za-z0-9_]+)$")
 # The mod's own items, declared in media/scripts/trekshuttle.txt. A Lua
 # reference to one that is not declared there resolves to nothing, exactly as
 # silently as a bad Base id does.
-script = open(os.path.join(MOD, "media", "scripts", "trekshuttle.txt"),
-              encoding="utf-8").read()
+# Both item/model script files, concatenated. trekweapons.txt exists because
+# weapon models have to be declared in `module Base` -- WeaponSprite does not
+# resolve within the mod's own module the way StaticModel does -- and no
+# vanilla file declares two modules, so it could not simply live in the other
+# file. Anything checking "does this name resolve" has to see both or it will
+# report a model that is really there as missing.
+script = "".join(
+    open(os.path.join(MOD, "media", "scripts", fn), encoding="utf-8").read()
+    for fn in ("trekshuttle.txt", "trekweapons.txt")
+    if os.path.isfile(os.path.join(MOD, "media", "scripts", fn)))
 # Anchored to the end of the line, as the model and fluid patterns are: a real
 # declaration is "item Foo" and nothing else, so prose in a comment that
 # happens to say "item blocks" is not mistaken for one.
@@ -119,10 +127,40 @@ else:
 # SwingAnim must name one of the animations the game itself ships. Neither
 # failure says anything -- a bad WeaponSprite draws an empty hand, a bad
 # SwingAnim just does not animate -- so both are checked here.
+# Which module each of the mod's own models is declared in. WeaponSprite does
+# NOT resolve inside the mod's own module the way StaticModel does: the
+# bat'leth declared in `module TrekShuttle` drew nothing in hand, and the only
+# sign was one line -- MeshAssetManager failing to load an asset named after
+# the *model block*, which is what the engine falls back to when the name
+# resolved to no ModelScript at all. Every vanilla weapon model, and the one
+# Workshop mod shipping custom in-hand blades, declares them in `module Base`.
+model_module = {}
+for fn in ("trekshuttle.txt", "trekweapons.txt"):
+    path = os.path.join(MOD, "media", "scripts", fn)
+    if not os.path.isfile(path):
+        continue
+    body = open(path, encoding="utf-8").read()
+    current = None
+    for line in body.splitlines():
+        mod_m = re.match(r"^module\s+(\w+)", line)
+        if mod_m:
+            current = mod_m.group(1)
+        mdl = re.match(r"^\s*model\s+([A-Za-z0-9_]+)\s*$", line)
+        if mdl:
+            model_module[mdl.group(1)] = current
+
 for ref in re.findall(r"^\s*WeaponSprite\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.M):
-    if ref not in mod_models and not re.search(r"model\s+%s\s*\n?\s*\{" % ref, vanilla):
-        failures.append(f"trekshuttle.txt: WeaponSprite = {ref} is neither a mod "
-                        f"model nor a vanilla one; the weapon draws nothing in hand")
+    if ref in mod_models:
+        where = model_module.get(ref)
+        if where != "Base":
+            failures.append(
+                f"WeaponSprite = {ref} names a model declared in module "
+                f"{where!r}. Weapon models must be in `module Base` or the "
+                f"engine finds no ModelScript and the weapon draws nothing in "
+                f"hand -- the only symptom is one MeshAssetManager warning.")
+    elif not re.search(r"model\s+%s\s*\n?\s*\{" % ref, vanilla):
+        failures.append(f"WeaponSprite = {ref} is neither a mod model nor a "
+                        f"vanilla one; the weapon draws nothing in hand")
 
 # The animation set is global and closed: a mod borrows a name or gets nothing.
 SWING_ANIMS = set(re.findall(r"^\s*SwingAnim\s*=\s*(\w+)\s*,", vanilla, re.M))
