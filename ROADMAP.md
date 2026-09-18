@@ -121,31 +121,64 @@ is reasoning, not evidence.
   that does not set the street on fire.
 - **A viewscreen** in the cockpit, if flying from the helm ever earns one.
 
-## Then: galley, drinks (Medium)
+## Galley drinks — built, not yet seen in game
 
-Build 42 drinks are *fluids* held in a container item with a `FluidContainer`
-component, so each drink is a fluid definition plus a vessel.
+Four drinks, each a `fluid` block plus a vessel item carrying a
+`FluidContainer`. In the galley's drinks cabinet (`C.Loot.drinks`).
 
-- **Raktajino** — Klingon coffee, in a mug. Thirst, fatigue down.
-- **Earl Grey tea, hot** — in a teacup. Thirst, stress down.
-- **Romulan ale** — the blue one, in a bottle. Alcoholic, strong.
-- **Klingon bloodwine** — dark red, in a bottle. Very alcoholic.
+| Drink | Vessel | Colour | Notes |
+|---|---|---|---|
+| **Raktajino** | vanilla `Mug` | `SaddleBrown` | fatigue -25, more than twice vanilla coffee |
+| **Earl Grey** | vanilla `MugWhite` | `Peru` | stress -35, morale -40 |
+| **Romulan ale** | vanilla `CuracaoBottle` | `ClearBlue` | `alcohol = 0.25` |
+| **Bloodwine** | vanilla `RedWineBottle` | `DarkRed` | `alcohol = 0.4`, vanilla's ceiling |
 
-*Verify first:* that a mod can define its own `fluid` block and use it from a
-`FluidContainer`, and what the colour and `IconFluidMask` need. Fallback: food
-items with `ThirstChange`.
+The verify-first question is answered, and the `ThirstChange` fallback is not
+needed:
 
-## Then: Klingon, Vulcan and Andorian blades (Medium each)
+- **A mod may declare `fluid` blocks in its own `media/scripts`.** Vanilla's
+  all live under `scripts/generated/`, which made it look generated-only;
+  `FluidDefinitionScript` tracks `isVanilla`/`modId`, `FluidType` has a
+  `Modded` constant for exactly this, and a Workshop mod ships fluids this way.
+- **A modded fluid is not reachable as `FluidType.<name>`.** `FluidType` is a
+  fixed Java enum and every modded fluid is `FluidType.Modded`. From Lua the
+  handle is `Fluid.Get("<name>")`; `addFluid` has `(String, float)`,
+  `(FluidType, float)` and `(Fluid, float)` overloads and vanilla uses all three.
+- **`ColorReference` is a name from `zombie.core.Colors`** (~200 of them), not
+  a hex value. An unknown one logs `Cannot find color:`.
+- **`IconFluidMask` is optional** — 61 of vanilla's 133 fluid containers ship
+  without one. It is not used here: how it composites has only been reasoned
+  about, so the liquid is painted into the icon instead, which is right either
+  way. Adding masks is a polish pass for after somebody has watched one render.
+- Fluid names go in `Translate/EN/Fluids.json` — its own category file.
 
-A static mesh plus two attachment points, animation borrowed by name — within
-reach of `tools/meshbuild.py` / `tools/import_gltf.py`.
+## Blades — the bat'leth is built, three to go
 
-| Weapon | Borrow from vanilla | Notes |
-|---|---|---|
-| **Bat'leth** | two-handed long blade | The iconic crescent; proves the in-hand path |
-| **Mek'leth** | one-handed short blade | Klingon short sword |
-| **Lirpa** | spear | Vulcan polearm |
-| **Ushaan-tor** | one-handed short blade | Andorian ice-miner's blade |
+**The in-hand path is open.** The claim that a custom `WeaponSprite` needs a
+rigged attachment set was wrong, and it had quietly ruled this whole section
+out. A weapon model is a **plain static mesh** — no bones, no skinning, no
+animation files. `WeaponSprite` names a `model` block exactly as `StaticModel`
+does, and the swing is `SwingAnim`, a name borrowed from the game's own global
+set (`Bat`, `Stab`, `Heavy`, `Spear`, `Throw`, `Rifle`, `Handgun`, `Stone`,
+`Shove` — `tests/test_assets.py` now checks both names resolve).
+
+Weapon meshes are **Y-up**, the opposite of the hull and the helm.
+
+| Weapon | SwingAnim | Categories | Notes |
+|---|---|---|---|
+| **Bat'leth** | `Bat` | `base:longblade` | **Built.** `tools/gen_batleth.py`, two-handed, `AttachmentType = BigBlade` |
+| **Mek'leth** | `Bat` | `base:longblade` | Klingon short sword; `ShortSword` is the template |
+| **Lirpa** | `Spear` | `base:spear` | Vulcan polearm; copy `SpearCrafted`'s ranges (`MinRange = 0.98`) |
+| **Ushaan-tor** | `Stab` | `base:smallblade` | Andorian ice-miner's blade; `HuntingKnife` template |
+
+**Still to settle for the bat'leth, in game:** it ships with no `attachment`
+blocks. Both (`Bip01_Prop2` for the hand, `world` for the ground) are optional
+and the engine falls back to a default placement, but the six offset numbers
+can only honestly be chosen by looking at the thing in a fist. Vanilla's
+`Katana` model block is the baseline to start from. Where a blade *hangs* when
+slung is not on the weapon model at all — `AttachmentType` is routed through
+`ISHotbarAttachDefinition.lua` and `AttachedLocations.lua` to an attachment on
+the **character** model.
 
 ## Then: medical and tools
 
@@ -171,10 +204,16 @@ reach of `tools/meshbuild.py` / `tools/import_gltf.py`.
    This is the last thing standing between 1.3 and the Workshop.
 2. **Publish 1.3.**
 3. **Photon torpedoes.**
-4. **Drinks.**
-5. **Blades.**
+4. ~~Drinks.~~ **Built.** Needs a look in game: the four vessels in the
+   galley's drinks cabinet, full, and the fluid names and colours right.
+5. **Blades** — bat'leth built; hand and ground attachments to set in game,
+   then the mek'leth, lirpa and ushaan-tor off the same pipeline.
 6. **Medical tricorder, hypospray, tricorder.**
 7. **Replicator, then EMH.**
+
+Items 4 and 5 are static-checked and have never been loaded by the game. The
+next in-game session should carry them: the drinks cabinet and a bat'leth in
+hand cost nothing extra once a world is up.
 
 ---
 

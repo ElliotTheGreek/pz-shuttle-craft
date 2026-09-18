@@ -26,7 +26,10 @@ MOD_ITEM = re.compile(r"^TrekShuttle\.([A-Za-z0-9_]+)$")
 # silently as a bad Base id does.
 script = open(os.path.join(MOD, "media", "scripts", "trekshuttle.txt"),
               encoding="utf-8").read()
-mod_items = set(re.findall(r"^\s*item\s+([A-Za-z0-9_]+)", script, re.M))
+# Anchored to the end of the line, as the model and fluid patterns are: a real
+# declaration is "item Foo" and nothing else, so prose in a comment that
+# happens to say "item blocks" is not mistaken for one.
+mod_items = set(re.findall(r"^\s*item\s+([A-Za-z0-9_]+)\s*$", script, re.M))
 mod_models = set(re.findall(r"^\s*model\s+([A-Za-z0-9_]+)", script, re.M))
 mod_icons = set(re.findall(r"^\s*Icon\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.M))
 
@@ -109,6 +112,86 @@ else:
     for key in ("SwingAnim", "RunAnim"):
         if not re.search(key + r"\s*=", body):
             failures.append(f"phaser has no {key}; it will not animate")
+
+# --- weapons that borrow from the engine by name -----------------------
+# A weapon model is a plain static mesh, and the two names that reach it are
+# resolved by string at load: WeaponSprite must name a `model` block, and
+# SwingAnim must name one of the animations the game itself ships. Neither
+# failure says anything -- a bad WeaponSprite draws an empty hand, a bad
+# SwingAnim just does not animate -- so both are checked here.
+for ref in re.findall(r"^\s*WeaponSprite\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.M):
+    if ref not in mod_models and not re.search(r"model\s+%s\s*\n?\s*\{" % ref, vanilla):
+        failures.append(f"trekshuttle.txt: WeaponSprite = {ref} is neither a mod "
+                        f"model nor a vanilla one; the weapon draws nothing in hand")
+
+# The animation set is global and closed: a mod borrows a name or gets nothing.
+SWING_ANIMS = set(re.findall(r"^\s*SwingAnim\s*=\s*(\w+)\s*,", vanilla, re.M))
+for ref in re.findall(r"^\s*SwingAnim\s*=\s*(\w+)\s*,", script, re.M):
+    if ref not in SWING_ANIMS:
+        failures.append(f"trekshuttle.txt: SwingAnim = {ref} is not an animation "
+                        f"vanilla uses ({', '.join(sorted(SWING_ANIMS))})")
+
+# --- the galley's fluids -----------------------------------------------
+# A drink is a fluid plus a vessel, and every join between the two fails
+# quietly if it is wrong: an unknown ColorReference, a whitelist naming a fluid
+# that does not exist, a DisplayName with no translation, a fluid mask with no
+# texture. None of them stops the item loading, so all of them look like "the
+# drink is there but wrong" in game.
+mod_fluids = set(re.findall(r"^\s*fluid\s+([A-Za-z0-9_]+)\s*$", script, re.M))
+
+# ColorReference is a name out of zombie.core.Colors, not a hex value. The
+# engine logs "Cannot find color:" and carries on, so a typo is a drink that
+# draws in the wrong colour rather than an error. The valid names are read
+# back out of the jar the same way tools/pzapi.py reads everything else.
+JAR = os.path.join(os.path.dirname(PZ), "projectzomboid.jar")
+colour_names = set()
+try:
+    import zipfile
+    with zipfile.ZipFile(JAR) as z:
+        blob = z.read("zombie/core/Colors.class")
+    colour_names = {m.decode() for m in re.findall(rb"[A-Za-z][A-Za-z]{2,24}", blob)}
+except Exception as exc:                      # no jar on this machine
+    print(f"  (skipped the ColorReference check: {exc})")
+if colour_names:
+    for ref in re.findall(r"^\s*ColorReference\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.M):
+        if ref not in colour_names:
+            failures.append(f"trekshuttle.txt: ColorReference = {ref} is not a "
+                            f"name in zombie.core.Colors")
+
+# A FluidContainer's Fluids block is a whitelist. A name that is not a declared
+# fluid means the vessel refuses the drink it exists to hold.
+for ref in re.findall(r"^\s*fluid\s*=\s*([A-Za-z0-9_.]+)\s*:", script, re.M):
+    bare = ref.split(".")[-1]
+    if bare not in mod_fluids:
+        failures.append(f"trekshuttle.txt: a FluidContainer whitelists "
+                        f"{ref}, which is not a fluid this mod declares")
+
+# IconFluidMask resolves exactly as Icon does: media/textures/Item_<name>.png.
+# Without it the vessel draws with no liquid in it at all.
+for mask in re.findall(r"^\s*IconFluidMask\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.M):
+    if not os.path.exists(os.path.join(MOD, "media", "textures", f"Item_{mask}.png")):
+        failures.append(f"trekshuttle.txt: IconFluidMask = {mask} has no texture; "
+                        f"expected media/textures/Item_{mask}.png")
+
+# Fluid names live in Translate/EN/Fluids.json -- their own category file, like
+# every other. A Fluid_Name_ key in the wrong file resolves to nothing.
+FLUID_TR = os.path.join(MOD, "media", "lua", "shared", "Translate", "EN", "Fluids.json")
+fluid_names = {}
+if mod_fluids and not os.path.isfile(FLUID_TR):
+    failures.append("the mod declares fluids but has no Translate/EN/Fluids.json")
+elif os.path.isfile(FLUID_TR):
+    fluid_names = json.load(open(FLUID_TR, encoding="utf-8"))
+    for key in fluid_names:
+        if not key.startswith("Fluid_Name_"):
+            failures.append(f"Fluids.json holds {key}, which is not a Fluid_Name_ key")
+for block in re.finditer(r"fluid\s+([A-Za-z0-9_]+)\s*\{(.*?)\n    \}", script, re.S):
+    name, body = block.group(1), block.group(2)
+    shown = re.search(r"DisplayName\s*=\s*([A-Za-z0-9_]+)\s*,", body)
+    if not shown:
+        failures.append(f"fluid {name} has no DisplayName; it shows as its id")
+    elif shown.group(1) not in fluid_names:
+        failures.append(f"Fluids.json has no entry for {shown.group(1)} "
+                        f"(fluid {name})")
 
 # --- every literal in the Lua ------------------------------------------
 for dp, _, fns in os.walk(os.path.join(MOD, "media", "lua")):

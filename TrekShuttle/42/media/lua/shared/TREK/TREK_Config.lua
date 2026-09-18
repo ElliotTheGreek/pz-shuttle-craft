@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 10
+C.BuildRev = 11
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -541,6 +541,19 @@ C.Loot.food = {
     "Base.Rice", "Base.Pasta", "Base.Flour2", "Base.Sugar", "Base.Salt",
     "Base.Coffee2", "Base.Crisps", "Base.GranolaBar", "Base.BeefJerky",
     "Base.WaterBottle", "Base.WaterRationCan",
+    -- The drinks. Each is a vessel carrying its own fluid, filled when the
+    -- item is created (InitialPercentMin/Max in trekshuttle.txt), so what the
+    -- galley stocks is a full mug or a full bottle rather than empty glass.
+    "TrekShuttle.TrekRaktajinoMug", "TrekShuttle.TrekEarlGreyCup",
+}
+
+-- The wardroom's drinks cabinet, in with the galley china. Kept out of
+-- C.Loot.food so a shuttle's standing provisions are not half liquor: these
+-- are two bottles among the cookware, not rations.
+C.Loot.drinks = {
+    "TrekShuttle.TrekRomulanAle", "TrekShuttle.TrekBloodwine",
+    "TrekShuttle.TrekRaktajinoMug", "TrekShuttle.TrekEarlGreyCup",
+    "Base.Whiskey", "Base.BeerBottle", "Base.Wine", "Base.Wine2",
 }
 
 -- The two galley fridges. Produce is light -- an apple is 0.2 of the 40 a
@@ -581,6 +594,7 @@ C.Loot.weapons = {
     "Base.Pistol", "Base.Pistol2", "Base.Pistol3", "Base.Shotgun",
     "Base.Bullets9mmBox", "Base.9mmClip", "Base.ShotgunShellsBox",
     "Base.Bullets45Box", "Base.45Clip",
+    "TrekShuttle.TrekBatleth",
     "Base.HuntingKnife", "Base.Machete", "Base.Nightstick", "Base.HandAxe",
     "Base.Vest_BulletCivilian", "Base.HolsterSimple", "Base.Crowbar",
 }

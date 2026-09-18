@@ -56,7 +56,9 @@ L.tiles = {
     { x = 5, y = 0, sprite = "fixtures_counters_01_37", tag = "provisions", container = true, loot = "food" },
     { x = 0, y = 0, sprite = "appliances_cooking_01_24", tag = "snacks", container = true, loot = "food" },
     { x = 0, y = 4, sprite = "appliances_cooking_01_41", tag = "cookware", container = true, loot = "cookware" },
-    { x = 0, y = 5, sprite = "appliances_cooking_01_40", tag = "cookware", container = true, loot = "cookware" },
+    -- The galley's drinks cabinet: raktajino and Earl Grey to hand, the ale
+    -- and the bloodwine behind them.
+    { x = 0, y = 5, sprite = "appliances_cooking_01_40", tag = "drinks", container = true, loot = "drinks" },
 
     { x = 3, y = 0, sprite = "appliances_com_01_0", tag = "computer" },
     { x = 1, y = 0, sprite = "fixtures_sinks_01_17", tag = "sink" },

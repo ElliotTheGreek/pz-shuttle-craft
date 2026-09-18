@@ -509,6 +509,67 @@ loot and better reading than one holding ninety bandages.
 
 `python tests/test_stock.py` prints the fill each container size reaches.
 
+### A weapon model is a static mesh, and Y is up
+
+**This one hid four weapons behind a wrong comment for months.** The phaser's
+note in `trekshuttle.txt` used to say a custom `WeaponSprite` "needs a rigged
+attachment set rather than a static mesh". It does not, and believing it ruled
+the whole blades section off the roadmap.
+
+`WeaponSprite` names a `model` block exactly as `StaticModel` does; the block
+names a mesh and a texture; the swing comes from `SwingAnim`, a string
+resolved against the game's own **global** animation set. No bones, no
+skinning, no animation files. Vanilla's `Katana` model block is four lines.
+
+- The animation set is closed — `Bat`, `Stab`, `Heavy`, `Spear`, `Throw`,
+  `Rifle`, `Handgun`, `Stone`, `Shove` — and a name outside it silently does
+  not animate. `tests/test_assets.py` checks `SwingAnim` and `WeaponSprite`
+  against the game's own scripts.
+- **Weapon meshes are Y-up.** The hull and the helm are Z-up, so this is the
+  opposite of every other mesh here. `MeshBuilder.place()` maps
+  *(east, north, height)*, which is the right helper for something standing on
+  the ground and the wrong one for a blade: going through it authored the
+  bat'leth lying flat with its thickness pointing at the sky. `gen_batleth.py`
+  writes vertices in the model's own named axes instead. **The preview caught
+  that in one render and the source never would have.**
+- The two attachments, `Bip01_Prop2` (in the hand) and `world` (on the
+  ground), are **optional** — omit them and the engine uses a default. Their
+  offsets can only honestly be set by looking at the weapon in a fist.
+- Where a blade *hangs* when slung is not on the weapon model at all. The
+  item's `AttachmentType` routes through `ISHotbarAttachDefinition.lua` and
+  `AttachedLocations.lua` to an attachment on the **character** model.
+
+### A drink is a fluid, and a modded fluid is a string
+
+A build 42 drink is a `fluid` block plus a vessel item with a
+`FluidContainer`. The fluid carries every effect, so a `ThirstChange` on the
+*item* is ignored — silently.
+
+- A mod may declare `fluid` blocks in its **own** `media/scripts`. Vanilla's
+  all sit under `scripts/generated/`, which makes it look generated-only.
+- **`FluidType` is a fixed Java enum**; every modded fluid is
+  `FluidType.Modded`, so `FluidType.<yourname>` is nil. The handle from Lua is
+  `Fluid.Get("<name>")`. `addFluid` takes a `String`, a `FluidType` or a
+  `Fluid`.
+- `ColorReference` is a name from `zombie.core.Colors`, not hex.
+- The `Fluids { }` block inside the component is a **whitelist**: without it
+  the vessel refuses the drink it was made for.
+- Fluid names live in `Translate/EN/Fluids.json`, their own category file.
+
+### A generated background is not the colour you asked for
+
+**New in this mod, and it produced four finished-looking icons that were
+wrong.** `tools/key_icon.py` keyed on a hard-coded `#FF00FF`. Ask an image
+model for flat magenta and it returns something *like* magenta -- the drinks
+came back on a dusty raspberry around `(206, 34, 137)`, about 130 away -- which
+the fixed key read as foreground. Every icon kept its background as an opaque
+dark red square and looked merely muddy.
+
+The key colour is now **measured** from a border ring, reported, and the
+result counted: `key_icon.py` refuses to write a file when less than a quarter
+of the frame keyed out. Same lesson as `U.addVerified` and `B.stockReport` —
+*read the result back*, because every way this fails produces a plausible file.
+
 ### Item icons: generate on magenta, key it, vet it at 32px
 
 Image models paint backgrounds; they do not emit alpha. So every icon is
@@ -613,6 +674,7 @@ Meshes and textures are **generated, never hand-authored**:
 python tools/gen_shuttle.py TrekShuttle/42
 python tools/gen_helm.py    TrekShuttle/42
 python tools/gen_phaser.py  TrekShuttle/42
+python tools/gen_batleth.py TrekShuttle/42
 python tools/gen_poster.py  TrekShuttle/42
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 ```
@@ -663,6 +725,11 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **Every container in the cabin is empty** | Items are not being created. `grep "CreateItem\|stocking containers via" console.txt` — the second is logged once per build and names the path that worked. See *The jar is not the API*. |
 | **One container is empty and the rest are fine** | Either its sprite is not a container in the tileset, or its `loot` names a `C.Loot` list that does not exist. Both fail in `test_layout.py`; in game, `TREK_Stock()` names the square. |
 | **A container is missing item types** | Container capacity. `AddItems` drops items silently once full. Use `U.stockEach`, which reads the container back and reports what did not land. |
+| **A weapon is equipped and the hand is empty** | `WeaponSprite` names no model, or the model's mesh/texture is not on disk. `tests/test_assets.py` checks all three. |
+| **A weapon swings with no animation** | `SwingAnim` is not one of the nine names vanilla uses. |
+| **A drink has no effect, or the wrong one** | The effects are on the *fluid*, not the item; a `ThirstChange` on the vessel is ignored. `Fluid.Get("name")`, never `FluidType.<name>` -- a modded fluid is `FluidType.Modded`. |
+| **A vessel will not accept its own drink** | The `Fluids { }` whitelist inside its `FluidContainer` is missing or names the fluid wrongly; the log says `Cannot find fluid`. |
+| **A new icon looks muddy, with a dark square behind it** | The generated background was not the magenta that was asked for, so it keyed as foreground. `tools/key_icon.py` now measures the key and refuses to write; re-run it and read the line it prints. |
 | **A container looks under-stocked** | Its list is too light to reach `C.FillFraction` before `C.FillItemCap` binds. Put heavier items in the list; `tests/test_stock.py` prints what each size reaches. |
 | **The sink runs dry after a few weeks** | The fixture has no water store of its own and was living on the mains. See *Sink water*. `TREK_Water()` shows capacity 0. |
 | **It works for the host and not for anyone else** | Something is being done on a client that only the server may do, or only locally. `tests/test_multiplayer.py` should catch it; if it did not, add the case. |
@@ -781,7 +848,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.3.0**, build revision **10**.
+Version **1.3.0**, build revision **11**.
 
 **1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-8):
 server-owned ship and cabin, request protocol, transporter charges, shields per

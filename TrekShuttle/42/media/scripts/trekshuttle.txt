@@ -87,9 +87,26 @@ module TrekShuttle
         and a deep charge means even a burst fired between two ticks cannot
         empty it.
 
-        WeaponSprite names a vanilla in-hand model. A custom one needs a rigged
-        attachment set rather than a static mesh, which is a different pipeline
-        from the world models above; the inventory icon is the mod's own.  */
+        WeaponSprite names a vanilla in-hand model, because a pistol shape the
+        game already has is not worth rebuilding.
+
+        This comment used to claim a custom one "needs a rigged attachment set
+        rather than a static mesh". That is wrong, and it was wrong in a way
+        that quietly ruled out every melee weapon on the roadmap. A weapon
+        model is a plain static mesh -- no bones, no skinning, no animation
+        files. `WeaponSprite` names a `model` block exactly as StaticModel
+        does; the block takes a mesh and a texture; the swing comes from
+        `SwingAnim`, which is a name resolved against the game's own global
+        animation set. Vanilla's own Katana model block is four lines and two
+        attachments, and a Workshop mod ships custom in-hand blades as `.x`
+        files whose only frames are `Root` and a transform.
+
+        The two attachments are `Bip01_Prop2` (where it sits in the hand) and
+        `world` (how it lies when dropped), and both are optional -- omit them
+        and the engine falls back to a default placement. Where a blade hangs
+        when slung is not on the weapon model at all: the item's
+        `AttachmentType` is routed through ISHotbarAttachDefinition.lua and
+        AttachedLocations.lua to an attachment on the *character* model.  */
 
     item TrekPhaser
     {
@@ -308,5 +325,361 @@ module TrekShuttle
         StaticModel = Lollipop,
         WorldStaticModel = Lollipop,
         Tooltip = Tooltip_TREK_JumjaStick,
+    }
+
+    /*  ------------------------------------------------------------------
+        The galley's drinks.
+
+        A build 42 drink is not a food item. It is a *fluid* -- which carries
+        every effect, the colour and the name -- held in a vessel item that
+        owns a FluidContainer component. Drinking reads the fluid, so the
+        item blocks below have no ThirstChange of their own and should not
+        grow one: it would be ignored, which is the silent-failure shape this
+        mod keeps being bitten by.
+
+        Three things about this were verified against the engine rather than
+        assumed, because each would have failed quietly:
+
+        1. A mod may declare `fluid` blocks in its own media/scripts. The
+           vanilla ones all live under scripts/generated/, which made it look
+           like a generated-only format; FluidDefinitionScript tracks isVanilla
+           and modId, FluidType has a `Modded` constant for exactly this, and
+           at least one Workshop mod ships fluids from its own scripts folder.
+        2. A modded fluid is *not* reachable as FluidType.<name>. FluidType is
+           a fixed Java enum and every modded fluid is FluidType.Modded; the
+           name is a string. From Lua the handle is Fluid.Get("<name>"), and
+           FluidContainer:addFluid has (String, float), (FluidType, float) and
+           (Fluid, float) overloads -- vanilla Lua uses all three.
+        3. ColorReference takes a name out of zombie.core.Colors (about 200 of
+           them), not a hex value. A name it does not know logs "Cannot find
+           color:" rather than drawing black, so a typo is visible.
+
+        InitialPercentMin/Max fill the vessel when the item is created, so a
+        bottle found in the galley is a full bottle.
+
+        No IconFluidMask, deliberately. A mask is a second texture the fluid's
+        colour is painted through, so one empty-vessel icon can show any drink
+        at any level. It is optional -- 61 of vanilla's 133 fluid containers
+        ship without one, Kettle and Bleach among them -- and exactly how it
+        composites has not been seen in this game yet, only reasoned about. An
+        icon drawn empty plus a mask that turns out not to work the way it was
+        reasoned about is a drink that looks empty in the inventory and
+        reports nothing: the "present, drawn and inert" shape this mod has
+        already paid for five times. So the liquid is painted into the icon
+        instead, which is right whether or not a mask would have worked, and
+        the mask is a polish pass for after somebody has watched one render.
+        ------------------------------------------------------------------ */
+
+    /*  Klingon coffee, served hot and strong enough to be a running joke
+        about how strong it is. Vanilla Coffee is fatigue -10; this is more
+        than twice that, which is the whole point of the drink.  */
+    fluid TrekRaktajino
+    {
+        ColorReference = SaddleBrown,
+        DisplayName = Fluid_Name_TrekRaktajino,
+        Categories
+        {
+            Beverage,
+        }
+        Properties
+        {
+            fatigueChange = -25.0,
+            HungerChange = -10.0,
+            StressChange = -15.0,
+            ThirstChange = -30.0,
+            UnhappyChange = -30.0,
+            Calories = 20.0,
+            Carbohydrates = 2.0,
+            Lipids = 1.0,
+            Proteins = 1.0,
+        }
+    }
+
+    /*  Tea. Earl Grey. Hot. Vanilla Tea's numbers, with the stress and morale
+        relief turned up: it is a captain's comfort drink, not a stimulant.  */
+    fluid TrekEarlGrey
+    {
+        ColorReference = Peru,
+        DisplayName = Fluid_Name_TrekEarlGrey,
+        Categories
+        {
+            Beverage,
+        }
+        Properties
+        {
+            fatigueChange = -5.0,
+            HungerChange = -10.0,
+            StressChange = -35.0,
+            ThirstChange = -30.0,
+            UnhappyChange = -40.0,
+            Calories = 10.0,
+            Carbohydrates = 0.0,
+            Lipids = 0.0,
+            Proteins = 0.0,
+        }
+    }
+
+    /*  Romulan ale: illegal, luminous blue, and famously stronger than it
+        looks. Vanilla runs 0.04 (weak beer) to 0.4 (spirits); 0.25 puts it
+        well above wine without pretending it is whisky.  */
+    fluid TrekRomulanAle
+    {
+        ColorReference = ClearBlue,
+        DisplayName = Fluid_Name_TrekRomulanAle,
+        Categories
+        {
+            Beverage,
+            Alcoholic,
+        }
+        Properties
+        {
+            fatigueChange = 0.0,
+            HungerChange = -10.0,
+            StressChange = -50.0,
+            ThirstChange = -20.0,
+            UnhappyChange = -40.0,
+            Calories = 300.0,
+            Carbohydrates = 25.0,
+            Lipids = 0.0,
+            Proteins = 0.0,
+            alcohol = 0.25,
+            painReduction = 10.0,
+        }
+    }
+
+    /*  Klingon bloodwine, which is drunk by the barrel and at spirit
+        strength. 0.4 is vanilla's ceiling and this is what it is for.  */
+    fluid TrekBloodwine
+    {
+        ColorReference = DarkRed,
+        DisplayName = Fluid_Name_TrekBloodwine,
+        Categories
+        {
+            Beverage,
+            Alcoholic,
+        }
+        Properties
+        {
+            fatigueChange = 0.0,
+            HungerChange = -15.0,
+            StressChange = -50.0,
+            ThirstChange = -20.0,
+            UnhappyChange = -45.0,
+            Calories = 450.0,
+            Carbohydrates = 30.0,
+            Lipids = 0.0,
+            Proteins = 0.0,
+            alcohol = 0.4,
+            painReduction = 15.0,
+        }
+    }
+
+    /*  The vessels. Each borrows a vanilla mesh -- a mug is a mug and the
+        game has five of them -- so the only new art is the inventory icon and
+        its fluid mask. The Fluids block is a whitelist: without it the
+        container will not accept the drink it was made for.  */
+
+    item TrekRaktajinoMug
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        PourType = Mug,
+        Weight = 0.3,
+        Icon = TREK_Raktajino,
+        StaticModel = Mug,
+        WorldStaticModel = Mug,
+        FillFromDispenserSound = GetWaterFromDispenserCeramic,
+        FillFromTapSound = GetWaterFromTapCeramic,
+        Tags = base:cookablemicrowave,
+        Tooltip = Tooltip_TREK_Raktajino,
+        component FluidContainer
+        {
+            ContainerName = Mug,
+            Capacity = 0.3,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromMug,
+            Fluids
+            {
+                fluid = TrekRaktajino:1.0,
+            }
+        }
+    }
+
+    item TrekEarlGreyCup
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        PourType = Mug,
+        Weight = 0.3,
+        Icon = TREK_EarlGrey,
+        StaticModel = MugWhite,
+        WorldStaticModel = MugWhite,
+        FillFromDispenserSound = GetWaterFromDispenserCeramic,
+        FillFromTapSound = GetWaterFromTapCeramic,
+        Tags = base:cookablemicrowave,
+        Tooltip = Tooltip_TREK_EarlGrey,
+        component FluidContainer
+        {
+            ContainerName = Mug,
+            Capacity = 0.3,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromMug,
+            Fluids
+            {
+                fluid = TrekEarlGrey:1.0,
+            }
+        }
+    }
+
+    item TrekRomulanAle
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = TREK_RomulanAle,
+        StaticModel = CuracaoBottle,
+        WorldStaticModel = CuracaoBottle,
+        FillFromDispenserSound = GetWaterFromDispenserGlass,
+        FillFromTapSound = GetWaterFromTapGlass,
+        Tags = base:glass;base:glassbottle,
+        Tooltip = Tooltip_TREK_RomulanAle,
+        component FluidContainer
+        {
+            ContainerName = BottleGlass,
+            Capacity = 1.0,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromBottleGlass,
+            Fluids
+            {
+                fluid = TrekRomulanAle:1.0,
+            }
+        }
+    }
+
+    item TrekBloodwine
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = TREK_Bloodwine,
+        StaticModel = RedWineBottle,
+        WorldStaticModel = RedWineBottle,
+        FillFromDispenserSound = GetWaterFromDispenserGlass,
+        FillFromTapSound = GetWaterFromTapGlass,
+        Tags = base:glass;base:glassbottle,
+        Tooltip = Tooltip_TREK_Bloodwine,
+        component FluidContainer
+        {
+            ContainerName = BottleGlass,
+            Capacity = 1.0,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromBottleGlass,
+            Fluids
+            {
+                fluid = TrekBloodwine:1.0,
+            }
+        }
+    }
+
+    /*  ------------------------------------------------------------------
+        Blades.
+
+        The first custom in-hand model this mod has built. Everything the
+        comment on TrekPhaser used to claim was needed -- a rig, an animation
+        set -- is not: `WeaponSprite` names a `model` block, the block names a
+        static mesh and a texture, and `SwingAnim` borrows one of the nine
+        animations the game already ships (Bat, Stab, Heavy, Spear, Throw,
+        Rifle, Handgun, Stone, Shove). No animation files, no bones.
+
+        The mesh is generated by tools/gen_batleth.py and is **Y-up**, which
+        is the opposite of the hull and the helm: vanilla weapon meshes are
+        authored Y-up, and their `world` attachment offsets along y to set how
+        high the blade lies when dropped.
+
+        No `attachment` blocks yet, deliberately. Both of them -- Bip01_Prop2
+        for the hand, `world` for the ground -- are optional, and the offsets
+        are six numbers that can only honestly be chosen by looking at the
+        thing in a fist. Vanilla's Katana is the baseline to start from when
+        that happens. Until then the engine's default placement applies, which
+        is the one thing here that has not been seen in game.  */
+
+    model TrekBatlethModel
+    {
+        mesh = weapons/2handed/TREK_Batleth,
+        texture = weapons/2handed/TREK_Batleth,
+    }
+
+    /*  The bat'leth: a two-handed crescent swung from the middle, so it hits
+        like an axe and sweeps like a bat. Strong, but a long way short of
+        vanilla's katana (8.0 flat, which is the best melee weapon in the
+        game); this sits above the machete and below that, and pays for it in
+        a slow swing and real stamina. MaxHitcount 3 is the crescent: the
+        whole point of the shape is that it is still travelling after the
+        first zombie.  */
+    item TrekBatleth
+    {
+        DisplayCategory = Weapon,
+        ItemType = base:weapon,
+        Type = Weapon,
+        Weight = 2.4,
+        Icon = TREK_Batleth,
+
+        Categories = base:longblade,
+        SubCategory = Swinging,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        TwoHandWeapon = true,
+        AttachmentType = BigBlade,
+        WeaponSprite = TrekBatlethModel,
+
+        MinDamage = 2.5,
+        MaxDamage = 4.0,
+        CritDmgMultiplier = 5.0,
+        CriticalChance = 30.0,
+        MinRange = 0.61,
+        MaxRange = 1.4,
+        MinAngle = 0.7,
+        MaxHitcount = 3,
+        Swingtime = 3.5,
+        MinimumSwingtime = 3.5,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        RunAnim = Run_Weapon2,
+        IdleAnim = Idle_Weapon2,
+        HitAngleMod = -30.0,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 0.0,
+        PushBackMod = 0.5,
+        SplatBloodOnNoDeath = true,
+        SplatNumber = 3,
+        DoorDamage = 9,
+        TreeDamage = 2,
+        EnduranceMod = 2.0,
+
+        ConditionMax = 15,
+        ConditionLowerChanceOneIn = 30,
+        Sharpness = 1.0,
+        Tags = base:ignorezombiedensity;base:hasmetal;base:sharpenable;base:fullblade,
+
+        /*  Borrowed from vanilla, as the phaser's are: a sound name that does
+            not resolve is silent and reports nothing. tests/test_assets.py
+            checks every one of these against the game's own scripts.  */
+        BreakSound = KatanaBreak,
+        DoorHitSound = KatanaHit,
+        DropSound = KatanaDrop,
+        HitFloorSound = KatanaHit,
+        HitSound = KatanaHit,
+        ImpactSound = KatanaHit,
+        SwingSound = KatanaSwing,
+
+        Tooltip = Tooltip_TREK_Batleth,
     }
 }
