@@ -749,6 +749,50 @@ def flight():
     net.pump(70)
     seat(rt)
     net.pump(70)
+
+    # --- beaming out of the cockpit in the air is survivable ---------------
+    # It was not. Leaving a seat three levels up drops the character beside a
+    # ship that is in the air, and the beam takes ninety ticks, so they spent
+    # all of it falling -- arriving hurt, under the ship's own floor, with the
+    # screen black. They must be held still until they rematerialise, and land
+    # beside her rather than in her shadow.
+    rt.run(f"TREK.Transport.beamDown({P})")
+    # Watched all the way down. The failure was not the destination, it was the
+    # second and a half in between: out of the seat, standing on a small island
+    # of invisible floor three levels up, with the engine drawing that level and
+    # culling everything below it. Black screen. At no point may the character
+    # be out of the seat and off the ground.
+    stranded = 0
+    for _ in range(200):
+        net.pump(1)
+        if rt.eval(f"{P}.vehicle") is None and (pos(rt)[2] or 0) > 0:
+            stranded += 1
+    check(stranded == 0,
+          f"flight: the pilot spent {stranded} ticks out of the seat and up in "
+          f"the air during the beam; that is the black screen")
+    check(rt.eval(f"{P}.dead") is not True,
+          "flight: beaming down from the cockpit in flight killed the pilot")
+    net.pump(60)
+    px, py, pz = pos(rt)
+    check(pz == 0,
+          f"flight: beamed out of the air and ended at z {pz}, not on the ground")
+    sx, sy = ship(rt, "x"), ship(rt, "y")
+    check(max(abs(px - sx), abs(py - sy)) >= 2,
+          f"flight: beamed down at {px},{py}, right underneath the ship at "
+          f"{sx},{sy} -- that is inside her shadow")
+    check(ship(rt, "flying") is True,
+          "flight: the ship came down when the pilot beamed off her")
+
+    # Back in the seat once more to fly her down.
+    rt.run("""
+        local p = SIM.players[1]
+        local s = TREK.Util.state()
+        p.x, p.y = s.x + 0.5, s.y + 0.5
+        p.z, p.lastZ = s.level or TREK.Config.FlightCruise, p.z
+    """)
+    net.pump(40)
+    seat(rt)
+    net.pump(40)
     rt.run(f"TREK.Flight.land({P})")
     net.pump(200)
     check(ship(rt, "flying") is None, "flight: she would not come down")

@@ -98,22 +98,34 @@ function T.beamDown(player, dest)
     else
         x, y, z = Ship.returnPoint(player)
         local s = Ship.get()
-        -- From the cockpit the way down is the ground directly below, not
-        -- wherever this character last beamed up from.
-        if inCockpit(player) and s.landed then x, y, z = s.x, s.y, s.z end
+        -- From the cockpit the way down is the ground below the ship, not
+        -- wherever this character last beamed up from -- and beside her rather
+        -- than under her. Directly underneath is where the hull stands when
+        -- she is down, and where her own floor casts its shadow when she is
+        -- up, so a beam to that square arrives either inside the ship or in
+        -- the dark.
+        if inCockpit(player) and s.landed then
+            local beside = W.clearOfShip(s.x, s.y, s.z)
+            if beside then
+                x, y, z = beside.x, beside.y, beside.z
+            else
+                x, y, z = s.x, s.y + 4, s.z
+            end
+        end
         if not x and s.landed then x, y, z = s.x, s.y, s.z end
     end
     if not x then return false, "nowhere" end
     x, y, z = math.floor(x), math.floor(y), math.floor(z)
 
     Core.requestMove(player, "beamDown", function(p)
-        -- Out of the seat first, or the engine still believes the character is
-        -- riding and puts them back in it. vehicle:exit is what vanilla's own
-        -- ISExitVehicle timed action calls.
-        local vehicle = U.try("playerVehicle", function() return p:getVehicle() end)
-        if vehicle then
-            U.try("vehicleExit", function() vehicle:exit(p) end)
-        end
+        -- The seat is not left until the last moment. A beam takes a second
+        -- and a half, and stepping out of a flying ship at the start of it
+        -- leaves the character standing on a five-by-five island of invisible
+        -- floor three levels up -- where the engine draws that level and culls
+        -- everything under it, so the whole world goes black until they
+        -- rematerialise. Staying in the seat keeps the view normal and the
+        -- character supported; the way out happens in finishDown, one tick
+        -- before they arrive. Seen in game.
         begin(p, "down", x, y, z)
         U.log("beaming down to %d,%d", x, y)
     end)
@@ -145,6 +157,13 @@ end
 local function finishDown(job)
     local player = job.player
     if not job.arrived then
+        -- Out of the seat now, not when the beam was asked for: the engine
+        -- otherwise believes the character is still riding and puts them back
+        -- in. vehicle:exit is what vanilla's own ISExitVehicle action calls.
+        local vehicle = U.try("playerVehicle", function() return player:getVehicle() end)
+        if vehicle then
+            U.try("vehicleExit", function() vehicle:exit(player) end)
+        end
         U.teleport(player, job.x, job.y, job.z)
         Ship.playerData(player).aboard = false
         job.arrived = true
