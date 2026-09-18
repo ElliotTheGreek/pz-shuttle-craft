@@ -201,13 +201,31 @@ function Sky.service()
     Sky.trim()
 end
 
+-- The level the ship is *actually* on, which is not always the level it has
+-- been told to fly at. Changing altitude means there are briefly two planes,
+-- and the old one is what she is still standing on.
+local keepAlso = nil
+
+--- Says which level must not be lifted whatever else happens: the one holding
+--- the ship up this instant.
+function Sky.keep(level)
+    keepAlso = level
+end
+
 --- Lifts the squares the ship has left behind.
+---
+--- It must never lift the floor under the ship. Climbing sets the target level
+--- and the very next pass used to take up every tile at the old one -- the
+--- plane she was resting on -- before the new one existed or she had been
+--- raised onto it, so she fell out of the sky the moment the pilot asked to go
+--- higher, and once landed in a building. Seen in game, 2026-09-17 20:12:06.
 function Sky.trim()
     if not job then return end
     local take = U.batch("sky.removeFloor")
     local limit = C.SkyRadius + C.SkyTrailMargin
     for k, t in pairs(laid) do
-        if t.z ~= job.level
+        local wrongLevel = t.z ~= job.level and t.z ~= keepAlso
+        if wrongLevel
            or math.abs(t.x - job.x) > limit or math.abs(t.y - job.y) > limit then
             if liftOne(t, take) then
                 laid[k] = nil

@@ -240,7 +240,7 @@ class Net:
                 self.deliver(self.queue.popleft())
             self.clock += 16
             for rt in self.all():
-                rt.run("SIM.stream(); SIM.gravity(); SIM.settleUI()")
+                rt.run("SIM.stream(); SIM.gravity(); SIM.vehicleGravity(); SIM.settleUI()")
                 rt.fire("OnTick", 0)
                 rt.run("for _, p in ipairs(SIM.players) do SIM.fire('OnPlayerUpdate', p) end")
             # Each client reports its own character's position to the server.
@@ -612,6 +612,37 @@ def flight():
     check(vehicle_z(rt) == rt.eval("TREK.Config.FlightCruise"),
           f"flight: she dropped to z {vehicle_z(rt)} while airborne")
     check(ship(rt, "flying") is True, "flight: she did not stay up")
+
+    # --- climbing and diving must not drop her -----------------------------
+    # Changing level means two planes exist for a moment, and the one she is
+    # standing on is the *old* one. Trimming to the new target first took the
+    # floor out from under her mid-climb: she fell, once into a building.
+    cruise = rt.eval("TREK.Config.FlightCruise")
+    rt.run(f"TREK.Flight.climb({P})")
+    # Watched tick by tick, not just at the end. Pulling the floor from under
+    # her mid-climb is survivable -- the next pass puts her back -- so reading
+    # only the final height reports success while she visibly lurches. The
+    # physics body must never sag toward the ground at all.
+    rt.run("""for _, v in ipairs(SIM.vehicles) do v.minLevel = nil end""")
+    net.pump(120)
+    worst = rt.eval("""(function()
+        local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+        return v and v.minLevel or 99
+    end)()""")
+    check(worst >= cruise - 0.1,
+          f"flight: she sagged to level {worst:.2f} during the climb; the floor "
+          f"was taken from under her before she was on the new one")
+    check(ship(rt, "level") == cruise + 1,
+          f"flight: the climb was not accepted (level {ship(rt, 'level')})")
+    check(vehicle_z(rt) == cruise + 1,
+          f"flight: she did not reach the level she climbed to (z {vehicle_z(rt)})")
+    check(ship(rt, "flying") is True, "flight: climbing dropped her out of flight")
+
+    rt.run(f"TREK.Flight.dive({P})")
+    net.pump(120)
+    check(vehicle_z(rt) == cruise,
+          f"flight: she did not come back down a level (z {vehicle_z(rt)})")
+    check(ship(rt, "flying") is True, "flight: diving dropped her out of flight")
 
     # --- the hatch is shut while she is up --------------------------------
     before = pos(rt)

@@ -450,20 +450,26 @@ local function serviceFlight()
     local level = math.floor(s.level or C.FlightCruise)
     Sky.pave(x, y, level)
 
+    -- Whatever level she is on this instant is the one holding her up, and it
+    -- must not be swept while she is standing on it -- which is the whole of
+    -- what went wrong when the pilot asked to climb.
+    local got = levelOf(vehicle)
+    Sky.keep(got)
+
+    -- A wrong height is put right the moment it is noticed, not on the slow
+    -- cadence below. Six ticks of falling is a long way down, and a climb is
+    -- exactly when the answer is briefly wrong: she is at the old level, the
+    -- target is the new one, and the gap between them is a fall.
+    if got ~= level and ownsPhysics(vehicle) and Sky.holds(x, y, level) then
+        U.debug("moving her to level %d (engine had %s)", level, tostring(got))
+        F.lift(vehicle, level)
+    end
+
     holdTick = holdTick + 1
     if holdTick >= 6 then
         holdTick = 0
-        if ownsPhysics(vehicle) then
-            if keepLevel(vehicle) then
-                U.debug("levelling her off")
-            end
-            if Sky.holds(x, y, level) then
-                local got = levelOf(vehicle)
-                if got ~= level then
-                    U.debug("re-asserting level %d (engine had %s)", level, tostring(got))
-                    F.lift(vehicle, level)
-                end
-            end
+        if ownsPhysics(vehicle) and keepLevel(vehicle) then
+            U.debug("levelling her off")
         end
     end
 

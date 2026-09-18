@@ -514,15 +514,45 @@ function VehicleMT:getCharacter(seat) return self.seats[seat] end
 -- plane sees the ship on the deck, exactly as the engine would show it.
 local LEVEL_UNITS = 2.4494900703430176
 
+local function floorUnder(v, level)
+    if level <= 0 then return true end
+    local function at(l)
+        local sq = squares[key(math.floor(v.x), math.floor(v.y), l)]
+        return sq ~= nil and sq:getFloor() ~= nil
+    end
+    return at(level) or at(level - 1)
+end
+
 function VehicleMT:getZ()
     local level = math.floor((self.bulletY or 0) / LEVEL_UNITS + 0.05)
     if level <= 0 then return 0 end
-    local function floored(l)
-        local sq = squares[key(math.floor(self.x), math.floor(self.y), l)]
-        return sq ~= nil and sq:getFloor() ~= nil
-    end
-    if floored(level) or floored(level - 1) then return level end
+    if floorUnder(self, level) then return level end
     return 0
+end
+
+--- Gravity, for vehicles.
+---
+--- Without this the simulation cannot reproduce the thing that actually hurts:
+--- take the floor out from under a flying ship and she does not blink to the
+--- ground, she *falls*, over several ticks, and lands wherever she happens to
+--- be -- once, in game, inside a building. A test that only reads the derived
+--- z sees the height restored on the next tick and reports success.
+function SIM.vehicleGravity()
+    for _, v in ipairs(SIM.vehicles or {}) do
+        local y = v.bulletY or 0
+        if not v.removed and y > 0 then
+            local level = math.floor(y / LEVEL_UNITS + 0.05)
+            if not floorUnder(v, level) then
+                v.bulletY = math.max(0, y - LEVEL_UNITS * 0.34)
+            end
+            -- The lowest she ever sagged to, recorded here rather than sampled
+            -- from the test: a dip lasts a tick or two and is put right by the
+            -- next pass, so anything watching from outside sees only the
+            -- height afterwards and calls it a success.
+            local lvl = v.bulletY / LEVEL_UNITS
+            if v.minLevel == nil or lvl < v.minLevel then v.minLevel = lvl end
+        end
+    end
 end
 
 --- The physics body's own height, which is what setWorldTransform writes.
