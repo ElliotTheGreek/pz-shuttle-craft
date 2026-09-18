@@ -234,6 +234,9 @@ end
 --- 450 tiles a second, which is what got them kicked. Until the game says
 --- which it is, stay well under either reading.
 local function ceiling()
+    -- Single player has no anti-cheat and nobody else's server to respect, so
+    -- there is nothing to cap against and the pilot gets the whole range.
+    if not isClient() then return nil end
     local limit = tonumber(U.try("speedLimit", function()
         return getServerOptions():getOption("SpeedLimit")
     end))
@@ -241,15 +244,25 @@ local function ceiling()
     return limit * C.FlightSpeedCapFraction
 end
 
+--- Sets the ship's top speed from the helm's step, and reads it back.
+---
+--- Reading it back is the point. "Is the speed control doing anything?" is not
+--- answerable by looking at the code -- the setting was being written and then
+--- clamped to the same number for the top three steps, so the control moved
+--- and the ship did not. One line in the log settles it.
 function F.applySpeed(vehicle)
-    if not vehicle then return end
-    U.try("vehicleSpeed", function()
+    if not vehicle then return nil end
+    return U.try("vehicleSpeed", function()
         if groundSpeed == nil then groundSpeed = vehicle:getMaxSpeed() end
-        local step = C.FlightSpeedSteps[F.speedStep] or 1
-        local want = C.FlightSpeedBase * step
+        local want = C.FlightSpeedSteps[F.speedStep] or C.FlightSpeedSteps[1]
         local cap = ceiling()
         if cap and want > cap then want = cap end
         vehicle:setMaxSpeed(want)
+        local got = vehicle:getMaxSpeed()
+        U.log("flight speed step %d: asked for %s, vehicle reports %s%s",
+              F.speedStep, tostring(want), tostring(got),
+              cap and (" (server ceiling " .. tostring(cap) .. ")") or "")
+        return got
     end)
 end
 
@@ -381,7 +394,17 @@ function F.setLevel(player, level)
         U.note(player, getText("IGUI_TREK_NotPilot"), 255, 90, 90)
         return false
     end
-    level = math.max(C.FlightMinLevel, math.min(C.FlightMaxLevel, math.floor(level)))
+    level = math.floor(level)
+    -- Say so rather than silently clamping: a menu option that appears to do
+    -- nothing is the thing TREK_Menu.lua's header forbids.
+    if level > C.FlightMaxLevel then
+        U.note(player, getText("IGUI_TREK_CeilingReached"), 255, 170, 90)
+        return false
+    end
+    if level < C.FlightMinLevel then
+        U.note(player, getText("IGUI_TREK_FloorReached"), 255, 170, 90)
+        return false
+    end
     Core.send(player, "setAltitude", { level = level })
     return true
 end

@@ -644,6 +644,42 @@ def flight():
           f"flight: she did not come back down a level (z {vehicle_z(rt)})")
     check(ship(rt, "flying") is True, "flight: diving dropped her out of flight")
 
+    # --- the ceiling is real, and says so ---------------------------------
+    # She is at cruise + 1 now, which is the top. Asking for more must be
+    # refused out loud rather than silently clamped to where she already is --
+    # "nothing happened" is indistinguishable from "it is broken".
+    # Up to the ceiling first -- the dive above brought her back to cruise.
+    rt.run(f"TREK.Flight.climb({P})")
+    net.pump(120)
+    before = ship(rt, "level")
+    check(before == rt.eval("TREK.Config.FlightMaxLevel"),
+          f"flight: expected her at the ceiling, she is at {before}")
+    rt.run(f"TREK.Flight.climb({P})")
+    net.pump(60)
+    check(ship(rt, "level") == before,
+          "flight: she climbed past the ceiling")
+    check(any("IGUI_TREK_CeilingReached" in n for n in rt.notes()),
+          "flight: climbing past the ceiling said nothing at all")
+
+    # --- the speed control actually reaches the vehicle --------------------
+    # It did not. The steps were multipliers of a base of 30 capped at 42, so
+    # the top three all clamped to the same number: the helm moved and the ship
+    # did not. Every step must land a different top speed on the vehicle.
+    seen = []
+    steps = rt.eval("#TREK.Config.FlightSpeedSteps")
+    for i in range(1, steps + 1):
+        rt.run(f"TREK.Flight.setSpeedStep({P}, {i})")
+        net.pump(2)
+        seen.append(rt.eval("""(function()
+            local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+            return v and v:getMaxSpeed() or -1
+        end)()"""))
+    check(len(set(seen)) == steps,
+          f"flight: the helm's speed steps do not all reach the vehicle: {seen}")
+    check(seen == sorted(seen),
+          f"flight: the speed steps are not in order: {seen}")
+    rt.run(f"TREK.Flight.setSpeedStep({P}, {rt.eval('TREK.Config.FlightSpeedDefaultStep')})")
+
     # --- the hatch is shut while she is up --------------------------------
     before = pos(rt)
     rt.run(f"TREK.Core.exit({P})")
@@ -670,9 +706,13 @@ def flight():
     # while the pilot was in the cabin the vehicle was not loaded here at all,
     # which is exactly why flight must not read "the vehicle is not in the
     # cell's list" as "the vehicle is gone".
+    # Back at whatever level she is actually flying at, not a guess: the climb
+    # above left her one higher than cruise, and standing a level below the
+    # ship is a fall.
     rt.run("""
         local p = SIM.players[1]
-        p.x, p.y, p.z, p.lastZ = 3004.5, 3000.5, 3, 3
+        local lvl = TREK.Util.state().level or TREK.Config.FlightCruise
+        p.x, p.y, p.z, p.lastZ = 3004.5, 3000.5, lvl, lvl
     """)
     net.pump(70)
     seat(rt)

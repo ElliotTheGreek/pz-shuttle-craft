@@ -242,17 +242,19 @@ C.LevelUnits = 2.4494900703430176
 -- the very world she was flying over. Seen in game, 2026-09-17 -- "I can see
 -- the world but near me is a sphere of blackness."
 --
--- The hull is 3 by 5, so 4 squares out covers it with a margin for turning
--- and leaves the dark patch no bigger than the ship's own shadow. Only the
--- centre square actually decides the height (BaseVehicle.update checks
--- getGridSquare(getX(), getY(), lvl) and nothing else); the rest is there for
--- the wheels to rest on.
-C.SkyRadius = 4
+-- The hull is 3 by 5, so 3 squares out is a 7 by 7 patch: wide enough for the
+-- wheels at any heading, and small enough that the hull itself is drawn over
+-- almost all of it. That is the only real answer to the darkness -- the patch
+-- cannot be seen if the ship is standing on it. Only the centre square
+-- actually decides the height (BaseVehicle.update checks
+-- getGridSquare(getX(), getY(), lvl) and nothing else); the rest is purely
+-- something for the wheels to rest on.
+C.SkyRadius = 3
 
--- How far beyond that to let the plane linger before it is lifted again. Two
--- squares: enough that the ship is never chasing its own floor, small enough
--- that the dark patch travels with her instead of smearing across the map.
-C.SkyTrailMargin = 2
+-- How far beyond that to let the plane linger before it is lifted again. One
+-- square: enough that she is never chasing her own floor, small enough that
+-- the patch stays under her rather than trailing behind.
+C.SkyTrailMargin = 1
 
 -- Squares paved per tick. The plane is laid the way the landing search is
 -- walked -- a cursor and a slice -- because a thousand addFloor calls in one
@@ -269,7 +271,13 @@ C.SkyMaxTiles = 40000
 -- laid on Kentucky. Three clears a two-storey building with room to spare.
 C.FlightCruise   = 3
 C.FlightMinLevel = 1
-C.FlightMaxLevel = 6
+
+-- One level above the cruise and no more. Higher was offered and was not worth
+-- having: the levels above this are past the height the world has any geometry
+-- at, the ship has nothing to be "over" up there, and every trip that far up
+-- ended badly. Kept as cruise + 1 rather than a bare number so the two cannot
+-- drift apart.
+C.FlightMaxLevel = 4
 
 -- Ticks to wait for the engine to accept a level before giving up on the lift.
 C.FlightLiftTicks = 60
@@ -280,22 +288,21 @@ C.FlightLiftTicks = 60
 -- game. flipUpright touches only the rotation, never the height.
 C.FlightLevelTolerance = 4
 
--- Top speed at each helm step, as a multiplier on C.FlightSpeedBase, which is
--- handed to vehicle:setMaxSpeed(). The ship is genuinely driving, so this is
--- the vehicle's own speed setting and nothing more.
+-- The helm's flight speeds, as the vehicle's own top speed in the units
+-- setMaxSpeed takes (the shuttle's script sets 70 on the ground).
 --
--- The numbers are deliberately conservative until the game measures them.
--- PILOTING.md section 3.3 reads the server's SpeedLimit as 70 tiles/s, but
--- that option is a 10-150 vehicle limiter the game's own UI presents in km/h,
--- and 70 km/h is about 19 tiles/s -- *below* the 20 tiles/s a character may
--- do, not thirty-five times it. Shipping a cap derived from an unverified
--- unit is how the 1.1 flight came to move at 450 tiles/s and get its pilots
--- kicked, so TREK_Fly() logs the measured speed beside the server's setting
--- and the cap stays a fraction of whatever that turns out to mean.
-C.FlightSpeedSteps       = { 0.25, 0.5, 1, 2, 3, 5 }
+-- Absolute figures, not multipliers, and that is a correction. They were
+-- multipliers of a base of 30, capped at 0.6 of the server's SpeedLimit of
+-- 70 -- which is 42, so the top three steps all clamped to exactly the same
+-- number and the control appeared to do nothing at all. Anything the pilot can
+-- pick must be distinguishable from its neighbours or it is not a control.
+C.FlightSpeedSteps       = { 15, 30, 50, 70, 95, 120 }
 C.FlightSpeedDefaultStep = 3
-C.FlightSpeedBase        = 30
-C.FlightSpeedCapFraction = 0.6
+
+-- On a server the vehicle speed limiter is the server owner's business, so the
+-- choice is capped by it. In single player there is nobody to protect and no
+-- anti-cheat to trip, so the pilot gets the whole range.
+C.FlightSpeedCapFraction = 1.0
 
 -- Consecutive server checks with no pilot in the driver's seat before the
 -- ship is brought down by itself. A ship left parked in the sky by somebody's

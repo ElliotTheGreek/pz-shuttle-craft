@@ -167,8 +167,23 @@ function Sky.pave(cx, cy, level)
     job = { x = cx, y = cy, level = level, cursor = 0 }
 end
 
---- Lays the next slice. Called once a tick while the ship is up.
+--- Lays the next slice, and chases anything still waiting to be lifted.
+---
+--- The retry comes first, and runs whether or not there is anything to pave.
+--- A tile whose chunk had gone when the plane was taken up goes on the pending
+--- list, and that list used to be walked only while a paving job existed --
+--- which is to say only while flying. So the squares left over from a landing
+--- were never revisited and stayed as invisible floors in the sky: the
+--- "random ghost patches" seen in game. They are lifted now the moment their
+--- ground comes back, flying or not.
 function Sky.service()
+    if #pending > 0 then
+        local take = U.batch("sky.removeFloor")
+        for i = #pending, 1, -1 do
+            if liftOne(pending[i], take) then table.remove(pending, i) end
+        end
+    end
+
     if not job then return end
     local list = offsets()
     local place = U.batch("sky.addFloor")
@@ -184,14 +199,6 @@ function Sky.service()
         local d = list[job.cursor]
         layOne(job.x + d[1], job.y + d[2], job.level, place)
         done = done + 1
-    end
-
-    -- Retry anything that could not be lifted last time its chunk was absent.
-    if #pending > 0 then
-        local take = U.batch("sky.removeFloor")
-        for i = #pending, 1, -1 do
-            if liftOne(pending[i], take) then table.remove(pending, i) end
-        end
     end
 
     -- Every pass, not only when some ceiling is hit. The plane is a patch that
