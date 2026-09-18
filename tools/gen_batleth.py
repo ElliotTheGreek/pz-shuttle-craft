@@ -187,6 +187,64 @@ def build_mesh(path, texture_file):
     return nv, nf, radius
 
 
+def build_icon(mesh_path, tex_path, out, render_size=512, icon=64, margin=0.04,
+               tilt=38.0):
+    """The inventory icon, rendered from the mesh this tool just built.
+
+    Two goes at drawing a bat'leth with the image model missed the silhouette:
+    the first came back a curved sword with a hilt, the second -- after being
+    told at length that it is one thick symmetrical crescent -- a plain arch
+    with no forked tips. It is a genuinely awkward shape to describe and an
+    easy one to render, and the phaser's icon is already procedural
+    (gen_phaser.py), so this follows it.
+
+    The win is not just that it is easier. The icon is now the *same object*
+    as the in-hand model, from the same mesh and the same texture, so the two
+    cannot drift apart.
+
+    preview_model draws on a flat (28, 30, 36) with no antialiasing, so the
+    background is keyed by exact match rather than by a colour ramp. A ramp
+    would be wrong here: the grip leather is only 33 away from that
+    background, well inside the distance key_icon treats as "probably
+    backdrop", and the three hand bindings would have been keyed away.
+    """
+    from PIL import Image as PILImage
+    from preview_model import render
+
+    tmp = out + ".render.png"
+    render(mesh_path, tex_path, tmp, size=render_size, up_axis=UP_AXIS,
+           yaw_deg=0.0)
+    src = PILImage.open(tmp).convert("RGBA")
+    px = src.load()
+    w, h = src.size
+    bg = px[0, 0][:3]
+    for y in range(h):
+        for x in range(w):
+            r, g, b, _ = px[x, y]
+            if (r, g, b) == bg:
+                px[x, y] = (r, g, b, 0)
+
+    # Tilted, because a bat'leth is a shallow crescent: 2.3 times as wide as
+    # it is tall, which in a square icon is mostly empty. Vanilla's own blades
+    # are all drawn on the diagonal for the same reason. This is a rotation of
+    # the finished render, not of the model -- the mesh is what goes in the
+    # hand and it must stay level.
+    if tilt:
+        src = src.rotate(tilt, resample=PILImage.BICUBIC, expand=True)
+
+    bbox = src.getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox()
+    if not bbox:
+        raise SystemExit("  FAILED: the render is entirely background")
+    src = src.crop(bbox)
+    side = int(max(src.size) * (1 + margin * 2))
+    sq = PILImage.new("RGBA", (side, side), (0, 0, 0, 0))
+    sq.paste(src, ((side - src.size[0]) // 2, (side - src.size[1]) // 2))
+    sq.resize((icon, icon), PILImage.LANCZOS).save(out, optimize=True)
+    os.remove(tmp)
+    print(f"  icon    {out} (from the mesh, {bbox[2]-bbox[0]}x{bbox[3]-bbox[1]} "
+          f"px of drawn content)")
+
+
 if __name__ == "__main__":
     root = sys.argv[1] if len(sys.argv) > 1 else "TrekShuttle/42"
     mesh_dir = os.path.join(root, "media", "models_X", "weapons", "2handed")
@@ -195,10 +253,12 @@ if __name__ == "__main__":
     os.makedirs(tex_dir, exist_ok=True)
 
     tex = os.path.join(tex_dir, "TREK_Batleth.png")
+    mesh = os.path.join(mesh_dir, "TREK_Batleth.x")
     build_texture(tex)
-    nv, nf, radius = build_mesh(os.path.join(mesh_dir, "TREK_Batleth.x"),
-                                "TREK_Batleth.png")
+    nv, nf, radius = build_mesh(mesh, "TREK_Batleth.png")
     print(f"bat'leth: {nv} verts, {nf} faces, span {SPAN} m, arc radius "
           f"{radius:.3f} m")
-    print(f"  mesh    {mesh_dir}/TREK_Batleth.x")
+    print(f"  mesh    {mesh}")
     print(f"  texture {tex}")
+    build_icon(mesh, tex,
+               os.path.join(root, "media", "textures", "Item_TREK_Batleth.png"))

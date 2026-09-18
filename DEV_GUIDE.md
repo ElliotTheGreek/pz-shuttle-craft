@@ -570,6 +570,64 @@ result counted: `key_icon.py` refuses to write a file when less than a quarter
 of the frame keyed out. Same lesson as `U.addVerified` and `B.stockReport` —
 *read the result back*, because every way this fails produces a plausible file.
 
+### Source art lives in `design/art/`, not just in `media/textures/`
+
+**Undocumented until it was got wrong.** `media/textures/Item_*.png` is the
+64x64 *output*. The 1024px generated original, and the contact sheet it was
+judged on, belong in `design/art/<category>/`:
+
+```
+design/art/food/raktajino_raw.png        the generated original, pre-keying
+design/art/food/drinks_sheet.png         what it was vetted on
+design/art/weapons/batleth_raw.png
+design/art/weapons/preview_batleth.png   mesh renders, flat on and edge on
+design/art/helm/vet_emblem.b64           what was sent to analyze-image
+```
+
+`design/` is neither deployed nor packaged, so this costs the Workshop build
+nothing. Keep the raws: re-keying an icon or re-running a critique needs the
+original, and regenerating it gets a *different picture*, not the same one
+again. Newer raws are `.png` rather than `.jpg` on purpose -- JPEG ringing
+around the key colour fights the alpha ramp.
+
+### Vet icons with `tools/vet_icons.py`, at 32px, against the rest of the set
+
+```sh
+python tools/vet_icons.py design/art/food/drinks_sheet.png Raktajino EarlGrey
+python tools/vet_icons.py design/art/all_icons.png          # every icon
+```
+
+Two rows, 64 and **32**, on the inventory's dark grey. The small row decides
+it. Then hand the sheet to the Gemini toolkit's `analyze-image` and ask for a
+critique of that row -- that pass is what caught the bloodwine bottle
+disappearing into the background and the raktajino reading as an empty hole.
+
+**Render the whole set, not just the new icon.** A new icon judged on its own
+passes easily; put beside the other eleven it can be obviously wrong. The
+bat'leth looked acceptable alone and was plainly the weakest thing on the
+sheet next to the food -- thin and wiry where everything else is chunky.
+
+### An icon can be rendered from the model instead of drawn
+
+The image model is the default (ROADMAP.md, "How art gets made") and is right
+for food, where there is no mesh. For something the mod already has geometry
+for, `tools/preview_model.py` will render the icon instead -- `gen_batleth.py`
+does, and `gen_phaser.py` draws its own procedurally.
+
+Two goes at describing a bat'leth to an image model produced a curved sword
+with a hilt, and then a featureless arch. It is an awkward shape to write down
+and a trivial one to render. The real win is that the icon is then the **same
+object** as the in-hand model, from the same mesh and texture, so the two
+cannot drift apart.
+
+`preview_model` draws on a flat `(28, 30, 36)` with no antialiasing, so key
+that background by **exact match**, not with `key_icon.py`'s colour ramp: the
+bat'leth's grip leather is only 33 away from it, well inside the distance the
+ramp treats as backdrop, and the three hand bindings would have been erased.
+Tilt the result if the object is long and thin -- a square icon holding a 2.3:1
+crescent is mostly empty, which is why vanilla draws its blades on the
+diagonal.
+
 ### Item icons: generate on magenta, key it, vet it at 32px
 
 Image models paint backgrounds; they do not emit alpha. So every icon is
@@ -674,9 +732,10 @@ Meshes and textures are **generated, never hand-authored**:
 python tools/gen_shuttle.py TrekShuttle/42
 python tools/gen_helm.py    TrekShuttle/42
 python tools/gen_phaser.py  TrekShuttle/42
-python tools/gen_batleth.py TrekShuttle/42
+python tools/gen_batleth.py TrekShuttle/42   # mesh, texture and icon
 python tools/gen_poster.py  TrekShuttle/42
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
+python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
 ```
 
 `preview_model.py` is a small software renderer — parser, z-buffer, per-pixel
