@@ -316,10 +316,20 @@ function VM.dropDeadContainers()
             U.log("a vehicle container in the loot window belongs to a vehicle " ..
                   "that is gone; clearing it")
         end
+        -- Put the window on the floor container, and **do not call
+        -- refreshBackpacks**. That was here, and it is the very function that
+        -- throws: refreshBackpacks -> addContainerButton ->
+        -- getEffectiveCapacity -> getCapacity -> isOccupiedVehicleSeat, which
+        -- is where the null vehicle blows up. Calling it to tidy up a dead
+        -- container walks the dead container to do so.
+        --
+        -- The same shape as the probe this section already replaced once: a
+        -- repair built on the call that throws. Setting the container is
+        -- enough; vanilla rebuilds the button row itself on the next update,
+        -- and by then the thing that held the stale reference is gone.
         U.try("clearLootWindow", function()
             local floor = ISInventoryPage.GetFloorContainer(i)
             if floor then page:setNewContainer(floor) end
-            page:refreshBackpacks()
         end)
     end)
 end

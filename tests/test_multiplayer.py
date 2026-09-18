@@ -461,6 +461,34 @@ def single_player():
           "single player: no reason given for refusing to recall an occupied ship")
     rt.run(f"SIM.findVehicle({vid}).seats[0] = nil")
 
+    # --- beaming up out of the cockpit must leave the seat ------------------
+    # A pilot who beams up is still riding as far as the engine is concerned
+    # unless the mod says so: player:getVehicle() keeps answering with the
+    # shuttle. The character is then put down in the cabin's cell, the
+    # shuttle's chunk unloads behind them, and every part of that vehicle is
+    # left with a null back-reference -- which vanilla's own inventory page
+    # walks every frame through the `elseif playerObj:getVehicle()` branch of
+    # refreshBackpacks. 829 stack traces in one session, the game unresponsive
+    # and no way into the interior. Seen in game 2026-09-18.
+    #
+    # finishDown already stepped out of the seat on the way *out*, with a
+    # comment saying why. The beam-up half was simply missing, and nothing in
+    # the mod's Lua appears in that stack trace, which is what made it look
+    # like a vanilla fault.
+    rt.run(f"""
+        local v = SIM.findVehicle({vid})
+        v.seats[0] = {P}
+        {P}.vehicle = v
+    """)
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    check(rt.eval(f"{P}:getVehicle() == nil") is True,
+          "single player: beaming up left the player riding the shuttle. "
+          "Vanilla's inventory page then walks that vehicle's parts every "
+          "frame and throws on each one.")
+    rt.run(f"TREK.Transport.beamDown({P}, {{ x = {sx}, y = {sy} + 8, z = 0 }})")
+    net.pump(220)
+
     # --- call down far away: the old vehicle is a leftover until it loads -----
     rt.run(f"{P}.x, {P}.y = 5000.5, 5000.5")
     net.pump(40)   # the ground streams in around the player

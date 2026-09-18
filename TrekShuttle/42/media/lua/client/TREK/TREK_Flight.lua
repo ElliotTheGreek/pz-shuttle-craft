@@ -432,14 +432,31 @@ function F.climb(player) return F.setLevel(player, (Ship.get().level or C.Flight
 function F.dive(player)  return F.setLevel(player, (Ship.get().level or C.FlightCruise) - 1) end
 
 --- Sets her down on the ground below.
+--- Every way this can refuse writes a line. It used to write none: a pilot
+--- reported "it would not let me land in the road" and the log had nothing
+--- between going airborne and beaming out -- no attempt, no refusal, no
+--- reason. Four silent early returns, and from the outside they are
+--- indistinguishable from the radial menu never having called this at all,
+--- which is a different bug entirely.
+---
+--- A refusal the player can see and the log cannot is half a report.
 function F.land(player)
-    if not F.flying() then return false end
+    if not F.flying() then
+        U.log("land refused: she is not flying (state says landed=%s)",
+              tostring(Ship.get().landed))
+        return false, "not flying"
+    end
     if not F.isPilot(player) then
+        U.log("land refused: %s is not in the driver's seat",
+              Ship.usernameOf and Ship.usernameOf(player) or "the asker")
         U.note(player, getText("IGUI_TREK_NotPilot"), 255, 90, 90)
-        return false
+        return false, "not pilot"
     end
     local vehicle = F.vehicle()
-    if not vehicle then return false end
+    if not vehicle then
+        U.log("land refused: the shuttle vehicle cannot be found from here")
+        return false, "no vehicle"
+    end
     local x = math.floor(vehicle:getX())
     local y = math.floor(vehicle:getY())
 
@@ -448,9 +465,12 @@ function F.land(player)
     -- read as somebody else's vehicle standing in the way.
     local ok, why, blocked = W.roomToLand(x, y, 0, nil, true)
     if not ok then
+        U.log("land refused at %d,%d: %s (%d of %d squares blocked)",
+              x, y, tostring(why), blocked or -1, W.footprintArea())
         U.note(player, TREK.Travel.refusalText(why, blocked), 255, 90, 90)
         return false, why
     end
+    U.log("asking to set her down at %d,%d", x, y)
     Core.send(player, "touchdown", { x = x, y = y, z = 0 })
     return true
 end

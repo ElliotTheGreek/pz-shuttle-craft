@@ -202,6 +202,30 @@ local function serviceBeam()
         return
     end
 
+    -- Out of the seat before the arrival, for the same reason finishDown does
+    -- it on the way out -- and this half was missing, which cost a session.
+    --
+    -- A pilot who beams up is still, as far as the engine is concerned, riding
+    -- the shuttle: `player:getVehicle()` keeps returning her. The character is
+    -- then put down in the cabin's cell, the shuttle's chunk unloads behind
+    -- them, and every part of that vehicle is left with a null back-reference.
+    -- Vanilla's own inventory window takes the `elseif playerObj:getVehicle()`
+    -- branch of ISInventoryPage.refreshBackpacks, walks those parts, and
+    -- `ItemContainer.isOccupiedVehicleSeat` throws on each one -- in
+    -- `prerender`, which is every frame. 829 stack traces in one short
+    -- session, the game unresponsive, and no way into the interior: DEV_GUIDE's
+    -- "black screen, character falling, game unresponsive" signature exactly.
+    --
+    -- Nothing in the mod's own Lua appears in that stack trace, which is what
+    -- made it look like a vanilla fault rather than a missing line here.
+    local vehicle = U.try("playerVehicle", function()
+        return job.player:getVehicle()
+    end)
+    if vehicle then
+        U.try("vehicleExit", function() vehicle:exit(job.player) end)
+        U.log("left the cockpit on beaming up")
+    end
+
     T.pending = nil
     Core.beginArrival(job.player, true)
     U.log("materialised aboard")

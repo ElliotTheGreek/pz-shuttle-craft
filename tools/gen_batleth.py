@@ -35,10 +35,13 @@ from pngwrite import Image
 TEX_W = TEX_H = 128
 UP_AXIS = "y"
 
-# Tip-to-tip chord. A real bat'leth is about a metre across; vanilla's katana
-# carries WeaponLength 0.4, so this is deliberately at the large end of what
-# the game's own blades are and no larger.
-SPAN = 0.92
+# Tip-to-tip chord. **This is model scale, not life scale.** The first version
+# was 0.92 -- a real bat'leth is about a metre across -- and in hand it was
+# twice the size of the character holding it. WeaponLength (a gameplay reach
+# number, 0.45 here) is not what sizes the mesh; this is, and the engine takes
+# it at face value. Vanilla's katana mesh is a two-handed weapon a character
+# can carry, so that is the bracket to sit in.
+SPAN = 0.46
 ARC = math.radians(78.0)        # half-angle swept by the crescent
 THICK = 0.016                   # blade thickness, in metres
 SEGMENTS = 96                   # samples along the arc
@@ -187,8 +190,8 @@ def build_mesh(path, texture_file):
     return nv, nf, radius
 
 
-def build_icon(mesh_path, tex_path, out, render_size=512, icon=64, margin=0.12,
-               tilt=34.0):
+def build_icon(mesh_path, tex_path, out, render_size=512, icon=64, margin=0.22,
+               tilt=32.0):
     """The inventory icon, rendered from the mesh this tool just built.
 
     Two goes at drawing a bat'leth with the image model missed the silhouette:
