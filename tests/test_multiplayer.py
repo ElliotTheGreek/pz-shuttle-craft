@@ -758,10 +758,45 @@ def flight():
     check(rt.eval("TREK.Sky.count()") == 0,
           f"flight: {rt.eval('TREK.Sky.count()')} invisible floors were left in the sky")
 
+    # --- floors left by some older flight get found and lifted -------------
+    # The ship's record only remembers the flight it is on. Earlier flights --
+    # and earlier builds, which laid a far wider plane -- left their floors in
+    # the world, and a floor is a saved world object. They were still there as
+    # a black blotch long after the plane itself was down to 25 squares, so the
+    # tidy-up must not consult the record: it has to go and look.
+    lx, ly = ship(rt, "x"), ship(rt, "y")
+    rt.run(f"""
+        for dx = -6, 6 do for dy = -6, 6 do
+            SIM.rawSquare({lx} + dx, {ly} + dy, 3):addFloor("invisible_01_0")
+        end end
+    """)
+    stray = rt.eval(f"""(function()
+        local n = 0
+        for dx = -6, 6 do for dy = -6, 6 do
+            local sq = SIM.rawSquare({lx} + dx, {ly} + dy, 3)
+            if TREK.Util.findSprite(sq, "invisible_01_0") then n = n + 1 end
+        end end
+        return n
+    end)()""")
+    check(stray == 169, f"flight: the strays were not planted ({stray})")
+    net.pump(1200)
+    left = rt.eval(f"""(function()
+        local n = 0
+        for dx = -6, 6 do for dy = -6, 6 do
+            local sq = SIM.rawSquare({lx} + dx, {ly} + dy, 3)
+            if TREK.Util.findSprite(sq, "invisible_01_0") then n = n + 1 end
+        end end
+        return n
+    end)()""")
+    check(left == 0,
+          f"flight: {left} invisible floors from an older flight are still in "
+          f"the sky; nothing goes looking for the ones the ship does not "
+          f"remember laying")
+
     for w in rt.warnings():
         fail(f"flight: {w}")
-    print("flight: take-off, the sky plane, the shut hatch, the pilot going aft "
-          "and the landing all checked")
+    print("flight: take-off, the sky plane, the shut hatch, the pilot going aft, "
+          "the landing and the tidy-up all checked")
 
 
 def flight_endings():

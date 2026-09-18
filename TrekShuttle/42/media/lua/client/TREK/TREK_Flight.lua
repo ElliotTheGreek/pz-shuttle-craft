@@ -532,6 +532,47 @@ end)
 -- it was flying, so whoever next loads that ground clears it.
 local sweeping = nil
 
+-- Where the rolling tidy-up last ran, and how long since.
+local cleanedAt = nil
+local cleaning = nil
+
+--- Hunts down invisible floors nobody is using, near wherever the player is.
+---
+--- The ship's own record only remembers the flight it is on. Every earlier
+--- flight -- and every earlier *build* of this feature, which laid a far wider
+--- plane and trimmed it far less eagerly -- left its floors in the world, and
+--- a floor is a saved world object. They showed up as a black blotch across a
+--- car park in a screenshot taken while the plane itself was correctly down to
+--- twenty-five squares: the ship was tidy and its history was not.
+---
+--- So this does not consult the record. It walks the ground near the player
+--- and lifts anything of ours it finds above the deck, sliced, and only when
+--- the player has moved somewhere it has not already been.
+local function serviceClean()
+    if Ship.get().flying then return end
+    local player = U.player(0)
+    if not player then return end
+    local px, py = math.floor(player:getX()), math.floor(player:getY())
+    if U.isInterior(px, py) then return end
+
+    if not cleaning then
+        -- Once per patch of ground, and then not again until the player has
+        -- walked somewhere new. There is no timer: a sweep that has already
+        -- been done here has nothing left to find, and one that has not should
+        -- not be made to wait.
+        if cleanedAt and U.dist2(px, py, cleanedAt.x, cleanedAt.y)
+                         < C.SkyCleanStride * C.SkyCleanStride then
+            return
+        end
+        cleaning = { x = px, y = py, cursor = 0 }
+    end
+
+    if Sky.sweepArea(cleaning.x, cleaning.y, cleaning) then
+        cleanedAt = { x = cleaning.x, y = cleaning.y }
+        cleaning = nil
+    end
+end
+
 local function serviceSweep()
     local s = Ship.get()
     -- Never while she is up. s.skyAt is written the moment she goes airborne
@@ -567,6 +608,7 @@ Events.OnTick.Add(function()
     -- take-off waiting for a floor that only gets laid once it is airborne.
     -- Sky.service returns at once when there is nothing to pave.
     U.try("skyService", Sky.service)
+    U.try("serviceClean", serviceClean)
 end)
 
 local sweepTick = 0

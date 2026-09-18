@@ -101,6 +101,26 @@ function Sky.area()
     return #offsets()
 end
 
+-- A much wider ring, for hunting down floors the ship is not using. Built once
+-- and kept, like the other one.
+local cleanOrder = nil
+
+local function cleanOffsets()
+    if cleanOrder then return cleanOrder end
+    local out = {}
+    for r = 0, C.SkyCleanRadius do
+        for dx = -r, r do
+            for dy = -r, r do
+                if math.max(math.abs(dx), math.abs(dy)) == r then
+                    table.insert(out, { dx, dy })
+                end
+            end
+        end
+    end
+    cleanOrder = out
+    return out
+end
+
 ---------------------------------------------------------------------------
 -- Laying and lifting
 ---------------------------------------------------------------------------
@@ -293,7 +313,7 @@ end
 --- writes down where the plane was; this is how it gets taken up again, by
 --- whoever next loads that ground.
 function Sky.sweepArea(cx, cy, job)
-    local list = offsets()
+    local list = cleanOffsets()
     local take = U.batch("sky.removeFloor")
     local done = 0
     local levels = C.FlightMaxLevel - C.FlightMinLevel + 1

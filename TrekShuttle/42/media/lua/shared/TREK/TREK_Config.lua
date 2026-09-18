@@ -260,6 +260,23 @@ C.SkyRadius = 2
 -- to chase -- and every square of margin is a square of shadow trailing her.
 C.SkyTrailMargin = 0
 
+-- How far around a player to hunt for invisible floors nobody is using, in
+-- squares. Much larger than the patch, because this is not about the plane the
+-- ship is flying on -- it is about the ones it left behind.
+--
+-- A floor is a world object and world objects are saved. Every build of this
+-- feature that laid a wider plane, or trimmed it less eagerly, left its floors
+-- in whatever world it was tested in, and they are still there: a black
+-- blotch across a car park, seen in a screenshot after the plane itself was
+-- already down to 25 squares. The ship's own record only remembers the last
+-- flight, so the only way to clear the rest is to go and look.
+C.SkyCleanRadius = 32
+
+-- How far a player must move before that area is swept again. There is no
+-- timer besides this: ground that has been swept has nothing left to find, and
+-- ground that has not should not be made to wait.
+C.SkyCleanStride = 20
+
 -- Squares paved per tick. The plane is laid the way the landing search is
 -- walked -- a cursor and a slice -- because a thousand addFloor calls in one
 -- frame is not slow, it is the hard lock described in DEV_GUIDE.md under
