@@ -135,6 +135,7 @@ local function layOne(x, y, z, place)
     laid[k] = { x = x, y = y, z = z }
     count = count + 1
     Sky.stats.laid = Sky.stats.laid + 1
+    if count > (Sky.stats.peak or 0) then Sky.stats.peak = count end
     return true
 end
 
@@ -269,11 +270,15 @@ end
 
 --- What the plane cost. Logged by itself -- nothing here needs a console.
 function Sky.report(why)
-    U.log("sky plane (%s): %d square(s) held, %d laid, %d already floored, " ..
-          "%d lifted, %d outstanding, %d failed, %d full pass(es) of %d",
-          tostring(why), count, Sky.stats.laid, Sky.stats.native,
-          Sky.stats.lifted, #pending, Sky.stats.failed, Sky.stats.passes,
-          Sky.area())
+    -- `peak` is the one that matters for how much shadow the ship drags: it is
+    -- the most squares of floor that have ever existed at once. The patch is
+    -- Sky.area() squares, the hull covers about fifteen, and anything much
+    -- above that is a wake the pilot can see.
+    U.log("sky plane (%s): %d square(s) held, peak %d of a %d-square patch, " ..
+          "%d laid, %d already floored, %d lifted, %d outstanding, %d failed",
+          tostring(why), count, Sky.stats.peak or 0, Sky.area(),
+          Sky.stats.laid, Sky.stats.native, Sky.stats.lifted,
+          #pending, Sky.stats.failed)
 end
 
 ---------------------------------------------------------------------------

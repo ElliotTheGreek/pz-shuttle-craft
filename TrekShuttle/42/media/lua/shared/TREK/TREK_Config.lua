@@ -242,19 +242,23 @@ C.LevelUnits = 2.4494900703430176
 -- the very world she was flying over. Seen in game, 2026-09-17 -- "I can see
 -- the world but near me is a sphere of blackness."
 --
--- The hull is 3 by 5, so 3 squares out is a 7 by 7 patch: wide enough for the
--- wheels at any heading, and small enough that the hull itself is drawn over
--- almost all of it. That is the only real answer to the darkness -- the patch
--- cannot be seen if the ship is standing on it. Only the centre square
--- actually decides the height (BaseVehicle.update checks
--- getGridSquare(getX(), getY(), lvl) and nothing else); the rest is purely
--- something for the wheels to rest on.
-C.SkyRadius = 3
+-- The hull is 3 by 5, so 2 squares out is a 5 by 5 patch: the smallest that
+-- still covers her at any heading and gives the wheels something under them.
+--
+-- This is the only real lever on the darkness. A floor darkens whatever is
+-- beneath it and nothing can stop that, so the patch has to be small enough
+-- that the hull is drawn over it. It was 16, then 4, then 3, and at 3 with a
+-- square of margin the kept area was a 9 by 9 box -- 81 squares of shadow
+-- around a hull that covers 15, which is the "trailing dark blotch". 5 by 5 is
+-- 25 against the hull's 15, so what is left is a one-square rim under her
+-- rather than a wake behind her.
+C.SkyRadius = 2
 
--- How far beyond that to let the plane linger before it is lifted again. One
--- square: enough that she is never chasing her own floor, small enough that
--- the patch stays under her rather than trailing behind.
-C.SkyTrailMargin = 1
+-- No margin at all: a square is lifted the moment she is not over it. The
+-- margin existed so she was never chasing her own floor, but the paver
+-- recentres every tick and lays the centre square first, so there is nothing
+-- to chase -- and every square of margin is a square of shadow trailing her.
+C.SkyTrailMargin = 0
 
 -- Squares paved per tick. The plane is laid the way the landing search is
 -- walked -- a cursor and a slice -- because a thousand addFloor calls in one

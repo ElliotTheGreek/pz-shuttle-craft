@@ -613,6 +613,25 @@ def flight():
           f"flight: she dropped to z {vehicle_z(rt)} while airborne")
     check(ship(rt, "flying") is True, "flight: she did not stay up")
 
+    # --- flying along must not drag a wake of floor behind her -------------
+    # Every square of floor that is not under the hull is a square of shadow on
+    # the ground: a floor darkens what is beneath it and nothing can stop that.
+    # A generous trim margin left a 9x9 box around a hull that covers 15
+    # squares, which is the "trailing dark blotch of black blocks" seen in
+    # game. Flying must not hold more floor than the patch is wide.
+    vid = ship_vehicle(rt)
+    area = rt.eval("TREK.Sky.area()")
+    for step in range(1, 9):
+        rt.run(f"SIM.driveVehicle({vid}, 3004.5 + {step} * 3, 3000.5)")
+        rt.run(f"SIM.players[1].x = 3004.5 + {step} * 3")
+        net.pump(6)
+    held = rt.eval("TREK.Sky.count()")
+    check(held <= area,
+          f"flight: she is dragging {held} squares of floor behind her, and the "
+          f"patch is only {area} -- that is a wake of shadow on the ground")
+    check(vehicle_z(rt) == rt.eval("TREK.Config.FlightCruise"),
+          f"flight: she lost height while flying along (z {vehicle_z(rt)})")
+
     # --- climbing and diving must not drop her -----------------------------
     # Changing level means two planes exist for a moment, and the one she is
     # standing on is the *old* one. Trimming to the new target first took the
@@ -692,6 +711,11 @@ def flight():
         local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
         v:exit(SIM.players[1])
         local x, y, z = TREK.Util.padSpot()
+        -- The cabin was never built in this scenario, so the pad is bare and a
+        -- pilot put on it would fall four levels and die of it. Give it a deck
+        -- first: the point here is whether the *ship* stays up without a pilot
+        -- in the seat, not whether an unbuilt cabin holds anybody.
+        SIM.rawSquare(x, y, z):addFloor("floors_interior_tilesandwood_01_1")
         SIM.players[1].x, SIM.players[1].y = x + 0.5, y + 0.5
         SIM.players[1].z, SIM.players[1].lastZ = z, z
     """)
@@ -709,10 +733,18 @@ def flight():
     # Back at whatever level she is actually flying at, not a guess: the climb
     # above left her one higher than cruise, and standing a level below the
     # ship is a fall.
+    # Back to wherever the ship actually is, at whatever level she is actually
+    # flying at. She has been driven some way from the take-off point, and
+    # standing where she *was* is standing on nothing.
     rt.run("""
+        -- From the ship's recorded position, not from the vehicle: standing in
+        -- the cabin means the ship's chunks are not loaded here, so
+        -- TREK.Vehicle.find cannot see it at all.
         local p = SIM.players[1]
-        local lvl = TREK.Util.state().level or TREK.Config.FlightCruise
-        p.x, p.y, p.z, p.lastZ = 3004.5, 3000.5, lvl, lvl
+        local s = TREK.Util.state()
+        local lvl = s.level or TREK.Config.FlightCruise
+        p.x, p.y = s.x + 0.5, s.y + 0.5
+        p.z, p.lastZ = lvl, lvl
     """)
     net.pump(70)
     seat(rt)
