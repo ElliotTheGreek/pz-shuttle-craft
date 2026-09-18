@@ -14,15 +14,15 @@
 
         shields        up or down, saved with the world -- the field in
                        Core.repelZombies is the shields
+        flight         the ship's top speed in the air; ship state, not this
+                       client's, because the helm is in the cabin and the
+                       pilot is in the cockpit
         navigation     the course, logged positions and "take her down"
 
     TREK_Travel.openHelm opens it beside the world map. Every control is a
     request to the server, which owns the ship; the panel draws from the ship
     state and refreshes when a change comes back -- this player's own, or a
     crewman's at another helm.
-
-    The flight-speed control went with hands-on flight, and returns when the
-    shuttle flies as a vehicle (MULTIPLAYER.md).
 
     Controllers and the Steam Deck. The panel is an ISPanelJoypad, so the
     stick walks its buttons and A presses one. A mouse click on the map is the
@@ -392,7 +392,7 @@ function TREKHelmWindow:render()
 
     self:heading(self.flightHeaderY, "IGUI_TREK_FlightHeader", P.gold)
     local F = TREK.Flight
-    local step = F and C.FlightSpeedSteps[F.speedStep] or 1
+    local step = F and F.speed() or C.FlightSpeedSteps[1]
     self.speedBtn.title = getText("IGUI_TREK_FlightSpeed", tostring(step))
     local s = Ship.get()
     local flightText = s.flying
@@ -471,7 +471,7 @@ end
 function TREKHelmWindow:onFlightSpeed()
     local F = TREK.Flight
     if not F then return end
-    local step = F.speedStep + 1
+    local step = F.speedStep() + 1
     if step > #C.FlightSpeedSteps then step = 1 end
     F.setSpeedStep(self.player, step)
 end

@@ -701,8 +701,7 @@ end)
 --- The vehicle the ship is, if this machine can see it, and whether this
 --- player is in its driver's seat.
 local function drivenBy(player)
-    local s = U.state()
-    local vehicle = V.find(s.vehicleId)
+    local vehicle = V.ship()
     if not vehicle then return nil end
     local driving = U.try("isDriver", function()
         return vehicle:isDriver(player)
@@ -749,6 +748,13 @@ Net.onServer("airborne", function(player, args)
     -- Where the plane is, so that a flight ending in a crash rather than a
     -- landing still gets its invisible floors taken up by whoever next loads
     -- that ground.
+    --
+    -- Nobody reports back that they have done it, and there is deliberately no
+    -- command for that. Each client lays its own plane and so has its own to
+    -- lift; a first-one-home flag would have let whichever client finished
+    -- first stop all the others mid-sweep. The clients remember for themselves
+    -- which spot they have already cleared, and this is simply overwritten by
+    -- the next flight.
     s.skyAt = { x = s.x, y = s.y, level = level }
     Ship.commit()
     U.log("shuttle airborne at %d,%d level %d, flown by %s",
@@ -774,6 +780,21 @@ Net.onServer("setAltitude", function(player, args)
     U.log("shuttle changing to level %d", level)
 end)
 
+--- The ship's flight speed. Anyone who may use her may set it -- the helm is
+--- in the cabin and the pilot is in the cockpit, so on a server the crewman
+--- setting the speed is usually not the one flying.
+Net.onServer("setSpeed", function(player, args)
+    if not mayUse(player) then return end
+    local step = int(args.step)
+    if not step or step < 1 or step > #C.FlightSpeedSteps then return end
+    local s = U.state()
+    if s.speed == step then return end
+    s.speed = step
+    Ship.commit()
+    U.log("flight speed set to step %d (%s) by %s",
+          step, tostring(C.FlightSpeedSteps[step]), Ship.usernameOf(player))
+end)
+
 --- Setting her down. Deliberately *not* S.land: that path lifts the old ship
 --- and spawns a new one, which would destroy the seats, the trunk and
 --- everything the crew had stowed in it, every single landing.
@@ -789,8 +810,7 @@ Net.onServer("touchdown", function(player, args)
     local x, y, z = position(args)
     if not x then return end
 
-    local ok, why, blocked = W.roomToLand(x, y, z, W.exemptFor(player),
-                                          vehicle and V.idOf(vehicle) or nil)
+    local ok, why, blocked = W.roomToLand(x, y, z, W.exemptFor(player), true)
     if not ok then
         Net.toClient(player, "landingRefused",
                      { why = why, blocked = blocked, x = x, y = y, z = z })
@@ -809,16 +829,6 @@ Net.onServer("touchdown", function(player, args)
     Ship.commit()
     Net.toClient(player, "touchdownGranted", { x = x, y = y, z = z })
     U.log("shuttle set down at %d,%d,%d", x, y, z)
-end)
-
---- A client has finished lifting the invisible floors a past flight left
---- behind, so nobody need look for them again.
-Net.onServer("skyCleared", function(player)
-    if not alive(player) then return end
-    local s = U.state()
-    if not s.skyAt or s.flying then return end
-    s.skyAt = nil
-    Ship.commit()
 end)
 
 Net.onServer("setCourse", function(player, args)

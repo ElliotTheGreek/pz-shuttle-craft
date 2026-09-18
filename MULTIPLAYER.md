@@ -3,8 +3,10 @@
 How the Shuttlecraft mod works correctly in **single player, hosted co-op and
 dedicated servers**, for anyone who subscribes on the Workshop.
 
-Status: **migration steps 1-6 built (1.3.0), awaiting in-game test**; the
-vehicle shuttle (steps 7-8) is next. This document is the plan and the record
+Status: **all eight migration steps built (1.3.0)**. Everything through step 8
+— the vehicle shuttle and flight — is confirmed in single player and passes the
+simulated server with two clients; **no part of it has been played with two
+real people yet.** This document is the plan and the record
 of why each decision was made. Steps 1-6 are verified against
 `tests/test_multiplayer.py`, which runs the real Lua as single player and as a
 server with two clients over a simulated network -- not yet in the game.
@@ -129,16 +131,23 @@ So a server-side file guarded by `if isClient() then return end` runs in
   zombie is local. [MEDIUM-HIGH]
 - There is no Lua-reachable synced way to delete zombies. [HIGH]
 
-### Vehicles (for a future flight)
+### Vehicles
 
 - A seated character is bitten only when their seat's door is open or
   missing, or its window is broken or missing. **A passenger seat with no
   door part cannot be bitten at all.** [HIGH]
 - Vehicles may move up to the server's `SpeedLimit` (default 70 tiles/s)
   without speed strikes. [HIGH]
-- Moving a vehicle freely is physics-driven on the driver's client, the
-  engine re-enables physics and snaps height to the floor, and nothing in
-  vanilla does it. [LOW-MEDIUM: feasible, unproven]
+- **A vehicle's own mod data is never sent to clients.** Build 42 has a
+  network field for a *part's* mod data (`VehiclePartModData`) and none for the
+  vehicle's, so `vehicle:getModData()` on a client is empty however carefully
+  the server filled it in. Anything that identifies a vehicle by a tag the
+  server wrote works perfectly in single player and fails on every client of
+  every server. `TREK.Vehicle.ship()` therefore falls back to *the shuttle
+  standing where the ship is recorded*. [HIGH]
+- A vehicle's height is decided by whether a floor exists under its centre
+  square, not by its physics body, and the server runs no vehicle physics at
+  all. Both facts are set out with the bytecode in `PILOTING.md`. [HIGH]
 
 ---
 
@@ -317,56 +326,57 @@ server's, set by validated commands, exactly like everything else.
 
 ---
 
-## Flight -- the decision
+## Flight -- what was built
 
-Hands-on flight as built **cannot be made correct**:
+**Decision (2026-09-17): C, the shuttle is a vehicle the crew enters like a
+car** -- and it flies. Entering a vehicle is not a teleport and takes no
+anti-cheat strike, an occupant may travel at the server's vehicle speed limit,
+a seat with no door cannot be bitten, and vehicle position is synced by the
+game itself. Everything hands-on flight had to fake, the engine already does.
 
-- It holds the pilot's body in mid-air, fighting the engine's fall simulation
-  every tick; pilots took fatal damage in testing.
-- It moves the body at 22-450 tiles/s. The speed anti-cheat flags anything
-  over 20 tiles/s: on a default dedicated server the pilot is **kicked within
-  seconds**.
-- Its protection relied on role-gated calls that never worked.
+She flies by **driving, on an invisible floor the mod lays at altitude**, for
+reasons that are entirely forced: see `PILOTING.md`, which has the bytecode.
+What matters here is the authority split.
 
-Options:
+| | |
+|---|---|
+| `flying`, `level`, `pilot`, `speed` | **Server**, ship state, set only by validated commands |
+| Who may take off, climb, dive, land | **Server** -- alive, `mayUse`, and in the driver's seat |
+| The lift between levels | **The client that owns the physics** (`isLocalPhysicSim`) |
+| The invisible floor | **Each client, for itself.** Never synced. |
+| Driving, steering, seats, camera, position sync | **Vanilla.** The mod touches none of it. |
 
-| | What | MP-correct | Cost |
-|---|---|---|---|
-| **A** | **Travel from the helm only** (set a course on the map, take her down). Remove hands-on flight for now. | Yes -- no body movement, no strikes beyond the beam | Small; helm travel already works |
-| **B** | Hands-on flight capped at ~15 tiles/s, body on the ground | No -- the body is still attackable, and 15 tiles/s is barely faster than driving | -- |
-| **C** | **Vehicle flight**: the shuttle is a real vehicle, the pilot sits in a doorless seat (cannot be bitten), moved at up to the server's vehicle speed limit (70 tiles/s) | Probably -- uses the game's own vehicle sync and speed allowance | Large and unproven: custom vehicle script and model, and making a vehicle move freely over buildings is unexplored territory |
+`takeoff` -> `takeoffGranted` -> *(the client paves, lifts, and reads the
+height back off the engine)* -> `airborne` -> `setAltitude` / `setSpeed` ->
+`touchdown` -> `touchdownGranted`, with `flightEnded` to everybody. **The
+server never records her as flying until a client reports that the engine
+actually held the height**: a lift that failed must not leave the state saying
+she is up when she is sitting on the grass.
 
-**Decision (2026-09-17): C -- the shuttle is a vehicle the crew enters like a
-car.** The owner asked for exactly that, and the research backs it: entering a
-vehicle is the game's own way to travel fast and safely in multiplayer.
+### Why a client may lay world floor
 
-- Entering a vehicle is not a teleport: no anti-cheat strike.
-- An occupant may travel at the server's vehicle speed limit (default 70
-  tiles/s), not the 20 tiles/s on foot.
-- A seat with no door part cannot be bitten.
-- Vehicle position is synced by the game itself.
+This is a documented exception to hard rule 4, and a narrow one.
 
-Built in stages, each tested in game before the next:
+- The **server runs no vehicle physics** in build 42 -- `setPhysicsActive` and
+  `setWorldTransform` both skip their `Bullet` calls when `GameServer.server`
+  -- so it has no use for a floor and never lays one.
+- The **driver's client** needs one to drive on; **every** client needs one to
+  draw her in the air. All of them derive it from the same synced vehicle
+  position, so they agree without a packet crossing the network.
+- It is only ever `invisible_01_0`, only ever above ground level, and always
+  taken up again. It is scenery and local physics -- the same class as the
+  cabin's lights and powered squares, which each client also makes for itself.
+- The ship's *state* is untouched by any of it.
 
-1. **Shuttle vehicle.** A vehicle script for the shuttle with its hull model,
-   doorless seats (pilot + crew), spawned by the server where the ship lands.
-   The crew enters with the game's normal vehicle controls and can drive it
-   on the ground. This alone replaces the unsafe hover and the speed kicks.
-   *Verify:* a custom vehicle model loads (vanilla vehicle meshes are FBX; the
-   hull is generated as `.x`), doorless seats cannot be bitten, it syncs on a
-   dedicated server.
-2. **Lift-off.** The pilot takes the vehicle up and flies it over buildings.
-   Unproven: the driver's client must move the physics body itself, the
-   engine re-enables physics and snaps vehicles to the floor, and vanilla
-   never does it. If it cannot be made to work, stage 1 stands on its own.
+`tests/pz_sim.lua` counts sky floors separately from every other client world
+edit, so "no client ever edits the world" keeps its teeth for everything else,
+and the two-player scenario asserts both machines see her at altitude and that
+neither made any other edit.
 
-The helm's flight-speed control and the photon torpedoes return with stage 2.
-Until the vehicle exists, travel is by the helm (course + take her down) and
-the old hands-on flight is removed.
+### Photon torpedoes
 
-This changes the hull: the landed ship **is** the vehicle, so landing, call
-down, recall and the ghost-hull sweep move to spawning and removing a vehicle
-on the server rather than a world item.
+Still to come. Killing a zombie has to be done by the server, and the
+explosion must not set the street on fire.
 
 ---
 
@@ -380,6 +390,13 @@ on the server rather than a world item.
    disappears for the other.
 6. Phaser charge persists on a dedicated server.
 7. Shields push zombies for every client near the hull.
+8. **A shuttle in the air, seen from the other machine.** Each client lays its
+   own floor under her and derives the level from it, and the simulated
+   two-client scenario says both see her at altitude -- but the engine's own
+   half of that (`clientUpdateVehiclePos` writes `setZ(0)` and
+   `BaseVehicle.update()` then recomputes it) has only been reasoned about.
+9. **Flight speed at one helm reaching the pilot at another.** Proven in
+   simulation; unproven across a real connection.
 
 ---
 
@@ -389,19 +406,29 @@ on the server rather than a world item.
 |---|---|---|
 | Single player | Fresh world, *Water Shutoff: Instant* | Everything, one player |
 | Dedicated server | Local test world with only the dev build enabled; host joins at 127.0.0.1 | Bounds, server build, streaming, charges, phaser |
-| Two players | Second client (Steam Deck on LAN) on the dedicated server | Shared cabin, loot, shields, access |
+| Two players | Second client (Steam Deck on LAN) on the dedicated server | Shared cabin, loot, shields, access, **and flight seen from both** |
 | Hosted co-op | In-game Host (not reliable on the developer's PC; test when possible) | Same code as dedicated |
 
-Static: every existing test, plus a protocol test that loads `server/` and
-`client/` under lupa with the network stubbed and checks that every command a
-client sends has a server handler that validates it, and that no client file
-writes `TREK_Ship`.
+Static: `tests/test_multiplayer.py` loads `server/` and `client/` under lupa
+with the network stubbed and plays the mod as single player and as a server
+with two clients. It checks that every command a client sends has a server
+handler that validates it, that no client file writes `TREK_Ship`, and that no
+client edits the world except the sky plane. Its two-client scenario flies her:
+take-off, both machines seeing her at altitude, the speed set at one helm
+reaching the pilot at another, a passenger refused the controls, and a dead
+pilot bringing her down.
+
+**Mutation-check anything added there.** Several of these guards passed their
+first run for the wrong reason, because the simulation was being kinder than
+the engine -- it had no vehicle gravity, no floor-gated height, and no
+one-frame delay on the radial menu until each of those let a real bug through.
 
 ---
 
 ## Migration order
 
-Each step leaves single player working, is tested, and is committed.
+Each step left single player working, was tested, and was committed. **All nine
+are done**; what remains is playing it with two people.
 
 1. **Foundations**: `shared/TREK/TREK_Net.lua` (protocol names, toClient
    helper), state schema 2 with migration from single-player saves, file
@@ -418,4 +445,5 @@ Each step leaves single player working, is tested, and is committed.
    server spawns and removes it for landing, call down and recall; replaces
    the world-item hull.
 8. **Shuttle vehicle, stage 2**: lift-off and flight.
-9. **Tests and docs**: protocol test, DEV_GUIDE, README (server-owner notes).
+9. **Tests and docs**: the two-client scenario, DEV_GUIDE, README
+   (server-owner notes), and `PILOTING.md` for how flight works and why.

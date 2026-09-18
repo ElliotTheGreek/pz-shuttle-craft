@@ -527,7 +527,7 @@ def single_player():
 def seat(rt, n=0, who=1):
     """Puts the player in a seat of the ship's vehicle."""
     rt.run(f"""
-        local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+        local v = TREK.Vehicle.ship()
         v.seats[{n}] = SIM.players[{who}]
         SIM.players[{who}].vehicle = v
     """)
@@ -535,7 +535,7 @@ def seat(rt, n=0, who=1):
 
 def vehicle_z(rt):
     return rt.eval("""(function()
-        local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+        local v = TREK.Vehicle.ship()
         return v and v:getZ() or -1
     end)()""")
 
@@ -645,7 +645,7 @@ def flight():
     rt.run("""for _, v in ipairs(SIM.vehicles) do v.minLevel = nil end""")
     net.pump(120)
     worst = rt.eval("""(function()
-        local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+        local v = TREK.Vehicle.ship()
         return v and v.minLevel or 99
     end)()""")
     check(worst >= cruise - 0.1,
@@ -690,7 +690,7 @@ def flight():
         rt.run(f"TREK.Flight.setSpeedStep({P}, {i})")
         net.pump(2)
         seen.append(rt.eval("""(function()
-            local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+            local v = TREK.Vehicle.ship()
             return v and v:getMaxSpeed() or -1
         end)()"""))
     check(len(set(seen)) == steps,
@@ -708,7 +708,7 @@ def flight():
 
     # --- the pilot goes aft, and she stays up -----------------------------
     rt.run(f"""
-        local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+        local v = TREK.Vehicle.ship()
         v:exit(SIM.players[1])
         local x, y, z = TREK.Util.padSpot()
         -- The cabin was never built in this scenario, so the pad is bare and a
@@ -872,7 +872,7 @@ def flight_endings():
     check(ship(rt, "flying") is True, "flight endings: she never got up")
 
     rt.run(f"""
-        local v = TREK.Vehicle.find(TREK.Util.state().vehicleId)
+        local v = TREK.Vehicle.ship()
         v:exit(SIM.players[1])
         SIM.players[1].dead = true
     """)
@@ -1052,6 +1052,96 @@ def multiplayer():
         check(mine == server_state,
               f"multiplayer: {name}'s copy of the ship differs from the server's")
 
+    # -----------------------------------------------------------------------
+    # Flight, with two people
+    # -----------------------------------------------------------------------
+    # The sky plane is laid by each client for itself and never crosses the
+    # network: the server runs no vehicle physics and needs no floor, the
+    # driver's machine needs one to drive on, and every machine needs one to
+    # draw her in the air. They agree because they all derive it from the same
+    # synced vehicle position. That is the whole argument, and none of it was
+    # exercised until this scenario existed.
+    lx, ly = ship(srv, "x"), ship(srv, "y")
+    # Both of them over to the ship, and a moment for her ground to stream in
+    # on each machine: a client that cannot see the vehicle cannot pave under
+    # it, which is the whole thing being tested.
+    for rt in net.all():
+        rt.run(f"""
+            for _, p in ipairs(SIM.players) do
+                p.x, p.y, p.z, p.lastZ = {lx} + 4.5, {ly} + 4.5, 0, 0
+            end
+        """)
+    net.pump(120)
+    for rt in net.all():
+        rt.run(f"""
+            local v = TREK.Vehicle.ship()
+            if v then v.seats[0] = SIM.players[1] SIM.players[1].vehicle = v end
+        """)
+    A.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+
+    check(ship(srv, "flying") is True,
+          "multiplayer: she never got off the ground")
+    check(ship(srv, "pilot") == "alice",
+          f"multiplayer: the server thinks {ship(srv, 'pilot')} is flying her")
+
+    # Both machines must show her in the air. Bob is not the pilot and never
+    # lifts anything; his client pave the floor under her from the position the
+    # engine syncs him, and derives the same level from it.
+    for name, c in (("alice", A), ("bob", B)):
+        z = c.eval("""(function()
+            local v = TREK.Vehicle.ship()
+            return v and v:getZ() or -1
+        end)()""")
+        check(z == srv.eval("TREK.Config.FlightCruise"),
+              f"multiplayer: {name} sees the shuttle at z {z}, not in the air")
+        held = c.eval("TREK.Sky.count()")
+        check(held and held > 0,
+              f"multiplayer: {name} laid no sky plane, so she is on the ground "
+              f"on that screen")
+
+    # And the plane is still the only world edit a client is allowed.
+    for name, c in (("alice", A), ("bob", B)):
+        check(c.eval("SIM.clientWorldEdit") is None,
+              f"multiplayer: {name} edited the world for something other than "
+              f"the sky plane")
+
+    # The speed is the ship's, not the pilot's. Bob sets it at the helm and
+    # Alice is the one flying: her vehicle must be the one that changes.
+    B.run(f"TREK.Flight.setSpeedStep({P}, 6)")
+    net.pump(20)
+    check(ship(srv, "speed") == 6,
+          f"multiplayer: the server did not take the new speed ({ship(srv, 'speed')})")
+    top = A.eval("""(function()
+        local v = TREK.Vehicle.ship()
+        return v and v:getMaxSpeed() or -1
+    end)()""")
+    check(top == srv.eval("TREK.Config.FlightSpeedSteps[6]"),
+          f"multiplayer: the pilot's ship is doing {top}, not what the helm was "
+          f"set to; speed set by one crewman must reach the one flying")
+
+    # A crewman who is not flying may not steer her about.
+    before = ship(srv, "level")
+    B.run(f"TREK.Flight.climb({P})")
+    net.pump(60)
+    check(ship(srv, "level") == before,
+          "multiplayer: a passenger changed the ship's altitude")
+
+    # Killing the pilot must bring her down, on the server's own initiative.
+    A.run("SIM.players[1].dead = true")
+    srv.run("""
+        for _, p in ipairs(SIM.players) do
+            if p.name == 'alice' then p.dead = true end
+        end
+        local v = TREK.Vehicle.ship()
+        if v then v.seats[0] = nil end
+    """)
+    net.pump(600)
+    check(ship(srv, "flying") is None,
+          "multiplayer: flight outlived its pilot on a server")
+    check(ship(srv, "pilot") is None,
+          "multiplayer: the dead pilot is still recorded at the controls")
+
     # A client that transmits the ship must not change the server's.
     B.run("TREK.Util.state().owner = 'bob'; ModData.transmit('TREK_State_v1')")
     net.pump(2)
@@ -1064,7 +1154,8 @@ def multiplayer():
             else:
                 fail(f"multiplayer ({rt.name}): {w}")
     print("multiplayer: ownership, crew, shared cabin, charges, remote landing, "
-          "shields and single-writer state all checked")
+          "shields, flight seen from both machines and single-writer state "
+          "all checked")
 
 
 # ---------------------------------------------------------------------------

@@ -58,9 +58,13 @@ TREK.Flight = F
 -- The take-off in progress on this client, if any.
 local rising = nil
 
--- The speed step is a pilot's own preference, not something the whole world
--- needs to agree on, so it stays here rather than in the ship's state.
-F.speedStep = C.FlightSpeedDefaultStep
+-- The speed step is the ship's, not this client's.
+--
+-- It was local at first, on the reasoning that it is a pilot's own preference.
+-- It is not: the helm is in the cabin and the pilot is in the cockpit, so on a
+-- server the crewman who sets it is usually not the one flying. Held locally,
+-- each client saw its own figure, only the driver's did anything, and handing
+-- over the controls handed over whatever the new pilot happened to have set.
 
 -- The vehicle's own top speed, kept so landing puts it back.
 local groundSpeed = nil
@@ -73,7 +77,9 @@ local probed = false
 ---------------------------------------------------------------------------
 --- The shuttle vehicle, if this client can see it.
 function F.vehicle()
-    return V.find(Ship.get().vehicleId)
+    -- V.ship, not V.find: a client cannot read the tag, because build 42 does
+    -- not sync a vehicle's own mod data. See TREK_Vehicle.ship.
+    return V.ship()
 end
 
 function F.flying()
@@ -254,13 +260,13 @@ function F.applySpeed(vehicle)
     if not vehicle then return nil end
     return U.try("vehicleSpeed", function()
         if groundSpeed == nil then groundSpeed = vehicle:getMaxSpeed() end
-        local want = C.FlightSpeedSteps[F.speedStep] or C.FlightSpeedSteps[1]
+        local want = F.speed()
         local cap = ceiling()
         if cap and want > cap then want = cap end
         vehicle:setMaxSpeed(want)
         local got = vehicle:getMaxSpeed()
         U.log("flight speed step %d: asked for %s, vehicle reports %s%s",
-              F.speedStep, tostring(want), tostring(got),
+              F.speedStep(), tostring(want), tostring(got),
               cap and (" (server ceiling " .. tostring(cap) .. ")") or "")
         return got
     end)
@@ -274,10 +280,23 @@ end
 
 --- Steps the helm's flight speed and reports it. Used by the helm and the
 --- vehicle menu.
+--- The step the ship is set to, as an index into C.FlightSpeedSteps.
+function F.speedStep()
+    local n = Ship.get().speed
+    if type(n) ~= "number" then return C.FlightSpeedDefaultStep end
+    return math.max(1, math.min(#C.FlightSpeedSteps, math.floor(n)))
+end
+
+--- The top speed that step means.
+function F.speed()
+    return C.FlightSpeedSteps[F.speedStep()] or C.FlightSpeedSteps[1]
+end
+
+--- Asks the server to change it. Every client applies it when the new state
+--- comes back, so the pilot's machine acts on it whoever pressed the button.
 function F.setSpeedStep(player, step)
     step = math.max(1, math.min(#C.FlightSpeedSteps, math.floor(step or 1)))
-    F.speedStep = step
-    F.applySpeed(F.vehicle())
+    Core.send(player, "setSpeed", { step = step })
     U.note(player, getText("IGUI_TREK_FlightSpeedSet",
                            tostring(C.FlightSpeedSteps[step])))
     return step
@@ -427,7 +446,7 @@ function F.land(player)
     -- The same footprint question a called-down landing asks, with the ship's
     -- own hull exempted: it is directly overhead, and its squares must not be
     -- read as somebody else's vehicle standing in the way.
-    local ok, why, blocked = W.roomToLand(x, y, 0, nil, V.idOf(vehicle))
+    local ok, why, blocked = W.roomToLand(x, y, 0, nil, true)
     if not ok then
         U.note(player, TREK.Travel.refusalText(why, blocked), 255, 90, 90)
         return false, why
@@ -503,7 +522,7 @@ local function serviceFlight()
         reportTick = 0
         U.log("in flight at %d,%d level %s, speed step %s",
               x, y, tostring(levelOf(vehicle)),
-              tostring(C.FlightSpeedSteps[F.speedStep]))
+              tostring(F.speed()))
         Sky.report("cruising")
     end
 end
@@ -531,6 +550,8 @@ end)
 -- the life of the world. The ship state remembers where the plane was while
 -- it was flying, so whoever next loads that ground clears it.
 local sweeping = nil
+-- The skyAt this client has already finished sweeping.
+local sweptAt = nil
 
 -- Where the rolling tidy-up last ran, and how long since.
 local cleanedAt = nil
@@ -584,6 +605,10 @@ local function serviceSweep()
     if s.flying then sweeping = nil return end
     local at = s.skyAt
     if not at then sweeping = nil return end
+    if sweptAt and sweptAt.x == at.x and sweptAt.y == at.y
+       and sweptAt.level == at.level then
+        return                      -- this client has already been here
+    end
     local player = U.player(0)
     if not player then return end
     if U.dist2(player:getX(), player:getY(), at.x, at.y) > (C.SkyRadius * 3) ^ 2 then
@@ -595,10 +620,22 @@ local function serviceSweep()
     end
     if Sky.sweepArea(at.x, at.y, sweeping) then
         sweeping = nil
-        Core.send(player, "skyCleared", {})
+        -- Remembered here rather than reported to the server. Every client
+        -- lays its own plane and has its own to lift, so a shared "done" flag
+        -- would let whoever finished first stop everybody else mid-sweep.
+        sweptAt = { x = at.x, y = at.y, level = at.level }
         U.log("the leftover sky plane is gone")
     end
 end
+
+-- A speed set at the helm is ship state, so it arrives here as a state change
+-- rather than as a button press. Whoever is flying applies it; on a server
+-- that is usually not the crewman who set it.
+Ship.onChange(function()
+    if not F.flying() then return end
+    local vehicle = F.vehicle()
+    if vehicle and ownsPhysics(vehicle) then F.applySpeed(vehicle) end
+end)
 
 Events.OnTick.Add(function()
     U.try("serviceRise", serviceRise)

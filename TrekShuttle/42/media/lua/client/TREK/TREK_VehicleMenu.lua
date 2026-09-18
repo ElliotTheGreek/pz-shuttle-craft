@@ -119,7 +119,7 @@ function VM.onDive(player)     TREK.Flight.dive(player) end
 
 function VM.onFlightSpeed(player)
     local F = TREK.Flight
-    local step = F.speedStep + 1
+    local step = F.speedStep() + 1
     if step > #C.FlightSpeedSteps then step = 1 end
     F.setSpeedStep(player, step)
 end
@@ -136,7 +136,7 @@ local function addFlightOptions(menu, playerObj, worldobjects)
         menu:addOption(getText("IGUI_TREK_TakeOff"), worldobjects, VM.onTakeOff, playerObj)
     end
     menu:addOption(getText("IGUI_TREK_FlightSpeed",
-                           tostring(C.FlightSpeedSteps[F.speedStep])),
+                           tostring(F.speed())),
                    worldobjects, VM.onFlightSpeed, playerObj)
 end
 

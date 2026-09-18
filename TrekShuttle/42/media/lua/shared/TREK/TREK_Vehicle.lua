@@ -70,6 +70,36 @@ function V.find(id)
     return found
 end
 
+--- The vehicle that *is* the ship, as far as this machine can tell.
+---
+--- The tag is the authority and the server always has it. A client never does:
+--- build 42 syncs a vehicle's *parts'* mod data (VehiclePartModData is a
+--- network field) and not the vehicle's own, so getModData() on a client is
+--- empty however carefully the server filled it in. Identifying the ship by
+--- its tag therefore works perfectly in single player and fails on every
+--- client of every server -- which is exactly the class of bug MULTIPLAYER.md
+--- exists to catch, and it was caught by the two-player test rather than in
+--- the game.
+---
+--- So: the tag when it can be read, and otherwise the shuttle standing where
+--- the ship is recorded. There is only ever one.
+function V.ship()
+    local s = U.state()
+    local tagged = V.find(s.vehicleId)
+    if tagged then return tagged end
+    if not s.landed and not s.flying then return nil end
+
+    local best, bestDist = nil, nil
+    V.each(function(v)
+        local x = U.try("shipVehicleX", function() return v:getX() end)
+        local y = U.try("shipVehicleY", function() return v:getY() end)
+        if not x then return end
+        local d = U.dist2(x, y, s.x or 0, s.y or 0)
+        if not bestDist or d < bestDist then best, bestDist = v, d end
+    end)
+    return best
+end
+
 --- True when anyone is sitting in the vehicle.
 function V.occupied(vehicle)
     local n = U.try("maxPassengers", function() return vehicle:getMaxPassengers() end) or 0
