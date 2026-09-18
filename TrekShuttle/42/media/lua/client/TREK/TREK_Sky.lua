@@ -147,7 +147,16 @@ local function layOne(x, y, z, place)
     -- The batched call must hand something back: U.batch returns nil for a
     -- failure, and a function that returns nothing is indistinguishable from
     -- one that threw.
-    local ok = place(function() sq:addFloor(Sky.TILE) return true end)
+    -- Recalculated on the way in as well as on the way out, so the square's
+    -- idea of itself matches what is actually on it at both ends. Laying a
+    -- floor without this leaves the engine to notice in its own time, which is
+    -- how a patch comes and goes a beat later than the ship it belongs to.
+    local ok = place(function()
+        sq:addFloor(Sky.TILE)
+        sq:RecalcProperties()
+        sq:RecalcAllWithNeighbours(true)
+        return true
+    end)
     if not ok then
         Sky.stats.failed = Sky.stats.failed + 1
         return false
@@ -161,6 +170,15 @@ end
 
 --- Takes one square of floor up. Returns true when it is dealt with, false
 --- when the answer is not knowable yet.
+---
+--- The recalculation is not tidiness, it is the removal. The call that takes
+--- the object off the square is named NoRecalc and means it: the square keeps
+--- every cached conclusion the engine had already drawn from having a floor
+--- overhead, so the ground below stays dark long after the floor itself is
+--- gone. That is the trail of black squares -- the floors really were being
+--- lifted (the log counted thousands of them) and the darkness simply never
+--- went away. Vanilla never removes an object without this pair: see
+--- ISRemoveItemTool.lua:312 and ISGrabItemAction.lua:99.
 local function liftOne(t, take)
     if t.native then return true end
     local sq = U.square(t.x, t.y, t.z, false)
@@ -169,6 +187,8 @@ local function liftOne(t, take)
     if not obj then return true end       -- already gone
     local ok = take(function()
         sq:RemoveTileObjectErosionNoRecalc(obj)
+        sq:RecalcProperties()
+        sq:RecalcAllWithNeighbours(true)
         return true
     end)
     if not ok then return false end
@@ -329,8 +349,12 @@ function Sky.sweepArea(cx, cy, job)
         if sq then
             local obj = U.findSprite(sq, Sky.TILE)
             if obj then
+                -- The same pair as liftOne, and for the same reason: without
+                -- it the floor goes and its shadow stays.
                 take(function()
                     sq:RemoveTileObjectErosionNoRecalc(obj)
+                    sq:RecalcProperties()
+                    sq:RecalcAllWithNeighbours(true)
                     return true
                 end)
                 Sky.stats.lifted = Sky.stats.lifted + 1

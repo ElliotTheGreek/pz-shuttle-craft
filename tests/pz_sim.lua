@@ -245,6 +245,20 @@ function SquareMT:getVehicleContainer()
 end
 function SquareMT:setHaveElectricity(v) self.power = v end
 
+-- Removing an object without recalculating leaves the square holding every
+-- conclusion the engine had already drawn from what was on it -- which is why
+-- floors that had genuinely been lifted went on darkening the ground beneath
+-- them. Counted so a test can insist the pair is always used.
+local function markRecalced(sq)
+    if sq.recalced == false then
+        SIM.staleSquares = math.max(0, (SIM.staleSquares or 0) - 1)
+    end
+    sq.recalced = true
+end
+function SquareMT:RecalcProperties() markRecalced(self) end
+function SquareMT:RecalcAllWithNeighbours() markRecalced(self) end
+
+
 function SquareMT:addFloor(sprite)
     local f = SIM.object(sprite)
     f.isFloor = true
@@ -321,7 +335,17 @@ end
 function SquareMT:RemoveTileObjectErosionNoRecalc(o)
     if isClient() then SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1 end
     for i, v in ipairs(self.objects) do
-        if v == o then table.remove(self.objects, i) return 0 end
+        if v == o then
+            table.remove(self.objects, i)
+            -- Left stale on purpose. The call says NoRecalc and means it: the
+            -- square keeps whatever the engine had already concluded from the
+            -- object being there, which is why floors that really had been
+            -- lifted went on darkening the ground under them. A caller that
+            -- forgets the recalculation leaves this behind for a test to find.
+            self.recalced = false
+            SIM.staleSquares = (SIM.staleSquares or 0) + 1
+            return 0
+        end
     end
     return -1
 end

@@ -793,6 +793,18 @@ def flight():
           f"the sky; nothing goes looking for the ones the ship does not "
           f"remember laying")
 
+    # --- and every square it touched was recalculated ----------------------
+    # Removing an object with RemoveTileObjectErosionNoRecalc leaves the square
+    # holding every conclusion the engine had already drawn from the object
+    # being there. Floors lifted that way go on darkening the ground beneath
+    # them: the trail of black squares that outlived several attempts to shrink
+    # it, while the log insisted thousands of floors had been removed. Vanilla
+    # never removes an object without the recalculation pair.
+    stale = rt.eval("SIM.staleSquares")
+    check(not stale,
+          f"flight: {stale} squares had something removed and were never "
+          f"recalculated; whatever was lifted will keep darkening the ground")
+
     for w in rt.warnings():
         fail(f"flight: {w}")
     print("flight: take-off, the sky plane, the shut hatch, the pilot going aft, "
