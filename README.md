@@ -235,7 +235,13 @@ interior plus `TREK_InteriorLayout.lua`.
 
 - **One shuttle per world.** In multiplayer the crew shares it; a second
   ship is not supported.
-- **Flight is new and has had one test.** The shuttle flies on an invisible floor the mod lays at altitude, because a vehicle's height in build 42 is decided by whether there is a floor under it, not by its physics. See `PILOTING.md`.
+- **Flight has been flown in single player, not in multiplayer.** The shuttle
+  flies on an invisible floor the mod lays at altitude, because a vehicle's
+  height in build 42 is decided by whether there is a floor under it and not by
+  its physics. A one-square rim of that floor may be visible under the hull.
+  See `PILOTING.md`.
+- **She flies between levels 1 and 4**, which clears a two-storey building. The
+  ceiling is deliberate: there is nothing above it to fly over.
 - **The hull does not block anything.** It is a world model, and world models
   have no collision: zombies and players walk through it. The footprint is
   enforced when it lands, not afterwards.

@@ -170,9 +170,10 @@ is how the role check was found.
 **And design out the permission instead of fighting it.** Hands-on flight
 tried to keep the pilot safe with those setters, then by holding the body in
 mid-air; both failed in game, and flying a body at 90 tiles a second would be
-kicked by the speed anti-cheat on any server. It was removed. Flight returns as
-a *vehicle* -- a seat with no door cannot be bitten, and vehicles may travel
-fast -- which is the engine's own answer rather than a fight with it.
+kicked by the speed anti-cheat on any server. It was removed, and came back as
+something the engine cannot argue with: the ship is a **vehicle**, a seat with
+no door cannot be bitten, vehicles may travel fast, and no character is moved
+at all. See `PILOTING.md`.
 
 The same reasoning applies to *which* API a given object actually uses — see
 *Two APIs for water* below.
@@ -782,30 +783,31 @@ gets verified. Practical notes:
 
 Version **1.3.0**, build revision **10**.
 
-**1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-6):
+**1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-8):
 server-owned ship and cabin, request protocol, transporter charges, shields per
-client, owner-and-crew access, and hands-on flight removed. It passes every
-static test and the simulated server; **none of it has been seen in game yet**.
+client, owner-and-crew access, the shuttle as a four-seat vehicle, and flight.
 
-**Seen working in game before the rewrite:** the BuildingEd interior, the
-nineteen stocked containers including the phaser locker, the helm console and
-its shields toggle, the galley food.
+**Seen working in game** (2026-09-17): the BuildingEd interior and its nineteen
+stocked containers, the helm console, the galley food, the whole single-player
+path through the new request protocol — beam up, cabin, helm, take her down,
+hatch, beam down — and **piloting**: take off, climb, dive, fly over buildings,
+set her down, with the crew going aft to the cabin and back in the air. See
+`PILOTING.md`.
 
 **Not yet seen in game**, in the order worth checking:
 
-1. **Single player still works end to end** through the new request path:
-   beam up, cabin, helm, take her down, hatch, beam down.
-2. **The dedicated server**: the interior cell loads there, the server-built
+1. **The dedicated server**: the interior cell loads there, the server-built
    cabin reaches the client with its stock, water fills with the mains off.
-3. **Two players**: one cabin, loot taken by one gone for the other, crew
-   access, charges.
-4. **The phaser firing** and staying charged on a server.
+2. **Two players**: one cabin, loot taken by one gone for the other, crew
+   access, charges — and a shuttle in the air seen from the other machine,
+   which is the last unproven thing about flight.
+3. **The phaser firing** and staying charged on a server.
 
-**The pattern worth carrying forward.** Three separate bugs in this mod have
+**The pattern worth carrying forward.** Five separate bugs in this mod have
 had the same shape: a plausible engine call that fails silently, leaving a
 thing that is present, drawn, and inert — an unopenable locker, a container
 handed items that were never created, a tap topped up through an API it does
-not have. Static checks caught none of them, because the mod's logic was
+not have, a menu hook that never ran, a floor removed without its shadow. Static checks caught none of them, because the mod's logic was
 correct every time. What caught them was **reading the result back and logging
 it**: `B.stockReport()` turned three sessions of guessing into one grep. When
 you add something to the cabin, add the line that proves it arrived.
