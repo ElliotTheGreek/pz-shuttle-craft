@@ -33,6 +33,9 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 local L = require "TREK/TREK_InteriorLayout"
 require "TREK/TREK_Power"
+-- For the berth's offsets: the replicator's alcove stands where the layout's
+-- `replicator` tag is, and one file should own that lookup.
+require "TREK/TREK_Replicator"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -677,6 +680,54 @@ local function furnishAuthoredInterior()
     end
 end
 
+--- Stands the replicator's alcove over its berth.
+---
+--- A world item, the way the hull is, rather than a tile sprite: the mesh is
+--- authored from 0.80 upwards so it hangs above the counter at 0,5 instead of
+--- being drawn through it.
+---
+--- Placed once, ever. World items are saved and `U.clearSquare` leaves them
+--- alone by design -- that is where a player's dropped things live -- so a
+--- pass that did not look first would stand a second alcove on the square at
+--- every rebuild, which is exactly the shape of the "Two shuttles" signature
+--- in DEV_GUIDE.md.
+---
+--- And the result is read back. An item id that does not resolve puts nothing
+--- there and says nothing, and the feature would still work off the counter,
+--- so nobody would ever find out from the outside.
+local function furnishReplicator()
+    local ox, oy = TREK.Replicator.spot()
+    if not ox then return false end
+    local x, y = at(ox, oy)
+    local sq = U.square(x, y, C.CabinZ, true)
+    if not sq then return false end
+
+    local standing = 0
+    U.try("replicator.scan", function()
+        local items = sq:getWorldObjects()
+        if not items then return end
+        for i = 0, items:size() - 1 do
+            local worldItem = items:get(i)
+            local item = worldItem and worldItem:getItem()
+            if item and item:getFullType() == C.ReplicatorItem then
+                standing = standing + 1
+            end
+        end
+    end)
+    if standing > 0 then return false end
+
+    local placed = U.try("replicator.place", function()
+        return sq:AddWorldInventoryItem(C.ReplicatorItem, 0.5, 0.5, 0.0)
+    end)
+    if placed then
+        U.log("replicator: the alcove stands at %d,%d", ox, oy)
+        return true
+    end
+    U.log("WARN replicator: %s would not place at %d,%d; the machine still "
+          .. "works from the counter", tostring(C.ReplicatorItem), ox, oy)
+    return false
+end
+
 --- The lamp fittings. The light they give is a client-side light source and
 --- is hung by TREK_Core on each client; only the fixture is world state.
 local function fitLamps()
@@ -869,6 +920,7 @@ function B.buildCabin()
               furnishAuthoredInterior()
           end },
         { "fitLamps",       fitLamps },
+        { "replicator",     furnishReplicator },
         { "stockReport", function() B.stockReport() end },
         { "clearMargin",    clearSurroundings },
     }

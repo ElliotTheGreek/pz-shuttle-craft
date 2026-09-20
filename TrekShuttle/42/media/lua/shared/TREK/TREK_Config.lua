@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 17
+C.BuildRev = 18
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -777,6 +777,16 @@ C.DevicePower = 1.0
 -- right-click on an object every save already has rather than as a migration
 -- (INTERIOR_REFIT.md section 3). Its own container is the tray.
 C.ReplicatorTag = "replicator"
+
+-- The alcove itself: a world model, like the hull, standing on that square.
+-- Its mesh is authored from 0.80 upwards (tools/gen_replicator.py) so it
+-- hangs above the counter rather than being drawn through it.
+--
+-- This is the helm console prop's route, and the helm console prop was
+-- deleted for being scenery that looked like a control. The difference is
+-- the only one that matters: this one opens something. The panel is on a
+-- right-click on this square, so the model *is* the machine.
+C.ReplicatorItem = "TrekShuttle.TrekReplicator"
 
 -- How close you have to stand, in tiles. Measured on the server against its
 -- own copy of where the player is, because a client is a request and never a

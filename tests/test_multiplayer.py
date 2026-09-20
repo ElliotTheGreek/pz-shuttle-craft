@@ -2628,6 +2628,34 @@ def replicator():
         return
     stand_at(rt, net, 1, 5)
 
+    # --- the alcove stands over the berth, once ------------------------------
+    # A world item, and world items are saved and deliberately left alone by
+    # U.clearSquare -- so a build that did not look first would stand a second
+    # alcove on the square every time the cabin was rebuilt, for ever. That is
+    # the "Two shuttles" shape, indoors.
+    def alcoves():
+        return int(rt.eval(f"""(function()
+            local C, U, R = TREK.Config, TREK.Util, TREK.Replicator
+            local ox, oy = R.spot()
+            local x, y = U.at(ox, oy)
+            local n = 0
+            for _, w in ipairs(SIM.rawSquare(x, y, C.CabinZ).worldObjects or {{}}) do
+                local it = w.item
+                local id = it and (it.fullType or it:getFullType())
+                if id == C.ReplicatorItem then n = n + 1 end
+            end
+            return n
+        end)()"""))
+
+    check(alcoves() == 1,
+          f"replicator: {alcoves()} alcoves stand over the berth after the "
+          f"first build, not 1")
+    rt.eval("TREK.Build.buildCabin()")
+    rt.eval("TREK.Build.buildCabin()")
+    check(alcoves() == 1,
+          f"replicator: rebuilding the cabin left {alcoves()} alcoves stacked "
+          f"on the berth")
+
     # --- the catalogue ------------------------------------------------------
     size = int(rt.eval("#TREK.Replicator.catalogue()"))
     check(size > 0, "replicator: the catalogue is empty")

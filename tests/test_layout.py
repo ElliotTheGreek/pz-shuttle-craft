@@ -116,6 +116,29 @@ else:
                         f"authored phaser locker is at {phasers[0]['x']},"
                         f"{phasers[0]['y']}")
 
+# --- the replicator's berth ---------------------------------------------
+# The fixture the replicator hangs off is found by its tag, and the panel is
+# offered on its square: TREK_Replicator.spot() walks this list looking for
+# C.ReplicatorTag. Rename it in the map editor and the machine has nowhere to
+# stand -- the only sign in game is one warning the first time somebody
+# right-clicks the galley.
+#
+# It must also hold nothing. The tray is where replicated items appear, and a
+# tray that arrives with the ship's stores in it is a tray with less room.
+berths = [e for e in entries if e["tag"] == C.ReplicatorTag]
+if len(berths) != 1:
+    failures.append(f"{len(berths)} fittings are tagged {C.ReplicatorTag!r}; "
+                    f"the replicator needs exactly one berth")
+else:
+    berth = berths[0]
+    if not berth["container"]:
+        failures.append(f"the replicator's berth at {berth['x']},{berth['y']} is "
+                        f"not a container, so it has no tray to materialise into")
+    if berth["loot"] or berth["special"]:
+        failures.append(f"the replicator's berth is stocked with "
+                        f"{berth['loot'] or berth['special']!r}; the tray is "
+                        f"meant to start empty")
+
 # --- every `special` names a rule the build actually has ------------------
 # A special is a string in one file that has to be matched by a key in another,
 # with nothing at runtime to notice a typo: a container marked `special =

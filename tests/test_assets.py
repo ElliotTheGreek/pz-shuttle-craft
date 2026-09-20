@@ -385,6 +385,36 @@ for tip in sorted(re.findall(r"^\s*Tooltip\s*=\s*(\w+)\s*,", script, re.M)):
     if tip not in tips:
         failures.append(f"Tooltip.json has no entry for {tip}")
 
+# --- the sandbox options -----------------------------------------------
+# A server owner's settings page is built from two files that have to agree,
+# and neither complains when they do not: media/sandbox-options.txt declares
+# the option and how many values it has, and Translate/EN/Sandbox.json names
+# it and every one of those values. A missing name shows the option's raw id,
+# and a missing value name shows "option3" -- in somebody else's server
+# settings, which is the one place the author never looks.
+SB = os.path.join(MOD, "media", "sandbox-options.txt")
+SB_TR = os.path.join(MOD, "media", "lua", "shared", "Translate", "EN", "Sandbox.json")
+if os.path.isfile(SB) and os.path.isfile(SB_TR):
+    sb = open(SB, encoding="utf-8").read()
+    sb_tr = json.load(open(SB_TR, encoding="utf-8"))
+    for name, body in re.findall(r"^\s*option\s+([\w.]+)\s*=\s*\{(.*?)\}", sb,
+                                 re.M | re.S):
+        for key in (f"Sandbox_{name}", f"Sandbox_{name}_tooltip"):
+            if key not in sb_tr:
+                failures.append(f"Sandbox.json has no {key}; the option shows "
+                                f"as its raw id on the settings page")
+        page = re.search(r"page\s*=\s*(\w+)", body)
+        if page and f"Sandbox_{page.group(1)}" not in sb_tr:
+            failures.append(f"Sandbox.json has no Sandbox_{page.group(1)} for "
+                            f"the settings page {name} sits on")
+        count = re.search(r"numValues\s*=\s*(\d+)", body)
+        if count and "valueTranslation" in body:
+            for i in range(1, int(count.group(1)) + 1):
+                key = f"Sandbox_{name}_option{i}"
+                if key not in sb_tr:
+                    failures.append(f"Sandbox.json has no {key}; that value "
+                                    f"shows as 'option{i}' in the settings")
+
 # --- the shuttle vehicle -----------------------------------------------
 # A vehicle whose mesh, texture or wheel model does not resolve loads as
 # nothing, silently, and the seat chart art is projected from the mesh at the
