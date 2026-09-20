@@ -692,6 +692,175 @@ module TrekShuttle
         Tooltip = Tooltip_TREK_Batleth,
     }
 
+    /*  The other three blades.
+
+        Each is built off the vanilla weapon the roadmap names as its template
+        -- ShortSword, SpearCrafted, HuntingKnife -- and the numbers here are
+        those templates' own, nudged rather than invented. They are alien
+        weapons kept by a crew who fight with them, so each is a little better
+        than its Kentucky equivalent, and none of them is better than the
+        bat'leth: this mod's best melee weapon should stay the two-handed one
+        you need both hands for.
+
+        Their models are in `module Base` (media/scripts/trekweapons.txt) and
+        named here bare. That is not a style choice -- `WeaponSprite` does not
+        resolve inside the mod's own module the way `StaticModel` does, and a
+        weapon whose model block is one module away draws *nothing in hand*
+        with only a "Failed to load asset" line naming the block itself. See
+        the comment at the top of trekweapons.txt; it cost a session.
+
+        Every one of them carries an `AttachmentType`, which makes it the kind
+        of item vanilla's hotbar draws -- so every one needs a **32x32** icon,
+        not the 64x64 everything else in this mod uses. tests/test_assets.py
+        enforces that. ISHotbar.lua:52 places the icon at `slotX +
+        tex:getWidth() / 2`, which only centres when the texture is half the
+        60px slot.  */
+
+    item TrekMekleth
+    {
+        DisplayCategory = Weapon,
+        ItemType = base:weapon,
+        Type = Weapon,
+        Weight = 1.6,
+        Icon = TREK_Mekleth,
+
+        Categories = base:longblade,
+        SubCategory = Swinging,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        AttachmentType = Sword,
+        WeaponSprite = TrekMeklethModel,
+
+        MinDamage = 1.8,
+        MaxDamage = 2.6,
+        CritDmgMultiplier = 4.0,
+        CriticalChance = 30.0,
+        MinRange = 0.61,
+        MaxRange = 1.23,
+        MinAngle = 0.75,
+        MaxHitcount = 3,
+        Swingtime = 2.7,
+        MinimumSwingtime = 2.7,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Bat,
+        RunAnim = Run_Weapon2,
+        IdleAnim = Idle_Weapon2,
+        KnockdownMod = 0.0,
+        PushBackMod = 0.4,
+        SplatBloodOnNoDeath = true,
+        SplatNumber = 3,
+        DoorDamage = 6,
+        TreeDamage = 1,
+        EnduranceMod = 1.4,
+
+        ConditionMax = 14,
+        ConditionLowerChanceOneIn = 28,
+        Sharpness = 1.0,
+        Tags = base:ignorezombiedensity;base:hasmetal;base:sharpenable;base:fullblade,
+
+        SwingSound = KatanaSwing,
+        Tooltip = Tooltip_TREK_Mekleth,
+    }
+
+    item TrekLirpa
+    {
+        DisplayCategory = Weapon,
+        ItemType = base:weapon,
+        Type = Weapon,
+        Weight = 2.6,
+        Icon = TREK_Lirpa,
+
+        Categories = base:spear,
+        SubCategory = Spear,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        TwoHandWeapon = true,
+        AttachmentType = Shovel,
+        WeaponSprite = TrekLirpaModel,
+
+        MinDamage = 1.6,
+        MaxDamage = 2.4,
+        CritDmgMultiplier = 4.0,
+        CriticalChance = 25.0,
+        /*  MinRange 0.98 is SpearCrafted's and it is the point of a polearm:
+            it out-reaches everything else here and is useless up close.  */
+        MinRange = 0.98,
+        MaxRange = 1.55,
+        MinAngle = 0.8,
+        MaxHitcount = 2,
+        Swingtime = 2.2,
+        MinimumSwingtime = 2.2,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Spear,
+        RunAnim = Run_Weapon2,
+        IdleAnim = Idle_Weapon2,
+        KnockdownMod = 0.0,
+        KnockBackOnNoDeath = true,
+        PushBackMod = 0.7,
+        SplatBloodOnNoDeath = true,
+        SplatNumber = 3,
+        DoorDamage = 5,
+        TreeDamage = 1,
+        EnduranceMod = 1.6,
+
+        ConditionMax = 12,
+        ConditionLowerChanceOneIn = 24,
+        Sharpness = 1.0,
+        Tags = base:ignorezombiedensity;base:hasmetal;base:sharpenable,
+
+        SwingSound = KatanaSwing,
+        Tooltip = Tooltip_TREK_Lirpa,
+    }
+
+    item TrekUshaanTor
+    {
+        DisplayCategory = Weapon,
+        ItemType = base:weapon,
+        Type = Weapon,
+        Weight = 0.9,
+        Icon = TREK_UshaanTor,
+
+        Categories = base:smallblade,
+        SubCategory = Stab,
+        DamageCategory = Slash,
+        DamageMakeHole = true,
+        AttachmentType = Knife,
+        WeaponSprite = TrekUshaanTorModel,
+
+        /*  CloseKillMove is what makes a small blade worth carrying in build
+            42 -- the instant kill on a zombie you have hold of. HuntingKnife's
+            own, borrowed by name: an animation that does not resolve is
+            silent and reports nothing.  */
+        CloseKillMove = Jaw_Stab,
+
+        MinDamage = 1.0,
+        MaxDamage = 1.7,
+        CritDmgMultiplier = 3.0,
+        CriticalChance = 50.0,
+        MinRange = 0.61,
+        MaxRange = 0.9,
+        MinAngle = 0.65,
+        MaxHitcount = 1,
+        Swingtime = 1.9,
+        MinimumSwingtime = 1.9,
+        SwingAmountBeforeImpact = 0.02,
+        SwingAnim = Stab,
+        KnockdownMod = 0.0,
+        PushBackMod = 0.3,
+        SplatBloodOnNoDeath = true,
+        SplatNumber = 4,
+        DoorDamage = 2,
+        TreeDamage = 0,
+        EnduranceMod = 0.9,
+
+        ConditionMax = 11,
+        ConditionLowerChanceOneIn = 26,
+        Sharpness = 1.0,
+        Tags = base:ignorezombiedensity;base:hasmetal;base:sharpenable;base:fullblade,
+
+        Tooltip = Tooltip_TREK_UshaanTor,
+    }
+
     /*  The photon torpedo, and it is a **specification, not an item**. Nobody
         ever holds one, no locker stocks it, and it has no icon because it is
         never drawn: it exists only so a HandWeapon can be handed to

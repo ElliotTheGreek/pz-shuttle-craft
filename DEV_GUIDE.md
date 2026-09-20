@@ -606,6 +606,38 @@ loot and better reading than one holding ninety bandages.
 
 `python tests/test_stock.py` prints the fill each container size reaches.
 
+### A blade is its silhouette, and only a render will tell you what it is
+
+**New in this mod, and it cost three redraws in one sitting.** Every new
+weapon here was built from a profile that read correctly in the source and
+came out as something else entirely:
+
+- the mek'leth, a straight blade with a bellied edge, rendered as a **machete**
+  -- a shape build 42 already ships four of. What makes it a mek'leth is that
+  the whole blade leans *forward* and the spine goes concave near the tip;
+- the ushaan-tor's hook was made by tilting its back edge over the last two
+  sections. That does not curl anything, it cuts a corner off, and it rendered
+  as a cleaver with a chamfer. A hook is the **centreline moving sideways**
+  while the blade thins -- the metal has to go somewhere;
+- the lirpa's counterweight came out **wooden**, because the shaft asked for a
+  wood recolour of a texture strip the weight was also using.
+
+None of those is visible in a section list. All three took one look at
+`tools/preview_model.py` output. **Render it and look** is already in this file
+for the hull; it applies at least as much to a weapon, where the silhouette is
+the entire identity.
+
+And judge an icon **against the set**, not alone (*Vet icons with
+tools/vet_icons.py*). Rendered upright, the lirpa filled **11%** of its 32px
+frame -- four pixels of content -- the mek'leth 22%, the ushaan-tor 30%, where
+the bat'leth is 60% and the food icons 65-82%. On the diagonal, which is how
+vanilla draws every blade, they are 71%, 57% and 49%. A long thin weapon in a
+square frame is mostly empty, and that is a fact about frames, not about the
+weapon.
+
+`tools/bladekit.py` holds the shared machinery -- section lists extruded up the
+Y axis, the common texture sheet, the icon rendered from the finished mesh.
+
 ### A weapon model is a static mesh, and Y is up
 
 **This one hid four weapons behind a wrong comment for months.** The phaser's
@@ -647,7 +679,9 @@ skinning, no animation files. Vanilla's `Katana` model block is four lines.
   item's `AttachmentType` routes through `ISHotbarAttachDefinition.lua` and
   `AttachedLocations.lua` to an attachment on the **character** model.
 - **The mesh's own dimensions are its size in game; `WeaponLength` is a reach
-  stat and scales nothing.** And the bracket to sit in is not the one you would
+  stat and scales nothing.** `tools/meshbbox.py` measures any `.x` file, ours
+  or the game's, so this bracket is checkable rather than remembered:
+  `python tools/meshbbox.py --vanilla spear`. And the bracket to sit in is not the one you would
   guess: measure vanilla and every weapon in build 42 is a thin vertical line —
   a machete is 0.009 wide by 0.335 long, and the widest mesh in the entire
   arsenal is the canoe paddle at 0.123 across. A bat'leth is the shape this
@@ -875,6 +909,8 @@ python tools/gen_shuttle.py TrekShuttle/42
 python tools/gen_helm.py    TrekShuttle/42
 python tools/gen_phaser.py  TrekShuttle/42
 python tools/gen_batleth.py TrekShuttle/42   # mesh, texture and icon
+python tools/gen_mekleth.py TrekShuttle/42        # and lirpa, ushaantor
+python tools/meshbbox.py --vanilla spear          # measure vanilla, or ours
 python tools/gen_poster.py  TrekShuttle/42
 python tools/gen_reticle.py TrekShuttle/42        # the torpedo reticle
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
@@ -931,6 +967,8 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A container is missing item types** | Container capacity. `AddItems` drops items silently once full. Use `U.stockEach`, which reads the container back and reports what did not land. |
 | **A weapon is equipped and the hand is empty** | `WeaponSprite` names no model, the model block is not in `module Base`, or the mesh/texture is not on disk. `tests/test_assets.py` checks all four. The log names the model block itself as the failed asset when the module is wrong. |
 | **A weapon swings with no animation** | `SwingAnim` is not one of the nine names vanilla uses. |
+| **A new blade reads as a machete / cleaver / stick** | Its silhouette is not saying what it is. Render it (`tools/preview_model.py`) -- this is invisible in a section list. See *A blade is its silhouette*. |
+| **A weapon icon is a thin sliver next to the rest of the set** | It is being drawn upright in a square frame. Tilt it, as vanilla draws every blade; `tools/vet_icons.py` shows the whole set and the fill percentages tell you at once. |
 | **A weapon is twice the size of the character holding it** | The mesh's own dimensions are its scale; `WeaponLength` changes nothing. Read the **bounding box** the generator prints, not the span constant — an arc bulges past its chord. Vanilla's widest weapon mesh is 0.123 across. |
 | **An icon overlaps the next hotbar slot** | Its item has an `AttachmentType` and a 64×64 icon. Vanilla's hotbar assumes 32×32; see *A weapon model is a static mesh*. |
 | **A drink has no effect, or the wrong one** | The effects are on the *fluid*, not the item; a `ThirstChange` on the vessel is ignored. `Fluid.Get("name")`, never `FluidType.<name>` -- a modded fluid is `FluidType.Modded`. |

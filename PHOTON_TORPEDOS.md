@@ -16,8 +16,10 @@ broken" still apply here. `MULTIPLAYER.md` is the client/server split and
 ## What happens when the pilot fires
 
 ```
-client  hold right mouse           T.aiming()      reticle appears, tinted
-        left click (down edge)     T.poll -> T.fire
+client  mouse: hold right          T.aiming()      reticle appears, tinted
+        pad:   reticle always up, right stick moves it (T.serviceAim)
+        fire on the DOWN EDGE of left click / R3
+                                   T.poll -> T.fire
                                    Net.send("fireTorpedo", {x, y, z})
 
 server  Net.onServer("fireTorpedo")

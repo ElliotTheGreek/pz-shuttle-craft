@@ -298,7 +298,7 @@ needed:
   way. Adding masks is a polish pass for after somebody has watched one render.
 - Fluid names go in `Translate/EN/Fluids.json` — its own category file.
 
-## Blades — the bat'leth is built, three to go
+## Blades — all four built, none of the three new ones seen in game
 
 **The in-hand path is open.** The claim that a custom `WeaponSprite` needs a
 rigged attachment set was wrong, and it had quietly ruled this whole section
@@ -323,19 +323,57 @@ more things the first in-game session settled, all in `DEV_GUIDE.md`:
 
 | Weapon | SwingAnim | Categories | Notes |
 |---|---|---|---|
-| **Bat'leth** | `Bat` | `base:longblade` | **Built.** `tools/gen_batleth.py`, two-handed, `AttachmentType = BigBlade` |
-| **Mek'leth** | `Bat` | `base:longblade` | Klingon short sword; `ShortSword` is the template |
-| **Lirpa** | `Spear` | `base:spear` | Vulcan polearm; copy `SpearCrafted`'s ranges (`MinRange = 0.98`) |
-| **Ushaan-tor** | `Stab` | `base:smallblade` | Andorian ice-miner's blade; `HuntingKnife` template |
+| Weapon | SwingAnim | Categories | Mesh | Notes |
+|---|---|---|---|---|
+| **Bat'leth** | `Bat` | `base:longblade` | 0.369 x 0.187 | `gen_batleth.py`, two-handed, `AttachmentType = BigBlade`. **Confirmed in game.** |
+| **Mek'leth** | `Bat` | `base:longblade` | 0.102 x 0.440 | `gen_mekleth.py`, `AttachmentType = Sword`, off `ShortSword` |
+| **Lirpa** | `Spear` | `base:spear` | 0.101 x 0.800 | `gen_lirpa.py`, two-handed, `AttachmentType = Shovel`, off `SpearCrafted` (`MinRange = 0.98`) |
+| **Ushaan-tor** | `Stab` | `base:smallblade` | 0.087 x 0.260 | `gen_ushaantor.py`, `AttachmentType = Knife`, off `HuntingKnife`, keeps its `CloseKillMove = Jaw_Stab` |
+
+All four are in `C.Loot.weapons` — the whole rack together, because one alien
+weapon among the pistols reads as a souvenir and four read as an armoury.
+Revision 13, so **new worlds only** (see *Never restock an existing container*).
+
+The three new ones share `tools/bladekit.py`: a caller hands it a list of
+cross-sections up the Y axis and it extrudes the silhouette, builds the shared
+texture sheet, and renders the icon from the finished mesh. The bat'leth keeps
+its own generator -- its crescent is authored in polar coordinates and is
+genuinely a different problem.
+
+`tools/meshbbox.py` is new and is why the sizes above can be stated at all: it
+measures any `.x` mesh, ours or the game's. The bracket a weapon has to sit in
+is now a measurement rather than a remembered number -- vanilla's widest weapon
+mesh is the canoe paddle at 0.123 across, a machete is 0.335 long, a katana
+0.627, a hunting knife 0.276, and spears run 0.72 to 0.92.
+
+**What three renders cost, and each was invisible in the source:**
+
+- the mek'leth's first draft was a straight bellied blade and rendered as a
+  **machete**, which this game has four of. What makes it a mek'leth is that
+  the whole blade leans forward and the back goes concave near the top;
+- the ushaan-tor's hook was built by tilting the back edge over the last two
+  sections, which does not curl anything -- it cuts a corner off. A hook is
+  the *centreline* swinging sideways while the blade thins;
+- the lirpa's counterweight came out **wooden**, because the shaft asked for a
+  wood recolour of a texture strip the weight was also using.
+
+**And the icons had to be tilted**, which the contact sheet caught and nothing
+else would have: rendered upright, the lirpa filled **11%** of its icon -- four
+pixels of content in a 32px frame -- the mek'leth 22% and the ushaan-tor 30%,
+against 60% for the bat'leth and 65-82% for the food. On the diagonal, the way
+vanilla draws every blade, they are 71%, 57% and 49%. The lirpa also needed its
+counterweight lightened to gunmetal: blued steel is (48,54,64) on a (39,39,39)
+inventory panel and simply vanished, taking the double-ended silhouette --
+the one thing that identifies a lirpa -- with it.
 
 **Size and icon: settled, 2026-09-20.** It first drew 0.531 across — wider than
 a baseball bat is long, spanning the character hip to hip — with a 64×64 icon
 that overlapped the belt in the next hotbar slot. The mesh is 0.369 now and the
 icon 32×32, and both are confirmed in game.
 
-**Still to settle for the bat'leth, in game:**
+**Still to settle, in game, and it is the same question for all four:**
 
-1. **The `attachment` blocks**, which it still ships without. Both
+1. **The `attachment` blocks**, which they all ship without. Both
    (`Bip01_Prop2` for the hand, `world` for the ground) are optional and the
    engine falls back to a default placement, but the six offset numbers can
    only honestly be chosen by looking at the thing in a fist. Vanilla's `Katana`
@@ -343,6 +381,15 @@ icon 32×32, and both are confirmed in game.
    is not on the weapon model at all — `AttachmentType` is routed through
    `ISHotbarAttachDefinition.lua` and `AttachedLocations.lua` to an attachment
    on the **character** model.
+
+   **This is the next hard stop on the roadmap**, and it is a hard stop because
+   no static check can answer it: six offsets per weapon, twenty-four in all,
+   each judged by looking. Doing all four in one session is the point of having
+   built the other three first.
+
+2. **Whether they read at all in hand**, which is a different question from
+   whether they read in an icon. The renders and the contact sheet are the
+   best that can be done away from the game.
 
 ## Then: medical and tools
 

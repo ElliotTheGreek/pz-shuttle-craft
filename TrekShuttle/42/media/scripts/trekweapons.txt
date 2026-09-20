@@ -38,4 +38,22 @@ module Base
         mesh = weapons/2handed/TREK_Batleth,
         texture = weapons/2handed/TREK_Batleth,
     }
+
+    model TrekMeklethModel
+    {
+        mesh = weapons/1handed/TREK_Mekleth,
+        texture = weapons/1handed/TREK_Mekleth,
+    }
+
+    model TrekLirpaModel
+    {
+        mesh = weapons/2handed/TREK_Lirpa,
+        texture = weapons/2handed/TREK_Lirpa,
+    }
+
+    model TrekUshaanTorModel
+    {
+        mesh = weapons/1handed/TREK_UshaanTor,
+        texture = weapons/1handed/TREK_UshaanTor,
+    }
 }

@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 12
+C.BuildRev = 13
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -750,7 +750,13 @@ C.Loot.weapons = {
     "Base.Pistol", "Base.Pistol2", "Base.Pistol3", "Base.Shotgun",
     "Base.Bullets9mmBox", "Base.9mmClip", "Base.ShotgunShellsBox",
     "Base.Bullets45Box", "Base.45Clip",
-    "TrekShuttle.TrekBatleth",
+    -- The blades. All four together, because they are a *rack* -- a crew who
+    -- keep a bat'leth keep the rest of the set, and finding one alien weapon
+    -- among the pistols reads as a souvenir where finding four reads as an
+    -- armoury. They are heavy, which is also what carries this list to a
+    -- believable fill without putting thirty phasers in the locker.
+    "TrekShuttle.TrekBatleth", "TrekShuttle.TrekMekleth",
+    "TrekShuttle.TrekLirpa", "TrekShuttle.TrekUshaanTor",
     "Base.HuntingKnife", "Base.Machete", "Base.Nightstick", "Base.HandAxe",
     "Base.Vest_BulletCivilian", "Base.HolsterSimple", "Base.Crowbar",
 }
