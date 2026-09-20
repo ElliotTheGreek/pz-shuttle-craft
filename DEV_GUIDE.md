@@ -463,6 +463,26 @@ than none*) has a counterpart in the world: **a model that looks interactive
 and is not teaches the player the wrong thing about your ship.** Either wire it
 up or take it out.
 
+### A fixture that leans on another fixture is not a fixture yet
+
+**New in this mod, and the author had to say it twice.** The replicator was
+built as a model hanging over one of the galley's steel counters: the counter
+provided the container that replicated items appeared in, and the model
+provided the look. Two objects on one square pretending to be one machine.
+
+Everything wrong with it followed from that. The model had to float, because a
+floor-standing unit would have been drawn through the counter -- and a
+floating model cannot be right-clicked (below). The output went into a piece
+of furniture indistinguishable from the two identical counters beside it. And
+the layout carried a container whose real job was to be somebody else's
+inventory.
+
+Standing it on its own square removed all of it, including code: no tray to
+find, no tray to count, no "the tray is full" path. **If a new fixture needs
+an existing one underneath it to work, the design is not finished** -- and the
+tell is that the new thing cannot be placed where it belongs without the old
+one showing through.
+
 ### A right-click lands on the floor, not on the picture
 
 **New in this mod, and it made a finished feature unusable while looking

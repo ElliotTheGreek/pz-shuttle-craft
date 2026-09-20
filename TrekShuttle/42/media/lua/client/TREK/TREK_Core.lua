@@ -108,7 +108,6 @@ local DENIALS = {
     repUnknown        = "IGUI_TREK_RepUnknown",
     repNoPattern      = "IGUI_TREK_RepNoPattern",
     repCycling        = "IGUI_TREK_RepCycling",
-    repNoTray         = "IGUI_TREK_RepNoTray",
     repNoItem         = "IGUI_TREK_RepNoItem",
 }
 

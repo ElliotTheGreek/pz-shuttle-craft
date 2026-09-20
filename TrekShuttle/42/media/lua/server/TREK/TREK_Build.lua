@@ -18,9 +18,9 @@
     read out of TREK_InteriorLayout.lua:
 
         bow (oy 0)   the monitor wall, a television and two crew seats
-        port (ox 0)  the galley: fridge, oven, two counters, replicator berth
+        port (ox 0)  the galley: fridge, oven, two counters, the replicator
         stbd (ox 3)  armoury, rations and sick-bay lockers, then the biobed
-        amidships    the helm at 2,1 and the transporter pad at 2,2
+        aft          the transporter pad at 2,5
 
     Nothing may be built into a chunk that is not loaded, and chunks load only
     around a player, so TREK_Server only asks for a build once somebody who
@@ -33,8 +33,8 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 local L = require "TREK/TREK_InteriorLayout"
 require "TREK/TREK_Power"
--- For the berth's offsets: the replicator's alcove stands where the layout's
--- `replicator` tag is, and one file should own that lookup.
+-- For the square the replicator stands on: one file owns that lookup, and it
+-- is a constant now rather than a tag in the layout.
 require "TREK/TREK_Replicator"
 
 TREK = TREK or {}
@@ -243,6 +243,35 @@ end
 --- answers nil, and nil means "ask again later", not "nothing there". This
 --- only marks itself done when it reached every square it went looking for,
 --- and runs again on the next build otherwise.
+--- Takes out the counter the replicator used to stand on.
+---
+--- For two revisions the machine was a model hanging over a steel counter,
+--- and what it made went into that counter's container. The counter is gone
+--- from the layout -- the replicator owns its square now -- but a save built
+--- while it existed still has one standing there, openable, with whatever the
+--- player left in it.
+---
+--- The same shape as the helm prop: nothing that walks the *new* layout ever
+--- visits that fitting, so it has to be named. And the contents are the
+--- player's, so they go onto the pad rather than into nothing.
+local function removeLegacyBerth(sq)
+    if not sq then return 0, 0 end
+    local doomed = {}
+    U.eachObject(sq, function(o)
+        local md = U.try("md", function() return o:getModData() end)
+        if md and md.TREK == C.LegacyReplicatorTag then
+            table.insert(doomed, o)
+        end
+    end)
+
+    local removed, spilled = 0, 0
+    for _, o in ipairs(doomed) do
+        spilled = spilled + spillToPad(o)
+        if removeSynced(sq, o) then removed = removed + 1 end
+    end
+    return removed, spilled
+end
+
 function B.refitCabin()
     local s = U.state()
     if s.refitRev == C.BuildRev then return 0 end
@@ -264,6 +293,10 @@ function B.refitCabin()
             else
                 local sq = U.square(x, y, C.CabinZ, false)
                 props = props + removeWorldItem(sq, C.LegacyHelmItem)
+                if ox == C.ReplicatorSpot.x and oy == C.ReplicatorSpot.y then
+                    local gone, out = removeLegacyBerth(sq)
+                    removed, spilled = removed + gone, spilled + out
+                end
                 if not inShape(ox, oy) and sq then
                     local doomed = {}
                     U.eachObject(sq, function(o)
@@ -288,8 +321,9 @@ function B.refitCabin()
 
     s.refitRev = C.BuildRev
     if removed > 0 or props > 0 then
-        U.log("refit: removed %d fittings the old 6x9 cabin left outside the "
-              .. "hull and %d helm props, and spilled %d items onto the pad",
+        U.log("refit: removed %d fittings the old cabin left behind (the 6x9 "
+              .. "hull's, and the counter the replicator used to stand on) "
+              .. "and %d helm props, and spilled %d items onto the pad",
               removed, props, spilled)
     end
     return removed + props
@@ -695,13 +729,11 @@ end
 --- And the result is read back. An item id that does not resolve puts nothing
 --- there and says nothing, and the feature would still work off the counter,
 --- so nobody would ever find out from the outside.
-local function furnishReplicator()
-    local ox, oy = TREK.Replicator.spot()
-    if not ox then return false end
-    local x, y = at(ox, oy)
-    local sq = U.square(x, y, C.CabinZ, true)
-    if not sq then return false end
-
+--- How many replicators are standing on a square. Public because
+--- S.replicatorReport asks the same question from the console, and because a
+--- second one would be the "Two shuttles" signature indoors.
+function B.replicatorsAt(sq)
+    if not sq then return 0 end
     local standing = 0
     U.try("replicator.scan", function()
         local items = sq:getWorldObjects()
@@ -714,7 +746,17 @@ local function furnishReplicator()
             end
         end
     end)
-    if standing > 0 then return false end
+    return standing
+end
+
+local function furnishReplicator()
+    local ox, oy = TREK.Replicator.spot()
+    if not ox then return false end
+    local x, y = at(ox, oy)
+    local sq = U.square(x, y, C.CabinZ, true)
+    if not sq then return false end
+
+    if B.replicatorsAt(sq) > 0 then return false end
 
     local placed = U.try("replicator.place", function()
         return sq:AddWorldInventoryItem(C.ReplicatorItem, 0.5, 0.5, 0.0)

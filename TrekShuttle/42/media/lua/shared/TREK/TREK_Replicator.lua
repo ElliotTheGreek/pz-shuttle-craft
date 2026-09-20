@@ -67,7 +67,6 @@
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
-local L = require "TREK/TREK_InteriorLayout"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -79,23 +78,14 @@ TREK.Replicator = R
 ---------------------------------------------------------------------------
 -- Where it stands
 ---------------------------------------------------------------------------
-local spot = nil
-
---- The cabin offsets of the replicator's berth, out of the authored layout.
---- Nil, once, with a warning if nothing carries the tag -- which would mean
---- the fixture had been renamed in the map editor and nothing else would say.
+--- The cabin offsets the machine stands on.
+---
+--- A constant rather than a search through the authored layout, because there
+--- is no fitting on that square any more: the replicator is the only thing
+--- on 0,5 and it is a world model, not furniture. `tests/test_layout.py`
+--- checks the square is inside the hull, off the pad, and clear.
 function R.spot()
-    if spot then return spot[1], spot[2] end
-    for _, entry in ipairs(L.tiles) do
-        if entry.tag == C.ReplicatorTag then
-            spot = { entry.x, entry.y }
-            return spot[1], spot[2]
-        end
-    end
-    U.warnOnce("replicator:spot",
-               "no layout entry is tagged " .. tostring(C.ReplicatorTag) ..
-               "; the replicator has nowhere to stand")
-    return nil
+    return C.ReplicatorSpot.x, C.ReplicatorSpot.y
 end
 
 --- True when this position is close enough to work the replicator.
@@ -145,6 +135,7 @@ function R.isFree()     return R.mode() == C.ReplicatorUnrestricted end
 local rows = nil          -- array, sorted by display name
 local byId = nil          -- full type -> row
 local categories = nil    -- sorted distinct display categories
+local byCategory = nil    -- category -> its rows, in the same order
 
 --- What one item costs to make, in reserve units.
 ---
@@ -175,7 +166,7 @@ end
 --- locks the game hard enough to look like a crash.
 local function build()
     if rows then return end
-    rows, byId, categories = {}, {}, {}
+    rows, byId, categories, byCategory = {}, {}, {}, {}
 
     local list = U.try("getAllItems", function() return getAllItems() end)
     local n = list and U.try("catalogue.size", function() return list:size() end) or 0
@@ -223,6 +214,19 @@ local function build()
 
     table.sort(rows, function(a, b) return a.name < b.name end)
     table.sort(categories)
+
+    -- The panel browses categories before items, so the rows are indexed by
+    -- category once here rather than filtered out of four thousand on every
+    -- keystroke and every step of the tree.
+    for _, row in ipairs(rows) do
+        local bucket = byCategory[row.category]
+        if not bucket then
+            bucket = {}
+            byCategory[row.category] = bucket
+        end
+        table.insert(bucket, row)
+    end
+
     U.log("replicator: catalogue of %d item(s) in %d categor(ies)",
           #rows, #categories)
 end
@@ -238,6 +242,24 @@ function R.categories()
     return categories
 end
 
+--- The rows in one category, in the same order the catalogue is sorted in.
+function R.inCategory(category)
+    build()
+    return byCategory[category] or {}
+end
+
+--- How many items a category holds, and how many of those the ship can make.
+--- The panel puts both on the row, so a player can see where their patterns
+--- actually are before opening anything.
+function R.categoryCount(category)
+    local bucket = R.inCategory(category)
+    local known = 0
+    for _, row in ipairs(bucket) do
+        if R.knows(row.id) then known = known + 1 end
+    end
+    return #bucket, known
+end
+
 --- One row, or nil. The server looks every id a client sends up in here
 --- rather than handing it to instanceItem blind.
 function R.row(id)
@@ -249,7 +271,7 @@ end
 --- Throws the catalogue away, so the next reader rebuilds it. For the tests
 --- and for a console command; nothing in the game calls it.
 function R.forget()
-    rows, byId, categories = nil, nil, nil
+    rows, byId, categories, byCategory = nil, nil, nil, nil
 end
 
 ---------------------------------------------------------------------------

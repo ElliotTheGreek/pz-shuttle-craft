@@ -654,11 +654,12 @@ def main():
     lua.execute("win = TREKReplicatorWindow:new(40, 40, player); win:createChildren()")
     win = lua.globals().win
 
-    rows = int(lua.eval("#win.rows"))
+    # The root of the tree is the categories, not the items.
+    rows = int(lua.eval("#TREK.Replicator.catalogue()"))
     if rows < 100:
-        failures.append(f"replicator: the panel opened with {rows} rows; the "
-                        f"catalogue stub has more than that, so the list is "
-                        f"not showing the catalogue at all")
+        failures.append(f"replicator: the catalogue came out at {rows} rows; "
+                        f"the stub has more than that, so it is not reading "
+                        f"getAllItems() at all")
     check_bounds(lua, run_frames(lua, "replicator, full catalogue"),
                  "replicator, full catalogue")
 
@@ -678,12 +679,62 @@ def main():
     d = lua.globals().draws
     check_bounds(lua, [d[i] for i in range(1, len(d) + 1)], "replicator, rows")
 
-    # --- searching, and what it says when nothing matches -------------------
+    # --- the tree: categories, then the items in one ------------------------
+    # It was a button that cycled one category per press. With seventy-eight of
+    # them in a real game that is not a control, so the list itself is the
+    # browser now: categories at the root, items inside one, Back out.
+    categories = int(lua.eval("#TREK.Replicator.categories()"))
+    if int(lua.eval("#win.rows")) != categories:
+        failures.append(f"replicator: the root of the tree lists "
+                        f"{int(lua.eval('#win.rows'))} rows for {categories} "
+                        f"categories")
+    if str(lua.eval("win.rows[1].kind")) != "category":
+        failures.append("replicator: the root of the tree is not made of "
+                        "categories at all")
+
+    lua.execute("win.list.selected = 1")
+    run_frames(lua, "replicator, a category picked", 1)
+    if IG["IGUI_TREK_RepBrowse"].replace("%1", "") not in str(win.makeBtn.title):
+        failures.append(f"replicator: with a category picked the action button "
+                        f"reads {win.makeBtn.title!r} rather than offering to "
+                        f"open it")
+
+    first_category = str(lua.eval("win.rows[1].name"))
+    lua.execute("win.makeBtn:click()")
+    if str(lua.eval("tostring(win.category)")) != first_category:
+        failures.append(f"replicator: opening {first_category!r} left the panel "
+                        f"in {lua.eval('tostring(win.category)')!r}")
+    inside = int(lua.eval("#win.rows"))
+    if not 0 < inside < categories + int(lua.eval("#TREK.Replicator.catalogue()")):
+        failures.append("replicator: opening a category listed nothing")
+    if str(lua.eval("win.rows[1].kind")) != "item":
+        failures.append("replicator: a category opened onto something other "
+                        "than items")
+    if inside != int(lua.eval(f'#TREK.Replicator.inCategory("{first_category}")')):
+        failures.append(f"replicator: {first_category!r} holds "
+                        f"{lua.eval(f'#TREK.Replicator.inCategory(chr(34))')} "
+                        f"items but the panel lists {inside}")
+    check_bounds(lua, run_frames(lua, "replicator, inside a category"),
+                 "replicator, inside a category")
+
+    lua.execute("win.backBtn:click()")
+    if lua.eval("win.category") is not None:
+        failures.append("replicator: Back did not come out of the category")
+    if int(lua.eval("#win.rows")) != categories:
+        failures.append("replicator: Back did not restore the category list")
+
+    # --- searching looks everywhere, wherever you are standing --------------
+    lua.execute(f'win:openCategory("{first_category}")')
     lua.execute('win.search:setText("thing number 1")')
     narrowed = int(lua.eval("#win.rows"))
     if not 0 < narrowed < rows:
         failures.append(f"replicator: searching narrowed {rows} rows to "
                         f"{narrowed}; the filter is doing nothing")
+    if lua.eval("win.category") is not None:
+        failures.append("replicator: typing a search left the panel inside a "
+                        "category, so it was searching one folder rather than "
+                        "the catalogue")
+
     lua.execute('win.search:setText("zzzznothing")')
     if int(lua.eval("#win.rows")) != 0:
         failures.append("replicator: a search that matches nothing still lists rows")
@@ -693,6 +744,46 @@ def main():
                for x in empty if x.kind == "text"):
         failures.append("replicator: a search with no matches draws an empty "
                         "box and says nothing")
+    lua.execute("win.backBtn:click()")
+
+    # --- only what the ship can make ----------------------------------------
+    # The toggle applies to the categories too: one the ship has no patterns in
+    # is not worth walking into, so it is not offered.
+    lua.execute("win.knownBtn:click()")
+    if not lua.eval("win.knownOnly"):
+        failures.append("replicator: the known-only toggle did not come on")
+    known_categories = int(lua.eval("#win.rows"))
+    if not 0 < known_categories < categories:
+        failures.append(f"replicator: with known-only on, {known_categories} of "
+                        f"{categories} categories are listed -- the stub ship "
+                        f"knows one category's worth of patterns, so it should "
+                        f"be some but not all")
+    check_bounds(lua, run_frames(lua, "replicator, known only"),
+                 "replicator, known only")
+
+    every_known = lua.eval("""(function()
+        for _, row in ipairs(win.rows) do
+            local _, known = TREK.Replicator.categoryCount(row.name)
+            if known == 0 then return false end
+        end
+        return true
+    end)()""")
+    if every_known is not True:
+        failures.append("replicator: known-only still lists a category the ship "
+                        "has no pattern in")
+
+    # Inside one, only the items it can make.
+    lua.execute("win.list.selected = 1; win.makeBtn:click()")
+    all_known = lua.eval("""(function()
+        for _, row in ipairs(win.rows) do
+            if not TREK.Replicator.knows(row.item.id) then return false end
+        end
+        return #win.rows > 0
+    end)()""")
+    if all_known is not True:
+        failures.append("replicator: inside a category, known-only still lists "
+                        "items the ship has no pattern for")
+    lua.execute("win.knownBtn:click(); win.backBtn:click()")
 
     # --- the button says what it will do ------------------------------------
     lua.execute('win.search:setText("")')
@@ -702,8 +793,8 @@ def main():
         failures.append(f"replicator: with nothing selected the button reads "
                         f"{win.makeBtn.title!r}")
     if win.makeBtn.enable:
-        failures.append("replicator: the Materialise button is live with "
-                        "nothing selected")
+        failures.append("replicator: the action button is live with nothing "
+                        "selected")
 
     lua.execute('win.search:setText("phaser"); win.list.selected = 1')
     run_frames(lua, "replicator, a known pattern", 1)
@@ -733,10 +824,10 @@ def main():
         failures.append("replicator: with an empty reserve the button is still live")
     lua.execute(f"TREK.Util.state().repEnergy = {float(C.ReplicatorEnergyMax)}")
 
-    # --- the quantity and category buttons cycle ----------------------------
-    # Twice round the cycle, not once. An index that runs off the end of the
-    # list makes quantity() fall back to 1, so a single lap reads exactly like
-    # a wrap that works -- and then the button never offers 5 or 10 again.
+    # --- the quantity button cycles -----------------------------------------
+    # Twice round, not once. An index that runs off the end of the list makes
+    # quantity() fall back to 1, so a single lap reads exactly like a wrap that
+    # works -- and then the button never offers 5 or 10 again.
     seen_quantities = []
     for _ in range(8):
         seen_quantities.append(int(lua.eval("win:quantity()")))
@@ -744,20 +835,7 @@ def main():
     if seen_quantities != [1, 5, 10, 1, 5, 10, 1, 5]:
         failures.append(f"replicator: the quantity button steps {seen_quantities}, "
                         f"not [1, 5, 10] over and over")
-
-    # Clear the search first: the checks above left "phaser" in the box, and a
-    # category filter applied to one row proves nothing about either.
-    lua.execute('win.catIndex = 0; win.search:setText("")')
-    everything = int(lua.eval("#win.rows"))
-    lua.execute("win.catBtn:click()")
-    one_category = int(lua.eval("#win.rows"))
-    if not 0 < one_category < everything:
-        failures.append(f"replicator: picking a category left {one_category} of "
-                        f"{everything} rows; the category filter does nothing")
-    for _ in range(int(lua.eval("#TREK.Replicator.categories()"))):
-        lua.execute("win.catBtn:click()")
-    if int(lua.eval("win.catIndex")) != 0:
-        failures.append("replicator: the category button does not wrap back to All")
+    lua.execute('win.search:setText("")')
 
     # --- a controller ---------------------------------------------------------
     lua.execute('''
@@ -778,14 +856,16 @@ def main():
                         f"reached with a controller")
 
     lua.execute("jd = { player = 0, id = 0 }; win:onGainJoypadFocus(jd)")
-    if not win.catBtn.joypadFocused:
-        failures.append("replicator: a controller does not start on the category "
-                        "button -- a pad cannot type, so that is the only way in")
+    if not win.backBtn.joypadFocused:
+        failures.append("replicator: a controller does not start on the first "
+                        "row of buttons -- a pad cannot type, so the tree is "
+                        "the only way in")
 
     # The bumpers walk the list, which is the pad's answer to a search box.
     lua.execute("""
-        win.catIndex = 0
+        win.category = nil
         win.search:setText("")
+        win:refreshRows()
         win.list.selected = 0
         win:onJoypadDown(Joypad.RBumper, jd); first = win.list.selected
         win:onJoypadDown(Joypad.RBumper, jd); second = win.list.selected

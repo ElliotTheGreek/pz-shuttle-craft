@@ -1,9 +1,12 @@
 # The replicator
 
-**Built, revision 18. Carried into a game on 2026-09-20: it loads, it places,
-and the first look cost one real bug and one design note.**
+**Built, revision 19. Carried into a game on 2026-09-20, twice: it loads and
+it places, and the two looks cost one real bug and a rebuilt fixture.**
 
-A lit alcove over the galley counter that makes any item in Project Zomboid.
+A machine standing at the aft end of the galley that makes any item in
+Project Zomboid, and **owns its square**: no counter under it, and no
+container borrowed from a piece of furniture. What it makes goes into your
+hands.
 Two limits stand between the player and that, and they answer two different
 questions:
 
@@ -29,7 +32,7 @@ server split every feature here obeys.
 ## What happens when the player uses one
 
 ```
-client   stand at the berth (0,5), right-click it
+client   stand at the machine (0,5), right-click it
          TREK_ReplicatorUI.fillMenu -- OnPreFillWorldObjectContextMenu, keyed
          to the square, greyed with a reason when it is off or you are too far
 
@@ -50,9 +53,10 @@ server   Net.onServer("replicate")           TREK_Server.lua
            Rep.knows(id)                     unless the sandbox says otherwise
            the ship's cooldown
            the reserve covers it
-           -> materialise(tray, id, count)   instanceItem, AddItem,
+           -> materialise(player, id, count) instanceItem, AddItem into the
+                                             asking player's own inventory,
                                              sendAddItemToContainer, and the
-                                             tray counted after every one
+                                             inventory counted after each one
            -> spend for what LANDED, commit
            Net.toClient("replicated", { made, asked, cost, energy })
 
@@ -69,11 +73,11 @@ The pattern set is published separately, and only when it changes.
 | | |
 |---|---|
 | `shared/TREK/TREK_Replicator.lua` | the catalogue, the blocklist, the patterns, the reserve arithmetic, what a thing costs, where the berth is |
-| `server/TREK/TREK_Server.lua` | the three handlers, the tray, `S.replicatorReport()` |
-| `server/TREK/TREK_Build.lua` | `furnishReplicator()`, which stands the alcove over the berth once |
+| `server/TREK/TREK_Server.lua` | the three handlers, the run, `S.replicatorReport()` |
+| `server/TREK/TREK_Build.lua` | `furnishReplicator()`, which stands the machine on its square once, and `removeLegacyBerth()`, which takes out the counter it used to lean on |
 | `client/TREK/TREK_ReplicatorUI.lua` | the panel, both menus, the replies |
 | `shared/TREK/TREK_Config.lua` | every number, and the sandbox values |
-| `TREK_InteriorLayout.lua` | the berth itself: `tag = "replicator"` at 0,5 |
+| `TREK_Config.lua` | `C.ReplicatorSpot` -- 0,5, and **no layout entry at all**: the machine owns the square |
 | `tools/gen_replicator.py` | the alcove's mesh and texture, the sound, and the renders |
 | `media/scripts/trekshuttle.txt` | `item TrekReplicator`, `model TrekReplicatorModel`, `sound TREK_Replicate` |
 
@@ -132,33 +136,51 @@ client: without that check the command is an item printer.
 
 ### Where it is in the ship
 
-`C.ReplicatorTag` finds the berth in `TREK_InteriorLayout.lua` -- the steel
-counter at 0,5 that the interior refit put there for it. Move the entry in
-BuildingEd and the machine follows; rename the tag and it has nowhere to
-stand, which `tests/test_layout.py` fails on and `TREK_Replicator()` reports.
+`C.ReplicatorSpot` -- 0,5, the aft end of the galley. A constant rather than a
+tag in the layout, because **there is no fitting on that square**:
+`tests/test_layout.py` fails if anything is authored onto it, if it falls
+outside the hull or onto the pad, or if there is no square beside it to work
+it from.
 
-The tray is that counter's own container. It is stocked with nothing on
-purpose, and the layout test insists on it.
+It was a steel counter for two revisions, with the model hanging over it and
+replicated items going into the counter's own container. `B.refitCabin` takes
+that counter out of a save that still has one -- it is tagged, and
+`U.clearSquare` keeps tagged things by policy, so nothing else ever would --
+and spills what was in it onto the pad.
 
-### The alcove
+### The machine
 
 `python tools/gen_replicator.py TrekShuttle/42` writes the mesh, the texture,
-the sound and two renders into `design/art/replicator/`. It is **authored
-from y = 0.86 upwards** so it hangs above the counter rather than being drawn
-through it -- and that works: seen in game, drawn over the bench exactly as
-authored. A world model is placed where its vertices say; the engine does not
-flatten it onto the square's floor.
+the sound and two renders into `design/art/replicator/`. **Authored from the
+deck up**: 1.62 tall, one tile, a kick plinth, a lit niche at chest height, a
+shelf under the niche and a capped top with a readout.
 
-It was also **a third taller and a good deal darker** on that first look, and
-read as a monolith floating over the galley rather than as a fitting in it.
-0.60 tall now rather than 0.98, narrower, and in a mid grey that sits against
-the cabin's light bulkheads instead of fighting them.
+It was a wall alcove hanging over the counter for two revisions, and that was
+wrong in both of the ways it could be. It *looked* wrong -- too tall, too
+dark, and floating over a piece of furniture doing its work for it. And a
+model drawn above its own square **cannot be right-clicked at all**, because a
+click resolves to the floor square under the cursor: the first version could
+be seen and not used. Standing it on the deck fixes the gesture as well as the
+look, which is usually the sign that the geometry was the problem rather than
+the code.
 
 ### The panel
 
 Built from the helm's LCARS parts (`H.pill`, `TREKLcarsButton`, `H.P`), so
 the two consoles look like the same ship. `tests/test_helm.py` draws it
 against a 122-row catalogue with a name too long for its column.
+
+**The list is a two-level tree**: the categories the game itself puts items
+in, then the items in one, with Back out of it. It was a button that cycled
+one category per press, which against the seventy-eight a real game has is not
+a control at all. Each category row says how many of its items the ship has
+patterns for -- the number a player is actually looking for -- and **a toggle
+narrows the whole panel to those**, categories included: one the ship has no
+pattern in is not worth walking into, so it is not offered.
+
+A search is a view of the *whole* catalogue and steps out of whatever category
+you were in. Searching inside one folder while the box says otherwise is how a
+player concludes an item is not in the game.
 
 ---
 
@@ -177,8 +199,10 @@ against a 122-row catalogue with a name too long for its column.
   catalogue, the quantity is matched against the list the panel offers, the
   range is measured on the server's own copy of where the player is standing,
   and the inventory a scan reads is the server's copy of it.
-- **The tray is counted.** `U.itemCount` before and after every single item,
-  because a container at capacity drops what it is handed in silence.
+- **What is made is counted.** The inventory is measured before and after
+  every single item, because `instanceItem` answers nil for an obsolete item
+  that slipped the filter and a container at capacity drops what it is handed
+  -- and from the server's side both look exactly like success.
 - **The player is charged for what landed**, not for what they asked for.
 - **An absent sandbox option means the feature as designed**, and here that is
   the *restrictive* reading. This is the opposite way round from
@@ -205,6 +229,8 @@ it). Do not re-derive these.
 | `ISTextEntryBox:new("", x, y, w, h)` with `.onTextChange` assigned on the instance | `ISChat.lua:162,171` |
 | `instanceItem(id)` works on the server and is the only creation path this mod uses | `DEV_GUIDE.md`, *The jar is not the API* |
 | An item added to a container already in the world reaches clients with `sendAddItemToContainer` | `MULTIPLAYER.md` |
+| **A server may put an item in a player's inventory on a validated command**: `player:getInventory():AddItem(item)` then `sendAddItemToContainer(player:getInventory(), item)`. This is the engine's own idiom, not an invention -- vanilla does it a dozen times in one file | `server/ClientCommands.lua:187,206,651,699,718,914,1211` |
+| **A right-click resolves to the floor square under the cursor**, so a model drawn above its own square cannot be clicked | seen in game, 2026-09-20; `DEV_GUIDE.md` |
 
 ### The call site that does not count
 
@@ -222,7 +248,7 @@ is the clearest statement of the rule, but the two call sites that make
 ```sh
 python tests/test_multiplayer.py    # replicator() and replicator_multiplayer()
 python tests/test_helm.py           # the panel
-python tests/test_layout.py         # the berth's tag and its empty tray
+python tests/test_layout.py         # the machine's square, and that it is clear
 python tests/test_assets.py         # the model, the sound, every string
 ```
 
@@ -237,7 +263,8 @@ three of those mutations found tests that were passing for the wrong reason:
 
 - the quantity check was "proved" by the reserve, because 999 hammers cost
   more than the ship has. It asserts the *refusal reason* now;
-- the sandbox `Off` check ran with a full tray, which refuses by itself;
+- the sandbox `Off` check ran with a full tray, which refused by itself (the
+  tray is gone now, and the check asserts the refusal's reason instead);
 - the regen ceiling could not be broken by the mutation at all, because two
   separate guards clamp it. The test sets the reserve five short of full now,
   so the clamp is the only thing standing between it and overshooting.
@@ -254,8 +281,8 @@ now.
 
 - **Obsolete items.** Skip the filter and the catalogue fills with plausible
   entries that make nothing, silently. Said twice on purpose.
-- **A container at capacity is silent.** Count the tray; never trust the
-  number you asked for.
+- **A container at capacity is silent**, and so is an item that will not
+  instance. Count what arrived; never trust the number you asked for.
 - **`Ship.commit()` transmits the whole ship table.** That is why the patterns
   are not in it. Anything else that grows without bound belongs in its own mod
   data key too.
@@ -276,35 +303,38 @@ now.
 
 ## Not built, and still to settle in game
 
-**Settled on 2026-09-20**, in a fresh single-player world:
+**Settled in a game on 2026-09-20**, over two looks:
 
 - it loads, and the catalogue is **4913 items in 78 categories**, with no WARN
   anywhere and no pause worth the name;
 - **19 patterns** seed on world load -- the ship's own gear;
-- the alcove places (`replicator: the alcove stands at 0,5`) and is drawn
-  hanging over the counter, which is the half of the model that could not be
-  checked outside the game;
-- and **it could not be right-clicked at all**, because a click resolves to
-  the floor square under the cursor and the model is drawn above its own
-  square. Fixed with a one-square margin; `DEV_GUIDE.md` has it under *A
-  right-click lands on the floor, not on the picture*.
+- the model places and is drawn exactly where its vertices put it, which is
+  the half of a world model that cannot be checked outside the game;
+- **it could not be right-clicked at all.** A click resolves to the floor
+  square under the cursor, and the model was hanging over the counter, so the
+  menu -- keyed to the machine's square -- was never offered. `DEV_GUIDE.md`
+  has it under *A right-click lands on the floor, not on the picture*;
+- and the fixture was wrong: a dark slab floating over a steel counter that
+  was doing its work for it. It is a whole machine now, standing on the deck,
+  owning its square, handing what it makes straight to you.
 
 Still to settle, in the order worth checking:
 
-1. **The way in, again.** Standing at the counter at 0,5, right-click the
-   alcove itself: the option should read *Use the replicator*. From across
-   the cabin it should be there and greyed, telling you to walk over.
-2. **Whether the alcove earns its place at all.** It is smaller and lighter
-   now. If it still reads as an odd box on the bench, the honest answer is to
-   drop the model and let the counter be the replicator -- which is what the
-   interior refit originally intended, and costs nothing but the art.
-3. **The panel under 4913 rows.** Typing should stay responsive; the filter
+1. **The way in.** Standing beside it, right-click the machine: the option
+   should read *Use the replicator*. From across the cabin it should be there
+   and greyed, telling you to walk over.
+2. **Whether it looks like it belongs**, now that it is a full-height unit in
+   the galley row rather than a box on a bench.
+3. **The tree under 78 categories.** Open one, come back, and try the
+   known-only toggle -- the root should then list only categories the ship has
+   patterns in.
+4. **The panel under 4913 rows.** Typing should stay responsive; the filter
    walks a precomputed array, but that is reasoning until somebody types.
-4. **The reserve on the clock.** Sleep a night and watch it come back.
-5. **A pattern on a second machine.** One crewman scans; the other's panel
+5. **The reserve on the clock.** Sleep a night and watch it come back.
+6. **A pattern on a second machine.** One crewman scans; the other's panel
    should stop saying *no pattern* without either of them reopening it.
-6. **The sound**, which is played locally and must not draw the dead.
-7. **`Unrestricted` and `Off`**, both of which a server owner will use before
+7. **The sound**, which is played locally and must not draw the dead.
+8. **`Unrestricted` and `Off`**, both of which a server owner will use before
    the author does.
 
 ---
@@ -331,6 +361,29 @@ rather than how fast). The author asked for both, and both is better: the
 pattern is a progression and the reserve is a budget, and neither one is a
 cooldown wearing a hat. The plan's own alternative -- "worth keeping as a
 later layer on top of patterns" -- turned out to be the design.
+
+### Half a machine leaning on a counter
+
+The berth at 0,5 was a steel counter, and the first two versions of this
+feature used it: the model hung over it, and what the machine made went into
+the counter's own container. That came from the interior refit's note that the
+replicator should "arrive as a right-click on an object every save already
+has", which was good advice about *migration* and bad advice about what the
+thing is.
+
+The author said it twice -- remove the counter, the replicator is the whole
+thing -- and was right twice. What it cost to leave it in:
+
+- the model had to float, because a floor-standing unit would be drawn through
+  the counter, and a floating model cannot be clicked;
+- the output went into a piece of furniture the player could not tell from the
+  two identical counters beside it;
+- and the deck plan had a container on a square whose fitting was pretending
+  to be part of something else.
+
+Taking it out fixed all three and removed code: there is no tray to find, no
+tray to count, and no "the tray is full". A fixture that needs another fixture
+underneath it to work is not a fixture yet.
 
 ### A model drawn above its own square cannot be clicked
 

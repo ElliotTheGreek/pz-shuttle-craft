@@ -120,7 +120,6 @@
     "IGUI_TREK_SkinScratch": "scratches closed",
     "IGUI_TREK_SkinStitches": "stitches dissolved",
     "IGUI_TREK_SkinBandage": "dressings no longer needed",
-
     "IGUI_TREK_RepUse": "Use the replicator",
     "IGUI_TREK_RepTitle": "Replicator",
     "IGUI_TREK_RepSearch": "Search the catalogue",
@@ -136,8 +135,6 @@
     "IGUI_TREK_RepJoypadHint": "A make   LB/RB list   B close",
     "IGUI_TREK_RepStore": "Store a replicator pattern for %1",
     "IGUI_TREK_RepMade": "The replicator forms %1 x %2",
-    "IGUI_TREK_RepPartial": "Only %1 of %2 would fit in the tray",
-    "IGUI_TREK_RepTrayFull": "Nothing formed -- the replicator tray is full",
     "IGUI_TREK_RepStored": "Pattern stored: %1",
     "IGUI_TREK_RepScanned": "%1 new pattern(s) stored",
     "IGUI_TREK_RepNothingNew": "Nothing you are carrying is new to the ship",
@@ -148,6 +145,14 @@
     "IGUI_TREK_RepNoPattern": "The ship has no pattern for that -- scan one first",
     "IGUI_TREK_RepEnergy": "Not enough in the reserve: %1 units needed, %2 left",
     "IGUI_TREK_RepCycling": "The replicator is still cycling",
-    "IGUI_TREK_RepNoTray": "The replicator has no tray to form it in",
-    "IGUI_TREK_RepNoItem": "You are not carrying one of those"
+    "IGUI_TREK_RepNoItem": "You are not carrying one of those",
+    "IGUI_TREK_RepFailed": "The replicator could not form that -- see the log",
+    "IGUI_TREK_RepBrowse": "Open %1",
+    "IGUI_TREK_RepBack": "Back to categories",
+    "IGUI_TREK_RepKnownOnly": "Known patterns only",
+    "IGUI_TREK_RepAllItems": "Showing everything",
+    "IGUI_TREK_RepCategoryCount": "%1 items",
+    "IGUI_TREK_RepCategoryKnown": "%1 of %2",
+    "IGUI_TREK_RepNothingKnown": "The ship has no patterns in this category yet",
+    "IGUI_TREK_RepPartial": "Only %1 of %2 formed -- see the log"
 }

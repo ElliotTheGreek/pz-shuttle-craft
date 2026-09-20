@@ -27,11 +27,11 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **A dermal regenerator** | Run it over the skin and the skin closes: lacerations, scratches, deep wounds and burns, with the stitches and the dressing that were holding them together. No bandage needed, and no charge to run out of. It will not mend a broken bone, touch an infected wound, or close over a piece of glass. |
 | **A medical tricorder** | Reads a body the way a surgeon would, whether or not you have ever held a scalpel. On yourself, or — with their say-so — on a crewmate. |
 | **A tricorder** | A sensor sweep out to forty tiles, drawn as a contact plot with you at the centre, and a lock override that talks most electronic locks open. Not padlocks, and not inside somebody's safehouse. |
-| **A replicator** | A lit alcove over the galley counter that makes any item in the game — if the ship holds a pattern for it, and if the reserve covers it. Search or browse the whole catalogue, pick one, five or ten, and it forms in the tray below. |
+| **A replicator** | A machine at the aft end of the galley that makes any item in the game — if the ship holds a pattern for it, and if the reserve covers it. Browse the catalogue by category or search it, pick one, five or ten, and it forms into your hands. |
 | **Patterns** | The ship can make what it has scanned. Stand at the replicator and scan what you are carrying: the ship reads it and hands it straight back, and from then on it can make that thing for ever. Starfleet gear — phasers, hyposprays, rations, the blades — it knows from the day it is built. |
 | **Running water** | The galley sink has its own water supply, topped up every in-game minute, so it keeps running after the mains shut off. |
 | **A sick bay** | A biobed that is also the ship's bed, an EMH station, and a locker with one of each instrument in it. |
-| **Stores** | Three Starfleet lockers — an armoury, the rations and the sick bay — and five containers left empty on purpose: the fridge, the oven, both counters and the replicator's tray are yours to fill. |
+| **Stores** | Three Starfleet lockers — an armoury, the rations and the sick bay — and five containers left empty on purpose: the fridge, the oven, both counters and the microwave are yours to fill. |
 | **Shields** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed — no free experience, no free loot. Raise and lower them at the helm. |
 | **A shared ship** | In multiplayer there is one shuttle for everyone. Server owners can limit it to its owner and crew. |
 | **Bookmarks** | Log any position and set a course back to it later. |
@@ -73,7 +73,7 @@ Four sandbox options, on the **Shuttlecraft** page:
 | **Who may use the shuttle** | *Everyone*, or *Owner and crew*: the first player to use it owns it; the owner or an admin adds crew from the aboard menu (**Shuttlecraft ▸ Crew**). Anyone may always beam down or step out. | Everyone |
 | **Transporter charges** | *Match anti-cheat*: when `AntiCheatSpeed` is set to kick or ban, each player gets 3 beams with one back every 150 seconds, and a fourth is refused ("recharging") instead of the server kicking them. *Always unlimited*: never refused. | Match anti-cheat |
 | **Photon torpedo fire** | *Full*: the torpedo burns, and the fire spreads. *Blast only*: the explosion and the kill without the fire. | Full |
-| **Replicator** | *Patterns and energy*: it makes what the ship has scanned, and each one spends from a reserve that refills over about eight game hours. *Unrestricted*: anything in the catalogue, immediately, for nothing. *Off*: the alcove is scenery, and says so. | Patterns and energy |
+| **Replicator** | *Patterns and energy*: it makes what the ship has scanned, and each one spends from a reserve that refills over about eight game hours. *Unrestricted*: anything in the catalogue, immediately, for nothing. *Off*: the machine is scenery, and says so. | Patterns and energy |
 
 Every beam moves a character a long way at once, and the speed anti-cheat
 counts each one. If your players want unlimited beaming, set
@@ -106,13 +106,16 @@ Right-click the hypospray, the dermal regenerator or either tricorder in your
 inventory to use it; right-click a locked door with a tricorder on you to
 override the lock.
 
-The **replicator** is the lit alcove at the aft end of the galley. Stand at it
-and right-click it → **Use the replicator**. Type a few letters or walk the
-categories, pick a quantity, and press *Materialise*; what you asked for
-appears in the counter below it. **Scan what you carry** teaches the ship
-everything in your pockets at once — it costs nothing and you keep the lot.
-The reserve across the top is what a replication spends; it fills itself back
-up over about eight game hours, so a night's sleep is a full tank.
+The **replicator** stands at the aft end of the galley. Walk up to it and
+right-click → **Use the replicator**. The list opens on the game's own
+categories: pick one to see what is in it, *Back* to come out, or type in the
+search box to look through everything at once. Each category says how many of
+its items the ship can actually make, and one button narrows the whole panel
+to those. Pick a quantity, press *Materialise*, and it forms into your hands.
+**Scan what you carry** teaches the ship everything in your pockets at once —
+it costs nothing and you keep the lot. The reserve across the top is what a
+replication spends; it fills itself back up over about eight game hours, so a
+night's sleep is a full tank.
 
 ## How much room it needs
 
@@ -146,7 +149,7 @@ that is fifteen, so the inside and the outside tell the same story.
   2 oh.M      o oven   h crew seat   M sick bay
   3 w..E      w sink counter   E EMH panel
   4 m*.B      m microwave counter   B biobed (head)
-  5 R.@B      R replicator   @ transporter pad   B biobed (foot)
+  5 R.@B      R the replicator   @ transporter pad   B biobed (foot)
 ```
 
 Run `python tests/test_layout.py` to print this from the source, so it can
@@ -297,5 +300,6 @@ interior plus `TREK_InteriorLayout.lua`.
   and it means a name or an icon the shuttle has never heard of can appear in
   it. Vehicle-furniture placeholders, hidden items and obsolete ones are
   filtered out; the torpedo warhead and the hull are blocked by name.
-- **The tray is one container.** Ask for ten of something and only what fits
-  is made, and you are charged only for what arrived.
+- **What it makes goes into your hands**, not into a tray: the machine owns
+  its square and borrows nothing. You are charged for what actually arrived,
+  which matters when an item turns out not to be makeable at all.

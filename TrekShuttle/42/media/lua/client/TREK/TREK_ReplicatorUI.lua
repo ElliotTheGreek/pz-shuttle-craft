@@ -14,10 +14,19 @@
     before it calls through*). The Pre- event is the one TREK_Menu.lua relies
     on for the whole aboard menu and is known to fire in the cabin.
 
+    **The list is a two-level tree**: the categories the game itself puts
+    items in, then the items in one, with a Back button out. It was a button
+    that cycled one category per press, which for seventy-eight of them is not
+    a control. Each category row says how many of its items the ship has
+    patterns for, because that is the number a player is looking for, and a
+    toggle narrows the whole panel to those.
+
     **The controller is designed in, not bolted on.** A pad has no keyboard,
-    so the search box cannot be the only way to find anything: the category
-    button walks the catalogue's own categories, the bumpers step the list,
-    and A materialises. The text box is the mouse-and-keyboard fast path.
+    so the search box cannot be the only way to find anything: the tree is
+    walkable with the bumpers and one button, which opens a category or makes
+    an item depending on what is picked. The text box is the fast path for a
+    keyboard, and a search looks through everything wherever you are standing
+    in the tree.
 
     **The list is filtered, never rebuilt.** The catalogue is a few thousand
     rows and it is built once per process (TREK_Replicator.lua); what a
@@ -59,7 +68,7 @@ end
 ---------------------------------------------------------------------------
 TREKReplicatorWindow = ISPanelJoypad:derive("TREKReplicatorWindow")
 
-local RW, RH = 470, 640
+local RW, RH = 470, 676
 local SIDE, TOPH, BOTH, PAD, RAD = 56, 26, 16, 14, 22
 local ROWH = 22
 
@@ -92,7 +101,11 @@ function TREKReplicatorWindow:new(x, y, player)
     o.background = false
     o.moveWithMouse = true
     o.qtyIndex = 1
-    o.catIndex = 0          -- 0 is every category
+    -- The list is a two-level tree: categories, then the items in one. nil is
+    -- the root. A cycling button walked seventy-eight categories one press at
+    -- a time, which is not a control, it is a punishment.
+    o.category = nil
+    o.knownOnly = false
     o.needle = ""
     o.rows = {}
     return o
@@ -129,18 +142,24 @@ function TREKReplicatorWindow:createChildren()
     -- method is replaced, so it arrives with the box as self, not the window.
     self.search.onTextChange = function(entry)
         win.needle = string.lower(entry:getText() or "")
+        -- Typing steps out of whatever category you were in: a search is a
+        -- view of the whole catalogue, and searching inside one folder while
+        -- the box says otherwise is the kind of half-answer that makes a
+        -- player think the item is not in the game.
+        if win.needle ~= "" then win.category = nil end
         win:refreshRows()
     end
     self:addChild(self.search)
 
-    self.catBtn = TREKLcarsButton:new(cx + cw - catW, searchY, catW, 24, "", self,
-        TREKReplicatorWindow.onCategory, P.lilac)
-    self.catBtn.centreText = true
-    self.catBtn:initialise()
-    self:addChild(self.catBtn)
+    self.backBtn = TREKLcarsButton:new(cx + cw - catW, searchY, catW, 24, "", self,
+        TREKReplicatorWindow.onBack, P.lilac)
+    self.backBtn.centreText = true
+    self.backBtn:initialise()
+    self:addChild(self.backBtn)
 
     local btnH, gap = 26, 6
-    local row1 = self.height - BOTH - PAD - 30
+    local row2 = self.height - BOTH - PAD - 30
+    local row1 = row2 - gap - btnH
     local row0 = row1 - gap - btnH
     local half = (cw - gap) / 2
 
@@ -157,28 +176,40 @@ function TREKReplicatorWindow:createChildren()
     self.list.borderColor = { r = P.lilac[1], g = P.lilac[2], b = P.lilac[3], a = 0.55 }
     self.list.doDrawItem = TREKReplicatorWindow.drawRow
     self.list.target = self
+    -- A click on a category row opens it, which is what a mouse expects of a
+    -- folder. An item row only selects; the action button is what makes it.
+    self.list.onmousedown = TREKReplicatorWindow.onRowClicked
     self:addChild(self.list)
 
-    self.qtyBtn = TREKLcarsButton:new(cx, row0, half, btnH, "", self,
+    self.knownBtn = TREKLcarsButton:new(cx, row0, half, btnH, "", self,
+        TREKReplicatorWindow.onKnownOnly, P.blue)
+    self.knownBtn:initialise()
+    self:addChild(self.knownBtn)
+
+    self.qtyBtn = TREKLcarsButton:new(cx + half + gap, row0, half, btnH, "", self,
         TREKReplicatorWindow.onQuantity, P.gold)
     self.qtyBtn:initialise()
     self:addChild(self.qtyBtn)
 
-    self.scanBtn = TREKLcarsButton:new(cx + half + gap, row0, half, btnH,
+    self.scanBtn = TREKLcarsButton:new(cx, row1, cw, btnH,
         getText("IGUI_TREK_RepScan"), self, TREKReplicatorWindow.onScan, P.peach)
     self.scanBtn:initialise()
     self:addChild(self.scanBtn)
 
-    self.makeBtn = TREKLcarsButton:new(cx, row1, cw, 30, "", self,
-        TREKReplicatorWindow.onMaterialise, P.orange)
+    -- One button, and what it does depends on what is picked: open a category
+    -- or make an item. A pad has no double-click, so the alternative was two
+    -- buttons, one of which is always dead.
+    self.makeBtn = TREKLcarsButton:new(cx, row2, cw, 30, "", self,
+        TREKReplicatorWindow.onAction, P.orange)
     self.makeBtn:initialise()
     self:addChild(self.makeBtn)
 
     -- Controller navigation, top to bottom. The text box is deliberately not
     -- in here: a stick cannot type, and a focus stop that does nothing is
     -- worse than none.
-    self:insertNewLineOfButtons(self.catBtn)
-    self:insertNewLineOfButtons(self.qtyBtn, self.scanBtn)
+    self:insertNewLineOfButtons(self.backBtn)
+    self:insertNewLineOfButtons(self.knownBtn, self.qtyBtn)
+    self:insertNewLineOfButtons(self.scanBtn)
     self:insertNewLineOfButtons(self.makeBtn)
     self:setISButtonForB(self.closeBtn)
 
@@ -188,67 +219,128 @@ end
 ---------------------------------------------------------------------------
 -- The rows
 ---------------------------------------------------------------------------
-function TREKReplicatorWindow:category()
-    if self.catIndex == 0 then return nil end
-    return R.categories()[self.catIndex]
-end
-
---- Filters the catalogue into the list. Called on every keystroke, so it
---- walks an array of precomputed lowercase strings and nothing else.
+--- Fills the list with whatever the player should be looking at.
+---
+--- Three states, and the order of the branches is the design:
+---
+---   * **a search shows items from everywhere**, whatever category you are
+---     standing in. Somebody typing "bandage" wants bandages, not to be told
+---     they are in the wrong folder;
+---   * inside a category, its items;
+---   * otherwise the categories themselves, each saying how many patterns the
+---     ship has in it.
+---
+--- Called on every keystroke, so the work is a `string.find` over lowercase
+--- strings that were built once, and a category is an index lookup rather
+--- than a walk of four thousand rows.
 function TREKReplicatorWindow:refreshRows()
-    local needle = self.needle
-    local category = self:category()
+    local needle, knownOnly = self.needle, self.knownOnly
     self.list:clear()
     self.rows = {}
-    for _, row in ipairs(R.catalogue()) do
-        local hit = (needle == "" or string.find(row.lower, needle, 1, true) ~= nil)
-                and (category == nil or row.category == category)
-        if hit then
-            table.insert(self.rows, row)
-            self.list:addItem(row.name, row)
+
+    local function add(row)
+        table.insert(self.rows, row)
+        self.list:addItem(row.name, row)
+    end
+
+    local function wanted(item)
+        return not knownOnly or R.knows(item.id)
+    end
+
+    if needle ~= "" then
+        for _, item in ipairs(R.catalogue()) do
+            if wanted(item) and string.find(item.lower, needle, 1, true) then
+                add({ kind = "item", item = item, name = item.name })
+            end
+        end
+    elseif self.category then
+        for _, item in ipairs(R.inCategory(self.category)) do
+            if wanted(item) then
+                add({ kind = "item", item = item, name = item.name })
+            end
+        end
+    else
+        for _, name in ipairs(R.categories()) do
+            local total, known = R.categoryCount(name)
+            if not knownOnly or known > 0 then
+                add({ kind = "category", name = name, total = total, known = known })
+            end
         end
     end
-    if #self.rows > 0 then
-        self.list.selected = 1
-    else
-        self.list.selected = 0
-    end
+
+    self.list.selected = (#self.rows > 0) and 1 or 0
 end
 
+--- The row the player has picked, whatever kind it is.
+function TREKReplicatorWindow:selected()
+    local entry = self.list.items[self.list.selected]
+    return entry and entry.item or nil
+end
+
+--- The catalogue row picked, or nil when a category is.
 function TREKReplicatorWindow:selectedRow()
-    local item = self.list.items[self.list.selected]
-    return item and item.item or nil
+    local row = self:selected()
+    if row and row.kind == "item" then return row.item end
+    return nil
+end
+
+--- Steps into a category, or back out of one.
+function TREKReplicatorWindow:openCategory(name)
+    self.category = name
+    -- A search is a view of the whole catalogue, so stepping into a category
+    -- clears it rather than quietly intersecting the two.
+    if self.needle ~= "" then
+        self.needle = ""
+        U.try("rep.clearSearch", function() self.search:setText("") end)
+    end
+    self:refreshRows()
 end
 
 function TREKReplicatorWindow:quantity()
     return C.ReplicatorQuantities[self.qtyIndex] or 1
 end
 
---- One catalogue row. Known patterns read in the ship's colours; the rest are
---- drawn dim and say why -- a grey entry with a reason beats a missing one,
---- or a player cannot tell "you have not found one" from "this mod is broken".
-function TREKReplicatorWindow:drawRow(y, item, alt)
-    local row = item.item
+--- One row, which is either a category or an item.
+---
+--- A known pattern reads in the ship's colours and the rest are drawn dim and
+--- say why: a grey entry with a reason beats a missing one, or a player
+--- cannot tell "you have not found one of those" from "this mod is broken".
+function TREKReplicatorWindow:drawRow(y, entry, alt)
+    local row = entry.item
     local w = self:getWidth()
-    if self.selected == item.itemindex then
-        self:drawRect(0, y, w, item.height - 1, 0.35, P.lilac[1], P.lilac[2], P.lilac[3])
+    if self.selected == entry.itemindex then
+        self:drawRect(0, y, w, entry.height - 1, 0.35, P.lilac[1], P.lilac[2], P.lilac[3])
     end
 
-    local known = R.knows(row.id)
+    if row.kind == "category" then
+        -- A folder, with what is in it and how much of that the ship can
+        -- actually make -- which is the number a player is looking for.
+        local c = (row.known > 0) and P.gold or P.dim
+        local label = ellipsise(row.name, UIFont.Small, w - 120, row, "short")
+        self:drawText(label, 8, y + 3, c[1], c[2], c[3], 1, UIFont.Small)
+        self:drawTextRight(getText("IGUI_TREK_RepCategoryKnown",
+                                   tostring(row.known), tostring(row.total)),
+                           w - 10, y + 3, P.text[1], P.text[2], P.text[3], 1,
+                           UIFont.Small)
+        return y + entry.height
+    end
+
+    local item = row.item
+    local known = R.knows(item.id)
     local c = known and P.peach or P.dim
     local right = known and P.blue or P.dim
 
-    local label = ellipsise(row.name, UIFont.Small, w - 190, row, "short")
+    local label = ellipsise(item.name, UIFont.Small, w - 190, item, "short")
     self:drawText(label, 8, y + 3, c[1], c[2], c[3], 1, UIFont.Small)
 
-    local cat = ellipsise(row.category, UIFont.Small, 90, row, "shortCat")
+    local cat = ellipsise(item.category, UIFont.Small, 90, item, "shortCat")
     self:drawText(cat, w - 150, y + 3, P.dim[1] * 1.3, P.dim[2] * 1.3,
                   P.dim[3] * 1.3, 1, UIFont.Small)
 
-    local text = known and tostring(row.cost)
+    local text = known and tostring(item.cost)
                         or getText("IGUI_TREK_RepNoPatternShort")
     self:drawTextRight(text, w - 10, y + 3, right[1], right[2], right[3], 1, UIFont.Small)
-    return y + item.height
+    return y + entry.height
 end
 
 ---------------------------------------------------------------------------
@@ -320,17 +412,33 @@ function TREKReplicatorWindow:render()
     self:drawRectBorder(cx, self.barY, cw, 12, 0.6, P.blue[1], P.blue[2], P.blue[3])
 
     -- The controls say what they will do before they are pressed.
-    local cat = self:category()
-    self.catBtn.title = cat and ellipsise(cat, UIFont.Small, 100, self, "catShort" .. self.catIndex)
-                            or getText("IGUI_TREK_RepAllCategories")
+    local inside = self.category ~= nil or self.needle ~= ""
+    self.backBtn.title = inside and getText("IGUI_TREK_RepBack")
+                                or getText("IGUI_TREK_RepAllCategories")
+    self.backBtn.enable = inside
+    self.knownBtn.title = self.knownOnly and getText("IGUI_TREK_RepKnownOnly")
+                                         or getText("IGUI_TREK_RepAllItems")
     self.qtyBtn.title = getText("IGUI_TREK_RepQuantity", tostring(self:quantity()))
 
+    -- Where you are, above the list: the root, or the category you opened.
+    self:drawText(self.category
+                      and ellipsise(self.category, UIFont.Small, cw - 20, self,
+                                    "where" .. self.category)
+                      or getText("IGUI_TREK_RepAllCategories"),
+                  cx, self.list.y - 16, P.lilac[1], P.lilac[2], P.lilac[3], 1,
+                  UIFont.Small)
+
+    local picked = self:selected()
     local row = self:selectedRow()
-    local known = row ~= nil and R.knows(row.id)
-    if not row then
+    if picked and picked.kind == "category" then
+        self.makeBtn.title = getText("IGUI_TREK_RepBrowse",
+                                     ellipsise(picked.name, UIFont.Small, 160,
+                                               picked, "shortOpen"))
+        self.makeBtn.enable = true
+    elseif not row then
         self.makeBtn.title = getText("IGUI_TREK_RepNothingPicked")
         self.makeBtn.enable = false
-    elseif not known then
+    elseif not R.knows(row.id) then
         self.makeBtn.title = getText("IGUI_TREK_RepNoPatternShort")
         self.makeBtn.enable = false
     else
@@ -341,7 +449,9 @@ function TREKReplicatorWindow:render()
     self.scanBtn.enable = not off
 
     if #self.list.items == 0 then
-        self:drawTextCentre(getText("IGUI_TREK_RepNoMatch"),
+        local why = (self.knownOnly and self.needle == "")
+                    and "IGUI_TREK_RepNothingKnown" or "IGUI_TREK_RepNoMatch"
+        self:drawTextCentre(getText(why),
                             self.list.x + self.list.width / 2,
                             self.list.y + self.list.height / 2 - 8,
                             P.dim[1] * 1.4, P.dim[2] * 1.4, P.dim[3] * 1.4, 1,
@@ -363,9 +473,23 @@ end
 ---------------------------------------------------------------------------
 -- Controls
 ---------------------------------------------------------------------------
-function TREKReplicatorWindow:onCategory()
-    self.catIndex = self.catIndex + 1
-    if self.catIndex > #R.categories() then self.catIndex = 0 end
+--- Back out of a category, or out of a search, to the list of categories.
+function TREKReplicatorWindow:onBack()
+    if self.needle ~= "" then
+        self.needle = ""
+        U.try("rep.clearSearch", function() self.search:setText("") end)
+    end
+    self.category = nil
+    self:refreshRows()
+end
+
+--- Narrows the whole panel to what the ship can actually make.
+---
+--- It applies to the categories as well as to the items: with it on, a
+--- category the ship has no patterns in is not worth walking into, so it is
+--- not offered.
+function TREKReplicatorWindow:onKnownOnly()
+    self.knownOnly = not self.knownOnly
     self:refreshRows()
 end
 
@@ -374,10 +498,24 @@ function TREKReplicatorWindow:onQuantity()
     if self.qtyIndex > #C.ReplicatorQuantities then self.qtyIndex = 1 end
 end
 
-function TREKReplicatorWindow:onMaterialise()
-    local row = self:selectedRow()
-    if not row then return end
+--- Open a category, or make the item -- whichever is picked.
+function TREKReplicatorWindow:onAction()
+    local picked = self:selected()
+    if not picked then return end
+    if picked.kind == "category" then
+        self:openCategory(picked.name)
+        return
+    end
+    local row = picked.item
     Core.send(self.player, "replicate", { id = row.id, count = self:quantity() })
+end
+
+--- A mouse click in the list. The list box calls this with the row's own
+--- item, after it has moved the selection.
+function TREKReplicatorWindow:onRowClicked(picked)
+    if picked and picked.kind == "category" then
+        self:openCategory(picked.name)
+    end
 end
 
 function TREKReplicatorWindow:onScan()
@@ -600,10 +738,12 @@ TREK.Net.onClient("replicated", function(args)
     local asked = tonumber(args.asked) or 0
 
     if made == 0 then
-        -- Nothing formed. The tray being full is far and away the likeliest
-        -- reason, and a machine that hums and produces nothing without saying
-        -- why is the worst version of this feature.
-        warnNote(player, "IGUI_TREK_RepTrayFull")
+        -- Nothing formed at all. The likeliest reason by far is an item that
+        -- is in the catalogue and will not instance -- an obsolete one that
+        -- slipped the filter -- and the server has logged which. A machine
+        -- that hums and produces nothing without saying why is the worst
+        -- version of this feature.
+        warnNote(player, "IGUI_TREK_RepFailed")
     elseif made < asked then
         warnNote(player, "IGUI_TREK_RepPartial", tostring(made), tostring(asked))
     else

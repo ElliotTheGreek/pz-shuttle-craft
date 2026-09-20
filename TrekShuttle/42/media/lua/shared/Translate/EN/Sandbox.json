@@ -13,7 +13,7 @@
     "Sandbox_TrekShuttle.TorpedoFire_option1": "Full",
     "Sandbox_TrekShuttle.TorpedoFire_option2": "Blast only",
     "Sandbox_TrekShuttle.Replicator": "Replicator",
-    "Sandbox_TrekShuttle.Replicator_tooltip": "The galley replicator makes any item in the game. Patterns and energy is the shuttle as designed: it can only make something it has scanned a pattern for (scanning is free and gives the item back, and the ship knows its own Starfleet gear from the start), and every replication spends from a reserve that refills itself over about eight game hours. Unrestricted removes both limits -- anything in the catalogue, immediately, for nothing. Off leaves the fixture in the galley as scenery, and says so when a player tries to use it.",
+    "Sandbox_TrekShuttle.Replicator_tooltip": "The galley replicator makes any item in the game. Patterns and energy is the shuttle as designed: it can only make something it has scanned a pattern for (scanning is free and gives the item back, and the ship knows its own Starfleet gear from the start), and every replication spends from a reserve that refills itself over about eight game hours. Unrestricted removes both limits -- anything in the catalogue, immediately, for nothing. Off leaves the machine in the galley as scenery, and says so when a player tries to use it.",
     "Sandbox_TrekShuttle.Replicator_option1": "Patterns and energy",
     "Sandbox_TrekShuttle.Replicator_option2": "Unrestricted",
     "Sandbox_TrekShuttle.Replicator_option3": "Off"

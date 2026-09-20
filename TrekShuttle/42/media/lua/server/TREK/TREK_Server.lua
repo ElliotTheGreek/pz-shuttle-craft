@@ -1280,68 +1280,45 @@ local function carriedTypes(player)
     return out
 end
 
---- The tray: the fixture at the replicator's berth. Returns the object, or
---- nil and a reason -- "unloaded" is not the same answer as "missing", and
---- reading the first as the second is constraint 1 all over again.
-local function replicatorTray()
-    local ox, oy = Rep.spot()
-    if not ox then return nil, "nofixture" end
-    local x, y = U.at(ox, oy)
-    if not U.chunkLoaded(x, y, C.CabinZ) then return nil, "unloaded" end
-    local sq = U.square(x, y, C.CabinZ, false)
-    if not sq then return nil, "unloaded" end
-
-    local found = nil
-    U.eachObject(sq, function(o)
-        local md = U.try("rep.md", function() return o:getModData() end)
-        if md and md.TREK == C.ReplicatorTag then
-            found = o
-            return false
-        end
-    end)
-    if not found then return nil, "nofixture" end
-    if not U.containerOf(found) then return nil, "notray" end
-    return found
-end
-
---- Materialises `count` of one item into the tray, and says how many actually
---- landed.
+--- Materialises `count` of one item into the asking player's hands, and says
+--- how many actually arrived.
 ---
---- The count is the whole point. A container at capacity drops what it is
---- handed without raising anything, and `instanceItem` answers nil for an
---- obsolete item that slipped the catalogue filter -- and from here those two
---- look identical to success. So the tray is measured after every single one,
---- and the player is charged for what arrived rather than for what they asked
---- for.
+--- **Into their inventory, because the machine has no tray.** It used to
+--- materialise into a steel counter on the same square, and that counter was
+--- doing the work the replicator should have been doing; there is no counter
+--- now, and a machine that makes a thing and drops it on the deck would be a
+--- worse answer than either.
 ---
---- U.batch rather than U.try because this repeats: ten copies of an item that
---- cannot be made is ten Java stack traces otherwise.
-local function materialise(obj, id, count)
-    local container = U.containerOf(obj)
-    if not container then return 0 end
+--- The count is still the whole point. `instanceItem` answers nil for an
+--- obsolete item that slipped the catalogue filter, and from here that looks
+--- exactly like success -- so the inventory is measured after every single
+--- one and the player is charged for what arrived.
+---
+--- `B.giveGalley` is the same shape and the precedent for the send: add to
+--- the container, then `sendAddItemToContainer` so the client's copy has it
+--- too. U.batch rather than U.try because this repeats.
+local function materialise(player, id, count)
+    local inv = U.try("rep.inv", function() return player:getInventory() end)
+    if not inv then return 0 end
+
+    local function held()
+        local items = U.try("rep.invItems", function() return inv:getItems() end)
+        return items and items:size() or 0
+    end
 
     local join = U.batch("rep.materialise")
     local made = 0
     for _ = 1, count do
-        local before = U.itemCount(obj)
+        local before = held()
         local ok = join(function()
             local item = instanceItem(id)
             if not item then return false end
-            container:AddItem(item)
-            -- The tray is already in the world and clients can see it, so each
-            -- item is sent on its own rather than riding inside the object.
-            if isServer() then sendAddItemToContainer(container, item) end
+            inv:AddItem(item)
+            if isServer() then sendAddItemToContainer(inv, item) end
             return true
         end)
-        if ok ~= true or U.itemCount(obj) <= before then break end
+        if ok ~= true or held() <= before then break end
         made = made + 1
-    end
-    if made > 0 then
-        U.try("rep.dirty", function()
-            container:setExplored(true)
-            container:setDirty(true)
-            container:setDrawDirty(true)
-        end)
     end
     return made
 end
@@ -1394,14 +1371,7 @@ Net.onServer("replicate", function(player, args)
         return
     end
 
-    local tray, why = replicatorTray()
-    if not tray then
-        deny(player, "repNoTray", { why = why })
-        U.log("replicator: no tray to materialise into (%s)", tostring(why))
-        return
-    end
-
-    local made = materialise(tray, row.id, count)
+    local made = materialise(player, row.id, count)
     local spent = Rep.cost(row, made)
     s.repAt = now
     if spent > 0 then Rep.spend(spent) end
@@ -1586,9 +1556,9 @@ end)
 --- TREK_Replicator() from the console.
 ---
 --- Four of this mod's bugs have been a fixture that is present, drawn and
---- inert; the tray is the same shape of thing (a counter that is a container
---- in the tileset is not a container at runtime unless one was made for it),
---- so it is read back rather than assumed.
+--- inert, so the machine is looked for rather than assumed: the model is a
+--- world item on its square, and if it is not there the panel still works but
+--- there is nothing to right-click.
 function S.replicatorReport()
     local mode = Rep.mode()
     local modeName = (mode == C.ReplicatorOff and "off")
@@ -1599,18 +1569,21 @@ function S.replicatorReport()
           Rep.patternCount(), #Rep.catalogue())
 
     local ox, oy = Rep.spot()
-    if not ox then
-        U.log("replicator: nothing in the layout is tagged %s", tostring(C.ReplicatorTag))
+    local x, y = U.at(ox, oy)
+    if not U.chunkLoaded(x, y, C.CabinZ) then
+        U.log("replicator: the square at %d,%d is not loaded, so the machine "
+              .. "cannot be looked for from here", ox, oy)
         return false
     end
-    local tray, why = replicatorTray()
-    if not tray then
-        U.log("replicator: the berth at %d,%d has no tray (%s)", ox, oy, tostring(why))
-        return false
+
+    local standing = B.replicatorsAt(U.square(x, y, C.CabinZ, false))
+    U.log("replicator: %d machine(s) standing at %d,%d", standing, ox, oy)
+    if standing ~= 1 then
+        U.log("replicator: expected exactly one; the panel still opens from "
+              .. "that square either way, but there is nothing to right-click "
+              .. "if it is zero")
     end
-    U.log("replicator: the tray at %d,%d holds %d item(s)",
-          ox, oy, U.itemCount(tray))
-    return true
+    return standing == 1
 end
 
 --- Says, once, whether the void map is loaded. Without it the cabin still

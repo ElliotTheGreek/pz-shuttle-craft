@@ -116,28 +116,27 @@ else:
                         f"authored phaser locker is at {phasers[0]['x']},"
                         f"{phasers[0]['y']}")
 
-# --- the replicator's berth ---------------------------------------------
-# The fixture the replicator hangs off is found by its tag, and the panel is
-# offered on its square: TREK_Replicator.spot() walks this list looking for
-# C.ReplicatorTag. Rename it in the map editor and the machine has nowhere to
-# stand -- the only sign in game is one warning the first time somebody
-# right-clicks the galley.
-#
-# It must also hold nothing. The tray is where replicated items appear, and a
-# tray that arrives with the ship's stores in it is a tray with less room.
-berths = [e for e in entries if e["tag"] == C.ReplicatorTag]
-if len(berths) != 1:
-    failures.append(f"{len(berths)} fittings are tagged {C.ReplicatorTag!r}; "
-                    f"the replicator needs exactly one berth")
-else:
-    berth = berths[0]
-    if not berth["container"]:
-        failures.append(f"the replicator's berth at {berth['x']},{berth['y']} is "
-                        f"not a container, so it has no tray to materialise into")
-    if berth["loot"] or berth["special"]:
-        failures.append(f"the replicator's berth is stocked with "
-                        f"{berth['loot'] or berth['special']!r}; the tray is "
-                        f"meant to start empty")
+# --- the replicator's square ---------------------------------------------
+# The machine is a world model standing on C.ReplicatorSpot, and **nothing
+# else may be on that square**. It used to be a steel counter with the model
+# hanging over it, which was half a machine leaning on a piece of furniture;
+# the counter is gone from the .tbx and the layout, and a fitting put back
+# there in the map editor would be drawn straight through the replicator.
+rep = (int(C.ReplicatorSpot.x), int(C.ReplicatorSpot.y))
+if not inside(*rep):
+    failures.append(f"the replicator at {rep[0]},{rep[1]} is outside the hull")
+if is_pad(*rep):
+    failures.append(f"the replicator at {rep[0]},{rep[1]} stands on the "
+                    f"transporter pad")
+on_spot = [e for e in entries if (e["x"], e["y"]) == rep]
+if on_spot:
+    failures.append(f"{len(on_spot)} authored fitting(s) stand on the "
+                    f"replicator's square at {rep[0]},{rep[1]}: "
+                    f"{[e['tag'] for e in on_spot]}. The machine owns it.")
+# And you have to be able to reach it: it is against the port wall, so the
+# square to starboard of it is the one you stand on.
+if not inside(rep[0] + 1, rep[1]):
+    failures.append(f"there is no square beside the replicator to work it from")
 
 # --- every `special` names a rule the build actually has ------------------
 # A special is a string in one file that has to be matched by a key in another,
@@ -196,7 +195,7 @@ for lx, ly in lamps:
 # --- draw it -----------------------------------------------------------
 GLYPH = {"console": "T", "tvConsole": "t", "television": "V", "chair": "h",
          "fridge": "F", "oven": "o", "counter": "c", "sink": "w",
-         "microwave": "m", "replicator": "R", "armoury": "A",
+         "microwave": "m", "armoury": "A",
          "provisions": "p", "medical": "M", "emhPanel": "E", "biobed": "B"}
 grid = {}
 for e in entries:
@@ -210,6 +209,8 @@ for oy in range(L_LEN + 1):
             row += " "
         elif ox == int(C.Landing.x) and oy == int(C.Landing.y):
             row += "@"
+        elif (ox, oy) == rep:
+            row += "R"
         elif (ox, oy) in grid:
             # the topmost non-rug layer is what you actually walk up to
             tags = [t for t in grid[(ox, oy)] if t != "rug"] or grid[(ox, oy)]
@@ -221,7 +222,7 @@ for oy in range(L_LEN + 1):
     print(f"{oy:3d} {row}")
 print("\n   @ transporter pad   T monitor wall   V television")
 print("   t tv console   h crew seat   F fridge   o oven   c counter")
-print("   w sink   m microwave   R replicator berth")
+print("   w sink   m microwave   R the replicator (a world model)")
 print("   A armoury   p rations   M sick bay   E EMH panel   B biobed")
 print("   * lamp      . open deck")
 

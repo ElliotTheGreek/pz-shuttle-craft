@@ -120,9 +120,31 @@ function instanceItem(id)
     -- `class` so instanceof(item, "InventoryItem") answers the way the engine
     -- does. Without it the mod's context-menu code, which has to tell a single
     -- item from a stack, sees neither and offers nothing at all.
-    return { fullType = id, modData = {}, class = "InventoryItem",
-             getFullType = function(self) return self.fullType end,
-             getModData = function(self) return self.modData end }
+    local it = { fullType = id, modData = {}, class = "InventoryItem",
+                 ammo = 0, chambered = false, jammed = false, condition = 10,
+                 getFullType = function(self) return self.fullType end,
+                 getModData = function(self) return self.modData end }
+
+    -- The weapon half, because a **phaser can be in a pocket now**: the
+    -- replicator makes one into the player's own inventory, and TREK_Phaser's
+    -- sweep then reads and writes all of this on it every tick. Without it
+    -- the sweep threw once per concern -- which is a real warning about a
+    -- stub, not about the mod, and exactly the kind of gap that makes the
+    -- simulation kinder than the engine in one direction and harsher in the
+    -- other.
+    function it:getMaxAmmo() return 60 end
+    function it:getCurrentAmmoCount() return self.ammo end
+    function it:setCurrentAmmoCount(n) self.ammo = n end
+    function it:isRoundChambered() return self.chambered end
+    function it:setRoundChambered(v) self.chambered = v end
+    function it:setSpentRoundCount() end
+    function it:setSpentRoundChambered() end
+    function it:isJammed() return self.jammed end
+    function it:setJammed(v) self.jammed = v end
+    function it:getConditionMax() return 10 end
+    function it:getCondition() return self.condition end
+    function it:setCondition(n) self.condition = n end
+    return it
 end
 
 --- The bare type, the way the engine's recursive lookups compare it:
@@ -275,8 +297,25 @@ function SIM.container(capacity)
     return c
 end
 
+--- Sends one item the server put in a container to the client that can see
+--- it. Two kinds of container, and they reach different people:
+---
+---   * a container on a world object goes to everyone, because everyone can
+---     walk up to it and open it;
+---   * **a player's own inventory goes to that player and nobody else.** That
+---     is the replicator's route -- the server makes the item and hands it
+---     over -- and it is the engine's own idiom: server/ClientCommands.lua
+---     does `player:getInventory():AddItem(item)` followed by this call in a
+---     dozen places, on a validated client command, which is exactly the
+---     shape the replicator has.
 function sendAddItemToContainer(container, item)
     if not isServer() then error("sendAddItemToContainer off the server") end
+    if container.ownerName then
+        py_replicate("playerItem", { x = 0, y = 0, z = 0,
+                                     who = container.ownerName,
+                                     item = item.fullType })
+        return
+    end
     local obj = container.parentObject
     if obj and obj.square then
         py_replicate("containerItem", { x = obj.square.x, y = obj.square.y, z = obj.square.z,
@@ -1059,6 +1098,9 @@ function SIM.player(name, x, y, z, admin)
     local p = setmetatable({ name = name, x = x, y = y, z = z, modData = {},
                              dead = false, admin = admin == true,
                              inventory = SIM.container(50) }, PlayerMT)
+    -- Whose pockets these are, so an item the server puts in them reaches
+    -- that player's client and nobody else's.
+    p.inventory.ownerName = name
     table.insert(SIM.players, p)
     return p
 end

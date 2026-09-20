@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 18
+C.BuildRev = 19
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -772,21 +772,31 @@ C.DevicePower = 1.0
 -- Neither is a cooldown dressed up: patterns are a progression and energy is
 -- a budget. A server owner who wants neither has the sandbox option below.
 
--- The layout tag of the fixture. The berth at 0,5 is a bare steel counter the
--- interior refit put there for exactly this, so the replicator arrives as a
--- right-click on an object every save already has rather than as a migration
--- (INTERIOR_REFIT.md section 3). Its own container is the tray.
-C.ReplicatorTag = "replicator"
+-- Where the machine stands: the aft end of the galley, port side.
+--
+-- A constant rather than a layout tag, because **there is no fitting on that
+-- square any more**. It was a steel counter with the model hanging over it
+-- and replicated items going into the counter's own container -- half a
+-- machine leaning on a piece of furniture. The replicator is the whole thing
+-- now: it owns 0,5, it is the only object on it, and what it makes goes into
+-- your hands.
+C.ReplicatorSpot = { x = 0, y = 5 }
 
--- The alcove itself: a world model, like the hull, standing on that square.
--- Its mesh is authored from 0.86 upwards (tools/gen_replicator.py) so it
--- hangs above the counter rather than being drawn through it.
+-- The machine: a world model, like the hull, standing on that square. Its
+-- mesh is authored from the deck up (tools/gen_replicator.py) -- full height,
+-- a kick plinth, a lit niche at chest height.
 --
 -- This is the helm console prop's route, and the helm console prop was
 -- deleted for being scenery that looked like a control. The difference is
 -- the only one that matters: this one opens something. The panel is on a
--- right-click on this square, so the model *is* the machine.
+-- right-click at this square, so the model *is* the machine.
 C.ReplicatorItem = "TrekShuttle.TrekReplicator"
+
+-- What the counter it replaced was tagged, and the only thing this is for:
+-- a save built before the machine has that counter standing on 0,5, with
+-- whatever the player left in it. B.refitCabin takes it out and spills the
+-- contents onto the pad. Nothing places one any more.
+C.LegacyReplicatorTag = "replicator"
 
 -- How close you have to stand, in tiles. Measured on the server against its
 -- own copy of where the player is, because a client is a request and never a

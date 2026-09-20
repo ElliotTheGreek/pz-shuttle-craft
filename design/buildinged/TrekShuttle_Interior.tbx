@@ -862,8 +862,7 @@
   <object type="furniture" FurnitureTiles="16" orient="W" x="0" y="3" />
   <object type="furniture" FurnitureTiles="6" orient="W" x="0" y="4" />
   <object type="furniture" FurnitureTiles="7" orient="W" x="0" y="4" />
-  <object type="furniture" FurnitureTiles="6" orient="W" x="0" y="5" />
-  <object type="furniture" FurnitureTiles="32" orient="E" x="3" y="3" />
+   <object type="furniture" FurnitureTiles="32" orient="E" x="3" y="3" />
   <object type="furniture" FurnitureTiles="23" orient="N" x="3" y="4" />
  </floor>
 </building>

@@ -38,7 +38,7 @@ still enough room to give every system a place a player can find without a map.
   2 oh.M        h crew seat, facing the screen   o oven   M sick bay
   3 w..E        w sink counter                          E EMH panel (wall)
   4 m*.B        m microwave counter                     B biobed (head)
-  5 R.@B        @ transporter pad   R replicator berth  B biobed (foot)
+  5 R.@B        @ transporter pad   R the replicator    B biobed (foot)
 ```
 
 `python tests/test_layout.py` prints this with the legend and the container
@@ -63,7 +63,7 @@ Everything is reachable from an open square:
 | television | 0,0, 2,0 or 1,1 |
 | armoury | 2,0 |
 | rations, sick bay | 2,1 and 2,2 |
-| fridge, oven, sink, microwave, replicator berth | the port passage, 1,1 .. 1,5 |
+| fridge, oven, sink, microwave, the replicator | the port passage, 1,1 .. 1,5 |
 | biobed, EMH panel | 2,4, the pad at 2,5, and the open square at 3,3 |
 
 ---
@@ -110,10 +110,10 @@ own cell and keeps it full, in every process.
 | 0,3 | `fixtures_sinks_01_1` | `sink` | water |
 | 0,4 | `fixtures_counters_01_35` | `counter` | nothing |
 | 0,4 | `appliances_cooking_01_24` (cap 5) | `microwave` | nothing |
-| 0,5 | `fixtures_counters_01_35` | `replicator` | nothing |
 
-Five squares, five appliances: the sink and the microwave ride on counters
-rather than taking squares of their own.
+Four squares, five appliances: the sink and the microwave ride on counters
+rather than taking squares of their own. The fifth galley square, 0,5, is the
+replicator's and carries no fitting -- the machine is the whole thing there.
 
 **The oven is one tile now.** The old galley used `appliances_cooking_01_40`
 and `_41`, the two halves of one range — a quarter of the new cabin on its own.
@@ -121,11 +121,15 @@ and `_41`, the two halves of one range — a quarter of the new cabin on its own
 `IsoType = IsoStove`, `container = stove`, capacity 15. Same cooking, one
 square, and grey suits a metal hull better than the green one.
 
-**0,5 is the replicator's berth**: a bare steel counter tagged `replicator`.
-That is how it arrived, on 2026-09-20: `TREK_Replicator.spot()` finds the berth
-by that tag, the counter's own container is the tray a replication materialises
-into, and the alcove above it is a world model the build stands there. The
-right-click that opens the panel is keyed to this square. `REPLICATOR.md`.
+**0,5 is the replicator's, and it carries no fitting at all.** It was a bare
+steel counter until the machine arrived on 2026-09-20 -- first with a model
+hanging over the counter and replicated items going into the counter's own
+container, which was half a machine leaning on a piece of furniture. The
+counter is gone from the `.tbx` and the layout: `C.ReplicatorSpot` names the
+square, `TREK_Build` stands a full-height world model on it, and what the
+machine makes goes into the player's hands. `B.refitCabin` takes the counter
+out of a save that still has one, and spills what was in it onto the pad.
+`REPLICATOR.md`.
 
 The sink is the only plumbed fixture left. `C.WaterTags` keys on the tag, so
 nothing in the water code changed.
@@ -205,7 +209,8 @@ That is the second half of the refit and it is why `C.Loot` is four lines long
 now instead of nine lists.
 
 - **Five of the eight containers hold nothing.** The fridge, the oven, both
-  counters and the replicator berth are the player's shelves.
+  counters and the microwave are the player's shelves. (There were nine until
+  the replicator replaced the counter it used to stand on.)
 - **The three lockers hold the mod's own items and nothing else.** A locker of
   pistols and bandages was what a 40-unit container needed when there were
   eight of them; with three it is just the vanilla game, in a cupboard, on a

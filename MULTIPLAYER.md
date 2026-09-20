@@ -526,10 +526,16 @@ Three things the server does not take a client's word for: the **id** (looked
 up in the real catalogue, never handed to `instanceItem` blind), the
 **quantity** (matched against the list the panel offers, or the command is an
 item printer), and the **inventory** a scan reads (its own copy, via
-`getAllEvalRecurse`). The tray is an ordinary container already in the world,
-so each item reaches clients with `sendAddItemToContainer` -- and it is
-counted before and after every single one, because a container at capacity
-drops what it is handed without raising anything.
+`getAllEvalRecurse`).
+
+**What it makes goes into the asking player's own inventory**, which is the
+engine's own idiom rather than an invention: `server/ClientCommands.lua` does
+`player:getInventory():AddItem(item)` followed by
+`sendAddItemToContainer(player:getInventory(), item)` in a dozen places, on a
+validated client command -- exactly this shape. The inventory is counted
+before and after every single item, because `instanceItem` answers nil for an
+obsolete item that slipped the filter and a container at capacity drops what
+it is handed, and from the server's side both look like success.
 
 ---
 
@@ -560,9 +566,10 @@ drops what it is handed without raising anything.
     only thing the replicator's separate mod data key has to get right: the
     server transmits `TREK_Patterns_v1` when a pattern is learned and each
     client stores what arrives. The simulated two-client scenario agrees.
-13. **An item made by one player appearing in the tray for the other.** The
-    tray is a container already in the world, so this rides
-    `sendAddItemToContainer` and nothing of ours.
+13. **An item the server makes arriving in the asking player's hands**, and
+    in nobody else's. It rides `sendAddItemToContainer` on their own
+    inventory, which is what vanilla's ClientCommands.lua does -- but on a
+    real connection rather than a simulated one.
 
 ---
 

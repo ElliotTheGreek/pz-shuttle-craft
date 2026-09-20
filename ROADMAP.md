@@ -562,11 +562,22 @@ upwards so it hangs over the counter rather than standing in it, and it took
 three renders to stop being a louvred bin. The fal.ai image-to-3D route in the
 old plan was not needed and is still there if a future fixture wants it.
 
-**Nineteen mutations were checked against the new tests and all nineteen
-caught**, three of which found tests passing for the wrong reason; eight more
-against the panel, one of which found another. Nothing has been seen in a
-game: `REPLICATOR.md`'s last section is the list, and the right-click on the
-berth is the first thing to try.
+**Carried into a game on 2026-09-20, twice.** It loads, the catalogue comes
+out at 4913 items in 78 categories, 19 patterns seed, and the model places
+where it was authored -- and the first version could not be right-clicked at
+all, because a click resolves to the floor square under the cursor and the
+model was hanging over a counter. That is a new rule in `DEV_GUIDE.md`.
+
+The counter is gone with it. The replicator was a model over a steel counter
+that provided its container, which is two objects pretending to be one
+machine; it is a full-height unit standing on its own square now, and what it
+makes goes into your hands. The panel's category button became a two-level
+tree with a Back button and a *known patterns only* toggle, because seventy-
+eight categories one press at a time is not a control.
+
+Thirty mutations have been checked against the tests across the two passes and
+all thirty caught, four of which found tests passing for the wrong reason.
+`REPLICATOR.md`'s last section is what is still open.
 
 ## Then: ship systems
 
@@ -610,9 +621,10 @@ the whole list at once rather than to each version.
 4. **The interior refit** -- built (2026-09-20), 4x6, Starfleet-issue lockers.
    Needs a fresh world *and* a pre-refit save, for the migration.
    `INTERIOR_REFIT.md` section 7 is the list.
-5. **The replicator** -- built (2026-09-20). Needs a world: the menu on the
-   berth, the alcove's height, the real catalogue's size, and a pattern
-   crossing between two machines.
+5. **The replicator** -- built and twice in a game (2026-09-20). Still needs
+   a world for: the fixed right-click, whether the machine looks like it
+   belongs, the tree and the known-only toggle, and a pattern crossing between
+   two machines.
 6. **The EMH.**
 7. **Publish.**
 

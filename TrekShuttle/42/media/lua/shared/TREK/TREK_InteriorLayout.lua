@@ -103,11 +103,15 @@ L.tiles = {
       container = true },
     { x = 0, y = 4, sprite = "appliances_cooking_01_24", tag = "microwave",
       container = true },
-    -- The replicator's berth. Tagged now and empty on purpose, so the
-    -- replicator arrives as a right-click on an object every save already
-    -- has rather than as another migration.
-    { x = 0, y = 5, sprite = "fixtures_counters_01_35", tag = "replicator",
-      container = true },
+    -- **0,5 carries no fitting: it is the replicator's, and the replicator is
+    -- a whole machine rather than something bolted to a counter.**
+    --
+    -- It was a steel counter for two revisions, with the model hanging over
+    -- it and replicated items going into the counter's own container. That
+    -- was half a machine leaning on a piece of furniture, and it is gone:
+    -- C.ReplicatorSpot names the square, TREK_Build stands the model on it,
+    -- and what it makes goes into your hands. A save that still has the
+    -- counter is cleaned up by B.refitCabin, contents and all.
 
     ---------------------------------------------------------------------
     -- Starboard forward: the three Starfleet lockers
