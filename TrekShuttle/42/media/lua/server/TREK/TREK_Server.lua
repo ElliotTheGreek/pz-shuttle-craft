@@ -28,6 +28,7 @@ require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_World"
 require "TREK/TREK_Vehicle"
+require "TREK/TREK_Medical"
 require "TREK/TREK_Build"
 
 TREK = TREK or {}
@@ -1134,6 +1135,83 @@ Net.onServer("setCrew", function(player, args)
     if name == s.owner then return end
     s.crew[name] = (args.on == true) or nil
     Ship.commit()
+end)
+
+---------------------------------------------------------------------------
+-- The tricorder's lock override
+---------------------------------------------------------------------------
+-- A lock is world state, so the server opens it and tells everyone. The
+-- client looked first, but only so it could offer the option: it is asked
+-- again here, from scratch, because a client is a request and never a fact.
+--
+-- **This is deliberately not gated on the ship's access rules.** The
+-- tricorder is an item somebody is carrying, not the shuttle, and a crew
+-- list is about who may fly her. What it *is* gated on is carrying the
+-- tricorder at all, a range the server measures itself, and a cooldown --
+-- without the range bound a crafted command is a master key for the map.
+--
+-- What it will not open is in TREK_Medical.lockOn: a padlock, or anything
+-- inside a safehouse this player is not a member of. Both are another
+-- player's property, and a mod that picks them is a griefing tool on every
+-- server that installs it.
+local unlockCooling = {}   -- username -> millisecond stamp of the last override
+
+local function unlockDenied(player, why)
+    Net.toClient(player, "unlocked", { ok = false, why = why })
+end
+
+Net.onServer("unlock", function(player, args)
+    if not alive(player) then return end
+
+    local x, y, z = position(args)
+    if not x then return end
+
+    local name = Ship.usernameOf(player)
+    local now = getTimestampMs()
+    local last = unlockCooling[name]
+    if last and now - last < C.UnlockCooldownMs then
+        unlockDenied(player, "cooling")
+        return
+    end
+
+    if not TREK.Medical.carries(player, C.TricorderType, C.TricorderItem) then
+        unlockDenied(player, "notool")
+        return
+    end
+
+    -- Measured on the server's own copy of where the player is, not on
+    -- anything the command carried.
+    local px = U.try("unlock.px", function() return player:getX() end)
+    local py = U.try("unlock.py", function() return player:getY() end)
+    local pz = U.try("unlock.pz", function() return math.floor(player:getZ()) end)
+    if not px or not py or pz ~= z
+       or U.dist2(px, py, x + 0.5, y + 0.5) > C.UnlockRange * C.UnlockRange then
+        unlockDenied(player, "far")
+        return
+    end
+
+    -- An unloaded chunk is "cannot tell yet", not "nothing there".
+    local sq = U.square(x, y, z, false)
+    if not sq then
+        unlockDenied(player, "unloaded")
+        return
+    end
+
+    local obj, why = TREK.Medical.lockOn(sq, name)
+    if not obj then
+        unlockDenied(player, why or "nolock")
+        return
+    end
+
+    -- The cooldown is spent on the attempt that reached a real lock, not on
+    -- the ones that were refused: a player who clicked a padlock should not
+    -- be locked out of the tool for twenty seconds for it.
+    unlockCooling[name] = now
+
+    local opened = TREK.Medical.unlock(obj)
+    Net.toClient(player, "unlocked", { ok = opened, why = opened and nil or "stuck" })
+    U.log("tricorder: %s override at %d,%d,%d -> %s",
+          name, x, y, z, opened and "open" or "refused")
 end)
 
 --- Design and diagnostic tools behind the debug console. Single player, or a

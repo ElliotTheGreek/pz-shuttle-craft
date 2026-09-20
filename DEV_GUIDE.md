@@ -234,6 +234,64 @@ exactly the way the user could see and the repository could not.
   roadmap wording it was derived from, the misreading would have been visible
   the first time anyone looked.
 
+### A convenience method is a bundle of writes somebody else chose
+
+**New in this mod, and it was one line from shipping.** `BodyPart
+.RestoreToFullHealth()` is the obvious way to mend a limb, it is public, it
+has nine vanilla Lua call sites, and it does considerably more than mend it:
+
+```
+  1  ldc_w  100.0     putfield BodyPart.health
+ 37  fconst_0         putfield BodyPart.biteTime
+ 42  iconst_0         putfield BodyPart.bitten        <-- here
+ 92  iconst_0         putfield BodyPart.infectedWound
+```
+
+The hypospray is specifically decided **not** to cure a bite -- that cure is
+the EMH's and is the only reason the EMH is worth building -- so the tidy
+version of that feature quietly hands a pocket item the one thing the game is
+built around, makes the next item on the roadmap pointless, and **reports
+nothing at all**. It is not a bug anybody would see. It is an item that is
+better than intended.
+
+So `TREK_Medical.lua` sets the fields it means to set, one at a time, and the
+test bites a body before every dose and asserts the bite survived.
+
+The rule generalises past this one method: `RestoreToFullHealth`,
+`RecalcAllWithNeighbours`, `createContainersFromSpriteProperties` and anything
+else whose name is a *summary* are bundles of writes chosen for somebody
+else's feature. `tools/javadis.py` lists what is in the bundle. Read it before
+reaching for the short call, especially when the difference between "does what
+I asked" and "does more than I asked" is invisible from outside.
+
+### A setter's own sync may be one-sided
+
+**New in this mod.** `IsoDoor.setLockedByKey(b)` does sync itself, which makes
+it look like the whole job -- and the branch that does it is:
+
+```
+ 24  getstatic  GameServer.server
+ 27  ifne       -> 55            <-- on a server, skip the sync entirely
+ 43  invokevirtual  IsoDoor.sync(3)
+```
+
+So the engine syncs a lock change made on a **client** and not one made on the
+**server**. A lock is world state, so by this document's own first rule the
+server is the thing that changes it -- which is exactly the process where that
+code does nothing. The door opens on the server and stays shut on every
+screen.
+
+`obj:sync()` is the call that covers both: on a server it writes a
+`SyncIsoObject` packet to every connection, on a client it sends one to the
+server, in single player there is nobody to tell. Public, with vanilla Lua
+call sites on both sides (`server/ClientCommands.lua:780`).
+
+**The general shape: "it syncs itself" is a claim about one side.** Whenever a
+setter is documented -- or observed -- to replicate, check which process it
+was written for. This mod has now been bitten by the mirror image of this
+twice: `addFluid` really does sync from the server, and a vehicle's mod data
+really does not reach clients at all.
+
 ### Never trust one way of doing it when the cost of being wrong is silence
 
 `U.addVerified` tries `instanceItem`, then `container:AddItem(id)`, then
@@ -913,6 +971,7 @@ python tools/gen_mekleth.py TrekShuttle/42        # and lirpa, ushaantor
 python tools/meshbbox.py --vanilla spear          # measure vanilla, or ours
 python tools/gen_poster.py  TrekShuttle/42
 python tools/gen_reticle.py TrekShuttle/42        # the torpedo reticle
+python tools/gen_medical.py TrekShuttle/42        # the hypospray and tricorder sounds
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
@@ -987,6 +1046,10 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **The shuttle flies and ploughs through fences** | Same cause. Collision resolves at `getZ()`, which is 0 without a floor. |
 | **A ship parked in the sky for ever** | Flight ended without `Sky.clear()`. The floors are world objects and they are saved. `s.skyAt` is how they get lifted; if that was lost, they are permanent. |
 | **An explosion kills things and nothing is seen** | In build 42 the visible part of an explosion *is* the fire and the smoke; there is no separate effect. `FireStartingChance`, `FireRange` and `SmokeRange` are set in **two** places — the item script and the Lua — and `triggerExplosion()` skips any mode whose range is 0 entirely. See `PHOTON_TORPEDOS.md`. |
+| **A locked door opens for the host and stays shut for everyone else** | The lock was changed on the server and never synced. `setLockedByKey` fires its own sync only when it is *not* the server; call `obj:sync()`. See *A setter's own sync may be one-sided*. |
+| **An item heals more than it was meant to** | A convenience method. `BodyPart.RestoreToFullHealth()` clears the bite as well, and nothing anywhere reports it. See *A convenience method is a bundle of writes somebody else chose*. |
+| **A right-click offers nothing for a mod item** | Build 42 has no script hook for "using" an arbitrary item; it has to be an `OnFillInventoryObjectContextMenu` option. And an entry in that event's `items` is either an `InventoryItem` **or** a stack table with its own `items` list — code that handles one shape silently does nothing for the other. |
+| **A panel is fine with a mouse and dead on the Steam Deck** | It is not an `ISPanelJoypad`, or its buttons were never registered with `insertNewLineOfButtons`. Note that vanilla's `ISHealthPanel` *is* one already. |
 | **A feature is reported broken and every test passes** | Suspect the tests. See *A guard is only as good as the goal it was written from* — a test, a comment and a constant all agreeing with each other is not corroboration if they came from one misreading. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
@@ -1001,9 +1064,9 @@ Learn these; they map to causes that are not obvious from the symptom.
 | `tools/luacheck.py` | Lua syntax, via a real Lua VM |
 | `tests/test_assets.py` | sprites, items, meshes, textures, icons, the phaser's borrowed vanilla references, and every translation key |
 | `tests/test_stock.py` | items that cannot be created at all; loot that does not spread across its list; containers that do not reach `C.FillFraction` |
-| `tests/test_multiplayer.py` | the real code as single player and as a server with two clients: cabin build and stock reaching every client, ownership and crew, transporter charges, landing round trips, ghosts, shields pushing only local zombies, a client editing the world or ship state, commands without handlers, missing file guards, role-gated setters, any logged `WARN` |
-| `tests/test_helm.py` | helm console throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
-| `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
+| `tests/test_multiplayer.py` | the real code as single player and as a server with two clients: cabin build and stock reaching every client, ownership and crew, transporter charges, landing round trips, ghosts, shields pushing only local zombies, the torpedoes, the medical set (including that a dose leaves a bite and the infection alone), a client editing the world or ship state, commands without handlers, missing file guards, role-gated setters, any logged `WARN` |
+| `tests/test_helm.py` | the mod's panels -- the helm console and the tricorder's contact plot -- for throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
+| `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; `special` names with no rule behind them; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
 
 `test_stock.py` stubs the engine **the way it really behaves** — `instanceItem`
 present, `InventoryItemFactory` nil — and its first assertion is simply that an
@@ -1094,7 +1157,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.3.0**, build revision **12**.
+Version **1.3.0**, build revision **14**.
 
 **1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-9):
 server-owned ship and cabin, request protocol, transporter charges, shields per
@@ -1142,6 +1205,10 @@ slots. The torpedo's blast size and fire spread both needed no adjusting.
 
 **Not yet seen in game**, in the order worth checking:
 
+0. **The medical set**: the three items in the sick-bay locker, a dose that
+   leaves a bite alone, the health panel at doctor level, the sensor sweep in
+   front of a horde, and the lock override on a door and then on a padlock.
+   `MEDICAL_SET.md` section 7 is the list.
 1. **The dedicated server**: the interior cell loads there, the server-built
    cabin reaches the client with its stock, water fills with the mains off.
 2. **Two players**: one cabin, loot taken by one gone for the other, crew
@@ -1159,8 +1226,24 @@ checks caught none of them, because the mod's logic was correct every time. What
 it**: `B.stockReport()` turned three sessions of guessing into one grep. When
 you add something to the cabin, add the line that proves it arrived.
 
-**Next up** is the medical set — hypospray, medical tricorder, tricorder.
-`MEDICAL_SET.md` has the verified engine facts and the traps; nothing is built.
+**The 2026-09-20 medical pass** built all three: the hypospray, the medical
+tricorder and the tricorder, with their icons, two generated sounds, an LCARS
+contact plot and a server-side lock override. **None of it has been seen in
+game.** `MEDICAL_SET.md` is a working guide now rather than a plan, and it
+carries two corrections to what it used to claim: `ISHealthPanel` **is** an
+`ISPanelJoypad`, so the controller question needed no work at all; and the
+lock setters' own sync is skipped on a server, so the authority has to call
+`obj:sync()` itself.
+
+The expensive near-miss in that pass is worth repeating here, because no check
+in this repository would have caught it: `BodyPart.RestoreToFullHealth()` is
+the obvious way to mend a limb and it clears the **bite** as well. The
+hypospray is specifically decided not to cure a bite -- that is the EMH's --
+so the tidy version of the feature would have been silently better than
+intended, and the next item on the roadmap silently pointless. See *A
+convenience method is a bundle of writes somebody else chose*.
+
+**Next up** is the replicator, and then the EMH.
 
 Known limits are listed at the bottom of `README.md`.
 
@@ -1186,6 +1269,8 @@ TrekShuttle/42/media/lua/client/TREK/TREK_Flight.lua           taking her up, ch
 TrekShuttle/42/media/lua/client/TREK/TREK_Helm.lua             the LCARS helm console
 TrekShuttle/42/media/lua/client/TREK/TREK_Travel.lua           courses, map picking, landing search
 TrekShuttle/42/media/lua/client/TREK/TREK_Phaser.lua           keeping phasers charged
+TrekShuttle/42/media/lua/shared/TREK/TREK_Medical.lua          treatment, doses, what counts as a lock
+TrekShuttle/42/media/lua/client/TREK/TREK_MedKit.lua           the medical set: menus, panels, the sweep
 TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua             right-click menus, crew
 tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network
 ```

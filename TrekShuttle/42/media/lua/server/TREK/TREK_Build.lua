@@ -289,20 +289,44 @@ local function wantsContainer(entry)
     return entry.container == true or entry.loot ~= nil or entry.special ~= nil
 end
 
+--- What each `special` container is guaranteed to hold, whatever its loot
+--- list then does. The phaser locker gets four phasers; the forward sick-bay
+--- locker gets one of each of the ship's own medical instruments.
+---
+--- U.stockEach is the one that reads the container back and says what did not
+--- land, which is the whole reason these are listed rather than left to the
+--- fill: a guarantee that is not checked is not a guarantee.
+local SPECIALS = {
+    phasers = { items = { C.PhaserItem }, copies = function() return C.PhaserCount end },
+    medkit  = { items = { C.HyposprayItem, C.MedTricorderItem, C.TricorderItem },
+                copies = function() return 1 end },
+}
+
 --- Stocks one authored container. Returns true when something went in.
 ---
---- The phaser locker is stocked in two passes, and the order is the point:
---- the phasers go in and are counted first, then the armoury list fills what
---- is left. Filling first could leave the locker holding no phasers at all.
+--- A special container is stocked in two passes, and the order is the point:
+--- the guaranteed items go in and are counted first, then the loot list fills
+--- what is left. Filling first could leave the locker holding none of them.
 local function stockAuthored(obj, entry)
     local added = 0
 
-    if entry.special == "phasers" then
-        local present = U.stockEach(obj, { C.PhaserItem }, C.PhaserCount)
-        local count = present[C.PhaserItem] or 0
-        added = added + count
-        if count < C.PhaserCount then
-            U.log("WARN phaser locker holds %d of %d", count, C.PhaserCount)
+    local special = entry.special and SPECIALS[entry.special]
+    if entry.special and not special then
+        U.warnOnce("special:" .. tostring(entry.special),
+                   "no special stock rule named " .. tostring(entry.special))
+    elseif special then
+        local copies = special.copies()
+        local present = U.stockEach(obj, special.items, copies)
+        for _, id in ipairs(special.items) do
+            local count = present[id] or 0
+            added = added + count
+            -- Short, not merely absent: a container at capacity drops what it
+            -- is handed without raising anything, so two phasers in a locker
+            -- meant to hold four looks exactly like four until it is counted.
+            if count < copies then
+                U.log("WARN %s locker holds %d of %d %s",
+                      tostring(entry.special), count, copies, id)
+            end
         end
     end
 

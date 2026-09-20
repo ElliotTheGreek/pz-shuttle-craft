@@ -460,6 +460,44 @@ Still unproven, and only the game can say: whether the blast is visible to a
 client that did not fire it, and what it does to the shuttle if fired too
 close.
 
+### The medical set
+
+Built 2026-09-20, not yet played. `MEDICAL_SET.md` is the working guide; this
+section is only the authority split.
+
+| | |
+|---|---|
+| Treating your **own** body (the hypospray) | **That player's client.** Body damage belongs to the owning client and syncs from there -- the same rule and the same reason as "a client moves only its own character" |
+| Hypospray doses | **The item**, in its own mod data, which travels with it |
+| Reading your own vitals (medical tricorder) | **Client.** Pure UI |
+| Reading **somebody else's** vitals | **The engine's own consent flow.** `requestMedicalCheck` raises a yes/no on the other player's screen; only a yes reaches `ISMedicalCheckAction`, which the mod wraps to raise `doctorLevel` |
+| The sensor sweep | **Each client, for the zombies it can see.** Reads `cell:getZombieList()`, the same list the shields walk. On a server that is not quite every zombie there is, which is honest -- a sensor reading rather than omniscience |
+| The contact plot | **Client**, drawn in the panel; it touches no world object, the same documented exception as the torpedo's flight |
+| **A lock** | **Server**, on a validated `unlock` command |
+
+Three things about the lock are worth keeping here rather than only in
+`MEDICAL_SET.md`:
+
+- **The engine's own sync runs on the wrong side.** `setLockedByKey(b)` fires
+  `IsoDoor.sync()` itself, behind `if (!GameServer.server)`. A lock is world
+  state, so by hard rule 4 the server is what changes it -- and that is
+  exactly the process where the branch is skipped. `obj:sync()` is the
+  explicit call that works from both, and the server makes it. [HIGH]
+- **The tool is checked in the player's inventory on the server's own copy**,
+  not taken from the command, along with the range, the cooldown and whether
+  the chunk is even loaded. A client is a request and never a fact.
+- **It will not open a padlock, and it will not open anything inside a
+  safehouse the asking player is not a member of.** Both are another player's
+  property. A mod that picks them is a griefing tool on every server that
+  installs it, with no setting to turn it off, because a server owner would
+  first have to know it was there. `SafeHouse.isSafeHouse(square, username,
+  true)` answers exactly that question: it returns the safehouse only when the
+  named player is not on its list. [HIGH]
+
+`tests/test_multiplayer.py` plays all of it, single player and with two
+clients, including the refusals and the one check that asserts a non-effect: a
+dose must leave a bite and the zombie infection alone.
+
 ---
 
 ## Risks that only the game can settle
@@ -479,6 +517,12 @@ close.
    `BaseVehicle.update()` then recomputes it) has only been reasoned about.
 9. **Flight speed at one helm reaching the pilot at another.** Proven in
    simulation; unproven across a real connection.
+10. **A lock opened by one player, seen by another.** The server clears the
+    flags and calls `obj:sync()`; the packet itself has only been reasoned
+    about from the bytecode.
+11. **A medical scan on another player**: the consent prompt appearing on
+    their screen, and the panel that follows reporting at doctor level
+    rather than at the scanner's own Doctor skill.
 
 ---
 

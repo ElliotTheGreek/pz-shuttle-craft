@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 13
+C.BuildRev = 14
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -525,6 +525,77 @@ C.PhaserRack  = { x = 5, y = 6 }
 C.PhaserCount = 4
 
 ---------------------------------------------------------------------------
+-- The medical set
+---------------------------------------------------------------------------
+-- Three items, and the same two-names-for-one-item rule the phaser follows:
+-- the engine's recursive inventory search compares the *bare* type, and
+-- anything that spawns or places the item wants the full id.
+C.HyposprayItem    = "TrekShuttle.TrekHypospray"
+C.HyposprayType    = "TrekHypospray"
+C.MedTricorderItem = "TrekShuttle.TrekMedTricorder"
+C.MedTricorderType = "TrekMedTricorder"
+C.TricorderItem    = "TrekShuttle.TrekTricorder"
+C.TricorderType    = "TrekTricorder"
+
+-- Doses in a full hypospray, and how often the ship replicates another one
+-- into it, in ticks, **while the carrier is aboard**.
+--
+-- This is the one real limit on the item and it is deliberate. Everything
+-- else Starfleet issues in this mod is unlimited -- the phaser never runs
+-- dry, the torpedo tubes make their own -- and a pocket device that also
+-- cures every wound in the game at will is a different proposition: it
+-- removes the whole medical layer of Project Zomboid rather than adding to
+-- it. Six doses is a bad day survived; the seventh means going home.
+--
+-- Sixty ticks is a second, so this is one dose every fifteen seconds aboard
+-- and a minute and a half from empty to full. The recharge is deliberately
+-- tied to the cabin rather than to time: it is the ship that makes them.
+C.HyposprayDoses         = 6
+C.HyposprayRechargeTicks = 900
+
+-- What a dose will not touch, restated here because it is a design decision
+-- and not a limitation: a bite, and the zombie infection. BodyPart
+-- .SetBitten(false) and BodyDamage.setInfected(false) are the EMH's, and
+-- they are the entire reason the EMH is worth building. The two names are
+-- nearly identical to two the hypospray *does* use
+-- (BodyPart.setInfectedWound is an ordinary infected cut and is cured), so
+-- this constant exists to be read by the one test that proves it.
+C.HyposprayCuresBites = false
+
+-- The Doctor level the medical tricorder reports at. ISHealthPanel gates its
+-- readouts at > 2, > 4, > 6 and > 8, so anything past 8 opens all of them;
+-- 10 is the top of the skill and says what it means.
+--
+-- Set on the panel *instance* (panel.doctorLevel), never through
+-- ISHealthPanel.cheat -- that global is `false or getDebug()` and otherwise
+-- admin-only, so it would work here and for nobody on the Workshop.
+C.MedDoctorLevel = 10
+
+-- The sensor sweep. Radius in tiles, and how many contacts to classify per
+-- tick: the list is walked with a cursor and a slice for the same reason the
+-- landing search is, and a sweep that ran in one frame on a horde would be
+-- the hard lock described in DEV_GUIDE.md.
+--
+-- 40 tiles is about twice what a player can see, which is the point of
+-- having one at all, and comfortably inside the chunks a client has loaded.
+C.SweepRadius      = 40
+C.SweepPerTick     = 96
+C.SweepIntervalMs  = 3000    -- between sweeps, so the panel cannot be spammed
+
+-- The three range bands the contacts are sorted into, as fractions of the
+-- radius. Named in the readout rather than given as numbers: a tricorder
+-- reports "close" before it reports "thirteen metres".
+C.SweepBands = { 0.33, 0.66 }
+
+-- The lock override. Range in tiles from the player to the lock, and the
+-- cooldown between overrides in milliseconds, held per player on the server.
+--
+-- The range is small because the server validates it and a client is a
+-- request, never a fact: without a bound, a crafted command unlocks the map.
+C.UnlockRange       = 2
+C.UnlockCooldownMs  = 20000
+
+---------------------------------------------------------------------------
 -- Sprites
 ---------------------------------------------------------------------------
 -- Facing keys name the wall an object stands against, which is also the way
@@ -673,7 +744,15 @@ C.FillItemCap = 48
 -- fourth entry is therefore something substantial (a box, a kit, a splint),
 -- which is both what carries the cabinet to a believable fill and what a
 -- ship's sick bay would actually be stocked with.
+-- The mod's own three go in at the top of the list rather than being left to
+-- the rolling cursor: the fill walks this list from wherever the last
+-- container stopped, so an item at position 20 of 31 may simply never appear
+-- in either sick-bay locker. The forward locker also stocks one of each
+-- outright (`special = "medkit"` in TREK_InteriorLayout.lua), the way the
+-- phaser locker stocks phasers, so a fresh ship always has the set aboard.
 C.Loot.medical = {
+    "TrekShuttle.TrekHypospray", "TrekShuttle.TrekMedTricorder",
+    "TrekShuttle.TrekTricorder",
     "Base.FirstAidKit", "Base.Bandage", "Base.Antibiotics", "Base.Disinfectant",
     "Base.BandageBox", "Base.AlcoholWipes", "Base.AlcoholBandage", "Base.Pills",
     "Base.AdhesiveBandageBox", "Base.PillsAntiDep", "Base.PillsBeta",

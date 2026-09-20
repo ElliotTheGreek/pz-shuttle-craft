@@ -80,7 +80,13 @@ L.tiles = {
 
     -- The starboard lockers, bow to stern. Sick bay first, then engineering,
     -- then stores, then the armoury around the phaser locker.
-    { x = 5, y = 1, sprite = "furniture_storage_02_11", tag = "medical", container = true, loot = "medical" },
+    -- The forward sick-bay locker carries one of each of the ship's own
+    -- medical instruments outright, the way the locker at 5,6 carries the
+    -- phasers. Leaving them to the loot list alone is not enough: the fill
+    -- walks C.Loot.medical from a rolling cursor, so three entries in a list
+    -- of thirty-one can miss both lockers entirely and the ship sails with
+    -- no tricorder aboard.
+    { x = 5, y = 1, sprite = "furniture_storage_02_11", tag = "medical", container = true, special = "medkit", loot = "medical" },
     { x = 5, y = 2, sprite = "furniture_storage_02_11", tag = "medical", container = true, loot = "medical" },
     { x = 5, y = 3, sprite = "furniture_storage_02_11", tag = "engineering", container = true, loot = "tools" },
     { x = 5, y = 4, sprite = "furniture_storage_02_11", tag = "engineering", container = true, loot = "tools" },

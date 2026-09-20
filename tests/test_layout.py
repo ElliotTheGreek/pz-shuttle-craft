@@ -115,8 +115,25 @@ else:
                         f"authored phaser locker is at {phasers[0]['x']},"
                         f"{phasers[0]['y']}")
 
-# --- the lamps (C.LampSpots) and the helm, which the server build places --
+# --- every `special` names a rule the build actually has ------------------
+# A special is a string in one file that has to be matched by a key in another,
+# with nothing at runtime to notice a typo: a container marked `special =
+# "medkit"` against a build that only knows "medkits" is stocked from its loot
+# list and never says a word, which is how the sick-bay locker would quietly
+# stop carrying a tricorder.
 src = open(BUILD, encoding="utf-8").read()
+rules = set(re.findall(r"^\s{4}(\w+)\s*=\s*\{ items =", src, re.M))
+if not rules:
+    failures.append("no SPECIALS table found in TREK_Build.lua")
+authored = {e["special"] for e in entries if e["special"] is not None}
+for name in sorted(authored - rules):
+    failures.append(f"the layout marks a container special = {name!r}, and "
+                    f"TREK_Build.lua has no stock rule of that name")
+for name in sorted(rules - authored):
+    failures.append(f"TREK_Build.lua has a {name!r} stock rule and no container "
+                    f"in the layout is marked with it")
+
+# --- the lamps (C.LampSpots) and the helm, which the server build places --
 lamps = [(int(C.LampSpots[i][1]), int(C.LampSpots[i][2]))
          for i in range(1, len(C.LampSpots) + 1)]
 helm = re.search(r"local hx, hy = at\((\d+), (\d+)\)", src)
@@ -180,7 +197,7 @@ print("   d drinks      * lamp")
 
 print(f"\n{len(entries)} authored fittings, {len(containers)} of them stocked:")
 for e in containers:
-    what = "phasers + " + (e["loot"] or "-") if e["special"] else e["loot"]
+    what = (e["special"] + " + " + (e["loot"] or "-")) if e["special"] else e["loot"]
     print(f"  {e['x']},{e['y']}  {e['tag']:11s} {what}")
 
 # --- the Lua against the .tbx it came from -----------------------------

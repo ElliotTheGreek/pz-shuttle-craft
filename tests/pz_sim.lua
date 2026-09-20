@@ -104,7 +104,21 @@ end
 ---------------------------------------------------------------------------
 function instanceItem(id)
     if type(id) ~= "string" or not id:find("%.") then return nil end
-    return { fullType = id, getFullType = function(self) return self.fullType end }
+    -- Mod data on an item, because that is where the hypospray keeps its
+    -- doses. A stub without it would make Med.doses() return 0 for every
+    -- injector in the world and the test would prove the wrong thing.
+    -- `class` so instanceof(item, "InventoryItem") answers the way the engine
+    -- does. Without it the mod's context-menu code, which has to tell a single
+    -- item from a stack, sees neither and offers nothing at all.
+    return { fullType = id, modData = {}, class = "InventoryItem",
+             getFullType = function(self) return self.fullType end,
+             getModData = function(self) return self.modData end }
+end
+
+--- The bare type, the way the engine's recursive lookups compare it:
+--- "TrekShuttle.TrekTricorder" -> "TrekTricorder".
+local function bareType(fullType)
+    return (tostring(fullType):gsub("^.*%.", ""))
 end
 
 function SIM.container(capacity)
@@ -121,7 +135,22 @@ function SIM.container(capacity)
     function c:setExplored(v) self.explored = v end
     function c:setDirty() end
     function c:setDrawDirty() end
-    function c:getAllTypeRecurse() return jlist({}) end
+    --- Really searches, and really compares the **bare** type.
+    ---
+    --- This used to return an empty list, which was fine while nothing asked
+    --- it anything. It is the phaser sweep's lookup and the medical set's, and
+    --- a stub that always answers "you are carrying nothing" would let a
+    --- broken lookup pass every test in this file.
+    function c:getAllTypeRecurse(bare)
+        local out = {}
+        for _, item in ipairs(self.items) do
+            if bareType(item.fullType) == bare then table.insert(out, item) end
+        end
+        return jlist(out)
+    end
+    function c:containsTypeRecurse(bare)
+        return self:getAllTypeRecurse(bare):size() > 0
+    end
     return c
 end
 
@@ -182,6 +211,47 @@ function ObjectMT:transmitModData()
 end
 function ObjectMT:getItem() return self.item end
 function ObjectMT:setIgnoreRemoveSandbox() end
+
+---------------------------------------------------------------------------
+-- Locks
+---------------------------------------------------------------------------
+-- A door, a window or a player-built thumpable, with the four lock flags the
+-- engine really has and the sync call that really has to be made.
+--
+-- **The sync is modelled because the engine's is not symmetric.** In build 42
+-- `setLockedByKey(b)` fires IsoDoor.sync() itself -- but only when
+-- `!GameServer.server`, so a door opened by the authority sends no packet at
+-- all and stays shut on every client's screen. `obj:sync()` is the explicit
+-- call that covers both, and SIM.synced is how a test proves it was made.
+SIM.synced = {}
+
+function ObjectMT:isLocked() return self.locked == true end
+function ObjectMT:setIsLocked(v) self.locked = v end
+function ObjectMT:isLockedByKey() return self.lockedByKey == true end
+function ObjectMT:setLockedByKey(v)
+    self.lockedByKey = v
+    self.locked = v
+end
+function ObjectMT:isLockedByPadlock() return self.padlock == true end
+function ObjectMT:setLockedByPadlock(v) self.padlock = v end
+function ObjectMT:sync()
+    table.insert(SIM.synced, self)
+end
+
+--- Puts a locked thing on a square. `kind` is the Iso class instanceof will
+--- report, so a test can build a padlocked IsoThumpable as well as a plain
+--- key-locked IsoDoor.
+function SIM.lock(x, y, z, kind, opts)
+    opts = opts or {}
+    local sq = SIM.rawSquare(x, y, z)
+    local o = SIM.object(opts.sprite or "fixtures_doors_01_0", kind or "IsoDoor")
+    o.square = sq
+    o.locked = opts.locked ~= false
+    o.lockedByKey = opts.lockedByKey ~= false
+    o.padlock = opts.padlock == true
+    table.insert(sq.objects, o)
+    return o
+end
 
 IsoObject = {}
 function IsoObject.new(sq, sprite, name)
@@ -844,6 +914,131 @@ function PlayerMT:setHaloNote(text)
     table.insert(SIM.notes, { player = self.name, text = text })
 end
 
+---------------------------------------------------------------------------
+-- Bodies
+---------------------------------------------------------------------------
+-- Enough of BodyDamage and BodyPart for the medical set. Every field is a
+-- real field the engine has, with the engine's own name, and every setter
+-- really writes -- because the whole point of TREK_Medical.treat() is that it
+-- reads its result back, and a stub whose setters silently did nothing would
+-- make that check pass for the wrong reason.
+--
+-- **The bite is modelled even though nothing in the mod may cure it.** That
+-- is the reason it is here: the hypospray is decided not to cure a bite or
+-- the zombie infection, and a body with no bite on it cannot prove that a
+-- dose left one alone.
+local BodyPartMT = {}
+BodyPartMT.__index = BodyPartMT
+
+local BODY_PARTS = { "Hand_L", "Hand_R", "ForeArm_L", "ForeArm_R",
+                     "UpperArm_L", "UpperArm_R", "Torso_Upper", "Torso_Lower",
+                     "Head", "Neck", "Groin", "UpperLeg_L", "UpperLeg_R",
+                     "LowerLeg_L", "LowerLeg_R", "Foot_L", "Foot_R" }
+
+local function newBodyPart(name)
+    return setmetatable({
+        name = name, health = 100,
+        isBleeding = false, bleedingTime = 0,
+        isDeepWounded = false, deepWoundTime = 0,
+        infectedWound = false, woundInfection = 0,
+        burnTime = 0, needBurnWash = false,
+        fractureTime = 0, splint = false,
+        additionalPain = 0, stiffness = 0,
+        isBitten = false, biteTime = 0,
+    }, BodyPartMT)
+end
+
+function BodyPartMT:getHealth() return self.health end
+function BodyPartMT:SetHealth(v) self.health = v end
+function BodyPartMT:bleeding() return self.isBleeding end
+function BodyPartMT:setBleeding(v) self.isBleeding = v end
+function BodyPartMT:setBleedingTime(v) self.bleedingTime = v end
+function BodyPartMT:deepWounded() return self.isDeepWounded end
+function BodyPartMT:setDeepWounded(v) self.isDeepWounded = v end
+function BodyPartMT:getDeepWoundTime() return self.deepWoundTime end
+function BodyPartMT:setDeepWoundTime(v) self.deepWoundTime = v end
+function BodyPartMT:isInfectedWound() return self.infectedWound end
+function BodyPartMT:setInfectedWound(v) self.infectedWound = v end
+function BodyPartMT:getWoundInfectionLevel() return self.woundInfection end
+function BodyPartMT:setWoundInfectionLevel(v) self.woundInfection = v end
+function BodyPartMT:getBurnTime() return self.burnTime end
+function BodyPartMT:setBurnTime(v) self.burnTime = v end
+function BodyPartMT:isNeedBurnWash() return self.needBurnWash end
+function BodyPartMT:setNeedBurnWash(v) self.needBurnWash = v end
+function BodyPartMT:getFractureTime() return self.fractureTime end
+function BodyPartMT:setFractureTime(v) self.fractureTime = v end
+function BodyPartMT:isSplint() return self.splint end
+function BodyPartMT:setSplint(v) self.splint = v end
+function BodyPartMT:getAdditionalPain() return self.additionalPain end
+function BodyPartMT:setAdditionalPain(v) self.additionalPain = v end
+function BodyPartMT:getStiffness() return self.stiffness end
+function BodyPartMT:setStiffness(v) self.stiffness = v end
+function BodyPartMT:bitten() return self.isBitten end
+function BodyPartMT:SetBitten(v) self.isBitten = v end
+function BodyPartMT:getBiteTime() return self.biteTime end
+function BodyPartMT:setBiteTime(v) self.biteTime = v end
+
+local function newBodyDamage()
+    local parts = {}
+    for _, name in ipairs(BODY_PARTS) do table.insert(parts, newBodyPart(name)) end
+    local bd = { parts = parts, infected = false }
+    function bd:getBodyParts() return jlist(self.parts) end
+    function bd:isInfected() return self.infected end
+    function bd:setInfected(v) self.infected = v end
+    return bd
+end
+
+function PlayerMT:getBodyDamage()
+    self.bodyDamage = self.bodyDamage or newBodyDamage()
+    return self.bodyDamage
+end
+
+--- Inflicts something on one body part, so a test has a body worth treating.
+--- `which` is an index into the part list; the defaults hurt a hand.
+function SIM.hurt(player, what, which)
+    local parts = player:getBodyDamage().parts
+    local p = parts[which or 1]
+    if what == "bleeding" then p.isBleeding, p.bleedingTime = true, 10
+    elseif what == "deepWound" then p.isDeepWounded, p.deepWoundTime = true, 10
+    elseif what == "infectedWound" then p.infectedWound, p.woundInfection = true, 5
+    elseif what == "burn" then p.burnTime, p.needBurnWash = 20, true
+    elseif what == "fracture" then p.fractureTime, p.splint = 21, true
+    elseif what == "pain" then p.additionalPain = 40
+    elseif what == "stiffness" then p.stiffness = 30
+    elseif what == "health" then p.health = 40
+    elseif what == "bite" then p.isBitten, p.biteTime = true, 10
+    else error("SIM.hurt: no such injury " .. tostring(what)) end
+    return p
+end
+
+---------------------------------------------------------------------------
+-- Sounds a character makes
+---------------------------------------------------------------------------
+-- Recorded rather than played. What a test can honestly ask is whether the
+-- instrument said anything at all: a scan with no feedback is a button that
+-- appears to do nothing, which is the shape of half the bugs in DEV_GUIDE.md.
+SIM.sounds = {}
+function PlayerMT:playSound(name)
+    table.insert(SIM.sounds, { player = self.name, name = name, local_ = false })
+end
+function PlayerMT:playSoundLocal(name)
+    table.insert(SIM.sounds, { player = self.name, name = name, local_ = true })
+end
+
+function SIM.heardSound(name)
+    for _, s in ipairs(SIM.sounds) do
+        if s.name == name then return true end
+    end
+    return false
+end
+
+function PlayerMT:getDisplayName() return self.name end
+function PlayerMT:getDescriptor()
+    local name = self.name
+    return { getForename = function() return name end,
+             getSurname = function() return "" end }
+end
+
 function getPlayer() return SIM.players[1] end
 function getSpecificPlayer(i) return SIM.players[i + 1] end
 function getOnlinePlayers()
@@ -958,10 +1153,18 @@ local function derivable(name)
     function cls:setCapture() end
     function cls:addToUIManager() self.onScreen = true end
     function cls:removeFromUIManager() self.onScreen = false end
+    function cls:setVisible(v) self.visible = v end
+    function cls:addChild(c) c.parent = self; table.insert(self.children, c) end
+    function cls:getWidth() return self.width end
     function cls:drawTextureScaled() end
     function cls:drawTexture() end
     function cls:drawRect() end
+    function cls:drawRectBorder() end
     function cls:drawText() end
+    function cls:drawTextRight() end
+    function cls:drawTextCentre() end
+    function cls:insertNewLineOfButtons() end
+    function cls:setISButtonForB(b) self.ISButtonB = b end
     return cls
 end
 ISPanelJoypad = derivable("ISPanelJoypad")
@@ -1166,7 +1369,136 @@ end
 
 ISWorldMap = { onMouseUp = function() end, render = function() end,
                onJoypadDown = function() end }
-ISWorldObjectContextMenu = { setTest = function() return true end }
+ISWorldObjectContextMenu = {
+    setTest = function() return true end,
+    addToolTip = function() return { description = nil } end,
+}
+
+---------------------------------------------------------------------------
+-- Context menus
+---------------------------------------------------------------------------
+-- Enough of ISContextMenu to record what a menu offered. The options are the
+-- only way a player reaches any of the medical set -- build 42 has no script
+-- hook for "using" an arbitrary item -- so a test that called the handlers
+-- directly would prove the feature and not the way in. That is exactly how a
+-- build in which nobody could ever fire a torpedo passed every check.
+function SIM.contextMenu()
+    local m = { options = {} }
+    function m:addOption(text, target, fn, ...)
+        local option = { name = text, fn = fn, args = { ... }, target = target }
+        table.insert(self.options, option)
+        return option
+    end
+    function m:addSubMenu() end
+    function m:getIsVisible() return true end
+    --- The option with this label, or nil.
+    function m:find(text)
+        for _, o in ipairs(self.options) do
+            if o.name == text then return o end
+        end
+        return nil
+    end
+    --- Clicks one, the way the engine does: the handler is called with the
+    --- target first and then the arguments the option was built with.
+    function m:click(text)
+        local o = self:find(text)
+        if not o then return false end
+        o.fn(o.target, unpack(o.args))
+        return true
+    end
+    function m:labels()
+        local out = {}
+        for _, o in ipairs(self.options) do table.insert(out, o.name) end
+        return table.concat(out, "|")
+    end
+    return m
+end
+ISContextMenu = { getNew = function() return SIM.contextMenu() end }
+
+---------------------------------------------------------------------------
+-- Safehouses
+---------------------------------------------------------------------------
+-- Boxes a test can declare, with a member list. The engine's own
+-- isSafeHouse(square, username, respectOwnerConnected) returns the safehouse
+-- only when the square is inside one the named player is **not** a member of,
+-- which is exactly the question the tricorder has to ask before it opens a
+-- lock. Modelled that way round on purpose: getting it backwards would make
+-- the mod refuse its owner and open everyone else's door.
+SIM.safehouses = {}
+
+function SIM.safehouse(x1, y1, x2, y2, members)
+    local h = { x1 = x1, y1 = y1, x2 = x2, y2 = y2, members = members or {} }
+    table.insert(SIM.safehouses, h)
+    return h
+end
+
+SafeHouse = {}
+function SafeHouse.isSafeHouse(sq, username, _)
+    if not sq then return nil end
+    for _, h in ipairs(SIM.safehouses) do
+        if sq.x >= h.x1 and sq.x <= h.x2 and sq.y >= h.y1 and sq.y <= h.y2 then
+            if username then
+                for _, m in ipairs(h.members) do
+                    if m == username then return nil end
+                end
+            end
+            return h
+        end
+    end
+    return nil
+end
+
+---------------------------------------------------------------------------
+-- Vanilla's health panel
+---------------------------------------------------------------------------
+-- Recorded, not drawn. The one thing worth asserting about it is the field
+-- the medical tricorder sets: `doctorLevel` on the instance, never the
+-- `ISHealthPanel.cheat` global, which is `false or getDebug()` in the real
+-- file and would work for this developer and for nobody on the Workshop.
+SIM.healthPanels = {}
+ISHealthPanel = { cheat = false }
+
+function ISHealthPanel:new(patient, x, y, w, h)
+    local o = { patient = patient, x = x, y = y, width = w, height = h,
+                doctorLevel = 0 }
+    function o:initialise() end
+    function o:setOtherPlayer(p) self.otherPlayer = p end
+    function o:wrapInCollapsableWindow(title)
+        local win = { nested = self, title = title }
+        function win:addToUIManager() self.onScreen = true end
+        function win:removeFromUIManager() self.onScreen = false end
+        self.window = win
+        return win
+    end
+    table.insert(SIM.healthPanels, o)
+    return o
+end
+
+function SIM.lastHealthPanel() return SIM.healthPanels[#SIM.healthPanels] end
+
+function getPlayerScreenLeft(_) return 0 end
+function getPlayerScreenTop(_) return 0 end
+function getPlayerScreenWidth(_) return 1920 end
+function getPlayerScreenHeight(_) return 1080 end
+
+-- Who the stick is pointing at. A panel that takes the focus and never gives
+-- it back leaves a controller driving something that has gone.
+SIM.joypadFocus = {}
+function setJoypadFocus(playerNum, target)
+    SIM.joypadFocus[playerNum or 0] = target or false
+end
+function updateJoypadFocus() end
+
+-- Asking somebody else if they may be scanned. In the engine this raises a
+-- yes/no on their screen and only a yes reaches ISMedicalCheckAction; here
+-- the request is simply recorded, because what a test can honestly check is
+-- that the mod **asked** rather than helping itself.
+SIM.medicalRequests = {}
+function requestMedicalCheck(target, requester)
+    table.insert(SIM.medicalRequests,
+                 { target = target.name, requester = requester.name })
+end
+function acceptMedicalCheck() end
 -- One loot window per player, as the game has.
 SIM.loot = {}
 function getPlayerLoot(i)

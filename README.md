@@ -23,6 +23,9 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Take her up** | From the pilot's seat, **Shuttlecraft ▸ Take her up**. She climbs above the rooftops and flies over buildings and trees — and she flies by *driving*, so the throttle, the steering, the seat chart and a controller all work exactly as they do on the ground. Climb, dive, pick a flight speed at the helm, and set her down below. The crew can go aft to the cabin in flight and come back; she waits where you left her. |
 | **Never stranded** | If there is not enough room at the destination you are beamed straight back aboard with the reason. A failed landing never leaves you on foot a hundred miles from the ship. |
 | **Phasers** | Four in a locker beside the pad. The charge never runs down, they never jam and they never wear out — and they are far quieter than a firearm, which is most of the point. |
+| **A hypospray** | One dose puts right bleeding, deep wounds, infected cuts, burns, fractures, pain and stiffness — everywhere on your body at once. It will not touch a bite. Six doses, and the ship replicates more while you are aboard; out in the field, what you are carrying is what you have. |
+| **A medical tricorder** | Reads a body the way a surgeon would, whether or not you have ever held a scalpel. On yourself, or — with their say-so — on a crewmate. |
+| **A tricorder** | A sensor sweep out to forty tiles, drawn as a contact plot with you at the centre, and a lock override that talks most electronic locks open. Not padlocks, and not inside somebody's safehouse. |
 | **Running water** | The galley sink has its own water supply, topped up every in-game minute, so it keeps running after the mains shut off. |
 | **A berth** | Somewhere to sleep, with a locker of linen. |
 | **A sick bay** | A biobed and eight wide medical cabinets, thirty items apiece. |
@@ -90,8 +93,13 @@ The shuttle is either sitting on the ground somewhere or overhead. The
 transporter works either way; the hatch only works when it is down.
 
 Piloting works the way the game does vehicles: the landed shuttle is a vehicle
-you get into, with four seats you can switch between. Lifting off and flying
-over buildings is the next stage; until then the helm is how you travel far.
+you get into, with four seats you can switch between. From the pilot's seat the
+radial menu takes her up, and she flies over buildings and trees; the helm is
+how you cross the map.
+
+The **medical set** lives in the forward starboard locker. Right-click the
+hypospray or either tricorder in your inventory to use it; right-click a locked
+door with a tricorder on you to override the lock.
 
 ## How much room it needs
 
@@ -152,7 +160,7 @@ TrekShuttle/42/media/lua/shared/TREK/   config, helpers, protocol, ship state,
 TrekShuttle/42/media/lua/server/TREK/   the authority: cabin build, stock, water,
                                         hull, commands, transporter charges
 TrekShuttle/42/media/lua/client/TREK/   transporter, arrival, helm, menus,
-                                        shields, phaser
+                                        shields, phaser, the medical set
 TrekShuttle/42/media/sandbox-options.txt  server-owner settings
 TrekShuttle/42/media/models_X/          shuttle and helm meshes (.x)
 TrekShuttle/42/media/textures/          generated textures and icons
@@ -174,6 +182,7 @@ engine facts it rests on.
 | `tools/gen_shuttle.py` | Hull texture, mesh and inventory icon. |
 | `tools/gen_helm.py` | Helm console texture and mesh. |
 | `tools/gen_phaser.py` | Phaser inventory icon. |
+| `tools/gen_medical.py` | The hypospray and tricorder sounds. (Their icons come from the Gemini toolkit; the originals are in `design/art/medical/`.) |
 | `tools/gen_poster.py` | The mods-screen poster. |
 | `tools/luacheck.py` | Parses every Lua file through a real Lua VM. |
 | `tools/deploy_windows.py` | Copy the mod into the Zomboid mods folder as `TrekShuttleDev` and verify the copy. |
@@ -190,7 +199,8 @@ python tests/test_assets.py                         # sprites, items, models,
                                                     # icons and translation keys
 python tests/test_stock.py                          # loot spreads and fills
 python tests/test_layout.py                         # floor plan, fittings, footprint
-python tests/test_helm.py                           # the helm console draws and works
+python tests/test_helm.py                           # the helm console and the
+                                                    # tricorder plot draw and work
 python tests/test_multiplayer.py                    # single player and a server with
                                                     # two clients, simulated
 ```
@@ -251,11 +261,22 @@ interior plus `TREK_InteriorLayout.lua`.
   mod cannot declare one, so the item names a real vanilla type to be sure it
   fires. Since the charge is restored far faster than it can be spent, none of
   your own ammunition is ever touched — but reloading it by hand would use it.
-- **The phaser looks like a pistol in your hands.** In-hand weapon models need
-  a rigged attachment set rather than a static mesh; the inventory icon is the
-  mod's own.
+- **The phaser looks like a pistol in your hands**, because it borrows a
+  vanilla in-hand model; the inventory icon is the mod's own. That was once
+  written here as a limitation — "in-hand weapon models need a rigged
+  attachment set" — and it is simply not true: a weapon model is a plain
+  static mesh, which is how the four blades have their own. Rebuilding a
+  pistol shape the game already has has just never been worth it.
 - **Changing a loot list does not restock a cabin that already exists.** The
   ship is meant to be lived in, so a rebuild never refills a container. Use
   `TREK_Rebuild()`, or a fresh world.
 - **Beaming down needs somewhere to stand.** It searches six tiles around the
   target and gives up rather than putting you inside a wall.
+- **The hypospray does not cure a bite**, and the medical tricorder does not
+  tell you whether you are infected. Both are deliberate: the cure is the
+  Emergency Medical Hologram's, and the EMH is not built yet.
+- **The tricorder will not open a padlock**, or any lock inside a safehouse
+  you are not a member of. Somebody fitted those by hand.
+- **The medical set reaches new worlds only.** Like every other change to what
+  the ship carries, it is stocked when the cabin is built and an existing save
+  keeps the lockers it already has.

@@ -1694,6 +1694,518 @@ def torpedoes():
           "both range bounds and a passenger are all refused")
 
 
+def medical():
+    """The medical set: the hypospray, the two tricorders, and the lock.
+
+    The load-bearing check in here is the one that asserts a *non*-effect.
+    `BodyPart.RestoreToFullHealth()` is the obvious way to mend a limb and its
+    bytecode clears `bittenZ` and `biteTimeF` along with everything else, so
+    the tidy version of the hypospray cures a bite -- which the design says it
+    must never do, because that cure is the EMH's and is the entire reason the
+    EMH is worth building. Nothing in the game would report it: the dose would
+    simply be better than intended, and the next feature on the roadmap would
+    quietly be pointless. So the bite and the zombie infection are checked to
+    have survived a dose, every time.
+
+    Everything else here is driven the way a player drives it -- through the
+    context menu -- for the reason the torpedo test gives: a build in which
+    nobody could reach the feature at all would otherwise pass.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('medic', 1000.5, 1000.5, 0)")
+    net.start()
+    net.pump(2)
+
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    HYPO = str(C("HyposprayItem"))
+    MEDTRI = str(C("MedTricorderItem"))
+    TRI = str(C("TricorderItem"))
+
+    def give(full_id):
+        rt.run(f'SIM.players[1].inventory:AddItem(instanceItem("{full_id}"))')
+
+    def inventory_menu():
+        """Right-clicks everything in the player's inventory, as the game does."""
+        rt.run("""
+            medMenu = SIM.contextMenu()
+            local items = {}
+            for _, it in ipairs(SIM.players[1].inventory.items) do
+                table.insert(items, it)
+            end
+            TREK.MedKit.fillInventoryMenu(0, medMenu, items)
+        """)
+        return str(rt.eval("medMenu:labels()"))
+
+    def click(menu, label, what):
+        """Clicks a menu option, and fails if it was not on the menu.
+
+        A silent miss is how the wasted-dose check below passed against a
+        build that really did waste doses: the label carries the number of
+        doses left, so a stale menu's option simply is not found and the
+        click does nothing at all.
+        """
+        found = rt.eval(f'{menu}:click("{label}")')
+        check(found is True, f"medical: {what} -- no {label!r} option to click")
+        return found
+
+    def text(key, *args):
+        """An IG_UI string with its %1s filled in, so a test can match a label."""
+        arglist = "".join(f', "{a}"' for a in args)
+        return str(rt.eval(f'getText("{key}"{arglist})'))
+
+    # --- the ship carries the set, guaranteed ------------------------------
+    # **The loot list is emptied of them first**, and that is the whole point of
+    # the check. C.Loot.medical happens to carry the three instruments at its
+    # head today, so a cabin built with them in the list proves nothing about
+    # the guarantee -- it would pass with the `special = "medkit"` rule deleted,
+    # and then quietly stop passing the day somebody reorders the list. With
+    # them taken out, the only thing that can put a tricorder in that locker is
+    # the rule.
+    rt.run("""
+        local out = {}
+        for _, id in ipairs(TREK.Config.Loot.medical) do
+            if id ~= TREK.Config.HyposprayItem
+               and id ~= TREK.Config.MedTricorderItem
+               and id ~= TREK.Config.TricorderItem then
+                table.insert(out, id)
+            end
+        end
+        TREK.Config.Loot.medical = out
+    """)
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "medical, beaming up"):
+        return
+    aboard = rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local found = {}
+        for ox = 0, C.CabinW do for oy = 0, C.CabinL do
+            local x, y = U.at(ox, oy)
+            for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+                if o.container then
+                    for _, it in ipairs(o.container.items) do
+                        found[it.fullType] = (found[it.fullType] or 0) + 1
+                    end
+                end
+            end
+        end end
+        return (found[TREK.Config.HyposprayItem] or 0)
+            .. "," .. (found[TREK.Config.MedTricorderItem] or 0)
+            .. "," .. (found[TREK.Config.TricorderItem] or 0)
+    end)()""")
+    hypos, medtris, tris = (int(n) for n in str(aboard).split(","))
+    check(hypos >= 1 and medtris >= 1 and tris >= 1,
+          f"medical: a fresh ship carries {hypos} hyposprays, {medtris} medical "
+          f"tricorders and {tris} tricorders -- the sick-bay locker is meant to "
+          f"hold one of each outright")
+
+    # --- the way in ---------------------------------------------------------
+    labels = inventory_menu()
+    check(labels == "", f"medical: an empty-handed player is offered {labels!r}")
+
+    give(HYPO)
+    give(MEDTRI)
+    give(TRI)
+    labels = inventory_menu()
+    for want, what in ((text("IGUI_TREK_HypoUse", C("HyposprayDoses")), "the hypospray"),
+                       (text("IGUI_TREK_MedScanSelf"), "the medical tricorder"),
+                       (text("IGUI_TREK_Sweep"), "the tricorder")):
+        check(want in labels,
+              f"medical: {what} offers no way to use it -- the menu reads {labels!r}")
+
+    # --- a dose, and what it must not touch ---------------------------------
+    rt.run("""
+        for _, what in ipairs({ "bleeding", "deepWound", "infectedWound", "burn",
+                                "fracture", "pain", "stiffness", "health" }) do
+            SIM.hurt(SIM.players[1], what, 1)
+        end
+        SIM.hurt(SIM.players[1], "bite", 2)
+        SIM.players[1]:getBodyDamage():setInfected(true)
+        SIM.sounds = {}
+    """)
+    inventory_menu()
+    click("medMenu", text("IGUI_TREK_HypoUse", C("HyposprayDoses")), "using a full hypospray")
+
+    left = rt.eval("""(function()
+        local it = TREK.Medical.carried(SIM.players[1], TREK.Config.HyposprayType,
+                                        TREK.Config.HyposprayItem)[1]
+        return TREK.Medical.doses(it)
+    end)()""")
+    check(left == C("HyposprayDoses") - 1,
+          f"medical: a dose left {left} in the hypospray, not "
+          f"{C('HyposprayDoses') - 1}")
+
+    healed = rt.eval("""(function()
+        local p = SIM.players[1]:getBodyDamage().parts[1]
+        return (p.isBleeding or p.isDeepWounded or p.infectedWound
+                or p.burnTime > 0 or p.fractureTime > 0 or p.additionalPain > 0
+                or p.stiffness > 0 or p.health < 100) and "no" or "yes"
+    end)()""")
+    check(str(healed) == "yes",
+          "medical: a hypospray dose left some of the injuries it treats behind")
+
+    still_bitten = rt.eval("SIM.players[1]:getBodyDamage().parts[2].isBitten")
+    still_infected = rt.eval("SIM.players[1]:getBodyDamage():isInfected()")
+    check(still_bitten is True,
+          "medical: the hypospray cured a BITE. It must not -- that cure is the "
+          "EMH's, and BodyPart.RestoreToFullHealth() clears bittenZ, which is "
+          "exactly why this file never calls it")
+    check(still_infected is True,
+          "medical: the hypospray cleared the zombie infection. "
+          "BodyDamage.setInfected is the virus; BodyPart.setInfectedWound is an "
+          "ordinary infected cut, and only the second one is the hypospray's")
+    check(rt.eval('SIM.heardSound("TREK_HypoHiss")') is True,
+          "medical: a dose was administered in complete silence")
+
+    # --- a dose is never wasted ---------------------------------------------
+    rt.run("SIM.notes = {}")
+    inventory_menu()
+    click("medMenu", text("IGUI_TREK_HypoUse", C("HyposprayDoses") - 1),
+          "using a hypospray on a healthy player")
+    left_after = rt.eval("""(function()
+        local it = TREK.Medical.carried(SIM.players[1], TREK.Config.HyposprayType,
+                                        TREK.Config.HyposprayItem)[1]
+        return TREK.Medical.doses(it)
+    end)()""")
+    check(left_after == left,
+          f"medical: a hypospray spent a dose on a healthy player ({left} -> "
+          f"{left_after})")
+
+    # --- an empty one is offered, and refuses --------------------------------
+    rt.run("""
+        local it = TREK.Medical.carried(SIM.players[1], TREK.Config.HyposprayType,
+                                        TREK.Config.HyposprayItem)[1]
+        TREK.Medical.setDoses(it, 0)
+        SIM.hurt(SIM.players[1], "bleeding", 3)
+    """)
+    labels = inventory_menu()
+    check(text("IGUI_TREK_HypoUse", 0) in labels,
+          "medical: an empty hypospray vanishes from the menu -- a player has "
+          "to be able to see that it is empty rather than broken")
+    click("medMenu", text("IGUI_TREK_HypoUse", 0), "using an empty hypospray")
+    check(rt.eval("SIM.players[1]:getBodyDamage().parts[3].isBleeding") is True,
+          "medical: an empty hypospray still treated somebody")
+
+    # --- the ship refills it, and only the ship ------------------------------
+    # Aboard, because the ship replicates them. In the field a dose spent is a
+    # dose gone, which is the only real limit on the item.
+    rt.run(f"TREK.MedKit.serviceRefill({P})")
+    aboard_refill = rt.eval("""(function()
+        local it = TREK.Medical.carried(SIM.players[1], TREK.Config.HyposprayType,
+                                        TREK.Config.HyposprayItem)[1]
+        return TREK.Medical.doses(it)
+    end)()""")
+    check(aboard_refill == 1,
+          f"medical: standing aboard, the ship put {aboard_refill} doses back "
+          f"rather than 1")
+
+    rt.run(f"TREK.Util.teleport({P}, 1000, 1000, 0)")
+    net.pump(4)
+    rt.run(f"TREK.MedKit.serviceRefill({P})")
+    field_refill = rt.eval("""(function()
+        local it = TREK.Medical.carried(SIM.players[1], TREK.Config.HyposprayType,
+                                        TREK.Config.HyposprayItem)[1]
+        return TREK.Medical.doses(it)
+    end)()""")
+    check(field_refill == aboard_refill,
+          "medical: a hypospray refilled itself out in the field -- the dose "
+          "limit is then a delay rather than a decision")
+
+    # --- the medical tricorder: one field, and not the debug global ---------
+    rt.run("SIM.healthPanels = {}")
+    inventory_menu()
+    click("medMenu", text("IGUI_TREK_MedScanSelf"), "scanning yourself")
+    panel = rt.eval("SIM.lastHealthPanel() ~= nil")
+    check(panel is True, "medical: the medical tricorder opened no panel at all")
+    if panel:
+        level = rt.eval("SIM.lastHealthPanel().doctorLevel")
+        check(level == C("MedDoctorLevel"),
+              f"medical: the health panel reports at doctor level {level}, not "
+              f"{C('MedDoctorLevel')} -- every readout in ISHealthPanel is gated "
+              f"on that field")
+        check(rt.eval("SIM.lastHealthPanel().window.onScreen") is True,
+              "medical: the medical tricorder's panel was never added to the UI")
+    check(rt.eval("ISHealthPanel.cheat") is False,
+          "medical: something set ISHealthPanel.cheat. It is `false or "
+          "getDebug()` in vanilla and otherwise admin-only, so it works for "
+          "this developer and for nobody on the Workshop")
+
+    # --- the sensor sweep: sliced, and honest about range --------------------
+    rt.run("""
+        SIM.zombies = {}
+        for i = 1, 40 do SIM.zombie(1003.5 + (i % 3), 1000.5, 0) end   -- close
+        for i = 1, 10 do SIM.zombie(1000.5, 1020.5, 0) end             -- middle
+        for i = 1, 5 do SIM.zombie(1035.5, 1000.5, 0) end              -- far
+        SIM.zombie(1500.5, 1000.5, 0)                                  -- out of range
+        SIM.zombie(1003.5, 1000.5, 1)                                  -- another floor
+        SIM.sounds = {}
+    """)
+    # Far more zombies than one slice can classify, all of them out of range
+    # so the counts below are unchanged: what is under test here is the
+    # slicing, and a horde is exactly when it matters.
+    crowd = 400
+    rt.run(f"for i = 1, {crowd} do SIM.zombie(1500.5 + i, 1000.5, 0) end")
+    check(int(C("SweepPerTick")) < crowd,
+          f"medical: C.SweepPerTick is {C('SweepPerTick')}, which is more than "
+          f"the {crowd} contacts this check puts in front of it -- the slicing "
+          f"below would then pass without any slicing happening")
+
+    rt.run(f"TREK.MedKit.startSweep({P})")
+    still = rt.eval("TREK.MedKit.serviceSweep()")
+    check(still is True,
+          f"medical: one slice classified all {crowd + 57} contacts. The sweep "
+          f"is meant to do C.SweepPerTick of them a tick -- a pass that touches "
+          f"a horde in one frame is not slow, it is the hard lock in "
+          f"DEV_GUIDE.md under 'Slice any search'")
+    slices = 1
+    while rt.eval("TREK.MedKit.sweeping()") and slices < 200:
+        rt.run("TREK.MedKit.serviceSweep()")
+        slices = slices + 1
+    check(slices >= 3,
+          f"medical: the sweep took {slices} slices for {crowd + 57} contacts")
+    check(rt.eval("TREK.MedKit.sweeping()") is False,
+          "medical: the sweep never finished")
+    total = rt.eval("TREK.MedKit.lastSweep.total")
+    counts = [int(rt.eval(f"TREK.MedKit.lastSweep.counts[{i}]")) for i in (1, 2, 3)]
+    check(total == 55,
+          f"medical: the sweep found {total} contacts, not the 55 in range "
+          f"(the one 500 tiles away and the one a floor up are not contacts)")
+    check(counts[0] == 40 and counts[1] == 10 and counts[2] == 5,
+          f"medical: the sweep sorted its contacts {counts}, not [40, 10, 5] -- "
+          f"the range bands are what the readout is")
+    check(rt.eval('SIM.heardSound("TREK_TricorderChirp")') is True,
+          "medical: the tricorder swept in silence")
+
+    # --- the lock: the client asks, the server opens ------------------------
+    # Pumped rather than nudged: the simulation streams chunks at the rate the
+    # engine does, and a square whose chunk has not arrived is "cannot tell
+    # yet" rather than "nothing there" -- which the server correctly refuses.
+    rt.run(f"TREK.Util.teleport({P}, 1200, 1200, 0)")
+    net.pump(60)
+    rt.run('door = SIM.lock(1201, 1200, 0, "IsoDoor")')
+    net.pump(2)
+
+    def cooled():
+        """Runs the clock past the override cooldown.
+
+        Without this the next three refusals all pass for the wrong reason:
+        the cooldown from the successful override above is still running, so
+        a safehouse check, a range check and a padlock check that had all been
+        deleted would still look like they were working.
+        """
+        net.clock += int(C("UnlockCooldownMs")) + 1000
+
+    def world_menu():
+        rt.run("""
+            lockMenu = SIM.contextMenu()
+            TREK.MedKit.fillWorldMenu(0, lockMenu, { door }, false)
+        """)
+        return str(rt.eval("lockMenu:labels()"))
+
+    check(text("IGUI_TREK_Override") in world_menu(),
+          "medical: a tricorder in your pocket offers no way to open a locked door")
+
+    rt.run("SIM.synced = {}")
+    rt.run(f'lockMenu:click("{text("IGUI_TREK_Override")}")')
+    net.pump(4)
+    check(rt.eval("door:isLocked()") is False,
+          "medical: the override left the door locked")
+    check(rt.eval("#SIM.synced") >= 1,
+          "medical: the lock was opened and never synced. setLockedByKey only "
+          "fires its own sync when NOT on a server, so a door opened by the "
+          "authority stays shut on every client's screen without an explicit "
+          "obj:sync()")
+
+    # --- what it will not open ----------------------------------------------
+    rt.run('padlocked = SIM.lock(1202, 1200, 0, "IsoThumpable", { padlock = true })')
+    rt.run(f"TREK.Util.teleport({P}, 1202, 1201, 0)")
+    net.pump(4)
+    rt.run("TREK.Util.state().unlockAt = nil")
+    rt.run("""
+        padMenu = SIM.contextMenu()
+        TREK.MedKit.fillWorldMenu(0, padMenu, { padlocked }, false)
+    """)
+    option = rt.eval(
+        '(function() '
+        '  local o = padMenu:find(getText("IGUI_TREK_Override")) '
+        '  if not o then return "absent" end '
+        '  if o.notAvailable == true then return "greyed" end '
+        '  return "live" '
+        'end)()')
+    check(str(option) == "greyed",
+          f"medical: a padlocked door's override option is {option!r}. It must "
+          f"be shown and greyed: hidden, a player cannot tell the tricorder "
+          f"from a broken mod; live, the mod picks other people's padlocks")
+
+    cooled()
+    rt.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 1202, y = 1200, z = 0 })")
+    net.pump(4)
+    check(rt.eval("padlocked:isLocked()") is True,
+          "medical: the server opened a PADLOCK. That is another player's own "
+          "lock, fitted by hand, and a mod that picks them is a griefing tool "
+          "on every server that installs it")
+
+    rt.run('safeDoor = SIM.lock(1210, 1210, 0, "IsoDoor")')
+    rt.run('SIM.safehouse(1205, 1205, 1215, 1215, { "someone_else" })')
+    rt.run(f"TREK.Util.teleport({P}, 1210, 1209, 0)")
+    net.pump(20)
+    cooled()
+    rt.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 1210, y = 1210, z = 0 })")
+    net.pump(4)
+    check(rt.eval("safeDoor:isLocked()") is True,
+          "medical: the server opened a door inside somebody else's safehouse")
+
+    # --- range and cooldown, both measured on the server --------------------
+    # Six tiles away, not a hundred: far enough to be out of C.UnlockRange and
+    # near enough that its chunk is loaded. A distant one would be refused for
+    # being unloaded instead, and the range bound would never be reached.
+    rt.run('farDoor = SIM.lock(1210, 1203, 0, "IsoDoor")')
+    cooled()
+    rt.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 1210, y = 1203, z = 0 })")
+    net.pump(4)
+    check(rt.eval("farDoor:isLocked()") is True,
+          "medical: the server opened a lock six tiles from the player, well "
+          "outside C.UnlockRange. "
+          "The bound is the whole difference between a tool and a map-wide "
+          "master key, because the target arrives from a client")
+
+    rt.run("SIM.safehouses = {}")
+    rt.run('firstDoor = SIM.lock(1211, 1210, 0, "IsoDoor")')
+    rt.run('nextDoor = SIM.lock(1212, 1210, 0, "IsoDoor")')
+    rt.run(f"TREK.Util.teleport({P}, 1211, 1209, 0)")
+    net.pump(20)
+    cooled()
+    rt.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 1211, y = 1210, z = 0 })")
+    net.pump(4)
+    check(rt.eval("firstDoor:isLocked()") is False,
+          "medical: the override that the cooldown check is built on did not "
+          "work, so the cooldown below proves nothing")
+    rt.run(f"TREK.Util.teleport({P}, 1212, 1209, 0)")
+    net.pump(4)
+    rt.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 1212, y = 1210, z = 0 })")
+    net.pump(4)
+    check(rt.eval("nextDoor:isLocked()") is True,
+          "medical: two overrides in a row, with no cooldown between them")
+
+    print("medical: the ship carries the set, a dose treats everything but a "
+          "bite and the infection, an empty one says so, the ship alone refills "
+          "it, the health panel opens at doctor level without the debug global, "
+          "the sweep is sliced and banded, and the lock override is a server "
+          "command that refuses a padlock, a safehouse, a distant target and a "
+          "second try inside the cooldown")
+
+
+def medical_multiplayer():
+    """The medical set with two clients: who may open a lock, and who is asked.
+
+    Both halves of this are things single player cannot show. A client has no
+    business writing a lock, and a player without the tool has no business
+    opening one even if their client asks nicely -- so the request is made from
+    a client that is carrying nothing and the server is expected to say no.
+    """
+    net = Net("mp", clients=("owner", "stranger"))
+    server = net.server
+    owner, stranger = net.clients["owner"], net.clients["stranger"]
+
+    # The server knows both; each client knows only itself, which is the shape
+    # the engine really has and the reason a client's word about its own
+    # inventory is not evidence.
+    server.run("SIM.player('owner', 2000.5, 2000.5, 0); "
+               "SIM.player('stranger', 2000.5, 2000.5, 0)")
+    owner.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    stranger.run("SIM.player('stranger', 2000.5, 2000.5, 0)")
+
+    # What each client's copy of "who is online" looks like. The owner needs a
+    # second player standing on the same square to have anybody to scan.
+    owner.run("""
+        -- Standing on the door's own square, because that is the square a
+        -- right-click on them resolves to.
+        SIM.otherPlayer = {
+            name = "stranger",
+            getUsername = function(self) return self.name end,
+            getDisplayName = function(self) return self.name end,
+            getX = function() return 2000.5 end,
+            getY = function() return 2001.5 end,
+            getZ = function() return 0 end,
+            isDead = function() return false end,
+        }
+        function getOnlinePlayers()
+            return SIM.jlist({ SIM.players[1], SIM.otherPlayer })
+        end
+    """)
+    stranger.run("function getOnlinePlayers() return SIM.jlist({ SIM.players[1] }) end")
+
+    net.start()
+    net.pump(4)
+
+    for rt in net.all():
+        rt.run('mpDoor = SIM.lock(2000, 2001, 0, "IsoDoor")')
+    # The tricorder is in the owner's inventory on **both** sides, because that
+    # is where it would really be: the server holds every player's inventory
+    # and is the only copy it is allowed to believe.
+    for rt in (owner, server):
+        rt.run("""
+            for _, p in ipairs(SIM.players) do
+                if p.name == "owner" then
+                    p.inventory:AddItem(instanceItem(TREK.Config.TricorderItem))
+                end
+            end
+        """)
+
+    # --- a client that is carrying nothing is refused ----------------------
+    stranger.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 2000, y = 2001, z = 0 })")
+    net.pump(4)
+    check(server.eval("mpDoor:isLocked()") is True,
+          "medical: the server opened a lock for a player carrying no tricorder. "
+          "A client is a request, never a fact -- the tool has to be checked "
+          "where the player's inventory really is")
+
+    # --- and the one with the tool is not -----------------------------------
+    server.run("SIM.synced = {}")
+    owner.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 2000, y = 2001, z = 0 })")
+    net.pump(4)
+    check(server.eval("mpDoor:isLocked()") is False,
+          "medical: the server refused an override from the player who is "
+          "carrying the tricorder")
+    check(server.eval("#SIM.synced") >= 1,
+          "medical: the server opened the lock without syncing it to anyone")
+
+    # --- a client never writes a lock itself ---------------------------------
+    check(owner.eval("mpDoor:isLocked()") is True,
+          "medical: the asking client unlocked its own copy of the door. A lock "
+          "is world state; the client asks and the server's sync is what "
+          "changes it")
+
+    # --- scanning somebody else asks them first ------------------------------
+    owner.run('SIM.players[1].inventory:AddItem(instanceItem(TREK.Config.MedTricorderItem))')
+    owner.run("SIM.medicalRequests = {}")
+    owner.run("""
+        scanMenu = SIM.contextMenu()
+        TREK.MedKit.fillWorldMenu(0, scanMenu, { mpDoor }, false)
+    """)
+    label = owner.eval('getText("IGUI_TREK_MedScanOther", "stranger")')
+    check(str(label) in str(owner.eval("scanMenu:labels()")),
+          "medical: a medical tricorder offers no way to scan the person "
+          "standing next to you")
+    owner.run(f'scanMenu:click("{label}")')
+    check(owner.eval("#SIM.medicalRequests") == 1,
+          "medical: scanning another player did not ask their permission. "
+          "requestMedicalCheck raises a yes/no on their screen, and reading "
+          "somebody's body without it is a different kind of mod")
+    check(owner.eval("#SIM.healthPanels") == 0,
+          "medical: a panel on another player opened before they had agreed")
+
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"medical multiplayer: {w}")
+
+    print("medical multiplayer: the server checks the tool in the asking "
+          "player's own inventory, syncs the lock it opens, never lets a client "
+          "write one, and asks a player before reading their body")
+
+
 def main():
     static()
     migration()
@@ -1701,6 +2213,8 @@ def main():
     flight()
     flight_endings()
     torpedoes()
+    medical()
+    medical_multiplayer()
     multiplayer()
     if failures:
         print(f"\n{len(failures)} PROBLEM(S):")

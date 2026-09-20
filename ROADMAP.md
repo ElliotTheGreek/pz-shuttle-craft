@@ -61,26 +61,38 @@ player before.
 7. **She flies under a real client/server split** — up, level, down.
 8. **Shields** — the `isRemoteZombie()` path is live here in a way single
    player never exercises, even with one client.
+9. **The medical set.** Newest and entirely unproven: a hypospray dose that
+   must leave a bite alone, the health panel at doctor level, the sensor sweep
+   in front of a real horde, and the lock override on a house door and then on
+   a padlock. Revision 14, so a world made before today will not have the
+   items in its sick bay.
 
 ### Needs the second machine (Steam Deck on the LAN, 192.168.39.182)
+
+*(Numbering continues from the solo list above.)*
 
 The Deck needs `Zomboid/mods/TrekShuttle/` **copied to it by hand**:
 `TrekShuttleDev` is a local mod, `WorkshopItems=` is empty, and a server cannot
 push a non-Workshop mod to a client. Redo the copy after any code change.
 
-9. Loot one player takes disappears for the other.
-10. `TrekShuttle.Access = 2` — a stranger refused, then added to the crew.
-11. **A shuttle in the air seen from the other machine.** The wire format
+10. Loot one player takes disappears for the other.
+11. `TrekShuttle.Access = 2` — a stranger refused, then added to the crew.
+12. **A shuttle in the air seen from the other machine.** The wire format
     carries height and each client re-derives the level from its own copy of
     the plane; the simulated two-client test agrees, but the engine's half
     (`clientUpdateVehiclePos` writing `setZ(0)`, then `BaseVehicle.update()`
     recomputing) has only been reasoned about.
-12. Speed set at one helm reaching a pilot at another.
-13. **A torpedo fired by one player, seen and heard by the other**, and the
+13. Speed set at one helm reaching a pilot at another.
+14. **A torpedo fired by one player, seen and heard by the other**, and the
     fire it starts appearing on both machines. The projectile is drawn by each
     client from one `torpedoLaunched`, and the fire is synced by the engine's
     own `StartFire` packet — so this should need nothing of ours, which is
     exactly the kind of claim that wants checking.
+15. **A lock opened by one player, seen by the other**, and a medical scan
+    requested from one machine and accepted on the other. Neither has any
+    code of ours behind the packet: the lock rides `obj:sync()` and the scan
+    rides the engine's own consent events, which is exactly the kind of claim
+    that wants checking.
 
 Watch it with a tight filter — a broad one matches every frame of every Java
 stack trace:
@@ -396,22 +408,54 @@ icon 32×32, and both are confirmed in game.
    whether they read in an icon. The renders and the contact sheet are the
    best that can be done away from the game.
 
-## Then: medical and tools
+## The medical set — built, and not yet seen in game
 
-**`MEDICAL_SET.md` is the implementation guide** — the engine facts are
-verified and the traps are named; nothing is built.
+All three are in, with their icons, two generated sounds, an LCARS contact
+plot and a server-side lock override. **`MEDICAL_SET.md` is the working guide
+now**, not a plan; it has the verified engine facts, the four traps, and the
+list of what to check the first time it is carried into the game.
 
-- **Hypospray** — strong treatment. **Decided: it does not cure a bite.**
-  **Easy–Medium.** Client-side for self-use; touches no world state.
-- **Medical tricorder** — full diagnosis regardless of Doctor skill. **Medium.**
-  Set `doctorLevel` on the panel instance — **not** `ISHealthPanel.cheat`,
-  which is `false or getDebug()` and otherwise admin-only, so it would work
-  here and for nobody on the Workshop.
-- **Tricorder** — unlocks locks, sensor sweep (sliced). **Medium.** The sweep
-  reuses `cell:getZombieList()`, which the shields already prove. The lock
-  setters are public but **every vanilla Lua call site is the debug menu or
-  the tutorial**, so verify before designing around them — and a lock is world
-  state, so unlocking is a server command.
+- **Hypospray.** One dose treats bleeding, deep wounds, an infected cut,
+  burns, fractures, pain, stiffness and tissue damage on every body part at
+  once. **It does not cure a bite and it does not clear the zombie
+  infection** — that is the EMH's, and it is the only reason the EMH is worth
+  building. Six doses, kept in the item's own mod data; the **ship** replicates
+  more while you are aboard and nothing does in the field, so the limit is a
+  decision (push on, or go home) rather than a delay. A dose is never spent
+  on somebody who is already well.
+- **Medical tricorder.** Vanilla's `ISHealthPanel` with `doctorLevel` set to
+  10, so every Doctor-gated readout opens — on yourself from the item's menu,
+  or on another player through the engine's own consent prompt. Never
+  `ISHealthPanel.cheat`, which is `false or getDebug()` and otherwise
+  admin-only.
+- **Tricorder.** A sliced sensor sweep of the cell's zombies, drawn as a
+  contact plot with three range bands, and a lock override that asks the
+  server because a lock is world state. **It will not open a padlock and it
+  will not open anything inside somebody else's safehouse** — both are another
+  player's property, and a mod that picks them is a griefing tool on every
+  server that installs it.
+
+All three are in `C.Loot.medical`, and the forward sick-bay locker carries one
+of each outright. Revision 14, so **new worlds only**.
+
+**What the pass cost, and it was one line from shipping:** `BodyPart
+.RestoreToFullHealth()` is the obvious way to mend a limb and its bytecode
+clears the **bite** as well. Nothing in the game would have reported it — the
+hypospray would simply have been better than intended and the EMH pointless.
+`DEV_GUIDE.md` has it under *A convenience method is a bundle of writes
+somebody else chose*.
+
+Two things `MEDICAL_SET.md` used to claim turned out to be wrong, both in the
+mod's favour: `ISHealthPanel` **is** an `ISPanelJoypad` already, so the
+controller question needed no work at all; and the lock setters' own sync is
+skipped when it *is* the server, so the authority has to call `obj:sync()`
+itself rather than relying on the engine.
+
+**One design question left for the author:** the medical tricorder reports
+everything a Doctor 10 sees, which does **not** include the zombie infection.
+That was scoped deliberately — the EMH is meant to be the thing that knows —
+but a tricorder that announced "you are infected" with no cure in reach would
+be a different and much harsher item. Worth deciding before the EMH.
 
 ## Then: ship systems
 
@@ -440,7 +484,8 @@ the whole list at once rather than to each version.
 2. **Blades** — the bat'leth's hand and ground attachments, which need it
    looked at in a fist, then the mek'leth, lirpa and ushaan-tor off the same
    pipeline.
-3. **Medical tricorder, hypospray, tricorder.**
+3. **Medical tricorder, hypospray, tricorder** — built (2026-09-20), and the
+   first thing to carry into the game. `MEDICAL_SET.md` section 7 is the list.
 4. **Replicator, then EMH.**
 5. **Publish.**
 

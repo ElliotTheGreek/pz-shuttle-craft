@@ -1,4 +1,4 @@
-"""Runs the helm console under a real Lua VM with the vanilla UI stubbed.
+"""Runs the mod's own panels under a real Lua VM with the vanilla UI stubbed.
 
 A UI bug is the most expensive kind this mod can ship. prerender and render
 run every frame, so one nil there is not one error -- it is sixty a second,
@@ -6,9 +6,10 @@ each with a Java stack trace, for as long as the helm is open. And a layout
 that only looks wrong ("the buttons are off the bottom", "the label runs out of
 the panel") can otherwise only be found by opening the game.
 
-This drives the real TREK_Helm.lua through construction, several frames of
-drawing and every control, against stubs of ISPanel, ISButton and the rest
-that record each draw call. It checks:
+This drives the real TREK_Helm.lua -- and the tricorder's contact plot from
+TREK_MedKit.lua -- through construction, several frames of drawing and every
+control, against stubs of ISPanel, ISButton and the rest that record each draw
+call. It checks:
 
   * nothing throws, in any state -- shields up and down, with and without
     the artwork textures installed
@@ -133,6 +134,9 @@ def make_lua():
         function ISUIElement:setVisible(v) self.visible = v end
         function ISUIElement:removeFromUIManager() self.removed = true end
         function ISUIElement:drawRect(x, y, w, h, a, r, g, b)
+            rec(self, "rect", x, y, w, h, { a, r, g, b })
+        end
+        function ISUIElement:drawRectBorder(x, y, w, h, a, r, g, b)
             rec(self, "rect", x, y, w, h, { a, r, g, b })
         end
         function ISUIElement:drawTextureScaled(t, x, y, w, h, a, r, g, b)
@@ -289,6 +293,18 @@ def make_lua():
             onMapPick = function(x, y) picked = { x = x, y = y } end,
         }
         require "TREK/TREK_Helm"
+
+        -- The tricorder's panel lives in TREK_MedKit, which pulls in the
+        -- client's Core. Seeding package.loaded keeps the stub above rather
+        -- than dragging the whole transporter in behind it.
+        package.loaded["TREK/TREK_Core"] = TREK.Core
+        _G.getPlayerScreenLeft = function() return 0 end
+        _G.getPlayerScreenTop = function() return 0 end
+        _G.updateJoypadFocus = function() end
+        _G.ISWorldObjectContextMenu = { setTest = function() return true end,
+                                        addToolTip = function() return {} end }
+        _G.getTimestampMs = function() return 1000000 end
+        require "TREK/TREK_MedKit"
 
         haloNotes = {}
         player = { setHaloNote = function(self, text) table.insert(haloNotes, text) end,
@@ -477,6 +493,82 @@ def main():
         print(f"{label}: drew {len(draws)} calls a frame with bookmarks; "
               f"every control exercised")
 
+    # --- the tricorder's contact plot -------------------------------------
+    # The same treatment as the helm, and for the same reason: prerender and
+    # render run sixty times a second, so one nil in either is a stack trace a
+    # frame for as long as the panel is open. The plot is the part with real
+    # arithmetic in it -- a blip is placed from a contact's offset over the
+    # sweep radius -- and a contact right on the edge of range is exactly the
+    # one that lands outside the frame.
+    texture_files["on"] = True
+    lua, missing = make_lua()
+    C = lua.globals().TREK.Config
+    lua.execute("win = TREKTricorderWindow:new(40, 40, player); win:createChildren()")
+    win = lua.globals().win
+
+    check_bounds(lua, run_frames(lua, "tricorder, no sweep yet"), "tricorder, no sweep yet")
+
+    # A result with contacts at every bearing, including four sitting exactly
+    # on the range limit, which is where a plot goes outside its own box.
+    lua.execute("""
+        local r = TREK.Config.SweepRadius
+        local contacts = {}
+        for _, d in ipairs({ { r, 0 }, { -r, 0 }, { 0, r }, { 0, -r },
+                             { 2, 3 }, { -4, 6 }, { 15, -15 }, { 0, 0 } }) do
+            table.insert(contacts, { dx = d[1], dy = d[2],
+                                     band = (math.abs(d[1]) + math.abs(d[2])) > r
+                                            and 3 or 1 })
+        end
+        win.result = { contacts = contacts, counts = { 5, 2, 1 }, total = 8,
+                       radius = r }
+    """)
+    draws = run_frames(lua, "tricorder, with contacts")
+    check_bounds(lua, draws, "tricorder, with contacts")
+
+    # An empty sweep has to say so rather than drawing an empty box.
+    lua.execute("""
+        win.result = { contacts = {}, counts = { 0, 0, 0 }, total = 0,
+                       radius = TREK.Config.SweepRadius }
+    """)
+    empty = run_frames(lua, "tricorder, nothing found")
+    check_bounds(lua, empty, "tricorder, nothing found")
+    if not any(str(d.extra) == IG["IGUI_TREK_SweepNone"]
+               for d in empty if d.kind == "text"):
+        failures.append("tricorder: a sweep that found nothing says nothing")
+
+    # Controller: one button, reachable, and B closes and hands the stick back.
+    lua.execute("""
+        reachable = {}
+        for _, row in ipairs(win.joypadButtonsY) do
+            for _, b in ipairs(row) do reachable[b] = true end
+        end
+        unreachable = {}
+        for _, c in ipairs(win.children) do
+            if c.onclick and not reachable[c] and c ~= win.ISButtonB then
+                table.insert(unreachable, c.title or "?")
+            end
+        end
+    """)
+    unreachable = lua.globals().unreachable
+    for i in range(1, len(unreachable) + 1):
+        failures.append(f"tricorder: button {unreachable[i]!r} cannot be reached "
+                        f"with a controller")
+
+    lua.execute("jd = { player = 0, id = 0 }; win:onGainJoypadFocus(jd)")
+    if not win.sweepBtn.joypadFocused:
+        failures.append("tricorder: a controller does not start on the sweep button")
+    lua.execute("focusLog = {}; win:onJoypadDown(Joypad.BButton, jd)")
+    if not win.removed:
+        failures.append("tricorder: B did not close the panel")
+    if len(lua.globals().focusLog) != 1:
+        failures.append("tricorder: closing with a controller did not release its "
+                        "focus, so the stick is left driving a panel that has gone")
+
+    for key in sorted(set(missing)):
+        failures.append(f"tricorder: getText({key!r}) has no entry in IG_UI.json")
+    print(f"tricorder: the contact plot drew {len(draws)} calls a frame with "
+          f"contacts on the range limit, and its one control is on the stick")
+
     # --- the textures the console loads exist -----------------------------
     src = open(os.path.join(MOD, "media", "lua", "client", "TREK", "TREK_Helm.lua"),
                encoding="utf-8").read()
@@ -489,7 +581,8 @@ def main():
         for f in dict.fromkeys(failures):
             print("  " + f)
         sys.exit(1)
-    print("\nhelm console draws cleanly and every control works")
+    print("\nthe helm console and the tricorder plot both draw cleanly, "
+          "and every control works")
 
 
 main()
