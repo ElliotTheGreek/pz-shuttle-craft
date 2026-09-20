@@ -3,13 +3,13 @@
 How the Shuttlecraft mod works correctly in **single player, hosted co-op and
 dedicated servers**, for anyone who subscribes on the Workshop.
 
-Status: **all eight migration steps built (1.3.0)**. Everything through step 8
+Status: **all nine migration steps built (1.3.0)**. Everything through step 8
 — the vehicle shuttle and flight — is confirmed in single player and passes the
 simulated server with two clients; **no part of it has been played with two
-real people yet.** This document is the plan and the record
-of why each decision was made. Steps 1-6 are verified against
-`tests/test_multiplayer.py`, which runs the real Lua as single player and as a
-server with two clients over a simulated network -- not yet in the game.
+real people yet.** This document is the plan and the record of why each
+decision was made. Every step is covered by `tests/test_multiplayer.py`, which
+runs the real Lua as single player and as a server with two clients over a
+simulated network, flight included -- but a simulation is not the game.
 
 ---
 

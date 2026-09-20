@@ -39,12 +39,31 @@ UP_AXIS = "y"
 # was 0.92 -- a real bat'leth is about a metre across -- and in hand it was
 # twice the size of the character holding it. WeaponLength (a gameplay reach
 # number, 0.45 here) is not what sizes the mesh; this is, and the engine takes
-# it at face value. Vanilla's katana mesh is a two-handed weapon a character
-# can carry, so that is the bracket to sit in.
-SPAN = 0.46
+# it at face value.
+#
+# 0.46 was then still too big, and measuring vanilla says why. Every weapon in
+# build 42 is a thin vertical line: the widest mesh in the game's whole arsenal
+# is the canoe paddle at dx 0.123, and a machete is 0.009 wide by 0.335 long.
+# A bat'leth is the one shape this engine has never had to draw -- a crescent
+# worn and swung *across* the body, so its full span reads as width in an
+# isometric sprite where a bat of the same real length reads as a stroke. At
+# 0.46 the arc bulged the bounding box to 0.531, wider than a baseball bat is
+# long, and it spanned the character hip to hip.
+#
+# So the bracket is not "as long as a katana" but "as wide as a machete is
+# long": 0.32 puts the bounding box at ~0.37, the widest a cross-body blade
+# reads at before it starts wearing the character rather than the other way
+# round. Real-world scale was never the test; the sprite is.
+SPAN = 0.32
 ARC = math.radians(78.0)        # half-angle swept by the crescent
 THICK = 0.016                   # blade thickness, in metres
 SEGMENTS = 96                   # samples along the arc
+
+# The silhouette below was authored against a 0.46 m span in absolute metres,
+# so every width is divided through by this and multiplied back by SPAN. Change
+# SPAN alone without it and the crescent keeps its thickness while losing its
+# reach -- a slender blade becomes a chunky one, which is a different weapon.
+AUTHORED_SPAN = 0.46
 
 # Texture regions: (x0, y0, x1, y1)
 R_BLADE = (0, 0, 128, 40)       # polished steel, bright along the edge
@@ -112,6 +131,12 @@ def profile(t):
     out *= tip
 
     inn = 0.040 * tip
+
+    # Every number above is in metres at AUTHORED_SPAN. Scaling them here keeps
+    # the crescent's proportions whatever SPAN is set to.
+    k = SPAN / AUTHORED_SPAN
+    out *= k
+    inn *= k
 
     # Three hand positions: one at the centre, one on each lobe inboard of the
     # spike. They are only a texture change -- cutting notches into the held
@@ -187,10 +212,19 @@ def build_mesh(path, texture_file):
                R_RIM if not (g0 and g1) else R_GRIP, nrm)
 
     nv, nf = m.emit(path, "TREKBatleth", texture_file)
-    return nv, nf, radius
+
+    # The number that actually matters is not SPAN but the bounding box the
+    # engine sees: the arc bulges past its own chord, and it was that gap
+    # (0.46 asked for, 0.531 drawn) that made the blade read oversized while
+    # the constant said it was in vanilla's bracket. Report it, and compare it
+    # with the widest weapon vanilla ships.
+    xs = [p for (o, i, _) in pts for p in (o[0], i[0])]
+    ys = [p for (o, i, _) in pts for p in (o[1], i[1])]
+    bbox = (max(xs) - min(xs), max(ys) - min(ys), THICK)
+    return nv, nf, radius, bbox
 
 
-def build_icon(mesh_path, tex_path, out, render_size=512, icon=64, margin=0.22,
+def build_icon(mesh_path, tex_path, out, render_size=512, icon=32, margin=0.10,
                tilt=32.0):
     """The inventory icon, rendered from the mesh this tool just built.
 
@@ -210,6 +244,30 @@ def build_icon(mesh_path, tex_path, out, render_size=512, icon=64, margin=0.22,
     would be wrong here: the grip leather is only 33 away from that
     background, well inside the distance key_icon treats as "probably
     backdrop", and the three hand bindings would have been keyed away.
+
+    **The icon is 32x32, and that is not a style choice.** Every other icon in
+    this mod is 64x64 and correct; this one is the only item with an
+    `AttachmentType`, so it is the only one vanilla's hotbar ever draws, and
+    `ISHotbar.lua:52` draws it like this:
+
+        self:drawTexture(tex, slotX + (tex:getWidth() / 2),
+                              (self.height - tex:getHeight()) / 2, 1,1,1,1)
+
+    The y is a real centring expression. The x is not: it is the slot's left
+    edge plus *half the texture's own width*, which only lands centred when the
+    texture is half the slot. `slotWidth` is 60, so a 32px icon occupies 16..48
+    -- centred, as every vanilla icon is -- and a 64px icon occupies 32..96,
+    starting at the middle of its own slot and running 36px into the next one.
+    Three lines above, vanilla centres the slot label with the formula this
+    line should have used, `slotX + (self.slotWidth - textWid) / 2`.
+
+    So the bleed was never the blade being too fat in its frame. It was the
+    frame being twice the size vanilla's hotbar assumes, and the three previous
+    attempts to fix it by shrinking the drawing -- 94%, then 81%, then 78% --
+    were all treating a symptom. At 32x32 the margin goes back to filling the
+    frame the way the rest of the set does, because the frame is now the right
+    size. Judged on the icon alone every one of those three passes looked
+    reasonable; what settled it was reading the code that draws it.
     """
     from PIL import Image as PILImage
     from preview_model import render
@@ -258,9 +316,12 @@ if __name__ == "__main__":
     tex = os.path.join(tex_dir, "TREK_Batleth.png")
     mesh = os.path.join(mesh_dir, "TREK_Batleth.x")
     build_texture(tex)
-    nv, nf, radius = build_mesh(mesh, "TREK_Batleth.png")
+    nv, nf, radius, bbox = build_mesh(mesh, "TREK_Batleth.png")
     print(f"bat'leth: {nv} verts, {nf} faces, span {SPAN} m, arc radius "
           f"{radius:.3f} m")
+    print(f"  bbox    {bbox[0]:.3f} across x {bbox[1]:.3f} deep x "
+          f"{bbox[2]:.3f} thick  (vanilla's widest weapon mesh is the canoe "
+          f"paddle at 0.123 across; a machete is 0.335 long)")
     print(f"  mesh    {mesh}")
     print(f"  texture {tex}")
     build_icon(mesh, tex,

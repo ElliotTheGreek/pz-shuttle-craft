@@ -525,6 +525,17 @@ skinning, no animation files. Vanilla's `Katana` model block is four lines.
   `Rifle`, `Handgun`, `Stone`, `Shove` — and a name outside it silently does
   not animate. `tests/test_assets.py` checks `SwingAnim` and `WeaponSprite`
   against the game's own scripts.
+- **A weapon model must be declared in `module Base`.** `WeaponSprite` does
+  *not* resolve inside the mod's own module the way `StaticModel` does, so the
+  hull and the helm draw fine from `module TrekShuttle` and a weapon there
+  draws nothing at all. The tell in the log is the engine trying to load the
+  **model block's name** as a mesh path — `Failed to load asset:
+  AssetPath{ "TrekBatlethModel" }` — which it only does when the name matched
+  no `ModelScript`. Every vanilla weapon model lives in `module Base`, so
+  `media/scripts/trekweapons.txt` does too, beside the item that stays in the
+  mod's module and names it bare. No vanilla script file declares two modules,
+  hence the second file. `test_assets.py` records each model's module and
+  fails a `WeaponSprite` pointing outside `Base`.
 - **Weapon meshes are Y-up.** The hull and the helm are Z-up, so this is the
   opposite of every other mesh here. `MeshBuilder.place()` maps
   *(east, north, height)*, which is the right helper for something standing on
@@ -538,6 +549,26 @@ skinning, no animation files. Vanilla's `Katana` model block is four lines.
 - Where a blade *hangs* when slung is not on the weapon model at all. The
   item's `AttachmentType` routes through `ISHotbarAttachDefinition.lua` and
   `AttachedLocations.lua` to an attachment on the **character** model.
+- **The mesh's own dimensions are its size in game; `WeaponLength` is a reach
+  stat and scales nothing.** And the bracket to sit in is not the one you would
+  guess: measure vanilla and every weapon in build 42 is a thin vertical line —
+  a machete is 0.009 wide by 0.335 long, and the widest mesh in the entire
+  arsenal is the canoe paddle at 0.123 across. A bat'leth is the shape this
+  engine has never drawn, a crescent worn and swung *across* the body, so its
+  full span reads as width where a bat of the same real length reads as a
+  stroke. Real-world scale is not the test; the sprite is. Check the **bounding
+  box**, not the constant you set — the bat'leth's arc bulges past its own
+  chord, so `SPAN = 0.46` drew 0.531 across, wider than a baseball bat is long.
+- **An item with an `AttachmentType` needs a 32×32 icon, not 64×64.** It is the
+  only kind vanilla's hotbar draws, and `ISHotbar.lua:52` places it at
+  `slotX + tex:getWidth() / 2` — the slot's left edge plus *half the texture's
+  own width*, which only centres when the texture is half the 60px slot. A 32px
+  icon occupies 16–48; a 64px icon occupies 32–96, starting at the middle of
+  its own slot and running 36px into the next one. (The `y` on that same line
+  centres properly, so the symptom is an icon that is correct vertically and
+  shoved right — and three rounds of shrinking the drawing *inside* a 64px
+  frame could not touch it, because the frame was the fault.) Every other icon
+  here is 64×64 and right: nothing else attaches. `test_assets.py` enforces it.
 
 ### A drink is a fluid, and a modded fluid is a string
 
@@ -790,8 +821,10 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **Every container in the cabin is empty** | Items are not being created. `grep "CreateItem\|stocking containers via" console.txt` — the second is logged once per build and names the path that worked. See *The jar is not the API*. |
 | **One container is empty and the rest are fine** | Either its sprite is not a container in the tileset, or its `loot` names a `C.Loot` list that does not exist. Both fail in `test_layout.py`; in game, `TREK_Stock()` names the square. |
 | **A container is missing item types** | Container capacity. `AddItems` drops items silently once full. Use `U.stockEach`, which reads the container back and reports what did not land. |
-| **A weapon is equipped and the hand is empty** | `WeaponSprite` names no model, or the model's mesh/texture is not on disk. `tests/test_assets.py` checks all three. |
+| **A weapon is equipped and the hand is empty** | `WeaponSprite` names no model, the model block is not in `module Base`, or the mesh/texture is not on disk. `tests/test_assets.py` checks all four. The log names the model block itself as the failed asset when the module is wrong. |
 | **A weapon swings with no animation** | `SwingAnim` is not one of the nine names vanilla uses. |
+| **A weapon is twice the size of the character holding it** | The mesh's own dimensions are its scale; `WeaponLength` changes nothing. Read the **bounding box** the generator prints, not the span constant — an arc bulges past its chord. Vanilla's widest weapon mesh is 0.123 across. |
+| **An icon overlaps the next hotbar slot** | Its item has an `AttachmentType` and a 64×64 icon. Vanilla's hotbar assumes 32×32; see *A weapon model is a static mesh*. |
 | **A drink has no effect, or the wrong one** | The effects are on the *fluid*, not the item; a `ThirstChange` on the vessel is ignored. `Fluid.Get("name")`, never `FluidType.<name>` -- a modded fluid is `FluidType.Modded`. |
 | **A vessel will not accept its own drink** | The `Fluids { }` whitelist inside its `FluidContainer` is missing or names the fluid wrongly; the log says `Cannot find fluid`. |
 | **A new icon looks muddy, with a dark square behind it** | The generated background was not the magenta that was asked for, so it keyed as foreground. `tools/key_icon.py` now measures the key and refuses to write; re-run it and read the line it prints. |
@@ -915,7 +948,7 @@ gets verified. Practical notes:
 
 Version **1.3.0**, build revision **11**.
 
-**1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-8):
+**1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-9):
 server-owned ship and cabin, request protocol, transporter charges, shields per
 client, owner-and-crew access, the shuttle as a four-seat vehicle, and flight.
 
@@ -926,21 +959,34 @@ hatch, beam down — and **piloting**: take off, climb, dive, fly over buildings
 set her down, with the crew going aft to the cabin and back in the air. See
 `PILOTING.md`.
 
+**The 2026-09-18 session** carried the drinks and the bat'leth in for the first
+time and cost five bugs, all fixed and all now covered: `ClearBlue` was not a
+registered colour and **no world would load at all**; a weapon model in the
+mod's own module drew nothing; beaming up never left the vehicle seat, so
+vanilla's inventory walked a null vehicle every frame — 829 stack traces and an
+unresponsive game; and the bat'leth was twice its proper size with an icon that
+bled into the next hotbar slot. **On 2026-09-20 the bat'leth was resized**
+(bounding box 0.531 → 0.369 across) **and its icon dropped to 32×32**, which is
+what vanilla's hotbar assumes; neither has been looked at in game yet.
+
 **Not yet seen in game**, in the order worth checking:
 
-1. **The dedicated server**: the interior cell loads there, the server-built
+1. **The bat'leth and the drinks** — the new size and icon, the four vessels in
+   the galley's drinks cabinet. Cheap to carry alongside anything else.
+2. **The dedicated server**: the interior cell loads there, the server-built
    cabin reaches the client with its stock, water fills with the mains off.
-2. **Two players**: one cabin, loot taken by one gone for the other, crew
+3. **Two players**: one cabin, loot taken by one gone for the other, crew
    access, charges — and a shuttle in the air seen from the other machine,
    which is the last unproven thing about flight.
-3. **The phaser firing** and staying charged on a server.
+4. **The phaser firing** and staying charged on a server.
 
-**The pattern worth carrying forward.** Five separate bugs in this mod have
+**The pattern worth carrying forward.** Six separate bugs in this mod have
 had the same shape: a plausible engine call that fails silently, leaving a
 thing that is present, drawn, and inert — an unopenable locker, a container
 handed items that were never created, a tap topped up through an API it does
-not have, a menu hook that never ran, a floor removed without its shadow. Static checks caught none of them, because the mod's logic was
-correct every time. What caught them was **reading the result back and logging
+not have, a menu hook that never ran, a floor removed without its shadow, a
+weapon model declared one module away from where the engine looks. Static
+checks caught none of them, because the mod's logic was correct every time. What caught them was **reading the result back and logging
 it**: `B.stockReport()` turned three sessions of guessing into one grep. When
 you add something to the cabin, add the line that proves it arrived.
 

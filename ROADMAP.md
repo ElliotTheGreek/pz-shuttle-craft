@@ -79,9 +79,16 @@ while the cabin loaded; `AntiCheatSpeed` is an enum option (`getOption`, not
 dumped 2932 stack traces in one session, which is what a black screen looks
 like from the inside.
 
-**Before publishing 1.3 to the Workshop:** a two-player session on the dedicated
-server — the shared cabin, loot, crew access, charges, and a shuttle in the air
-seen from the other machine.
+The 2026-09-18 session added five more, all fixed: an unregistered
+`ColorReference` that **stopped any world loading**; a weapon model in the
+wrong module drawing nothing in hand; beaming up without leaving the vehicle
+seat, which left vanilla's inventory walking a null vehicle every frame for 829
+stack traces; and the bat'leth's size and icon, both corrected on 2026-09-20
+and both still unverified.
+
+**Before publishing 1.3 to the Workshop:** a two-player session on the
+dedicated server — the shared cabin, loot, crew access, charges, and a shuttle
+in the air seen from the other machine.
 
 ---
 
@@ -121,10 +128,17 @@ is reasoning, not evidence.
   that does not set the street on fire.
 - **A viewscreen** in the cockpit, if flying from the helm ever earns one.
 
-## Galley drinks — built, not yet seen in game
+## Galley drinks — built, and still not properly seen in game
 
 Four drinks, each a `fluid` block plus a vessel item carrying a
 `FluidContainer`. In the galley's drinks cabinet (`C.Loot.drinks`).
+
+They were carried into the game on 2026-09-18 and **the world would not load**:
+`ColorReference = ClearBlue` is not a registered colour, `getColor` throws, and
+that aborts script loading entirely. Fixed (`DeepSkyBlue`; `SaddleBrown` was
+equally unproven and is now `Cola`), and `test_assets.py` now validates against
+the colours vanilla's own fluids use. Nobody has yet opened the cabinet and
+looked at the four vessels, so the colours, names and fill still need a look.
 
 | Drink | Vessel | Colour | Notes |
 |---|---|---|---|
@@ -165,7 +179,18 @@ does, and the swing is `SwingAnim`, a name borrowed from the game's own global
 set (`Bat`, `Stab`, `Heavy`, `Spear`, `Throw`, `Rifle`, `Handgun`, `Stone`,
 `Shove` — `tests/test_assets.py` now checks both names resolve).
 
-Weapon meshes are **Y-up**, the opposite of the hull and the helm.
+Weapon meshes are **Y-up**, the opposite of the hull and the helm — and three
+more things the first in-game session settled, all in `DEV_GUIDE.md`:
+
+- **The model block must be in `module Base`.** `WeaponSprite` does not resolve
+  inside the mod's own module the way `StaticModel` does, so the bat'leth drew
+  nothing in hand until it moved to `media/scripts/trekweapons.txt`.
+- **The mesh's own dimensions are its size**; `WeaponLength` is a reach stat and
+  scales nothing. Judge the **bounding box**, not the span constant, against
+  vanilla — where every weapon is a thin vertical line and the widest mesh in
+  the game is 0.123 across.
+- **An attachable item needs a 32×32 icon.** Vanilla's hotbar places it at
+  `slotX + texWidth/2` in a 60px slot, so a 64×64 icon runs into the next slot.
 
 | Weapon | SwingAnim | Categories | Notes |
 |---|---|---|---|
@@ -174,14 +199,20 @@ Weapon meshes are **Y-up**, the opposite of the hull and the helm.
 | **Lirpa** | `Spear` | `base:spear` | Vulcan polearm; copy `SpearCrafted`'s ranges (`MinRange = 0.98`) |
 | **Ushaan-tor** | `Stab` | `base:smallblade` | Andorian ice-miner's blade; `HuntingKnife` template |
 
-**Still to settle for the bat'leth, in game:** it ships with no `attachment`
-blocks. Both (`Bip01_Prop2` for the hand, `world` for the ground) are optional
-and the engine falls back to a default placement, but the six offset numbers
-can only honestly be chosen by looking at the thing in a fist. Vanilla's
-`Katana` model block is the baseline to start from. Where a blade *hangs* when
-slung is not on the weapon model at all — `AttachmentType` is routed through
-`ISHotbarAttachDefinition.lua` and `AttachedLocations.lua` to an attachment on
-the **character** model.
+**Still to settle for the bat'leth, in game:**
+
+1. **The new size and icon** (2026-09-20, unverified). It was seen in game at
+   0.531 across — wider than a baseball bat is long, spanning the character hip
+   to hip — and its 64×64 icon overlapped the belt in the next hotbar slot. The
+   mesh is now 0.369 across and the icon is 32×32. Both need a look.
+2. **The `attachment` blocks**, which it still ships without. Both
+   (`Bip01_Prop2` for the hand, `world` for the ground) are optional and the
+   engine falls back to a default placement, but the six offset numbers can
+   only honestly be chosen by looking at the thing in a fist. Vanilla's `Katana`
+   model block is the baseline to start from. Where a blade *hangs* when slung
+   is not on the weapon model at all — `AttachmentType` is routed through
+   `ISHotbarAttachDefinition.lua` and `AttachedLocations.lua` to an attachment
+   on the **character** model.
 
 ## Then: medical and tools
 
@@ -202,21 +233,21 @@ the **character** model.
 
 ## Suggested order
 
-1. **Two players on the dedicated server** — the shared cabin, loot, crew
-   access, charges, and now a shuttle in the air seen from another machine.
-   This is the last thing standing between 1.3 and the Workshop.
-2. **Publish 1.3.**
-3. **Photon torpedoes.**
-4. ~~Drinks.~~ **Built.** Needs a look in game: the four vessels in the
-   galley's drinks cabinet, full, and the fluid names and colours right.
-5. **Blades** — bat'leth built; hand and ground attachments to set in game,
-   then the mek'leth, lirpa and ushaan-tor off the same pipeline.
+1. **One single-player session, carrying both unverified things** — it is the
+   same world load for each:
+   - **the bat'leth** at its new size, in hand and slung, and its icon in the
+     hotbar beside another attachment;
+   - **the drinks cabinet**, the four vessels full, names and colours right.
+2. **Two players on the dedicated server** — the shared cabin, loot, crew
+   access, charges, and a shuttle in the air seen from another machine. This is
+   the last thing standing between 1.3 and the Workshop.
+3. **Publish 1.3.**
+4. **Photon torpedoes.**
+5. **Blades** — the bat'leth's hand and ground attachments, once it has been
+   looked at in a fist, then the mek'leth, lirpa and ushaan-tor off the same
+   pipeline.
 6. **Medical tricorder, hypospray, tricorder.**
 7. **Replicator, then EMH.**
-
-Items 4 and 5 are static-checked and have never been loaded by the game. The
-next in-game session should carry them: the drinks cabinet and a bat'leth in
-hand cost nothing extra once a world is up.
 
 ---
 

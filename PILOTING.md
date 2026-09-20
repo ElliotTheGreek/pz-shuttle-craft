@@ -290,6 +290,13 @@ Read the dated `Logs/…_DebugLog.txt`, not `console.txt`: the console file is a
 rolling tail and an error flood overwrites the mod's own lines, which is how a
 whole session was once lost to a log that appeared empty.
 
+**`F.land` logs every outcome, including its four early returns**, with the
+reason and the blocked-square count. They used to be silent, and during the
+829-exception session the log showed no attempt and no refusal at all between
+going airborne and the pilot beaming out — which is indistinguishable from the
+landing never having been called, a failure this mod has had before. Silence is
+not a diagnosis; make every path say something.
+
 `TREK_Fly()` and `TREK_Sky()` exist for the console, but nothing depends on
 them.
 

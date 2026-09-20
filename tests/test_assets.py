@@ -6,7 +6,7 @@ half-dressed with no error anywhere in the log.
 
     python tests/test_assets.py
 """
-import glob, json, re, sys, os
+import glob, json, re, struct, sys, os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CATALOG = os.path.join(ROOT, "tools", "_catalog")
@@ -74,6 +74,56 @@ for icon in sorted(mod_icons):
     if not any(os.path.exists(p) for p in candidates):
         failures.append(f"trekshuttle.txt: Icon = {icon} has no texture; "
                         f"expected media/textures/Item_{icon}.png")
+
+
+# --- an attachable item's icon has to be 32x32 -------------------------
+# An item with an `AttachmentType` is the only kind vanilla's hotbar ever
+# draws, and the hotbar assumes a 32x32 icon. `ISHotbar.lua:52`:
+#
+#     self:drawTexture(tex, slotX + (tex:getWidth() / 2),
+#                           (self.height - tex:getHeight()) / 2, 1,1,1,1)
+#
+# The y is a real centring expression. The x is the slot's left edge plus
+# *half the texture's own width*, which only lands centred when the texture is
+# half the slot -- and `slotWidth` is 60. So a 32px icon occupies 16..48 of its
+# slot, centred as every vanilla icon is, and a 64px icon occupies 32..96:
+# it starts at the middle of its own slot and runs 36px into the next one.
+# Three lines above, vanilla centres the slot's label with the formula this
+# line should have used, `slotX + (self.slotWidth - textWid) / 2`.
+#
+# The bat'leth did exactly that in game, overlapping the belt beside it, and
+# three rounds of shrinking the drawing *inside* a 64px frame (94%, 81%, 78%)
+# could not fix it, because the frame was the problem and not the drawing.
+#
+# Every other icon in this mod is 64x64 and right: nothing else attaches, so
+# nothing else is ever drawn by that line.
+def png_size(path):
+    with open(path, "rb") as fh:
+        head = fh.read(24)
+    if head[:8] != b"\x89PNG\r\n\x1a\n":
+        return None
+    return struct.unpack(">II", head[16:24])
+
+
+HOTBAR_ICON = 32
+# [prefix, name, body, name, body, ...]
+_chunks = re.split(r"^\s*item\s+([A-Za-z0-9_]+)\s*$", script, flags=re.M)
+for _name, _body in zip(_chunks[1::2], _chunks[2::2]):
+    if not re.search(r"^\s*AttachmentType\s*=\s*\w+\s*,", _body, re.M):
+        continue
+    _icon = re.search(r"^\s*Icon\s*=\s*([A-Za-z0-9_]+)\s*,", _body, re.M)
+    if not _icon:
+        continue
+    _path = os.path.join(MOD, "media", "textures", f"Item_{_icon.group(1)}.png")
+    _size = png_size(_path) if os.path.exists(_path) else None
+    if _size and _size != (HOTBAR_ICON, HOTBAR_ICON):
+        failures.append(
+            f"{_name} has an AttachmentType, so vanilla's hotbar draws its "
+            f"icon, and Item_{_icon.group(1)}.png is {_size[0]}x{_size[1]} "
+            f"rather than {HOTBAR_ICON}x{HOTBAR_ICON}. ISHotbar.lua:52 draws "
+            f"it at slotX + width/2 in a 60px slot, so it will start at the "
+            f"middle of its own slot and spill "
+            f"{_size[0] // 2 + _size[0] - 60}px into the next one")
 
 # --- the phaser's borrowed vanilla references --------------------------
 # The phaser leans on vanilla for its AmmoType, its in-hand model and its
