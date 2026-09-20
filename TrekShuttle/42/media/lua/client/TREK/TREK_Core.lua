@@ -483,6 +483,9 @@ end
 function TREK_Rebuild() return debugCommand("rebuild") end
 function TREK_Stock()   return debugCommand("stock") end
 function TREK_Water()   return debugCommand("water") end
+-- Reports each powered fitting's cell and whether it is a device at all. The
+-- one that tells "the television is off" from "the television is scenery".
+function TREK_Power()   return debugCommand("power") end
 function TREK_Galley()  return debugCommand("galley") end
 function TREK_Ghosts()  return debugCommand("ghosts") end
 function TREK_Charges() return debugCommand("charges") end

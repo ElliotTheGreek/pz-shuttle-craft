@@ -17,10 +17,10 @@
     generated here; every fitting and locker is authored in BuildingEd and
     read out of TREK_InteriorLayout.lua:
 
-        bow (oy 0)   consoles and viewscreen over the galley counters
-        port (ox 0)  fridges, ovens and the microwave, berth aft
-        stbd (ox 5)  eight lockers: sick bay, engineering, stores, armoury
-        amidships    the transporter pad at 2,6
+        bow (oy 0)   the monitor wall, a television and two crew seats
+        port (ox 0)  the galley: fridge, oven, two counters, replicator berth
+        stbd (ox 3)  armoury, rations and sick-bay lockers, then the biobed
+        amidships    the helm at 2,1 and the transporter pad at 2,2
 
     Nothing may be built into a chunk that is not loaded, and chunks load only
     around a player, so TREK_Server only asks for a build once somebody who
@@ -32,6 +32,7 @@ if isClient() then return end
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 local L = require "TREK/TREK_InteriorLayout"
+require "TREK/TREK_Power"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -133,6 +134,164 @@ local function clearSquare(sq)
     return removed
 end
 
+---------------------------------------------------------------------------
+-- The refit migration
+---------------------------------------------------------------------------
+--- Spills a container's contents onto the transporter pad.
+---
+--- The ship is meant to be lived in and what is in a locker is the player's,
+--- so a locker that is about to stop existing hands its contents back rather
+--- than eating them. The pad because it is the one square everybody arrives
+--- on and nothing is ever placed on.
+---
+--- The live InventoryItem is moved, not its id: recreating from the full type
+--- would reset a hypospray's doses and a magazine's rounds, which is the
+--- quiet half of losing it. AddWorldInventoryItem's (InventoryItem, f, f, f)
+--- overload is what vanilla's own scenarios use.
+local function spillToPad(obj)
+    local container = U.containerOf(obj)
+    if not container then return 0 end
+
+    local px, py = at(C.Landing.x, C.Landing.y)
+    local pad = U.square(px, py, C.CabinZ, false)
+    if not pad then return 0 end
+
+    local doomed = {}
+    U.try("spill:list", function()
+        local items = container:getItems()
+        if not items then return end
+        for i = 0, items:size() - 1 do
+            local it = items:get(i)
+            if it then table.insert(doomed, it) end
+        end
+    end)
+
+    local spilled = 0
+    local join = U.batch("spill.toPad")
+    for _, item in ipairs(doomed) do
+        -- The closure returns true on purpose: U.batch's join hands back
+        -- whatever the call returned, and a function returning nothing is
+        -- indistinguishable from one that failed.
+        if join(function()
+            container:Remove(item)
+            pad:AddWorldInventoryItem(item, 0.5, 0.5, 0.0)
+            return true
+        end) then spilled = spilled + 1 end
+    end
+    return spilled
+end
+
+--- Removes what the old, larger cabin left standing outside the new hull.
+---
+--- Shrinking the cabin is a migration, not a rebuild. clearSurroundings does
+--- sweep the margin, but U.clearSquare deliberately *keeps* anything the mod
+--- tagged -- so every locker, fridge and bunk of the 6x9 cabin would be left
+--- standing, openable, in the black void, for ever. Nothing that walks the
+--- new shape ever visits those squares, so they have to be named.
+---
+--- Constraint 1 applies in full: a square in a chunk that has not streamed in
+--- answers nil, and nil means "ask again later", not "nothing there". The
+--- pass only marks itself done when it reached every square it went looking
+--- for, and runs again on the next build otherwise.
+--- Removes a world item the cabin no longer places.
+---
+--- U.clearSquare deliberately leaves anything lying on the ground alone --
+--- it is where a player's dropped things live -- so a prop the mod itself put
+--- down has to be named to get rid of it.
+local function removeWorldItem(sq, fullType)
+    if not sq then return 0 end
+    local doomed = {}
+    U.try("scanWorldItems", function()
+        local items = sq:getWorldObjects()
+        if not items then return end
+        for i = 0, items:size() - 1 do
+            local worldItem = items:get(i)
+            local item = worldItem and worldItem:getItem()
+            if item and item:getFullType() == fullType then
+                table.insert(doomed, worldItem)
+            end
+        end
+    end)
+    local gone = 0
+    for _, o in ipairs(doomed) do
+        if removeSynced(sq, o) then gone = gone + 1 end
+    end
+    return gone
+end
+
+--- Brings a cabin built before the refit up to the shape the ship has now.
+---
+--- Two jobs, both of which only ever matter in an older save and neither of
+--- which any other pass would do:
+---
+--- 1. *Fittings outside the new hull.* clearSurroundings does sweep the
+---    margin, but U.clearSquare deliberately *keeps* anything the mod tagged
+---    -- so every locker, fridge and bunk of the 6x9 cabin would be left
+---    standing, openable, in the black void. Nothing that walks the new shape
+---    ever visits those squares, so C.LegacyCabin names them.
+--- 2. *The helm console prop.* A 70-weight static model lying on the deck
+---    that did nothing: the helm panel opens from the aboard menu anywhere in
+---    the cabin, never from that object. It is a world item, which
+---    U.clearSquare leaves alone by design, so it has to be named too -- and
+---    it is looked for over the whole cabin, because it stood at 3,7 before
+---    the refit and at 2,1 for one revision after it.
+---
+--- Constraint 1 applies in full: a square whose chunk has not streamed in
+--- answers nil, and nil means "ask again later", not "nothing there". This
+--- only marks itself done when it reached every square it went looking for,
+--- and runs again on the next build otherwise.
+function B.refitCabin()
+    local s = U.state()
+    if s.refitRev == C.BuildRev then return 0 end
+
+    local w = math.max(C.CabinW, C.LegacyCabin.w)
+    local l = math.max(C.CabinL, C.LegacyCabin.l)
+    local removed, spilled, props, unreachable = 0, 0, 0, 0
+
+    for ox = 0, w do
+        for oy = 0, l do
+            local x, y = at(ox, oy)
+            -- The chunk is the gate, not the square. A nil square in a
+            -- *loaded* chunk really is nothing there -- which is every square
+            -- outside the hull in a world made after the refit, and if that
+            -- counted as "ask again later" this would never finish and would
+            -- walk fifty-four squares on every build for the rest of the save.
+            if not U.chunkLoaded(x, y, C.CabinZ) then
+                unreachable = unreachable + 1
+            else
+                local sq = U.square(x, y, C.CabinZ, false)
+                props = props + removeWorldItem(sq, C.LegacyHelmItem)
+                if not inShape(ox, oy) and sq then
+                    local doomed = {}
+                    U.eachObject(sq, function(o)
+                        local md = U.try("md", function() return o:getModData() end)
+                        if md and md.TREK then table.insert(doomed, o) end
+                    end)
+                    for _, o in ipairs(doomed) do
+                        spilled = spilled + spillToPad(o)
+                        if removeSynced(sq, o) then removed = removed + 1 end
+                    end
+                end
+            end
+        end
+    end
+
+    if unreachable > 0 then
+        U.log("refit: %d squares of the old cabin are not loaded yet; "
+              .. "%d fittings and %d props removed so far",
+              unreachable, removed, props)
+        return removed + props
+    end
+
+    s.refitRev = C.BuildRev
+    if removed > 0 or props > 0 then
+        U.log("refit: removed %d fittings the old 6x9 cabin left outside the "
+              .. "hull and %d helm props, and spilled %d items onto the pad",
+              removed, props, spilled)
+    end
+    return removed + props
+end
+
 local function clearFootprint()
     local cleared = 0
     for ox = 0, C.CabinW do
@@ -221,19 +380,6 @@ end
 
 --- Marks the cabin as powered, so the fridges, ovens and microwave work.
 --- A square flag, not a synced object: clients set it too (TREK_Core).
-function B.powerCabin()
-    local power = U.batch("power.setHaveElectricity")
-    for ox = 0, C.CabinW do
-        for oy = 0, C.CabinL do
-            if inShape(ox, oy) then
-                local x, y = at(ox, oy)
-                local sq = U.square(x, y, C.CabinZ, false)
-                if sq then power(function() sq:setHaveElectricity(true) end) end
-            end
-        end
-    end
-end
-
 ---------------------------------------------------------------------------
 -- Water
 ---------------------------------------------------------------------------
@@ -342,6 +488,17 @@ local function stockAuthored(obj, entry)
     return added > 0
 end
 
+--- True when the layout asked for this container to hold something.
+---
+--- Five of the eight containers in the cabin are deliberately empty -- they
+--- are the player's shelves, not the ship's stores -- so "no stock" is only
+--- worth a warning when stock was actually asked for. Without this the build
+--- log carries five WARNs every time, and tests/test_multiplayer.py fails on
+--- any WARN the mod logs.
+local function wantsStock(entry)
+    return entry.loot ~= nil or entry.special ~= nil
+end
+
 --- Creates a container object's inventory and stocks it. Runs on a new object
 --- before it is sent, so nothing needs sending item by item.
 local function prepareContainer(obj, entry)
@@ -351,6 +508,13 @@ local function prepareContainer(obj, entry)
     -- Explored, or vanilla rolls its own loot into it the first time a
     -- client opens it, on top of ours.
     container:setExplored(true)
+    if not wantsStock(entry) then
+        -- Stamped even though nothing went in, so the repair path below never
+        -- mistakes an empty-by-design container for one the old broken builds
+        -- left unstocked and fills it years later.
+        obj:getModData().TREKStockRev = C.BuildRev
+        return
+    end
     if stockAuthored(obj, entry) then
         obj:getModData().TREKStockRev = C.BuildRev
     else
@@ -368,6 +532,7 @@ local function repairContainer(obj, entry)
     if not container then return end
     container:setExplored(true)
 
+    if not wantsStock(entry) then return end
     local initialize = C.DevRestock
         or (data.TREKStockRev == nil and U.itemCount(obj) == 0)
     if not initialize then return end
@@ -384,6 +549,87 @@ local function repairContainer(obj, entry)
     end
 end
 
+---------------------------------------------------------------------------
+-- Devices
+---------------------------------------------------------------------------
+--- Builds a working television rather than a picture of one.
+---
+--- `place()` makes every fitting with IsoObject.new, and an IsoObject wearing
+--- a television's sprite is scenery: no channel, no volume, no tape slot,
+--- nothing to right-click. That is what the old viewscreen was for three
+--- versions, and it is the same "present, drawn, and inert" shape as the
+--- unopenable locker and the tap with no water store.
+---
+--- Vanilla's own route is ISMoveableSpriteProps.lua:2136 -- build the
+--- IsoTelevision, then hand it a DeviceData cloned off the item that declares
+--- the thing's channels and `AcceptMediaType`. Two ways of getting that data
+--- and neither has a vanilla *Lua* call site, so both are tried and the
+--- result is read back: a television with nil device data looks identical to
+--- a working one until somebody walks up to it.
+local function attachDevice(obj, itemId)
+    local data = U.try("cloneDeviceDataFromItem", function()
+        return obj:cloneDeviceDataFromItem(itemId)
+    end)
+    if not data then
+        -- The long way round, which is what the moveable-furniture code does.
+        -- instanceItem is the GlobalObject static with 187 vanilla call sites;
+        -- InventoryItemFactory is the one that is null from Lua.
+        data = U.try("device:instanceItem", function()
+            local proto = instanceItem(itemId)
+            return proto and proto:getDeviceData() or nil
+        end)
+    end
+    if data then
+        U.try("setDeviceData", function() obj:setDeviceData(data) end)
+    end
+
+    local got = U.try("getDeviceData", function() return obj:getDeviceData() end)
+    if got then
+        U.log("device: %s is live", itemId)
+    else
+        U.log("WARN device: %s has no device data; it will be scenery", itemId)
+    end
+    return got ~= nil
+end
+
+--- Places a device fitting -- currently only the television. Mirrors place(),
+--- but with IsoTelevision's own (cell, square, sprite) constructor.
+---
+--- An object already on the square that is *not* a television came from a
+--- build before this existed; it is removed and made again, the same way a
+--- tap with no water store is. It held nothing, so there is nothing to lose.
+local function placeDevice(sq, entry)
+    if not sq then return nil, false end
+
+    local existing = U.findSprite(sq, entry.sprite)
+    if existing then
+        -- instanceof rather than a getDeviceData() probe: a plain IsoObject
+        -- has no such method, so asking would throw out of Java once a build
+        -- for a question instanceof answers without one.
+        if instanceof(existing, "IsoTelevision") then return existing, false end
+        removeSynced(sq, existing)
+    end
+
+    local obj = U.try("IsoTelevision.new", function()
+        return IsoTelevision.new(getCell(), sq, getSprite(entry.sprite))
+    end)
+    if not obj then
+        -- Better a picture of a television than no television: fall back to
+        -- the ordinary path so the bow still looks right.
+        U.warnOnce("device:" .. tostring(entry.tag),
+                   "could not build an IsoTelevision; placing it as scenery")
+        return place(sq, entry.sprite, entry.tag)
+    end
+
+    U.try("tagObject", function() obj:getModData().TREK = entry.tag end)
+    attachDevice(obj, entry.device)
+    -- The ship's own power, before the object is sent, so it arrives at every
+    -- client already able to be switched on. TREK_Power keeps it topped up.
+    TREK.Power.energise(obj)
+    if not addSynced(sq, obj) then return nil, false end
+    return obj, true
+end
+
 --- Places the furniture authored in BuildingEd. An appliance and its counter
 --- may share a square, so layering is intentional and nothing is claimed.
 local function furnishAuthoredInterior()
@@ -392,7 +638,9 @@ local function furnishAuthoredInterior()
             local x, y = at(entry.x, entry.y)
             local sq = U.square(x, y, C.CabinZ, true)
             local isWater = C.WaterTags[entry.tag]
-            if wantsContainer(entry) then
+            if entry.device then
+                placeDevice(sq, entry)
+            elseif wantsContainer(entry) then
                 local obj, made = place(sq, entry.sprite, entry.tag, function(o)
                     prepareContainer(o, entry)
                 end)
@@ -426,30 +674,6 @@ local function furnishAuthoredInterior()
                 string.format("layout entry %s at %d,%d is outside the cabin or on the pad",
                     tostring(entry.tag), entry.x, entry.y))
         end
-    end
-end
-
---- The helm is a world item, not a tile.
-local function furnishHelmItem()
-    local hx, hy = at(3, 7)
-    local sq = U.square(hx, hy, C.CabinZ, true)
-    if not sq then return end
-
-    local already = false
-    U.try("scanHelm", function()
-        local items = sq:getWorldObjects()
-        if not items then return end
-        for i = 0, items:size() - 1 do
-            local worldItem = items:get(i)
-            local item = worldItem and worldItem:getItem()
-            if item and item:getFullType() == C.HelmItem then already = true end
-        end
-    end)
-    if not already then
-        -- The four-argument form sends the new world item to clients.
-        U.try("addHelm", function()
-            sq:AddWorldInventoryItem(C.HelmItem, 0.5, 0.5, 0.0)
-        end)
     end
 end
 
@@ -631,16 +855,18 @@ function B.buildCabin()
     if not B.cabinLoaded() then return false end
 
     local phases = {
+        -- Before anything else: the 6x9 cabin's fittings are standing on
+        -- squares the new hull does not cover, and buildFloor is about to
+        -- take the deck out from under them.
+        { "refitCabin", B.refitCabin },
         { "clearFootprint", clearFootprint },
         { "buildFloor",     buildFloor },
         { "buildWalls",     buildWalls },
-        { "powerCabin",     B.powerCabin },
         { "furnish", function()
               claimed = {}
               U.resetStockCursors()
               U.resetItemStrategy()
               furnishAuthoredInterior()
-              furnishHelmItem()
           end },
         { "fitLamps",       fitLamps },
         { "stockReport", function() B.stockReport() end },
@@ -677,9 +903,14 @@ function B.forceRebuild()
         U.log("forceRebuild: the cabin is not loaded; someone must be aboard")
         return false
     end
+    -- Swept over the *old* extent as well as the new one, because a rebuild
+    -- in a save made before the refit has the 6x9 cabin's fittings standing
+    -- outside the hull and CabinW + 2 no longer reaches them.
     local wiped = 0
-    for ox = -2, C.CabinW + 2 do
-        for oy = -2, C.CabinL + 2 do
+    local sweepW = math.max(C.CabinW, C.LegacyCabin.w) + 2
+    local sweepL = math.max(C.CabinL, C.LegacyCabin.l) + 2
+    for ox = -2, sweepW do
+        for oy = -2, sweepL do
             local x, y = at(ox, oy)
             local sq = U.square(x, y, C.CabinZ, false)
             if sq then

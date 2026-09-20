@@ -130,6 +130,14 @@ function SIM.container(capacity)
         return item
     end
     function c:getItems() return jlist(self.items) end
+    --- Takes one item back out. Real, not a no-op: the refit migration empties
+    --- a doomed locker onto the deck, and a Remove that did nothing would let
+    --- the item be both spilled and destroyed with the container.
+    function c:Remove(item)
+        for i, held in ipairs(self.items) do
+            if rawequal(held, item) then table.remove(self.items, i) return end
+        end
+    end
     function c:getCapacity() return self.capacity end
     function c:getContentsWeight() return #self.items * 0.5 end
     function c:setExplored(v) self.explored = v end
@@ -256,6 +264,96 @@ end
 IsoObject = {}
 function IsoObject.new(sq, sprite, name)
     return SIM.object(sprite)
+end
+
+--- A television, which is a different Java class from the sprite that draws
+--- one. The cabin's viewscreen was a plain IsoObject wearing a TV's picture
+--- for three versions -- drawn, present and impossible to turn on -- so the
+--- simulation models the distinction the engine makes rather than the one the
+--- sprite name suggests.
+---
+--- The constructor is vanilla's own, from ISMoveableSpriteProps.lua:2136:
+--- (cell, square, sprite) rather than IsoObject's (square, spriteName).
+IsoTelevision = {}
+function IsoTelevision.new(_cell, _sq, sprite)
+    local name = type(sprite) == "table" and sprite.name or sprite
+    return SIM.object(name, "IsoTelevision")
+end
+
+--- A sprite handle. The engine hands back an IsoSprite; all the mod does with
+--- it is give it straight back to a constructor, so it only has to carry the
+--- name.
+function getSprite(name)
+    return { name = name, getName = function() return name end }
+end
+
+--- DeviceData, cloned off the item that declares the device's channels and
+--- what media it accepts. Base.TvWideScreen is AcceptMediaType = 1, the tape
+--- type, which is why the mod needs no VCR: in build 42 a television is one.
+---
+--- The power half is modelled the way the bytecode actually works, because
+--- the mod's whole answer to "the shuttle has its own electricity" rests on
+--- it and a stub that simply said yes would prove nothing:
+---
+---   canBePoweredHere()   true at once if isBatteryPowered; otherwise the
+---                        square's grid/generator, which the cabin has not
+---   setIsTurnedOn(true)  refuses unless canBePoweredHere(), and forces off
+---                        when the device is battery powered and flat
+---   SIM.drainDevices(m)  what DeviceData.update does per game minute: a
+---                        device that is on loses useDelta, and switches
+---                        *itself* off when it reaches zero
+local function makeDeviceData(id, useDelta)
+    local d = {
+        fromItem = id, mediaType = 1, useDelta = useDelta or 0.007,
+        isBatteryPowered = false, hasBattery = false,
+        power = 0.0, isTurnedOn = false,
+    }
+    function d:setIsBatteryPowered(v) self.isBatteryPowered = v == true end
+    function d:getIsBatteryPowered() return self.isBatteryPowered end
+    function d:setHasBattery(v) self.hasBattery = v == true end
+    function d:getHasBattery() return self.hasBattery end
+    function d:setPower(v) self.power = math.max(0, math.min(1, v or 0)) end
+    function d:getPower() return self.power end
+    function d:getUseDelta() return self.useDelta end
+    function d:getIsTurnedOn() return self.isTurnedOn end
+    function d:canBePoweredHere()
+        if self.isBatteryPowered then return true end
+        -- No grid and no generator in the cabin's cell, ever.
+        return false
+    end
+    function d:setIsTurnedOn(v)
+        if not self:canBePoweredHere() then self.isTurnedOn = false return end
+        if self.isBatteryPowered and self.power <= 0 then
+            self.isTurnedOn = false
+            return
+        end
+        self.isTurnedOn = v == true
+    end
+    return d
+end
+
+function ObjectMT:cloneDeviceDataFromItem(id)
+    if not id then return nil end
+    return makeDeviceData(id)
+end
+function ObjectMT:setDeviceData(data) self.deviceData = data end
+function ObjectMT:getDeviceData() return self.deviceData end
+
+--- Runs `minutes` game minutes of DeviceData.update over every device in the
+--- world. This is the drain the mod's per-minute top-up exists to outrun.
+function SIM.drainDevices(minutes)
+    -- SIM.squares rather than the local, which is declared further down.
+    for _, sq in pairs(SIM.squares or {}) do
+        for _, o in ipairs(sq.objects) do
+            local d = o.deviceData
+            if d and d.isTurnedOn and d.isBatteryPowered and d.power > 0 then
+                d:setPower(d.power - d.useDelta * minutes)
+            end
+            if d and d.isTurnedOn and d.isBatteryPowered and d.power <= 0 then
+                d.isTurnedOn = false
+            end
+        end
+    end
 end
 
 function instanceof(o, class)
@@ -457,8 +555,17 @@ function SquareMT:RemoveTileObjectErosionNoRecalc(o)
     return -1
 end
 
+--- The engine has both (String, f, f, f) and (InventoryItem, f, f, f), and
+--- the mod uses each: the helm is placed by id, and the refit migration moves
+--- the *live* item out of a doomed locker, because recreating one from its id
+--- resets a hypospray's doses and a magazine's rounds.
 function SquareMT:AddWorldInventoryItem(fullType)
-    local item = instanceItem(fullType)
+    local item = fullType
+    if type(fullType) == "string" then
+        item = instanceItem(fullType)
+    else
+        fullType = item.fullType or (item.getFullType and item:getFullType())
+    end
     local w = SIM.object(fullType, "IsoWorldInventoryObject")
     w.item = item
     w.square = self

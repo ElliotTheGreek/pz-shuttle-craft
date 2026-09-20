@@ -12,14 +12,40 @@
 -- scenery and can never be opened, however many loot lists point at it.
 -- tests/test_layout.py cross-checks the flag against the tile catalogue.
 --
--- `loot` names a list in C.Loot and `special` marks the phaser locker.
--- Amounts are deliberately absent: containers fill to C.FillFraction of their
--- own capacity, so a microwave and a locker both end up looking stocked.
+-- `loot` names a list in C.Loot, `special` names a guaranteed-stock rule in
+-- TREK_Build.lua, and `cap` bounds the item count. A `container = true` entry
+-- with none of the three is deliberately empty -- see below.
+--
+---------------------------------------------------------------------------
+-- The refit, and the two decisions behind it
+---------------------------------------------------------------------------
+-- Four across by six fore-and-aft, down from six by nine. The cabin used to
+-- be fifty-four squares against a 3x5 hull, which is not a shuttle, it is a
+-- warehouse with a transporter in it.
+--
+-- 1. *Layering is what makes twenty-four squares enough.* The sink and the
+--    microwave ride on counters, the monitor bank and the EMH panel are wall
+--    objects that cost no floor at all, and the helm is a world item lying on
+--    an open square. Eleven squares carry a fitting; eleven are deck.
+--
+-- 2. *Five of the eight containers are stocked with nothing.* The fridge, the
+--    oven, both counters and the replicator's berth are the player's shelves.
+--    A player fills a shuttle with vanilla loot within a week of flying it,
+--    and three Starfleet lockers holding tins of beans is just the vanilla
+--    game in a cupboard. So the lockers carry the mod's own items and nothing
+--    else, and everything else starts empty on purpose.
+--
+-- The one thing to know before moving anything: the crew seat at 1,2 is a
+-- theatre chair, and a theatre chair carries `collideN` and `HoppableN` only
+-- -- it blocks its north edge and nothing else. That is what lets it stand in
+-- the middle of the deck without cutting the cabin in half, and it is why you
+-- sit down from the south. Swap it for one of the two-tile bench seats (plain
+-- `solidtrans`) and it becomes a wall.
 
 local L = {}
 
-L.width = 6
-L.height = 9
+L.width = 4
+L.height = 6
 L.floor = "location_hospitality_sunstarmotel_01_56"
 L.wallW = "location_shop_fossoil_01_6"
 L.wallN = "location_shop_fossoil_01_5"
@@ -27,76 +53,105 @@ L.wallN = "location_shop_fossoil_01_5"
 -- BuildingEd allows several layers on one square (for example a counter,
 -- appliance and wall console). Runtime placement must preserve that layering.
 L.tiles = {
-    { x = 2, y = 3, sprite = "floors_rugs_01_6", tag = "rug" },
-    { x = 2, y = 4, sprite = "floors_rugs_01_2", tag = "rug" },
-    { x = 2, y = 5, sprite = "floors_rugs_01_0", tag = "rug" },
-    { x = 3, y = 3, sprite = "floors_rugs_01_7", tag = "rug" },
-    { x = 3, y = 4, sprite = "floors_rugs_01_3", tag = "rug" },
-    { x = 3, y = 5, sprite = "floors_rugs_01_1", tag = "rug" },
-
-    { x = 5, y = 0, sprite = "security_01_4", tag = "console" },
-    { x = 4, y = 0, sprite = "security_01_4", tag = "console" },
-    { x = 3, y = 0, sprite = "security_01_4", tag = "console" },
-    { x = 2, y = 0, sprite = "security_01_4", tag = "console" },
-    { x = 1, y = 0, sprite = "security_01_4", tag = "console" },
+    ---------------------------------------------------------------------
+    -- The bow: the viewscreen wall, a working television, two seats
+    ---------------------------------------------------------------------
+    -- security_01_4 is a wall-mounted monitor bank: no `solid`, no
+    -- `solidtrans`, so all four of these cost no floor square. The whole bow
+    -- bulkhead is screens, which is the one piece of the old cabin that was
+    -- already right.
     { x = 0, y = 0, sprite = "security_01_4", tag = "console" },
-    { x = 2, y = 0, sprite = "furniture_tables_low_01_3", tag = "helmDesk" },
-    { x = 2, y = 0, sprite = "appliances_television_01_1", tag = "viewscreen" },
+    { x = 1, y = 0, sprite = "security_01_4", tag = "console" },
+    { x = 2, y = 0, sprite = "security_01_4", tag = "console" },
+    { x = 3, y = 0, sprite = "security_01_4", tag = "console" },
 
-    -- Galley, port side.
-    { x = 0, y = 1, sprite = "appliances_refrigeration_01_29", tag = "freshFood", container = true, loot = "fresh" },
-    { x = 0, y = 2, sprite = "appliances_refrigeration_01_29", tag = "freshFood", container = true, loot = "fresh" },
-    { x = 0, y = 3, sprite = "appliances_cooking_01_12", tag = "cookware", container = true, loot = "cookware" },
-
-    -- Counters along the forward bulkhead.
-    { x = 0, y = 0, sprite = "fixtures_counters_01_36", tag = "provisions", container = true, loot = "food" },
-    { x = 1, y = 0, sprite = "fixtures_counters_01_37", tag = "cookware", container = true, loot = "cookware" },
-    { x = 3, y = 0, sprite = "fixtures_counters_01_37", tag = "provisions", container = true, loot = "food" },
-    { x = 4, y = 0, sprite = "fixtures_counters_01_37", tag = "readyKit", container = true, loot = "survival" },
-    -- The galley's drinks cabinet: raktajino and Earl Grey to hand, the ale
-    -- and the bloodwine behind them.
+    -- A television that is actually a television. `device` is the field that
+    -- makes TREK_Build construct an IsoTelevision rather than a plain
+    -- IsoObject wearing a TV's picture -- which is what the old viewscreen
+    -- was, and why nobody has ever been able to turn it on.
     --
-    -- It is **not** the oven, which is where the drinks spent their first trip
-    -- into the game. `appliances_cooking_01_40` is the lower half of a two-tile
-    -- oven -- CustomName "Oven", IsoType IsoStove, SpriteGridPos 0,1 to its
-    -- twin's 0,0 -- and calling it a cabinet in a comment did not make it one.
-    -- The sprite belongs to the .tbx; `tag` and `loot` are ours, and ours were
-    -- on the wrong square.
+    -- It is also the VCR: appliances_television_01_0..3 is Base.TvWideScreen,
+    -- and that item declares `AcceptMediaType = 1`, the tape type. Build 42
+    -- has no separate VCR object because a television already is one. The
+    -- tapes are Base.VHS_Home and Base.VHS_Retail; the ship is not issued
+    -- with any, which is a thing to go and find.
+    { x = 1, y = 0, sprite = "furniture_tables_low_01_3", tag = "tvConsole" },
+    { x = 1, y = 0, sprite = "appliances_television_01_1", tag = "television",
+      device = "Base.TvWideScreen" },
+
+    -- One chair, two squares back and dead in front of the television, rather
+    -- than the pair that used to sit in the bow row beside it. The old pair
+    -- were level with the screen and looking at the bulkhead; this one is
+    -- looking at the thing it is for. It faces N (`location_entertainment_
+    -- theatre_01_3`) and carries collideN only, so the corridor past it at
+    -- x = 2 is untouched and you sit down from the south.
+    { x = 1, y = 2, sprite = "location_entertainment_theatre_01_3", tag = "chair" },
+
+    ---------------------------------------------------------------------
+    -- Port: the galley. Every one of these is the player's storage.
+    ---------------------------------------------------------------------
+    { x = 0, y = 1, sprite = "appliances_refrigeration_01_1", tag = "fridge",
+      container = true },
+    -- The single-tile grey oven, not the two-tile range the old galley used:
+    -- that one was a quarter of this cabin on its own.
+    { x = 0, y = 2, sprite = "appliances_cooking_01_4", tag = "oven",
+      container = true },
+    { x = 0, y = 3, sprite = "fixtures_counters_01_35", tag = "counter",
+      container = true },
+    { x = 0, y = 3, sprite = "fixtures_sinks_01_1", tag = "sink" },
+    { x = 0, y = 4, sprite = "fixtures_counters_01_35", tag = "counter",
+      container = true },
+    { x = 0, y = 4, sprite = "appliances_cooking_01_24", tag = "microwave",
+      container = true },
+    -- The replicator's berth. Tagged now and empty on purpose, so the
+    -- replicator arrives as a right-click on an object every save already
+    -- has rather than as another migration.
+    { x = 0, y = 5, sprite = "fixtures_counters_01_35", tag = "replicator",
+      container = true },
+
+    ---------------------------------------------------------------------
+    -- Starboard forward: the three Starfleet lockers
+    ---------------------------------------------------------------------
+    -- Quantities are set by `cap` rather than by weight, and `fill = 1.0`
+    -- puts the weight target out of the way so that the cap is what decides.
+    -- Each cap is a multiple of its list length, so every item goes in the
+    -- same number of times whatever the rolling cursor is doing: three
+    -- containers cannot spread a list the way nineteen did, and a locker that
+    -- happens to miss the ushaan-tor looks exactly like one that does not.
     --
-    -- This counter rather than the one at 1,0 because the sink shares that
-    -- square, and the deck plan draws one glyph per square: the drinks would
-    -- have been hidden behind the `w`, undoing the glyph that exists so the
-    -- cabinet can be found by looking at the plan.
-    { x = 5, y = 0, sprite = "fixtures_counters_01_37", tag = "drinks", container = true, loot = "drinks" },
-    { x = 0, y = 0, sprite = "appliances_cooking_01_24", tag = "snacks", container = true, loot = "food" },
-    -- Both halves of the one two-tile oven, and both hold cookware.
-    { x = 0, y = 4, sprite = "appliances_cooking_01_41", tag = "cookware", container = true, loot = "cookware" },
-    { x = 0, y = 5, sprite = "appliances_cooking_01_40", tag = "cookware", container = true, loot = "cookware" },
+    -- `special` is the belt to that braces: U.stockEach puts one of each in
+    -- and then reads the container back, so a guarantee that did not land is
+    -- reported instead of assumed.
+    { x = 3, y = 0, sprite = "furniture_storage_02_11", tag = "armoury",
+      container = true, special = "phasers", loot = "weapons",
+      fill = 1.0, cap = 8 },        -- 4 phasers + 2 of each of the 4 blades
+    { x = 3, y = 1, sprite = "furniture_storage_02_11", tag = "provisions",
+      container = true, loot = "food",
+      fill = 1.0, cap = 27 },       -- 3 of each of the 5 dishes and 4 drinks
+    { x = 3, y = 2, sprite = "furniture_storage_02_11", tag = "medical",
+      container = true, special = "medkit", loot = "medical",
+      fill = 1.0, cap = 8 },        -- 3 of each instrument
 
-    { x = 3, y = 0, sprite = "appliances_com_01_0", tag = "computer" },
-    { x = 1, y = 0, sprite = "fixtures_sinks_01_17", tag = "sink" },
-    { x = 2, y = 2, sprite = "location_entertainment_theatre_01_3", tag = "chair" },
-    { x = 3, y = 2, sprite = "location_entertainment_theatre_01_3", tag = "chair" },
+    ---------------------------------------------------------------------
+    -- Starboard aft: the sick bay, and the EMH's station
+    ---------------------------------------------------------------------
+    -- industry_01_15 is from the hull's own wall set (industry_01_0/1/2 are
+    -- the bulkheads), carries neither `solid` nor `solidtrans`, and exists in
+    -- all four facings. So the EMH's panel is on the wall at 3,3 and 3,3 is
+    -- still deck. The Doctor stands at 2,4, at the head of the bed.
+    --
+    -- Deliberately not a light switch: every lighting_indoor_01 switch
+    -- carries the `lightswitch` tile property, which is what the cell loader
+    -- reads when it decides to build an IsoLightSwitch instead of an
+    -- IsoObject. A button that turns into a real light switch on the next
+    -- world load is a bug that only shows up in somebody else's save.
+    { x = 3, y = 3, sprite = "industry_01_15", tag = "emhPanel" },
 
-    -- The starboard lockers, bow to stern. Sick bay first, then engineering,
-    -- then stores, then the armoury around the phaser locker.
-    -- The forward sick-bay locker carries one of each of the ship's own
-    -- medical instruments outright, the way the locker at 5,6 carries the
-    -- phasers. Leaving them to the loot list alone is not enough: the fill
-    -- walks C.Loot.medical from a rolling cursor, so three entries in a list
-    -- of thirty-one can miss both lockers entirely and the ship sails with
-    -- no tricorder aboard.
-    { x = 5, y = 1, sprite = "furniture_storage_02_11", tag = "medical", container = true, special = "medkit", loot = "medical" },
-    { x = 5, y = 2, sprite = "furniture_storage_02_11", tag = "medical", container = true, loot = "medical" },
-    { x = 5, y = 3, sprite = "furniture_storage_02_11", tag = "engineering", container = true, loot = "tools" },
-    { x = 5, y = 4, sprite = "furniture_storage_02_11", tag = "engineering", container = true, loot = "tools" },
-    { x = 5, y = 5, sprite = "furniture_storage_02_11", tag = "provisions", container = true, loot = "food" },
-    { x = 5, y = 6, sprite = "furniture_storage_02_11", tag = "phasers", container = true, special = "phasers", loot = "weapons" },
-    { x = 5, y = 7, sprite = "furniture_storage_02_11", tag = "armoury", container = true, loot = "weapons" },
-    { x = 5, y = 8, sprite = "furniture_storage_02_11", tag = "survival", container = true, loot = "survival" },
-
-    { x = 0, y = 8, sprite = "furniture_bedding_01_86", tag = "bunk" },
-    { x = 1, y = 8, sprite = "furniture_bedding_01_87", tag = "bunk" },
+    -- C.Pieces.biobedS, and the ship's only bed now that the berth is gone:
+    -- both halves carry BedType = goodBed. A shuttle with a sick bay *and* a
+    -- bunk in twenty-four squares is a shuttle with nowhere to stand.
+    { x = 3, y = 4, sprite = "location_community_medical_01_17", tag = "biobed" },
+    { x = 3, y = 5, sprite = "location_community_medical_01_16", tag = "biobed" },
 }
 
 return L

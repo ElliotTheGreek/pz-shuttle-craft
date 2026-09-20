@@ -284,9 +284,17 @@ def at_pad(rt, who=1):
 
 
 def cabin_objects(rt):
-    """(containers, stocked containers, water fixtures with water) in the cabin."""
+    """(containers, stocked, water fixtures with water, containers meant to hold something).
+
+    The last one is counted out of the layout rather than written down here.
+    Most of the cabin's containers are deliberately empty -- they are the
+    player's shelves, not the ship's stores -- so "every container is stocked"
+    stopped being the right assertion at the refit, and a number typed in here
+    would go stale the first time a locker moved.
+    """
     return rt.eval("""(function()
         local C, U = TREK.Config, TREK.Util
+        local L = require "TREK/TREK_InteriorLayout"
         local containers, stocked, wet = 0, 0, 0
         for ox = 0, C.CabinW do for oy = 0, C.CabinL do
             local x, y = U.at(ox, oy)
@@ -299,8 +307,41 @@ def cabin_objects(rt):
                 if o.fluid and o.fluid.amount > 0 then wet = wet + 1 end
             end
         end end
-        return containers, stocked, wet
+        local wanted = 0
+        for _, e in ipairs(L.tiles) do
+            if e.loot ~= nil or e.special ~= nil then wanted = wanted + 1 end
+        end
+        return containers, stocked, wet, wanted
     end)()""")
+
+
+def cabin_stores(rt):
+    """Every distinct item id sitting in a cabin container."""
+    packed = rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local seen, out = {}, {}
+        for ox = 0, C.CabinW do for oy = 0, C.CabinL do
+            local x, y = U.at(ox, oy)
+            for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+                if o.container then
+                    for _, it in ipairs(o.container.items) do
+                        local id = it.getFullType and it:getFullType() or tostring(it)
+                        if not seen[id] then seen[id] = true; out[#out + 1] = id end
+                    end
+                end
+            end
+        end end
+        return table.concat(out, "\\n")
+    end)()""")
+    return sorted(x for x in str(packed).split("\n") if x)
+
+
+def loot_list(rt, name):
+    """A C.Loot list, as Python strings."""
+    packed = rt.eval(f"""(function()
+        return table.concat(TREK.Config.Loot["{name}"], "\\n")
+    end)()""")
+    return [x for x in str(packed).split("\n") if x]
 
 
 def hull_at(rt, x, y, z):
@@ -358,10 +399,101 @@ def single_player():
         return
     check(at_pad(rt), f"single player: beam up left the player at {pos(rt)}, not the pad")
     check(ship(rt, "built") is True, "single player: the cabin was never built")
-    containers, stocked, wet = cabin_objects(rt)
-    check(containers >= 19 and stocked == containers,
-          f"single player: {stocked} of {containers} containers stocked")
+    containers, stocked, wet, wanted = cabin_objects(rt)
+    check(wanted >= 3 and stocked == wanted,
+          f"single player: {stocked} of {wanted} stocked containers got stock "
+          f"({containers} containers in the cabin)")
     check(wet >= 1, "single player: the galley sink holds no water")
+
+    # What is actually meant to be true, rather than "N of N containers were
+    # stocked": the ship sails with its own gear aboard. Counting containers
+    # cannot see a locker that quietly lost its loot list, because the count
+    # of containers wanting stock falls with it and the two still agree.
+    stores = cabin_stores(rt)
+    for name in ("weapons", "food", "medical"):
+        for item_id in loot_list(rt, name):
+            check(item_id in stores,
+                  f"single player: the cabin sails without {item_id} "
+                  f"(C.Loot.{name})")
+    phaser = str(rt.eval("TREK.Config.PhaserItem"))
+    check(phaser in stores, f"single player: no {phaser} in the armoury")
+    # Starfleet issue only. Five of the cabin's containers are the player's own
+    # shelves and start empty, so at build time everything aboard is ours; a
+    # vanilla id in here means a ship list grew one back.
+    strays = [x for x in stores if not x.startswith("TrekShuttle.")]
+    check(not strays, f"single player: vanilla loot stocked into the ship's "
+                      f"own lockers: {strays}")
+    # The viewscreen has to be an IsoTelevision carrying device data, not an
+    # IsoObject wearing a television's sprite. The second one is what the
+    # cabin had for three versions: drawn, present, and with nothing to
+    # right-click -- and indistinguishable from the first until you try.
+    check(rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local L = require "TREK/TREK_InteriorLayout"
+        for _, e in ipairs(L.tiles) do
+            if e.device then
+                local x, y = U.at(e.x, e.y)
+                for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+                    if o.spriteName == e.sprite then
+                        return o.class == "IsoTelevision" and o.deviceData ~= nil
+                    end
+                end
+                return false
+            end
+        end
+        return false
+    end)()"""), "single player: the television is scenery, not a device")
+
+    # --- the ship's own power --------------------------------------------
+    # The cabin is not on the town grid and has no generator, so its squares
+    # can never report electricity: setHaveElectricity does not set a flag,
+    # and haveElectricity() means "a generator is running in this chunk".
+    # What makes a fitting work is its own cell, kept full by TREK_Power.
+    def tv(field):
+        return rt.eval(f"""(function()
+            local C, U = TREK.Config, TREK.Util
+            local L = require "TREK/TREK_InteriorLayout"
+            for _, e in ipairs(L.tiles) do
+                if e.device then
+                    local x, y = U.at(e.x, e.y)
+                    local o = U.findSprite(U.square(x, y, C.CabinZ, false), e.sprite)
+                    local d = o and o:getDeviceData()
+                    return d and d:{field}() or nil
+                end
+            end
+        end)()""")
+
+    check(tv("getIsBatteryPowered") is True,
+          "single player: the television has no power source of its own, so "
+          "it can never be switched on in a cabin with no grid")
+    check(tv("getHasBattery") is not True,
+          "single player: the television reports a battery, which lets the "
+          "radio panel hand the player a free one every time it is opened")
+    check(float(tv("getPower") or 0) > 0,
+          "single player: the television's cell is flat")
+
+    # Switch it on and run three game hours past it. Without the per-minute
+    # top-up the engine drains useDelta a minute and the device switches
+    # itself off at zero, which is the whole reason TREK_Power exists.
+    rt.run("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local L = require "TREK/TREK_InteriorLayout"
+        for _, e in ipairs(L.tiles) do
+            if e.device then
+                local x, y = U.at(e.x, e.y)
+                local o = U.findSprite(U.square(x, y, C.CabinZ, false), e.sprite)
+                o:getDeviceData():setIsTurnedOn(true)
+            end
+        end
+    end)()""")
+    check(tv("getIsTurnedOn") is True,
+          "single player: the television refused to switch on")
+    for _ in range(180):
+        rt.run("SIM.drainDevices(1)")
+        rt.fire("EveryOneMinute")
+    check(tv("getIsTurnedOn") is True,
+          "single player: the television switched itself off after three game "
+          "hours; the ship's power is not keeping up with the drain")
     check(rt.eval("SIM.lamps") > 0, "single player: the cabin lights were never hung")
     trees = rt.eval("""(function()
         local C, U = TREK.Config, TREK.Util
@@ -963,6 +1095,173 @@ def migration():
     print("migration: schema 1 save upgraded with its position and return point")
 
 
+def refit():
+    """The 6x9 cabin's fittings do not survive the shrink to 4x6.
+
+    This is the one part of the refit that no static check can reach and that
+    only ever runs in a save made before it. clearSurroundings sweeps the
+    margin, but U.clearSquare deliberately *keeps* anything the mod tagged --
+    so without B.stripLegacyCabin every locker, fridge and bunk of the old
+    cabin is left standing, openable, in the black void outside the hull.
+    """
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('refit', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run("TREK.Transport.beamUp(SIM.players[1])")
+    net.pump(180)
+    if died(rt, "refit, beaming up"):
+        return
+
+    # A stocked locker where the old starboard run used to end: inside the
+    # 6x9 extent, outside the 4x6 hull, tagged the way every fitting is.
+    rt.run("""
+        local C, U = TREK.Config, TREK.Util
+        SIM.refitLeftover = { 5, 8 }
+        local x, y = U.at(5, 8)
+        local sq = SIM.rawSquare(x, y, C.CabinZ)
+        local o = SIM.object("furniture_storage_02_11")
+        o.square = sq
+        o.modData.TREK = "armoury"
+        o.container = SIM.container(40)
+        o.container.parentObject = o
+        o.container:AddItem("Base.Pistol")
+        table.insert(sq.objects, o)
+        -- and pretend the sweep has not run in this save yet
+        U.state().refitRev = nil
+    """)
+
+    left = rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(5, 8)
+        return #SIM.rawSquare(x, y, C.CabinZ).objects
+    end)()""")
+    check(left >= 1, "refit: the test never planted the old locker")
+
+    # --- a square whose chunk is not loaded is "ask again later" -----------
+    # Constraint 1, and the mistake this project has made twice: nil from a
+    # square lookup does not mean "nothing there". If the sweep marked itself
+    # done while part of the old cabin was still streaming in, whatever was
+    # standing there would be left in the void for the life of the save.
+    rt.run("""
+        local C, U = TREK.Config, TREK.Util
+        local hx, hy = U.at(4, 8)
+        SIM.realLoaded = SIM.loaded
+        SIM.loaded = function(x, y)
+            if math.floor(x) == hx and math.floor(y) == hy then return false end
+            return SIM.realLoaded(x, y)
+        end
+    """)
+    partial = rt.eval("TREK.Build.refitCabin()")
+    check(partial >= 1,
+          f"refit: the sweep cleared {partial} fittings it could reach; it "
+          f"should still do the squares that are loaded")
+    check(ship(rt, "refitRev") is None,
+          "refit: the sweep called itself finished while part of the old "
+          "cabin was still streaming in")
+    rt.run("SIM.loaded = SIM.realLoaded")
+
+    # --- the helm console prop ------------------------------------------
+    # A static model that stood in the cabin and did nothing: the helm panel
+    # opens from the aboard menu, never from that object. It is a world item,
+    # and U.clearSquare leaves world items alone by design -- that is where a
+    # player's dropped things live -- so nothing else would ever take it away.
+    # One inside the new hull (where revision 16 put it) and one outside
+    # (where it stood before the refit).
+    rt.run("""
+        local C, U = TREK.Config, TREK.Util
+        for _, at in ipairs({ { 2, 1 }, { 3, 7 } }) do
+            local x, y = U.at(at[1], at[2])
+            SIM.rawSquare(x, y, C.CabinZ):AddWorldInventoryItem(C.LegacyHelmItem)
+        end
+        U.state().refitRev = nil
+    """)
+    rt.eval("TREK.Build.refitCabin()")
+    props = rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local n = 0
+        for ox = 0, C.LegacyCabin.w do for oy = 0, C.LegacyCabin.l do
+            local x, y = U.at(ox, oy)
+            for _, w in ipairs(SIM.rawSquare(x, y, C.CabinZ).worldObjects or {}) do
+                local it = w.item
+                local id = it and (it.fullType or it:getFullType())
+                if id == C.LegacyHelmItem then n = n + 1 end
+            end
+        end end
+        return n
+    end)()""")
+    check(props == 0,
+          f"refit: {props} helm console props are still standing in the cabin")
+
+    # Plant it again -- the reachable one was cleared by the partial pass.
+    rt.run("""
+        local C, U = TREK.Config, TREK.Util
+        U.state().refitRev = nil
+        local x, y = U.at(5, 8)
+        local sq = SIM.rawSquare(x, y, C.CabinZ)
+        local o = SIM.object("furniture_storage_02_11")
+        o.square = sq
+        o.modData.TREK = "armoury"
+        o.container = SIM.container(40)
+        o.container.parentObject = o
+        o.container:AddItem("Base.Pistol")
+        table.insert(sq.objects, o)
+    """)
+
+    removed = rt.eval("TREK.Build.refitCabin()")
+    check(removed >= 1, f"refit: the sweep removed {removed} old fittings, not 1")
+
+    still_there = rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(5, 8)
+        for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+            local md = o.modData
+            if md and md.TREK then return true end
+        end
+        return false
+    end)()""")
+    check(still_there is False,
+          "refit: a tagged fitting from the old cabin is still standing "
+          "outside the hull")
+
+    # What was in it is the player's, so it is on the deck, not deleted.
+    on_pad = rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(C.Landing.x, C.Landing.y)
+        local sq = SIM.rawSquare(x, y, C.CabinZ)
+        local n = 0
+        for _, w in ipairs(sq.worldObjects or {}) do
+            local id = w.item and (w.item.fullType or w.item:getFullType())
+            if id == "Base.Pistol" then n = n + 1 end
+        end
+        return n
+    end)()""")
+    check(on_pad >= 1,
+          "refit: the old locker's contents were destroyed rather than "
+          "spilled onto the pad")
+
+    # It only claims to be done when it reached everything, and it does not
+    # run twice.
+    check(ship(rt, "refitRev") == rt.eval("TREK.Config.BuildRev"),
+          "refit: the sweep finished without marking itself done")
+    check(rt.eval("TREK.Build.refitCabin()") == 0,
+          "refit: the sweep ran a second time")
+
+    # And it left the ship alone. The sweep walks the old extent, which
+    # overlaps the new hull completely, so an exemption that stopped working
+    # would delete the cabin's own lockers and their stock -- silently, and
+    # only in somebody's existing save.
+    containers, stocked, _, wanted = cabin_objects(rt)
+    check(containers == 9 and stocked == wanted,
+          f"refit: the sweep ate the new cabin -- {containers} containers "
+          f"left, {stocked} of {wanted} still stocked")
+
+    for w in rt.warnings():
+        fail(f"refit: {w}")
+    print("refit: the old cabin's fittings and the helm prop are removed, "
+          "their contents spilled onto the pad, and the new cabin untouched")
+
+
 # ---------------------------------------------------------------------------
 # Multiplayer
 # ---------------------------------------------------------------------------
@@ -993,7 +1292,9 @@ def multiplayer():
     check(A.eval("TREK.Core.arriving()") is False, "multiplayer: alice is still held on arrival")
     sc = cabin_objects(srv)
     ac = cabin_objects(A)
-    check(sc[0] >= 19 and sc[1] == sc[0], f"multiplayer: server stocked {sc[1]} of {sc[0]} containers")
+    check(sc[3] >= 3 and sc[1] == sc[3],
+          f"multiplayer: server stocked {sc[1]} of the {sc[3]} containers "
+          f"the layout asks for")
     check(tuple(ac) == tuple(sc), f"multiplayer: alice sees cabin {tuple(ac)}, server has {tuple(sc)}")
     check(A.eval("TREK.Util.state().owner") == "alice",
           "multiplayer: the ship state never reached alice's client")
@@ -2336,6 +2637,7 @@ def main():
     static()
     migration()
     single_player()
+    refit()
     flight()
     flight_endings()
     torpedoes()

@@ -234,6 +234,171 @@ exactly the way the user could see and the repository could not.
   roadmap wording it was derived from, the misreading would have been visible
   the first time anyone looked.
 
+### `setHaveElectricity` does not set anything, and `haveElectricity` means "a generator"
+
+**New in this mod, and it was a no-op from the day it was written.** The cabin
+had a `B.powerCabin()` that called `sq:setHaveElectricity(true)` on every
+square, at build time and again every game minute. It never did a thing, and
+the only symptom was a television nobody could switch on:
+
+- **`IsoGridSquare.setHaveElectricity(boolean)` sets no field.** Its bytecode
+  walks `getObjects()` and touches `IsoLightSwitch`es. A cabin with no light
+  switches is a cabin where that call is a loop over nothing.
+- **`IsoGridSquare.haveElectricity()` is not a flag either.** It returns
+  `chunk.isGeneratorPoweringSquare(x, y, z)` -- true only when a real
+  `IsoGenerator` is running in that chunk.
+- **`IsoGridSquare.hasGridPower()`** is `!isNoPower() && doesPowerGridExist()`:
+  the town mains, which shut off a few weeks into any world.
+
+So an appliance somewhere off the map can be mains-powered in exactly two
+ways, a generator or the town grid, and both are wrong for a spaceship.
+
+What works is one branch further in. `DeviceData.canBePoweredHere()` opens
+with `if (isBatteryPowered) return true` **before it looks at the square at
+all**, and that is what both `setIsTurnedOn` and the per-minute `update()`
+consult. A device with `isBatteryPowered` set and its power kept above zero
+switches on anywhere, needs no square, no room and no generator, and stays on.
+`TREK_Power.lua` is that, and its header has the bytecode.
+
+Three things the disassembly settled that guessing would not have:
+
+- **A battery-powered device switches itself off at zero.** `update()` drains
+  `useDelta` per game minute while it is on, and the stay-on test is
+  `isBatteryPowered && power > 0` *before* it falls through to
+  `canBePoweredHere()`. So "battery powered" is not "powered for ever" -- it
+  needs topping up, like the phaser's charge.
+- **The top-up has to run in every process.** `DeviceData.update` drains the
+  value wherever it runs, and on a client it transmits the drop itself. A
+  server-only top-up leaves every client switching the television off by
+  itself after a couple of game hours. `TREK_Power.lua` is therefore
+  **shared**, and the local write is in the same category as the lights and
+  the shields -- a value the engine recomputes per process, not ship state.
+- **Leave `hasBattery` false.** The engine never reads it; `RWMPower.lua`
+  does, and offers *Remove Battery* when it is true -- which would hand the
+  player a free `Base.Battery` every time they opened the panel.
+
+`TREK_Power()` from the console reports each fitting's cell and whether it has
+device data at all, which is the line that tells "the television is off" from
+"the television is scenery".
+
+### A sprite is not the object the engine builds from it
+
+**New in this mod, and it hid a whole appliance in plain sight for three
+versions.** `TREK_Build.place()` makes every fitting with
+`IsoObject.new(sq, sprite, tag)`. Hand it a television's sprite and you get an
+`IsoObject` wearing a television's picture: no device data, no channel, no
+volume, no tape slot, nothing to right-click. The cabin's viewscreen was that
+from the day it was added, and nobody noticed because nobody ever tried to
+turn it on.
+
+The engine decides the *class* from what built the object, not from the
+sprite. Vanilla's own route is `ISMoveableSpriteProps.lua:2136`:
+
+```lua
+local obj = IsoTelevision.new(getCell(), sq, getSprite(sprite))
+obj:setDeviceData(obj:cloneDeviceDataFromItem("Base.TvWideScreen"))
+```
+
+Two things worth carrying:
+
+- **`IsoWaveSignal.cloneDeviceDataFromItem(String)` is the short way**, and the
+  disassembly is why it is safe: it caches per id, returns a *clone*, and
+  reaches `InventoryItemFactory.CreateItem` **in Java** -- which works even
+  though the Lua global of that name is null (*The jar is not the API*). It has
+  no vanilla Lua call site, so the build tries it, falls back to
+  `instanceItem(id):getDeviceData()`, and then **reads `getDeviceData()` back
+  and logs it**. A television with nil device data looks exactly like a working
+  one.
+- **The same applies to a lot of sprites.** Anything whose tile properties name
+  an `IsoType` -- `IsoStove`, `IsoTelevision`, `IsoLightSwitch`, `IsoDoor` --
+  is a different Java class in a map-loaded world and a plain `IsoObject` at
+  runtime. `createContainersFromSpriteProperties` is the same lesson one level
+  down and has been in this file since the first empty locker.
+
+And the inverse, which decided where the EMH's button went: **do not place a
+sprite whose properties would make the engine build something else.** Every
+`lighting_indoor_01` switch carries the `lightswitch` property, which is what
+the cell loader reads when it builds an `IsoLightSwitch`. A mod button that
+turns into a real light switch on the next world load is a bug that only
+appears in somebody else's save.
+
+### Half the tileset does not block its square
+
+**New in this mod, and it is what made a twenty-four square cabin possible.**
+A fitting is an obstacle only if its tile carries `solid` or `solidtrans`. A
+great many do not:
+
+| Sprite | What it is | Blocks? |
+|---|---|---|
+| `security_01_4/5` | wall-mounted monitor bank | no |
+| `industry_01_4/5/14/15` | wall-mounted panel, the hull's own wall set | no |
+| `furniture_shelving_01_28..31` | metal wall shelves, **capacity 30** | no |
+| `fixtures_sinks_01_*` | a sink, which rides on a counter | no |
+| `lighting_indoor_01_32` | a deckhead lamp | no |
+| `location_entertainment_theatre_01_3` | a chair -- `collideN` only | **north edge only** |
+| `furniture_storage_02_*`, counters, fridges, ovens | lockers and appliances | yes |
+
+Two consequences that are easy to get backwards:
+
+- **A wall object costs no floor.** The whole bow bulkhead of this ship is a
+  four-panel monitor wall and all four squares are still deck.
+- **A chair with `collideN`/`HoppableN` blocks one edge.** You can walk along a
+  row of them east-west and step onto one from the south; a two-tile bench seat
+  (plain `solidtrans`) would wall the row off. The bow row of the cabin works
+  only because of this, so read the properties before swapping a seat.
+
+`tests/test_layout.py` reads this out of `tools/_catalog/tiles.json` now rather
+than assuming every fitting is an obstacle, which is what had it refusing a
+layout that was actually fine.
+
+### `U.clearSquare` keeps two things on purpose, and a migration has to name them
+
+**New in this mod.** `clearSurroundings` strips the ring around the cabin
+"down to nothing", which sounds total and is not. `U.clearSquare` deliberately
+preserves:
+
+1. **anything the mod tagged** -- so a rebuild does not eat its own furniture;
+2. **anything lying on the ground** (`IsoWorldInventoryObject`) -- so it does
+   not eat the player's dropped things.
+
+Both are right, and both mean that **shrinking the cabin cannot be left to the
+clearing passes.** When the interior went from 6x9 to 4x6, every locker,
+fridge and bunk outside the new hull would have been left standing, openable,
+in the black void for the life of the save -- and the helm console prop, a
+world item, would have survived even inside it. `B.refitCabin` names both, and
+the general rule is: *a pass that keeps things by policy cannot also be the
+pass that removes them when the policy changes.*
+
+Three details of that migration worth reusing:
+
+- **The chunk is the gate, not the square.** A nil square in a *loaded* chunk
+  really is nothing there; only an unloaded chunk means "ask again later". Get
+  that backwards and the sweep never marks itself done and re-walks the extent
+  on every build for the rest of the save.
+- **Write the old extent down.** `C.LegacyCabin = { w = 5, l = 8 }` exists
+  because nothing that walks the new shape ever visits those squares, and a
+  number in a comment is not a thing code can iterate.
+- **Hand the contents back.** A container that is about to stop existing
+  spills onto the transporter pad, and it moves the **live `InventoryItem`**,
+  not its id: recreating from the full type resets a hypospray's doses and a
+  magazine's rounds, which is the quiet half of losing it.
+  `AddWorldInventoryItem(InventoryItem, f, f, f)` is the overload for that.
+
+### A prop that nothing opens is worse than no prop
+
+**New in this mod.** The cabin carried a `TrekHelmConsole`: a generated static
+model, 70 weight, standing on the deck. The helm panel opens from the aboard
+menu -- right-click anywhere aboard, *Shuttlecraft*, *Helm* -- and never from
+that object, so the model was scenery that looked like a control. In a
+fifty-four square cabin it read as furniture. In twenty-four the author's
+description was "a big blocky thing that seems to have no function", which is
+exactly what it was.
+
+The mod's own rule about dead placement code (*Dead placement code is worse
+than none*) has a counterpart in the world: **a model that looks interactive
+and is not teaches the player the wrong thing about your ship.** Either wire it
+up or take it out.
+
 ### A convenience method is a bundle of writes somebody else chose
 
 **New in this mod, and it was one line from shipping.** `BodyPart
@@ -964,7 +1129,7 @@ Meshes and textures are **generated, never hand-authored**:
 
 ```sh
 python tools/gen_shuttle.py TrekShuttle/42
-python tools/gen_helm.py    TrekShuttle/42
+python tools/gen_helm.py    TrekShuttle/42   # the deleted helm console prop
 python tools/gen_phaser.py  TrekShuttle/42
 python tools/gen_batleth.py TrekShuttle/42   # mesh, texture and icon
 python tools/gen_mekleth.py TrekShuttle/42        # and lirpa, ushaantor
@@ -1048,6 +1213,11 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **An explosion kills things and nothing is seen** | In build 42 the visible part of an explosion *is* the fire and the smoke; there is no separate effect. `FireStartingChance`, `FireRange` and `SmokeRange` are set in **two** places — the item script and the Lua — and `triggerExplosion()` skips any mode whose range is 0 entirely. See `PHOTON_TORPEDOS.md`. |
 | **A locked door opens for the host and stays shut for everyone else** | The lock was changed on the server and never synced. `setLockedByKey` fires its own sync only when it is *not* the server; call `obj:sync()`. See *A setter's own sync may be one-sided*. |
 | **An item heals more than it was meant to** | A convenience method. `BodyPart.RestoreToFullHealth()` clears the bite as well, and nothing anywhere reports it. See *A convenience method is a bundle of writes somebody else chose*. |
+| **An appliance in the cabin will not switch on** | Its square has no electricity and never will: `setHaveElectricity` sets nothing and `haveElectricity()` means a generator is running in the chunk. Power the *device* instead -- `TREK_Power()` reports each one. |
+| **A television, stove or switch is drawn and cannot be used** | It was built with `IsoObject.new`, so it is an `IsoObject` wearing that sprite. The engine picks the class from what built the object, not from the picture. See *A sprite is not the object the engine builds from it*. |
+| **A fitting refuses to go somewhere that is obviously empty** | Something on that square is being treated as an obstacle that is not one. Wall objects and lamps carry neither `solid` nor `solidtrans`; read `tools/_catalog/tiles.json`, do not assume. |
+| **Furniture standing in the black void outside the hull** | Cabin geometry moved and nothing named the old squares. `U.clearSquare` keeps tagged objects and dropped items by design, so a shrink is a migration. `grep "refit:" console.txt`. |
+| **A container in the cabin is empty and that is fine** | Five of them are the player's shelves. Only entries with `loot` or `special` are stocked; `wantsStock` is why they do not each log a WARN. |
 | **A right-click offers nothing for a mod item** | Build 42 has no script hook for "using" an arbitrary item; it has to be an `OnFillInventoryObjectContextMenu` option. And an entry in that event's `items` is either an `InventoryItem` **or** a stack table with its own `items` list — code that handles one shape silently does nothing for the other. |
 | **A panel is fine with a mouse and dead on the Steam Deck** | It is not an `ISPanelJoypad`, or its buttons were never registered with `insertNewLineOfButtons`. Note that vanilla's `ISHealthPanel` *is* one already. |
 | **A feature is reported broken and every test passes** | Suspect the tests. See *A guard is only as good as the goal it was written from* — a test, a comment and a constant all agreeing with each other is not corroboration if they came from one misreading. |
@@ -1094,6 +1264,7 @@ single player, `server-console.txt` on a server).
 | `TREK_Stock()` | One line per container: items held and how full. **The first thing to run when loot looks wrong.** |
 | `TREK_Galley()` | Put one of each galley dish in your inventory |
 | `TREK_Water()` | Top the fixtures up and log capacity, amount and `hasWater` for each |
+| `TREK_Power()` | Top the ship's devices up and log each one's cell -- and whether it is a device at all |
 | `TREK_Shields()` | Report the shields; `TREK_Shields(false)` / `(true)` asks to set them |
 | `TREK_Rebuild()` | Tear down and regenerate the cabin, restocked. Stand aboard. **Destroys contents.** |
 | `TREK_Beam()` | Beam up if outside, down if aboard |
@@ -1205,16 +1376,19 @@ slots. The torpedo's blast size and fire spread both needed no adjusting.
 
 **Not yet seen in game**, in the order worth checking:
 
-0. **The medical set**: the three items in the sick-bay locker, a dose that
+0. **The interior refit**: the shape, the three lockers, the five empty
+   containers, the television actually turning on, the biobed as a bed -- and,
+   in a save made before it, the migration. `INTERIOR_REFIT.md` section 7.
+1. **The medical set**: the three items in the sick-bay locker, a dose that
    leaves a bite alone, the health panel at doctor level, the sensor sweep in
    front of a horde, and the lock override on a door and then on a padlock.
    `MEDICAL_SET.md`'s *Not built, and still to settle in game* is the list.
-1. **The dedicated server**: the interior cell loads there, the server-built
+2. **The dedicated server**: the interior cell loads there, the server-built
    cabin reaches the client with its stock, water fills with the mains off.
-2. **Two players**: one cabin, loot taken by one gone for the other, crew
+3. **Two players**: one cabin, loot taken by one gone for the other, crew
    access, charges — and a shuttle in the air seen from the other machine,
    which is the last unproven thing about flight.
-3. **The phaser firing** and staying charged on a server.
+4. **The phaser firing** and staying charged on a server.
 
 **The pattern worth carrying forward.** Six separate bugs in this mod have
 had the same shape: a plausible engine call that fails silently, leaving a
@@ -1245,6 +1419,18 @@ so the tidy version of the feature would have been silently better than
 intended, and the next item on the roadmap silently pointless. See *A
 convenience method is a bundle of writes somebody else chose*.
 
+**The 2026-09-20 interior refit** cut the cabin from 6x9 to **4x6** --
+fifty-four squares to twenty-four, against a hull that is fifteen. Three
+Starfleet lockers (armoury, rations, sick bay) stocked with **the mod's own
+items only**, five containers left empty on purpose because a player fills a
+shuttle with vanilla loot within a week, a working television in place of the
+viewscreen that was never a television, a wall panel and a clear square for
+the EMH, the biobed as the ship's only bed, and the helm console prop deleted
+for doing nothing. Revision 17. `INTERIOR_REFIT.md` is the working guide; four
+new sections in this file came out of it. **None of it has been seen in game,
+and the migration out of a 6x9 save is the part that most needs a real world
+to prove.**
+
 **Next up** is the replicator, and then the EMH.
 
 Known limits are listed at the bottom of `README.md`.
@@ -1254,11 +1440,12 @@ Known limits are listed at the bottom of `README.md`.
 ## Layout
 
 ```
-design/buildinged/TrekShuttle_Interior.tbx                     the interior, in the map editor
+design/buildinged/TrekShuttle_Interior.tbx                     the interior (4x6), in the map editor
 TrekShuttle/42/media/sandbox-options.txt                       server-owner settings
 TrekShuttle/42/media/lua/shared/TREK/TREK_Config.lua           all constants — start here
 TrekShuttle/42/media/lua/shared/TREK/TREK_Util.lua             safe wrappers, state schema, geometry, stocking
 TrekShuttle/42/media/lua/shared/TREK/TREK_Net.lua              client -> server commands, replies
+TrekShuttle/42/media/lua/shared/TREK/TREK_Power.lua            the ship's own electricity, in every process
 TrekShuttle/42/media/lua/shared/TREK/TREK_Ship.lua             publishing the ship state, access rules
 TrekShuttle/42/media/lua/shared/TREK/TREK_World.lua            read-only landing and standing queries
 TrekShuttle/42/media/lua/shared/TREK/TREK_InteriorLayout.lua   the interior as data + loot

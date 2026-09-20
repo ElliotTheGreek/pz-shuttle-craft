@@ -63,7 +63,7 @@ player before.
    player never exercises, even with one client.
 9. **The interior refit.** Newest of all: the 4x6 cabin, the three lockers,
    the five empty containers, the television, the biobed as a bed. Revision
-   16. And, in a world made before it, the migration -- no furniture left
+   17. And, in a world made before it, the migration -- no furniture left
    standing outside the hull, the old contents piled on the pad.
 10. **The medical set.** Unproven: a hypospray dose and a
    regenerator pass that must both leave a bite alone, a cut closed with no
@@ -496,6 +496,13 @@ What changed, and why each one:
   with nothing to right-click. Build 42 has no VCR object because
   `Base.TvWideScreen` declares `AcceptMediaType = 1` -- a television *is* the
   tape player.
+- **The ship makes its own electricity.** `B.powerCabin` had been calling
+  `setHaveElectricity(true)` on every square since 1.2 and it was a no-op:
+  that setter sets no field, and `haveElectricity()` means "a generator is
+  running in this chunk". The cabin is off the grid and is never getting a
+  generator, so every powered fitting carries its own cell instead, topped up
+  once a game minute in every process -- `TREK_Power.lua`. The water has
+  worked this way since 1.3.
 - **A wall panel and a clear square for the EMH**, so the Doctor arrives as a
   right-click on an object every save already has.
 - **The biobed is the ship's only bed.** The bunk went; both halves of the
@@ -505,7 +512,7 @@ What changed, and why each one:
   author's description was "a big blocky thing that seems to have no
   function", which is what it was.
 
-Revision 16, so **new worlds only** for the loot. The part that most needs a
+Revision 17, so **new worlds only** for the loot. The part that most needs a
 real world is the other one: **the migration out of a 6x9 save**.
 `U.clearSquare` keeps tagged objects and dropped items by design, so without
 `B.refitCabin` every locker of the old cabin would be left standing in the

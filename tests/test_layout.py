@@ -69,7 +69,8 @@ for e in rows(L.tiles):
     entries.append({
         "x": int(e.x), "y": int(e.y), "sprite": e.sprite,
         "tag": e.tag or "?", "container": e.container is True,
-        "loot": e.loot, "special": e.special,
+        "loot": e.loot, "special": e.special, "cap": e.cap,
+        "device": e.device,
     })
 
 for e in entries:
@@ -133,18 +134,28 @@ for name in sorted(rules - authored):
     failures.append(f"TREK_Build.lua has a {name!r} stock rule and no container "
                     f"in the layout is marked with it")
 
-# --- the lamps (C.LampSpots) and the helm, which the server build places --
+# --- the lamps (C.LampSpots), which the server build places ---------------
 lamps = [(int(C.LampSpots[i][1]), int(C.LampSpots[i][2]))
          for i in range(1, len(C.LampSpots) + 1)]
-helm = re.search(r"local hx, hy = at\((\d+), (\d+)\)", src)
-helm = (int(helm.group(1)), int(helm.group(2))) if helm else None
 
 if not lamps:
     failures.append("C.LampSpots is empty; the cabin would have no lights")
 
 # A lamp shares its square with nothing: fit() claims it, but the authored
 # furniture bypasses claim(), so only this check would catch the overlap.
-solid = {(e["x"], e["y"]) for e in entries if not e["tag"].startswith("rug")}
+#
+# "Blocks its square" is read out of the tile catalogue rather than assumed of
+# every fitting. Half the cabin's fittings are wall-mounted -- the bow monitor
+# bank, the EMH panel -- and carry neither `solid` nor `solidtrans`: they hang
+# on a bulkhead and the square underneath is deck you walk on. Treating those
+# as obstacles is what made this file refuse a layout that is actually fine.
+def blocks(sprite):
+    props = tiles.get(sprite) or {}
+    return "solid" in props or "solidtrans" in props
+
+
+solid = {(e["x"], e["y"]) for e in entries
+         if not e["tag"].startswith("rug") and blocks(e["sprite"])}
 for lx, ly in lamps:
     if not inside(lx, ly):
         failures.append(f"lamp at {lx},{ly} is outside the hull")
@@ -154,19 +165,16 @@ for lx, ly in lamps:
         tag = next(e["tag"] for e in entries if (e["x"], e["y"]) == (lx, ly))
         failures.append(f"lamp at {lx},{ly} lands on top of {tag}")
 
-if helm:
-    if not inside(*helm):
-        failures.append(f"the helm item at {helm[0]},{helm[1]} is outside the hull")
-    elif helm in solid:
-        tag = next(e["tag"] for e in entries if (e["x"], e["y"]) == helm)
-        failures.append(f"the helm item at {helm[0]},{helm[1]} lands on {tag}")
+# There is no helm console prop any more. It was a static model standing in
+# the cabin that nothing ever opened -- the helm panel is on the aboard menu --
+# so the only world items the build places now are the ones B.refitCabin
+# spills onto the pad out of containers it is deleting.
 
 # --- draw it -----------------------------------------------------------
-GLYPH = {"rug": ".", "console": "T", "helmDesk": "T", "viewscreen": "V",
-         "freshFood": "F", "cookware": "c", "provisions": "p", "snacks": "c",
-         "readyKit": "s", "computer": "T", "sink": "w", "chair": "h",
-         "medical": "M", "engineering": "e", "phasers": "P", "armoury": "A",
-         "survival": "s", "bunk": "b", "drinks": "d"}
+GLYPH = {"console": "T", "tvConsole": "t", "television": "V", "chair": "h",
+         "fridge": "F", "oven": "o", "counter": "c", "sink": "w",
+         "microwave": "m", "replicator": "R", "armoury": "A",
+         "provisions": "p", "medical": "M", "emhPanel": "E", "biobed": "B"}
 grid = {}
 for e in entries:
     grid.setdefault((e["x"], e["y"]), []).append(e["tag"])
@@ -185,20 +193,25 @@ for oy in range(L_LEN + 1):
             row += GLYPH.get(tags[-1], "?")
         elif (ox, oy) in lamps:
             row += "*"
-        elif helm and (ox, oy) == helm:
-            row += "H"
         else:
             row += "."
     print(f"{oy:3d} {row}")
-print("\n   @ transporter pad   H helm   V viewscreen   T console   h seat")
-print("   w water   c galley   F fridge   p provisions   M sick bay")
-print("   e engineering   A armoury   P phasers   s survival   b berth")
-print("   d drinks      * lamp")
+print("\n   @ transporter pad   T monitor wall   V television")
+print("   t tv console   h crew seat   F fridge   o oven   c counter")
+print("   w sink   m microwave   R replicator berth")
+print("   A armoury   p rations   M sick bay   E EMH panel   B biobed")
+print("   * lamp      . open deck")
 
-print(f"\n{len(entries)} authored fittings, {len(containers)} of them stocked:")
+print(f"\n{len(entries)} authored fittings, {len(containers)} containers:")
 for e in containers:
-    what = (e["special"] + " + " + (e["loot"] or "-")) if e["special"] else e["loot"]
-    print(f"  {e['x']},{e['y']}  {e['tag']:11s} {what}")
+    if e["special"]:
+        what = e["special"] + " + " + (e["loot"] or "-")
+    elif e["loot"]:
+        what = e["loot"]
+    else:
+        what = "(empty -- the player's own storage)"
+    cap = f"  cap {int(e['cap'])}" if e["cap"] is not None else ""
+    print(f"  {e['x']},{e['y']}  {e['tag']:11s} {what}{cap}")
 
 # --- the Lua against the .tbx it came from -----------------------------
 # The geometry is authored in BuildingEd; the loot is not. Only the geometry
@@ -224,15 +237,27 @@ else:
                         f"({extra[2]}) that is not in the .tbx")
 
 # --- the pad -----------------------------------------------------------
-for dx in (-1, 0, 1):
-    for dy in (-1, 0, 1):
-        px, py = int(C.Landing.x) + dx, int(C.Landing.y) + dy
-        if not inside(px, py):
-            failures.append(f"the pad's clearance square {px},{py} is outside "
-                            f"the hull")
-        elif (px, py) in solid:
-            tag = next(e["tag"] for e in entries if (e["x"], e["y"]) == (px, py))
-            failures.append(f"{tag} at {px},{py} blocks the pad approach")
+# What actually has to be true is that you can materialise on the pad and walk
+# off it. This used to demand a clear 3x3 ring, which was never what the code
+# enforced -- C.Landing.clearance is 0, so the placement helpers refuse the pad
+# square and nothing else -- and in a cabin four squares wide a nine-square
+# exclusion zone is more than a third of the ship for one fixture. Two ways off
+# is the real requirement: one is a dead end, and a dead end is how a build
+# that dropped a locker in the wrong place would still read as fine.
+pad = (int(C.Landing.x), int(C.Landing.y))
+if not inside(*pad):
+    failures.append(f"the transporter pad at {pad[0]},{pad[1]} is outside the hull")
+elif pad in solid:
+    tag = next(e["tag"] for e in entries if (e["x"], e["y"]) == pad)
+    failures.append(f"{tag} stands on the transporter pad at {pad[0]},{pad[1]}")
+else:
+    ways_off = [(pad[0] + dx, pad[1] + dy)
+                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1))
+                if inside(pad[0] + dx, pad[1] + dy)
+                and (pad[0] + dx, pad[1] + dy) not in solid]
+    if len(ways_off) < 2:
+        failures.append(f"the pad at {pad[0]},{pad[1]} has {len(ways_off)} way(s) "
+                        f"off it; a player would materialise in a dead end")
 
 if area < (W + 1) * (L_LEN + 1) * 0.55:
     failures.append(f"the hull keeps only {area} squares; the cuts are too deep")

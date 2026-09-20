@@ -1229,6 +1229,8 @@ Net.onServer("debug", function(player, args)
         B.stockReport()
     elseif what == "water" then
         B.waterReport()
+    elseif what == "power" then
+        TREK.Power.report()
     elseif what == "galley" then
         B.giveGalley(player)
     elseif what == "ghosts" then
@@ -1274,7 +1276,10 @@ Events.EveryOneMinute.Add(function()
         -- Nobody can drain the tap faster than a game minute refills it.
         U.try("refillWater", B.refillWater)
         if anyoneAboard() then
-            U.try("powerCabin", B.powerCabin)
+            -- Power is not here: TREK_Power registers its own per-minute tick,
+            -- because the engine drains a device's cell in every process and
+            -- a server-only top-up would leave each client switching the
+            -- television off by itself.
             U.try("clearMargin", B.clearLoadedSurroundings)
         end
     end

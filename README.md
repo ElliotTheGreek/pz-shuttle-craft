@@ -181,7 +181,7 @@ engine facts it rests on.
 | `tools/pzcatalog.py` | Builds and queries catalogues of every build 42 sprite and item id. |
 | `tools/preview_model.py` | Software renderer for `.x` meshes — check a model without launching the game. Auto-fits the frame, so a five-tile hull is as viewable as a one-tile box. |
 | `tools/gen_shuttle.py` | Hull texture, mesh and inventory icon. |
-| `tools/gen_helm.py` | Helm console texture and mesh. |
+| `tools/gen_helm.py` | The helm console prop, no longer placed in the cabin. |
 | `tools/gen_phaser.py` | Phaser inventory icon. |
 | `tools/gen_medical.py` | The hypospray, tricorder and regenerator sounds. (Their icons come from the Gemini toolkit; the originals are in `design/art/medical/`.) |
 | `tools/gen_poster.py` | The mods-screen poster. |

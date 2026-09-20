@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 15
+C.BuildRev = 17
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -68,22 +68,40 @@ C.RoomOffset = 16
 C.CabinZ = 4
 
 -- Cabin extent, as inclusive offsets: 0..CabinW across, 0..CabinL fore-aft.
--- oy 0 is the bow. A shuttle is a small ship and this is deliberately a small
--- room -- roomy enough for a galley, a berth, a med station and real cargo,
--- and nothing like a TARDIS deck.
-C.CabinW = 5
-C.CabinL = 8
+-- oy 0 is the bow.
+--
+-- Four across by six fore-and-aft: twenty-four squares, one wider and one
+-- longer than the 3x5 hull that is drawn outside. The cabin was 6x9 until
+-- the refit, and fifty-four squares of lockers, fridges, a cargo bay and a
+-- berth read as a warehouse the shuttle was parked next to rather than as
+-- the inside of the shuttle. Everything the ship needs still has a place;
+-- nothing has a spare one.
+C.CabinW = 3
+C.CabinL = 5
+
+-- What the cabin used to be, and the only reason it is written down: a save
+-- made before the refit has tagged furniture standing on squares that are now
+-- outside the hull, and nothing that walks the *new* shape will ever visit
+-- them. B.refitCabin sweeps this extent once. See DEV_GUIDE.md,
+-- "Moving geometry is a migration, not a rebuild".
+C.LegacyCabin = { w = 5, l = 8 }
 
 -- How far beyond the hull to strip the procedural wilderness the engine grows
 -- in unmapped cells. Everything in this ring is removed down to bare nothing,
 -- which renders as the black void the Fifth-Wheel RV interior sits in.
 C.ClearMargin = 24
 
--- The transporter pad, amidships and aft of the galley. Arrivals -- beaming
+-- The transporter pad, aft, beside the foot of the biobed. Arrivals -- beaming
 -- up, walking in through the hatch, coming back from a failed landing -- all
--- put the player down here, and the pad and the ring of squares around it are
--- refused by every placement helper so nothing is ever in the way.
-C.Landing = { x = 2, y = 6, clearance = 0 }
+-- put the player down here, and it is refused by every placement helper so
+-- nothing is ever in the way.
+--
+-- Aft rather than amidships so that materialising puts the length of the ship
+-- in front of you rather than half of it behind: you arrive at the sick bay,
+-- walk forward past the lockers and the galley, and the viewscreen is what
+-- you are looking at. It is also where the contents of a container the refit
+-- deletes are spilled.
+C.Landing = { x = 2, y = 5, clearance = 0 }
 
 --- True for the pad square and the ring of squares around it.
 function C.isLanding(ox, oy)
@@ -95,7 +113,7 @@ end
 -- light itself, because a light source is not a synced world object.
 -- tests/test_layout.py checks these offsets against the floor plan.
 C.LampSpots = {
-    { 3, 1 }, { 2, 3 }, { 3, 6 },
+    { 1, 1 }, { 1, 4 },
 }
 
 ---------------------------------------------------------------------------
@@ -519,9 +537,10 @@ C.PhaserNeverWears   = true
 -- rate a player can empty a magazine, so this is deliberately slow.
 C.PhaserInterval = 30
 
--- The locker they are kept in, just off the transporter pad, and how many are
--- in it.
-C.PhaserRack  = { x = 5, y = 6 }
+-- The locker they are kept in -- the armoury, first of the starboard run --
+-- and how many are in it. tests/test_layout.py holds this in step with the
+-- authored entry marked `special = "phasers"`.
+C.PhaserRack  = { x = 3, y = 0 }
 C.PhaserCount = 4
 
 ---------------------------------------------------------------------------
@@ -691,8 +710,10 @@ C.Sprites = {
 -- as {sprite, dx, dy}. Getting it backwards lays the foot of the bed where
 -- its head belongs, which is invisible in the code and obvious in game.
 -- tests/test_layout.py checks every offset here against the game data.
+-- The bunk went with the refit: the biobed carries BedType = goodBed, so the
+-- sick bay is also where you sleep, and a shuttle with both in twenty-four
+-- squares is a shuttle with nowhere to stand.
 C.Pieces = {
-    bunkS   = { { "furniture_bedding_01_9", 0, 0 }, { "furniture_bedding_01_8", 0, 1 } },
     biobedS = { { "location_community_medical_01_17", 0, 0 },
                 { "location_community_medical_01_16", 0, 1 } },
 }
@@ -720,12 +741,38 @@ C.WaterInterval = 120
 C.WaterCapacity = 20
 
 ---------------------------------------------------------------------------
+-- Power
+---------------------------------------------------------------------------
+-- What a powered fitting's cell is kept at, 0..1. DeviceData.setPower clamps
+-- to that range, and a device that is switched on loses its item script's
+-- UseDelta every game minute -- 0.007 for a television, so a full cell is
+-- about two and a half game hours. TREK_Power tops every fitting back up
+-- once a game minute, in every process, so it can never be outrun.
+--
+-- The whole reason it is the *device's* power rather than the square's is in
+-- the header of TREK_Power.lua: setHaveElectricity does not set a flag, and
+-- haveElectricity() means "a generator is running in this chunk".
+C.DevicePower = 1.0
+
+---------------------------------------------------------------------------
 -- Items placed in the cabin
 ---------------------------------------------------------------------------
--- The hull outside and the helm console inside are world models, defined in
--- media/scripts/trekshuttle.txt.
+-- The hull outside is a world model, defined in media/scripts/trekshuttle.txt.
 C.ExteriorItem = "TrekShuttle.TrekShuttleHull"
-C.HelmItem     = "TrekShuttle.TrekHelmConsole"
+
+-- The helm console. Not placed any more: it was a 70-weight static model
+-- standing in the cabin that did nothing at all. The helm panel opens from
+-- the aboard menu -- right-click anywhere aboard, Shuttlecraft, Helm -- and
+-- never from that object. In a fifty-four square cabin it read as furniture;
+-- in twenty-four it was a big box in the middle of the room.
+--
+-- The *item* is still declared in media/scripts/trekshuttle.txt on purpose.
+-- Saves made before this have one lying on the deck, and deleting an item
+-- type that existing world items refer to is a question about the engine's
+-- save loader that nobody here has answered. B.refitCabin removes them; the
+-- script block, the mesh and tools/gen_helm.py go once that has been seen to
+-- work in a real save.
+C.LegacyHelmItem = "TrekShuttle.TrekHelmConsole"
 
 ---------------------------------------------------------------------------
 -- Stores
@@ -756,121 +803,55 @@ C.FillFraction = 0.55
 -- on weight long before this binds. tests/test_stock.py holds it to the cap.
 C.FillItemCap = 48
 
--- Sick bay. Deliberately long: the fill walks a list with a rolling cursor,
--- so a longer list spreads further across the cabinets rather than repeating.
+-- The ship's stores, and every id in them is the mod's own.
 --
--- The order is not arbitrary and the boxes are not padding. Containers fill
--- by weight, and medical supplies are the lightest loot in the game -- a
--- bandage is 0.1 of the 40 a locker holds, so a list of nothing but dressings
--- and pills cannot fill a locker at any sane item count. Every third or
--- fourth entry is therefore something substantial (a box, a kit, a splint),
--- which is both what carries the cabinet to a believable fill and what a
--- ship's sick bay would actually be stocked with.
--- The mod's own three go in at the top of the list rather than being left to
--- the rolling cursor: the fill walks this list from wherever the last
--- container stopped, so an item at position 20 of 31 may simply never appear
--- in either sick-bay locker. The forward locker also stocks one of each
--- outright (`special = "medkit"` in TREK_InteriorLayout.lua), the way the
--- phaser locker stocks phasers, so a fresh ship always has the set aboard.
+-- This is the refit's other half. Nineteen containers became eight, and five
+-- of the eight -- the fridge, the oven, the two counters and the replicator's
+-- berth -- are stocked with nothing at all: they are the player's shelves,
+-- and a player fills a shuttle with vanilla loot within a week of flying it.
+-- What the *ship* is issued with is Starfleet issue, so the three lockers
+-- hold the mod's own items and no tins of beans. A locker of pistols and
+-- bandages was what a 40-unit container needed when there were eight of them;
+-- with three it is just the vanilla game, in a cupboard, on a spaceship.
+--
+-- The lists are short, so quantity is set by the entry's `cap` in
+-- TREK_InteriorLayout.lua rather than left to weight: a cap that is a
+-- multiple of the list length puts the same number of every item in whatever
+-- the rolling cursor is doing, which makes the contents of a locker a
+-- decision rather than an outcome. The `special` rules in TREK_Build.lua
+-- guarantee the headline items on top of that and read the container back to
+-- prove it.
+
+-- Sick bay. The hypospray treats everything short of a bite, the dermal
+-- regenerator closes skin, and the two tricorders are the diagnosis and the
+-- sensor sweep. The forward locker also stocks one of each outright
+-- (`special = "medkit"`), so a fresh ship always has the set aboard even if
+-- the fill goes wrong.
 C.Loot.medical = {
     "TrekShuttle.TrekHypospray", "TrekShuttle.TrekDermalRegen",
     "TrekShuttle.TrekMedTricorder", "TrekShuttle.TrekTricorder",
-    "Base.FirstAidKit", "Base.Bandage", "Base.Antibiotics", "Base.Disinfectant",
-    "Base.BandageBox", "Base.AlcoholWipes", "Base.AlcoholBandage", "Base.Pills",
-    "Base.AdhesiveBandageBox", "Base.PillsAntiDep", "Base.PillsBeta",
-    "Base.PillsVitamins", "Base.Bag_MedicalBag", "Base.SutureNeedle",
-    "Base.SutureNeedleHolder", "Base.PillsSleepingTablets",
-    "Base.CottonBallsBox", "Base.Tweezers", "Base.Scalpel",
-    "Base.WaterPurificationTablets", "Base.Splint", "Base.Bleach",
-    "Base.AdhesiveTapeBox", "Base.CottonBalls", "Base.HottieZ",
-    "Base.AlcoholedCottonBalls", "Base.Sheet", "Base.Gloves_Surgical",
 }
 
--- Ship's stores. Long-life first: this is what a shuttle is provisioned with,
--- not what somebody left in a fridge.
+-- The rations locker: the galley dishes and the drinks together, because the
+-- ship has one food locker now and a crew that keeps bloodwine keeps it with
+-- the rations. Each drink is a vessel carrying its own fluid, filled when the
+-- item is created (InitialPercentMin/Max in trekshuttle.txt), so what is
+-- stocked is a full mug or a full bottle rather than empty glass.
 C.Loot.food = {
-    "TrekShuttle.TrekRationPack",
-    "Base.TinnedBeans", "Base.TinnedSoup", "Base.CannedCorn", "Base.CannedPeas",
-    "Base.CannedCarrots", "Base.CannedPotato", "Base.CannedChili",
-    "Base.CannedBolognese", "Base.CannedMushroomSoup", "Base.CannedTomato",
-    "Base.CannedSardines", "Base.CannedFruitCocktail", "Base.CannedPeaches",
-    "TrekShuttle.TrekRationPack", "TrekShuttle.TrekJumjaStick",
-    "Base.Rice", "Base.Pasta", "Base.Flour2", "Base.Sugar", "Base.Salt",
-    "Base.Coffee2", "Base.Crisps", "Base.GranolaBar", "Base.BeefJerky",
-    "Base.WaterBottle", "Base.WaterRationCan",
-    -- The drinks. Each is a vessel carrying its own fluid, filled when the
-    -- item is created (InitialPercentMin/Max in trekshuttle.txt), so what the
-    -- galley stocks is a full mug or a full bottle rather than empty glass.
+    "TrekShuttle.TrekRationPack", "TrekShuttle.TrekGagh",
+    "TrekShuttle.TrekLeolaStew", "TrekShuttle.TrekPlomeekSoup",
+    "TrekShuttle.TrekJumjaStick",
     "TrekShuttle.TrekRaktajinoMug", "TrekShuttle.TrekEarlGreyCup",
-}
-
--- The wardroom's drinks cabinet, in with the galley china. Kept out of
--- C.Loot.food so a shuttle's standing provisions are not half liquor: these
--- are two bottles among the cookware, not rations.
-C.Loot.drinks = {
     "TrekShuttle.TrekRomulanAle", "TrekShuttle.TrekBloodwine",
-    "TrekShuttle.TrekRaktajinoMug", "TrekShuttle.TrekEarlGreyCup",
-    "Base.Whiskey", "Base.BeerBottle", "Base.Wine", "Base.Wine2",
 }
 
--- The two galley fridges. Produce is light -- an apple is 0.2 of the 40 a
--- fridge holds -- so the same rule as the sick bay applies: the hams, the
--- pumpkin and the watermelon are what let a fridge look stocked without
--- putting eighty eggs in it.
-C.Loot.fresh = {
-    "TrekShuttle.TrekLeolaStew", "TrekShuttle.TrekGagh", "TrekShuttle.TrekPlomeekSoup",
-    "Base.Ham", "Base.Bread", "Base.Cheese", "Base.Butter", "Base.Milk",
-    "Base.Pumpkin", "Base.Egg", "Base.Potato", "Base.Carrots", "Base.Onion",
-    "Base.Watermelon", "Base.Tomato", "Base.Apple", "Base.Orange",
-    "Base.RoastingPan", "Base.Steak", "Base.Chicken", "Base.Bacon",
-    "Base.Pie", "Base.Cabbage", "Base.Lettuce", "Base.BellPepper",
-}
-
-C.Loot.cookware = {
-    "Base.Pot", "Base.Pan", "Base.Saucepan", "Base.Bowl", "Base.Plate",
-    "Base.MugWhite", "Base.KitchenKnife", "Base.BreadKnife", "Base.ButterKnife",
-    "Base.CheeseGrater", "Base.RollingPin", "Base.BakingTray",
-}
-
--- Engineering stores: a shuttle carries a tool roll, not a workshop.
-C.Loot.tools = {
-    "Base.Screwdriver", "Base.Wrench", "Base.PipeWrench", "Base.Hammer",
-    "Base.DuctTape", "Base.Rope", "Base.Torch", "Base.Battery",
-    "Base.ElectronicsScrap", "Base.Extinguisher", "Base.Crowbar",
-    "Base.Saw", "Base.Screws", "Base.Nails", "Base.Wire", "Base.SheetMetal",
-}
-
-C.Loot.linen = { "Base.Sheet", "Base.Pillow", "Base.Pillow_Crafted" }
-
--- The armoury, stowed beside the phasers. A phaser never runs dry, so this is
--- not there to be needed -- it is there because a weapons locker holding four
--- sidearms and nothing else reads as a prop rather than a locker. Heavy on
--- purpose: this is the list that carries the phaser locker to a believable
--- fill without putting thirty phasers in it.
+-- The armoury. The phasers are guaranteed separately (`special = "phasers"`),
+-- so this is the blade rack -- all four together, because a crew who keep a
+-- bat'leth keep the rest of the set and one alien weapon among the pistols
+-- read as a souvenir where four read as an armoury. There are no pistols now.
 C.Loot.weapons = {
-    "Base.Pistol", "Base.Pistol2", "Base.Pistol3", "Base.Shotgun",
-    "Base.Bullets9mmBox", "Base.9mmClip", "Base.ShotgunShellsBox",
-    "Base.Bullets45Box", "Base.45Clip",
-    -- The blades. All four together, because they are a *rack* -- a crew who
-    -- keep a bat'leth keep the rest of the set, and finding one alien weapon
-    -- among the pistols reads as a souvenir where finding four reads as an
-    -- armoury. They are heavy, which is also what carries this list to a
-    -- believable fill without putting thirty phasers in the locker.
     "TrekShuttle.TrekBatleth", "TrekShuttle.TrekMekleth",
     "TrekShuttle.TrekLirpa", "TrekShuttle.TrekUshaanTor",
-    "Base.HuntingKnife", "Base.Machete", "Base.Nightstick", "Base.HandAxe",
-    "Base.Vest_BulletCivilian", "Base.HolsterSimple", "Base.Crowbar",
-}
-
--- Crucial kit: what is worth more than its weight the moment the ship sets
--- down somewhere dark and the hatch opens.
-C.Loot.survival = {
-    "TrekShuttle.TrekRationPack", "TrekShuttle.TrekJumjaStick",
-    "Base.Torch", "Base.Battery", "Base.Lighter", "Base.Matches",
-    "Base.Rope", "Base.SheetRope", "Base.DuctTape", "Base.FirstAidKit",
-    "Base.WaterRationCan", "Base.Extinguisher", "Base.Map",
-    "Base.WalkieTalkie2", "Base.LightBulb", "Base.Bag_DuffelBag",
-    "Base.Needle", "Base.Thread", "Base.Sheet", "Base.Pillow",
 }
 
 return C
