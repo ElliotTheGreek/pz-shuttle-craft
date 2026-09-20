@@ -843,8 +843,143 @@ end)
 --- "one authority per piece of state" of the kind the sky plane needed.
 ---
 --- The trap is vanilla's explosive, configured the way vanilla configures a
---- pipe bomb. C.TorpedoFireChance is 0 and the comment on it is not optional
---- reading: it is the single value standing between a torpedo and a wildfire.
+--- pipe bomb -- except that it **burns**, which is the point of the weapon and
+--- which three earlier commits suppressed. See C.TorpedoFireChance.
+---
+--- **The blast waits for the torpedo to arrive.** It used to happen in this
+--- handler, on the frame the command landed, which put the explosion before
+--- the thing that caused it. The shot is queued here with a due time, the
+--- launch is broadcast so every client can draw the flight, and `detonate`
+--- below runs when it gets there. Nothing about that is ship state: a torpedo
+--- lives for under a second and a world that shuts down with one in the air
+--- should not reopen and set it off.
+
+--- True when torpedoes are allowed to start fires on this server.
+---
+--- Sandbox only. A server owner who wants no fire anywhere at all already has
+--- ServerOptions.noFire, which IsoGridSquare.Burn() checks by itself before
+--- doing anything -- so this is the narrower question of whether *this weapon*
+--- burns, not whether fire exists.
+---
+--- Absent sandbox vars mean the weapon as designed, never a silent disarm:
+--- reading a missing option as "no fire" is how a feature turns itself off in
+--- the one setup nobody tested.
+function S.torpedoesBurn()
+    local mode = U.try("sandboxTorpedoFire", function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.TorpedoFire
+    end)
+    return tonumber(mode) ~= C.TorpedoFireNone
+end
+
+-- Torpedoes between the tube and the ground. Server-local, transient, never
+-- published and never saved.
+local inFlight = {}
+
+--- Sets one off. The only place in the mod where anything explodes.
+local function detonate(t)
+    -- Never build where no player is standing: between launch and arrival the
+    -- chunk can go, and an orphan square throws on the first engine call.
+    local sq = U.square(t.x, t.y, t.z, false)
+    if not sq then
+        U.log("WARN torpedo: the ground at %d,%d,%d unloaded in flight -- " ..
+              "nothing detonated", t.x, t.y, t.z)
+        return
+    end
+
+    -- IsoTrap.new copies the entire explosion off the weapon -- sensor range,
+    -- fire range, fire energy, fire chance, power, blast radius, noise, extra
+    -- damage -- so the weapon is not optional and cannot be nil. Passing nil
+    -- threw on the very first property it reads:
+    --
+    --   NullPointerException: Cannot invoke "HandWeapon.getSensorRange()"
+    --   because "weapon" is null
+    --
+    -- which is what "the torpedo failed to arm" meant in game. The item is a
+    -- specification and nothing else: nobody holds one, it is never put in a
+    -- container, and it exists for the length of this function.
+    local warhead = U.try("torpedo.warhead", function()
+        return instanceItem(C.TorpedoItem)
+    end)
+    if not warhead then
+        U.log("WARN torpedo: %s would not instance -- the trap has no warhead "
+              .. "to copy its explosion from", tostring(C.TorpedoItem))
+        return
+    end
+
+    local burns = S.torpedoesBurn()
+    -- The engine clamps every one of these to 15 itself (Math.min at the top
+    -- of drawCircleExplosion); clamping here too means the log tells the truth
+    -- about what actually happened rather than what was asked for.
+    local chance = burns and math.min(C.TorpedoFireChance, 100) or 0
+    local fireR  = burns and math.min(C.TorpedoFireRange, 15) or 0
+    local smokeR = burns and math.min(C.TorpedoSmokeRange, 15) or 0
+    local energy = burns and C.TorpedoFireEnergy or 0
+
+    -- The pilot, if they are still connected: it is who the kills belong to.
+    -- A torpedo outlives its firer by design -- they can disconnect, die or be
+    -- beamed away in the second it is in the air -- so a stale reference is
+    -- expected rather than exceptional, and nil is a legal attacker: vanilla's
+    -- own 3-argument IsoTrap constructor passes aconst_null for it.
+    local who = (t.player and alive(t.player)) and t.player or nil
+
+    local fired = U.try("torpedo.trap", function()
+        local trap = IsoTrap.new(who, warhead, sq:getCell(), sq)
+        if not trap then return false end
+        trap:setExplosionPower(C.TorpedoPower)
+        trap:setExplosionRange(math.min(C.TorpedoRange, 15))
+        -- These four are the whole visible half of the weapon. At zero the
+        -- torpedo kills in silence, which is exactly what it did for three
+        -- commits: triggerExplosion() skips the Fire and Smoke passes whose
+        -- range is <= 0, and the Explosion pass gates Burn() and StartFire on
+        -- getFireStartingChance() per square.
+        trap:setFireStartingChance(chance)
+        trap:setFireStartingEnergy(energy)
+        trap:setFireRange(fireR)
+        trap:setSmokeRange(smokeR)
+        trap:setInstantExplosion(true)
+        trap:triggerExplosion()
+        return true
+    end) == true
+
+    if not fired then
+        U.log("WARN torpedo: the trap would not fire at %d,%d,%d", t.x, t.y, t.z)
+        return
+    end
+
+    Net.toAll("torpedoDetonated", { x = t.x, y = t.y, z = t.z })
+
+    -- Read the result back, as everything else here does. `caught` is what
+    -- proves the blast reached anything; `burning` is what proves the fire
+    -- half is working, and it is the number that was silently 0 before.
+    local caught = U.try("torpedo.count", function()
+        local objs = sq:getMovingObjects()
+        return objs and objs:size() or 0
+    end) or 0
+    local burning = U.try("torpedo.burning", function()
+        return sq:haveFire() and 1 or 0
+    end) or 0
+    U.log("torpedo detonated at %d,%d,%d: power %d, blast %d, fire chance %d " ..
+          "over %d, smoke %d -- %d on the target square, fire on it: %s (%s)",
+          t.x, t.y, t.z, C.TorpedoPower, math.min(C.TorpedoRange, 15),
+          chance, fireR, smokeR, caught,
+          burning == 1 and "yes" or "no",
+          burns and "sandbox: Full" or "sandbox: Blast only")
+end
+
+--- Detonates anything that has arrived. Called every tick; with nothing in
+--- the air it is one length check.
+function S.serviceTorpedoes()
+    if #inFlight == 0 then return end
+    local now = getTimestampMs()
+    for i = #inFlight, 1, -1 do
+        local t = inFlight[i]
+        if now >= t.due then
+            table.remove(inFlight, i)
+            U.try("torpedo.detonate", detonate, t)
+        end
+    end
+end
+
 Net.onServer("fireTorpedo", function(player, args)
     if not mayUse(player) then return end
     local s = U.state()
@@ -895,60 +1030,41 @@ Net.onServer("fireTorpedo", function(player, args)
         return
     end
 
-    -- IsoTrap.new copies the entire explosion off the weapon -- sensor range,
-    -- fire range, fire energy, fire chance, power, blast radius, noise, extra
-    -- damage -- so the weapon is not optional and cannot be nil. Passing nil
-    -- threw on the very first property it reads:
-    --
-    --   NullPointerException: Cannot invoke "HandWeapon.getSensorRange()"
-    --   because "weapon" is null
-    --
-    -- which is what "the torpedo failed to arm" meant in game. The item is a
-    -- specification and nothing else: nobody holds one, it is never put in a
-    -- container, and it exists for the length of this function.
-    local warhead = U.try("torpedo.warhead", function()
-        return instanceItem(C.TorpedoItem)
-    end)
-    if not warhead then
-        deny(player, "torpedoFailed")
-        U.log("WARN torpedo: %s would not instance -- the trap has no warhead "
-              .. "to copy its explosion from", tostring(C.TorpedoItem))
-        return
-    end
+    -- The warhead is instanced at detonation, not here: it is a specification
+    -- the trap copies, it is worth nothing in between, and instancing it a
+    -- second early only widens the window in which it could go missing.
 
-    local fired = U.try("torpedo.trap", function()
-        local trap = IsoTrap.new(player, warhead, sq:getCell(), sq)
-        if not trap then return false end
-        trap:setExplosionPower(C.TorpedoPower)
-        trap:setExplosionRange(C.TorpedoRange)
-        -- All three of these keep the street from burning. See TREK_Config.
-        trap:setFireStartingChance(C.TorpedoFireChance)
-        trap:setFireStartingEnergy(0)
-        trap:setFireRange(0)
-        trap:setSmokeRange(0)
-        trap:setInstantExplosion(true)
-        trap:triggerExplosion()
-        return true
-    end) == true
+    -- How long she takes to get there. Bounded at both ends: the floor stops a
+    -- close shot being a single frame nobody sees, and the ceiling means a
+    -- mistaken speed cannot leave a detonation owed for ever.
+    local flight = (dist / C.TorpedoSpeed) * 1000
+    if flight < C.TorpedoMinFlightMs then flight = C.TorpedoMinFlightMs end
+    if flight > C.TorpedoMaxFlightMs then flight = C.TorpedoMaxFlightMs end
 
-    if not fired then
-        deny(player, "torpedoFailed")
-        U.log("WARN torpedo: the trap would not fire at %d,%d,%d", x, y, z)
-        return
-    end
+    table.insert(inFlight, {
+        x = x, y = y, z = z,
+        due = now + flight,
+        player = player,
+    })
 
+    -- The cooldown starts at launch, not at impact. Otherwise the flight time
+    -- would be free reload time, and a close shot would rearm sooner than a
+    -- far one -- backwards, and exploitable.
     s.torpedoAt = now
     Ship.commit()
-    Net.toAll("torpedoFired", { x = x, y = y, z = z })
-    -- Read the result back, as everything else here does: the count is what
-    -- proves the blast reached anything, and a torpedo that hits nothing looks
-    -- exactly like a torpedo that never went off.
-    local caught = U.try("torpedo.count", function()
-        local objs = sq:getMovingObjects()
-        return objs and objs:size() or 0
-    end) or 0
-    U.log("torpedo away: %d,%d,%d power %d range %d, %d on the target square, fired by %s",
-          x, y, z, C.TorpedoPower, C.TorpedoRange, caught, Ship.usernameOf(player))
+
+    -- Every client draws the flight for itself from this: the ship's position
+    -- and level at launch, the target, and how long it has to cross. Scenery,
+    -- the same documented exception the sky plane uses -- no client touches
+    -- ship state and no client does damage.
+    Net.toAll("torpedoLaunched", {
+        x0 = s.x, y0 = s.y, level = s.level or C.FlightMinLevel,
+        x = x, y = y, z = z,
+        ms = flight,
+    })
+    U.log("torpedo away: %d,%d -> %d,%d,%d, %d tiles, %d ms in the air, fired by %s",
+          math.floor(s.x or 0), math.floor(s.y or 0), x, y, z,
+          math.floor(dist), math.floor(flight), Ship.usernameOf(player))
 end)
 
 Net.onServer("setCourse", function(player, args)
@@ -1060,6 +1176,10 @@ end)
 local vehicleTick = 0
 Events.OnTick.Add(function()
     U.try("serviceWaiting", serviceWaiting)
+    -- Every tick, because a torpedo is in the air for well under a second and
+    -- anything slower would make the impact visibly late for its own flight.
+    -- With nothing in the air it is a length check on an empty table.
+    U.try("serviceTorpedoes", S.serviceTorpedoes)
     vehicleTick = vehicleTick + 1
     if vehicleTick >= 60 then
         vehicleTick = 0

@@ -349,15 +349,51 @@ C.TorpedoRange = 7
 -- handed to it and discarded. Its own script block carries the same numbers.
 C.TorpedoItem = "TrekShuttle.TrekTorpedo"
 
--- **FireStartingChance must stay 0, and it is the whole reason torpedoes are
--- publishable.** IsoTrap.drawCircleExplosion rolls Rand.Next(100) against it
--- and uses that one roll to gate both IsoGridSquare.Burn() (bci 293) and
--- IsoFireManager.StartFire (bci 316); IsoTrap.explosion gates body-part burns
--- on it again at bci 148. At zero, none of the three can fire, and the blast
--- still damages everything standing on the square. Vanilla's own PipeBomb
--- ships 0 for exactly this reason. Raise it and the mod sets Muldraugh alight.
--- See MULTIPLAYER.md, "Photon torpedoes".
-C.TorpedoFireChance = 0
+-- **The fire is the weapon, and this number is how much of it there is.**
+--
+-- This said 0 for three commits, with a comment insisting it must stay there.
+-- That was a misreading of the roadmap's "an explosion that does not set the
+-- street on fire", taken to mean no fire at all. It meant fire that is an
+-- intended weapon effect rather than an accident. At 0 a torpedo is a silent
+-- stat change: zombies fall over and nothing is seen, because **in this engine
+-- the visible part of an explosion IS the fire and the smoke.** There is no
+-- separate explosion effect to fall back on.
+--
+-- What the bytecode actually does with it (tools/javadis.py on
+-- IsoTrap.drawCircleExplosion, which is worth re-reading before touching this):
+--
+--   * the roll is `Rand.Next(100) < getFireStartingChance()` and it is taken
+--     **once per square, inside the double loop** -- so this is a *density*
+--     dial, not a yes/no. At 60, about three squares in five ignite;
+--   * there are **two independent rolls** in Explosion mode, not one: bci 197
+--     gates IsoFireManager.StartFire, bci 254 gates IsoGridSquare.Burn().
+--     An earlier note here called it a single roll;
+--   * Burn() -> BurnWalls(true, true) is what actually **destroys structures**,
+--     and it is gated on `!GameClient.client`, so it is server-authoritative
+--     for free. It also checks ServerOptions.noFire and SafeHouse.isSafeHouse
+--     itself, which is why a server owner who has turned fire off is already
+--     respected without a line of ours.
+C.TorpedoFireChance = 60
+
+-- Handed to IsoFireManager.StartFire as its energy argument (read once at
+-- bci 7). Vanilla's own fire brush and the campfire code both use 100.
+C.TorpedoFireEnergy = 100
+
+-- **Three ranges, not one.** triggerExplosion() calls drawCircleExplosion
+-- three separate times -- ExplosionRange in Explosion mode, FireRange in Fire
+-- mode, SmokeRange in Smoke mode -- and skips any of them whose range is <= 0.
+-- That is how the build was silent on two of the three: they were zero, so
+-- those two calls never happened at all.
+--
+-- FireRange is a ring *beyond* the blast that only ever starts fire, so the
+-- burn is wider than the damage: the torpedo kills inside 7 and lights inside
+-- 10. Smoke is wider still, because smoke is what you see from the air.
+--
+-- **Every one of these is clamped to 15 by the engine** (`Math.min(range, 15)`
+-- is the first instruction in drawCircleExplosion). Setting any of them higher
+-- does nothing and only misleads whoever reads it next.
+C.TorpedoFireRange = 3
+C.TorpedoSmokeRange = 9
 
 -- How far from the ship the pilot may put one, in tiles. Bounded because the
 -- target square arrives from a client and a client is a request, never a fact:
@@ -369,8 +405,62 @@ C.TorpedoMaxRange = 28
 C.TorpedoCooldownMs = 6000
 
 -- The blast is centred on the ground, so a torpedo fired at your own shadow
--- would catch the ship. Refuse anything nearer than this many tiles.
-C.TorpedoMinRange = 4
+-- would catch the ship. **Raised from 4 to 12 when the fire was turned on**,
+-- and the arithmetic is the reason: the blast is C.TorpedoRange (7) and the
+-- fire ring reaches C.TorpedoRange + C.TorpedoFireRange (10), so at the old
+-- distance the pilot lit a fire they were sitting in and had to land in later.
+-- If either range grows, this must grow with it.
+C.TorpedoMinRange = 12
+
+-- Sandbox: 1 = Full (the torpedo burns), 2 = Blast only (damage, no fire).
+-- Read server-side in TREK_Server.lua. A server owner who wants the weapon
+-- without the arson gets it here; one who wants no fire anywhere at all
+-- already has ServerOptions.noFire, which Burn() checks by itself.
+C.TorpedoFireFull = 1
+C.TorpedoFireNone = 2
+
+---------------------------------------------------------------------------
+-- Photon torpedoes: the projectile
+---------------------------------------------------------------------------
+-- **The torpedo is drawn in screen space, and nothing about it touches the
+-- world.** The obvious build is an IsoObject walked along the ground from ship
+-- to target, and it was the wrong one twice over: there is no explosion,
+-- flame or smoke tile anywhere in the tileset to put on it (fire is an
+-- attached animation, not a sprite), and a client laying world objects every
+-- tick is the sky plane's whole catalogue of trouble -- squares that will not
+-- answer, shadows outliving the thing that cast them, debris left in the air
+-- when a flight ends badly.
+--
+-- Instead the flight is a texture drawn on the reticle's own overlay, placed
+-- with isoToScreenX/Y -- GlobalObject statics with ten non-debug vanilla call
+-- sites (the foraging icons, the fishing tension UI, ISButtonPrompt). It
+-- cannot leave anything behind, because it never put anything anywhere.
+--
+-- The one thing that does reach the world is a moving light, and that is the
+-- same documented exception the cabin's lamps and the sky plane already use:
+-- scenery, per client, never ship state.
+
+-- Tiles per second. A 28-tile shot at 30 is a touch under a second: long
+-- enough to watch it go, short enough that it reads as a weapon rather than a
+-- thrown rock.
+C.TorpedoSpeed = 30
+
+-- Floor and ceiling on the flight, in milliseconds. The floor stops a
+-- minimum-range shot being a single frame; the ceiling is a safety net so a
+-- silly speed cannot leave a detonation pending for ever.
+C.TorpedoMinFlightMs = 250
+C.TorpedoMaxFlightMs = 2000
+
+-- How many fading echoes trail behind the head, and how far apart in
+-- milliseconds. Drawn, never placed -- a trail costs nothing but alpha.
+C.TorpedoTrail = 6
+C.TorpedoTrailMs = 45
+
+-- The light that rides with it: colour and radius for addLamppost. Removed
+-- with removeLamppost when the torpedo detonates, and rebuilt at most once a
+-- tile -- a light moved every frame is a lot of engine churn for a thing in
+-- the air for one second.
+C.TorpedoLight = { r = 0.55, g = 0.80, b = 1.00, radius = 5 }
 
 ---------------------------------------------------------------------------
 -- Travel

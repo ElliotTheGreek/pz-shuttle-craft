@@ -1247,13 +1247,26 @@ def static():
 
 
 def torpedoes():
-    """Photon torpedoes: who may fire, where, how often, and without fire.
+    """Photon torpedoes: who may fire, where, how often, and what it looks like.
 
-    The load-bearing check here is the fire chance. IsoTrap's Explosion mode
-    gates both IsoGridSquare.Burn() and IsoFireManager.StartFire on one
-    Rand.Next(100) < getFireStartingChance() roll, so that single number is
-    what separates a weapon from an arson mod. Everything else in this
-    function is ordinary validation; that one is the reason it exists.
+    **The load-bearing checks here used to assert the opposite of what they
+    assert now**, and that is the most useful thing about this function. They
+    required fireChance, fireEnergy and fireRange to be zero, on the reading
+    that a burning torpedo was an arson mod. In this engine those three
+    settings are the *entire visible half of an explosion* -- there is no
+    separate explosion effect -- so what they actually guarded was a weapon
+    that killed in silence, and they guarded it successfully for three commits
+    while the feature was reported broken from the cockpit.
+
+    So they are inverted, and the fire is now checked all the way through to
+    the world: configured non-zero on the trap, and a square that really
+    reports haveFire() afterwards. A setting that is passed and then ignored
+    looks identical to one that works, which is the mistake this whole project
+    keeps paying for.
+
+    The other half is the projectile. A torpedo must be *seen* to cross the
+    ground, so the flight is asserted directly: in the air after launch, drawn
+    somewhere on the path, gone once it lands, and its light put out.
     """
     P = "SIM.players[1]"
     net = Net("sp")
@@ -1269,12 +1282,19 @@ def torpedoes():
     C = lambda n: rt.eval(f"TREK.Config.{n}")
     sx, sy = ship(rt, "x"), ship(rt, "y")
 
+    # Far enough out to be a legal shot. Named once, because TorpedoMinRange
+    # went from 4 to 12 when the fire was turned on -- the blast plus the fire
+    # ring is 10 tiles of ground the pilot must not be standing over -- and
+    # every "this should work" shot in this function silently became an
+    # out-of-range refusal until they moved with it.
+    OK = 18
+
     def aim(dx, dy):
         """Points the cursor dx,dy squares from the player."""
         rt.run(f"SIM.aim.dx = {dx}; SIM.aim.dy = {dy}")
 
     def reset():
-        """Clears the traps and BOTH halves of the cooldown.
+        """Clears the traps, the fires, the flight and BOTH halves of the cooldown.
 
         The client keeps its own T.lastFire so it can refuse in the same frame
         the trigger is pulled, and the server keeps s.torpedoAt. Clearing only
@@ -1284,6 +1304,8 @@ def torpedoes():
         to be under test were never reached.
         """
         rt.run("SIM.traps = {}")
+        rt.run("SIM.burning = {}")
+        rt.run("TREK.Torpedo.clearFlight()")
         rt.run("TREK.Util.state().torpedoAt = nil")
         rt.run("TREK.Torpedo.lastFire = 0")
 
@@ -1295,6 +1317,9 @@ def torpedoes():
         could hold right-click, click left, and get silence -- because arming
         was a radial-menu toggle nobody had been told about. The handler was
         never the part that was broken. Drive the input.
+
+        This now only *launches*: the blast waits for the torpedo to arrive.
+        Call arrive() for the detonation.
         """
         aim(dx, dy)
         rt.run("SIM.mouse[1] = true")          # hold right: aiming
@@ -1306,11 +1331,21 @@ def torpedoes():
         rt.run("SIM.mouse[0] = false; SIM.mouse[1] = false")
         rt.run("TREK.Torpedo.poll()")
 
+    def arrive():
+        """Runs the clock on until anything in the air has landed.
+
+        The simulated clock moves 16 ms a tick and the longest flight allowed
+        is TorpedoMaxFlightMs, so this is that ceiling with room to spare
+        rather than a number picked to make today's shot work.
+        """
+        net.pump(int(C("TorpedoMaxFlightMs") / 16) + 10)
+
     # --- she will not fire from the ground --------------------------------
     # The blast is centred on the ground, so a shuttle sitting on it would be
     # inside its own explosion.
     reset()
-    fire(10, 0)
+    fire(OK, 0)
+    arrive()
     check(rt.eval("#SIM.traps") == 0,
           "torpedoes: she fired while parked on the ground")
 
@@ -1319,14 +1354,46 @@ def torpedoes():
     net.pump(400)
     check(ship(rt, "flying") is True, "torpedoes: she never got airborne to fire from")
 
-    # --- a shot that should land ------------------------------------------
+    # --- the torpedo is visible, and it arrives before it explodes --------
+    # This is the half the feature was missing entirely: it killed what was in
+    # the blast and nothing was ever seen to happen.
     reset()
-    fire(10, 0)
+    lampsBefore = rt.eval("SIM.lampsLive")
+    fire(OK, 0)
+
+    inAir = rt.eval("#TREK.Torpedo.inFlight")
+    check(inAir == 1,
+          f"torpedoes: {inAir} torpedoes in the air after firing one -- nothing "
+          f"is drawn crossing the ground, which is the whole complaint the "
+          f"rewrite exists to answer")
+
+    check(rt.eval("#SIM.traps") == 0,
+          "torpedoes: it detonated on the frame the trigger was pulled, before "
+          "the torpedo had gone anywhere -- the explosion must wait for it to "
+          "arrive or the effect precedes its own cause")
+
+    # It carries a light, so it reads at night. That light is the one part of
+    # this feature that touches the world, so it is the one part that can be
+    # left behind.
+    net.pump(4)
+    lit = rt.eval("SIM.lampsLive")
+    check(lit > lampsBefore,
+          "torpedoes: the torpedo in flight carries no light -- at night it is "
+          "invisible, which is most of when it matters")
+
+    # --- it lands, and the blast is configured to be seen -----------------
+    arrive()
     built = rt.eval("#SIM.traps") == 1
     check(built,
           "torpedoes: holding right mouse and clicking left built no trap -- "
           "the pilot has no way to fire, which is exactly how this shipped "
           "broken the first time")
+
+    check(rt.eval("#TREK.Torpedo.inFlight") == 0,
+          "torpedoes: the torpedo is still being drawn after it landed")
+    check(rt.eval("SIM.lampsLive") == lampsBefore,
+          "torpedoes: the flight light was never put out -- a light is a world "
+          "object and this is how a projectile strands something behind it")
 
     # Guarded, because everything below reads the trap. Without this the
     # run dies on a nil index and the real failure above never gets printed --
@@ -1335,26 +1402,53 @@ def torpedoes():
         check(rt.eval("SIM.lastTrap().fired") is True,
               "torpedoes: the trap was built but never triggered")
 
-        # --- THE one that matters -----------------------------------------
-        for field, why in (
-            ("fireChance", "IsoGridSquare.Burn() and IsoFireManager.StartFire are "
-                           "both gated on this; above zero the blast sets the street alight"),
-            ("fireEnergy", "fire starting energy must be zero"),
-            ("fireRange", "the fire radius must be zero"),
+        # --- THE one that matters, and it used to assert the opposite -----
+        # Each of these was required to be 0. In this engine the visible part
+        # of an explosion IS the fire and the smoke: triggerExplosion() skips
+        # the Fire and Smoke passes whose range is <= 0, and the Explosion pass
+        # gates Burn() and StartFire on getFireStartingChance() per square. At
+        # zero the torpedo kills in silence -- which is what was shipped, and
+        # what these checks were holding in place.
+        for field, cfg, why in (
+            ("fireChance", "TorpedoFireChance",
+             "IsoGridSquare.Burn() and IsoFireManager.StartFire are both gated "
+             "on this per square; at zero the blast is invisible and harms no "
+             "building"),
+            ("fireEnergy", "TorpedoFireEnergy",
+             "the energy handed to StartFire; at zero the fire has nothing to "
+             "burn with"),
+            ("fireRange", "TorpedoFireRange",
+             "triggerExplosion() skips the Fire pass entirely when this is <= 0"),
+            ("smokeRange", "TorpedoSmokeRange",
+             "triggerExplosion() skips the Smoke pass entirely when this is <= 0"),
         ):
             got = rt.eval(f"SIM.lastTrap().{field}")
-            check(got == 0, f"torpedoes: trap {field} is {got}, not 0 -- {why}")
+            want = C(cfg)
+            check(got == want,
+                  f"torpedoes: trap {field} is {got}, not {want} -- {why}")
+            check(got > 0,
+                  f"torpedoes: trap {field} is {got} -- {why}")
 
         check(rt.eval("SIM.lastTrap().power") == C("TorpedoPower"),
               "torpedoes: the trap was not given the configured explosion power")
         check(rt.eval("SIM.lastTrap().range") == C("TorpedoRange"),
               "torpedoes: the trap was not given the configured blast radius")
 
+        # ...and the fire reached the world, rather than being configured and
+        # then ignored. A setting that is passed and dropped looks exactly like
+        # one that works, which is this project's most expensive failure shape.
+        tx, ty = int(sx) + OK, int(sy)
+        check(rt.eval(f"SIM.isBurning({tx}, {ty}, 0) and 1 or 0") == 1,
+              f"torpedoes: nothing is burning at {tx},{ty} after a direct hit "
+              f"-- the fire settings are on the trap but no fire reached the "
+              f"ground")
+
     # --- the cooldown is real ---------------------------------------------
     # Traps only: clearing the cooldown here would be clearing the thing
     # under test.
     rt.run("SIM.traps = {}")
-    fire(10, 0)
+    fire(OK, 0)
+    arrive()
     check(rt.eval("#SIM.traps") == 0,
           "torpedoes: a second shot fired immediately -- the cooldown does nothing")
 
@@ -1370,14 +1464,27 @@ def torpedoes():
           f"but far enough to shell most of the map from the air")
     reset()
     fire(int(C("TorpedoMaxRange")) + 6, 0)
+    arrive()
     check(rt.eval("#SIM.traps") == 0,
           "torpedoes: a shot beyond TorpedoMaxRange was allowed -- a crafted "
           "command is a map-wide mortar")
     reset()
     fire(1, 0)
+    arrive()
     check(rt.eval("#SIM.traps") == 0,
           "torpedoes: a shot inside TorpedoMinRange was allowed -- she would "
           "be inside her own blast")
+
+    # The close bound is asserted as a flat number too, and for a sharper
+    # reason than the far one: it is what keeps the ship out of the fire she
+    # just started. The blast reaches TorpedoRange and the fire ring reaches
+    # TorpedoRange + TorpedoFireRange, so anything at or inside that is a
+    # pilot lighting the ground they are about to land on.
+    reach = int(C("TorpedoRange")) + int(C("TorpedoFireRange"))
+    check(int(C("TorpedoMinRange")) > reach,
+          f"torpedoes: TorpedoMinRange is {C('TorpedoMinRange')} but a torpedo "
+          f"sets fire out to {reach} tiles -- the pilot can drop one inside "
+          f"her own fire ring")
 
     # --- a passenger is not a gunner --------------------------------------
     reset()
@@ -1386,7 +1493,8 @@ def torpedoes():
         v.seats[0] = nil
         v.seats[1] = SIM.players[1]
     """)
-    fire(10, 0)
+    fire(OK, 0)
+    arrive()
     check(rt.eval("#SIM.traps") == 0,
           "torpedoes: someone who is not in the driver's seat fired them")
 
@@ -1399,12 +1507,12 @@ def torpedoes():
         v.seats[0] = SIM.players[1]
     """)
     reset()
-    aim(10, 0)
+    aim(OK, 0)
     rt.run("SIM.mouse[1] = false; SIM.mouse[0] = false")
     rt.run("TREK.Torpedo.poll()")
     rt.run("SIM.mouse[0] = true")
     rt.run("TREK.Torpedo.poll()")
-    net.pump(2)
+    arrive()
     check(rt.eval("#SIM.traps") == 0,
           "torpedoes: a bare left click fired one -- right mouse is supposed "
           "to be what arms the shot")
@@ -1419,13 +1527,13 @@ def torpedoes():
     cooldown = C("TorpedoCooldownMs")
     rt.run("TREK.Config.TorpedoCooldownMs = 0")
     reset()
-    aim(10, 0)
+    aim(OK, 0)
     rt.run("SIM.mouse[1] = true; SIM.mouse[0] = false")
     rt.run("TREK.Torpedo.poll()")
     rt.run("SIM.mouse[0] = true")
     for _ in range(8):
         rt.run("TREK.Torpedo.poll()")
-    net.pump(2)
+    arrive()
     held = rt.eval("#SIM.traps")
     rt.run(f"TREK.Config.TorpedoCooldownMs = {cooldown}")
     check(held == 1,
@@ -1433,10 +1541,48 @@ def torpedoes():
           f"click is not being taken on the edge, and only the cooldown is "
           f"standing between the pilot and one torpedo per frame")
 
-    print("torpedoes: the pilot aims with right mouse and fires with left, "
-          "the blast carries no fire at all, and the ground, a bare click, a "
-          "held button, the cooldown, both range bounds and a passenger are "
-          "all refused")
+    # --- the server owner may have the weapon without the arson -----------
+    # The engine already gives an owner ServerOptions.noFire and safehouse
+    # protection, both checked inside Burn(). This is the narrower question of
+    # whether *this weapon* burns, and it has to leave the kill intact: an
+    # option that quietly disarmed the torpedo would be a worse answer than
+    # not having one.
+    reset()
+    rt.run("SandboxVars = SandboxVars or {}")
+    rt.run("SandboxVars.TrekShuttle = SandboxVars.TrekShuttle or {}")
+    rt.run(f"SandboxVars.TrekShuttle.TorpedoFire = {int(C('TorpedoFireNone'))}")
+    fire(OK, 0)
+    arrive()
+    blastOnly = rt.eval("#SIM.traps") == 1
+    check(blastOnly,
+          "torpedoes: 'Blast only' stopped the torpedo firing at all -- the "
+          "option is meant to remove the fire, not the weapon")
+    if blastOnly:
+        for field in ("fireChance", "fireEnergy", "fireRange", "smokeRange"):
+            got = rt.eval(f"SIM.lastTrap().{field}")
+            check(got == 0,
+                  f"torpedoes: with TorpedoFire set to 'Blast only', trap "
+                  f"{field} is {got} rather than 0 -- the sandbox option does "
+                  f"nothing and the server owner's choice is ignored")
+        check(rt.eval("SIM.lastTrap().power") == C("TorpedoPower"),
+              "torpedoes: 'Blast only' also took the explosion's power away -- "
+              "it is meant to keep the blast and drop the fire")
+
+    # And it defaults to the weapon as designed. Reading a missing option as
+    # "no fire" is how a feature turns itself off in the one setup nobody
+    # tested -- single player, where the sandbox table may not exist at all.
+    rt.run("SandboxVars.TrekShuttle.TorpedoFire = nil")
+    check(rt.eval("TREK.Server.torpedoesBurn() and 1 or 0") == 1,
+          "torpedoes: with no sandbox option set the torpedo does not burn -- "
+          "an absent setting must mean the weapon as designed, never a silent "
+          "disarm")
+
+    print("torpedoes: the pilot aims with right mouse and fires with left, the "
+          "torpedo is drawn crossing the ground with a light on it and "
+          "detonates on arrival rather than on the trigger, the blast sets "
+          "fire to what it hits, 'Blast only' removes the fire and keeps the "
+          "weapon, and the ground, a bare click, a held button, the cooldown, "
+          "both range bounds and a passenger are all refused")
 
 
 def main():

@@ -1,6 +1,6 @@
 # Photon torpedoes — implementation guide
 
-The goal, what exists, why it falls short, and what has to be built.
+The goal, what exists, and what is left.
 
 Read `DEV_GUIDE.md` first (its "Rules that exist because they were broken"),
 then `MULTIPLAYER.md` for the client/server split and `PILOTING.md` for flight.
@@ -11,59 +11,56 @@ This file is the torpedo feature specifically.
 ## 1. The goal
 
 **A photon torpedo is a weapon you watch.** Firing one from the shuttle must
-produce all four of these, and the feature is not done until it does:
+produce all four of these:
 
 1. **A visible torpedo.** Something leaves the ship and travels to the target.
-   The player sees it cross the ground.
+   The player sees it cross the ground. — **built**, not yet seen in game.
 2. **A visible detonation.** An explosion at the point of impact — flame,
-   light, smoke. Not a silent stat change.
+   light, smoke. Not a silent stat change. — **built**, not yet seen in game.
 3. **Fire that spreads and burns the world.** A torpedo fired at a house sets
    the house alight. At a car, at a tree, at a fence — it burns. This is a
-   deliberate, wanted effect, not a side effect to be suppressed.
-4. **Kills what is in the blast**, which already works.
+   deliberate, wanted effect. — **built**, not yet seen in game.
+4. **Kills what is in the blast.** — **confirmed in game.**
 
 The player is flying a warship. Firing its main weapon has to look and behave
 like firing a warship's main weapon.
-
-### What this corrects
-
-An earlier note in `ROADMAP.md` said the verify-first question was "an
-explosion that does not set the street on fire." That was read as *no fire at
-all*, and the implementation below suppresses every fire path deliberately.
-**That reading is wrong.** The concern was never that fire is unwanted — it is
-that fire must be a controlled, intended weapon effect rather than an
-uncontrolled accident. Burning down a house you aimed at is the feature.
-
-Everything in section 4.3 exists to be reversed.
 
 ---
 
 ## 2. What exists today
 
 Commits `4420690` (research), `fc70b30` (first build), `0290d79` (input
-rewrite), `4d2b23f` and `18681ff` (warhead). All static checks pass. Confirmed
-in game: **zombies in the blast die.** Nothing is visible.
+rewrite), `4d2b23f` and `18681ff` (warhead), and the fire-and-projectile pass
+this file now describes. All static checks pass, and every new assertion is
+mutation-checked. **Confirmed in game: zombies in the blast die.** Everything
+added since is unproven in game.
 
 | File | What it does |
 |---|---|
-| `shared/TREK/TREK_Config.lua` | the constants, section *Photon torpedoes* |
-| `server/TREK/TREK_Server.lua` | `Net.onServer("fireTorpedo", ...)` — the only place a blast happens |
-| `client/TREK/TREK_Torpedo.lua` | aiming, the reticle, the fire request |
+| `shared/TREK/TREK_Config.lua` | the constants, sections *Photon torpedoes* and *the projectile* |
+| `server/TREK/TREK_Server.lua` | `fireTorpedo` queues; `detonate` is the only place a blast happens |
+| `client/TREK/TREK_Torpedo.lua` | aiming, the reticle, the fire request, **and the projectile** |
 | `media/scripts/trekshuttle.txt` | `item TrekTorpedo` — the warhead spec |
+| `media/sandbox-options.txt` | `TrekShuttle.TorpedoFire` — Full or Blast only |
 | `media/ui/TREK_Reticle.png` | the reticle, `tools/gen_reticle.py` |
-| `media/ui/TREK_Torpedo.png` | a radial icon, generated but **currently unused** |
+| `media/ui/TREK_TorpedoFlight.png` | the projectile, `tools/gen_torpedo_flight.py` |
+| `media/ui/TREK_Torpedo.png` | a radial icon, generated but **still unused** |
 | `tests/test_multiplayer.py` | `torpedoes()` scenario |
-| `tests/pz_sim.lua` | `IsoTrap` recorder, mouse, `screenToIsoX/Y` |
+| `tests/pz_sim.lua` | `IsoTrap` recorder, fire model, lamps, mouse, iso↔screen |
 
 ### Current values
 
 ```lua
 C.TorpedoPower       = 90     -- ExplosionPower, vanilla PipeBomb's
 C.TorpedoRange       = 7      -- ExplosionRange, in tiles
-C.TorpedoFireChance  = 0      -- <-- suppresses every visual and all fire
+C.TorpedoFireChance  = 60     -- per-square ignition density
+C.TorpedoFireEnergy  = 100    -- vanilla's fire brush
+C.TorpedoFireRange   = 3      -- a fire ring beyond the blast
+C.TorpedoSmokeRange  = 9
 C.TorpedoMaxRange    = 28     -- how far from the ship a target may be
-C.TorpedoMinRange    = 4      -- nearer than this and the ship is in the blast
+C.TorpedoMinRange    = 12     -- blast 7 + fire ring 3, and then some
 C.TorpedoCooldownMs  = 6000
+C.TorpedoSpeed       = 30     -- tiles per second in flight
 C.TorpedoItem        = "TrekShuttle.TrekTorpedo"
 ```
 
@@ -79,170 +76,160 @@ click on the button's *down edge*.
 ```
 client  T.poll -> T.fire -> Net.send("fireTorpedo", {x, y, z})
 server  validate (mayUse, flying, isDriver, cooldown, min/max range, chunk loaded)
-        instanceItem(C.TorpedoItem)          -- the warhead
-        IsoTrap.new(player, warhead, cell, square)
-        setExplosionPower / Range / FireStartingChance(0) / FireRange(0)
-        setSmokeRange(0) / setInstantExplosion(true)
-        trap:triggerExplosion()
-        Net.toAll("torpedoFired", {x, y, z})
+        queue { x, y, z, due = now + flight, player }
+        start the cooldown NOW, at launch
+        Net.toAll("torpedoLaunched", {x0, y0, level, x, y, z, ms})
+client  T.launch -> drawn every frame between ship and target, with a light
+server  S.serviceTorpedoes (OnTick) -> due -> detonate:
+            instanceItem(C.TorpedoItem)          -- the warhead
+            IsoTrap.new(pilot or nil, warhead, cell, square)
+            setExplosionPower / Range
+            setFireStartingChance / Energy / FireRange / SmokeRange
+            setInstantExplosion(true) / triggerExplosion()
+        Net.toAll("torpedoDetonated", {x, y, z})
 ```
 
 ---
 
-## 3. Why nothing is visible
+## 3. Why it used to be invisible
+
+Kept because the reasoning is the most useful thing in this file, and because
+the same shape will come round again.
 
 **In Project Zomboid, the visible part of an explosion is the fire and smoke.**
 There is no separate explosion effect. `IsoTrap.drawCircleExplosion` in
-`Explosion` mode, disassembled (`tools/javadis.py`, bci 247–318):
+`Explosion` mode, disassembled (`tools/javadis.py`):
 
 ```java
-boolean startFire = Rand.Next(100) < getFireStartingChance();   // 254-271
-if (!GameClient.client && getExplosionPower() > 0 && startFire)
+boolean startFire = Rand.Next(100) < getFireStartingChance();   // 197-214
+boolean burn      = Rand.Next(100) < getFireStartingChance();   // 254-271, a SECOND roll
+if (!GameClient.client && getExplosionPower() > 0 && burn)
     square.Burn();                                              // 293
 explosion(square);                                              // 299 always — the damage
-if (local9 != 0)                                                // same roll, 197-214
+if (startFire)
     IsoFireManager.StartFire(cell, sq, true, fireStartingEnergy); // 316
 ```
 
 `explosion(square)` is the damage and it is unconditional. Everything a player
-*sees* — `square.Burn()` and `IsoFireManager.StartFire` — is gated on
-`getFireStartingChance()`, and the current build sets it to **0**. Smoke is
-gated separately on `getSmokeRange()`, also set to 0.
+*sees* is gated on `getFireStartingChance()`, and the build set it to **0** —
+in two places, the Lua and the item script — with an emphatic comment in
+`TREK_Config.lua` insisting it must stay there, and a test asserting it.
 
-So the current behaviour is exactly right for the code as written: damage with
-no picture. Three settings produce the silence:
+So the behaviour was exactly right for the code as written: damage with no
+picture. **Three things locked it in**, and they are worth naming separately
+because each would have been enough on its own:
 
-| Setting | Now | Effect of the zero |
-|---|---|---|
-| `setFireStartingChance(0)` | 0 | no `Burn()`, no `StartFire`, no body-part burns |
-| `setFireRange(0)` | 0 | no fire ring beyond the centre |
-| `setSmokeRange(0)` | 0 | no smoke |
+1. the constant, set to 0;
+2. a comment above it explaining at length why 0 was correct;
+3. a test that failed if it was ever raised, described as "THE one that
+   matters".
 
-They are set in **two places** and both must change: the Lua in
-`TREK_Server.lua`, and `FireStartingChance = 0` / `FireStartingEnergy = 0` in
-the `item TrekTorpedo` block in `trekshuttle.txt` (the trap constructor copies
-them off the weapon, and the Lua then re-asserts them).
+The comment and the test were both written in good faith from a misreading of
+one line of `ROADMAP.md` — "an explosion that does not set the street on fire",
+taken to mean *no fire at all* rather than *fire as an intended weapon effect*.
+Nothing in the codebase could contradict them, because they were not wrong
+about the engine. They were wrong about the goal.
 
-**There is no projectile at all.** Nothing was ever written to draw one. The
-blast is instant and centred on the target square the moment the command
-arrives.
+**The lesson worth carrying:** a test and a comment can agree with each other,
+be accurate about the engine, pass every check, and still hold a bug in place.
+Neither is evidence about what the feature is supposed to do. `DEV_GUIDE.md`
+has this under *A guard is only as good as the goal it was written from*.
 
 ---
 
-## 4. The work
+## 4. What was built
 
-### 4.1 A visible torpedo in flight
+### 4.1 The projectile
 
-Nothing exists. This is the largest piece and the least researched.
+**Drawn in screen space, and it touches nothing.** `TREK_Torpedo.lua` keeps a
+list of torpedoes in the air, each with where it was fired from, where it is
+going, when it started and how long it has; `Overlay:renderFlight()` places a
+texture every frame with `isoToScreenX/Y`.
 
-PZ has **no projectile rendering to borrow** — thrown weapons and bullets are
-not drawn in flight; the animation is the character, and the effect is applied
-instantly. So this must be built.
+This is **not** the approach this file originally proposed. The suggestion was
+to place an `IsoObject` on each square along the path. That was wrong twice
+over:
 
-Established facts:
+- **There is no sprite to put on it.** Searching `tools/_catalog/tiles.json`
+  for `explosion`, `fire_`, `flame`, `smoke`, `blast`, `effect`, `spark` and
+  `glow` returns **nothing**. PZ's fire is an `IsoFire` with an *attached
+  animation*, not a tile, so there was never a vanilla effect tile to borrow,
+  and a generated one would have needed a TileZed `.pack`.
+- **A client laying world objects every tick is the sky plane's whole
+  catalogue of trouble** — squares that will not answer yet, shadows outliving
+  what cast them (`PILOTING.md`, "A floor's shadow outlives the floor"), debris
+  stranded in the air when a flight ends badly.
 
-- `IsoObject` is on `LuaManager$Exposer`'s allow-list, and
-  `IsoObject.new(square, "sprite_name")` + `square:AddTileObject(obj)` is a
-  real Lua pattern (`client/DebugUIs/Scenarios/Trailer2Scenario.lua:139`, and
-  the mod's own cabin build uses `IsoObject.new`).
-- `IsoLightSource` is exposed; the mod already lights the cabin with
-  `cell:addLamppost(x, y, z, r, g, b, radius)` (see `U.batch` in
-  `DEV_GUIDE.md`).
-- The sky plane in `TREK_Sky.lua` is a working, tested example of **laying and
-  lifting world tiles every tick along a moving path**. A torpedo is the same
-  problem at a smaller scale and it is the code to copy.
+Screen space has neither problem: nothing is placed, so nothing can be left
+behind, and both of the open questions this file used to carry — whether a
+sprite draws correctly above ground level, and how it interacts with the sky
+plane — simply stop existing.
 
-Suggested approach, in order of increasing effort:
+Details worth keeping:
 
-1. **A stepped sprite.** Place one `IsoObject` with a bright sprite on each
-   square along the line from ship to target, one square per tick or two,
-   removing the previous one. Roughly 10–28 steps.
-2. **Add a moving light** (`addLamppost`) at the same position so it reads at
-   night and gives the thing presence.
-3. **A trail** — leave each sprite for N ticks instead of removing it at once.
+- Sizes divide by `getCore():getZoom(playerNum)`, which is what vanilla does
+  with anything pinned to a world position (`ISBaseIcon:updateZoom`). Without
+  it the torpedo is a fixed size on screen whatever the camera does.
+- It **holds altitude then dives** (`p ^ 2.2` on the descent only). A linear
+  fall reads as sliding down a wire, and since the ship is usually one or two
+  levels up the whole descent would be spent in the first few tiles.
+- The trail is `C.TorpedoTrail` echoes at earlier moments of the same flight,
+  each smaller and fainter. They cost nothing and always lie exactly on the
+  path, because they *are* the path.
+- The one thing reaching the world is a light (`addLamppost`), rebuilt only
+  when the tile under it changes and removed with `removeLamppost` on landing.
+  This is the documented scenery exception the cabin's lamps already use.
+- **The overlay is no longer tied to `atTheControls`.** It used to be created
+  and destroyed with the pilot's own reticle, which is wrong now a passenger,
+  another pilot, or whoever is being shot at also needs to see the shot.
 
-Hard requirements for any of them:
+### 4.2 The detonation waits for the torpedo
 
-- **Remove with `RecalcProperties()` and `RecalcAllWithNeighbours(true)`.**
-  `RemoveTileObjectErosionNoRecalc` leaves the square holding every conclusion
-  the engine drew from the object being there. This cost three rounds of
-  debugging on the sky plane (`PILOTING.md`, "A floor's shadow outlives the
-  floor") and `tests/pz_sim.lua` already marks a square stale when something is
-  removed without the pair.
-- **Slice it.** Anything walked per tick must not allocate. See *Slice any
-  search that touches thousands of squares* in `DEV_GUIDE.md`.
-- **Batch repeated engine calls** with `U.batch`, not `U.try` — a method that
-  does not exist throws out of Java and dumps a stack trace *per call*, which
-  in a per-tick loop looks like a crash (this mod has hit it: 2932 traces in
-  one session).
+The blast used to happen in the command handler, on the frame the request
+arrived — putting the explosion before the thing that caused it. The shot is
+now queued with a due time and `S.serviceTorpedoes` (on `OnTick`, every tick)
+sets it off on arrival.
 
-Open question: **what sprite?** Options are a vanilla effect tile, or a
-generated one (`tools/pngwrite.py` and the `gen_*.py` tools are the pattern;
-`tools/gen_reticle.py` is the smallest example). A torpedo is a bright dot with
-a glow, which is procedural work, not image-model work — see
-`tools/gen_radial_icons.py`'s header for why.
+**The cooldown starts at launch, not at impact.** Otherwise flight time is free
+reload time and a close shot rearms sooner than a far one.
 
-Unverified, and worth checking before building: whether a sprite on a square
-draws correctly *above* ground level (the torpedo flies at the ship's altitude
-before descending), and how it interacts with the sky plane's floors.
-
-### 4.2 A visible detonation
-
-Mostly solved by 4.3 — in this engine the explosion *is* the fire and smoke.
-Once `FireStartingChance`, `FireRange` and `SmokeRange` are non-zero there is a
-visible detonation.
-
-`IsoFireManager.StartFire(cell, square, boolean, int)` creates an `IsoFire`
-with `numFlameParticles`, and **sends a `StartFire` packet to nearby clients**
-(`INetworkPacket.sendToRelative`), so fire is synced by the engine and does not
-need a packet of ours.
-
-`IsoFireManager.StartSmoke(cell, square, boolean, int, int)` is the smoke
-equivalent, with a real vanilla Lua call site at
-`server/ClientCommands.lua:22`.
-
-Sound already works: the warhead carries `ExplosionSound = PipeBombExplode`.
+The pilot is stored with the shot for kill attribution and is allowed to be
+gone by the time it lands — vanilla's own 3-argument `IsoTrap` constructor
+passes `aconst_null` for the character, so nil is a legal attacker.
 
 ### 4.3 Fire that burns buildings
 
-This is the reversal. The levers, all already verified:
+`FireStartingChance` is **60**, `FireStartingEnergy` **100**, `FireRange` **3**
+and `SmokeRange` **9**, set both in `trekshuttle.txt` (what the trap is born
+with) and in `TREK_Server.lua` (what the sandbox option can turn down).
 
-| Lever | Where | Set to |
-|---|---|---|
-| `FireStartingChance` | `trekshuttle.txt` **and** `TREK_Server.lua` | a real value — 100 for "always", or tune |
-| `FireStartingEnergy` | both | vanilla's fire brush uses 100 |
-| `setFireRange(n)` | `TREK_Server.lua` | a ring of fire around the impact |
-| `setSmokeRange(n)` | `TREK_Server.lua` | smoke |
+What the numbers mean, from the bytecode:
 
-What burning actually does, from the bytecode:
+- **The roll is per square, inside the double loop.** `FireStartingChance` is a
+  *density* dial, not a yes/no: at 60, about three squares in five ignite.
+- **`triggerExplosion()` calls `drawCircleExplosion` three times** — once per
+  mode, each skipped entirely when its range is `<= 0`. That is why two thirds
+  of the effect were not merely invisible but never ran.
+- **Every range is clamped to 15** (`Math.min(range, 15)`, the first
+  instruction). Setting any of them higher does nothing.
+- `IsoGridSquare.Burn()` → `BurnWalls(true, true)` is what **destroys
+  structures**, and it returns immediately on a client, so it is
+  server-authoritative for free.
 
-- `IsoGridSquare.Burn()` → `BurnWalls(boolean, boolean)`, which removes sheet
-  ropes, barricades and window sheets, calls `GameServer.RemoveItemFromMap` and
-  `RemoveTileObject`. **This is what destroys structures.**
-- `IsoFireManager.StartFire` creates a spreading `IsoFire` with `spreadDelay`.
+**Already respected without a line of ours**, all checked inside `Burn()` and
+`BurnWalls()`: `ServerOptions.noFire`, `SafeHouse.isSafeHouse`, and
+`NonPvpZone.getNonPvpZone` inside `drawCircleExplosion`.
 
-**Two server options gate all of it, and both are checked inside `Burn()` and
-`BurnWalls()`:**
+**The sandbox option** `TrekShuttle.TorpedoFire` is *Full* (default) or *Blast
+only*. Blast only zeroes the four fire settings and keeps the power and the
+blast radius — it removes the arson, never the weapon. An **absent** option
+reads as Full: treating a missing setting as "no fire" is how a feature turns
+itself off in the one setup nobody tested.
 
-- `ServerOptions.noFire` — if a server owner has fire off, nothing burns, and
-  that is correct behaviour to respect rather than defeat.
-- `ServerOptions.safehouseAllowFire` — safehouses are protected.
-- `NonPvpZone.getNonPvpZone(x, y)` is consulted inside
-  `drawCircleExplosion`, so safe zones already limit the blast.
-
-**Design decisions to make** (these are yours, the guide does not assume):
-
-- Should fire be always-on, or a second fire mode? A torpedo that always
-  starts a fire cannot be used near the ship's own landing site.
-- Should `TrekShuttle.Access` or a sandbox option control whether torpedoes
-  can burn, so server owners can allow the weapon but not the arson?
-- What happens if a torpedo is fired at the cabin, the shuttle, or a player's
-  base — is that the player's problem, or guarded?
-
-`C.TorpedoMinRange = 4` exists because the blast is centred on the ground and
-the ship would otherwise be inside it. With fire on, that distance likely needs
-to grow, and the ship may need to be checked against the fire ring, not just
-the blast radius.
+`C.TorpedoMinRange` went **4 → 12** with the fire. The blast reaches 7 and the
+fire ring reaches 10, so at the old distance the pilot lit ground they were
+sitting over and would have to land on. `torpedoes()` asserts
+`TorpedoMinRange > TorpedoRange + TorpedoFireRange`, so this cannot drift.
 
 ---
 
@@ -259,13 +246,15 @@ From `MULTIPLAYER.md`, and they are not optional:
   re-validated server-side. The range bound exists because without it a crafted
   command is a map-wide mortar.
 - **The projectile is scenery**, so each client may draw its own — the same
-  documented exception the sky plane uses (`MULTIPLAYER.md`, *The sky plane*).
-  It must never touch ship state. `tests/pz_sim.lua` counts client world edits
-  separately for exactly this reason; a new one must be counted too or the
-  "no client edits the world" guard loses its teeth.
+  documented exception the sky plane uses. It must never touch ship state.
+  Drawing it in screen space makes this structural rather than a promise: there
+  is no world edit to get wrong.
+- **Fire is synced by the engine.** `IsoFireManager.StartFire` sends its own
+  `StartFire` packet to nearby clients (`INetworkPacket.sendToRelative`), so
+  the mod needs no packet for the visible half of the blast.
 - **No admin-only or `-debug`-gated calls.** `IsoFireManager.explode` is what
-  vanilla's *debug* fire brush uses; it is public and ungated, but it is also
-  the wrong call — unconditional `StartFire` plus `BurnWalls` and it touches no
+  vanilla's *debug* fire brush uses; it is public and ungated, but it is the
+  wrong call — unconditional `StartFire` plus `BurnWalls`, and it touches no
   character at all.
 
 ---
@@ -273,56 +262,79 @@ From `MULTIPLAYER.md`, and they are not optional:
 ## 6. Verified engine facts
 
 Established with `tools/pzapi.py` (exists, public), `tools/javarefs.py` (what
-it touches) and `tools/javadis.py` (**under what condition** — this is the one
-that matters, and it did not exist before this feature). Do not re-derive these.
+it touches) and `tools/javadis.py` (**under what condition** — the one that
+matters). Do not re-derive these.
 
 | Fact | Confidence |
 |---|---|
 | `IsoTrap` is on `LuaManager$Exposer`'s allow-list | HIGH |
 | `IsoTrap.new(character, weapon, cell, square)` has a vanilla Lua call site — `shared/TimedActions/ISPlaceTrap.lua:47` | HIGH |
 | **The weapon may not be nil.** The constructor copies eighteen properties off it and throws on the first, `getSensorRange()` | HIGH, seen in game |
-| `ExplosionMode` is `{Explosion, Fire, Smoke}`; the blast, fire ring and smoke have separate ranges | HIGH |
-| Both fire paths gate on one `Rand.Next(100) < getFireStartingChance()` roll | HIGH |
+| **The character may be nil.** Vanilla's own 3-arg constructor passes `aconst_null` for it | HIGH |
+| `triggerExplosion()` calls `drawCircleExplosion` **three times** — Explosion/`ExplosionRange`, Fire/`FireRange`, Smoke/`SmokeRange` — skipping any whose range is `<= 0` | HIGH |
+| **Every range is clamped to 15** by `Math.min` at the top of `drawCircleExplosion` | HIGH |
+| The fire roll is **per square**, and Explosion mode takes **two independent rolls** — bci 197 for `StartFire`, bci 254 for `Burn()` | HIGH |
 | `explosion(square)` — the damage — is unconditional in Explosion mode | HIGH |
+| `Burn()` → `BurnWalls(true, true)` destroys structures, returns immediately on a client, and checks `ServerOptions.noFire` and `SafeHouse.isSafeHouse` itself | HIGH |
 | `shouldProcess`: SP all; client only `isLocal()` zombies, never players; server all zombies, players per `ServerOptions` | HIGH |
 | `drawCircleExplosion` respects `LosUtil.lineClear` (walls block) and `NonPvpZone` | HIGH |
 | Fire is synced by the engine (`StartFire` packet `sendToRelative`) | HIGH |
+| `IsoFireManager.StartFire` has **both** a 4-arg and a 5-arg form; `StartSmoke` is 5-arg only. Vanilla Lua calls the 5-arg `StartFire` (`server/ClientCommands.lua:17`) | HIGH |
 | `IsoFireManager.explode` is an incendiary with no character damage — the wrong call | HIGH |
+| `isoToScreenX/Y(playerNum, x, y, z)` are `GlobalObject` statics with ten non-debug vanilla call sites (foraging icons, fishing tension UI, `ISButtonPrompt`) | HIGH |
 | `screenToIsoX/Y` are `GlobalObject` statics with non-debug callers (foraging, mining, building cursors) | HIGH |
 | `isMouseButtonDown(int)` / `isMouseButtonPressed(int)` are `GlobalObject` statics; 0 = left, 1 = right | HIGH |
-| Vanilla `PipeBomb`: `ExplosionPower 90`, `ExplosionRange 7`, `FireStartingChance 0`, `FireStartingEnergy 0` | HIGH |
+| `IsoCell.addLamppost(x,y,z,r,g,b,radius)` returns the `IsoLightSource`; `removeLamppost` takes that object | HIGH |
+| `IsoGridSquare.haveFire()` is public with a vanilla Lua call site (`ISWorldObjectContextMenu.lua:274`) | HIGH |
+| **There is no explosion, flame or smoke tile in the tileset.** PZ's fire is an attached animation on an `IsoFire`, not a sprite | HIGH |
 | PZ draws no projectile for any thrown or fired weapon — there is nothing to borrow | HIGH |
 
 ---
 
 ## 7. Tests
 
-`tests/test_multiplayer.py::torpedoes()` exists and covers: the pilot fires by
-holding right mouse and clicking left; a bare left click fires nothing; a held
-button fires once; the ground, the cooldown, both range bounds and a passenger
-are all refused; and the trap's fire settings.
+`tests/test_multiplayer.py::torpedoes()` covers: the pilot fires by holding
+right mouse and clicking left; a bare left click fires nothing; a held button
+fires once; the ground, the cooldown, both range bounds and a passenger are all
+refused; **the torpedo is in the air after launch and gone after it lands; it
+carries a light and that light is put out; the blast does not happen on the
+frame the trigger is pulled; the trap's four fire settings match config and are
+all above zero; the target square really reports `haveFire()`; `Blast only`
+removes the fire and keeps the weapon; and an absent sandbox option means
+Full.**
 
-**The fire-settings checks assert zero and must be inverted** when 4.3 lands.
-They are the block commented *"THE one that matters"*.
+**The fire-settings checks used to assert zero.** They were inverted with this
+work. They are the block commented *"THE one that matters, and it used to
+assert the opposite"*, and the paragraph above it is the post-mortem.
 
-Mutation-check anything added. Four mutations bite today: aiming never true,
-right mouse not required, no click edge, fire chance 50.
+Nine mutations were checked and all nine are caught: fire chance back to 0,
+fire ring to 0, smoke to 0, min range back to 4, the sandbox option ignored, an
+absent option read as no fire, detonating on the trigger, the projectile never
+drawn, and the flight light never put out. `tools/` has no mutation runner —
+the script lived in the scratchpad; rewrite it if you touch this scenario.
 
-Three things this scenario got wrong at first, all worth avoiding again:
+Three things this scenario got wrong at first, all still worth avoiding:
 
 1. **It called the server handler directly**, so it proved the blast and never
    the input. A build in which no player could fire passed every check. Drive
    the input.
 2. **The simulation was kinder than the engine.** `pz_sim`'s `IsoTrap.new`
    accepted a nil weapon, so the test passed over a build that threw a
-   `NullPointerException` in game. It errors now — keep it honest.
+   `NullPointerException` in game. It errors now — keep it honest. The fire
+   model added with this work follows the same rule: it clamps radius to 15
+   because the engine does.
 3. **A guard derived its expectation from the thing under test.** It fired at
    `TorpedoMaxRange + 6`, so raising the constant moved the shot with it and
-   the check sailed through. The sane ceiling is now asserted as a flat number.
+   the check sailed through. The sane ceiling is asserted as a flat number.
+
+A fourth, from this pass: **every "this should work" shot in the scenario was
+aimed 10 tiles out**, and raising `TorpedoMinRange` to 12 turned all of them
+into out-of-range refusals that would still have *passed* the checks reading
+`#SIM.traps == 0`. They are all `OK = 18` now, named once.
 
 Also note the Lua files are **CRLF**: a mutation done with a Python string
 replace using `\n` silently matches nothing, and you end up testing the
-unmutated file. Verify the mutation applied.
+unmutated file. Assert the mutation applied.
 
 ---
 
@@ -333,10 +345,9 @@ unmutated file. Verify the mutation applied.
 - **`tools/deploy_windows.py`** installs to `Zomboid/mods/TrekShuttle` as
   `TrekShuttleDev`. The dedicated-server world `trektest2` is configured and
   ready (see the pinned section in `ROADMAP.md`).
-- **Read the result back and log it.** Six bugs in this mod have had the same
-  shape: a plausible engine call that fails silently, leaving something
-  present, drawn and inert. `[TREK] torpedo away:` reports the count on the
-  target square for exactly that reason.
+- **Read the result back and log it.** `[TREK] torpedo detonated:` reports the
+  count on the target square *and* whether anything is actually burning — the
+  second number is the one that was silently 0 for three commits.
 - **`U.try` returns nil for "it failed" and nil for "it legitimately returned
   nothing."** Return a reason, not a boolean, where the answer authorises
   something.
@@ -345,17 +356,22 @@ unmutated file. Verify the mutation applied.
 - **An input nobody can discover is the same as no input.** The first build
   made arming a radial-menu toggle; the log was clean, the file loaded, and the
   feature read as broken.
+- **A comment and a test can hold a bug in place.** See section 3.
 
 ---
 
 ## 9. Not built, and known
 
-- **The controller.** `aimPoint()` in `TREK_Torpedo.lua` keeps a virtual cursor
-  for a joypad and nothing moves it, so on a Steam Deck the reticle sits at the
-  centre of the screen and does not track. The roadmap's original wording was
-  "a reticle the stick moves for controllers". Every panel in this mod is
-  required to work with a gamepad.
+- **The controller.** `aimPoint()` keeps a virtual cursor for a joypad and
+  nothing moves it, so on a Steam Deck the reticle sits at the centre of the
+  screen and does not track. The roadmap's original wording was "a reticle the
+  stick moves for controllers". Every panel in this mod is required to work
+  with a gamepad. **This is the one piece of the original spec still missing.**
 - **`media/ui/TREK_Torpedo.png`** is generated by `tools/gen_radial_icons.py`
-  and referenced by nothing since the radial slice was removed. Either give it
-  a use or delete it — dead assets are worse than none.
-- **Two players.** No part of this has been fired with two people connected.
+  and referenced by nothing since the radial slice was removed. It is a 48px
+  flat menu icon and is the wrong shape for the projectile, which has its own
+  sprite now. Either give it a use or delete it.
+- **Nothing here has been seen in game since the fire was turned on**, and
+  nothing has ever been fired with two people connected. In particular: how
+  much of a town a chance-60 blast actually takes with it, and what the
+  framerate does with that many `IsoFire` objects, are both reasoning.

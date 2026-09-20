@@ -197,6 +197,42 @@ at all. See `PILOTING.md`.
 The same reasoning applies to *which* API a given object actually uses — see
 *Two APIs for water* below.
 
+### A guard is only as good as the goal it was written from
+
+**New in this mod, and it is the only bug here that every static check
+defended.** The photon torpedo killed what was in its blast and nothing was
+ever seen to happen — no flash, no fire, no smoke. The cause was
+`C.TorpedoFireChance = 0`, and three things were holding it there:
+
+1. the constant;
+2. a long comment above it explaining why zero was correct, ending "raise it
+   and the mod sets Muldraugh alight";
+3. a test that failed if it was ever raised, labelled *"THE one that matters"*.
+
+Every one of those was **accurate about the engine**. `IsoTrap` really does
+gate `Burn()` and `IsoFireManager.StartFire` on that roll; raising it really
+does set fire to things. What they were wrong about was the *goal*: they came
+from reading one line of `ROADMAP.md` — "an explosion that does not set the
+street on fire" — as *no fire at all*, when it meant *fire as an intended
+weapon effect rather than an accident*.
+
+And because in this engine **the visible part of an explosion is the fire and
+the smoke** — there is no separate explosion effect — suppressing the fire
+suppressed the entire weapon except the damage.
+
+So the test passed, the comment justified it, and the feature was broken in
+exactly the way the user could see and the repository could not.
+
+- **A test encodes an expectation, not a fact.** When a feature is reported
+  broken, the tests covering it are suspects, not witnesses. Read what they
+  assert and ask where that expectation came from.
+- **An emphatic comment is the strongest possible signal to check.** "Must
+  stay 0" is a claim about intent, and intent is the thing a source file is
+  worst at recording.
+- **Say which line of the spec a guard came from.** Had the comment cited the
+  roadmap wording it was derived from, the misreading would have been visible
+  the first time anyone looked.
+
 ### Never trust one way of doing it when the cost of being wrong is silence
 
 `U.addVerified` tries `instanceItem`, then `container:AddItem(id)`, then
@@ -679,7 +715,15 @@ design/art/food/drinks_sheet.png         what it was vetted on
 design/art/weapons/batleth_raw.png
 design/art/weapons/preview_batleth.png   mesh renders, flat on and edge on
 design/art/helm/vet_emblem.b64           what was sent to analyze-image
+design/art/ui/torpedo_flight_sheet.png   the projectile over four backgrounds
 ```
+
+**This applies to procedurally drawn art too, not only to image-model
+output.** There is no "raw" for something a script draws — the script is the
+raw — but there is still the picture it was *judged* on, and that belongs in
+`design/art/` like any other. `tools/gen_torpedo_flight.py` writes its own
+contact sheet there on every run, which is the pattern worth copying: the
+generator and the vet are the same command, so the sheet cannot go stale.
 
 `design/` is neither deployed nor packaged, so this costs the Workshop build
 nothing. Keep the raws: re-keying an icon or re-running a critique needs the
@@ -831,6 +875,8 @@ python tools/gen_helm.py    TrekShuttle/42
 python tools/gen_phaser.py  TrekShuttle/42
 python tools/gen_batleth.py TrekShuttle/42   # mesh, texture and icon
 python tools/gen_poster.py  TrekShuttle/42
+python tools/gen_reticle.py TrekShuttle/42        # the torpedo reticle
+python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
 ```
@@ -901,6 +947,8 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **The shuttle "flies" but is drawn on the ground** | Its z is not its physics height. `BaseVehicle.update()` zeroes a vehicle's z every tick and restores the level only where a floor exists under its centre square — so the sky plane is not being laid. `grep "sky plane" console.txt`. See *A vehicle's altitude is a floor, not a height*. |
 | **The shuttle flies and ploughs through fences** | Same cause. Collision resolves at `getZ()`, which is 0 without a floor. |
 | **A ship parked in the sky for ever** | Flight ended without `Sky.clear()`. The floors are world objects and they are saved. `s.skyAt` is how they get lifted; if that was lost, they are permanent. |
+| **An explosion kills things and nothing is seen** | In build 42 the visible part of an explosion *is* the fire and the smoke; there is no separate effect. `FireStartingChance`, `FireRange` and `SmokeRange` are set in **two** places — the item script and the Lua — and `triggerExplosion()` skips any mode whose range is 0 entirely. See `PHOTON_TORPEDOS.md`. |
+| **A feature is reported broken and every test passes** | Suspect the tests. See *A guard is only as good as the goal it was written from* — a test, a comment and a constant all agreeing with each other is not corroboration if they came from one misreading. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
 ---
@@ -1034,6 +1082,17 @@ hotbar slot, and the **four galley drinks**. The drinks were in the *oven* —
 the entry hung `loot = "drinks"` on the lower half of a two-tile stove while
 the comment beside it said "cabinet" — and have moved to the counter at 5,0,
 where the deck plan can also show them. Revision 12.
+
+**The 2026-09-20 torpedo pass** turned the weapon's visible half back on. It
+had been killing in silence because `C.TorpedoFireChance` was 0 — and in this
+engine the visible part of an explosion *is* the fire and the smoke. A
+comment and a test were both holding that zero in place, and both were
+accurate about the engine and wrong about the goal (*A guard is only as good
+as the goal it was written from*). The fire now burns buildings, the torpedo
+is drawn crossing the ground and detonates on arrival rather than on the
+trigger, and server owners get `TrekShuttle.TorpedoFire` to keep the weapon
+without the arson. Nine mutations checked, all caught. **None of it has been
+seen in game.**
 
 **Not yet seen in game**, in the order worth checking:
 

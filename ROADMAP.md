@@ -51,8 +51,17 @@ player before.
 3. **Water with the mains off.** `TREK_Water()` reports capacity and `hasWater`.
 4. **Four fast beams** → *"the transporter is recharging"*, not a kick.
 5. **The phaser** fires and stays charged.
-6. **She flies under a real client/server split** — up, level, down.
-7. **Shields** — the `isRemoteZombie()` path is live here in a way single
+6. **Photon torpedoes, and this is the big one.** Hold right mouse, left click,
+   from the driver's seat in the air. Watch for, in order: *is the torpedo
+   drawn crossing the ground*; *is there a flash, fire and smoke where it
+   lands*; *does a building hit by one actually burn down*; and then the two
+   questions nobody can answer away from the game — **how far the fire
+   spreads**, and **what the framerate does** with that much of it. Fire at
+   something isolated first, not at a town, and not near the ship: minimum
+   range is 12 tiles and the fire ring reaches 10.
+   `TrekShuttle.TorpedoFire = 2` turns the fire off if it is too much.
+7. **She flies under a real client/server split** — up, level, down.
+8. **Shields** — the `isRemoteZombie()` path is live here in a way single
    player never exercises, even with one client.
 
 ### Needs the second machine (Steam Deck on the LAN, 192.168.39.182)
@@ -61,14 +70,19 @@ The Deck needs `Zomboid/mods/TrekShuttle/` **copied to it by hand**:
 `TrekShuttleDev` is a local mod, `WorkshopItems=` is empty, and a server cannot
 push a non-Workshop mod to a client. Redo the copy after any code change.
 
-8. Loot one player takes disappears for the other.
-9. `TrekShuttle.Access = 2` — a stranger refused, then added to the crew.
-10. **A shuttle in the air seen from the other machine.** The wire format
+9. Loot one player takes disappears for the other.
+10. `TrekShuttle.Access = 2` — a stranger refused, then added to the crew.
+11. **A shuttle in the air seen from the other machine.** The wire format
     carries height and each client re-derives the level from its own copy of
     the plane; the simulated two-client test agrees, but the engine's half
     (`clientUpdateVehiclePos` writing `setZ(0)`, then `BaseVehicle.update()`
     recomputing) has only been reasoned about.
-11. Speed set at one helm reaching a pilot at another.
+12. Speed set at one helm reaching a pilot at another.
+13. **A torpedo fired by one player, seen and heard by the other**, and the
+    fire it starts appearing on both machines. The projectile is drawn by each
+    client from one `torpedoLaunched`, and the fire is synced by the engine's
+    own `StartFire` packet — so this should need nothing of ours, which is
+    exactly the kind of claim that wants checking.
 
 Watch it with a tight filter — a broad one matches every frame of every Java
 stack trace:
@@ -191,11 +205,47 @@ is reasoning, not evidence.
 
 ### Still to come with flight
 
-- **Photon torpedoes** — right-click to aim, left-click to fire while piloting;
-  a cooldown, not ammunition; a reticle the stick moves for controllers.
-  *Verify first*: killing a zombie cleanly from the server, and an explosion
-  that does not set the street on fire.
+- **Photon torpedoes** — built; see below and `PHOTON_TORPEDOS.md`. Outstanding:
+  the controller reticle, and a session in game.
 - **A viewscreen** in the cockpit, if flying from the helm ever earns one.
+
+## Photon torpedoes — built, unproven in game
+
+Hold right mouse to aim, left click to fire, from the driver's seat in the air.
+A cooldown, not ammunition.
+
+**The phrase "an explosion that does not set the street on fire" above was
+read the wrong way round**, and it cost the feature its entire visible half for
+three commits. It meant fire as an intended weapon effect; it was taken to mean
+no fire at all. Since build 42 has no separate explosion effect — *the fire and
+the smoke are what you see* — suppressing the fire left a weapon that killed in
+silence. A comment and a test were both holding that in place, both accurate
+about the engine and both wrong about the goal. `DEV_GUIDE.md` has it under
+*A guard is only as good as the goal it was written from*.
+
+What it does now:
+
+- **It burns.** `FireStartingChance = 60` — a per-square density, so about
+  three squares in five of the blast ignite — with a guaranteed fire ring 3
+  tiles beyond the blast and smoke out to 9. `IsoGridSquare.Burn()` destroys
+  structures, so a torpedo fired at a house takes the house.
+- **You watch it go.** The torpedo is drawn crossing the ground with a light
+  riding on it and a fading trail, in screen space via `isoToScreenX/Y`, so it
+  places nothing in the world and can strand nothing behind it. There is no
+  explosion or flame tile in the tileset to have done it any other way.
+- **It arrives before it explodes.** The blast used to happen on the frame the
+  trigger was pulled. It is queued with a flight time now and detonated by the
+  server on arrival; the cooldown still starts at launch.
+- **`TrekShuttle.TorpedoFire`** lets a server owner have *Full* or *Blast only*
+  — the fire removed, the weapon kept. `ServerOptions.noFire`, safehouses and
+  non-PvP zones are already respected by the engine without any code of ours.
+- **`TorpedoMinRange` went 4 → 12**, because the blast reaches 7 and the fire
+  ring reaches 10, and the pilot has to land somewhere.
+
+*Verify in game*: that it is visible at all; how much of a town a chance-60
+blast actually takes with it; what the framerate does with that many `IsoFire`
+objects; and whether the min range is far enough in practice. All four are
+reasoning, not evidence.
 
 ## Galley drinks — done, confirmed in game
 
@@ -316,11 +366,13 @@ happens once the roadmap below is done, not after 1.3. So nothing here is
 racing a release, and the ground rule that nothing ships un-played applies to
 the whole list at once rather than to each version.
 
-1. **Photon torpedoes** — built; hold right mouse to aim, left click to fire.
-   **Outstanding: the controller.** `aimPoint()` keeps a virtual cursor for a
-   joypad but nothing moves it, so on a Steam Deck the reticle sits at the
-   centre of the screen and does not track. The roadmap always said "a reticle
-   the stick moves for controllers"; that half is not built.
+1. **Photon torpedoes** — built, including the fire, the projectile and the
+   sandbox option. **Outstanding: the controller**, and being seen in game.
+   `aimPoint()` keeps a virtual cursor for a joypad but nothing moves it, so on
+   a Steam Deck the reticle sits at the centre of the screen and does not
+   track. The roadmap always said "a reticle the stick moves for controllers";
+   that half is still not built, and it is now the only piece of the original
+   spec missing.
 2. **Blades** — the bat'leth's hand and ground attachments, which need it
    looked at in a fist, then the mek'leth, lirpa and ushaan-tor off the same
    pipeline.

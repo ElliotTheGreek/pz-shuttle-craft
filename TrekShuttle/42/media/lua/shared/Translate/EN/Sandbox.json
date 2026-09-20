@@ -7,5 +7,9 @@
     "Sandbox_TrekShuttle.TransporterLimit": "Transporter charges",
     "Sandbox_TrekShuttle.TransporterLimit_tooltip": "Multiplayer only. Every beam moves a character a long way at once, which the server's speed anti-cheat counts. Match anti-cheat gives each player 3 charges, one restored every 150 seconds, only when AntiCheatSpeed is set to kick or ban -- so players are told the transporter is recharging instead of being kicked. Always unlimited never refuses a beam; use it only with AntiCheatSpeed set to log or disabled.",
     "Sandbox_TrekShuttle.TransporterLimit_option1": "Match anti-cheat",
-    "Sandbox_TrekShuttle.TransporterLimit_option2": "Always unlimited"
+    "Sandbox_TrekShuttle.TransporterLimit_option2": "Always unlimited",
+    "Sandbox_TrekShuttle.TorpedoFire": "Photon torpedo fire",
+    "Sandbox_TrekShuttle.TorpedoFire_tooltip": "A photon torpedo sets fire to what it hits, and the fire spreads and burns buildings down. Full is the weapon as designed. Blast only keeps the explosion and the kill but starts no fire at all, for a server that would rather not have its towns burnt. Note that a server which has turned fire off entirely (the NoFire server option) or a safehouse already stops the burning by itself, whichever setting is chosen here.",
+    "Sandbox_TrekShuttle.TorpedoFire_option1": "Full",
+    "Sandbox_TrekShuttle.TorpedoFire_option2": "Blast only"
 }

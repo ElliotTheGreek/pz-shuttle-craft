@@ -725,10 +725,18 @@ module TrekShuttle
         Type = Weapon,
         Weight = 0.1,
 
+        /*  IsoTrap.new copies all of these off the weapon, and TREK_Server.lua
+            then re-asserts them on the trap. Both halves matter: the Lua is
+            what the sandbox option can turn down, and this block is what the
+            trap starts life with. They were both 0 for three commits, which is
+            the whole reason a torpedo used to kill in silence -- in this
+            engine the visible part of an explosion IS the fire and smoke.  */
         ExplosionPower = 90,
         ExplosionRange = 7,
-        FireStartingEnergy = 0,
-        FireStartingChance = 0,
+        FireStartingEnergy = 100,
+        FireStartingChance = 60,
+        FireRange = 3,
+        SmokeRange = 9,
 
         MinDamage = 0.0,
         MaxDamage = 0.0,

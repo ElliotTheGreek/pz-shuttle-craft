@@ -46,6 +46,11 @@ local core = {
     getKey = function(_, name) return 0 end,
     getScreenWidth = function() return 1920 end,
     getScreenHeight = function() return 1080 end,
+    -- Anything pinned to a world position is drawn at its own size divided by
+    -- the zoom (ISBaseIcon:updateZoom is the pattern). 1.0 keeps the sums
+    -- readable; the point of having it at all is that a caller which forgets
+    -- to ask would draw the torpedo at a fixed screen size for ever.
+    getZoom = function() return 1.0 end,
 }
 function getCore() return core end
 
@@ -270,6 +275,13 @@ end
 --- run of the torpedo test failed, and why this is here rather than absent.
 function SquareMT:getCell() return getCell() end
 
+--- Whether anything is burning here. The server reads this back after a
+--- torpedo to log whether the fire half actually reached the world -- the
+--- number that was silently 0 for three commits.
+function SquareMT:haveFire()
+    return SIM.isBurning(self.x, self.y, self.z)
+end
+
 -- Removing an object without recalculating leaves the square holding every
 -- conclusion the engine had already drawn from what was on it -- which is why
 -- floors that had genuinely been lifted went on darkening the ground beneath
@@ -483,7 +495,28 @@ function cell:getVehicles()
         }
     end }
 end
-function cell:addLamppost() SIM.lamps = SIM.lamps + 1 end
+-- Lamps are counted two ways on purpose. `SIM.lamps` is every light ever hung
+-- and is what the cabin test reads; `SIM.lampsLive` is how many are still
+-- burning, and it is the torpedo's business -- a light riding on a projectile
+-- is the one part of that feature that touches the world, so it is the one
+-- part that can be left behind. A handle is returned because removeLamppost
+-- takes the light itself, not a position.
+SIM.lampsLive = 0
+SIM.lampSerial = 0
+function cell:addLamppost(x, y, z, r, g, b, radius)
+    SIM.lamps = SIM.lamps + 1
+    SIM.lampsLive = SIM.lampsLive + 1
+    SIM.lampSerial = SIM.lampSerial + 1
+    return { id = SIM.lampSerial, x = x, y = y, z = z,
+             r = r, g = g, b = b, radius = radius }
+end
+function cell:removeLamppost(light)
+    if light == nil then
+        error("removeLamppost: nil light (the engine takes the IsoLightSource "
+              .. "addLamppost handed back, not a position)", 2)
+    end
+    SIM.lampsLive = SIM.lampsLive - 1
+end
 function getCell() return cell end
 function getWorld() return { getCell = function() return cell end } end
 SIM.zombies = {}
@@ -970,17 +1003,82 @@ function screenToIsoY(_, _, _, _)
     return (p and p.y or 0) + SIM.aim.dy
 end
 
+--- The other direction: a world position to a point on the screen.
+---
+--- Used to draw the torpedo in flight. Like its inverse above this is not a
+--- real isometric projection -- it is a fixed scale about the screen centre,
+--- which is enough to prove that something is drawn, that it is drawn on the
+--- path between ship and target, and that it stops being drawn when the shot
+--- lands. It cannot catch a projection error; only the game can.
+---
+--- It is deliberately **not** the exact inverse of screenToIso above, because
+--- a stub that round-trips perfectly invites a test to assert on the round
+--- trip and prove nothing but the stub.
+SIM.isoScale = 32
+function isoToScreenX(_, x, y, _)
+    return 960 + (x - y) * SIM.isoScale
+end
+function isoToScreenY(_, x, y, z)
+    return 540 + (x + y) * SIM.isoScale / 2 - (z or 0) * SIM.isoScale
+end
+
 ---------------------------------------------------------------------------
 -- IsoTrap: build 42's explosive, and the only thing a torpedo is
 ---------------------------------------------------------------------------
 -- Recorded rather than simulated. What matters to a test is not how much
 -- damage a blast does -- the engine decides that -- but **how it was
--- configured**, because one of those settings is the difference between a
--- torpedo and a wildfire. IsoTrap.drawCircleExplosion gates both
--- IsoGridSquare.Burn() and IsoFireManager.StartFire on a single
--- Rand.Next(100) < getFireStartingChance() roll, so a non-zero fire chance
--- here means the mod sets Muldraugh alight. The test reads these back.
+-- configured**, because those settings are the entire difference between a
+-- weapon you can see and one that kills in silence.
+--
+-- This comment used to say a non-zero fire chance meant the mod set Muldraugh
+-- alight, and the test below asserted all three fire settings were zero. That
+-- was backwards, and it is worth knowing why the test agreed with it for three
+-- commits: in this engine **the visible part of an explosion IS the fire and
+-- the smoke**. IsoTrap.triggerExplosion calls drawCircleExplosion once per
+-- mode and skips any mode whose range is <= 0, and the Explosion pass gates
+-- both IsoGridSquare.Burn() and IsoFireManager.StartFire on a per-square
+-- Rand.Next(100) < getFireStartingChance() roll. At zero there is damage and
+-- no picture -- which is exactly what was shipped, and exactly what the test
+-- was guarding.
+--
+-- So the settings are still what is read back; only the expectation flipped.
 SIM.traps = {}
+
+-- Squares the blast set alight. The engine's own fire is an IsoFire object
+-- with spread and particles and none of that is modelled -- what is modelled
+-- is the one question a test can honestly ask: **did the fire reach the
+-- world at all, or was it configured away again?**
+SIM.burning = {}
+
+local function burnKey(x, y, z) return x .. ":" .. y .. ":" .. (z or 0) end
+
+--- Marks every square a blast would have set alight.
+---
+--- The real roll is per square against fireChance; here anything inside the
+--- radius burns when the chance is non-zero. A test that asserted on a random
+--- roll would be a flaky test, and the thing worth asserting is not "60% of
+--- them" but "the fire happened rather than being suppressed".
+local function burn(trap)
+    if not trap.square then return end
+    local chance = trap.fireChance or 0
+    if chance <= 0 then return end
+    -- The engine clamps every explosion radius to 15 (Math.min at the top of
+    -- drawCircleExplosion), so a stub that honoured a larger one would be
+    -- kinder than the engine -- the exact mistake the nil weapon above cost.
+    local r = math.min(math.max(trap.range or 0, trap.fireRange or 0), 15)
+    local sx, sy, sz = trap.square.x, trap.square.y, trap.square.z
+    for dx = -r, r do
+        for dy = -r, r do
+            if dx * dx + dy * dy <= r * r then
+                SIM.burning[burnKey(sx + dx, sy + dy, sz)] = true
+            end
+        end
+    end
+end
+
+function SIM.isBurning(x, y, z)
+    return SIM.burning[burnKey(x, y, z)] == true
+end
 
 IsoTrap = {}
 function IsoTrap.new(attacker, weapon, cell, square)
@@ -1008,7 +1106,10 @@ function IsoTrap.new(attacker, weapon, cell, square)
     function t:setFireRange(v) self.fireRange = v end
     function t:setSmokeRange(v) self.smokeRange = v end
     function t:setInstantExplosion(v) self.instant = v end
-    function t:triggerExplosion() self.fired = true end
+    function t:triggerExplosion()
+        self.fired = true
+        burn(self)
+    end
     function t:place() end
     table.insert(SIM.traps, t)
     return t
