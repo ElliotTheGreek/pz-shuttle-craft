@@ -11,6 +11,75 @@ on admin rights, `-debug`, or one particular PC.
 
 ---
 
+## 📌 Pinned: the in-game session waiting to happen
+
+**Set up and ready; nobody has played it yet.** The dedicated server world
+`trektest2` was created and configured on 2026-09-20 and is the place to do
+this. Restart it with:
+
+```sh
+PZ="$USERPROFILE/Zomboid/PZ-Worlds.ps1"
+powershell -File "$PZ" start trektest2     # join at 127.0.0.1:16261
+powershell -File "$PZ" stop
+```
+
+Its settings, all deliberate: `Mods=TrekShuttleDev`,
+`Map=TrekShuttle;Muldraugh, KY` (the template omits the mod's map — without it
+the cabin grows grass and zombies), `WaterShut = 1` so the mains are **off**
+and the fixtures' own water stores are actually tested, and
+`AntiCheatSpeed = 2` so the transporter's charge limit is live.
+
+**Already confirmed from the server log**, and both were new:
+
+```
+[TREK] ship authority ready (server, v1.3.0, build 12):
+       landed=false built=false rev=0 owner=nil, beams limited=true
+[TREK] void map 'TrekShuttle' is loaded
+```
+
+The void map loads on a dedicated server, and the charge limiter read
+`AntiCheatSpeed` correctly. Neither had been seen off this developer's single
+player before.
+
+### Solo, one client on the dedicated server
+
+1. **Beam up — does cell (96,40) actually stream?** The map loading is only the
+   precondition. This is the one MEDIUM-HIGH confidence rating in the whole
+   design; everything else is HIGH.
+2. **19 containers with their loot.** The drinks are in the **counter at 5,0**,
+   not the oven — revision 12, so this only holds on a world made after it.
+3. **Water with the mains off.** `TREK_Water()` reports capacity and `hasWater`.
+4. **Four fast beams** → *"the transporter is recharging"*, not a kick.
+5. **The phaser** fires and stays charged.
+6. **She flies under a real client/server split** — up, level, down.
+7. **Shields** — the `isRemoteZombie()` path is live here in a way single
+   player never exercises, even with one client.
+
+### Needs the second machine (Steam Deck on the LAN, 192.168.39.182)
+
+The Deck needs `Zomboid/mods/TrekShuttle/` **copied to it by hand**:
+`TrekShuttleDev` is a local mod, `WorkshopItems=` is empty, and a server cannot
+push a non-Workshop mod to a client. Redo the copy after any code change.
+
+8. Loot one player takes disappears for the other.
+9. `TrekShuttle.Access = 2` — a stranger refused, then added to the crew.
+10. **A shuttle in the air seen from the other machine.** The wire format
+    carries height and each client re-derives the level from its own copy of
+    the plane; the simulated two-client test agrees, but the engine's half
+    (`clientUpdateVehiclePos` writing `setZ(0)`, then `BaseVehicle.update()`
+    recomputing) has only been reasoned about.
+11. Speed set at one helm reaching a pilot at another.
+
+Watch it with a tight filter — a broad one matches every frame of every Java
+stack trace:
+
+```sh
+tail -F -n 0 "/c/Users/Arcade/Zomboid/server-console.txt" \
+  | grep -E --line-buffered "\[TREK\] (WARN|cabin|shuttle|beam|no room)|is not loaded"
+```
+
+---
+
 ## Where we are — 1.3.0 (dev build, confirmed in single player)
 
 ### Foundations — 1.0
@@ -242,18 +311,23 @@ icon 32×32, and both are confirmed in game.
 
 ## Suggested order
 
-1. **Two players on the dedicated server** — the shared cabin, loot, crew
-   access, charges, and a shuttle in the air seen from another machine. This is
-   the last thing standing between 1.3 and the Workshop. Worth confirming the
-   drinks are in the counter and not the oven on that fresh world at the same
-   time, since revision 12 only reaches new saves.
-2. **Publish 1.3.**
-3. **Photon torpedoes.**
-4. **Blades** — the bat'leth's hand and ground attachments, which need it
+**Publishing moved to the end (decided 2026-09-20).** The Workshop release now
+happens once the roadmap below is done, not after 1.3. So nothing here is
+racing a release, and the ground rule that nothing ships un-played applies to
+the whole list at once rather than to each version.
+
+1. **Photon torpedoes.**
+2. **Blades** — the bat'leth's hand and ground attachments, which need it
    looked at in a fist, then the mek'leth, lirpa and ushaan-tor off the same
    pipeline.
-5. **Medical tricorder, hypospray, tricorder.**
-6. **Replicator, then EMH.**
+3. **Medical tricorder, hypospray, tricorder.**
+4. **Replicator, then EMH.**
+5. **Publish.**
+
+Running alongside all of it: **the two-player session** (pinned below). It is
+no longer a release blocker, but every feature above is one more thing that
+will need proving with two people when it does happen, so the longer it waits
+the bigger that session gets.
 
 ---
 

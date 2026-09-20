@@ -116,6 +116,25 @@ The game ships no `javap`; `tools/pzapi.py` parses the class files out of
 `projectzomboid.jar` directly. **Use it.** In the TARDIS this cost a whole
 session (`props:UnSet` for `props:unset`, throwing once per square).
 
+There are three tools, and they answer three different questions. Reaching for
+the wrong one is how two designs here were nearly got wrong:
+
+| Tool | Answers |
+|---|---|
+| `tools/pzapi.py` | does this method exist, and is it public? |
+| `tools/javarefs.py` | what does it touch? — **bytecode order, no branches** |
+| `tools/javadis.py` | **under what condition?** |
+
+`javarefs` lists references as they appear, which is not control flow: it shows
+`BaseVehicle.update()` calling `setZ(0)` and `setZ(level)` and cannot tell you
+the first is unconditional and the second sits behind a floor check — the fact
+the whole flight design rests on. `javadis.py` disassembles one method with
+branch targets resolved, which is what settled that, and what showed that a
+trap's two fire paths are both gated on `getFireStartingChance()` so a torpedo
+can explode without burning the street (`MULTIPLAYER.md`, *Photon torpedoes*).
+
+**Read the list as "may", and the disassembly as "does".**
+
 ### The jar is not the API
 
 **This one cost three attempts and two trips into the game.** It is the single

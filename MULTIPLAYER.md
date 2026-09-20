@@ -375,8 +375,68 @@ neither made any other edit.
 
 ### Photon torpedoes
 
-Still to come. Killing a zombie has to be done by the server, and the
-explosion must not set the street on fire.
+Not built yet, but **both verify-first questions are now answered**, at
+instruction level with `tools/javadis.py`. The two worries were "killing a
+zombie has to be done by the server" and "the explosion must not set the
+street on fire". Neither needs anything invented: build 42's own trap does both.
+
+**The route is `IsoTrap`**, which clears all three bars this project sets --
+public (`pzapi.py`), understood under-what-condition (`javadis.py`), and with a
+real vanilla Lua call site (`shared/TimedActions/ISPlaceTrap.lua:47`,
+`IsoTrap.new(character, weapon, cell, square)` then `trap:place()`).
+`IsoTrap` is on `LuaManager$Exposer`'s allow-list.
+
+**Fire is optional, and vanilla already turns it off.** `drawCircleExplosion`
+in `Explosion` mode does exactly this:
+
+```java
+boolean startFire = Rand.Next(100) < getFireStartingChance();   // bci 254-271
+if (!GameClient.client && getExplosionPower() > 0 && startFire)
+    square.Burn();                                              // bci 293
+explosion(square);                                              // bci 299 -- always
+if (local9 != 0) IsoFireManager.StartFire(...);                 // bci 316
+```
+
+Both fire paths are gated on the *same* `getFireStartingChance()` roll, and a
+third one at `explosion()` bci 148 adds body-part burns only when that chance
+is above zero. **`FireStartingChance = 0` removes all three** -- which is
+precisely what vanilla's own `PipeBomb` ships (`FireStartingChance = 0`,
+`FireStartingEnergy = 0`, `ExplosionPower = 90`, `ExplosionRange = 7`). The
+obvious call, `IsoFireManager.explode`, is the *wrong* one: it is unconditional
+`StartFire` plus `BurnWalls` and touches no character at all. [HIGH]
+
+**The engine already enforces this document's zombie rule.**
+`IsoTrap.shouldProcess(character)` decides who a blast may damage:
+
+| Running as | Zombies | Players |
+|---|---|---|
+| Single player | all | yes |
+| **A client** | only `isLocal()` ones | never |
+| **The server** | **all** | per `ServerOptions` (PvP) |
+
+That is the same ownership rule the shields follow, written into the engine.
+Damage goes through `IsoMovingObject.Hit(HandWeapon, attacker, damage, false,
+1.0)` -- the ordinary synced hit path -- and `drawCircleExplosion` already
+respects `LosUtil.lineClear` (walls block it) and `NonPvpZone`. [HIGH]
+
+So the authority split needs no exception:
+
+| | |
+|---|---|
+| Firing, cooldown, and the blast | **Server**, on a validated command |
+| Who may fire | **Server** -- alive, `mayUse`, in the driver's seat, flying |
+| Aiming, the reticle, the UI | **Client**, presentation only |
+
+`fireTorpedo {x, y, z}` -> the server checks the pilot and the cooldown, builds
+an `IsoTrap` at the target square with `setFireStartingChance(0)`,
+`setFireRange(0)`, `setExplosionPower/Range`, and triggers it. Because the
+server processes every zombie and each client processes only its own, the
+trigger must be **server-only** or a zombie owned by a client would be hit
+twice.
+
+Still unproven, and only the game can say: whether the blast is visible to a
+client that did not fire it, and what it does to the shuttle if fired too
+close.
 
 ---
 
