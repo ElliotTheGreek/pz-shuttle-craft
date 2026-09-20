@@ -36,21 +36,25 @@
     and every building cursor. The hard direction is the engine's problem, and
     it is the direction the engine already solves.
 
-    That choice also leaves the controller within reach: a mouse gives the
-    screen point directly and a stick would move a virtual one, from there the
-    same code path. **The stick half is not built yet.** aimPoint() keeps a
-    virtual cursor for a joypad but nothing moves it, so on a Steam Deck the
-    reticle sits in the middle of the screen and does not track. That is
-    recorded in ROADMAP rather than papered over, because the last thing this
-    feature did was ship an input nobody could reach.
+    That choice is also what made the controller cheap: a mouse gives the
+    screen point directly, a stick moves a virtual one, and from there it is
+    the same code path. Both are built.
 
-    **The interaction is: hold right mouse to aim, left click to fire**, while
-    at the controls and in the air. No mode, no arming step, nothing to
-    discover. The first version made it a radial-menu toggle and it failed in
-    game in the quietest way available -- no error, no log line, the file
-    loaded, and the pilot held right-click, clicked left and got silence. The
-    lesson is in the roadmap's own wording, which said "right-click to aim,
+    **Mouse: hold right to aim, left click to fire.**
+    **Controller: the right stick moves the reticle, R3 fires.**
+
+    Both only while at the controls and in the air. No mode, no arming step,
+    nothing to discover. The first version made it a radial-menu toggle and it
+    failed in game in the quietest way available -- no error, no log line, the
+    file loaded, and the pilot held right-click, clicked left and got silence.
+    The lesson is in the roadmap's own wording, which said "right-click to aim,
     left-click to fire" all along.
+
+    The two devices differ in one way on purpose: **on a controller the reticle
+    is simply up** whenever you are at the controls, with no hold-to-aim. A
+    mouse already puts a pointer on the screen, so right-drag means "I mean
+    that spot"; a pad has no pointer, so hiding the reticle would hide the only
+    thing saying where the virtual cursor has got to.
 ]]
 
 if isServer() then return end
@@ -231,26 +235,126 @@ local function player()
     return U.try("torpedoPlayer", function() return getSpecificPlayer(0) end)
 end
 
+--- The joypad bound to this player, or nil.
+--- `getJoypadData(n)` is vanilla's own wrapper over JoypadState.players[n+1],
+--- and `.id` on what it returns is what every axis call wants.
+function T.joypadId(p)
+    if not p then return nil end
+    local num = U.try("torpedoPlayerNum", function() return p:getPlayerNum() end) or 0
+    local pad = U.try("torpedoJoypad", function()
+        return JoypadState and JoypadState.players and JoypadState.players[num + 1] or nil
+    end)
+    return pad and pad.id or nil
+end
+
+--- True when the controller is the thing being used right now.
+---
+--- **Not simply "a joypad is plugged in", which is what this used to be.** A
+--- pad connected to a desktop would have taken the mouse's place entirely and
+--- the reticle would have stopped following the cursor -- on a machine with
+--- both, the one nobody is holding would have won. `wasMouseActiveMoreRecently
+--- ThanJoypad()` is the engine's own answer and vanilla asks it everywhere it
+--- has to choose between the two.
+function T.onJoypad(p)
+    if not T.joypadId(p) then return false end
+    local mouseNewer = U.try("torpedoMouseRecent", function()
+        return wasMouseActiveMoreRecentlyThanJoypad()
+    end)
+    -- Unknown means keep the pad: the call failing on a machine with a pad
+    -- attached should not silently hand aiming to a mouse that may not exist.
+    if mouseNewer == nil then return true end
+    return mouseNewer ~= true
+end
+
+--- Puts the virtual cursor in the middle of the screen the first time it is
+--- needed. A controller has no pointer to inherit a position from.
+local function centreAim()
+    if T.aimX then return end
+    local w = U.try("screenW", function() return getCore():getScreenWidth() end) or 800
+    local h = U.try("screenH", function() return getCore():getScreenHeight() end) or 600
+    T.aimX, T.aimY = w / 2, h / 2
+end
+
 --- The screen point being aimed at, whichever device is driving.
 local function aimPoint(p)
     -- A joypad has no pointer, so it drives a virtual one that persists
     -- between frames; the mouse simply overwrites it.
-    local num = U.try("torpedoPlayerNum", function() return p:getPlayerNum() end) or 0
-    local pad = U.try("torpedoJoypad", function()
-        return JoypadState.players and JoypadState.players[num + 1] or nil
-    end)
-    if pad then
-        if not T.aimX then
-            T.aimX = U.try("screenW", function() return getCore():getScreenWidth() end) or 800
-            T.aimY = U.try("screenH", function() return getCore():getScreenHeight() end) or 600
-            T.aimX, T.aimY = T.aimX / 2, T.aimY / 2
-        end
+    if T.onJoypad(p) then
+        centreAim()
+        -- The stick is integrated once a tick in T.serviceAim, never here.
+        -- This function is called several times a frame -- from render, from
+        -- aimStatus, from targetSquare -- and moving the cursor inside it
+        -- would move it once per caller, so the reticle would travel two or
+        -- three times faster than the stick asked and at a speed that changed
+        -- with how much else happened to be drawing.
         return T.aimX, T.aimY
     end
     local mx = U.try("mouseX", function() return getMouseX() end)
     local my = U.try("mouseY", function() return getMouseY() end)
     if mx then T.aimX, T.aimY = mx, my end
     return T.aimX, T.aimY
+end
+
+---------------------------------------------------------------------------
+-- The controller
+---------------------------------------------------------------------------
+--- Moves the virtual cursor by the right stick. Called once a tick.
+---
+--- **The right stick, deliberately.** The left one is steering: BaseVehicle
+--- drives off `forwardAxis` and `setAngleAxis`, and a reticle sharing it would
+--- make aiming and flying the same gesture. The triggers are avoided for the
+--- same reason -- they are the obvious place for accelerate and brake, that
+--- binding lives in Java where the mod cannot read it, and an input that
+--- fights the controls is worse than no input.
+---
+--- Frame-rate independent through getMillisSinceLastRender, which is how
+--- vanilla's own cursors move (ISPlace3DItemCursor, ISPanelJoypad's scroll).
+--- A per-tick constant would drift with the frame rate and feel different on
+--- the Steam Deck than on this desk, which is the machine that matters here.
+function T.serviceAim()
+    local p = player()
+    if not p then return end
+    if not T.onJoypad(p) then return end
+    local id = T.joypadId(p)
+    if not id then return end
+
+    centreAim()
+
+    local ax = U.try("torpedoAxisX", function() return getJoypadAimingAxisX(id) end) or 0
+    local ay = U.try("torpedoAxisY", function() return getJoypadAimingAxisY(id) end) or 0
+
+    -- A radial dead zone, not a per-axis one. Squaring off the dead zone lets
+    -- a stick resting slightly off centre creep along one axis for ever, and
+    -- a reticle that wanders while nobody is touching it reads as a bug.
+    local mag = math.sqrt(ax * ax + ay * ay)
+    if mag < C.TorpedoAimDeadzone then return end
+
+    -- Rescale so the cursor starts from a standstill at the edge of the dead
+    -- zone rather than jumping to deadzone-speed the moment it is crossed.
+    local scale = (mag - C.TorpedoAimDeadzone) / (1 - C.TorpedoAimDeadzone)
+    if scale > 1 then scale = 1 end
+    -- Squared response: fine control near the centre, full speed at the edge.
+    -- A linear stick is hard to place a reticle with at this range.
+    scale = scale * scale
+
+    local ms = U.try("torpedoRenderMs", function()
+        return UIManager.getMillisSinceLastRender()
+    end) or 33.3
+    -- Bounded, because a hitch -- a chunk streaming in, a world save -- hands
+    -- back a huge delta and would fling the reticle off the screen.
+    if ms > 100 then ms = 100 end
+    local step = C.TorpedoAimSpeed * (ms / 1000) * scale
+
+    T.aimX = T.aimX + (ax / mag) * step
+    T.aimY = T.aimY + (ay / mag) * step
+
+    local w = U.try("screenW", function() return getCore():getScreenWidth() end) or 800
+    local h = U.try("screenH", function() return getCore():getScreenHeight() end) or 600
+    local m = C.TorpedoAimMargin
+    if T.aimX < m then T.aimX = m end
+    if T.aimY < m then T.aimY = m end
+    if T.aimX > w - m then T.aimX = w - m end
+    if T.aimY > h - m then T.aimY = h - m end
 end
 
 --- The world square under a screen point, at the ground beneath the ship.
@@ -425,10 +529,44 @@ end
 
 --- Aiming is the right mouse button held down. Nothing to arm, nothing to
 --- remember, and it stops the moment the button comes up.
+---
+--- **On a controller the reticle is simply up.** There is no hold-to-aim
+--- button and there should not be one: a mouse has a pointer on screen
+--- already and right-drag is how you say "I mean that spot", while a pad has
+--- no pointer at all, so hiding the reticle behind a held button would hide
+--- the only thing telling the pilot where the virtual cursor has got to. You
+--- are flying a warship with your hand on the stick; the targeting reticle
+--- being live is correct.
+---
+--- It also keeps the feature discoverable, which is the lesson this file paid
+--- for once already: the first build hid arming behind a menu nobody had been
+--- told to open, and from the cockpit that is indistinguishable from broken.
 function T.aiming()
     if not T.atTheControls() then return false end
+    if T.onJoypad(player()) then return true end
     return U.try("torpedoRightDown", function()
         return isMouseButtonDown(1)
+    end) == true
+end
+
+--- True while the fire control is held, whichever device is in hand.
+---
+--- **R3, the right stick click, on a controller.** The thumb is already on
+--- that stick placing the reticle, so firing with it needs no reach; and it is
+--- the one button in reach that vanilla binds nowhere in its Lua, which
+--- matters because the vehicle's own controls live in Java where this mod
+--- cannot read them. The triggers and the face buttons are all plausibly
+--- accelerate, brake, handbrake or the radial menu.
+local function fireHeld(p)
+    if T.onJoypad(p) then
+        local id = T.joypadId(p)
+        if not id then return false end
+        return U.try("torpedoStickClick", function()
+            return isJoypadRightStickButtonPressed(id)
+        end) == true
+    end
+    return U.try("torpedoLeftDown", function()
+        return isMouseButtonDown(0)
     end) == true
 end
 
@@ -475,13 +613,15 @@ function T.poll()
         return
     end
 
-    local aiming = T.aiming()
-    local leftDown = U.try("torpedoLeftDown", function()
-        return isMouseButtonDown(0)
-    end) == true
+    -- The stick moves the reticle here and nowhere else, so it moves exactly
+    -- once a tick however many times anything asks where it is pointing.
+    U.try("torpedoAim", T.serviceAim)
 
-    if aiming and leftDown and not leftWasDown then T.fire() end
-    leftWasDown = leftDown
+    local aiming = T.aiming()
+    local down = fireHeld(player())
+
+    if aiming and down and not leftWasDown then T.fire() end
+    leftWasDown = down
 end
 
 --- Asks the server to fire. Everything checked here is checked again there --

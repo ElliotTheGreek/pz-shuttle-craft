@@ -1541,6 +1541,115 @@ def torpedoes():
           f"click is not being taken on the edge, and only the cooldown is "
           f"standing between the pilot and one torpedo per frame")
 
+    # --- the controller ----------------------------------------------------
+    # Every panel in this mod is required to work with a gamepad, and for
+    # three commits this one did not: aimPoint() kept a virtual cursor for a
+    # joypad and nothing moved it, so on a Steam Deck the reticle sat in the
+    # centre of the screen for ever. The checks below are the ones that would
+    # have caught that, and they are driven through the same T.poll() a real
+    # frame calls -- not by poking the aim point directly, which would prove
+    # only that the variable is writable.
+    reset()
+    # The block above leaves the mouse buttons held. Clear them, or "the
+    # reticle is up without a hold" below passes because a hold is in effect.
+    rt.run("SIM.mouse[0] = false; SIM.mouse[1] = false")
+    rt.run("SIM.setJoypad(true)")
+    rt.run("TREK.Torpedo.aimX, TREK.Torpedo.aimY = nil, nil")
+    rt.run("TREK.Torpedo.poll()")
+    startX = rt.eval("TREK.Torpedo.aimX")
+    check(startX is not None and startX > 0,
+          "torpedoes: with a controller and no mouse the reticle has no "
+          "position at all -- a pad has no pointer to inherit one from, so it "
+          "must be centred on first use")
+
+    # The stick moves it.
+    rt.run("SIM.joypadAim.x = 1.0; SIM.joypadAim.y = 0")
+    for _ in range(5):
+        rt.run("TREK.Torpedo.poll()")
+    movedX = rt.eval("TREK.Torpedo.aimX")
+    check(movedX > startX,
+          f"torpedoes: the right stick does not move the reticle "
+          f"({startX} -> {movedX}) -- this is the Steam Deck bug the roadmap "
+          f"carried for three commits")
+
+    # ...and only while the stick is pushed. A reticle that keeps drifting
+    # when nobody is touching the pad reads as a bug, and a squared-off dead
+    # zone is how that happens.
+    rt.run("SIM.joypadAim.x = 0.05; SIM.joypadAim.y = 0.05")   # inside the dead zone
+    held = rt.eval("TREK.Torpedo.aimX")
+    for _ in range(10):
+        rt.run("TREK.Torpedo.poll()")
+    check(rt.eval("TREK.Torpedo.aimX") == held,
+          "torpedoes: the reticle drifts with the stick inside its dead zone")
+
+    # It cannot be pushed off the screen.
+    rt.run("SIM.joypadAim.x = 1.0; SIM.joypadAim.y = 1.0")
+    for _ in range(400):
+        rt.run("TREK.Torpedo.poll()")
+    # The screen bounds are flat numbers here, not `w - C("TorpedoAimMargin")`,
+    # and that is deliberate for the reason the range ceiling is: a check
+    # written against the constant it is testing moves with it. Setting the
+    # margin to -100000 left this passing, because the assertion had followed
+    # the mutation out past the edge of the screen.
+    w, h = 1920, 1080                      # SIM's screen
+    ax, ay = rt.eval("TREK.Torpedo.aimX"), rt.eval("TREK.Torpedo.aimY")
+    check(0 <= ax <= w and 0 <= ay <= h,
+          f"torpedoes: the reticle was pushed to {ax},{ay}, off a {w}x{h} "
+          f"screen -- screenToIso is then being asked about a point the "
+          f"camera is not showing at all")
+    margin = C("TorpedoAimMargin")
+    check(0 < margin <= 200,
+          f"torpedoes: TorpedoAimMargin is {margin} -- it is applied, but not "
+          f"a margin, so the reticle can sit half off the screen")
+
+    # The reticle is up without a hold. A pad has no pointer, so hiding it
+    # behind a held button would hide the only thing saying where aim is.
+    check(rt.eval("SIM.mouse[1] and 1 or 0") == 0,
+          "torpedoes: test bug -- right mouse is still held from the block "
+          "above, so the next check cannot tell a controller reticle from a "
+          "mouse one")
+    check(rt.eval("TREK.Torpedo.aiming() and 1 or 0") == 1,
+          "torpedoes: on a controller the reticle is hidden unless a button is "
+          "held -- there is no pointer, so that hides the aim point itself")
+
+    # R3 fires, on the edge, and nothing else does.
+    reset()
+    rt.run("SIM.joypadAim.x = 0; SIM.joypadAim.y = 0")
+    rt.run("SIM.joypadR3 = false")
+    rt.run("TREK.Torpedo.poll()")
+    arrive()
+    check(rt.eval("#SIM.traps") == 0,
+          "torpedoes: a controller fired one without the stick being clicked")
+
+    reset()
+    rt.run("SIM.joypadR3 = true")
+    for _ in range(6):
+        rt.run("TREK.Torpedo.poll()")
+    arrive()
+    padShots = rt.eval("#SIM.traps")
+    check(padShots == 1,
+          f"torpedoes: holding R3 fired {padShots} -- the controller's fire "
+          f"is not being taken on the edge the way the mouse's is")
+
+    # A mouse used more recently takes aiming back, even with a pad plugged in.
+    # This is the half that would break every desktop player who happens to
+    # own a controller: "a joypad exists" is not "a joypad is being used".
+    reset()
+    rt.run("SIM.joypadR3 = false")
+    rt.run("SIM.mouseIsNewer = true")
+    rt.run("SIM.mouseX, SIM.mouseY = 1234, 567")
+    rt.run("TREK.Torpedo.poll()")
+    # aimStatus(), not poll(), is what reads the aim point -- it is on the path
+    # the overlay's render takes every frame. poll() only integrates the stick
+    # and watches the fire button, and asserting on it alone would be asserting
+    # against a code path the game never takes.
+    rt.run("TREK.Torpedo.aimStatus()")
+    check(rt.eval("TREK.Torpedo.aimX") == 1234,
+          "torpedoes: a connected but idle controller still owns the reticle, "
+          "so moving the mouse does nothing -- on a desktop with a pad plugged "
+          "in, aiming would be dead")
+    rt.run("SIM.setJoypad(false)")
+
     # --- the server owner may have the weapon without the arson -----------
     # The engine already gives an owner ServerOptions.noFire and safehouse
     # protection, both checked inside Burn(). This is the narrower question of

@@ -981,6 +981,50 @@ ISUIElement = derivable("ISUIElement")
 SIM.mouse = { [0] = false, [1] = false, [2] = false }
 SIM.mouseX, SIM.mouseY = 400, 300
 
+---------------------------------------------------------------------------
+-- The controller
+---------------------------------------------------------------------------
+-- A joypad exists only when a test asks for one: SIM.joypad = { id = 0 }.
+-- Everything else in this project runs mouse-and-keyboard, and a pad that was
+-- present by default would silently take aiming away from the mouse in every
+-- other scenario -- which is the exact bug the real wasMouseActiveMoreRecently
+-- ThanJoypad() check exists to prevent.
+SIM.joypad = nil                   -- { id = n } to plug one in
+SIM.joypadAim = { x = 0, y = 0 }   -- right stick, -1..1
+SIM.joypadR3 = false               -- right stick click
+SIM.mouseIsNewer = true            -- which device was used most recently
+
+JoypadState = { players = {} }
+
+--- Plugs a controller in (or, with nil, unplugs it) for player 1.
+function SIM.setJoypad(on)
+    if on then
+        SIM.joypad = { id = 0 }
+        JoypadState.players[1] = SIM.joypad
+        SIM.mouseIsNewer = false
+    else
+        SIM.joypad = nil
+        JoypadState.players[1] = nil
+        SIM.mouseIsNewer = true
+    end
+    SIM.joypadAim.x, SIM.joypadAim.y = 0, 0
+    SIM.joypadR3 = false
+end
+
+function wasMouseActiveMoreRecentlyThanJoypad() return SIM.mouseIsNewer end
+function getJoypadAimingAxisX(_) return SIM.joypadAim.x end
+function getJoypadAimingAxisY(_) return SIM.joypadAim.y end
+function getJoypadMovementAxisX(_) return 0 end
+function getJoypadMovementAxisY(_) return 0 end
+function isJoypadRightStickButtonPressed(_) return SIM.joypadR3 == true end
+
+-- A fixed frame time. The real one varies and the code divides by it, so a
+-- stub returning 0 would make the reticle never move and a stub returning
+-- something huge would make every test's first tick fling it to the edge.
+-- 33.3 is the 30fps baseline vanilla's own cursors are written against.
+UIManager = UIManager or {}
+function UIManager.getMillisSinceLastRender() return 33.3 end
+
 function isMouseButtonDown(b) return SIM.mouse[b] == true end
 function isMouseButtonPressed(b) return SIM.mouse[b] == true end
 function getMouseX() return SIM.mouseX end

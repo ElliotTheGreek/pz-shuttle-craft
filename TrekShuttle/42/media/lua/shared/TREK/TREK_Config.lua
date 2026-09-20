@@ -463,6 +463,30 @@ C.TorpedoTrailMs = 45
 C.TorpedoLight = { r = 0.55, g = 0.80, b = 1.00, radius = 5 }
 
 ---------------------------------------------------------------------------
+-- Photon torpedoes: the controller
+---------------------------------------------------------------------------
+-- The reticle is moved by the **right** stick, because the left one is
+-- steering -- BaseVehicle drives off forwardAxis and setAngleAxis -- and
+-- firing is the right stick click. The triggers are deliberately untouched:
+-- they are the obvious home for accelerate and brake, that binding lives in
+-- Java where this mod cannot read it, and an input that fights the controls
+-- is worse than no input at all.
+
+-- Pixels per second at full deflection. Tuned so a reticle crosses a 1080p
+-- screen in about two seconds -- fast enough to swing onto a target while
+-- flying past it, slow enough to place on one building rather than the next.
+C.TorpedoAimSpeed = 950
+
+-- Radial dead zone. Below this the stick is treated as centred, so a worn
+-- one cannot walk the reticle across the screen on its own.
+C.TorpedoAimDeadzone = 0.18
+
+-- How near the screen edge the reticle may be pushed. Not zero: at the very
+-- edge half the reticle is off-screen and screenToIso is being asked about a
+-- point the camera is barely showing.
+C.TorpedoAimMargin = 24
+
+---------------------------------------------------------------------------
 -- Travel
 ---------------------------------------------------------------------------
 -- Travel is also by the helm: lay in a course, then take her down. That is

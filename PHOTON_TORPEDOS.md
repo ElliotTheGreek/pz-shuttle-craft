@@ -204,8 +204,31 @@ it, and a sheet that silently disagrees with the game is worse than none.
 
 ### The input
 
-Hold **right mouse** to aim, **left click** to fire, from the driver's seat, in
-the air. No mode, no arming step.
+**Mouse:** hold right to aim, left click to fire.
+**Controller:** the right stick moves the reticle, R3 (right stick click)
+fires. From the driver's seat, in the air. No mode, no arming step.
+
+The two differ in one way on purpose: **on a controller the reticle is simply
+up** whenever you are at the controls. A mouse already puts a pointer on the
+screen, so right-drag means "I mean that spot"; a pad has no pointer, so hiding
+the reticle behind a held button would hide the only thing saying where the
+virtual cursor has got to.
+
+Three things in the controller path worth not undoing:
+
+- **The right stick, not the left or the triggers.** The left stick steers --
+  `BaseVehicle` drives off `forwardAxis` and `setAngleAxis` -- and the triggers
+  are the obvious home for accelerate and brake, a binding that lives in Java
+  where this mod cannot read it. R3 is the one control in reach that vanilla
+  binds nowhere in its Lua.
+- **The stick is integrated in `T.poll`, never in `aimPoint`.** `aimPoint` is
+  called several times a frame (render, `aimStatus`, `targetSquare`), so moving
+  the cursor there would move it once per caller and the reticle would travel
+  two or three times faster than asked, at a speed that changed with whatever
+  else happened to be drawing.
+- **`wasMouseActiveMoreRecentlyThanJoypad()` decides the device**, not "is a
+  pad plugged in". The latter is what the code did first, and it would have
+  taken aiming away from every desktop player who owns a controller.
 
 The click is taken on the **down edge**, worked out in `T.poll` rather than
 trusting `isMouseButtonPressed`, whose level-versus-edge meaning is not
@@ -340,13 +363,13 @@ Four things this scenario has got wrong, all worth not repeating:
 
 ## Not built
 
-- **The controller.** `aimPoint()` keeps a virtual cursor for a joypad and
-  nothing moves it, so on a Steam Deck the reticle sits at the centre of the
-  screen and does not track. The roadmap's wording was always "a reticle the
-  stick moves for controllers", and every panel in this mod is required to work
-  with a gamepad. **This is the one piece of the original spec still missing**,
-  and the screen-space aiming was chosen partly to leave it easy: a stick moves
-  `T.aimX/T.aimY` and everything downstream is unchanged.
+- **The controller is built but has not been held.** The right stick moves the
+  reticle and R3 fires; the logic is covered by seven mutation-checked checks.
+  What a test cannot answer is whether `C.TorpedoAimSpeed` (950 px/s) feels
+  right in a hand, and whether **R3 is actually free** on a Steam Deck --
+  the vehicle's own bindings live in Java where this mod cannot read them,
+  which is exactly why the triggers were avoided. If R3 turns out to be taken,
+  `fireHeld()` is the one function to change.
 - **Two players.** Nothing here has been fired with two people connected. The
   projectile is drawn by each client from one `torpedoLaunched` and the fire is
   synced by the engine's own packet, so it should need nothing of ours — which
