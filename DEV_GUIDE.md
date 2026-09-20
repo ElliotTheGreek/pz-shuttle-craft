@@ -1135,6 +1135,11 @@ the same day**: it is visible, it burns buildings down, and the blast size and
 fire spread both needed no adjusting. The controller reticle is still not
 built. `PHOTON_TORPEDOS.md` is now a working guide rather than a plan.
 
+**Seen working in game** (2026-09-20, later): photon torpedoes with their fire
+and their projectile, and the **mek'leth, lirpa and ushaan-tor** alongside the
+bat'leth -- all four at the right size with icons that stay in their own hotbar
+slots. The torpedo's blast size and fire spread both needed no adjusting.
+
 **Not yet seen in game**, in the order worth checking:
 
 1. **The dedicated server**: the interior cell loads there, the server-built

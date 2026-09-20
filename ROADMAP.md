@@ -298,7 +298,7 @@ needed:
   way. Adding masks is a polish pass for after somebody has watched one render.
 - Fluid names go in `Translate/EN/Fluids.json` — its own category file.
 
-## Blades — all four built, none of the three new ones seen in game
+## Blades — all four built, and all four seen in game
 
 **The in-hand path is open.** The claim that a custom `WeaponSprite` needs a
 rigged attachment set was wrong, and it had quietly ruled this whole section
@@ -326,9 +326,14 @@ more things the first in-game session settled, all in `DEV_GUIDE.md`:
 | Weapon | SwingAnim | Categories | Mesh | Notes |
 |---|---|---|---|---|
 | **Bat'leth** | `Bat` | `base:longblade` | 0.369 x 0.187 | `gen_batleth.py`, two-handed, `AttachmentType = BigBlade`. **Confirmed in game.** |
-| **Mek'leth** | `Bat` | `base:longblade` | 0.102 x 0.440 | `gen_mekleth.py`, `AttachmentType = Sword`, off `ShortSword` |
-| **Lirpa** | `Spear` | `base:spear` | 0.101 x 0.800 | `gen_lirpa.py`, two-handed, `AttachmentType = Shovel`, off `SpearCrafted` (`MinRange = 0.98`) |
-| **Ushaan-tor** | `Stab` | `base:smallblade` | 0.087 x 0.260 | `gen_ushaantor.py`, `AttachmentType = Knife`, off `HuntingKnife`, keeps its `CloseKillMove = Jaw_Stab` |
+| **Mek'leth** | `Bat` | `base:longblade` | 0.102 x 0.440 | `gen_mekleth.py`, `AttachmentType = Sword`, off `ShortSword`. **Confirmed in game.** |
+| **Lirpa** | `Spear` | `base:spear` | 0.101 x 0.800 | `gen_lirpa.py`, two-handed, `AttachmentType = Shovel`, off `SpearCrafted` (`MinRange = 0.98`). **Confirmed in game.** |
+| **Ushaan-tor** | `Stab` | `base:smallblade` | 0.087 x 0.260 | `gen_ushaantor.py`, `AttachmentType = Knife`, off `HuntingKnife`, keeps its `CloseKillMove = Jaw_Stab`. **Confirmed in game.** |
+
+**Seen in game 2026-09-20**, in a fresh world: all four draw correctly in the
+locker and in hand, at the right size, with icons that sit in their own hotbar
+slots. The sizes above are therefore settled and the bracket the mesh has to
+sit in is now proven twice over rather than reasoned about.
 
 All four are in `C.Loot.weapons` — the whole rack together, because one alien
 weapon among the pistols reads as a souvenir and four read as an armoury.
