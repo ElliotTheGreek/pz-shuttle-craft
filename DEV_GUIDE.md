@@ -971,7 +971,7 @@ python tools/gen_mekleth.py TrekShuttle/42        # and lirpa, ushaantor
 python tools/meshbbox.py --vanilla spear          # measure vanilla, or ours
 python tools/gen_poster.py  TrekShuttle/42
 python tools/gen_reticle.py TrekShuttle/42        # the torpedo reticle
-python tools/gen_medical.py TrekShuttle/42        # the hypospray and tricorder sounds
+python tools/gen_medical.py TrekShuttle/42        # the medical set's three sounds
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
@@ -1157,7 +1157,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.3.0**, build revision **14**.
+Version **1.3.0**, build revision **15**.
 
 **1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-9):
 server-owned ship and cabin, request protocol, transporter charges, shields per
@@ -1226,9 +1226,9 @@ checks caught none of them, because the mod's logic was correct every time. What
 it**: `B.stockReport()` turned three sessions of guessing into one grep. When
 you add something to the cabin, add the line that proves it arrived.
 
-**The 2026-09-20 medical pass** built all three: the hypospray, the medical
-tricorder and the tricorder, with their icons, two generated sounds, an LCARS
-contact plot and a server-side lock override. **None of it has been seen in
+**The 2026-09-20 medical pass** built all four: the hypospray, the dermal
+regenerator, the medical tricorder and the tricorder, with their icons, three
+generated sounds, an LCARS contact plot and a server-side lock override. **None of it has been seen in
 game.** `MEDICAL_SET.md` is a working guide now rather than a plan, and it
 carries two corrections to what it used to claim: `ISHealthPanel` **is** an
 `ISPanelJoypad`, so the controller question needed no work at all; and the

@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 14
+C.BuildRev = 15
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -536,6 +536,23 @@ C.MedTricorderItem = "TrekShuttle.TrekMedTricorder"
 C.MedTricorderType = "TrekMedTricorder"
 C.TricorderItem    = "TrekShuttle.TrekTricorder"
 C.TricorderType    = "TrekTricorder"
+C.DermalRegenItem  = "TrekShuttle.TrekDermalRegen"
+C.DermalRegenType  = "TrekDermalRegen"
+
+-- The dermal regenerator has **no charge economy at all**, and that is a
+-- decision rather than an omission. The hypospray already owns the
+-- six-doses-and-go-home limit, and giving this one the same thing would make
+-- them the same item twice. It is a powered instrument: you run it over the
+-- skin and the skin closes.
+--
+-- What keeps it from replacing the hypospray is scope, not cost. It closes
+-- what is *open* -- cuts, scratches, deep wounds, bleeding, burns, and the
+-- stitches and dressing that were holding them together -- and it does not
+-- touch an infected cut, pain, stiffness or a fracture. Those are still the
+-- hypospray's, and an infected wound is still what kills you.
+--
+-- It also will not work on a part with glass or a bullet still in it. Skin
+-- does not close over a shard, and tweezers keep a reason to exist.
 
 -- Doses in a full hypospray, and how often the ship replicates another one
 -- into it, in ticks, **while the carrier is aboard**.
@@ -756,8 +773,8 @@ C.FillItemCap = 48
 -- outright (`special = "medkit"` in TREK_InteriorLayout.lua), the way the
 -- phaser locker stocks phasers, so a fresh ship always has the set aboard.
 C.Loot.medical = {
-    "TrekShuttle.TrekHypospray", "TrekShuttle.TrekMedTricorder",
-    "TrekShuttle.TrekTricorder",
+    "TrekShuttle.TrekHypospray", "TrekShuttle.TrekDermalRegen",
+    "TrekShuttle.TrekMedTricorder", "TrekShuttle.TrekTricorder",
     "Base.FirstAidKit", "Base.Bandage", "Base.Antibiotics", "Base.Disinfectant",
     "Base.BandageBox", "Base.AlcoholWipes", "Base.AlcoholBandage", "Base.Pills",
     "Base.AdhesiveBandageBox", "Base.PillsAntiDep", "Base.PillsBeta",

@@ -298,7 +298,8 @@ end
 --- fill: a guarantee that is not checked is not a guarantee.
 local SPECIALS = {
     phasers = { items = { C.PhaserItem }, copies = function() return C.PhaserCount end },
-    medkit  = { items = { C.HyposprayItem, C.MedTricorderItem, C.TricorderItem },
+    medkit  = { items = { C.HyposprayItem, C.DermalRegenItem,
+                          C.MedTricorderItem, C.TricorderItem },
                 copies = function() return 1 end },
 }
 

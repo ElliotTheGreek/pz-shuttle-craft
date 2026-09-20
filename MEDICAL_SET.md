@@ -1,6 +1,7 @@
 # The medical set — how it works
 
-Three items: **hypospray**, **medical tricorder**, **tricorder**. Roadmap item 3.
+Four items: **hypospray**, **dermal regenerator**, **medical tricorder**,
+**tricorder**. Roadmap item 3.
 
 **Built 2026-09-20. Not yet seen in game.** Everything below is either an
 engine fact verified with `tools/pzapi.py`, `tools/javadis.py` and a grep of
@@ -15,8 +16,8 @@ rules.
 media/lua/shared/TREK/TREK_Medical.lua   treatment, doses, what counts as a lock
 media/lua/client/TREK/TREK_MedKit.lua    menus, the panels, the sweep, refills
 media/lua/server/TREK/TREK_Server.lua    the `unlock` command handler
-media/scripts/trekshuttle.txt            the three items and two sounds
-tools/gen_medical.py                     the two sounds (the icons are Gemini's)
+media/scripts/trekshuttle.txt            the four items and three sounds
+tools/gen_medical.py                     the three sounds (the icons are Gemini's)
 design/art/medical/                      the icon originals and their contact sheet
 ```
 
@@ -71,7 +72,8 @@ game would report it** — the item would simply be better than intended.
 `TREK_Medical.lua` therefore sets the fields it means to set, one at a time,
 and never calls that method. The check that holds it there is
 `tests/test_multiplayer.py`'s `medical()`: a body is bitten and infected
-before a dose, and both are asserted to have survived it.
+before a dose **and before a regenerator pass**, and both are asserted to
+have survived each.
 
 A convenience method is a bundle of writes somebody else chose. Read the
 bundle.
@@ -125,7 +127,9 @@ infected *yet*.
 | Zombie infection is `BodyDamage.setInfected(boolean)`; a **wound** infection is `BodyPart.setInfectedWound(boolean)` | `pzapi.py` |
 | A bite is `BodyPart.SetBitten(boolean)` (capital S) | `pzapi.py` |
 | Full part health is **100.0** — the constant `RestoreToFullHealth` writes | `javadis.py` |
-| `BodyPart.setBandaged` has **no vanilla Lua call site**; vanilla bandages through `BodyDamage:SetBandaged(index, on, life, alcoholic, type)` | grep |
+| `BodyPart.setBandaged` has **no vanilla Lua call site**; vanilla bandages through `BodyDamage:SetBandaged(index, on, life, alcoholic, type)`, and removes one with `(index, false, 0, false, nil)` | grep, `ISApplyBandage.lua:141` |
+| `setCut(false)` and `setScratched(false, x)` clear the flag, call `setBleeding(false)` and **return** — no infection field is touched | `javadis.py` |
+| `isCut()`, `scratched()`, `stitched()`, `bandaged()`, `getBandageLife()`, `haveGlass()`, `haveBullet()`, `getIndex()` all exist and are public | `pzapi.py` |
 | `IsoDoor` / `IsoThumpable` / `IsoWindow`: `setLocked`, `setIsLocked`, `setLockedByKey`, `isLockedByPadlock` | `pzapi.py` |
 | **Every vanilla Lua call site for those lock setters is `DebugContextMenu`, `AdminContextMenu` or the tutorial** | grep |
 | `IsoObject.sync()` is public, and vanilla Lua calls it on both sides | `ClientCommands.lua:780`, `ISFluidContainer.lua:102` |
@@ -183,6 +187,58 @@ cure a bite and it does not clear the zombie infection.
 belongs to the owning client and syncs from there, the same rule and the same
 reason as "a client moves only its own character". Treating *somebody else* is
 the EMH's problem.
+
+---
+
+## 3a. Dermal regenerator
+
+**Skin, and only skin.** One pass closes, on every body part at once:
+lacerations (cuts), scratches, deep wounds, bleeding, burns, and the stitches
+and dressing that were holding them together. Then it restores the part's
+health, because in this game a part's health *is* its tissue damage, and
+closing a wound while leaving the limb at 30% would look like the item had not
+worked.
+
+**It has no charges, no doses and no cooldown.** That is a decision: the
+hypospray already owns the ration economy in this mod, and a second item with
+the same economy is the same item twice. What keeps it from replacing the
+hypospray is **scope**, not cost —
+
+| | Hypospray | Dermal regenerator |
+|---|---|---|
+| lacerations, scratches | — | **yes** |
+| stitches, dressings | — | **yes** |
+| deep wounds, bleeding, burns | yes | yes |
+| part health | yes | yes |
+| **infected cut** | **yes** | — |
+| **pain, stiffness** | **yes** | — |
+| **fractures** | **yes** | — |
+| bites, zombie infection | never | never |
+| cost | 6 doses, refilled aboard | free |
+
+— so an infected wound is still what kills you, and it is still the hypospray
+that deals with one.
+
+**Two things it refuses, both deliberate:**
+
+- **a body part with glass or a bullet still in it.** Skin does not close over
+  a shard, and a mod that sealed one inside while reporting success would be
+  making things quietly worse. The site is skipped, the rest of the body is
+  still treated, and the note says what is in the way so the player reaches
+  for the tweezers rather than assuming the item is broken.
+- **the dressing on a bitten limb.** It cannot cure the bite, so stripping the
+  bandage off one would be worse than doing nothing.
+
+`Med.SKIN` in `TREK_Medical.lua` is that list as data, beside `Med.TREATMENTS`;
+both run through the same `Med.treatWith`, which reads every change back before
+counting it.
+
+**The one engine fact worth checking rather than assuming** was whether
+closing a zombie scratch quietly cures what the zombie gave you. It does not:
+`setCut(false)` and `setScratched(false, x)` take an early-return branch —
+write the flag, call `setBleeding(false)`, return — and every timer, trait and
+sandbox lookup lives in the *true* branch where a wound is being inflicted. No
+infection field is anywhere near either of them.
 
 ---
 
@@ -281,14 +337,14 @@ Both sick-bay lockers stock `C.Loot.medical`, and the forward one at 5,1
 carries one of each instrument outright — `special = "medkit"`, the same
 mechanism that puts four phasers in the locker at 5,6. Leaving them to the
 loot list is not enough: the fill walks that list from a rolling cursor, so
-three entries among thirty-one can miss both lockers and the ship sails with
+four entries among thirty-two can miss both lockers and the ship sails with
 no tricorder aboard.
 
 `tests/test_layout.py` cross-checks every `special` in the layout against the
 rules in `TREK_Build.lua`, both ways, so a typo fails a test instead of
 quietly stocking nothing.
 
-**Revision 14, so new worlds only** (`DEV_GUIDE.md`, *Never restock an
+**Revision 15, so new worlds only** (`DEV_GUIDE.md`, *Never restock an
 existing container*). An existing save will not grow a tricorder.
 
 ---
@@ -302,6 +358,10 @@ Nothing here has been seen in the game yet. In the order worth checking:
 2. **The hypospray.** Take some damage, use it, read the halo note. Then check
    the thing that matters: a bite must still be a bite afterwards, and the
    infection moodle must still be there.
+2a. **The dermal regenerator.** Get cut and scratched, bandage one of them,
+   then run it: the wounds close, the dressing comes off, and no bandage was
+   needed. Then the two refusals — a bitten limb keeps its bandage, and a
+   wound with glass in it is skipped with a note telling you why.
 3. **The medical tricorder on yourself**, with a controller as well as a
    mouse — the panel is vanilla's and should already work on a pad.
 4. **The sensor sweep**, standing somewhere with zombies in view: do the blips

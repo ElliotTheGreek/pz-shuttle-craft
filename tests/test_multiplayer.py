@@ -1722,6 +1722,7 @@ def medical():
     HYPO = str(C("HyposprayItem"))
     MEDTRI = str(C("MedTricorderItem"))
     TRI = str(C("TricorderItem"))
+    REGEN = str(C("DermalRegenItem"))
 
     def give(full_id):
         rt.run(f'SIM.players[1].inventory:AddItem(instanceItem("{full_id}"))')
@@ -1768,7 +1769,8 @@ def medical():
         for _, id in ipairs(TREK.Config.Loot.medical) do
             if id ~= TREK.Config.HyposprayItem
                and id ~= TREK.Config.MedTricorderItem
-               and id ~= TREK.Config.TricorderItem then
+               and id ~= TREK.Config.TricorderItem
+               and id ~= TREK.Config.DermalRegenItem then
                 table.insert(out, id)
             end
         end
@@ -1794,12 +1796,13 @@ def medical():
         return (found[TREK.Config.HyposprayItem] or 0)
             .. "," .. (found[TREK.Config.MedTricorderItem] or 0)
             .. "," .. (found[TREK.Config.TricorderItem] or 0)
+            .. "," .. (found[TREK.Config.DermalRegenItem] or 0)
     end)()""")
-    hypos, medtris, tris = (int(n) for n in str(aboard).split(","))
-    check(hypos >= 1 and medtris >= 1 and tris >= 1,
+    hypos, medtris, tris, regens = (int(n) for n in str(aboard).split(","))
+    check(hypos >= 1 and medtris >= 1 and tris >= 1 and regens >= 1,
           f"medical: a fresh ship carries {hypos} hyposprays, {medtris} medical "
-          f"tricorders and {tris} tricorders -- the sick-bay locker is meant to "
-          f"hold one of each outright")
+          f"tricorders, {tris} tricorders and {regens} dermal regenerators -- "
+          f"the sick-bay locker is meant to hold one of each outright")
 
     # --- the way in ---------------------------------------------------------
     labels = inventory_menu()
@@ -1808,10 +1811,12 @@ def medical():
     give(HYPO)
     give(MEDTRI)
     give(TRI)
+    give(REGEN)
     labels = inventory_menu()
     for want, what in ((text("IGUI_TREK_HypoUse", C("HyposprayDoses")), "the hypospray"),
                        (text("IGUI_TREK_MedScanSelf"), "the medical tricorder"),
-                       (text("IGUI_TREK_Sweep"), "the tricorder")):
+                       (text("IGUI_TREK_Sweep"), "the tricorder"),
+                       (text("IGUI_TREK_SkinUse"), "the dermal regenerator")):
         check(want in labels,
               f"medical: {what} offers no way to use it -- the menu reads {labels!r}")
 
@@ -1912,6 +1917,114 @@ def medical():
     check(field_refill == aboard_refill,
           "medical: a hypospray refilled itself out in the field -- the dose "
           "limit is then a delay rather than a decision")
+
+    # --- the dermal regenerator ---------------------------------------------
+    # The half that makes it its own instrument is the lacerations, scratches,
+    # stitches and dressing; it shares deep wounds, bleeding and burns with the
+    # hypospray on purpose. What it must NOT do is the injected half -- an
+    # infected cut, pain, stiffness, a fracture -- because that is the only
+    # thing stopping a free, unlimited item from making the hypospray pointless.
+    rt.run("""
+        local p = SIM.players[1]
+        for _, what in ipairs({ "cut", "scratch", "deepWound", "bleeding",
+                                "burn", "stitches", "bandage", "health" }) do
+            SIM.hurt(p, what, 5)
+        end
+        for _, what in ipairs({ "infectedWound", "pain", "stiffness", "fracture" }) do
+            SIM.hurt(p, what, 5)
+        end
+        SIM.hurt(p, "bite", 6)
+        SIM.hurt(p, "bandage", 6)
+        p:getBodyDamage():setInfected(true)
+        SIM.sounds = {}
+    """)
+    inventory_menu()
+    click("medMenu", text("IGUI_TREK_SkinUse"), "running the dermal regenerator")
+
+    closed = rt.eval("""(function()
+        local p = SIM.players[1]:getBodyDamage().parts[5]
+        return (p.cut or p.isScratched or p.isDeepWounded or p.isBleeding
+                or p.burnTime > 0 or p.isStitched or p.isBandaged
+                or p.health < 100) and "no" or "yes"
+    end)()""")
+    check(str(closed) == "yes",
+          "medical: the dermal regenerator left an open wound, a stitch or a "
+          "dressing behind")
+
+    kept = rt.eval("""(function()
+        local p = SIM.players[1]:getBodyDamage().parts[5]
+        local out = {}
+        if not p.infectedWound then table.insert(out, "infected cut") end
+        if p.additionalPain == 0 then table.insert(out, "pain") end
+        if p.stiffness == 0 then table.insert(out, "stiffness") end
+        if p.fractureTime == 0 then table.insert(out, "fracture") end
+        return table.concat(out, ", ")
+    end)()""")
+    check(str(kept) == "",
+          f"medical: the dermal regenerator treated {kept} -- that is the "
+          f"hypospray's half, and it is the only thing keeping a free "
+          f"unlimited item from making the hypospray pointless")
+
+    check(rt.eval("SIM.players[1]:getBodyDamage().parts[6].isBitten") is True,
+          "medical: the dermal regenerator cured a BITE")
+    check(rt.eval("SIM.players[1]:getBodyDamage():isInfected()") is True,
+          "medical: the dermal regenerator cleared the zombie infection")
+    check(rt.eval("SIM.players[1]:getBodyDamage().parts[6].isBandaged") is True,
+          "medical: the dermal regenerator stripped the dressing off a BITTEN "
+          "limb. It cannot cure the bite, so taking the bandage off one is "
+          "worse than doing nothing")
+    check(rt.eval('SIM.heardSound("TREK_DermalHum")') is True,
+          "medical: the regenerator ran in silence")
+
+    # --- it will not close over glass ---------------------------------------
+    # Two wounds, one of them full of glass, because that is the case the code
+    # actually has to get right: the pass must heal what it can, skip what it
+    # cannot, and say so. Testing a lone glassed wound instead proves much
+    # less -- the whole pass is then refused up front and the "some healed,
+    # one did not" branch is never reached at all.
+    rt.run("""
+        local p = SIM.players[1]
+        SIM.hurt(p, "cut", 7)
+        SIM.hurt(p, "glass", 7)
+        SIM.hurt(p, "cut", 8)
+        SIM.notes = {}
+    """)
+    inventory_menu()
+    click("medMenu", text("IGUI_TREK_SkinUse"), "regenerating over glass")
+    check(rt.eval("SIM.players[1]:getBodyDamage().parts[7].cut") is True,
+          "medical: the regenerator sealed a wound with glass still in it. "
+          "Skin does not close over a shard, and a mod that does it is making "
+          "things quietly worse while reporting success")
+    check(rt.eval("SIM.players[1]:getBodyDamage().parts[8].cut") is False,
+          "medical: one obstructed wound stopped it treating the others -- it "
+          "is meant to skip that site, not give up")
+    # The simulated getText hands back the key, so this matches the key. The
+    # English behind it is checked by tests/test_assets.py, which fails on any
+    # IGUI_TREK_ literal the Lua asks for and IG_UI.json does not have.
+    check(any("IGUI_TREK_SkinObstructed" in n for n in rt.notes()),
+          "medical: a wound it refused to close was never mentioned -- a limb "
+          "that silently does not heal reads as a broken mod")
+
+    # --- refused outright when the only wound is obstructed ------------------
+    rt.run("SIM.notes = {}")
+    inventory_menu()
+    click("medMenu", text("IGUI_TREK_SkinUse"), "regenerating with nothing else to do")
+    check(any("IGUI_TREK_SkinObstructed" in n for n in rt.notes()),
+          "medical: with the only remaining wound full of glass, the player is "
+          "told there is nothing wrong with them rather than what is in the way")
+
+    # --- and it is free, for ever -------------------------------------------
+    rt.run("""
+        local p = SIM.players[1]
+        p:getBodyDamage().parts[7].glass = false
+        SIM.hurt(p, "cut", 9)
+    """)
+    inventory_menu()
+    click("medMenu", text("IGUI_TREK_SkinUse"), "regenerating a third time")
+    check(rt.eval("SIM.players[1]:getBodyDamage().parts[9].cut") is False
+          and rt.eval("SIM.players[1]:getBodyDamage().parts[7].cut") is False,
+          "medical: the dermal regenerator stopped working after a use or two "
+          "-- it has no charges by design; the hypospray owns that economy")
 
     # --- the medical tricorder: one field, and not the debug global ---------
     rt.run("SIM.healthPanels = {}")

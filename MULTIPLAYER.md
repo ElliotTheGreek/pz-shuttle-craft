@@ -467,7 +467,7 @@ section is only the authority split.
 
 | | |
 |---|---|
-| Treating your **own** body (the hypospray) | **That player's client.** Body damage belongs to the owning client and syncs from there -- the same rule and the same reason as "a client moves only its own character" |
+| Treating your **own** body (the hypospray, the dermal regenerator) | **That player's client.** Body damage belongs to the owning client and syncs from there -- the same rule and the same reason as "a client moves only its own character" |
 | Hypospray doses | **The item**, in its own mod data, which travels with it |
 | Reading your own vitals (medical tricorder) | **Client.** Pure UI |
 | Reading **somebody else's** vitals | **The engine's own consent flow.** `requestMedicalCheck` raises a yes/no on the other player's screen; only a yes reaches `ISMedicalCheckAction`, which the mod wraps to raise `doctorLevel` |

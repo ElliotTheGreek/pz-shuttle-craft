@@ -191,13 +191,101 @@ Med.TREATMENTS = {
       fix = function(p) p:SetHealth(100) end },
 }
 
+---------------------------------------------------------------------------
+-- What the dermal regenerator treats
+---------------------------------------------------------------------------
+-- Skin, and only skin. The two lists deliberately overlap on deep wounds,
+-- bleeding and burns -- the hypospray stays the all-in-one emergency dose --
+-- and what makes the regenerator its own instrument is the other half: a
+-- laceration, a scratch, and the stitches and dressing that were holding
+-- them shut. It has no charges, so what keeps it from replacing the
+-- hypospray is what it will *not* do: an infected cut, pain, stiffness and a
+-- fracture are all still injected, and an infected wound is still what kills
+-- you.
+--
+-- **Clearing a cut or a scratch is safe**, which is the one thing here worth
+-- checking rather than assuming. `setCut(false)` and `setScratched(false, x)`
+-- take an early-return branch in the bytecode -- clear the flag, call
+-- setBleeding(false), return -- and all the timer, trait and sandbox
+-- machinery lives in the *true* branch, where a wound is being inflicted. No
+-- infection field is anywhere near either of them, so closing the scratch a
+-- zombie gave you does not quietly cure what it gave you with it.
+Med.SKIN = {
+    -- Cuts and scratches first. Both call setBleeding(false) themselves on
+    -- the way out, so a separate bleeding entry after them usually finds
+    -- nothing left to do -- which is correct, and is why nothing is counted
+    -- that was not actually read back as changed.
+    { key = "cut",
+      ask = function(p) return p:isCut() or p:getCutTime() > 0 end,
+      fix = function(p) p:setCut(false) p:setCutTime(0) end },
+
+    { key = "scratch",
+      ask = function(p) return p:scratched() or p:getScratchTime() > 0 end,
+      fix = function(p) p:setScratched(false, false) p:setScratchTime(0) end },
+
+    { key = "deepWound",
+      ask = function(p) return p:getDeepWoundTime() > 0 or p:deepWounded() end,
+      fix = function(p) p:setDeepWounded(false) p:setDeepWoundTime(0) end },
+
+    { key = "bleeding",
+      ask = function(p) return p:bleeding() end,
+      fix = function(p) p:setBleeding(false) p:setBleedingTime(0) end },
+
+    { key = "burn",
+      ask = function(p) return p:getBurnTime() > 0 or p:isNeedBurnWash() end,
+      fix = function(p) p:setBurnTime(0) p:setNeedBurnWash(false) end },
+
+    { key = "stitches",
+      ask = function(p) return p:stitched() or p:getStitchTime() > 0 end,
+      fix = function(p) p:setStitched(false) p:setStitchTime(0) end },
+
+    -- The dressing comes off last, and only once the wound under it has
+    -- gone. Two guards on it, both deliberate: a bandage over nothing is
+    -- just cloth, and a bandage over a **bite** is the one dressing that
+    -- must stay -- the regenerator does not cure a bite, so taking the
+    -- bandage off one would be actively worse than doing nothing.
+    --
+    -- Removed through BodyDamage:SetBandaged(index, ...) rather than
+    -- BodyPart:setBandaged(...). Both exist; only the first has a vanilla Lua
+    -- call site (ISApplyBandage.lua:141 removes one exactly this way).
+    { key = "bandage",
+      ask = function(p)
+          if p:bitten() then return false end
+          if not (p:bandaged() or p:getBandageLife() > 0) then return false end
+          return not (p:bleeding() or p:deepWounded() or p:isCut()
+                      or p:scratched() or p:getBurnTime() > 0)
+      end,
+      fix = function(p, bd) bd:SetBandaged(p:getIndex(), false, 0, false, nil) end },
+
+    { key = "health",
+      ask = function(p) return p:getHealth() < 100 end,
+      fix = function(p) p:SetHealth(100) end },
+}
+
+--- True for a part the dermal regenerator will not close.
+---
+--- Skin does not grow over a shard of glass or a bullet, and a mod that
+--- sealed them inside would be quietly making things worse while reporting
+--- success. The part is skipped, counted, and named in the note, so the
+--- player is told to reach for the tweezers rather than left wondering why
+--- one arm did not heal.
+function Med.obstructed(part)
+    if U.try("med.haveGlass", function() return part:haveGlass() end) == true then
+        return true
+    end
+    return U.try("med.haveBullet", function() return part:haveBullet() end) == true
+end
+
+--- The character's BodyDamage, or nil.
+function Med.damageOf(character)
+    if not character then return nil end
+    return U.try("med.bodyDamage", function() return character:getBodyDamage() end)
+end
+
 --- Every body part of a character, as a plain Lua list.
 function Med.bodyParts(character)
     local out = {}
-    if not character then return out end
-    local damage = U.try("med.bodyDamage", function()
-        return character:getBodyDamage()
-    end)
+    local damage = Med.damageOf(character)
     if not damage then return out end
     local parts = U.try("med.bodyParts", function() return damage:getBodyParts() end)
     if not parts then return out end
@@ -225,8 +313,13 @@ end
 --- own too), so this is called from the client for its own player. The EMH
 --- will call it server-side for somebody else, which is why it takes a
 --- character rather than reaching for one.
-function Med.treat(character)
-    local counts = { total = 0 }
+--- Applies one treatment list to a character. `skip` is an optional
+--- predicate: a part it accepts is left entirely alone and counted in
+--- `counts.skipped`, which is how the dermal regenerator refuses to close
+--- skin over a shard of glass.
+function Med.treatWith(character, list, skip)
+    local counts = { total = 0, skipped = 0 }
+    local damage = Med.damageOf(character)
     local parts = Med.bodyParts(character)
     if #parts == 0 then return counts end
 
@@ -234,31 +327,51 @@ function Med.treat(character)
     -- in `fix` should cost that concern and not the seven around it, and a
     -- per-part loop that keeps throwing dumps a Java stack trace every time.
     local join = {}
-    for _, t in ipairs(Med.TREATMENTS) do
+    for _, t in ipairs(list) do
         join[t.key] = U.batch("med.treat." .. t.key)
     end
 
     for _, part in ipairs(parts) do
-        for _, t in ipairs(Med.TREATMENTS) do
-            join[t.key](function()
-                if not t.ask(part) then return end
-                t.fix(part)
-                if t.ask(part) then return end       -- refused; do not count it
-                counts[t.key] = (counts[t.key] or 0) + 1
-                counts.total = counts.total + 1
-            end)
+        if skip and U.try("med.skip", skip, part) then
+            counts.skipped = counts.skipped + 1
+        else
+            for _, t in ipairs(list) do
+                join[t.key](function()
+                    if not t.ask(part, damage) then return end
+                    t.fix(part, damage)
+                    -- refused; do not count it
+                    if t.ask(part, damage) then return end
+                    counts[t.key] = (counts[t.key] or 0) + 1
+                    counts.total = counts.total + 1
+                end)
+            end
         end
     end
     return counts
 end
 
---- True when there is anything on this character a dose would put right.
---- Asked before a dose is spent, so a hypospray is never wasted on somebody
---- who is already well.
-function Med.needsTreatment(character)
+--- A hypospray dose.
+function Med.treat(character)
+    return Med.treatWith(character, Med.TREATMENTS)
+end
+
+--- A pass of the dermal regenerator.
+function Med.regenerate(character)
+    return Med.treatWith(character, Med.SKIN, Med.obstructed)
+end
+
+--- True when there is anything on this character `list` would put right.
+--- Asked before an instrument is used, so a hypospray is never wasted on
+--- somebody who is already well and a regenerator never reports success on
+--- unbroken skin.
+function Med.needsTreatment(character, list, skip)
+    list = list or Med.TREATMENTS
+    local damage = Med.damageOf(character)
     for _, part in ipairs(Med.bodyParts(character)) do
-        for _, t in ipairs(Med.TREATMENTS) do
-            if U.try("med.ask." .. t.key, t.ask, part) then return true end
+        if not (skip and U.try("med.skip", skip, part)) then
+            for _, t in ipairs(list) do
+                if U.try("med.ask." .. t.key, t.ask, part, damage) then return true end
+            end
         end
     end
     return false

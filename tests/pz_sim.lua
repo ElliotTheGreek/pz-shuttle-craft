@@ -935,9 +935,9 @@ local BODY_PARTS = { "Hand_L", "Hand_R", "ForeArm_L", "ForeArm_R",
                      "Head", "Neck", "Groin", "UpperLeg_L", "UpperLeg_R",
                      "LowerLeg_L", "LowerLeg_R", "Foot_L", "Foot_R" }
 
-local function newBodyPart(name)
+local function newBodyPart(name, index)
     return setmetatable({
-        name = name, health = 100,
+        name = name, index = index, health = 100,
         isBleeding = false, bleedingTime = 0,
         isDeepWounded = false, deepWoundTime = 0,
         infectedWound = false, woundInfection = 0,
@@ -945,6 +945,11 @@ local function newBodyPart(name)
         fractureTime = 0, splint = false,
         additionalPain = 0, stiffness = 0,
         isBitten = false, biteTime = 0,
+        cut = false, cutTime = 0,
+        isScratched = false, scratchTime = 0,
+        isStitched = false, stitchTime = 0,
+        isBandaged = false, bandageLife = 0,
+        glass = false, bullet = false,
     }, BodyPartMT)
 end
 
@@ -977,14 +982,60 @@ function BodyPartMT:bitten() return self.isBitten end
 function BodyPartMT:SetBitten(v) self.isBitten = v end
 function BodyPartMT:getBiteTime() return self.biteTime end
 function BodyPartMT:setBiteTime(v) self.biteTime = v end
+function BodyPartMT:getIndex() return self.index end
+
+--- setCut and setScratched clear the bleeding on their way out, and this is
+--- modelled because the engine really does it: both take an early-return
+--- branch when they are handed `false` -- write the flag, call
+--- setBleeding(false), return -- with every timer and trait in the *true*
+--- branch where a wound is being inflicted. A stub that left the bleeding
+--- behind would make the dermal regenerator look like it had missed
+--- something it had in fact already dealt with.
+function BodyPartMT:isCut() return self.cut end
+function BodyPartMT:setCut(v)
+    self.cut = v
+    if not v then self:setBleeding(false) end
+end
+function BodyPartMT:getCutTime() return self.cutTime end
+function BodyPartMT:setCutTime(v) self.cutTime = v end
+function BodyPartMT:scratched() return self.isScratched end
+function BodyPartMT:setScratched(v)
+    self.isScratched = v
+    if not v then self:setBleeding(false) end
+end
+function BodyPartMT:getScratchTime() return self.scratchTime end
+function BodyPartMT:setScratchTime(v) self.scratchTime = v end
+function BodyPartMT:stitched() return self.isStitched end
+function BodyPartMT:setStitched(v) self.isStitched = v end
+function BodyPartMT:getStitchTime() return self.stitchTime end
+function BodyPartMT:setStitchTime(v) self.stitchTime = v end
+function BodyPartMT:bandaged() return self.isBandaged end
+function BodyPartMT:getBandageLife() return self.bandageLife end
+function BodyPartMT:haveGlass() return self.glass end
+function BodyPartMT:setHaveGlass(v) self.glass = v end
+function BodyPartMT:haveBullet() return self.bullet end
+function BodyPartMT:setHaveBullet(v) self.bullet = v end
 
 local function newBodyDamage()
     local parts = {}
-    for _, name in ipairs(BODY_PARTS) do table.insert(parts, newBodyPart(name)) end
+    for i, name in ipairs(BODY_PARTS) do
+        table.insert(parts, newBodyPart(name, i - 1))
+    end
     local bd = { parts = parts, infected = false }
     function bd:getBodyParts() return jlist(self.parts) end
     function bd:isInfected() return self.infected end
     function bd:setInfected(v) self.infected = v end
+    --- Bandaging goes through BodyDamage by index, not through the part.
+    --- Both methods exist in the engine and only this one has a vanilla Lua
+    --- call site, so this is the one modelled.
+    function bd:SetBandaged(index, on, life)
+        for _, p in ipairs(self.parts) do
+            if p.index == index then
+                p.isBandaged = on
+                p.bandageLife = life or 0
+            end
+        end
+    end
     return bd
 end
 
@@ -1007,6 +1058,12 @@ function SIM.hurt(player, what, which)
     elseif what == "stiffness" then p.stiffness = 30
     elseif what == "health" then p.health = 40
     elseif what == "bite" then p.isBitten, p.biteTime = true, 10
+    elseif what == "cut" then p.cut, p.cutTime, p.isBleeding = true, 15, true
+    elseif what == "scratch" then p.isScratched, p.scratchTime, p.isBleeding = true, 10, true
+    elseif what == "stitches" then p.isStitched, p.stitchTime = true, 12
+    elseif what == "bandage" then p.isBandaged, p.bandageLife = true, 8
+    elseif what == "glass" then p.glass = true
+    elseif what == "bullet" then p.bullet = true
     else error("SIM.hurt: no such injury " .. tostring(what)) end
     return p
 end

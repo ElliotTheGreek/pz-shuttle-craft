@@ -111,5 +111,13 @@
     "IGUI_TREK_OverrideSafehouse": "The tricorder will not open somebody's safehouse",
     "IGUI_TREK_OverrideCooling": "The tricorder is still recalibrating",
     "IGUI_TREK_OverrideFar": "Too far from the lock",
-    "IGUI_TREK_OverrideNoTool": "You are not carrying a tricorder"
+    "IGUI_TREK_OverrideNoTool": "You are not carrying a tricorder",
+    "IGUI_TREK_SkinUse": "Run the dermal regenerator",
+    "IGUI_TREK_SkinClosed": "Dermal regenerator: %1",
+    "IGUI_TREK_SkinNothing": "No open wounds to close",
+    "IGUI_TREK_SkinObstructed": "Something is still in that wound -- the skin will not close over it",
+    "IGUI_TREK_SkinCut": "lacerations closed",
+    "IGUI_TREK_SkinScratch": "scratches closed",
+    "IGUI_TREK_SkinStitches": "stitches dissolved",
+    "IGUI_TREK_SkinBandage": "dressings no longer needed"
 }

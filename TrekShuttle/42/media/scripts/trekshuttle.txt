@@ -964,6 +964,18 @@ module TrekShuttle
         }
     }
 
+    sound TREK_DermalHum
+    {
+        category = Item,
+        loop = false,
+        is3D = false,
+        clip
+        {
+            file = media/sound/TREK_DermalHum.wav,
+            volume = 0.65,
+        }
+    }
+
     /*  ------------------------------------------------------------------
         The medical set: hypospray, medical tricorder, tricorder.
 
@@ -1011,6 +1023,35 @@ module TrekShuttle
         StaticModel = Battery,
         WorldStaticModel = Battery,
         Tooltip = Tooltip_TREK_Hypospray,
+    }
+
+    /*  The dermal regenerator: skin, and only skin.
+
+        No charges of any kind -- it is a powered instrument, not a drug, and
+        the hypospray already owns the ration economy in this mod. What keeps
+        it from replacing the hypospray is what it will not do: an infected
+        cut, pain, stiffness and a fracture are all still injected, and an
+        infected wound is still the thing that kills you.
+
+        It also refuses a body part with glass or a bullet still in it, and
+        says so. Skin does not close over a shard, and a mod that sealed one
+        inside while reporting success would be making things quietly worse
+        -- which is the exact failure shape DEV_GUIDE.md keeps cataloguing.
+        Tweezers keep a reason to exist.
+
+        The world model is the vanilla flashlight: a rod with a working end,
+        which is the shape this thing is.  */
+    item TrekDermalRegen
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Dermal Regenerator,
+        Icon = TREK_DermalRegen,
+        Weight = 0.5,
+        StaticModel = FlashLightGround,
+        WorldStaticModel = FlashLightGround,
+        Tooltip = Tooltip_TREK_DermalRegen,
     }
 
     /*  The medical tricorder: a full diagnosis whatever your Doctor skill.

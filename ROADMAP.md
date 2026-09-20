@@ -61,11 +61,12 @@ player before.
 7. **She flies under a real client/server split** — up, level, down.
 8. **Shields** — the `isRemoteZombie()` path is live here in a way single
    player never exercises, even with one client.
-9. **The medical set.** Newest and entirely unproven: a hypospray dose that
-   must leave a bite alone, the health panel at doctor level, the sensor sweep
-   in front of a real horde, and the lock override on a house door and then on
-   a padlock. Revision 14, so a world made before today will not have the
-   items in its sick bay.
+9. **The medical set.** Newest and entirely unproven: a hypospray dose and a
+   regenerator pass that must both leave a bite alone, a cut closed with no
+   bandage, the health panel at doctor level, the sensor sweep in front of a
+   real horde, and the lock override on a house door and then on a padlock.
+   Revision 15, so a world made before today will not have the items in its
+   sick bay.
 
 ### Needs the second machine (Steam Deck on the LAN, 192.168.39.182)
 
@@ -410,7 +411,7 @@ icon 32×32, and both are confirmed in game.
 
 ## The medical set — built, and not yet seen in game
 
-All three are in, with their icons, two generated sounds, an LCARS contact
+All four are in, with their icons, three generated sounds, an LCARS contact
 plot and a server-side lock override. **`MEDICAL_SET.md` is the working guide
 now**, not a plan; it has the verified engine facts, the four traps, and the
 list of what to check the first time it is carried into the game.
@@ -423,6 +424,16 @@ list of what to check the first time it is carried into the game.
   more while you are aboard and nothing does in the field, so the limit is a
   decision (push on, or go home) rather than a delay. A dose is never spent
   on somebody who is already well.
+- **Dermal regenerator.** Skin, and only skin: one pass closes lacerations,
+  scratches, deep wounds, bleeding and burns, dissolves the stitches and takes
+  off the dressing that was holding them together — **no bandages needed**.
+  Free and unlimited, because the hypospray already owns the ration economy
+  and a second item with the same one is the same item twice. What stops it
+  replacing the hypospray is scope: it does nothing for an infected cut, pain,
+  stiffness or a fracture, and an infected wound is still what kills you. It
+  refuses a wound with glass or a bullet still in it (skin does not close over
+  a shard, and tweezers keep a reason to exist) and will not strip the dressing
+  off a bitten limb.
 - **Medical tricorder.** Vanilla's `ISHealthPanel` with `doctorLevel` set to
   10, so every Doctor-gated readout opens — on yourself from the item's menu,
   or on another player through the engine's own consent prompt. Never
@@ -435,8 +446,8 @@ list of what to check the first time it is carried into the game.
   player's property, and a mod that picks them is a griefing tool on every
   server that installs it.
 
-All three are in `C.Loot.medical`, and the forward sick-bay locker carries one
-of each outright. Revision 14, so **new worlds only**.
+All four are in `C.Loot.medical`, and the forward sick-bay locker carries one
+of each outright. Revision 15, so **new worlds only**.
 
 **What the pass cost, and it was one line from shipping:** `BodyPart
 .RestoreToFullHealth()` is the obvious way to mend a limb and its bytecode

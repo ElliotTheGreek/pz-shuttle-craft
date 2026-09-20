@@ -117,9 +117,44 @@ def tricorder_chirp(duration=0.62):
     return out
 
 
+def dermal_hum(duration=0.85):
+    """The regenerator: a soft rising hum that settles, not a beep.
+
+    Deliberately the least eventful sound of the three. A hypospray is a
+    single event and a tricorder is asking a question, but a regenerator is
+    held against the skin and *runs* -- so this swells, holds, and fades,
+    with two detuned partials beating slowly against each other to keep it
+    from sounding like a sine tone.
+    """
+    out = []
+    n = int(RATE * duration)
+    pa = pb = pc = 0.0
+    for i in range(n):
+        t = i / RATE
+        progress = t / duration
+
+        # swell in over the first fifth, hold, fade over the last third
+        rise = min(1.0, t / (duration * 0.2))
+        fall = min(1.0, (1.0 - progress) / 0.33)
+        envelope = rise * fall
+
+        # the pitch lifts a little as it works, then settles back
+        lift = 1.0 + 0.06 * math.sin(math.pi * progress)
+        pa += 2 * math.pi * 330.0 * lift / RATE
+        pb += 2 * math.pi * 333.5 * lift / RATE     # detuned: a slow beat
+        pc += 2 * math.pi * 660.0 * lift / RATE
+
+        tone = 0.34 * math.sin(pa) + 0.30 * math.sin(pb) + 0.12 * math.sin(pc)
+        # a faint shimmer on top so it reads as an instrument rather than an organ
+        shimmer = 0.05 * math.sin(pc * 2.0 + 1.5 * math.sin(pa))
+        out.append((tone + shimmer) * envelope)
+    return out
+
+
 if __name__ == "__main__":
     root = sys.argv[1] if len(sys.argv) > 1 else "TrekShuttle/42"
     sound = os.path.join(root, "media", "sound")
     write(os.path.join(sound, "TREK_HypoHiss.wav"), hypo_hiss())
     write(os.path.join(sound, "TREK_TricorderChirp.wav"), tricorder_chirp())
+    write(os.path.join(sound, "TREK_DermalHum.wav"), dermal_hum())
     print("medical sounds written")

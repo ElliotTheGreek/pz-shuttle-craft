@@ -135,6 +135,70 @@ function M.useHypospray(player, item)
 end
 
 ---------------------------------------------------------------------------
+-- The dermal regenerator
+---------------------------------------------------------------------------
+-- No charges, no cooldown, no doses. It is a powered instrument, not a drug,
+-- and the hypospray already owns the ration economy; giving this one the same
+-- thing would make them the same item twice. What keeps it from replacing the
+-- hypospray is scope -- it closes what is open and treats nothing that is
+-- injected -- and the one thing it refuses outright.
+local REGEN_TEXT = {
+    cut       = "IGUI_TREK_SkinCut",
+    scratch   = "IGUI_TREK_SkinScratch",
+    deepWound = "IGUI_TREK_TreatDeepWound",
+    bleeding  = "IGUI_TREK_TreatBleeding",
+    burn      = "IGUI_TREK_TreatBurn",
+    stitches  = "IGUI_TREK_SkinStitches",
+    bandage   = "IGUI_TREK_SkinBandage",
+    health    = "IGUI_TREK_TreatHealth",
+}
+
+local function summariseSkin(counts)
+    local parts = {}
+    for _, t in ipairs(Med.SKIN) do
+        if (counts[t.key] or 0) > 0 and REGEN_TEXT[t.key] then
+            table.insert(parts, getText(REGEN_TEXT[t.key]))
+        end
+    end
+    return table.concat(parts, ", ")
+end
+
+--- Runs the regenerator over its carrier. Returns true when skin closed.
+function M.useDermalRegen(player, item)
+    if not player or not item then return false end
+
+    if not Med.needsTreatment(player, Med.SKIN, Med.obstructed) then
+        -- Distinguish "you are not hurt" from "I cannot work on that": a
+        -- player whose only injury is full of glass would otherwise be told
+        -- there is nothing wrong with them.
+        if Med.needsTreatment(player, Med.SKIN) then
+            warnNote(player, "IGUI_TREK_SkinObstructed")
+        else
+            note(player, "IGUI_TREK_SkinNothing")
+        end
+        return false
+    end
+
+    local counts = Med.regenerate(player)
+    if counts.total == 0 then
+        U.warnOnce("regen.noEffect", "a dermal regenerator pass changed nothing")
+        note(player, "IGUI_TREK_SkinNothing")
+        return false
+    end
+
+    U.try("regen.sound", function() player:playSoundLocal("TREK_DermalHum") end)
+    note(player, "IGUI_TREK_SkinClosed", summariseSkin(counts))
+    if counts.skipped > 0 then
+        -- Said out loud rather than left as a silent gap. A limb that did not
+        -- heal and was never mentioned reads as a broken mod.
+        warnNote(player, "IGUI_TREK_SkinObstructed")
+    end
+    U.log("dermal regenerator: %d closed, %d site(s) obstructed",
+          counts.total, counts.skipped)
+    return true
+end
+
+---------------------------------------------------------------------------
 -- Refilling, aboard
 ---------------------------------------------------------------------------
 -- The ship makes them, so the ship is where they come back. Same reasoning
@@ -683,6 +747,10 @@ function M.onUseHypospray(item, player)
     M.useHypospray(player, item)
 end
 
+function M.onUseDermalRegen(item, player)
+    M.useDermalRegen(player, item)
+end
+
 function M.onScanSelf(_, player)
     M.scanSelf(player)
 end
@@ -707,6 +775,12 @@ function M.fillInventoryMenu(playerNum, context, items)
         -- Greyed rather than hidden: a player has to be able to see that the
         -- thing in their bag is empty, or they will assume it is broken.
         if left <= 0 then option.notAvailable = true end
+    end
+
+    local regen = firstOfType(selected, C.DermalRegenItem)
+    if regen then
+        context:addOption(getText("IGUI_TREK_SkinUse"), regen,
+                          M.onUseDermalRegen, player)
     end
 
     if firstOfType(selected, C.MedTricorderItem) then

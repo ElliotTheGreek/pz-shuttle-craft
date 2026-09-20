@@ -24,6 +24,7 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Never stranded** | If there is not enough room at the destination you are beamed straight back aboard with the reason. A failed landing never leaves you on foot a hundred miles from the ship. |
 | **Phasers** | Four in a locker beside the pad. The charge never runs down, they never jam and they never wear out — and they are far quieter than a firearm, which is most of the point. |
 | **A hypospray** | One dose puts right bleeding, deep wounds, infected cuts, burns, fractures, pain and stiffness — everywhere on your body at once. It will not touch a bite. Six doses, and the ship replicates more while you are aboard; out in the field, what you are carrying is what you have. |
+| **A dermal regenerator** | Run it over the skin and the skin closes: lacerations, scratches, deep wounds and burns, with the stitches and the dressing that were holding them together. No bandage needed, and no charge to run out of. It will not mend a broken bone, touch an infected wound, or close over a piece of glass. |
 | **A medical tricorder** | Reads a body the way a surgeon would, whether or not you have ever held a scalpel. On yourself, or — with their say-so — on a crewmate. |
 | **A tricorder** | A sensor sweep out to forty tiles, drawn as a contact plot with you at the centre, and a lock override that talks most electronic locks open. Not padlocks, and not inside somebody's safehouse. |
 | **Running water** | The galley sink has its own water supply, topped up every in-game minute, so it keeps running after the mains shut off. |
@@ -98,8 +99,8 @@ radial menu takes her up, and she flies over buildings and trees; the helm is
 how you cross the map.
 
 The **medical set** lives in the forward starboard locker. Right-click the
-hypospray or either tricorder in your inventory to use it; right-click a locked
-door with a tricorder on you to override the lock.
+hypospray, the dermal regenerator or either tricorder in your inventory to use
+it; right-click a locked door with a tricorder on you to override the lock.
 
 ## How much room it needs
 
@@ -182,7 +183,7 @@ engine facts it rests on.
 | `tools/gen_shuttle.py` | Hull texture, mesh and inventory icon. |
 | `tools/gen_helm.py` | Helm console texture and mesh. |
 | `tools/gen_phaser.py` | Phaser inventory icon. |
-| `tools/gen_medical.py` | The hypospray and tricorder sounds. (Their icons come from the Gemini toolkit; the originals are in `design/art/medical/`.) |
+| `tools/gen_medical.py` | The hypospray, tricorder and regenerator sounds. (Their icons come from the Gemini toolkit; the originals are in `design/art/medical/`.) |
 | `tools/gen_poster.py` | The mods-screen poster. |
 | `tools/luacheck.py` | Parses every Lua file through a real Lua VM. |
 | `tools/deploy_windows.py` | Copy the mod into the Zomboid mods folder as `TrekShuttleDev` and verify the copy. |
@@ -272,9 +273,12 @@ interior plus `TREK_InteriorLayout.lua`.
   `TREK_Rebuild()`, or a fresh world.
 - **Beaming down needs somewhere to stand.** It searches six tiles around the
   target and gives up rather than putting you inside a wall.
-- **The hypospray does not cure a bite**, and the medical tricorder does not
-  tell you whether you are infected. Both are deliberate: the cure is the
+- **Nothing in the medical set cures a bite**, and the medical tricorder does
+  not tell you whether you are infected. Both are deliberate: the cure is the
   Emergency Medical Hologram's, and the EMH is not built yet.
+- **The dermal regenerator will not close a wound with glass or a bullet in
+  it**, and will not take the dressing off a bitten limb. It says so both
+  times.
 - **The tricorder will not open a padlock**, or any lock inside a safehouse
   you are not a member of. Somebody fitted those by hand.
 - **The medical set reaches new worlds only.** Like every other change to what
