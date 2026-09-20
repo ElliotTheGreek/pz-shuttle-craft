@@ -476,14 +476,32 @@ local function clickedSquare(playerIndex, context, player)
     return math.floor(x), math.floor(y), z
 end
 
---- True when this is the replicator's berth. By position rather than by the
---- object's tag: a rebuild that lost the tag would take the menu with it, and
---- the berth is at a fixed place in a cabin the mod builds itself.
+--- True when a click is at the replicator's berth, or near enough.
+---
+--- By position rather than by the object's tag: a rebuild that lost the tag
+--- would take the menu with it, and the berth is at a fixed place in a cabin
+--- the mod builds itself.
+---
+--- **And "near enough" is one square, which is not slack.** A right-click
+--- resolves to the *floor square under the cursor*, and the alcove is drawn
+--- standing over a metre of counter -- so the pixels a player clicks when
+--- they aim at the lit recess map to a square a tile or two north-west of the
+--- one the machine is on. Keyed to the exact square, the option was never
+--- offered at all: seen in game, 2026-09-20, with the alcove plainly visible
+--- and nothing to right-click on it.
+---
+--- Every tall object in this game has the same property -- you interact with
+--- a fridge by clicking its base, not its top -- so the margin is what makes
+--- the natural gesture work rather than a licence. One square, so the
+--- transporter pad two squares away still offers nothing.
+local BERTH_MARGIN = 1
+
 local function isBerth(x, y, z)
     local ox, oy = R.spot()
     if not ox then return false end
+    if z ~= C.CabinZ then return false end
     local rx, ry = U.at(ox, oy)
-    return x == rx and y == ry and z == C.CabinZ
+    return math.abs(x - rx) <= BERTH_MARGIN and math.abs(y - ry) <= BERTH_MARGIN
 end
 
 function M.onOpen(_, player)

@@ -8,7 +8,7 @@ generator and the vet are the same command and the picture cannot go stale.
 
 **The model is a wall alcove, not a box on the deck.** The berth at 0,5 is a
 steel counter, and a floor-standing unit on the same square would be drawn
-through it. This is authored from 0.80 up instead, so it hangs above the
+through it. This is authored from 0.86 up instead, so it hangs above the
 bench the way every replicator in the show does: counter below, lit recess
 above. Y is up, as it is for every world model here, and one unit is one tile.
 
@@ -137,19 +137,23 @@ UP_AXIS = "y"
 
 # Against the port bulkhead, opening east into the cabin. `place` maps
 # (east, north, height), so a smaller east value is further into the wall.
-BACK, FRONT = -0.46, 0.18           # east: the wall, and the lip of the frame
-SIDE = 0.40                         # north and south half-width
-Y0, Y1 = 0.80, 1.78                 # it starts above the counter, not on it
+# Sized down after the first look in game, where it was the tallest thing in
+# the galley and read as a monolith floating over the bench -- "out of place",
+# and fairly. Two thirds of the height and a narrower box puts it in the row
+# with the microwave and the oven instead of above them all.
+BACK, FRONT = -0.44, 0.10           # east: the wall, and the lip of the frame
+SIDE = 0.34                         # north and south half-width
+Y0, Y1 = 0.86, 1.46                 # it starts above the counter, not on it
 # Shallow on purpose. The first cut put the emitter back at -0.24 and the
 # recess rendered as a hole straight through the unit: the lit panel was a
 # sliver and the cavity walls ate the rest. A replicator is a lit niche, not
 # a cupboard, so the panel sits just inside the lip.
 CAVITY_BACK = 0.02                  # where the emitter panel sits
-OPEN_SIDE, OPEN_Y0, OPEN_Y1 = 0.28, 0.98, 1.54
+OPEN_SIDE, OPEN_Y0, OPEN_Y1 = 0.24, 0.98, 1.32
 
-CASE      = (62, 66, 78, 255)
-CASE_LITE = (96, 102, 118, 255)
-CASE_DEEP = (28, 30, 38, 255)
+CASE      = (92, 98, 112, 255)
+CASE_LITE = (126, 132, 148, 255)
+CASE_DEEP = (52, 56, 66, 255)
 BLACK     = (14, 15, 19, 255)
 RECESS    = (48, 54, 64, 255)
 GLOW      = (150, 222, 255, 255)

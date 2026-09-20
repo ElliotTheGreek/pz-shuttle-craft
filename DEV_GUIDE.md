@@ -463,6 +463,38 @@ than none*) has a counterpart in the world: **a model that looks interactive
 and is not teaches the player the wrong thing about your ship.** Either wire it
 up or take it out.
 
+### A right-click lands on the floor, not on the picture
+
+**New in this mod, and it made a finished feature unusable while looking
+perfect.** The replicator's alcove is a world model authored to hang above the
+galley counter, and it drew exactly as intended: lit recess, LCARS surround,
+sitting over the bench. It could not be right-clicked at all.
+
+`OnPreFillWorldObjectContextMenu` hands you the cursor's screen position, and
+the square is resolved with `screenToIsoX/Y(playerIndex, x, y, z)` -- which
+converts a *screen point to a square on the floor plane at that z*. The model's
+pixels are a metre and a half above that plane, so the square the engine names
+is the one a tile or two north-west of the one the model belongs to. A menu
+keyed to the model's own square is therefore never offered when the player
+aims at the model.
+
+This is not special to a floating model: it is true of every tall object in
+the game, which is why you interact with a fridge by clicking its base. What
+made it fatal here is that the alcove has *no* base -- there is nothing of it
+drawn on its own square to click.
+
+Two things follow:
+
+- **Give a click a margin when the thing it is aimed at is tall.**
+  `BERTH_MARGIN` is one square, which covers the drawn height and still leaves
+  the transporter pad two squares away offering nothing. The test asserts both
+  ends, and both mutations are caught.
+- **Or put the object on the floor**, where the gesture and the geometry agree.
+
+The cheap tell from outside the game: the feature works, the log says the
+fixture was placed, and there is no error anywhere -- because nothing is
+wrong. The menu is simply being asked about a different square.
+
 ### A convenience method is a bundle of writes somebody else chose
 
 **New in this mod, and it was one line from shipping.** `BodyPart
@@ -1446,11 +1478,12 @@ slots. The torpedo's blast size and fire spread both needed no adjusting.
 
 **Not yet seen in game**, in the order worth checking:
 
-1. **The replicator**: the right-click on the berth, the alcove hanging over
-   the counter rather than standing in it, how big the real catalogue is and
-   whether the panel opens without a pause, a pattern scanned on one machine
-   reaching another, and the reserve coming back overnight. `REPLICATOR.md`'s
-   *Not built, and still to settle in game* is the list.
+1. **The replicator**, half-settled on 2026-09-20: it loads, the catalogue is
+   4913 items in 78 categories, 19 patterns seed, the alcove places and hangs
+   over the counter as authored -- and it could not be right-clicked at all,
+   which is now a rule of its own above. Still open: the fixed menu, whether
+   the alcove earns its place, the panel under 4913 rows, a pattern crossing
+   between machines, and the reserve coming back overnight.
 2. **The interior refit**: the shape, the three lockers, the five empty
    containers, the television actually turning on, the biobed as a bed -- and,
    in a save made before it, the migration. `INTERIOR_REFIT.md` section 7.
@@ -1512,8 +1545,11 @@ a *pattern* the ship has scanned and an energy *reserve* that refills on the
 world's clock. The catalogue is the engine's own item list rather than a
 recipe file, so it covers vanilla, future patches and other people's mods with
 no maintenance; the item is made on the server and the tray is counted after
-every one. Revision 18. **None of it has been seen in game**, and
-`REPLICATOR.md` is the working guide -- what happens when somebody uses it,
+every one. Revision 18. **First look in a game the same day**: it loads, the catalogue
+comes out at 4913 items, the alcove places and hangs where it was authored to
+-- and the right-click on it did nothing at all, because a click lands on the
+floor square under the cursor and the model is drawn above its own. That is a
+new rule above, and it is fixed. `REPLICATOR.md` is the working guide -- what happens when somebody uses it,
 how to change each piece, the engine facts not to re-derive, and the seven
 things to check the first time it is carried into a world.
 

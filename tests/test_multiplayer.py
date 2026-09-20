@@ -2708,6 +2708,20 @@ def replicator():
              int(rt.eval("(select(2, TREK.Replicator.spot()))"))
     check(use in replicator_menu(rt, ox, oy),
           "replicator: right-clicking the berth offers no way to use it")
+
+    # **A click one square off must still offer it**, and that is a fix rather
+    # than a convenience. A right-click resolves to the floor square under the
+    # cursor, and the alcove is drawn standing over a metre of counter -- so
+    # aiming at the lit recess lands a tile or two north-west of the machine.
+    # Keyed to the exact square, the option was never offered at all, with the
+    # alcove plainly visible and nothing to click on it. Seen in game.
+    check(use in replicator_menu(rt, ox + 1, oy),
+          "replicator: a click one square off the berth offers nothing -- that "
+          "is where aiming at a model drawn above its own square actually "
+          "lands, and it is why this was unusable in game")
+
+    # The margin stops there, though: the pad is two squares away and must not
+    # be a replicator.
     check(use not in replicator_menu(rt, C("Landing.x"), C("Landing.y")),
           "replicator: the transporter pad offers the replicator; the menu is "
           "not keyed to the berth at all")

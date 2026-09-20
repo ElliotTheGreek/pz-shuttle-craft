@@ -1,6 +1,7 @@
 # The replicator
 
-**Built, revision 18. Not yet seen in game.**
+**Built, revision 18. Carried into a game on 2026-09-20: it loads, it places,
+and the first look cost one real bug and one design note.**
 
 A lit alcove over the galley counter that makes any item in Project Zomboid.
 Two limits stand between the player and that, and they answer two different
@@ -143,11 +144,15 @@ purpose, and the layout test insists on it.
 
 `python tools/gen_replicator.py TrekShuttle/42` writes the mesh, the texture,
 the sound and two renders into `design/art/replicator/`. It is **authored
-from y = 0.80 upwards** so it hangs above the counter rather than being drawn
-through it, and that is the one thing about it to check in game: if the
-engine draws world items from the square's floor regardless of where the mesh
-sits, the alcove will be sitting on the bench instead of over it. The fix
-would be to author from 0 and shorten it.
+from y = 0.86 upwards** so it hangs above the counter rather than being drawn
+through it -- and that works: seen in game, drawn over the bench exactly as
+authored. A world model is placed where its vertices say; the engine does not
+flatten it onto the square's floor.
+
+It was also **a third taller and a good deal darker** on that first look, and
+read as a monolith floating over the galley rather than as a fitting in it.
+0.60 tall now rather than 0.98, narrower, and in a mid grey that sits against
+the cabin's light bulkheads instead of fighting them.
 
 ### The panel
 
@@ -271,20 +276,30 @@ now.
 
 ## Not built, and still to settle in game
 
-Nothing here has been seen in a game. In the order worth checking:
+**Settled on 2026-09-20**, in a fresh single-player world:
 
-1. **The way in.** Right-click the counter at 0,5 while standing beside it:
-   the option should read *Use the replicator*. It is on
-   `OnPreFillWorldObjectContextMenu` because the later event returns early on
-   squares the base game finds uninteresting -- but the berth *is* a
-   container, so the later event would probably work too. If the option does
-   not appear at all, that is the first thing to look at.
-2. **The alcove's height.** Authored from 0.80 up so it hangs over the
-   counter. If world models ignore that and sit on the floor, it will be
-   standing in the counter instead of above it.
-3. **The catalogue's real size.** Thirteen items in the simulation and a few
-   thousand in the game. `TREK_Replicator()` prints the count; the panel
-   should open without a visible pause and the search should stay responsive.
+- it loads, and the catalogue is **4913 items in 78 categories**, with no WARN
+  anywhere and no pause worth the name;
+- **19 patterns** seed on world load -- the ship's own gear;
+- the alcove places (`replicator: the alcove stands at 0,5`) and is drawn
+  hanging over the counter, which is the half of the model that could not be
+  checked outside the game;
+- and **it could not be right-clicked at all**, because a click resolves to
+  the floor square under the cursor and the model is drawn above its own
+  square. Fixed with a one-square margin; `DEV_GUIDE.md` has it under *A
+  right-click lands on the floor, not on the picture*.
+
+Still to settle, in the order worth checking:
+
+1. **The way in, again.** Standing at the counter at 0,5, right-click the
+   alcove itself: the option should read *Use the replicator*. From across
+   the cabin it should be there and greyed, telling you to walk over.
+2. **Whether the alcove earns its place at all.** It is smaller and lighter
+   now. If it still reads as an odd box on the bench, the honest answer is to
+   drop the model and let the counter be the replicator -- which is what the
+   interior refit originally intended, and costs nothing but the art.
+3. **The panel under 4913 rows.** Typing should stay responsive; the filter
+   walks a precomputed array, but that is reasoning until somebody types.
 4. **The reserve on the clock.** Sleep a night and watch it come back.
 5. **A pattern on a second machine.** One crewman scans; the other's panel
    should stop saying *no pattern* without either of them reopening it.
@@ -316,6 +331,19 @@ rather than how fast). The author asked for both, and both is better: the
 pattern is a progression and the reserve is a budget, and neither one is a
 cooldown wearing a hat. The plan's own alternative -- "worth keeping as a
 later layer on top of patterns" -- turned out to be the design.
+
+### A model drawn above its own square cannot be clicked
+
+The alcove was finished, placed, drawn correctly -- and completely unusable. A
+right-click resolves to the floor square under the cursor; the model hangs a
+metre and a half above its own square, so aiming at the lit recess named a
+square one or two tiles north-west, and the menu -- keyed to the berth -- was
+never offered.
+
+Nothing was broken, nothing was logged and every test passed, because the
+tests drive a simulated `screenToIso` that cannot model a projection. The
+simulation says so about itself, in as many words: *it cannot catch a
+projection error; only the game can.* It took one screenshot.
 
 ### Three renders and a louvred bin
 

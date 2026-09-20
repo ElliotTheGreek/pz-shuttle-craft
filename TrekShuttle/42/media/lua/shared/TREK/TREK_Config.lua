@@ -779,7 +779,7 @@ C.DevicePower = 1.0
 C.ReplicatorTag = "replicator"
 
 -- The alcove itself: a world model, like the hull, standing on that square.
--- Its mesh is authored from 0.80 upwards (tools/gen_replicator.py) so it
+-- Its mesh is authored from 0.86 upwards (tools/gen_replicator.py) so it
 -- hangs above the counter rather than being drawn through it.
 --
 -- This is the helm console prop's route, and the helm console prop was
