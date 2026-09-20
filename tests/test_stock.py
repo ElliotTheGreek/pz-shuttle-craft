@@ -12,7 +12,7 @@ says nothing in the log:
 
     python tests/test_stock.py
 """
-import os, sys
+import os, re, sys
 from lupa import LuaRuntime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -253,9 +253,22 @@ if float(level) < 0.25 or float(level) > 0.30:
     failures.append(f"an explicit 25% fill reached {float(level):.0%}")
 
 # --- the real lists have to be long enough to be worth spreading -------
+# The names are read out of the layout rather than written here, because a
+# hard-coded tuple goes stale silently: `drinks` was added with the galley
+# drinks and never added to this list, so the newest loot list in the ship was
+# the one nothing here checked. Anything an entry actually points `loot` at is
+# checked, and a list that stops being used stops being checked, both for free.
+# (test_layout.py separately fails a `loot` naming a list that does not exist,
+# so the two together cover both directions.)
+layout_src = open(os.path.join(ROOT, "TrekShuttle", "42", "media", "lua",
+                               "shared", "TREK", "TREK_InteriorLayout.lua"),
+                  encoding="utf-8").read()
+loot_names = sorted(set(re.findall(r'loot\s*=\s*"([A-Za-z0-9_]+)"', layout_src)))
+if not loot_names:
+    failures.append("no loot lists found in TREK_InteriorLayout.lua -- has the "
+                    "entry format changed? this check is now inert")
 print()
-for name in ("medical", "food", "fresh", "cookware", "tools", "linen",
-             "weapons", "survival"):
+for name in loot_names:
     lst = C.Loot[name]
     if lst is None:
         failures.append(f"C.Loot.{name} does not exist")

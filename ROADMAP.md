@@ -128,7 +128,7 @@ is reasoning, not evidence.
   that does not set the street on fire.
 - **A viewscreen** in the cockpit, if flying from the helm ever earns one.
 
-## Galley drinks — built, and still not properly seen in game
+## Galley drinks — done, confirmed in game
 
 Four drinks, each a `fluid` block plus a vessel item carrying a
 `FluidContainer`. In the galley's drinks cabinet (`C.Loot.drinks`).
@@ -137,8 +137,16 @@ They were carried into the game on 2026-09-18 and **the world would not load**:
 `ColorReference = ClearBlue` is not a registered colour, `getColor` throws, and
 that aborts script loading entirely. Fixed (`DeepSkyBlue`; `SaddleBrown` was
 equally unproven and is now `Cola`), and `test_assets.py` now validates against
-the colours vanilla's own fluids use. Nobody has yet opened the cabinet and
-looked at the four vessels, so the colours, names and fill still need a look.
+the colours vanilla's own fluids use.
+
+**Confirmed in game 2026-09-20**, with one fault: they were stocked into the
+**oven**. The layout entry hung `loot = "drinks"` on `appliances_cooking_01_40`
+— the lower half of a two-tile stove, `CustomName = Oven` — while the comment
+beside it called it a cabinet. Every static check passed, because the sprite
+exists, is genuinely a container, and is genuinely where the `.tbx` puts it;
+only the choice of fitting was wrong, and that is the half the code owns.
+Moved to the counter at 5,0, which the deck plan can also draw. Revision 12,
+so **it reaches new worlds only** — see *Never restock an existing container*.
 
 | Drink | Vessel | Colour | Notes |
 |---|---|---|---|
@@ -199,13 +207,14 @@ more things the first in-game session settled, all in `DEV_GUIDE.md`:
 | **Lirpa** | `Spear` | `base:spear` | Vulcan polearm; copy `SpearCrafted`'s ranges (`MinRange = 0.98`) |
 | **Ushaan-tor** | `Stab` | `base:smallblade` | Andorian ice-miner's blade; `HuntingKnife` template |
 
+**Size and icon: settled, 2026-09-20.** It first drew 0.531 across — wider than
+a baseball bat is long, spanning the character hip to hip — with a 64×64 icon
+that overlapped the belt in the next hotbar slot. The mesh is 0.369 now and the
+icon 32×32, and both are confirmed in game.
+
 **Still to settle for the bat'leth, in game:**
 
-1. **The new size and icon** (2026-09-20, unverified). It was seen in game at
-   0.531 across — wider than a baseball bat is long, spanning the character hip
-   to hip — and its 64×64 icon overlapped the belt in the next hotbar slot. The
-   mesh is now 0.369 across and the icon is 32×32. Both need a look.
-2. **The `attachment` blocks**, which it still ships without. Both
+1. **The `attachment` blocks**, which it still ships without. Both
    (`Bip01_Prop2` for the hand, `world` for the ground) are optional and the
    engine falls back to a default placement, but the six offset numbers can
    only honestly be chosen by looking at the thing in a fist. Vanilla's `Katana`
@@ -233,21 +242,18 @@ more things the first in-game session settled, all in `DEV_GUIDE.md`:
 
 ## Suggested order
 
-1. **One single-player session, carrying both unverified things** — it is the
-   same world load for each:
-   - **the bat'leth** at its new size, in hand and slung, and its icon in the
-     hotbar beside another attachment;
-   - **the drinks cabinet**, the four vessels full, names and colours right.
-2. **Two players on the dedicated server** — the shared cabin, loot, crew
+1. **Two players on the dedicated server** — the shared cabin, loot, crew
    access, charges, and a shuttle in the air seen from another machine. This is
-   the last thing standing between 1.3 and the Workshop.
-3. **Publish 1.3.**
-4. **Photon torpedoes.**
-5. **Blades** — the bat'leth's hand and ground attachments, once it has been
+   the last thing standing between 1.3 and the Workshop. Worth confirming the
+   drinks are in the counter and not the oven on that fresh world at the same
+   time, since revision 12 only reaches new saves.
+2. **Publish 1.3.**
+3. **Photon torpedoes.**
+4. **Blades** — the bat'leth's hand and ground attachments, which need it
    looked at in a fist, then the mek'leth, lirpa and ushaan-tor off the same
    pipeline.
-6. **Medical tricorder, hypospray, tricorder.**
-7. **Replicator, then EMH.**
+5. **Medical tricorder, hypospray, tricorder.**
+6. **Replicator, then EMH.**
 
 ---
 

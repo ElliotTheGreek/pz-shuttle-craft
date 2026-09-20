@@ -439,6 +439,47 @@ deck plan with every fitting on it. Run it and **look at the picture**. It also
 checks the Lua against the `.tbx` it came from, so a locker added in the map
 editor and not carried across fails rather than quietly never appearing.
 
+### A comment is not a container: check what the sprite actually is
+
+**New in this mod, and it put the whole drinks cabinet in the oven.** The
+layout entry read
+
+```lua
+-- The galley's drinks cabinet: raktajino and Earl Grey to hand, the ale
+-- and the bloodwine behind them.
+{ x = 0, y = 5, sprite = "appliances_cooking_01_40", tag = "drinks", ... },
+```
+
+and `appliances_cooking_01_40` is `CustomName = Oven`, `IsoType = IsoStove`,
+`container = stove` — the lower half of a two-tile oven, `SpriteGridPos 0,1`
+to its twin's `0,0`. Everything passed: the sprite exists, it really is a
+container, the `.tbx` really does place it there, the loot list really does
+exist. The only thing wrong was that it was an oven, and the only place it
+said "cabinet" was a comment.
+
+Geometry belongs to the `.tbx` and `tag`/`loot` belong to us, so this class of
+mistake is always ours: **we chose which fitting the loot hangs on.** Before
+naming one, look it up —
+
+```sh
+python -c "import json; print(json.load(open('tools/_catalog/tiles.json'))['tiles']['appliances_cooking_01_40'])"
+```
+
+`CustomName` is what the player sees when they open it. `tests/test_layout.py`
+checks that a stocked entry *can* hold things and that the Lua matches the
+`.tbx`; nothing can check that a stove is a sensible home for bloodwine, so
+that one is on whoever writes the entry.
+
+Two smaller things this turned up, both fixed:
+
+- **A layered square hides a glyph.** The deck plan draws one glyph per square,
+  so loot put on the counter at `1,0` would have vanished behind the sink's
+  `w`. If a fitting is worth a glyph, put it somewhere the plan can show it.
+- **A hard-coded list of loot lists goes stale.** `tests/test_stock.py` named
+  its eight lists in a tuple, and `drinks` — the newest list in the ship — was
+  never added, so the one that most needed checking was the one nothing
+  checked. It reads the names out of `TREK_InteriorLayout.lua` now.
+
 ### Tag every object you place
 
 The server build's `clearSquare` keeps tagged objects (and the deck floor)
@@ -820,6 +861,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **Two things on one square** | A placement that was not claimed, or a hand-placed object outside `fit`. `test_layout.py` catches it. |
 | **Every container in the cabin is empty** | Items are not being created. `grep "CreateItem\|stocking containers via" console.txt` — the second is logged once per build and names the path that worked. See *The jar is not the API*. |
 | **One container is empty and the rest are fine** | Either its sprite is not a container in the tileset, or its `loot` names a `C.Loot` list that does not exist. Both fail in `test_layout.py`; in game, `TREK_Stock()` names the square. |
+| **Loot is stocked, but in the wrong piece of furniture** | The entry's `loot` is hung on a sprite that is not what the comment beside it claims. Look the sprite up in `tools/_catalog/tiles.json` and read `CustomName`. No test can catch this one. |
 | **A container is missing item types** | Container capacity. `AddItems` drops items silently once full. Use `U.stockEach`, which reads the container back and reports what did not land. |
 | **A weapon is equipped and the hand is empty** | `WeaponSprite` names no model, the model block is not in `module Base`, or the mesh/texture is not on disk. `tests/test_assets.py` checks all four. The log names the model block itself as the failed asset when the module is wrong. |
 | **A weapon swings with no animation** | `SwingAnim` is not one of the nine names vanilla uses. |
@@ -946,7 +988,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.3.0**, build revision **11**.
+Version **1.3.0**, build revision **12**.
 
 **1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-9):
 server-owned ship and cabin, request protocol, transporter charges, shields per
@@ -965,20 +1007,23 @@ registered colour and **no world would load at all**; a weapon model in the
 mod's own module drew nothing; beaming up never left the vehicle seat, so
 vanilla's inventory walked a null vehicle every frame — 829 stack traces and an
 unresponsive game; and the bat'leth was twice its proper size with an icon that
-bled into the next hotbar slot. **On 2026-09-20 the bat'leth was resized**
-(bounding box 0.531 → 0.369 across) **and its icon dropped to 32×32**, which is
-what vanilla's hotbar assumes; neither has been looked at in game yet.
+bled into the next hotbar slot.
+
+**Seen working in game** (2026-09-20): the **bat'leth** at its corrected size
+(bounding box 0.531 → 0.369 across) with a 32×32 icon that stays in its own
+hotbar slot, and the **four galley drinks**. The drinks were in the *oven* —
+the entry hung `loot = "drinks"` on the lower half of a two-tile stove while
+the comment beside it said "cabinet" — and have moved to the counter at 5,0,
+where the deck plan can also show them. Revision 12.
 
 **Not yet seen in game**, in the order worth checking:
 
-1. **The bat'leth and the drinks** — the new size and icon, the four vessels in
-   the galley's drinks cabinet. Cheap to carry alongside anything else.
-2. **The dedicated server**: the interior cell loads there, the server-built
+1. **The dedicated server**: the interior cell loads there, the server-built
    cabin reaches the client with its stock, water fills with the mains off.
-3. **Two players**: one cabin, loot taken by one gone for the other, crew
+2. **Two players**: one cabin, loot taken by one gone for the other, crew
    access, charges — and a shuttle in the air seen from the other machine,
    which is the last unproven thing about flight.
-4. **The phaser firing** and staying charged on a server.
+3. **The phaser firing** and staying charged on a server.
 
 **The pattern worth carrying forward.** Six separate bugs in this mod have
 had the same shape: a plausible engine call that fails silently, leaving a

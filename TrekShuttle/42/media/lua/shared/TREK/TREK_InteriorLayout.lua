@@ -53,12 +53,25 @@ L.tiles = {
     { x = 1, y = 0, sprite = "fixtures_counters_01_37", tag = "cookware", container = true, loot = "cookware" },
     { x = 3, y = 0, sprite = "fixtures_counters_01_37", tag = "provisions", container = true, loot = "food" },
     { x = 4, y = 0, sprite = "fixtures_counters_01_37", tag = "readyKit", container = true, loot = "survival" },
-    { x = 5, y = 0, sprite = "fixtures_counters_01_37", tag = "provisions", container = true, loot = "food" },
-    { x = 0, y = 0, sprite = "appliances_cooking_01_24", tag = "snacks", container = true, loot = "food" },
-    { x = 0, y = 4, sprite = "appliances_cooking_01_41", tag = "cookware", container = true, loot = "cookware" },
     -- The galley's drinks cabinet: raktajino and Earl Grey to hand, the ale
     -- and the bloodwine behind them.
-    { x = 0, y = 5, sprite = "appliances_cooking_01_40", tag = "drinks", container = true, loot = "drinks" },
+    --
+    -- It is **not** the oven, which is where the drinks spent their first trip
+    -- into the game. `appliances_cooking_01_40` is the lower half of a two-tile
+    -- oven -- CustomName "Oven", IsoType IsoStove, SpriteGridPos 0,1 to its
+    -- twin's 0,0 -- and calling it a cabinet in a comment did not make it one.
+    -- The sprite belongs to the .tbx; `tag` and `loot` are ours, and ours were
+    -- on the wrong square.
+    --
+    -- This counter rather than the one at 1,0 because the sink shares that
+    -- square, and the deck plan draws one glyph per square: the drinks would
+    -- have been hidden behind the `w`, undoing the glyph that exists so the
+    -- cabinet can be found by looking at the plan.
+    { x = 5, y = 0, sprite = "fixtures_counters_01_37", tag = "drinks", container = true, loot = "drinks" },
+    { x = 0, y = 0, sprite = "appliances_cooking_01_24", tag = "snacks", container = true, loot = "food" },
+    -- Both halves of the one two-tile oven, and both hold cookware.
+    { x = 0, y = 4, sprite = "appliances_cooking_01_41", tag = "cookware", container = true, loot = "cookware" },
+    { x = 0, y = 5, sprite = "appliances_cooking_01_40", tag = "cookware", container = true, loot = "cookware" },
 
     { x = 3, y = 0, sprite = "appliances_com_01_0", tag = "computer" },
     { x = 1, y = 0, sprite = "fixtures_sinks_01_17", tag = "sink" },
