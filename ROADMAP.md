@@ -61,7 +61,11 @@ player before.
 7. **She flies under a real client/server split** — up, level, down.
 8. **Shields** — the `isRemoteZombie()` path is live here in a way single
    player never exercises, even with one client.
-9. **The medical set.** Newest and entirely unproven: a hypospray dose and a
+9. **The interior refit.** Newest of all: the 4x6 cabin, the three lockers,
+   the five empty containers, the television, the biobed as a bed. Revision
+   16. And, in a world made before it, the migration -- no furniture left
+   standing outside the hull, the old contents piled on the pad.
+10. **The medical set.** Unproven: a hypospray dose and a
    regenerator pass that must both leave a bite alone, a cut closed with no
    bandage, the health panel at doctor level, the sensor sweep in front of a
    real horde, and the lock override on a house door and then on a padlock.
@@ -469,13 +473,74 @@ That was scoped deliberately — the EMH is meant to be the thing that knows —
 but a tricorder that announced "you are infected" with no cure in reach would
 be a different and much harsher item. Worth deciding before the EMH.
 
+## The interior refit -- built, not yet seen in game
+
+The cabin is **4x6** now: twenty-four squares against a hull that is fifteen,
+down from fifty-four. `INTERIOR_REFIT.md` is the working guide -- the deck
+plan, the verified engine facts, the four traps and the list of what to check
+the first time it is carried into a game.
+
+What changed, and why each one:
+
+- **Three Starfleet lockers**, stocked with **the mod's own items only**: the
+  armoury (4 phasers, 2 of each blade), the rations locker (3 of each dish and
+  each drink) and the sick bay (3 of each instrument). A locker of pistols and
+  bandages was what a 40-unit container needed when there were nineteen of
+  them; with three it is the vanilla game in a cupboard on a spaceship.
+- **Five containers left empty on purpose** -- the fridge, the oven, both
+  counters and the replicator's berth. They are the player's shelves, and a
+  player fills a shuttle with vanilla loot within a week of flying it.
+  `C.Loot` lost six lists.
+- **A television that is actually a television.** The viewscreen was an
+  `IsoObject` wearing a TV's sprite for three versions: drawn, present, and
+  with nothing to right-click. Build 42 has no VCR object because
+  `Base.TvWideScreen` declares `AcceptMediaType = 1` -- a television *is* the
+  tape player.
+- **A wall panel and a clear square for the EMH**, so the Doctor arrives as a
+  right-click on an object every save already has.
+- **The biobed is the ship's only bed.** The bunk went; both halves of the
+  biobed carry `BedType = goodBed`.
+- **The helm console prop is deleted.** A 70-weight static model standing on
+  the deck that nothing opened -- the helm panel is on the aboard menu. The
+  author's description was "a big blocky thing that seems to have no
+  function", which is what it was.
+
+Revision 16, so **new worlds only** for the loot. The part that most needs a
+real world is the other one: **the migration out of a 6x9 save**.
+`U.clearSquare` keeps tagged objects and dropped items by design, so without
+`B.refitCabin` every locker of the old cabin would be left standing in the
+black void. It removes them, removes the helm prop, and spills the contents of
+the eleven deleted containers onto the transporter pad rather than eating them.
+
 ## Then: ship systems
+
+**`REPLICATOR.md` is the implementation guide** for the first of them — the
+goal, the engine facts verified before any of it was written, the traps, and a
+build order that leaves the interior files until last. Nothing is built.
 
 - **Replicator** — a galley fixture with a searchable UI that makes any item.
   On a server the item is created by the server. **Medium–Hard.**
+
+  It reads the game's own catalogue (`getAllItems()`, filtered the way vanilla's
+  own item viewer filters it) rather than a hand-written recipe list, so it
+  covers vanilla, future patches and other people's mods with no maintenance.
+  **The decision to take before writing any of it is what a replication
+  costs**; `REPLICATOR.md` opens with it and recommends a *pattern buffer* —
+  the ship can make anything it has scanned once — behind a three-value sandbox
+  option defaulting to that rather than to unrestricted.
+
+  It needs a model, and the route is already half-built: `tools/import_gltf.py`
+  reads glTF 2.0 binary with no Blender, and fal.ai's image-to-3D tools return
+  a GLB. The helm's procedural generator is the route that certainly works.
+
+  **Its placement waits for the interior refit**, since it is a cabin fixture.
+  Everything else — catalogue, protocol, panel, model — is independent of that.
+
 - **EMH** — a wall switch that brings up a static model of the Doctor, a dialogue
   panel, full diagnosis and treatment, infinite supplies, and **the only cure for
   zombie infection** (decided). Treatment runs on the server. **Medium–Hard.**
+  Inherits the medical set's treatment primitives (`Med.treatWith` and its two
+  lists) and the same wall-fixture placement problem as the replicator.
 
 ---
 
@@ -486,21 +551,30 @@ happens once the roadmap below is done, not after 1.3. So nothing here is
 racing a release, and the ground rule that nothing ships un-played applies to
 the whole list at once rather than to each version.
 
-1. **Photon torpedoes** — built, including the fire, the projectile and the
-   sandbox option, and confirmed in game. **Outstanding: the controller.**
-   `aimPoint()` keeps a virtual cursor for a joypad but nothing moves it, so on
-   a Steam Deck the reticle sits at the centre of the screen and does not
-   track. The roadmap always said "a reticle the stick moves for controllers";
-   that half is still not built, and it is now the only piece of the original
-   spec missing.
+1. **Photon torpedoes** — built, including the fire, the projectile, the
+   sandbox option **and the controller**, and confirmed in game with a mouse.
+
+   *This entry was stale and said the opposite.* It claimed the reticle "sits
+   at the centre of the screen and does not track" and that the controller half
+   was "still not built". It is built: `T.serviceAim` integrates the right
+   stick every tick, `C.TorpedoAimSpeed` / `Deadzone` / `Margin` tune it, R3
+   fires through `isJoypadRightStickButtonPressed`, and seven mutation-checked
+   tests cover it. **Outstanding is holding it**, which is a different thing:
+   whether 950 px/s feels right in a hand, and whether R3 is actually free on a
+   Steam Deck — the vehicle's own bindings live in Java where this mod cannot
+   read them. `PHOTON_TORPEDOS.md` has had this right all along under *Not
+   built*; only the roadmap drifted.
 2. **Blades** — the bat'leth's hand and ground attachments, which need it
    looked at in a fist, then the mek'leth, lirpa and ushaan-tor off the same
    pipeline.
 3. **Medical tricorder, hypospray, tricorder** — built (2026-09-20), and the
    first thing to carry into the game. `MEDICAL_SET.md`'s last section is the
    list.
-4. **Replicator, then EMH.**
-5. **Publish.**
+4. **The interior refit** -- built (2026-09-20), 4x6, Starfleet-issue lockers.
+   Needs a fresh world *and* a pre-refit save, for the migration.
+   `INTERIOR_REFIT.md` section 7 is the list.
+5. **Replicator, then EMH.**
+6. **Publish.**
 
 Running alongside all of it: **the two-player session** (pinned below). It is
 no longer a release blocker, but every feature above is one more thing that
