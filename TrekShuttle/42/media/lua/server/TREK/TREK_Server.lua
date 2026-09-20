@@ -895,8 +895,29 @@ Net.onServer("fireTorpedo", function(player, args)
         return
     end
 
+    -- IsoTrap.new copies the entire explosion off the weapon -- sensor range,
+    -- fire range, fire energy, fire chance, power, blast radius, noise, extra
+    -- damage -- so the weapon is not optional and cannot be nil. Passing nil
+    -- threw on the very first property it reads:
+    --
+    --   NullPointerException: Cannot invoke "HandWeapon.getSensorRange()"
+    --   because "weapon" is null
+    --
+    -- which is what "the torpedo failed to arm" meant in game. The item is a
+    -- specification and nothing else: nobody holds one, it is never put in a
+    -- container, and it exists for the length of this function.
+    local warhead = U.try("torpedo.warhead", function()
+        return instanceItem(C.TorpedoItem)
+    end)
+    if not warhead then
+        deny(player, "torpedoFailed")
+        U.log("WARN torpedo: %s would not instance -- the trap has no warhead "
+              .. "to copy its explosion from", tostring(C.TorpedoItem))
+        return
+    end
+
     local fired = U.try("torpedo.trap", function()
-        local trap = IsoTrap.new(player, nil, sq:getCell(), sq)
+        local trap = IsoTrap.new(player, warhead, sq:getCell(), sq)
         if not trap then return false end
         trap:setExplosionPower(C.TorpedoPower)
         trap:setExplosionRange(C.TorpedoRange)

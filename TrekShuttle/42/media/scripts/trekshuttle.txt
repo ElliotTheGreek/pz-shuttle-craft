@@ -691,4 +691,58 @@ module TrekShuttle
 
         Tooltip = Tooltip_TREK_Batleth,
     }
+
+    /*  The photon torpedo, and it is a **specification, not an item**. Nobody
+        ever holds one, no locker stocks it, and it has no icon because it is
+        never drawn: it exists only so a HandWeapon can be handed to
+        IsoTrap.new().
+
+        That constructor is why. It copies the whole explosion off the weapon
+        -- getSensorRange, getFireRange, getFireStartingEnergy,
+        getFireStartingChance, getExplosionPower, getExplosionRange,
+        getSmokeRange, getNoiseRange, getExtraDamage and the rest -- so a nil
+        weapon is a NullPointerException on the first of them, which is exactly
+        how the first build failed in game:
+
+            NullPointerException: Cannot invoke "HandWeapon.getSensorRange()"
+            because "weapon" is null
+
+        The numbers mirror vanilla's PipeBomb because a torpedo is a pipe
+        bomb's blast delivered from the air, and borrowing them means the
+        damage is already balanced against everything else that explodes here.
+
+        **FireStartingChance = 0 is the load-bearing line.**
+        IsoTrap.drawCircleExplosion rolls Rand.Next(100) against it and gates
+        both IsoGridSquare.Burn() and IsoFireManager.StartFire on that one
+        roll, and IsoTrap.explosion gates body-part burns on it again. Vanilla
+        ships 0 here for the same reason. Raise it and the mod sets Muldraugh
+        alight. TREK_Server re-asserts it on the trap as well, because being
+        wrong about this is not a thing you find out quietly.  */
+    item TrekTorpedo
+    {
+        DisplayCategory = Explosives,
+        ItemType = base:weapon,
+        Type = Weapon,
+        Weight = 0.1,
+
+        ExplosionPower = 90,
+        ExplosionRange = 7,
+        FireStartingEnergy = 0,
+        FireStartingChance = 0,
+
+        MinDamage = 0.0,
+        MaxDamage = 0.0,
+        MaxHitcount = 0,
+        MaxRange = 10.0,
+        Swingtime = 1.5,
+        MinimumSwingtime = 1.5,
+        SwingAmountBeforeImpact = 0.1,
+        SwingAnim = Throw,
+        ConditionMax = 1,
+
+        /*  Borrowed from vanilla, as the phaser's and the bat'leth's are: a
+            sound name that does not resolve is silent and reports nothing.
+            tests/test_assets.py checks it against the game's own scripts.  */
+        ExplosionSound = PipeBombExplode,
+    }
 }

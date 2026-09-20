@@ -344,6 +344,11 @@ C.FlightPilotGrace = 5
 C.TorpedoPower = 90
 C.TorpedoRange = 7
 
+-- The warhead. Not an item anyone ever holds: IsoTrap.new copies the whole
+-- explosion off a HandWeapon and throws on a nil one, so this exists to be
+-- handed to it and discarded. Its own script block carries the same numbers.
+C.TorpedoItem = "TrekShuttle.TrekTorpedo"
+
 -- **FireStartingChance must stay 0, and it is the whole reason torpedoes are
 -- publishable.** IsoTrap.drawCircleExplosion rolls Rand.Next(100) against it
 -- and uses that one roll to gate both IsoGridSquare.Burn() (bci 293) and

@@ -984,6 +984,16 @@ SIM.traps = {}
 
 IsoTrap = {}
 function IsoTrap.new(attacker, weapon, cell, square)
+    -- The engine copies the whole explosion off the weapon, starting with
+    -- getSensorRange(), so a nil one is a NullPointerException before the
+    -- constructor has done anything. This threw in game while the test passed,
+    -- because the stub was happy to take nil -- the simulation being kinder
+    -- than the engine, which MULTIPLAYER.md warns is how guards pass for the
+    -- wrong reason. It is not kinder now.
+    if weapon == nil then
+        error("IsoTrap.new: weapon is null (the engine reads getSensorRange() "
+              .. "off it immediately)", 2)
+    end
     local t = {
         attacker = attacker, square = square,
         fired = false,
