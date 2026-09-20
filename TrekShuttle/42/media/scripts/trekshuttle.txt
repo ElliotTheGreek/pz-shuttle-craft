@@ -711,13 +711,23 @@ module TrekShuttle
         bomb's blast delivered from the air, and borrowing them means the
         damage is already balanced against everything else that explodes here.
 
-        **FireStartingChance = 0 is the load-bearing line.**
-        IsoTrap.drawCircleExplosion rolls Rand.Next(100) against it and gates
-        both IsoGridSquare.Burn() and IsoFireManager.StartFire on that one
-        roll, and IsoTrap.explosion gates body-part burns on it again. Vanilla
-        ships 0 here for the same reason. Raise it and the mod sets Muldraugh
-        alight. TREK_Server re-asserts it on the trap as well, because being
-        wrong about this is not a thing you find out quietly.  */
+        **FireStartingChance is the load-bearing line, and it is 60, not 0.**
+        This comment said 0 was load-bearing and must stay, which was true
+        about the engine and false about the weapon: IsoTrap.drawCircleExplosion
+        gates IsoGridSquare.Burn() and IsoFireManager.StartFire on a per-square
+        roll against it, and in build 42 the fire and the smoke are the *only*
+        visible part of an explosion. At 0 the torpedo killed what was in the
+        blast and nothing was ever seen to happen, for three commits, while
+        every check passed.
+
+        Vanilla's PipeBomb does ship 0 -- because a pipe bomb is not meant to
+        be arson. A photon torpedo is. See PHOTON_TORPEDOS.md, and
+        DEV_GUIDE.md's "A guard is only as good as the goal it was written
+        from".
+
+        TREK_Server re-asserts all four fire settings on the trap, which is
+        also where the TrekShuttle.TorpedoFire sandbox option turns them back
+        down to 0 for a server owner who wants the blast without the fire.  */
     item TrekTorpedo
     {
         DisplayCategory = Explosives,
