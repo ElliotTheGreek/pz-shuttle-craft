@@ -412,9 +412,10 @@ icon 32×32, and both are confirmed in game.
 ## The medical set — built, and not yet seen in game
 
 All four are in, with their icons, three generated sounds, an LCARS contact
-plot and a server-side lock override. **`MEDICAL_SET.md` is the working guide
-now**, not a plan; it has the verified engine facts, the four traps, and the
-list of what to check the first time it is carried into the game.
+plot and a server-side lock override. **`MEDICAL_SET.md` is the dev guide
+for it** -- how each instrument works, how to change one, the engine facts
+not to re-derive, and what will bite you -- in the shape `PHOTON_TORPEDOS.md`
+and `PILOTING.md` use.
 
 - **Hypospray.** One dose treats bleeding, deep wounds, an infected cut,
   burns, fractures, pain, stiffness and tissue damage on every body part at
@@ -496,7 +497,8 @@ the whole list at once rather than to each version.
    looked at in a fist, then the mek'leth, lirpa and ushaan-tor off the same
    pipeline.
 3. **Medical tricorder, hypospray, tricorder** — built (2026-09-20), and the
-   first thing to carry into the game. `MEDICAL_SET.md` section 7 is the list.
+   first thing to carry into the game. `MEDICAL_SET.md`'s last section is the
+   list.
 4. **Replicator, then EMH.**
 5. **Publish.**
 

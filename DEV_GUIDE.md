@@ -238,7 +238,7 @@ exactly the way the user could see and the repository could not.
 
 **New in this mod, and it was one line from shipping.** `BodyPart
 .RestoreToFullHealth()` is the obvious way to mend a limb, it is public, it
-has nine vanilla Lua call sites, and it does considerably more than mend it:
+has eight vanilla Lua call sites, and it does considerably more than mend it:
 
 ```
   1  ldc_w  100.0     putfield BodyPart.health
@@ -1208,7 +1208,7 @@ slots. The torpedo's blast size and fire spread both needed no adjusting.
 0. **The medical set**: the three items in the sick-bay locker, a dose that
    leaves a bite alone, the health panel at doctor level, the sensor sweep in
    front of a horde, and the lock override on a door and then on a padlock.
-   `MEDICAL_SET.md` section 7 is the list.
+   `MEDICAL_SET.md`'s *Not built, and still to settle in game* is the list.
 1. **The dedicated server**: the interior cell loads there, the server-built
    cabin reaches the client with its stock, water fills with the mains off.
 2. **Two players**: one cabin, loot taken by one gone for the other, crew
@@ -1228,9 +1228,11 @@ you add something to the cabin, add the line that proves it arrived.
 
 **The 2026-09-20 medical pass** built all four: the hypospray, the dermal
 regenerator, the medical tricorder and the tricorder, with their icons, three
-generated sounds, an LCARS contact plot and a server-side lock override. **None of it has been seen in
-game.** `MEDICAL_SET.md` is a working guide now rather than a plan, and it
-carries two corrections to what it used to claim: `ISHealthPanel` **is** an
+generated sounds, an LCARS contact plot and a server-side lock override. **None
+of it has been seen in game.** `MEDICAL_SET.md` is the dev guide for it -- how
+each instrument works, how to change one, the engine facts not to re-derive and
+what will bite you, in the shape `PHOTON_TORPEDOS.md` uses -- and it carries
+two corrections to what it used to claim: `ISHealthPanel` **is** an
 `ISPanelJoypad`, so the controller question needed no work at all; and the
 lock setters' own sync is skipped on a server, so the authority has to call
 `obj:sync()` itself.

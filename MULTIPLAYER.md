@@ -462,7 +462,7 @@ close.
 
 ### The medical set
 
-Built 2026-09-20, not yet played. `MEDICAL_SET.md` is the working guide; this
+Built 2026-09-20, not yet played. `MEDICAL_SET.md` is the dev guide; this
 section is only the authority split.
 
 | | |
