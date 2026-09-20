@@ -1159,6 +1159,9 @@ checks caught none of them, because the mod's logic was correct every time. What
 it**: `B.stockReport()` turned three sessions of guessing into one grep. When
 you add something to the cabin, add the line that proves it arrived.
 
+**Next up** is the medical set — hypospray, medical tricorder, tricorder.
+`MEDICAL_SET.md` has the verified engine facts and the traps; nothing is built.
+
 Known limits are listed at the bottom of `README.md`.
 
 ---

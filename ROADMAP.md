@@ -398,10 +398,20 @@ icon 32×32, and both are confirmed in game.
 
 ## Then: medical and tools
 
-- **Medical tricorder** — full diagnosis regardless of Doctor skill. **Medium.**
+**`MEDICAL_SET.md` is the implementation guide** — the engine facts are
+verified and the traps are named; nothing is built.
+
 - **Hypospray** — strong treatment. **Decided: it does not cure a bite.**
-  **Easy–Medium.**
-- **Tricorder** — unlocks locks, sensor sweep (sliced). **Medium.**
+  **Easy–Medium.** Client-side for self-use; touches no world state.
+- **Medical tricorder** — full diagnosis regardless of Doctor skill. **Medium.**
+  Set `doctorLevel` on the panel instance — **not** `ISHealthPanel.cheat`,
+  which is `false or getDebug()` and otherwise admin-only, so it would work
+  here and for nobody on the Workshop.
+- **Tricorder** — unlocks locks, sensor sweep (sliced). **Medium.** The sweep
+  reuses `cell:getZombieList()`, which the shields already prove. The lock
+  setters are public but **every vanilla Lua call site is the debug menu or
+  the tutorial**, so verify before designing around them — and a lock is world
+  state, so unlocking is a server command.
 
 ## Then: ship systems
 
