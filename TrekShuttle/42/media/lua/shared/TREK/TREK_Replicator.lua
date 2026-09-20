@@ -326,6 +326,14 @@ end
 ---------------------------------------------------------------------------
 -- The reserve
 ---------------------------------------------------------------------------
+--- What is in the reserve, 0..max.
+---
+--- A missing value reads as **full**, and that is for the client's sake: a
+--- client's copy of the ship is whatever the server last sent, and until the
+--- first one arrives there is no number at all. Reading that as empty would
+--- draw a flat bar and grey the button on a machine that has simply not been
+--- told yet. The server cannot see a missing value -- U.state() fills it in
+--- on the authority -- and it is the server that decides anything.
 function R.energy()
     local e = U.state().repEnergy
     if type(e) ~= "number" then return C.ReplicatorEnergyMax end

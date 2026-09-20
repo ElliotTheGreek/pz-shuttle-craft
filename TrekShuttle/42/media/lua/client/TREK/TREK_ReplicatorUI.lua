@@ -255,6 +255,19 @@ end
 -- Drawing
 ---------------------------------------------------------------------------
 function TREKReplicatorWindow:prerender()
+    -- A panel nobody is standing at closes itself. The server would refuse
+    -- anyway, but a window that stays open and answers "too far" to every
+    -- press reads as a broken machine.
+    --
+    -- Closing from inside a frame is vanilla's own pattern and not a liberty:
+    -- twenty-six of its panels do it, and `ISFeedingTroughUI:prerender` is
+    -- this exact case -- a fixture's window that shuts itself the moment the
+    -- fixture is not there any more.
+    if self.player and not R.inReachOf(self.player) then
+        self:close()
+        return
+    end
+
     local w, h = self.width, self.height
     self:drawRect(0, 0, w, h, 0.97, 0.008, 0.012, 0.028)
 
@@ -279,13 +292,6 @@ function TREKReplicatorWindow:prerender()
     block(RAD, h - RAD, SIDE - RAD, RAD, P.lilac)
     H.pill(self, 0, h - RAD * 2, RAD * 2, RAD * 2, P.lilac, true, true)
     block(SIDE, h - BOTH, w - SIDE - BOTH / 2, BOTH, P.lilac)
-
-    -- A panel nobody is standing at closes itself. The server would refuse
-    -- anyway, but a window that stays open and answers "too far" to every
-    -- press reads as a broken machine.
-    if self.player and not R.inReachOf(self.player) then
-        self:close()
-    end
 end
 
 function TREKReplicatorWindow:render()
