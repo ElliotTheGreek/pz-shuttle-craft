@@ -130,8 +130,9 @@ the wrong one is how two designs here were nearly got wrong:
 the first is unconditional and the second sits behind a floor check — the fact
 the whole flight design rests on. `javadis.py` disassembles one method with
 branch targets resolved, which is what settled that, and what showed that a
-trap's two fire paths are both gated on `getFireStartingChance()` so a torpedo
-can explode without burning the street (`MULTIPLAYER.md`, *Photon torpedoes*).
+trap's fire roll is taken **per square** and that `triggerExplosion()` skips
+any explosion mode whose range is zero -- the two facts the photon torpedo's
+whole visible half turned on (`PHOTON_TORPEDOS.md`).
 
 **Read the list as "may", and the disassembly as "does".**
 
@@ -1091,8 +1092,10 @@ accurate about the engine and wrong about the goal (*A guard is only as good
 as the goal it was written from*). The fire now burns buildings, the torpedo
 is drawn crossing the ground and detonates on arrival rather than on the
 trigger, and server owners get `TrekShuttle.TorpedoFire` to keep the weapon
-without the arson. Nine mutations checked, all caught. **None of it has been
-seen in game.**
+without the arson. Nine mutations checked, all caught, and **confirmed in game
+the same day**: it is visible, it burns buildings down, and the blast size and
+fire spread both needed no adjusting. The controller reticle is still not
+built. `PHOTON_TORPEDOS.md` is now a working guide rather than a plan.
 
 **Not yet seen in game**, in the order worth checking:
 

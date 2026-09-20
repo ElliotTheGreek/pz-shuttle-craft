@@ -51,15 +51,13 @@ player before.
 3. **Water with the mains off.** `TREK_Water()` reports capacity and `hasWater`.
 4. **Four fast beams** → *"the transporter is recharging"*, not a kick.
 5. **The phaser** fires and stays charged.
-6. **Photon torpedoes, and this is the big one.** Hold right mouse, left click,
-   from the driver's seat in the air. Watch for, in order: *is the torpedo
-   drawn crossing the ground*; *is there a flash, fire and smoke where it
-   lands*; *does a building hit by one actually burn down*; and then the two
-   questions nobody can answer away from the game — **how far the fire
-   spreads**, and **what the framerate does** with that much of it. Fire at
-   something isolated first, not at a town, and not near the ship: minimum
-   range is 12 tiles and the fire ring reaches 10.
-   `TrekShuttle.TorpedoFire = 2` turns the fire off if it is too much.
+6. **Photon torpedoes.** Confirmed working in single player — drawn, detonating
+   on arrival, burning buildings down. What a **server** adds is the split:
+   the blast is server-side and the projectile is drawn client-side from one
+   `torpedoLaunched`, so watch that the thing you see crossing the ground and
+   the thing that explodes are in the same place. Fire is synced by the
+   engine's own packet. `TrekShuttle.TorpedoFire = 2` drops the fire and keeps
+   the weapon if a server wants that.
 7. **She flies under a real client/server split** — up, level, down.
 8. **Shields** — the `isRemoteZombie()` path is live here in a way single
    player never exercises, even with one client.
@@ -209,7 +207,7 @@ is reasoning, not evidence.
   the controller reticle, and a session in game.
 - **A viewscreen** in the cockpit, if flying from the helm ever earns one.
 
-## Photon torpedoes — built, unproven in game
+## Photon torpedoes — done, confirmed in game
 
 Hold right mouse to aim, left click to fire, from the driver's seat in the air.
 A cooldown, not ammunition.
@@ -242,10 +240,14 @@ What it does now:
 - **`TorpedoMinRange` went 4 → 12**, because the blast reaches 7 and the fire
   ring reaches 10, and the pilot has to land somewhere.
 
-*Verify in game*: that it is visible at all; how much of a town a chance-60
-blast actually takes with it; what the framerate does with that many `IsoFire`
-objects; and whether the min range is far enough in practice. All four are
-reasoning, not evidence.
+**Confirmed in game 2026-09-20**, in single player: the torpedo is drawn
+crossing the ground, it detonates where it lands, it starts fires, the fires
+spread and burn buildings down, and what is in the blast dies. Chance 60 with
+a fire ring of 3 is the right amount of weapon — the author's word was "super
+fun" — and neither the spread nor the framerate needed backing off.
+
+Still unproven: **two players**, and the **controller reticle**, which is not
+built. `PHOTON_TORPEDOS.md` is the guide to working on any of it.
 
 ## Galley drinks — done, confirmed in game
 
@@ -367,7 +369,7 @@ racing a release, and the ground rule that nothing ships un-played applies to
 the whole list at once rather than to each version.
 
 1. **Photon torpedoes** — built, including the fire, the projectile and the
-   sandbox option. **Outstanding: the controller**, and being seen in game.
+   sandbox option, and confirmed in game. **Outstanding: the controller.**
    `aimPoint()` keeps a virtual cursor for a joypad but nothing moves it, so on
    a Steam Deck the reticle sits at the centre of the screen and does not
    track. The roadmap always said "a reticle the stick moves for controllers";

@@ -375,10 +375,15 @@ neither made any other edit.
 
 ### Photon torpedoes
 
-Not built yet, but **both verify-first questions are now answered**, at
-instruction level with `tools/javadis.py`. The two worries were "killing a
-zombie has to be done by the server" and "the explosion must not set the
-street on fire". Neither needs anything invented: build 42's own trap does both.
+Built and confirmed in game (2026-09-20). `PHOTON_TORPEDOS.md` is the working
+guide; this section is only the client/server half.
+
+The two verify-first questions were "killing a zombie has to be done by the
+server" and "the explosion must not set the street on fire". The first stands.
+**The second was a misreading** -- it meant fire as an intended weapon effect,
+and was taken to mean no fire at all, which cost the feature its entire visible
+half for three commits. A torpedo burns, deliberately. See
+`PHOTON_TORPEDOS.md`, "How it came to be invisible".
 
 **The route is `IsoTrap`**, which clears all three bars this project sets --
 public (`pzapi.py`), understood under-what-condition (`javadis.py`), and with a
@@ -386,24 +391,35 @@ real vanilla Lua call site (`shared/TimedActions/ISPlaceTrap.lua:47`,
 `IsoTrap.new(character, weapon, cell, square)` then `trap:place()`).
 `IsoTrap` is on `LuaManager$Exposer`'s allow-list.
 
-**Fire is optional, and vanilla already turns it off.** `drawCircleExplosion`
-in `Explosion` mode does exactly this:
+**Fire is where the whole picture lives**, and this paragraph used to say the
+opposite. `drawCircleExplosion` in `Explosion` mode does exactly this:
 
 ```java
-boolean startFire = Rand.Next(100) < getFireStartingChance();   // bci 254-271
-if (!GameClient.client && getExplosionPower() > 0 && startFire)
+boolean startFire = Rand.Next(100) < getFireStartingChance();   // bci 197-214
+boolean burn      = Rand.Next(100) < getFireStartingChance();   // bci 254-271, a SECOND roll
+if (!GameClient.client && getExplosionPower() > 0 && burn)
     square.Burn();                                              // bci 293
 explosion(square);                                              // bci 299 -- always
-if (local9 != 0) IsoFireManager.StartFire(...);                 // bci 316
+if (startFire) IsoFireManager.StartFire(...);                   // bci 316
 ```
 
-Both fire paths are gated on the *same* `getFireStartingChance()` roll, and a
-third one at `explosion()` bci 148 adds body-part burns only when that chance
-is above zero. **`FireStartingChance = 0` removes all three** -- which is
-precisely what vanilla's own `PipeBomb` ships (`FireStartingChance = 0`,
-`FireStartingEnergy = 0`, `ExplosionPower = 90`, `ExplosionRange = 7`). The
-obvious call, `IsoFireManager.explode`, is the *wrong* one: it is unconditional
-`StartFire` plus `BurnWalls` and touches no character at all. [HIGH]
+**There is no separate explosion effect in build 42**: `explosion(square)` is
+the damage and it is unconditional, and everything a player *sees* is the fire
+and the smoke. So `FireStartingChance = 0` does not make a tidy explosion, it
+makes an invisible one. Vanilla's `PipeBomb` does ship 0 -- because a pipe bomb
+is not meant to be arson, and a photon torpedo is.
+
+Two corrections to what this section said before: the two fire paths take
+**independent** rolls, not one shared one (bci 197 and bci 254); and
+`triggerExplosion()` calls `drawCircleExplosion` three separate times, skipping
+any mode whose range is `<= 0`, so a zeroed `FireRange` or `SmokeRange` never
+runs at all rather than running quietly.
+
+`Burn()` -> `BurnWalls(true, true)` is what destroys structures. It returns
+immediately on a client, so it is server-authoritative for free, and it checks
+`ServerOptions.noFire` and `SafeHouse.isSafeHouse` itself. The obvious call,
+`IsoFireManager.explode`, is still the *wrong* one: unconditional `StartFire`
+plus `BurnWalls`, and it touches no character at all. [HIGH]
 
 **The engine already enforces this document's zombie rule.**
 `IsoTrap.shouldProcess(character)` decides who a blast may damage:
@@ -427,12 +443,18 @@ So the authority split needs no exception:
 | Who may fire | **Server** -- alive, `mayUse`, in the driver's seat, flying |
 | Aiming, the reticle, the UI | **Client**, presentation only |
 
-`fireTorpedo {x, y, z}` -> the server checks the pilot and the cooldown, builds
-an `IsoTrap` at the target square with `setFireStartingChance(0)`,
-`setFireRange(0)`, `setExplosionPower/Range`, and triggers it. Because the
-server processes every zombie and each client processes only its own, the
-trigger must be **server-only** or a zombie owned by a client would be hit
-twice.
+`fireTorpedo {x, y, z}` -> the server checks the pilot, the cooldown and both
+range bounds, then **queues** the shot and broadcasts `torpedoLaunched` so every
+client can draw the flight. On arrival it builds an `IsoTrap` at the target
+square with the explosion and the four fire settings, triggers it, and
+broadcasts `torpedoDetonated`. Because the server processes every zombie and
+each client processes only its own, the trigger must be **server-only** or a
+zombie owned by a client would be hit twice.
+
+The projectile is **scenery**, the same documented exception as the sky plane:
+each client draws its own from that one packet, in screen space, touching no
+world object at all. The fire needs no packet of ours -- `IsoFireManager
+.StartFire` sends its own to nearby clients.
 
 Still unproven, and only the game can say: whether the blast is visible to a
 client that did not fire it, and what it does to the shuttle if fired too
