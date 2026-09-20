@@ -304,11 +304,22 @@ local function band(dist)
     return 3
 end
 
---- Starts a sweep. Returns false when one is already running, so the button
---- cannot stack a dozen of them.
+--- Starts a sweep. Returns false when one is already running or the last one
+--- finished a moment ago.
+---
+--- Both halves are needed. "One at a time" alone is not a limit: against two
+--- or three zombies a sweep finishes inside a single tick, so the button
+--- could be held down and would chirp every frame. C.SweepIntervalMs is what
+--- makes it an instrument being read rather than a key being mashed.
 function M.startSweep(player)
     if not player then return false end
     if sweep then return false end
+
+    local now = getTimestampMs()
+    if M.lastSweepAt and now - M.lastSweepAt < C.SweepIntervalMs then
+        return false
+    end
+    M.lastSweepAt = now
 
     local cell = U.cell()
     if not cell then return false end

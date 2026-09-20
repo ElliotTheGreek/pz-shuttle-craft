@@ -1978,6 +1978,19 @@ def medical():
     check(rt.eval('SIM.heardSound("TREK_TricorderChirp")') is True,
           "medical: the tricorder swept in silence")
 
+    # A sweep of three zombies finishes inside one tick, so "one at a time" is
+    # not a limit on its own: the button could be held down and would chirp
+    # every frame. C.SweepIntervalMs is the half that makes it an instrument.
+    check(rt.eval(f"TREK.MedKit.startSweep({P})") is False,
+          "medical: a second sweep started immediately after the first -- "
+          "C.SweepIntervalMs is doing nothing")
+    net.clock += int(C("SweepIntervalMs")) + 100
+    check(rt.eval(f"TREK.MedKit.startSweep({P})") is True,
+          "medical: the tricorder never recovers -- a sweep is refused even "
+          "after the interval has passed")
+    for _ in range(40):
+        rt.run("TREK.MedKit.serviceSweep()")
+
     # --- the lock: the client asks, the server opens ------------------------
     # Pumped rather than nudged: the simulation streams chunks at the rate the
     # engine does, and a square whose chunk has not arrived is "cannot tell

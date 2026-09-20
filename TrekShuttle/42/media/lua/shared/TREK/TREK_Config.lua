@@ -553,14 +553,19 @@ C.TricorderType    = "TrekTricorder"
 C.HyposprayDoses         = 6
 C.HyposprayRechargeTicks = 900
 
--- What a dose will not touch, restated here because it is a design decision
--- and not a limitation: a bite, and the zombie infection. BodyPart
--- .SetBitten(false) and BodyDamage.setInfected(false) are the EMH's, and
--- they are the entire reason the EMH is worth building. The two names are
--- nearly identical to two the hypospray *does* use
--- (BodyPart.setInfectedWound is an ordinary infected cut and is cured), so
--- this constant exists to be read by the one test that proves it.
-C.HyposprayCuresBites = false
+-- What a dose will not touch, and there is deliberately no constant for it.
+--
+-- A bite and the zombie infection are the EMH's, and they are the entire
+-- reason the EMH is worth building. That is enforced by `Med.TREATMENTS` in
+-- TREK_Medical.lua not containing them, and by a test that bites a body
+-- before every dose and asserts the bite survived -- not by a flag. A
+-- `C.HyposprayCuresBites = false` that nothing ever branches on would be a
+-- decoration: it would keep saying false long after somebody had added
+-- SetBitten to the treatment list.
+--
+-- Worth knowing while reading that list, because the names give no help:
+-- BodyPart.setInfectedWound is an ordinary infected cut and **is** cured;
+-- BodyDamage.setInfected is the virus and is never touched.
 
 -- The Doctor level the medical tricorder reports at. ISHealthPanel gates its
 -- readouts at > 2, > 4, > 6 and > 8, so anything past 8 opens all of them;
