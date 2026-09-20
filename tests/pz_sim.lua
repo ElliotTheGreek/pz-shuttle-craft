@@ -213,11 +213,15 @@ scriptItem("Moveables.Moveable_fridge", { name = "Fridge", category = "Furniture
 --- The mod's own items, declared the way media/scripts/trekshuttle.txt does.
 --- Added by name so the test can assert that the ship knows its own stores,
 --- and that the spec-only warhead is not among them.
+--- The last three are the ones the replicator must **refuse**, and they are
+--- listed here for that reason: a blocklist tested against a catalogue that
+--- never offered the item in the first place passes whatever it says.
 for _, id in ipairs({ "TrekShuttle.TrekPhaser", "TrekShuttle.TrekHypospray",
                       "TrekShuttle.TrekBatleth", "TrekShuttle.TrekRationPack",
                       "TrekShuttle.TrekDermalRegen", "TrekShuttle.TrekTricorder",
                       "TrekShuttle.TrekMedTricorder", "TrekShuttle.TrekTorpedo",
-                      "TrekShuttle.TrekShuttleHull" }) do
+                      "TrekShuttle.TrekShuttleHull", "TrekShuttle.TrekHelmConsole",
+                      "TrekShuttle.TrekDilithium" }) do
     scriptItem(id, { name = bareType(id), category = "Starfleet", weight = 0.6 })
 end
 
@@ -342,10 +346,16 @@ function ObjectMT:getModData() return self.modData end
 function ObjectMT:getSquare() return self.square end
 function ObjectMT:createContainersFromSpriteProperties()
     if self.container then return end
+    -- Which sprites hold things. The tileset is the real answer and this is a
+    -- list of substrings, so **a new fitting has to be added here or it is
+    -- silently scenery in every test** -- which is exactly what happened to
+    -- the dilithium chamber (`location_business_machinery_01_33`, a Tool
+    -- Cabinet) the first time it was placed.
     if self.spriteName:find("counter") or self.spriteName:find("storage")
        or self.spriteName:find("refrigeration") or self.spriteName:find("cooking")
        or self.spriteName:find("medical") or self.spriteName:find("shelving")
-       or self.spriteName:find("military") or self.spriteName:find("CONTAINER") then
+       or self.spriteName:find("military") or self.spriteName:find("machinery")
+       or self.spriteName:find("CONTAINER") then
         self.container = SIM.container(40)
         self.container.parentObject = self
     end

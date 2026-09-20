@@ -404,14 +404,117 @@ function M.startSweep(player)
         contacts = {},
         counts = { 0, 0, 0 },
         total = 0,
+        -- The mineral pass, which runs after the lifesigns are done. It walks
+        -- *squares* rather than a list the engine already keeps, so it has
+        -- its own cursor over the box and is sliced at the same rate.
+        crystals = {},
+        crystalTotal = 0,
+        sx = -C.CrystalScanRadius,
+        sy = -C.CrystalScanRadius,
+        minerals = false,
     }
     U.try("sweep.sound", function() player:playSoundLocal("TREK_TricorderChirp") end)
+    return true
+end
+
+--- Everything a square is carrying, dilithium-wise: crystals lying on the
+--- ground and crystals inside anything standing on it.
+---
+--- Containers as well as the floor, because that is where loot actually is --
+--- a crystal in a jeweller's case is the find the tricorder exists to make,
+--- and one that only saw dropped items would be a tool for finding things
+--- somebody had already found.
+local function crystalsOnSquare(sq, join)
+    local found = 0
+    join(function()
+        local items = sq:getWorldObjects()
+        local n = items and items:size() or 0
+        for i = 0, n - 1 do
+            local w = items:get(i)
+            local it = w and w:getItem()
+            if it and it:getFullType() == C.DilithiumItem then found = found + 1 end
+        end
+    end)
+    join(function()
+        local objects = sq:getObjects()
+        local n = objects and objects:size() or 0
+        for i = 0, n - 1 do
+            local o = objects:get(i)
+            local container = o and (o:getContainer() or o:getItemContainer())
+            if container then
+                local list = container:getAllTypeRecurse(C.DilithiumType)
+                local held = list and list:size() or 0
+                for k = 0, held - 1 do
+                    local it = list:get(k)
+                    if it and it:getFullType() == C.DilithiumItem then
+                        found = found + 1
+                    end
+                end
+            end
+        end
+    end)
+    return found
+end
+
+--- One slice of the mineral pass. Returns true while it is still running.
+local function serviceMinerals()
+    local join = U.batch("sweep.minerals")
+    local done = 0
+    local r = C.CrystalScanRadius
+    local px, py, pz = math.floor(sweep.x), math.floor(sweep.y), sweep.z
+
+    while done < C.SweepPerTick do
+        if sweep.sy > r then return false end
+        local dx, dy = sweep.sx, sweep.sy
+        -- advance the cursor first, so an early `return` below can never
+        -- leave it standing on the same square for ever
+        sweep.sx = sweep.sx + 1
+        if sweep.sx > r then
+            sweep.sx = -r
+            sweep.sy = sweep.sy + 1
+        end
+        done = done + 1
+
+        local dist = math.sqrt(dx * dx + dy * dy)
+        if dist <= r then
+            -- nil means "that chunk is not loaded", which is not the same as
+            -- "nothing there" -- the tricorder simply cannot see that far
+            -- into unstreamed ground, and says nothing about it.
+            local sq = U.square(px + dx, py + dy, pz, false)
+            if sq then
+                local n = crystalsOnSquare(sq, join)
+                if n > 0 then
+                    sweep.crystalTotal = sweep.crystalTotal + n
+                    table.insert(sweep.crystals, { dx = dx, dy = dy, n = n })
+                end
+            end
+        end
+    end
     return true
 end
 
 --- One slice. Returns true while the sweep is still running.
 function M.serviceSweep()
     if not sweep then return false end
+    if sweep.minerals then
+        if serviceMinerals() then return true end
+        local result = {
+            contacts = sweep.contacts,
+            counts = sweep.counts,
+            total = sweep.total,
+            radius = C.SweepRadius,
+            crystals = sweep.crystals,
+            crystalTotal = sweep.crystalTotal,
+            crystalRadius = C.CrystalScanRadius,
+        }
+        M.lastSweep = result
+        sweep = nil
+        if M.window then M.window:onSweepDone(result) end
+        U.log("sensor sweep: %d contacts within %d tiles, %d dilithium trace(s) "
+              .. "within %d", result.total, result.radius, result.crystalTotal,
+              result.crystalRadius)
+        return false
+    end
 
     local join = U.batch("sweep.classify")
     local done = 0
@@ -436,17 +539,9 @@ function M.serviceSweep()
 
     if sweep.i < sweep.n then return true end
 
-    local result = {
-        contacts = sweep.contacts,
-        counts = sweep.counts,
-        total = sweep.total,
-        radius = radius,
-    }
-    M.lastSweep = result
-    sweep = nil
-    if M.window then M.window:onSweepDone(result) end
-    U.log("sensor sweep: %d contacts within %d tiles", result.total, radius)
-    return false
+    -- Lifesigns done; the same sweep keeps going and looks for dilithium.
+    sweep.minerals = true
+    return true
 end
 
 --- Whether a sweep is running, for the panel and for the tests.
@@ -565,6 +660,25 @@ function TREKTricorderWindow:drawPlot()
         local col = colours[c.band] or P.red
         self:drawRect(px - 1.5, py - 1.5, 4, 4, 0.95, col[1], col[2], col[3])
     end
+
+    -- Dilithium, drawn **differently rather than just in another colour**: a
+    -- crystal is the thing a player opens this panel to find, and a fourth
+    -- shade of dot among three would be one more thing to squint at. A
+    -- lifesign is a small square; a crystal is a ring with a bright middle.
+    --
+    -- Its range is shorter than the lifesign sweep's, so it is plotted
+    -- against its own radius -- otherwise every trace would huddle in the
+    -- middle of the plot and look further away than it is.
+    local crystals = result.crystals or {}
+    local cr = result.crystalRadius or C.CrystalScanRadius
+    for _, c in ipairs(crystals) do
+        local px = cx + (c.dx / cr) * half
+        local py = cy + (c.dy / cr) * half
+        self:drawRectBorder(px - 3.5, py - 3.5, 8, 8, 0.95,
+                            P.white[1], P.white[2], P.white[3])
+        self:drawRect(px - 1.5, py - 1.5, 4, 4, 1,
+                      P.violet[1], P.violet[2], P.violet[3])
+    end
 end
 
 function TREKTricorderWindow:render()
@@ -587,9 +701,15 @@ function TREKTricorderWindow:render()
         return
     end
 
+    -- **No lifesigns is not the end of the readout.** It used to return here,
+    -- which meant a sweep in a quiet room said nothing about dilithium -- and
+    -- a quiet room is exactly where somebody is prospecting. The bands are
+    -- skipped when there is nothing in them; the mineral line always draws.
     if result.total == 0 then
         self:drawText(getText("IGUI_TREK_SweepNone"), cx, y,
                       P.blue[1], P.blue[2], P.blue[3], 1, UIFont.Small)
+        y = y + 20
+        self:drawDilithium(cx, y, result)
         return
     end
 
@@ -613,11 +733,26 @@ function TREKTricorderWindow:render()
         y = y + 18
     end
 
+    -- And the line the tricorder is really carried for once the replicator
+    -- is running: where the dilithium is.
+    self:drawDilithium(cx, y, result)
+
     if self.joyfocus then
         self:drawTextRight(string.upper(getText("IGUI_TREK_MedJoypadHint")),
                            self.width - BOTH - 6, self.height - BOTH + 1,
                            0, 0, 0, 1, UIFont.Small)
     end
+end
+
+--- The mineral line. Drawn on every sweep, found or not.
+function TREKTricorderWindow:drawDilithium(cx, y, result)
+    local found = (result and result.crystalTotal) or 0
+    local dc = found > 0 and P.violet or P.dim
+    H.pill(self, cx, y + 3, 22, 9, dc, true, true)
+    self:drawText(string.upper(getText("IGUI_TREK_SweepDilithium")), cx + 30, y,
+                  dc[1] * 1.2, dc[2] * 1.2, dc[3] * 1.2, 1, UIFont.Small)
+    self:drawTextRight(tostring(found), self.width - PAD, y,
+                       P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
 end
 
 function TREKTricorderWindow:onSweepDone(result)

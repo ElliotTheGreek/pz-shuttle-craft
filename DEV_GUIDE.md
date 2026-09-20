@@ -442,11 +442,82 @@ through:
 3. **Buttons that dropped their handler.** The stub's `new` took only a
    rectangle, so `title`, `target` and `onclick` went on the floor.
 
-All three are fixed, and the rule they share is worth more than any of them:
+Two more since, from the dilithium work, and both are the same shape:
+
+4. **A fitting the simulation does not think is a container.** A placed object
+   gets its container from a list of substrings in its sprite name, and the
+   dilithium chamber's `location_business_machinery_01_33` matched none of
+   them. The cabinet was placed and never stocked, so eight checks failed on a
+   power system that was working perfectly. **Any new fitting that holds
+   something has to be added to that list**, or it is scenery in every test.
+5. **A catalogue that had never heard of the item.** The check that the
+   replicator refuses to make a dilithium crystal passed because the
+   simulation's item list did not contain one. Deleting the blocklist entry
+   changed nothing at all. The three items the replicator must refuse are
+   declared in `pz_sim.lua` now, for that reason alone.
+
+All five are fixed, and the rule they share is worth more than any of them:
 **when a test is easy to satisfy, suspect the simulation before believing the
 code.** `MULTIPLAYER.md` says the same thing about vehicle gravity, the
 floor-gated height and the radial menu's one-frame delay, each of which let a
 real bug through first.
+
+### A check against an empty set is not a passing check
+
+**New in this mod.** `tests/test_assets.py` reads the twelve vanilla loot
+tables dilithium is seeded into and looks each one up in the installed
+`ProceduralDistributions.lua`. The first run reported all twelve missing --
+and every one of them was there. The pattern reading vanilla's file expected
+four spaces of indentation and vanilla uses tabs, so the set it compared
+against was empty, and *everything* is missing from an empty set.
+
+An empty-set comparison fails loudly, which is lucky; the same mistake on the
+other side of a check passes silently and proves nothing for as long as the
+file lives. **Both sides of a lookup check need a floor**: this one fails now
+if fewer than five ids come out of the mod's file or fewer than a hundred
+tables out of vanilla's, and either message says the pattern has stopped
+matching rather than blaming the data.
+
+The general form, which applies to every filter, catalogue and id check in
+here: *if a check can pass because it had nothing to check, it is not a
+check.*
+
+### A branch a mutation cannot break may be unreachable
+
+**New in this mod.** The replicator shipped with two refusals: "not enough in
+the reserve" when spare crystals were aboard, and "no dilithium" when they
+were not. Deleting the first one broke no test. The first instinct was to go
+and write a test for it -- and there was no test to write, because **the
+branch could not be reached**: a fresh crystal is five thousand units, the
+dearest thing in the game costs fifteen hundred, so a swap always covers the
+cost and the "not enough" case never happens.
+
+So when a mutation changes nothing, there are two possibilities and they want
+opposite fixes:
+
+- the tests do not cover it -- **write the test**;
+- nothing can reach it -- **delete the code**, and say why in the file that
+  replaces it.
+
+Telling them apart takes one honest look at the numbers, and it is worth doing
+every time: the unreachable branch had a translation string, a client handler
+and a matching rule in the panel for greying its own button. That rule was
+wrong in a way a player would have seen -- it greyed a button on a low reserve
+even though the ship would have loaded a crystal and made the thing.
+
+### A test harness must record the distinctions the code makes
+
+**New in this mod.** The tricorder plots a lifesign as a small filled square
+and a dilithium trace as a ring with a bright middle -- deliberately different
+shapes, because a fourth shade of dot among three is one more thing to squint
+at. The UI harness recorded `drawRect` and `drawRectBorder` as the same kind
+of draw, so no test could see the difference: a plot that drew *no* crystal
+traces at all passed, and so did one that drew them against the wrong radius.
+
+The harness records them apart now, and the checks are about position rather
+than presence -- a trace at the edge of the mineral radius has to land on the
+edge of the plot. **If the code distinguishes two things, the harness has to,
+or every test about the difference is decoration.**
 
 ### A prop that nothing opens is worse than no prop
 
@@ -1253,7 +1324,8 @@ python tools/meshbbox.py --vanilla spear          # measure vanilla, or ours
 python tools/gen_poster.py  TrekShuttle/42
 python tools/gen_reticle.py TrekShuttle/42        # the torpedo reticle
 python tools/gen_medical.py TrekShuttle/42        # the medical set's three sounds
-python tools/gen_replicator.py TrekShuttle/42     # the alcove, its sound, its renders
+python tools/gen_replicator.py TrekShuttle/42     # the machine, its sound, its renders
+python tools/gen_dilithium.py TrekShuttle/42      # the crystal's icon
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
@@ -1338,7 +1410,10 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A right-click offers nothing for a mod item** | Build 42 has no script hook for "using" an arbitrary item; it has to be an `OnFillInventoryObjectContextMenu` option. And an entry in that event's `items` is either an `InventoryItem` **or** a stack table with its own `items` list — code that handles one shape silently does nothing for the other. |
 | **A panel is fine with a mouse and dead on the Steam Deck** | It is not an `ISPanelJoypad`, or its buttons were never registered with `insertNewLineOfButtons`. Note that vanilla's `ISHealthPanel` *is* one already. |
 | **A feature is reported broken and every test passes** | Suspect the tests. See *A guard is only as good as the goal it was written from* — a test, a comment and a constant all agreeing with each other is not corroboration if they came from one misreading. |
-| **The replicator's menu option never appears** | It is keyed to the berth's square, so either nothing in the layout carries `C.ReplicatorTag` (`tests/test_layout.py` fails on that, and `TREK_Replicator()` says so) or the right-click resolved to a different square. |
+| **The replicator's menu option never appears** | It is keyed to `C.ReplicatorSpot` (0,5) and its neighbours, so the right-click resolved to a different square -- which is what a model drawn above its own square does every time. `TREK_Replicator()` reports what is standing there. |
+| **The replicator refuses everything, with no crystal in the chamber** | Working as designed: the reserve is one dilithium crystal and nothing refills it for free. Find one -- the tricorder plots them out to twenty tiles. `TREK_Replicator()` reports the reserve and the spares. |
+| **The dilithium chamber is empty in a save made before it** | Stock is placed when the cabin is built, and existing saves keep the containers they have. Crystals in the *world* are placed when the world is generated, so the loot needs a fresh world too. |
+| **A crystal is in the chamber and the ship says there is none** | Another mod's item with the same bare type, or a container the engine did not build from that sprite. `getAllTypeRecurse` compares the bare name only -- everything counting mod items filters on the full id. |
 | **The replicator makes nothing and says the tray is full** | It is: the counter at 0,5 holds 40 units like any locker. Empty it. The count is real -- the server measures the tray after every single item and charges only for what landed. |
 | **An item is in the replicator's list and makes nothing** | An obsolete item that slipped the filter; `instanceItem` answers nil for those. The catalogue applies vanilla's own `not getObsolete() and not isHidden()`, so this means a *new* way past it. |
 | **The replicator knows nothing, not even the ship's own gear** | `R.seedDefaults()` runs on the authority when the world's data loads and needs the catalogue; if `getAllItems()` answered nothing there will be a WARN saying so. |
@@ -1393,7 +1468,7 @@ single player, `server-console.txt` on a server).
 | `TREK_Phaser()` | Report phasers found on you and recharge them |
 | `TREK_Ghosts()` | Sweep hulls waiting to be cleared, and strays near you |
 | `TREK_Charges()` | Log whether beams are rationed on this server and your charges |
-| `TREK_Replicator()` | The sandbox mode, the reserve, how many patterns the ship holds, the catalogue's size, and whether the tray is really a container |
+| `TREK_Replicator()` | The sandbox mode, the reserve, the spare crystals in the chamber, how many patterns the ship holds, and the catalogue's size |
 
 ### On a dedicated server
 
@@ -1450,7 +1525,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.3.0**, build revision **18**.
+Version **1.3.0**, build revision **20**.
 
 **1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-9):
 server-owned ship and cabin, request protocol, transporter charges, shields per
@@ -1498,25 +1573,32 @@ slots. The torpedo's blast size and fire spread both needed no adjusting.
 
 **Not yet seen in game**, in the order worth checking:
 
-1. **The replicator**, half-settled on 2026-09-20: it loads, the catalogue is
-   4913 items in 78 categories, 19 patterns seed, the alcove places and hangs
-   over the counter as authored -- and it could not be right-clicked at all,
-   which is now a rule of its own above. Still open: the fixed menu, whether
-   the alcove earns its place, the panel under 4913 rows, a pattern crossing
-   between machines, and the reserve coming back overnight.
-2. **The interior refit**: the shape, the three lockers, the five empty
+1. **Dilithium**, built 2026-09-20 and not played at all. The ship's power is
+   a crystal now: three spares in a chamber at 1,3, twelve vanilla loot tables
+   to find more in, a tricorder pass that plots them out to twenty tiles, and
+   no way to replicate one. **It needs a fresh world** -- both the ship's
+   spares and the ones in the town are placed when the world is made. The
+   route to check it is at the end of `REPLICATOR.md`.
+2. **The replicator**, half-settled on 2026-09-20: it loads, the catalogue is
+   4913 items in 78 categories, 19 patterns seed, and the machine places where
+   it was authored. The first version could not be right-clicked at all, which
+   is now a rule of its own above; the counter it leaned on is gone and the
+   model has been scaled down since. Still open: the fixed menu, whether the
+   machine earns its place at its new size, the panel under 4913 rows, and a
+   pattern crossing between machines.
+3. **The interior refit**: the shape, the three lockers, the five empty
    containers, the television actually turning on, the biobed as a bed -- and,
    in a save made before it, the migration. `INTERIOR_REFIT.md` section 7.
-3. **The medical set**: the three items in the sick-bay locker, a dose that
+4. **The medical set**: the three items in the sick-bay locker, a dose that
    leaves a bite alone, the health panel at doctor level, the sensor sweep in
    front of a horde, and the lock override on a door and then on a padlock.
    `MEDICAL_SET.md`'s *Not built, and still to settle in game* is the list.
-4. **The dedicated server**: the interior cell loads there, the server-built
+5. **The dedicated server**: the interior cell loads there, the server-built
    cabin reaches the client with its stock, water fills with the mains off.
-5. **Two players**: one cabin, loot taken by one gone for the other, crew
+6. **Two players**: one cabin, loot taken by one gone for the other, crew
    access, charges — and a shuttle in the air seen from the other machine,
    which is the last unproven thing about flight.
-6. **The phaser firing** and staying charged on a server.
+7. **The phaser firing** and staying charged on a server.
 
 **The pattern worth carrying forward.** Six separate bugs in this mod have
 had the same shape: a plausible engine call that fails silently, leaving a
@@ -1573,10 +1655,13 @@ new rule above, and it is fixed. `REPLICATOR.md` is the working guide -- what ha
 how to change each piece, the engine facts not to re-derive, and the seven
 things to check the first time it is carried into a world.
 
-Two new sections of this file came out of it, plus a refinement to a third:
-a table that is transmitted whole cannot hold a list that grows, a simulation
-has to be as unkind as the engine, and a vanilla call site under `AdminPanel/`
-is not a vanilla call site.
+Five new sections of this file came out of it, plus a refinement to a sixth:
+a table that is transmitted whole cannot hold a list that grows; a vanilla
+call site under `AdminPanel/` is not a vanilla call site; a check against an
+empty set is not a passing check; a branch a mutation cannot break may be
+unreachable; a harness must record the distinctions the code makes; and the
+simulation has to be as unkind as the engine, which has now cost five holes
+rather than three.
 
 **Next up** is the EMH, which inherits the medical set's treatment primitives
 and now has a working example of a cabin fixture with a panel behind it.
@@ -1593,7 +1678,7 @@ TrekShuttle/42/media/sandbox-options.txt                       server-owner sett
 TrekShuttle/42/media/lua/shared/TREK/TREK_Config.lua           all constants — start here
 TrekShuttle/42/media/lua/shared/TREK/TREK_Util.lua             safe wrappers, state schema, geometry, stocking
 TrekShuttle/42/media/lua/shared/TREK/TREK_Net.lua              client -> server commands, replies
-TrekShuttle/42/media/lua/shared/TREK/TREK_Power.lua            the ship's own electricity, in every process
+TrekShuttle/42/media/lua/shared/TREK/TREK_Power.lua            each fitting's own cell, and the ship's dilithium reserve
 TrekShuttle/42/media/lua/shared/TREK/TREK_Ship.lua             publishing the ship state, access rules
 TrekShuttle/42/media/lua/shared/TREK/TREK_World.lua            read-only landing and standing queries
 TrekShuttle/42/media/lua/shared/TREK/TREK_InteriorLayout.lua   the interior as data + loot
@@ -1607,8 +1692,8 @@ TrekShuttle/42/media/lua/client/TREK/TREK_Helm.lua             the LCARS helm co
 TrekShuttle/42/media/lua/client/TREK/TREK_Travel.lua           courses, map picking, landing search
 TrekShuttle/42/media/lua/client/TREK/TREK_Phaser.lua           keeping phasers charged
 TrekShuttle/42/media/lua/shared/TREK/TREK_Medical.lua          treatment, doses, what counts as a lock
-TrekShuttle/42/media/lua/shared/TREK/TREK_Replicator.lua       the item catalogue, patterns, the reserve
-TrekShuttle/42/media/lua/shared/TREK/TREK_Power.lua            the ship's own electricity, per device
+TrekShuttle/42/media/lua/shared/TREK/TREK_Replicator.lua       the item catalogue, patterns, what a thing costs
+TrekShuttle/42/media/lua/server/Items/TrekDilithium.lua        where crystals spawn in the world
 TrekShuttle/42/media/lua/client/TREK/TREK_ReplicatorUI.lua     the replicator panel and its menus
 TrekShuttle/42/media/lua/client/TREK/TREK_MedKit.lua           the medical set: menus, panels, the sweep
 TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua             right-click menus, crew

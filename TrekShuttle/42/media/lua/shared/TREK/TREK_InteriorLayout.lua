@@ -114,6 +114,23 @@ L.tiles = {
     -- counter is cleaned up by B.refitCabin, contents and all.
 
     ---------------------------------------------------------------------
+    -- Amidships: the dilithium chamber
+    ---------------------------------------------------------------------
+    -- **The ship's power plant, and the only thing aboard it cannot make.**
+    -- The replicator burns one crystal at a time out of this cabinet and
+    -- swaps in a spare when it runs dry; when the spares are gone, so is the
+    -- replicator, and later the EMH with it.
+    --
+    -- `location_business_machinery_01_33` is a Tool Cabinet from the
+    -- machinery set: grey, industrial, twenty units, and -- the part that
+    -- matters -- visibly *not* one of the three Starfleet lockers, so the one
+    -- container in the ship with a job of its own does not read as a fourth
+    -- locker. It stands at 1,3, off the pad's corridor, facing east so you
+    -- work it from the middle of the cabin.
+    { x = 1, y = 3, sprite = "location_business_machinery_01_33", tag = "dilithium",
+      container = true, special = "dilithium" },
+
+    ---------------------------------------------------------------------
     -- Starboard forward: the three Starfleet lockers
     ---------------------------------------------------------------------
     -- Quantities are set by `cap` rather than by weight, and `fill = 1.0`

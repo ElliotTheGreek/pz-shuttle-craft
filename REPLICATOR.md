@@ -1,7 +1,9 @@
 # The replicator
 
-**Built, revision 19. Carried into a game on 2026-09-20, twice: it loads and
-it places, and the two looks cost one real bug and a rebuilt fixture.**
+**Built, revision 20. Carried into a game on 2026-09-20, twice: it loads and
+it places, and the two looks cost one real bug and a rebuilt fixture. The
+power behind it -- dilithium -- is built and tested and has not been played
+yet.**
 
 A machine standing at the aft end of the galley that makes any item in
 Project Zomboid, and **owns its square**: no counter under it, and no
@@ -14,9 +16,11 @@ questions:
   one, which turns looting from "find supplies" into "find the first one".
   Scanning is free and gives the item straight back, and the ship knows its
   own Starfleet gear from the day the world is made;
-- **energy** decides *how much*. Every replication spends from a reserve that
-  refills itself over about eight game hours, so a night's sleep is a full
-  tank and a busy afternoon is not.
+- **energy** decides *how much*. Every replication spends from a reserve, and
+  **nothing refills that reserve for free**: it is a dilithium crystal burning
+  in a chamber amidships, the ship swaps in a spare when one is spent, and a
+  crystal is a thing you can only find out in the world. The machine that
+  removes the need to loot has a leash that can only be found by looting.
 
 A server owner who wants neither, or none of it at all, has one sandbox
 option with three values.
@@ -52,7 +56,11 @@ server   Net.onServer("replicate")           TREK_Server.lua
            Rep.isQuantity(count)             one of the three the panel offers
            Rep.knows(id)                     unless the sandbox says otherwise
            the ship's cooldown
-           the reserve covers it
+           Power.afford(cost)                and if the reserve is short, this
+                                             is where a spare crystal is taken
+                                             out of the chamber and burned --
+                                             or the whole thing refused,
+                                             because there is none
            -> materialise(player, id, count) instanceItem, AddItem into the
                                              asking player's own inventory,
                                              sendAddItemToContainer, and the
@@ -72,14 +80,19 @@ The pattern set is published separately, and only when it changes.
 
 | | |
 |---|---|
-| `shared/TREK/TREK_Replicator.lua` | the catalogue, the blocklist, the patterns, the reserve arithmetic, what a thing costs, where the berth is |
+| `shared/TREK/TREK_Replicator.lua` | the catalogue, the blocklist, the patterns, what a thing costs, where the machine stands |
+| `shared/TREK/TREK_Power.lua` | **the ship's reserve and the crystal it burns**, below the line that separates it from the device cells -- which are a different thing entirely |
 | `server/TREK/TREK_Server.lua` | the three handlers, the run, `S.replicatorReport()` |
 | `server/TREK/TREK_Build.lua` | `furnishReplicator()`, which stands the machine on its square once, and `removeLegacyBerth()`, which takes out the counter it used to lean on |
 | `client/TREK/TREK_ReplicatorUI.lua` | the panel, both menus, the replies |
 | `shared/TREK/TREK_Config.lua` | every number, and the sandbox values |
 | `TREK_Config.lua` | `C.ReplicatorSpot` -- 0,5, and **no layout entry at all**: the machine owns the square |
-| `tools/gen_replicator.py` | the alcove's mesh and texture, the sound, and the renders |
-| `media/scripts/trekshuttle.txt` | `item TrekReplicator`, `model TrekReplicatorModel`, `sound TREK_Replicate` |
+| `server/Items/TrekDilithium.lua` | where crystals spawn in the world, and nothing else |
+| `shared/TREK/TREK_InteriorLayout.lua` | the dilithium chamber at 1,3: a tool cabinet, tagged, stocked when the ship is built |
+| `client/TREK/TREK_MedKit.lua` | the tricorder's mineral pass, which is how a player finds one |
+| `tools/gen_replicator.py` | the machine's mesh and texture, the sound, and the renders |
+| `tools/gen_dilithium.py` | the crystal's icon |
+| `media/scripts/trekshuttle.txt` | `item TrekReplicator`, `model TrekReplicatorModel`, `sound TREK_Replicate`, `item TrekDilithium` |
 
 ---
 
@@ -97,18 +110,105 @@ it is roughly what the thing *is*. There is no per-item table and there
 should not be one: the catalogue includes other people's mods, so any table
 would be a list of the items somebody thought of.
 
-### The reserve
+### The reserve, and the crystal that fills it
 
-`C.ReplicatorEnergyMax` (1000) and `C.ReplicatorRegen` (20 per ten game
-minutes). Full from empty in 500 game minutes -- eight game hours -- and a
-full reserve is two hundred bandages or forty hammers.
+`TREK_Power.lua`, below the line. One number in the ship state -- `s.power`,
+0..`C.PowerMax` -- spent by the replicator and, when it is built, by the EMH.
+It is the *ship's* power rather than the replicator's, which is why it does
+not live in `TREK_Replicator.lua` and why `R.energy()` is one line that asks
+`TREK.Power.reserve()`.
 
-**Game minutes, not real ones**, and that is the interesting half. Sleeping
-and waiting both work, a server that sat empty overnight does not hand its
-crew a free tank the way a wall-clock timer would, and there is no timestamp
-arithmetic to get wrong across machines. The cost is one `Ship.commit()` per
-ten game minutes while it is charging, which is why the step is ten minutes
-rather than one.
+**Nothing refills it for free.** It was twenty units every ten game minutes
+for one revision, which made the replicator a machine you *waited at* rather
+than one you fuelled -- a cooldown wearing a hat, which is the exact thing the
+cost model was chosen to avoid. The reserve is now one crystal, burning:
+
+| | |
+|---|---|
+| `C.DilithiumCharge` | **5000**, and `C.PowerMax` is the same number: the reserve *is* one crystal, so the most it can hold is one crystal |
+| `C.DilithiumIssue` | **3** spares in the chamber on a new ship |
+| `C.DilithiumItem` | `TrekShuttle.TrekDilithium`; `C.DilithiumType` is the bare `TrekDilithium`, for the engine's recursive search |
+| `C.DilithiumTag` | `dilithium` -- the layout tag on the chamber, which is how `P.chamberSpot()` finds it without a second constant to keep in step |
+| `C.CrystalScanRadius` | **20** tiles, against the lifesign sweep's 40 |
+
+Five thousand is **a thousand bandages, or two hundred hammers**, and that is
+the feel of the whole system: the interesting part is the trip out to find
+one, not rationing the last forty units. A crystal that ran out in an
+afternoon would turn every replication into a sum.
+
+`P.afford(cost)` is the only thing that should ever burn one. It answers true
+when the reserve covers the cost; when it does not, and only on the authority,
+it takes a spare out of the chamber, sets the reserve to a full crystal and
+answers again. Two things it will not do: burn a crystal for a cost a *fresh*
+crystal could not cover either -- nothing costs that much today, the dearest
+replication being 1500, but both numbers are tunable and eating a player's
+crystal and then refusing them is the worst failure available to this code --
+and burn anything at all on a client.
+
+The swap **sets** the reserve rather than adding to it: whatever was left in
+the old crystal is lost. That is why it only happens when the reserve
+genuinely cannot cover the request.
+
+`P.burnCrystal()` reads the container back after the removal. A `Remove` that
+did nothing would burn the same crystal for ever, which is an infinite power
+supply and the precise opposite of the point.
+
+### One refusal, not two
+
+`IGUI_TREK_RepNoCrystal`, with the numbers in it. There was a second one --
+"not enough in the reserve" -- for a low reserve with spares still aboard, and
+**it could never fire**: a fresh crystal is 5000 and the dearest thing in the
+game is 1500, so whenever a spare exists the swap covers the cost. It was
+deleted rather than kept for symmetry. If the numbers are ever tuned so one
+request can cost more than a crystal holds, that refusal comes back *with a
+test*, and `P.afford`'s ceiling check is already there waiting for it.
+
+The panel follows the same rule: the Materialise button is live when the
+reserve covers the cost **or there is a spare in the chamber**, because the
+ship loads one by itself. Greying it on a low reserve would refuse something
+that would have worked.
+
+### Where the crystals come from
+
+`server/Items/TrekDilithium.lua`, and nothing else in this mod touches the
+world's loot. Twelve vanilla tables weighted 0.2 to 0.6 on vanilla's own scale
+(a diamond in `JewelryGems` is 1): a jeweller's gem case, a pawn shop, a few
+electrical shelves, a metal shop, tool crates, a garage. That list is doing
+the same job the tricorder does -- telling a player where to go -- so it is
+worth keeping it somewhere a person would guess.
+
+The file deliberately does not `require` any of the mod's own code: it runs at
+world generation, and a load-order dependency there would be an empty world
+with nothing said about it. It reads its own result back and logs how many
+tables it found, because a vanilla table renamed in a patch would take the
+crystal out of the world in silence. `tests/test_assets.py` checks all twelve
+names against the **installed** game -- the same check, happening before a
+world is generated rather than after.
+
+### The chamber
+
+A tool cabinet at 1,3 in `TREK_InteriorLayout.lua`, tagged `dilithium`, with
+`special = "dilithium"` so `TREK_Build.lua` stocks it with `C.DilithiumIssue`
+crystals when the ship is built. **The container is the truth**: there is no
+count in the ship state to drift out of step with it, and the server reads and
+writes the same container the player opens.
+
+A crystal **cannot be replicated** (`C.ReplicatorBlocked`), which is the point
+of the arrangement rather than a balance decision.
+
+### Finding one
+
+The tricorder's sweep has a second pass. It walks the squares within
+`C.CrystalScanRadius`, counts crystals lying on the ground *and* inside any
+container on the square -- which is where every crystal in the world actually
+starts -- and plots each trace as a ring with a bright middle, against **its
+own radius** rather than the lifesign one. A trace plotted against the longer
+radius reads as much nearer than it is, on the one instrument a player walks
+by.
+
+The readout says *Dilithium* and a number whether or not anything was found:
+"none in range" is the answer a prospector needs, and a line that only appears
+on a hit is one a player cannot learn to look for.
 
 ### What the ship already knows
 
@@ -191,7 +291,8 @@ player concludes an item is not in the game.
 | The item is created | **Server**, on a validated `replicate` |
 | Who may use it | **Server** -- alive, the ship's `canUse`, standing at the machine |
 | The pattern set | **Server**, its own mod data key, shared by the crew |
-| The reserve | **Server**, ship state, one number |
+| The reserve | **Server**, ship state, one number. A client that has not been told yet reads it as *full*, so a panel opened before the first sync does not grey its own button |
+| The crystals | **Server**, and they are items in a container rather than a number anywhere |
 | The catalogue | **Both**, built per process from the engine's own list |
 | The panel, the search, the list | **Client**, presentation only |
 
@@ -231,6 +332,11 @@ it). Do not re-derive these.
 | An item added to a container already in the world reaches clients with `sendAddItemToContainer` | `MULTIPLAYER.md` |
 | **A server may put an item in a player's inventory on a validated command**: `player:getInventory():AddItem(item)` then `sendAddItemToContainer(player:getInventory(), item)`. This is the engine's own idiom, not an invention -- vanilla does it a dozen times in one file | `server/ClientCommands.lua:187,206,651,699,718,914,1211` |
 | **A right-click resolves to the floor square under the cursor**, so a model drawn above its own square cannot be clicked | seen in game, 2026-09-20; `DEV_GUIDE.md` |
+| `container:getAllTypeRecurse(type)` compares the **bare** type, which is not namespaced -- so anything counting mod items filters the results on the full id as well | the phaser's sweep, the medical set's `carried`, and `P.crystals` |
+| A distribution is added by appending an id and a weight to `ProceduralDistributions.list[name].items`, from `Events.OnPreDistributionMerge` | `server/Items/ProceduralDistributions.lua`, and every loot mod on the Workshop |
+| Vanilla's procedural tables are indented with **tabs**, one level, inside `ProceduralDistributions.list` | the installed `ProceduralDistributions.lua` |
+| A tile's container comes from its sprite properties -- `location_business_machinery_01_33` is a Tool Cabinet of capacity 20 | `tools/import_tbx_layout.py` output |
+| `square:getWorldObjects()` is what is lying on the ground; each answers `getItem()` | the tricorder's mineral pass |
 
 ### The call site that does not count
 
@@ -246,10 +352,12 @@ is the clearest statement of the rule, but the two call sites that make
 ## Testing
 
 ```sh
-python tests/test_multiplayer.py    # replicator() and replicator_multiplayer()
-python tests/test_helm.py           # the panel
+python tests/test_multiplayer.py    # replicator(), replicator_multiplayer(),
+                                    # the crystal swap and the crystal sweep
+python tests/test_helm.py           # the panel, and the tricorder's plot
 python tests/test_layout.py         # the machine's square, and that it is clear
-python tests/test_assets.py         # the model, the sound, every string
+python tests/test_assets.py         # the model, the sound, the icon, the
+                                    # twelve loot tables, every string
 ```
 
 `replicator()` plays it the way a player does: it right-clicks the berth,
@@ -258,8 +366,40 @@ buttons. Driving the server handlers directly would pass against a build
 whose Materialise button was wired to nothing, which is exactly how the
 torpedoes once shipped unfireable.
 
-**Nineteen mutations were checked against it and all nineteen caught** -- and
-three of those mutations found tests that were passing for the wrong reason:
+**Twenty-one more mutations were run for the dilithium work, and the first
+pass caught eleven of twenty.** Every one of the nine misses was a hole in the
+tests rather than a mutation not worth catching, and four of them were the
+expensive kind -- a check that passed for a reason that had nothing to do with
+what it claimed:
+
+- **the blocklist check was vacuous.** It asserted the crystal is not in the
+  catalogue, and the crystal was not in the *simulation's* catalogue either,
+  so deleting the blocklist entry changed nothing. `pz_sim.lua` now declares
+  the three items the replicator must refuse, for exactly that reason;
+- **the chamber count was tested against the test's own helper**, which
+  re-implemented the filter it was meant to be checking. It asks
+  `TREK.Power.crystals()` now, and the impostor it puts in the chamber is
+  another mod's `TrekDilithium` -- a wrench proves nothing, because the
+  engine's bare-type search never returns one;
+- **the harness could not tell an outline from a filled rect.** Both were
+  recorded as `rect`, so the tricorder's crystal rings were invisible to the
+  test: a plot that drew no traces at all passed. They are recorded apart now,
+  and the trace at the edge of the mineral radius has to land on the edge of
+  the plot -- which is what catches a trace plotted against the wrong radius;
+- **the crystal sweep had no test at all.** The panel test injects a result
+  and draws it; nothing walked the world. `replicator()` now drops a crystal
+  on the floor, leaves the chamber stocked, puts a third well out of range,
+  and sweeps.
+
+The check on the loot tables was mutated too, and found its own bug first:
+the pattern reading vanilla's file matched nothing, so all twelve perfectly
+good table names were reported missing. Both sides of that comparison have a
+sanity check now, which is the general form -- *a comparison against an empty
+set is not a passing test, it is a broken one*.
+
+Before that, **nineteen mutations were checked against the replicator itself
+and all nineteen caught** -- and three of those found tests that were passing
+for the wrong reason:
 
 - the quantity check was "proved" by the reserve, because 999 hammers cost
   more than the ship has. It asserts the *refusal reason* now;
@@ -295,6 +435,20 @@ now.
 - **The panel's first open builds the catalogue.** A few thousand items, once
   per process. If that is ever felt as a hitch, build it at load instead --
   but measure before believing it.
+- **A missing reserve reads as full, on purpose.** `P.reserve()` answers
+  `C.PowerMax` when the ship state has no number, because a client's copy is
+  whatever the server last sent and before the first packet there is nothing
+  at all. Reading that as empty would grey the button on a machine that has
+  simply not been told yet. It also means *a bug that loses the number looks
+  like a full tank*, which is the trade.
+- **The bare type is not namespaced.** `getAllTypeRecurse("TrekDilithium")`
+  will happily hand you another mod's crystal. Filter on the full id, every
+  time -- the phaser and the medical set do the same.
+- **A new fitting is scenery in the simulation until `pz_sim.lua` is told.**
+  Its container comes from a list of substrings in the sprite name, and the
+  chamber's `..._machinery_...` matched none of them: the cabinet was placed,
+  never stocked, and the whole power system read zero crystals in eight
+  different checks.
 - **The alcove is a world item**, and world items are saved and deliberately
   preserved by `U.clearSquare`. Anything that places one must look first or it
   stands a second one at every rebuild.
@@ -330,12 +484,28 @@ Still to settle, in the order worth checking:
    patterns in.
 4. **The panel under 4913 rows.** Typing should stay responsive; the filter
    walks a precomputed array, but that is reasoning until somebody types.
-5. **The reserve on the clock.** Sleep a night and watch it come back.
-6. **A pattern on a second machine.** One crewman scans; the other's panel
+5. **The chamber.** A **fresh world** is needed: both the ship's three spare
+   crystals and the crystals out in the town are placed when the world is
+   made. Right-click the cabinet at 1,3 -- second row, port side, next to the
+   lockers -- and three Dilithium Crystals should be in it.
+6. **The swap.** The reserve is 5000 and a hammer is 24, so emptying it by
+   hand is not a test anybody wants to play. Make a run of the dearest thing
+   the tree offers at a quantity of 10 and watch the reserve fall by 1500 a
+   press; when it can no longer cover one, the next press should still work
+   and the chamber should be one crystal lighter. When the chamber is empty
+   *and* the reserve is spent, the refusal should name the dilithium and give
+   both numbers.
+7. **The tricorder as a prospecting tool.** Sweep inside the ship first: the
+   *Dilithium* line should read 3, from the chamber, which proves it sees
+   inside containers. Then sweep in a town -- an electronics store, a pawn
+   shop, a garage -- and walk to a ring on the plot.
+8. **A crystal is not in the tree.** Search the panel for *dilithium*: nothing
+   should come back, in any sandbox mode.
+9. **A pattern on a second machine.** One crewman scans; the other's panel
    should stop saying *no pattern* without either of them reopening it.
-7. **The sound**, which is played locally and must not draw the dead.
-8. **`Unrestricted` and `Off`**, both of which a server owner will use before
-   the author does.
+10. **The sound**, which is played locally and must not draw the dead.
+11. **`Unrestricted` and `Off`**, both of which a server owner will use before
+    the author does.
 
 ---
 
@@ -397,6 +567,20 @@ Nothing was broken, nothing was logged and every test passed, because the
 tests drive a simulated `screenToIso` that cannot model a projection. The
 simulation says so about itself, in as many words: *it cannot catch a
 projection error; only the game can.* It took one screenshot.
+
+### A refusal that could never happen
+
+The power system shipped with two refusals: *not enough in the reserve* when
+spares were still aboard, and *no dilithium* when they were not. The first one
+was unreachable from the day it was written -- the swap always covers the cost
+-- and nothing said so, because an unreachable branch is not a failing test,
+it is a quiet one.
+
+What found it was a mutation: deleting the branch broke nothing. That is the
+whole argument for mutation testing in one line. Two things went with it: the
+translation string, and the panel's rule for greying its own button, which had
+the same mistaken model of the machine and would have refused a press that
+would have worked.
 
 ### Three renders and a louvred bin
 

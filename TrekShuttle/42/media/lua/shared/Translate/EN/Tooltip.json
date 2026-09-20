@@ -18,5 +18,6 @@
     "Tooltip_TREK_MedTricorder": "A medical tricorder. It reads a body the way a surgeon would, whether or not you have ever held a scalpel.",
     "Tooltip_TREK_Tricorder": "A Starfleet tricorder. Sweeps for lifesigns well past what you can see, and talks most electronic locks open. Not padlocks; those are somebody's own.",
     "Tooltip_TREK_DermalRegen": "Run it over the skin and the skin closes — cuts, scratches, deep wounds, burns, and the stitches and dressing that were holding them together. It does nothing for an infected wound, a broken bone or a bite, and it will not close over glass.",
-    "Tooltip_TREK_Replicator": "The ship's replicator. It makes anything it holds a pattern for, out of a reserve that fills itself back up given a few hours. Scan a thing once and the ship can make it for ever."
+    "Tooltip_TREK_Replicator": "The ship's replicator. It makes anything it holds a pattern for, out of a reserve that fills itself back up given a few hours. Scan a thing once and the ship can make it for ever.",
+    "Tooltip_TREK_Dilithium": "A lattice of dilithium. The shuttle's replicator burns one of these at a time and will not run without it — and it cannot make more, which is the point. Keep them in the chamber amidships."
 }

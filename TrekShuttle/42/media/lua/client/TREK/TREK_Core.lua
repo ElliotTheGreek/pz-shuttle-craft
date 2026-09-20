@@ -120,10 +120,11 @@ Net.onClient("denied", function(args)
     if args.why == "recharging" then
         U.note(player, getText("IGUI_TREK_Recharging", tostring(args.secs or "?")),
                255, 170, 90)
-    elseif args.why == "repEnergy" then
-        -- The numbers are the answer here: "not enough power" without them is
-        -- a refusal a player cannot plan around.
-        U.note(player, getText("IGUI_TREK_RepEnergy", tostring(args.need or "?"),
+    elseif args.why == "repNoCrystal" then
+        -- The numbers are the answer here: "no power" without them is a
+        -- refusal a player cannot plan around, and this is the one that sends
+        -- them off across the map looking for a crystal.
+        U.note(player, getText("IGUI_TREK_RepNoCrystal", tostring(args.need or "?"),
                                tostring(args.have or "?")), 255, 170, 90)
     elseif DENIALS[args.why] then
         U.note(player, getText(DENIALS[args.why]), 255, 90, 90)

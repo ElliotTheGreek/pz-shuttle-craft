@@ -529,11 +529,11 @@ real world is the other one: **the migration out of a 6x9 save**.
 black void. It removes them, removes the helm prop, and spills the contents of
 the eleven deleted containers onto the transporter pad rather than eating them.
 
-## The replicator — built, not yet seen in game
+## The replicator — built and played; its power, built
 
-A lit alcove over the galley counter that makes **any item in the game**, and
-the ship's first system rather than another item. `REPLICATOR.md` is the
-working guide.
+A machine standing at the aft end of the galley that makes **any item in the
+game**, and the ship's first system rather than another item.
+`REPLICATOR.md` is the working guide.
 
 Two limits, answering two different questions — the author's call, and better
 than the plan's own recommendation of one or the other:
@@ -541,9 +541,13 @@ than the plan's own recommendation of one or the other:
 - a **pattern** decides *what*. The ship makes what it has scanned; scanning
   is free and hands the item straight back, and it knows its own Starfleet
   gear from the day the world is made. Looting becomes "find the first one";
-- **energy** decides *how much*. Every replication spends from a reserve that
-  refills over about eight game hours, on the world's clock, so a night's
-  sleep is a full tank.
+- **energy** decides *how much*. Every replication spends from a reserve, and
+  **nothing refills it for free**: it is a dilithium crystal burning in a
+  chamber amidships. The ship swaps in a spare when one is spent, it starts
+  with three, and it cannot make a fourth — crystals are found out in the
+  world, at a jeweller's, a pawn shop, an electronics store, a mechanic's
+  shelf. One is worth a thousand bandages, so the system is an expedition
+  once in a long while rather than a sum every time you press the button.
 
 `TrekShuttle.Replicator` gives a server owner *Patterns and energy*,
 *Unrestricted* or *Off* — and an absent setting reads as the first, which is
@@ -557,10 +561,12 @@ ever hold. The item is created on the server, and the tray is counted after
 every one: a container at capacity drops what it is handed in silence, so the
 player is charged for what arrived.
 
-The alcove is procedural (`tools/gen_replicator.py`), authored from 0.80
-upwards so it hangs over the counter rather than standing in it, and it took
-three renders to stop being a louvred bin. The fal.ai image-to-3D route in the
-old plan was not needed and is still there if a future fixture wants it.
+The machine is procedural (`tools/gen_replicator.py`), authored from the deck
+up — 1.62 tall before the size dial, a kick plinth, a lit niche at chest
+height, a capped top — and it took three renders to stop being a louvred bin.
+The crystal's icon is procedural too (`tools/gen_dilithium.py`). The fal.ai
+image-to-3D route in the old plan was not needed and is still there if a
+future fixture wants it.
 
 **Carried into a game on 2026-09-20, twice.** It loads, the catalogue comes
 out at 4913 items in 78 categories, 19 patterns seed, and the model places
@@ -575,9 +581,17 @@ makes goes into your hands. The panel's category button became a two-level
 tree with a Back button and a *known patterns only* toggle, because seventy-
 eight categories one press at a time is not a control.
 
-Thirty mutations have been checked against the tests across the two passes and
-all thirty caught, four of which found tests passing for the wrong reason.
-`REPLICATOR.md`'s last section is what is still open.
+The reserve used to refill itself on the world's clock, and that was replaced
+rather than tuned: a reserve that comes back on its own makes the replicator a
+machine you *wait at*, which is a cooldown wearing a hat. The dilithium
+chamber at 1,3, the loot tables, the blocklist entry and the tricorder's
+mineral pass are all the same decision.
+
+**Fifty-one mutations have been checked against the tests across three passes
+and all fifty-one caught**, eight of which found tests passing for the wrong
+reason — including a blocklist check that could not fail because the
+simulation's catalogue had never heard of the item it was meant to be
+refusing. `REPLICATOR.md`'s last section is what is still open.
 
 ## Then: ship systems
 
@@ -622,9 +636,12 @@ the whole list at once rather than to each version.
    Needs a fresh world *and* a pre-refit save, for the migration.
    `INTERIOR_REFIT.md` section 7 is the list.
 5. **The replicator** -- built and twice in a game (2026-09-20). Still needs
-   a world for: the fixed right-click, whether the machine looks like it
-   belongs, the tree and the known-only toggle, and a pattern crossing between
-   two machines.
+   a **fresh** world for: the fixed right-click, whether the machine looks
+   like it belongs at its new size, the tree and the known-only toggle, a
+   pattern crossing between two machines, and all of dilithium — the three
+   spares in the chamber, a crystal loading itself when the reserve runs dry,
+   the refusal when there are none, and finding one in a town with the
+   tricorder.
 6. **The EMH.**
 7. **Publish.**
 

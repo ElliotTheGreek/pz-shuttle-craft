@@ -167,4 +167,175 @@ Events.EveryOneMinute.Add(function()
     U.try("serviceDevices", P.serviceDevices)
 end)
 
+---------------------------------------------------------------------------
+-- The ship's reserve, and the crystal it burns
+---------------------------------------------------------------------------
+-- Everything above this line is a *device's* own cell -- the television's --
+-- and nothing to do with what follows. This is the ship's power: one number,
+-- ship state, spent by the replicator and later by the EMH.
+--
+-- **Nothing refills it for free.** It was twenty units every ten game minutes
+-- for one revision, which made the replicator a machine you waited at rather
+-- than fuelled. The reserve is one dilithium crystal burning in the
+-- articulation chamber; when it is spent the ship swaps in a spare from that
+-- same chamber, and when there are no spares the replicator stops.
+--
+-- A crystal cannot be replicated (C.ReplicatorBlocked), which is the point of
+-- the whole arrangement: the machine that removes the need to loot has a
+-- leash that can only be found out in the world.
+
+--- What is left of the crystal in the chamber, 0..C.PowerMax.
+---
+--- A missing value reads as **full**, for the client's sake: a client's copy
+--- of the ship is whatever the server last sent, and before the first one
+--- arrives there is no number at all. Reading that as empty would grey the
+--- replicator's button on a machine that has simply not been told yet.
+function P.reserve()
+    local e = U.state().power
+    if type(e) ~= "number" then return C.PowerMax end
+    if e < 0 then return 0 end
+    if e > C.PowerMax then return C.PowerMax end
+    return e
+end
+
+--- The chamber's own square, out of the authored layout.
+local chamber = nil
+
+function P.chamberSpot()
+    if chamber then return chamber[1], chamber[2] end
+    for _, entry in ipairs(L.tiles) do
+        if entry.tag == C.DilithiumTag then
+            chamber = { entry.x, entry.y }
+            return chamber[1], chamber[2]
+        end
+    end
+    U.warnOnce("power:chamber",
+               "no layout entry is tagged " .. tostring(C.DilithiumTag) ..
+               "; the ship has nowhere to keep its crystals")
+    return nil
+end
+
+--- The chamber object, or nil. Authority only in practice -- a client's copy
+--- of the cabin has the same object, but only the server ever takes from it.
+function P.chamber()
+    local ox, oy = P.chamberSpot()
+    if not ox then return nil end
+    local x, y = U.at(ox, oy)
+    if not U.chunkLoaded(x, y, C.CabinZ) then return nil end
+    local sq = U.square(x, y, C.CabinZ, false)
+    if not sq then return nil end
+
+    local found = nil
+    U.eachObject(sq, function(o)
+        local md = U.try("power.md", function() return o:getModData() end)
+        if md and md.TREK == C.DilithiumTag then
+            found = o
+            return false
+        end
+    end)
+    return found
+end
+
+--- How many spare crystals are in the chamber.
+function P.crystals()
+    local obj = P.chamber()
+    local container = obj and U.containerOf(obj)
+    if not container then return 0 end
+    local list = U.try("power.crystals", function()
+        return container:getAllTypeRecurse(C.DilithiumType)
+    end)
+    if not list then return 0 end
+    -- The recursive lookup compares the **bare** type, so the results are
+    -- filtered on the full id: the bare name is not namespaced and another
+    -- mod could plausibly use it. Med.carried has the same pair.
+    local n = 0
+    local join = U.batch("power.countCrystals")
+    local size = join(function() return list:size() end) or 0
+    for i = 0, size - 1 do
+        local item = join(function() return list:get(i) end)
+        local t = item and U.try("power.type", function() return item:getFullType() end)
+        if t == C.DilithiumItem then n = n + 1 end
+    end
+    return n
+end
+
+--- Takes one crystal out of the chamber and puts its charge in the reserve.
+--- Authority only. Returns true when one was burned.
+---
+--- The item is *removed* and the reserve is **set** rather than added to: the
+--- reserve is one crystal, so a fresh one replaces what was left rather than
+--- stacking on top of it. Anything still in the old one is lost, which is why
+--- the swap only happens when the reserve cannot cover what is being asked
+--- for.
+function P.burnCrystal()
+    if isClient() then return false end
+    local obj = P.chamber()
+    local container = obj and U.containerOf(obj)
+    if not container then return false end
+
+    local list = U.try("power.crystals", function()
+        return container:getAllTypeRecurse(C.DilithiumType)
+    end)
+    if not list then return false end
+
+    local crystal = nil
+    local join = U.batch("power.takeCrystal")
+    local size = join(function() return list:size() end) or 0
+    for i = 0, size - 1 do
+        local item = join(function() return list:get(i) end)
+        local t = item and U.try("power.type", function() return item:getFullType() end)
+        if t == C.DilithiumItem then crystal = item break end
+    end
+    if not crystal then return false end
+
+    -- Read it back: a Remove that did nothing would burn the same crystal
+    -- for ever, which is an infinite power supply and the exact opposite of
+    -- the point.
+    local before = U.itemCount(obj)
+    U.try("power.consume", function() container:Remove(crystal) end)
+    if U.itemCount(obj) >= before then
+        U.warnOnce("power.stuckCrystal",
+                   "a dilithium crystal would not come out of the chamber")
+        return false
+    end
+    if isServer() then
+        U.try("power.syncChamber", function()
+            container:setDirty(true)
+            container:setDrawDirty(true)
+            obj:transmitModData()
+        end)
+    end
+
+    U.state().power = C.PowerMax
+    U.log("power: a dilithium crystal is in the chamber -- reserve %d units, "
+          .. "%d spare(s) left", C.PowerMax, P.crystals())
+    return true
+end
+
+--- True when the ship can pay `cost`, swapping in a crystal if it has to.
+--- Authority only: it may consume one.
+function P.afford(cost)
+    cost = cost or 0
+    if cost <= P.reserve() then return true end
+    if isClient() then return false end
+    -- Never burn a crystal for something a fresh one could not cover either.
+    -- Nothing in the game costs that much today -- the dearest replication is
+    -- fifteen hundred against a crystal's five thousand -- but the two
+    -- numbers are both tunable, and the failure this prevents is eating a
+    -- player's crystal and still refusing them.
+    if cost > C.PowerMax then return false end
+    if not P.burnCrystal() then return false end
+    return cost <= P.reserve()
+end
+
+--- Spends from the reserve. The caller commits.
+function P.spend(n)
+    if isClient() then return false end
+    local s = U.state()
+    local left = P.reserve() - (n or 0)
+    if left < 0 then left = 0 end
+    s.power = left
+    return true
+end
+
 return P

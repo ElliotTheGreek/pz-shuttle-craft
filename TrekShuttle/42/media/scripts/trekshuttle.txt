@@ -89,6 +89,41 @@ module TrekShuttle
         Tooltip = Tooltip_TREK_Replicator,
     }
 
+    /*  Dilithium: the one thing on this ship that cannot be replicated.
+
+        It is the ship's power. The replicator burns a crystal out of the
+        articulation chamber and swaps in a spare when it runs dry, and the
+        EMH will draw on the same reserve -- so a crew with no crystals has a
+        galley fixture and a hologram that will not switch on.
+
+        **That is why it is in C.ReplicatorBlocked.** A replicator that makes
+        its own fuel has no limit at all, and the hunt for dilithium is the
+        only thing that keeps a machine which removes the need to loot
+        attached to the game the rest of the mod is playing.
+
+        Where it is found is media/lua/server/Items/TrekDilithium.lua: rare,
+        in electrical and industrial containers, in the ground as a forage
+        find, and never in a kitchen drawer.
+
+        The icon is the mod's own (tools/gen_dilithium.py, drawn rather than
+        generated -- a faceted gem is four straight lines). The world and
+        in-hand model is vanilla's large amethyst crystal, which is exactly
+        the right shape and already in the game; tests/test_assets.py checks
+        the borrowed name, because a model that does not resolve draws
+        nothing and says nothing.  */
+    item TrekDilithium
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Dilithium Crystal,
+        Icon = TREK_Dilithium,
+        Weight = 0.4,
+        StaticModel = Amethyst_Crystal_Large,
+        WorldStaticModel = Amethyst_Crystal_Large,
+        Tooltip = Tooltip_TREK_Dilithium,
+    }
+
     sound TREK_PhaserPulse
     {
         category = Weapon,

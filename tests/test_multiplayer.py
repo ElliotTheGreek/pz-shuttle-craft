@@ -1308,9 +1308,10 @@ def refit():
     # would delete the cabin's own lockers and their stock -- silently, and
     # only in somebody's existing save.
     containers, stocked, _, wanted = cabin_objects(rt)
-    # Eight, not nine: the replicator's berth was a ninth until the machine
-    # replaced the counter it used to stand on.
-    check(containers == 8 and stocked == wanted,
+    # Nine: the galley's five, the three stocked lockers, and the dilithium
+    # chamber. The replicator is not among them -- it used to stand on a
+    # counter, and that counter was a tenth until the machine replaced it.
+    check(containers == 9 and stocked == wanted,
           f"refit: the sweep ate the new cabin -- {containers} containers "
           f"left, {stocked} of {wanted} still stocked")
 
@@ -2613,6 +2614,27 @@ def made_items(rt, who=1):
     return [x for x in str(packed).split("\n") if x]
 
 
+def crystals_in_chamber(rt):
+    """How many spare dilithium crystals the ship is holding.
+
+    Read out of the chamber's own container rather than from a counter in the
+    ship state, because the container is the truth: the crystals are items a
+    player can take out and put back, and a count kept beside them would be
+    one more thing to get out of step.
+    """
+    return int(rt.eval("""(function()
+        local U, P = TREK.Util, TREK.Power
+        local obj = P.chamber()
+        local container = obj and U.containerOf(obj)
+        if not container then return -1 end
+        local n = 0
+        for _, it in ipairs(container.items) do
+            if it.fullType == TREK.Config.DilithiumItem then n = n + 1 end
+        end
+        return n
+    end)()"""))
+
+
 def carrying(rt, item_id, who=None):
     """How many of one type a player has on them.
 
@@ -2745,6 +2767,10 @@ def replicator():
          "the engine's own filter does not catch it, which is why the blocklist "
          "exists"),
         ("TrekShuttle.TrekShuttleHull", "the model the ship itself is drawn as"),
+        ("TrekShuttle.TrekDilithium",
+         "the crystal that powers it -- a replicator that can make its own "
+         "fuel has no limit at all, and the hunt for dilithium is the only "
+         "thing giving the whole system stakes"),
     ):
         check(rep_row(rt, item_id) is None,
               f"replicator: {item_id} is in the catalogue and should not be ({why})")
@@ -2869,36 +2895,165 @@ def replicator():
     check(before - rep_energy(rt) == 24 * 5,
           f"replicator: five hammers cost {before - rep_energy(rt)}, not {24 * 5}")
 
-    # --- the reserve is a real limit ----------------------------------------
+    # --- nothing refills it for free -----------------------------------------
+    # It used to come back on the world's clock, which made the replicator a
+    # machine you waited at. The reserve is a dilithium crystal now: time does
+    # nothing, and a crystal is the only thing that does.
+    rt.run("TREK.Util.state().power = 10")
+    for _ in range(6):
+        rt.fire("EveryTenMinutes")
+    rt.fire("EveryOneMinute")
+    check(rep_energy(rt) == 10,
+          f"replicator: an hour of game time put the reserve back to "
+          f"{rep_energy(rt)} on its own -- crystals are then decoration")
+
+    # --- a crystal is what brings it back ------------------------------------
+    spares = crystals_in_chamber(rt)
+    check(spares == C("DilithiumIssue"),
+          f"replicator: a fresh ship carries {spares} spare crystals, not "
+          f"{C('DilithiumIssue')}")
+
     net.clock += int(C("ReplicatorCooldownMs")) + 500
-    rt.run("TREK.Util.state().repEnergy = 10")
+    held = carrying(rt, "Base.Hammer")
     rt.run("SIM.notes = {}")
-    held = len(made_items(rt))
-    rt.run("TREK.ReplicatorUI.window.makeBtn:click()")
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'Base.Hammer', count = 1 }})")
     net.pump(4)
-    check(len(made_items(rt)) == held,
-          "replicator: it made something it could not pay for")
-    check(any("IGUI_TREK_RepEnergy" in n for n in rt.notes()),
-          "replicator: an empty reserve refused without saying so")
+    check(carrying(rt, "Base.Hammer") == held + 1,
+          "replicator: with 10 units left and crystals in the chamber it "
+          "refused rather than loading one")
+    check(crystals_in_chamber(rt) == spares - 1,
+          f"replicator: it made something on an empty reserve without taking "
+          f"a crystal ({crystals_in_chamber(rt)} left of {spares})")
+    check(rep_energy(rt) == C("PowerMax") - 24,
+          f"replicator: after loading a crystal the reserve is "
+          f"{rep_energy(rt)}, not a full {C('PowerMax')} less the hammer")
 
-    # --- and it comes back ---------------------------------------------------
-    rt.fire("EveryTenMinutes")
-    check(rep_energy(rt) == 10 + C("ReplicatorRegen"),
-          f"replicator: ten game minutes put back {rep_energy(rt) - 10}, not "
-          f"{C('ReplicatorRegen')}")
+    # A spanner in the chamber is not a crystal. The engine's recursive
+    # lookup matches the *bare* type, which is not namespaced, so the count
+    # is filtered on the full id -- and without that filter a hoarder's
+    # cupboard would read as a decade of free power.
+    rt.run("""
+        local C, U, P = TREK.Config, TREK.Util, TREK.Power
+        U.containerOf(P.chamber()):AddItem(instanceItem("OtherMod.TrekDilithium"))
+    """)
+    counted = int(rt.eval("TREK.Power.crystals()") or -1)
+    check(counted == spares - 1,
+          f"replicator: another mod's TrekDilithium counts as ours -- the ship "
+          f"reads {counted} crystals in a chamber holding {spares - 1} of them "
+          f"and one impostor")
 
-    # A tick that would overshoot must stop at the ceiling. Set five short of
-    # full, not full: a reserve that is already full takes the early way out of
-    # R.regen and proves nothing about the clamp.
-    #
-    # And read the number out of the *state* rather than through R.energy(),
-    # which clamps on the way out. What matters is the figure that gets saved
-    # and transmitted, not whether the reader hides it climbing.
-    rt.run(f"TREK.Util.state().repEnergy = {C('ReplicatorEnergyMax') - 5}")
-    rt.fire("EveryTenMinutes")
-    check(rt.eval("TREK.Util.state().repEnergy") == C("ReplicatorEnergyMax"),
-          f"replicator: the reserve charged past its own ceiling to "
-          f"{rt.eval('TREK.Util.state().repEnergy')}")
+    # A reserve above the maximum reads as the maximum. Tuning DilithiumCharge
+    # down in a later revision would otherwise leave every existing save with
+    # a bar past the end of its own gauge.
+    rt.run("TREK.Util.state().power = TREK.Config.PowerMax * 3")
+    check(rep_energy(rt) == C("PowerMax"),
+          f"replicator: a reserve of three crystals' charge reads as "
+          f"{rep_energy(rt)}, not the one crystal the chamber can hold")
+
+    # --- and when there are none, it stops -----------------------------------
+    rt.run("""
+        local C, U, P = TREK.Config, TREK.Util, TREK.Power
+        local obj = P.chamber()
+        local container = obj and U.containerOf(obj)
+        if container then container.items = {} end
+        U.state().power = 1
+    """)
+    net.clock += int(C("ReplicatorCooldownMs")) + 500
+    held = carrying(rt, "Base.Hammer")
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'Base.Hammer', count = 1 }})")
+    net.pump(4)
+    check(carrying(rt, "Base.Hammer") == held,
+          "replicator: it made something with a flat reserve and an empty "
+          "chamber -- the power system has no floor at all")
+    check(any("IGUI_TREK_RepNoCrystal" in n for n in rt.notes()),
+          f"replicator: with no dilithium left the refusal blamed something "
+          f"else ({rt.notes()})")
+
+    # Put the ship back on its feet for the checks that follow.
+    rt.run(f"""
+        local C, U, P = TREK.Config, TREK.Util, TREK.Power
+        local obj = P.chamber()
+        local container = obj and U.containerOf(obj)
+        if container then container:AddItem(instanceItem(C.DilithiumItem)) end
+        U.state().power = C.PowerMax
+    """)
+
+    # --- an impossible cost does not eat a crystal ---------------------------
+    # Nothing in the game costs more than a crystal holds today, so this is
+    # reached by making the crystal small rather than the hammer dear. The
+    # failure it guards against is the worst kind: the player loses the
+    # crystal *and* is refused, with nothing on screen tying the two together.
+    net.clock += int(C("ReplicatorCooldownMs")) + 500
+    spares = crystals_in_chamber(rt)
+    held = carrying(rt, "Base.Hammer")
+    rt.run("SIM.notes = {}")
+    rt.run("""
+        TREK.Config.PowerMax = 10
+        TREK.Util.state().power = 10
+    """)
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'Base.Hammer', count = 1 }})")
+    net.pump(4)
+    check(carrying(rt, "Base.Hammer") == held,
+          "replicator: it made a hammer no crystal in the ship could pay for")
+    check(crystals_in_chamber(rt) == spares,
+          f"replicator: it burned a crystal for a cost the crystal could not "
+          f"cover ({crystals_in_chamber(rt)} left of {spares})")
+    rt.run("""
+        TREK.Config.PowerMax = TREK.Config.DilithiumCharge
+        TREK.Util.state().power = TREK.Config.PowerMax
+    """)
+
+    # --- the tricorder is how they are found ---------------------------------
+    # The crystals cannot be replicated, so the only way to get one is to walk
+    # out and look -- and the tricorder is the instrument that makes that a
+    # search rather than a wander. Both halves are under test: a crystal lying
+    # on the ground and a crystal shut inside a container, which is where
+    # every one of them in the world actually starts.
+    net.clock += int(C("SweepIntervalMs")) + 100
+    inChamber = crystals_in_chamber(rt)
+    rt.run("""
+        local C, U = TREK.Config, TREK.Util
+        local p = SIM.players[1]
+        local cell = getCell()
+        -- Floored, as the sweep floors them: a player stands at x.5 and a
+        -- square is an integer, and a crystal dropped at 1001.5 would sit on
+        -- a square the tricorder never looks at.
+        local px, py = math.floor(p:getX()), math.floor(p:getY())
+        cell:getOrCreateGridSquare(px + 1, py, C.CabinZ)
+            :AddWorldInventoryItem(C.DilithiumItem)
+        -- Well past the mineral radius, which is shorter than the lifesign
+        -- one: a sweep that answers with this is not an instrument, it is a
+        -- map marker.
+        cell:getOrCreateGridSquare(px + C.CrystalScanRadius + 6, py, C.CabinZ)
+            :AddWorldInventoryItem(C.DilithiumItem)
+    """)
+    check(rt.eval(f"TREK.MedKit.startSweep({P})") is True,
+          "replicator: the tricorder would not sweep for crystals")
+    slices = 0
+    while rt.eval("TREK.MedKit.sweeping()") and slices < 400:
+        rt.run("TREK.MedKit.serviceSweep()")
+        slices = slices + 1
+    found = int(rt.eval("TREK.MedKit.lastSweep.crystalTotal") or -1)
+    check(found == inChamber + 1,
+          f"replicator: the tricorder found {found} crystals, not the "
+          f"{inChamber + 1} in range ({inChamber} in the chamber and one on "
+          f"the floor; the one {int(C('CrystalScanRadius')) + 6} tiles away is "
+          f"not in range)")
+    # And it says where. A total with no bearing is a number, not a search.
+    rt.run("""
+        SIM.plotted = 0
+        for _, c in ipairs(TREK.MedKit.lastSweep.crystals or {}) do
+            if math.abs(c.dx) <= TREK.Config.CrystalScanRadius
+               and math.abs(c.dy) <= TREK.Config.CrystalScanRadius then
+                SIM.plotted = SIM.plotted + c.n
+            end
+        end
+    """)
+    near = rt.eval("SIM.plotted")
+    check(int(near or -1) == found,
+          f"replicator: {found} crystals were counted but {near} of them were "
+          f"plotted inside the radius -- the readout and the plot disagree")
 
     # --- the mod's own gear needs no scanning --------------------------------
     net.clock += int(C("ReplicatorCooldownMs")) + 500
@@ -3069,7 +3224,7 @@ def replicator():
 
     rt.run("SandboxVars.TrekShuttle.Replicator = TREK.Config.ReplicatorUnrestricted")
     net.clock += int(C("ReplicatorCooldownMs")) + 500
-    rt.run("TREK.Util.state().repEnergy = 0")
+    rt.run("TREK.Util.state().power = 0")
     rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'Base.Axe', count = 1 }})")
     net.pump(4)
     check(carrying(rt, "Base.Axe") == 1,
@@ -3095,9 +3250,10 @@ def replicator():
     for w in rt.warnings():
         fail(f"replicator: {w}")
     print(f"replicator: a catalogue of {size} filtered entries, the ship's own "
-          f"patterns, scanning that keeps the item, the reserve, the cooldown, "
-          f"a run counted item by item, both range ends and all three "
-          f"sandbox values")
+          f"patterns, scanning that keeps the item, a reserve nothing refills "
+          f"for free, a crystal loaded from the chamber when it runs dry and a "
+          f"refusal when the chamber is empty, the cooldown, a run counted item "
+          f"by item, both range ends and all three sandbox values")
 
 
 def replicator_multiplayer():

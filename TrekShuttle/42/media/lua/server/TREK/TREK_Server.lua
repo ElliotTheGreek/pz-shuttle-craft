@@ -1364,26 +1364,42 @@ Net.onServer("replicate", function(player, args)
         return
     end
 
+    -- **The ship burns a crystal here if it has to.** The reserve is one
+    -- crystal's charge, so running out mid-shift is normal: Power.afford
+    -- swaps a spare in from the chamber and answers again. Only when there
+    -- are no spares is this a refusal, and then the player is told which of
+    -- the two problems they have.
+    -- **The ship burns a crystal here if it has to.** The reserve is one
+    -- crystal's charge, so running out mid-shift is normal: Power.afford
+    -- swaps a spare in from the chamber and answers again.
+    --
+    -- One refusal rather than two, and that is a correction: there was a
+    -- separate "not enough power" for a low reserve with spares still in the
+    -- chamber, and it could never fire. A fresh crystal is five thousand
+    -- units and the dearest thing in the game is fifteen hundred, so if a
+    -- spare exists the swap always covers the cost. The only real failure is
+    -- having none.
     local cost = Rep.cost(row, count)
-    local have = Rep.energy()
-    if cost > have then
-        deny(player, "repEnergy", { need = cost, have = math.floor(have) })
+    if not TREK.Power.afford(cost) then
+        deny(player, "repNoCrystal",
+             { need = cost, have = math.floor(TREK.Power.reserve()) })
         return
     end
 
     local made = materialise(player, row.id, count)
     local spent = Rep.cost(row, made)
     s.repAt = now
-    if spent > 0 then Rep.spend(spent) end
+    if spent > 0 then TREK.Power.spend(spent) end
     Ship.commit()
 
     Net.toClient(player, "replicated", {
         id = row.id, name = row.name, asked = count, made = made,
-        cost = spent, energy = math.floor(Rep.energy()),
+        cost = spent, energy = math.floor(TREK.Power.reserve()),
+        crystals = TREK.Power.crystals(),
     })
     U.log("replicator: %s asked for %d x %s, made %d for %d unit(s); %d left",
           Ship.usernameOf(player), count, row.id, made, spent,
-          math.floor(Rep.energy()))
+          math.floor(TREK.Power.reserve()))
 end)
 
 --- Storing one pattern, from the item's own right-click menu.
@@ -1511,13 +1527,9 @@ Events.EveryTenMinutes.Add(function()
     for _, p in ipairs(U.players()) do
         U.try("sweepStrays", S.sweepStrays, p)
     end
-    -- The replicator's reserve comes back on the world's clock, so sleeping
-    -- and waiting both work. Committed only when the number actually changed:
-    -- every commit is a transmit of the ship state to every client, and a
-    -- full reserve has nothing to say.
-    if U.try("replicatorRegen", Rep.regen) == true then
-        Ship.commit()
-    end
+    -- Nothing refills the ship's power any more: it is a dilithium crystal,
+    -- and a crystal has to be found. TREK_Power swaps a spare in out of the
+    -- chamber when the replicator asks for more than is left.
 end)
 
 -- The schema migration runs on the authority as soon as the world's data is
@@ -1564,9 +1576,10 @@ function S.replicatorReport()
     local modeName = (mode == C.ReplicatorOff and "off")
                   or (mode == C.ReplicatorUnrestricted and "unrestricted")
                   or "patterns and energy"
-    U.log("replicator: sandbox %s, reserve %d/%d, %d pattern(s), %d catalogue entr(ies)",
-          modeName, math.floor(Rep.energy()), C.ReplicatorEnergyMax,
-          Rep.patternCount(), #Rep.catalogue())
+    U.log("replicator: sandbox %s, reserve %d/%d units, %d spare crystal(s), "
+          .. "%d pattern(s), %d catalogue entr(ies)",
+          modeName, math.floor(TREK.Power.reserve()), C.PowerMax,
+          TREK.Power.crystals(), Rep.patternCount(), #Rep.catalogue())
 
     local ox, oy = Rep.spot()
     local x, y = U.at(ox, oy)

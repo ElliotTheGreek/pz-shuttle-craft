@@ -142,19 +142,26 @@ UP_AXIS = "y"
 # `place` maps (east, north, height). It stands against the port bulkhead, so
 # the smaller east value is its back, into the wall, and the face looks east
 # into the cabin -- which is also the way the game's camera shows it.
-BACK, FRONT = -0.46, 0.22           # against the wall, and its face
-SIDE = 0.40                         # north and south half-width
-INSET = 0.06                        # how far the plinth is tucked under
-TOP = 1.62                          # a shade under a fridge
+# **One dial for the whole machine.** It was authored at the numbers below and
+# stood in game at 0.68 x 0.80 x 1.62, which read as slightly too big beside
+# the galley counters. Everything scales together from here rather than by
+# hand, because a unit whose niche did not shrink with its body would end up
+# as a letterbox.
+SCALE = 0.86
 
-PLINTH = 0.16                       # the kick at the bottom
-CAP = 1.46                          # where the capped top begins
+BACK, FRONT = -0.46 * SCALE, 0.22 * SCALE   # against the wall, and its face
+SIDE = 0.40 * SCALE                 # north and south half-width
+INSET = 0.06 * SCALE                # how far the plinth is tucked under
+TOP = 1.62 * SCALE                  # a shade under a fridge
+
+PLINTH = 0.16 * SCALE               # the kick at the bottom
+CAP = 1.46 * SCALE                  # where the capped top begins
 
 # The niche, at chest height, with a shelf proud of the face under it.
-OPEN_SIDE = 0.27
-OPEN_Y0, OPEN_Y1 = 0.62, 1.18
-CAVITY_BACK = 0.02                  # shallow: a lit niche, not a cupboard
-SHELF = 0.30                        # how far the lip stands out past the face
+OPEN_SIDE = 0.27 * SCALE
+OPEN_Y0, OPEN_Y1 = 0.62 * SCALE, 1.18 * SCALE
+CAVITY_BACK = 0.02 * SCALE          # shallow: a lit niche, not a cupboard
+SHELF = 0.30 * SCALE                # how far the lip stands out past the face
 
 CASE      = (96, 102, 116, 255)
 CASE_LITE = (132, 138, 154, 255)

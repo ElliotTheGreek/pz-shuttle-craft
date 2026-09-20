@@ -498,18 +498,21 @@ Three things about the lock are worth keeping here rather than only in
 clients, including the refusals and the one check that asserts a non-effect: a
 dose must leave a bite and the zombie infection alone.
 
-### The replicator
+### The replicator, and the power behind it
 
-Built 2026-09-20, not yet played. `REPLICATOR.md` is the dev guide; this
-section is the authority split and the one piece of engineering that is not
-obvious from it.
+Built 2026-09-20 and played the same day; the dilithium that powers it is
+built and not yet played. `REPLICATOR.md` is the dev guide; this section is
+the authority split and the one piece of engineering that is not obvious from
+it.
 
 | | |
 |---|---|
 | The item is created | **Server**, on a validated `replicate` command. This is the one feature in the mod that can hand a player anything in the game |
 | Who may use it | **Server** -- alive, the ship's own `canUse`, and standing at the berth, measured on the server's copy of where they are |
 | The pattern set | **Server**, its own global mod data key, shared by the crew |
-| The reserve | **Server**, ship state: one number |
+| The reserve | **Server**, ship state: one number. A client with no copy yet reads it as full rather than empty, so a panel opened before the first sync does not grey its own button |
+| The crystals | **Server**, and they are *items in a container*, not a number. `P.burnCrystal` removes one, reads the container back to prove the removal happened, and marks it dirty and transmits its mod data so every client's copy of the chamber agrees with the server's |
+| Loading a spare | **Server**, inside `P.afford`, which is guarded by `isClient()` -- a client asked to pay for something it cannot afford simply answers no |
 | The catalogue | **Both**, built per process out of `getAllItems()`. It is derived from the game's own scripts, so every process computes the same thing and none of it crosses the wire |
 | The panel, the search, the list | **Client**, presentation only |
 

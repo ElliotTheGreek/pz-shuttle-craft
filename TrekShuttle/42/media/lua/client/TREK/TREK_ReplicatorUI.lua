@@ -41,6 +41,7 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Replicator"
+require "TREK/TREK_Power"
 require "TREK/TREK_Core"
 require "TREK/TREK_Helm"
 
@@ -127,7 +128,7 @@ function TREKReplicatorWindow:createChildren()
 
     -- Search, with the category button beside it. The box is the fast path
     -- for a keyboard; the button is the whole path for a pad.
-    local searchY = self.barY + 28
+    local searchY = self.barY + 40
     local catW = 120
     self.search = ISTextEntryBox:new("", cx, searchY, cw - catW - 6, 24)
     self.search.font = UIFont.Small
@@ -269,6 +270,11 @@ function TREKReplicatorWindow:refreshRows()
     end
 
     self.list.selected = (#self.rows > 0) and 1 or 0
+
+    -- How many spares are in the chamber. Read here rather than in render:
+    -- it walks a container, and refreshRows runs when the panel opens and
+    -- whenever the server answers, which is every moment it can change.
+    self.spares = TREK.Power.crystals()
 end
 
 --- The row the player has picked, whatever kind it is.
@@ -394,12 +400,12 @@ function TREKReplicatorWindow:render()
 
     -- The reserve.
     local energy = math.floor(R.energy())
-    local frac = energy / C.ReplicatorEnergyMax
+    local frac = energy / C.PowerMax
     H.pill(self, cx, self.energyY + 3, 30, 10, P.gold, true, false)
     self:drawText(string.upper(getText("IGUI_TREK_RepEnergyHeader")), cx + 38,
                   self.energyY, P.gold[1], P.gold[2], P.gold[3], 1, UIFont.Small)
     self:drawTextRight(getText("IGUI_TREK_RepEnergyLevel", tostring(energy),
-                               tostring(C.ReplicatorEnergyMax)),
+                               tostring(C.PowerMax)),
                        self.width - PAD, self.energyY,
                        P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
 
@@ -410,6 +416,17 @@ function TREKReplicatorWindow:render()
         self:drawRect(cx, self.barY, fill, 12, 0.95, c[1], c[2], c[3])
     end
     self:drawRectBorder(cx, self.barY, cw, 12, 0.6, P.blue[1], P.blue[2], P.blue[3])
+
+    -- What the bar actually is: the crystal in the chamber, and what is left
+    -- behind it. A player who cannot see the spares cannot tell "nearly out"
+    -- from "out", which is the difference between carrying on and going
+    -- looking for dilithium.
+    local spares = self.spares or 0
+    local sc = spares > 0 and P.lilac or P.red
+    self:drawTextRight(spares > 0 and getText("IGUI_TREK_RepCrystals", tostring(spares))
+                                  or getText("IGUI_TREK_RepNoSpares"),
+                       self.width - PAD, self.barY + 16,
+                       sc[1], sc[2], sc[3], 1, UIFont.Small)
 
     -- The controls say what they will do before they are pressed.
     local inside = self.category ~= nil or self.needle ~= ""
@@ -444,7 +461,11 @@ function TREKReplicatorWindow:render()
     else
         local cost = R.cost(row, self:quantity())
         self.makeBtn.title = getText("IGUI_TREK_RepMaterialise", tostring(cost))
-        self.makeBtn.enable = not off and cost <= R.energy()
+        -- Live when the reserve covers it **or** there is a crystal to load:
+        -- the ship swaps one in by itself, so greying the button on a low
+        -- reserve would refuse something that would have worked.
+        self.makeBtn.enable = not off
+            and (cost <= R.energy() or (self.spares or 0) > 0)
     end
     self.scanBtn.enable = not off
 
@@ -752,6 +773,7 @@ TREK.Net.onClient("replicated", function(args)
     if made > 0 then
         U.try("rep.sound", function() player:playSoundLocal("TREK_Replicate") end)
     end
+    if M.window and args.crystals then M.window.spares = tonumber(args.crystals) end
     refreshWindow()
 end)
 

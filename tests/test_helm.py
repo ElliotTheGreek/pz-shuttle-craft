@@ -136,8 +136,12 @@ def make_lua():
         function ISUIElement:drawRect(x, y, w, h, a, r, g, b)
             rec(self, "rect", x, y, w, h, { a, r, g, b })
         end
+        -- Recorded apart from a filled rect. They were one kind until the
+        -- tricorder's crystal traces needed telling from its lifesign dots,
+        -- and a harness that cannot tell an outline from a block cannot see
+        -- the difference between the two things on that plot.
         function ISUIElement:drawRectBorder(x, y, w, h, a, r, g, b)
-            rec(self, "rect", x, y, w, h, { a, r, g, b })
+            rec(self, "rectborder", x, y, w, h, { a, r, g, b })
         end
         function ISUIElement:drawTextureScaled(t, x, y, w, h, a, r, g, b)
             if t == nil then error("drawTextureScaled with a nil texture") end
@@ -383,6 +387,11 @@ def make_lua():
         -- panel with an empty pattern set would draw every row greyed.
         TREK.Replicator.seedDefaults()
 
+        -- There is no cabin in this harness, so the dilithium chamber answers
+        -- nothing and the panel draws "no spare crystals". That is a real
+        -- state -- it is what a ship with a flat reserve looks like -- and it
+        -- is the one the layout checks below are drawn against.
+
         function frame(win)
             win:prerender()
             win:render()
@@ -427,7 +436,7 @@ def check_bounds(lua, draws, label):
             if float(d.w) > float(el.width) + 0.5:
                 failures.append(f"{label}: label {what!r} ({float(d.w):.0f}px) is wider "
                                 f"than its {float(el.width):.0f}px button")
-        if d.kind in ("rect", "tex"):
+        if d.kind in ("rect", "rectborder", "tex"):
             for v in list(d.extra.values()):
                 if v is not None and not (0 <= float(v) <= 1.0001):
                     failures.append(f"{label}: {d.kind} colour/alpha {v} is outside 0..1")
@@ -592,11 +601,57 @@ def main():
                                      band = (math.abs(d[1]) + math.abs(d[2])) > r
                                             and 3 or 1 })
         end
+        -- Dilithium traces, including two at the very edge of the mineral
+        -- radius -- which is shorter than the lifesign one, so a trace
+        -- plotted against the wrong radius lands outside the box.
+        local cr = TREK.Config.CrystalScanRadius
         win.result = { contacts = contacts, counts = { 5, 2, 1 }, total = 8,
-                       radius = r }
+                       radius = r,
+                       crystals = { { dx = cr, dy = 0, n = 1 },
+                                    { dx = 0, dy = -cr, n = 2 },
+                                    { dx = -3, dy = 4, n = 1 } },
+                       crystalTotal = 4, crystalRadius = cr }
     """)
     draws = run_frames(lua, "tricorder, with contacts")
     check_bounds(lua, draws, "tricorder, with contacts")
+
+    # Staying inside the box is not the same as being in the right place.
+    # A crystal is a ring with a bright middle -- the only 8x8 border on the
+    # plot -- and the three in the result have to be three rings, in the
+    # positions their offsets ask for.
+    FRAMES = 3
+    rings = [d for d in draws
+             if d.kind == "rectborder" and abs(float(d.w) - 8) < 0.01
+             and abs(float(d.h) - 8) < 0.01]
+    if len(rings) != 3 * FRAMES:
+        failures.append(f"tricorder: {len(rings) // FRAMES} dilithium traces "
+                        f"are drawn on the plot, not the 3 in the result")
+    else:
+        # The plot's own square gives its geometry: the window keeps its
+        # corner, and the box drawn there gives the side.
+        box = next(d for d in draws
+                   if d.kind == "rectborder"
+                   and abs(float(d.x) - float(win.plotX)) < 0.01
+                   and abs(float(d.y) - float(win.plotY)) < 0.01)
+        side = float(box.w)
+        pcx, pcy = float(win.plotX) + side / 2, float(win.plotY) + side / 2
+        half = side / 2 - 6
+        # The trace at dx = CrystalScanRadius sits on the east edge. Plotted
+        # against the *lifesign* radius it would sit well inside it, which is
+        # the failure this catches: a crystal that reads as much nearer than
+        # it is, on the one instrument a player trusts to walk by.
+        edge = [r for r in rings
+                if abs((float(r.x) + 3.5) - (pcx + half)) < 1.0
+                and abs((float(r.y) + 3.5) - pcy) < 1.0]
+        if len(edge) != FRAMES:
+            failures.append(
+                f"tricorder: the trace {int(C.CrystalScanRadius)} tiles due "
+                f"east is not drawn on the east edge of the plot -- it is "
+                f"plotted against the wrong radius")
+    # And the number in the readout is the number that was found.
+    if not any(str(d.extra) == "4" for d in draws if d.kind == "text"):
+        failures.append("tricorder: four traces were found and the readout "
+                        "does not say 4")
 
     # An empty sweep has to say so rather than drawing an empty box.
     lua.execute("""
@@ -605,6 +660,13 @@ def main():
     """)
     empty = run_frames(lua, "tricorder, nothing found")
     check_bounds(lua, empty, "tricorder, nothing found")
+    # The dilithium line is drawn whether or not any was found: "none in
+    # range" is the answer a prospector needs, and a line that only appears
+    # on a hit is one a player cannot learn to look for.
+    if not any(str(d.extra) == IG["IGUI_TREK_SweepDilithium"].upper()
+               for d in empty if d.kind == "text"):
+        failures.append("tricorder: a sweep that found no dilithium does not "
+                        "say so")
     if not any(str(d.extra) == IG["IGUI_TREK_SweepNone"]
                for d in empty if d.kind == "text"):
         failures.append("tricorder: a sweep that found nothing says nothing")
@@ -817,12 +879,12 @@ def main():
     lua.execute("""
         win.search:setText("phaser")
         win.list.selected = 1
-        TREK.Util.state().repEnergy = 0
+        TREK.Util.state().power = 0
     """)
     run_frames(lua, "replicator, empty reserve", 1)
     if win.makeBtn.enable:
         failures.append("replicator: with an empty reserve the button is still live")
-    lua.execute(f"TREK.Util.state().repEnergy = {float(C.ReplicatorEnergyMax)}")
+    lua.execute(f"TREK.Util.state().power = {float(C.PowerMax)}")
 
     # --- the quantity button cycles -----------------------------------------
     # Twice round, not once. An index that runs off the end of the list makes

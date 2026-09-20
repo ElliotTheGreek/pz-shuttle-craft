@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 19
+C.BuildRev = 20
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -623,6 +623,16 @@ C.SweepRadius      = 40
 C.SweepPerTick     = 96
 C.SweepIntervalMs  = 3000    -- between sweeps, so the panel cannot be spammed
 
+-- How far the tricorder looks for dilithium, in tiles.
+--
+-- Shorter than the lifesign sweep on purpose, and for a reason that is about
+-- cost rather than fiction: a lifesign pass walks the cell's zombie list,
+-- which is a few hundred entries, while a mineral pass has to walk *squares*
+-- and ask each one what is standing on it. Twenty tiles is 1681 squares,
+-- sliced at C.SweepPerTick like everything else in this mod that touches
+-- thousands of things (DEV_GUIDE.md, "Slice any search").
+C.CrystalScanRadius = 20
+
 -- The three range bands the contacts are sorted into, as fractions of the
 -- radius. Named in the readout rather than given as numbers: a tricorder
 -- reports "close" before it reports "thirteen metres".
@@ -741,6 +751,48 @@ C.WaterInterval = 120
 C.WaterCapacity = 20
 
 ---------------------------------------------------------------------------
+-- Dilithium, and the ship's power
+---------------------------------------------------------------------------
+-- **The replicator does not make its own power, and nothing on this ship
+-- refills itself for free any more.** The reserve is one dilithium crystal
+-- burning in the articulation chamber, and when it is spent the ship swaps
+-- in a spare from the same chamber. When there are no spares, the replicator
+-- stops -- and later the EMH will stop with it, because they draw on the
+-- same number.
+--
+-- **A crystal cannot be replicated.** That is the whole point of it: it is
+-- the one thing in the game the ship has to be given rather than able to
+-- make, so the machine that removes the need to loot has a leash that is
+-- itself a reason to go out. C.ReplicatorBlocked carries the id.
+C.DilithiumItem = "TrekShuttle.TrekDilithium"
+-- The bare type, for the engine's recursive inventory search, which compares
+-- the *bare* name and not the full id -- the phaser's rule, one more time.
+C.DilithiumType = "TrekDilithium"
+
+-- What one crystal is worth, in the same units a replication costs.
+--
+-- Five thousand is **a thousand bandages, or two hundred hammers**, and that
+-- is deliberate: a crystal is meant to go a long way. The interesting part of
+-- this economy is the trip out to find one, not rationing the last forty
+-- units, and a crystal that ran out in an afternoon would turn every
+-- replication into a sum.
+C.DilithiumCharge = 5000
+
+-- The reserve is exactly one crystal's charge, which is what makes the bar
+-- on the panel mean something: it is the crystal in the chamber, burning.
+C.PowerMax = C.DilithiumCharge
+
+-- The chamber: a layout tag, like the water fixtures use. Whatever the map
+-- editor puts there, the crystals live in its container and the ship burns
+-- them out of it.
+C.DilithiumTag = "dilithium"
+
+-- What a new ship is issued with, in the chamber, on top of the crystal it
+-- arrives burning. Three is enough to teach the player what they are for and
+-- not enough to skip the hunt.
+C.DilithiumIssue = 3
+
+---------------------------------------------------------------------------
 -- Power
 ---------------------------------------------------------------------------
 -- What a powered fitting's cell is kept at, 0..1. DeviceData.setPower clamps
@@ -803,30 +855,15 @@ C.LegacyReplicatorTag = "replicator"
 -- fact -- the same reason C.UnlockRange exists.
 C.ReplicatorRange = 2
 
--- The reserve, in units, and what it costs to make something.
+-- What it costs to make something.
 --
 -- Cost is weight-based because weight is the one number every item in the
 -- game has and it is roughly what the thing *is*: a bandage is 5, a tin of
 -- beans 12, a hammer 24, a shotgun 44. The cap stops a generator (60 kg)
 -- asking for six hundred.
---
--- The reserve is deliberately not huge: 1000 is two hundred bandages or
--- forty hammers, which is a good day's work and not a warehouse.
-C.ReplicatorEnergyMax  = 1000
 C.ReplicatorBaseCost   = 4
 C.ReplicatorWeightCost = 10
 C.ReplicatorMaxCost    = 150
-
--- What comes back every ten game minutes. 20 refills the whole reserve in
--- 500 game minutes -- eight game hours, so **a night's sleep brings it back**
--- and a busy afternoon does not.
---
--- Game minutes rather than real ones, on purpose: the ship's plant runs on
--- the world's clock, so sleeping and waiting both work, and a server that has
--- been empty overnight does not hand its crew a full tank for free the way a
--- real-time timer would. Ten-minute steps rather than one-minute ones because
--- every step that changes the number is a Ship.commit() to every client.
-C.ReplicatorRegen = 20
 
 -- What the panel offers per press. A quantity field is what makes the energy
 -- budget do its work in one decision rather than in ten clicks.
@@ -878,6 +915,10 @@ C.ReplicatorBlocked = {
     ["TrekShuttle.TrekTorpedo"]     = true,
     ["TrekShuttle.TrekShuttleHull"] = true,
     ["TrekShuttle.TrekHelmConsole"] = true,
+    -- **The crystal that powers it.** A replicator that can make its own fuel
+    -- is a replicator with no limit at all, and the hunt for dilithium is the
+    -- only reason the whole system has stakes.
+    ["TrekShuttle.TrekDilithium"]   = true,
 }
 
 -- Modules the catalogue skips wholesale. Vanilla's own item viewer skips

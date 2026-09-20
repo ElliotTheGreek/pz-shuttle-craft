@@ -106,7 +106,7 @@ end
 --   owner (username) | nil, crew {}   who may use it, when the server limits it
 --   built, rev                        the cabin, and the build that made it
 --   ghosts {{x,y,z}}                  old hulls still to be removed
---   repEnergy                         the replicator's reserve
+--   power                             the ship's reserve, one crystal's worth
 --
 -- The replicator's *patterns* are deliberately not here: they are a list that
 -- grows without bound and this table is transmitted whole on every change.
@@ -151,10 +151,15 @@ function U.state()
     -- `shields` is compared with nil rather than tested for truth: false is a
     -- real answer.
     if s.shields == nil then s.shields = C.ShieldsDefault end
-    -- The replicator's reserve, for the same reason: 0 is a real answer, and
-    -- a save from before the replicator starts with a full one rather than an
-    -- empty machine nobody can explain.
-    if s.repEnergy == nil then s.repEnergy = C.ReplicatorEnergyMax end
+    -- The ship's power, for the same reason: 0 is a real answer, and a save
+    -- from before it starts with a full crystal rather than a dead ship
+    -- nobody can explain.
+    --
+    -- It was `repEnergy` while the replicator owned it. The EMH will draw on
+    -- the same number, so it is the *ship's* now, and a save from the one
+    -- revision that had the old name keeps its charge.
+    if s.power == nil then s.power = s.repEnergy or C.PowerMax end
+    s.repEnergy = nil
     return s
 end
 

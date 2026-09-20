@@ -493,9 +493,50 @@ else:
             if not ok:
                 failures.append(f"void map cell {x},{y} is not a well-formed empty cell")
 
+# --- the loot tables the crystal is seeded into -------------------------
+# server/Items/TrekDilithium.lua names vanilla distribution tables by string.
+# A name that was right in build 41 and renamed since does not throw and does
+# not warn at build time: the crystal simply never spawns there, the player
+# never finds one, and the ship's power system quietly has no fuel. The mod
+# reads its own result back at runtime and logs the misses, but that log is
+# read after the world is already generated -- this is the check that happens
+# first.
+dilithium_lua = os.path.join(MOD, "media", "lua", "server", "Items",
+                             "TrekDilithium.lua")
+proc = os.path.join(PZ, "lua", "server", "Items", "ProceduralDistributions.lua")
+if os.path.isfile(dilithium_lua) and os.path.isfile(proc):
+    src = open(dilithium_lua, encoding="utf-8").read()
+    places = re.findall(r'\{\s*"(\w+)"\s*,\s*[\d.]+\s*\}', src)
+    # One level in, and vanilla indents with tabs. Anything deeper is a key
+    # *inside* a table rather than a table.
+    vanilla = set(re.findall(r"^(?:	| {4})(\w+)\s*=\s*\{",
+                             open(proc, encoding="utf-8").read(), re.M))
+    # Both sides of the comparison get a sanity check, because a regex that
+    # has stopped matching would otherwise report the other side as entirely
+    # missing -- which is how this check first ran, blaming twelve perfectly
+    # good loot tables for a stray \s.
+    if len(places) < 5:
+        failures.append(f"only {len(places)} dilithium loot tables were found "
+                        f"in TrekDilithium.lua -- the pattern that reads them "
+                        f"has stopped matching, so this check proves nothing")
+    if len(vanilla) < 100:
+        failures.append(f"only {len(vanilla)} tables were read out of "
+                        f"ProceduralDistributions.lua -- the pattern that "
+                        f"reads them has stopped matching, so this check "
+                        f"proves nothing")
+    for name in places:
+        if name not in vanilla:
+            failures.append(f"dilithium is seeded into ProceduralDistributions "
+                            f"table {name!r}, which the installed game does "
+                            f"not have -- crystals will never spawn there")
+    checked_dists = len(places)
+else:
+    checked_dists = 0
+
 print(f"checked {checked_sprites} sprite names and {checked_items} item ids, "
       f"{len(mod_items)} mod items, {len(mod_models)} models, "
-      f"{len(mod_icons)} icons and {len(asked)} translation keys")
+      f"{len(mod_icons)} icons, {checked_dists} loot tables and "
+      f"{len(asked)} translation keys")
 if failures:
     print(f"\n{len(failures)} PROBLEM(S):")
     for f in failures:

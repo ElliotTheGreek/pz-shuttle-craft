@@ -67,6 +67,7 @@
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+require "TREK/TREK_Power"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -348,49 +349,13 @@ end
 ---------------------------------------------------------------------------
 -- The reserve
 ---------------------------------------------------------------------------
---- What is in the reserve, 0..max.
----
---- A missing value reads as **full**, and that is for the client's sake: a
---- client's copy of the ship is whatever the server last sent, and until the
---- first one arrives there is no number at all. Reading that as empty would
---- draw a flat bar and grey the button on a machine that has simply not been
---- told yet. The server cannot see a missing value -- U.state() fills it in
---- on the authority -- and it is the server that decides anything.
+-- **The replicator does not own the power any more.** It is the ship's, it
+-- comes out of a dilithium crystal, and the EMH will spend it too --
+-- TREK_Power.lua owns the number, the chamber and the crystal it burns. What
+-- is left here is what a replication *costs*.
+
 function R.energy()
-    local e = U.state().repEnergy
-    if type(e) ~= "number" then return C.ReplicatorEnergyMax end
-    if e < 0 then return 0 end
-    if e > C.ReplicatorEnergyMax then return C.ReplicatorEnergyMax end
-    return e
-end
-
---- Spends from the reserve. Authority only; the caller commits.
-function R.spend(n)
-    if isClient() then return false end
-    local s = U.state()
-    local left = R.energy() - (n or 0)
-    if left < 0 then left = 0 end
-    s.repEnergy = left
-    return true
-end
-
---- What comes back every ten game minutes. Returns true when the number
---- changed, so the caller only commits -- and only transmits -- when it did.
-function R.regen()
-    if isClient() then return false end
-    local s = U.state()
-    local now = R.energy()
-    if now >= C.ReplicatorEnergyMax then
-        -- Written back even so: a save from before the reserve existed, or one
-        -- somebody has edited, should not sit at a number above the ceiling.
-        if s.repEnergy ~= C.ReplicatorEnergyMax then
-            s.repEnergy = C.ReplicatorEnergyMax
-            return true
-        end
-        return false
-    end
-    s.repEnergy = math.min(C.ReplicatorEnergyMax, now + C.ReplicatorRegen)
-    return true
+    return TREK.Power.reserve()
 end
 
 --- What `count` of this row costs. Free when the sandbox says so.

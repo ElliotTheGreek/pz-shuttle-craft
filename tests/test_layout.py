@@ -195,7 +195,7 @@ for lx, ly in lamps:
 # --- draw it -----------------------------------------------------------
 GLYPH = {"console": "T", "tvConsole": "t", "television": "V", "chair": "h",
          "fridge": "F", "oven": "o", "counter": "c", "sink": "w",
-         "microwave": "m", "armoury": "A",
+         "microwave": "m", "armoury": "A", "dilithium": "D",
          "provisions": "p", "medical": "M", "emhPanel": "E", "biobed": "B"}
 grid = {}
 for e in entries:
@@ -224,6 +224,7 @@ print("\n   @ transporter pad   T monitor wall   V television")
 print("   t tv console   h crew seat   F fridge   o oven   c counter")
 print("   w sink   m microwave   R the replicator (a world model)")
 print("   A armoury   p rations   M sick bay   E EMH panel   B biobed")
+print("   D the dilithium chamber")
 print("   * lamp      . open deck")
 
 print(f"\n{len(entries)} authored fittings, {len(containers)} containers:")

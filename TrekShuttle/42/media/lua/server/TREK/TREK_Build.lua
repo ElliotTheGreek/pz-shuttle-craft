@@ -484,6 +484,11 @@ local SPECIALS = {
     medkit  = { items = { C.HyposprayItem, C.DermalRegenItem,
                           C.MedTricorderItem, C.TricorderItem },
                 copies = function() return 1 end },
+    -- The ship is issued with spare crystals on top of the one it arrives
+    -- burning. Enough to learn what they are for; not enough to skip looking
+    -- for more, which is the whole point of them.
+    dilithium = { items = { C.DilithiumItem },
+                  copies = function() return C.DilithiumIssue end },
 }
 
 --- Stocks one authored container. Returns true when something went in.
