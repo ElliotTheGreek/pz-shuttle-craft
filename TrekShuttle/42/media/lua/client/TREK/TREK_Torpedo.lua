@@ -19,9 +19,21 @@
     and every building cursor. The hard direction is the engine's problem, and
     it is the direction the engine already solves.
 
-    That choice also buys the controller for free: a mouse gives the screen
-    point directly, a stick moves a virtual one, and from there both are the
-    same code path. Every panel in this mod has to work on the Steam Deck.
+    That choice also leaves the controller within reach: a mouse gives the
+    screen point directly and a stick would move a virtual one, from there the
+    same code path. **The stick half is not built yet.** aimPoint() keeps a
+    virtual cursor for a joypad but nothing moves it, so on a Steam Deck the
+    reticle sits in the middle of the screen and does not track. That is
+    recorded in ROADMAP rather than papered over, because the last thing this
+    feature did was ship an input nobody could reach.
+
+    **The interaction is: hold right mouse to aim, left click to fire**, while
+    at the controls and in the air. No mode, no arming step, nothing to
+    discover. The first version made it a radial-menu toggle and it failed in
+    game in the quietest way available -- no error, no log line, the file
+    loaded, and the pilot held right-click, clicked left and got silence. The
+    lesson is in the roadmap's own wording, which said "right-click to aim,
+    left-click to fire" all along.
 ]]
 
 if isServer() then return end
@@ -44,13 +56,25 @@ TREK.Torpedo = T
 -- "the torpedoes do not work" is what that looks like from the cockpit.
 local RETICLE = "media/ui/TREK_Reticle.png"
 
--- Armed state is per-session and never leaves this client. It is not ship
--- state: two crew may be aiming at once and neither is the ship's business.
-T.armed = false
+-- Aiming is **holding the right mouse button**, which is how it was asked for
+-- and how it reads from the cockpit: the same gesture that aims a gun on foot.
+-- There is no arm/disarm mode.
+--
+-- The first version made arming a radial-menu toggle, and it failed in game in
+-- the most instructive way available: nothing errored, nothing logged, the
+-- file loaded fine, and the pilot held right-click, clicked left, and got
+-- silence -- because the code was waiting to be switched on by a menu nobody
+-- had been told to open. Worth remembering that "no error in the log" and "it
+-- works" are different claims, and that an input nobody can discover is the
+-- same as no input at all.
+--
+-- None of this is ship state: two crew may be aiming at once and neither is
+-- the ship's business.
 T.aimX, T.aimY = nil, nil          -- screen point
 T.lastFire = 0                     -- client-side, for the reticle only
 
 local overlay = nil
+local leftWasDown = false          -- for the click edge; see T.poll
 
 ---------------------------------------------------------------------------
 -- Where the pilot is pointing
@@ -148,7 +172,7 @@ local COLOURS = {
 }
 
 function Overlay:render()
-    if not T.armed then return end
+    if not T.aiming() then return end
     local p = player()
     if not p then return end
     local sx, sy = aimPoint(p)
@@ -176,31 +200,65 @@ end
 ---------------------------------------------------------------------------
 -- Arming and firing
 ---------------------------------------------------------------------------
-function T.isArmed() return T.armed == true end
-
-function T.arm()
-    T.armed = true
-    ensureOverlay()
-    U.log("torpedo targeting armed")
+--- True when this player is the one flying her, in the seat, in the air.
+--- Everything below is gated on it so a passenger's mouse does nothing and a
+--- parked shuttle cannot shell its own landing pad.
+function T.atTheControls()
+    local p = player()
+    if not p then return false end
+    local s = TREK.Ship.get()
+    if not s.flying then return false end
+    local F = TREK.Flight
+    if F and F.isPilot and not F.isPilot(p) then return false end
+    return true
 end
 
-function T.disarm()
-    T.armed = false
+--- Aiming is the right mouse button held down. Nothing to arm, nothing to
+--- remember, and it stops the moment the button comes up.
+function T.aiming()
+    if not T.atTheControls() then return false end
+    return U.try("torpedoRightDown", function()
+        return isMouseButtonDown(1)
+    end) == true
+end
+
+local function closeOverlay()
     if overlay then
         U.try("torpedoOverlayOff", function() overlay:removeFromUIManager() end)
         overlay = nil
     end
 end
 
-function T.toggle()
-    if T.armed then T.disarm() else T.arm() end
+--- Polled once a tick rather than hung off a mouse event.
+---
+--- The fire is taken on the **edge** -- the frame the left button goes down --
+--- worked out here rather than trusting isMouseButtonPressed, whose
+--- level-versus-edge meaning is not written down anywhere and would show up as
+--- a torpedo every frame if it were wrong. The cooldown would bound the damage
+--- but not the noise, and a wrong guess about an undocumented call is exactly
+--- what DEV_GUIDE warns about.
+function T.poll()
+    if not T.atTheControls() then
+        closeOverlay()
+        leftWasDown = false
+        return
+    end
+    ensureOverlay()
+
+    local aiming = T.aiming()
+    local leftDown = U.try("torpedoLeftDown", function()
+        return isMouseButtonDown(0)
+    end) == true
+
+    if aiming and leftDown and not leftWasDown then T.fire() end
+    leftWasDown = leftDown
 end
 
 --- Asks the server to fire. Everything checked here is checked again there --
 --- a client is a request, never a fact -- and this half exists only so the
 --- pilot gets an answer in the same frame they pulled the trigger.
 function T.fire()
-    if not T.armed then return end
+    if not T.atTheControls() then return end
     local status = T.aimStatus()
     if status ~= "ok" then
         U.log("torpedo not fired: %s", status)
@@ -215,17 +273,7 @@ function T.fire()
     U.log("torpedo requested at %d,%d,%d", x, y, z)
 end
 
--- Stand down whenever she is no longer flying, so a pilot who lands with the
--- reticle up does not keep an armed overlay on a parked shuttle.
-Events.OnTick.Add(function()
-    if not T.armed then return end
-    local s = TREK.Ship.get()
-    if not s.flying then T.disarm() end
-end)
-
-Events.OnMouseDown.Add(function()
-    if T.armed then T.fire() end
-end)
+Events.OnTick.Add(T.poll)
 
 Net.onClient("torpedoFired", function(args)
     -- Fired by anybody, including another pilot on a server: keep the local

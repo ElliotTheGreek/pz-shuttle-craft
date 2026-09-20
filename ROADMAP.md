@@ -316,7 +316,11 @@ happens once the roadmap below is done, not after 1.3. So nothing here is
 racing a release, and the ground rule that nothing ships un-played applies to
 the whole list at once rather than to each version.
 
-1. **Photon torpedoes.**
+1. **Photon torpedoes** — built; hold right mouse to aim, left click to fire.
+   **Outstanding: the controller.** `aimPoint()` keeps a virtual cursor for a
+   joypad but nothing moves it, so on a Steam Deck the reticle sits at the
+   centre of the screen and does not track. The roadmap always said "a reticle
+   the stick moves for controllers"; that half is not built.
 2. **Blades** — the bat'leth's hand and ground attachments, which need it
    looked at in a fist, then the mek'leth, lirpa and ushaan-tor off the same
    pipeline.

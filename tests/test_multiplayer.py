@@ -1269,14 +1269,47 @@ def torpedoes():
     C = lambda n: rt.eval(f"TREK.Config.{n}")
     sx, sy = ship(rt, "x"), ship(rt, "y")
 
+    def aim(dx, dy):
+        """Points the cursor dx,dy squares from the player."""
+        rt.run(f"SIM.aim.dx = {dx}; SIM.aim.dy = {dy}")
+
+    def reset():
+        """Clears the traps and BOTH halves of the cooldown.
+
+        The client keeps its own T.lastFire so it can refuse in the same frame
+        the trigger is pulled, and the server keeps s.torpedoAt. Clearing only
+        the server's is what made three later checks in this function pass for
+        the wrong reason: every shot after the first was being refused by the
+        client before it ever became a request, so guards that were supposed
+        to be under test were never reached.
+        """
+        rt.run("SIM.traps = {}")
+        rt.run("TREK.Util.state().torpedoAt = nil")
+        rt.run("TREK.Torpedo.lastFire = 0")
+
     def fire(dx, dy):
-        rt.run(f"TREK.Net.serverHandlers.fireTorpedo({P}, "
-               f"{{x = {sx + dx}, y = {sy + dy}, z = 0}})")
+        """Fires the way a player actually does: hold right, click left.
+
+        **Not** by calling the server handler. The first version of this test
+        did exactly that, and it passed against a build in which the pilot
+        could hold right-click, click left, and get silence -- because arming
+        was a radial-menu toggle nobody had been told about. The handler was
+        never the part that was broken. Drive the input.
+        """
+        aim(dx, dy)
+        rt.run("SIM.mouse[1] = true")          # hold right: aiming
+        rt.run("SIM.mouse[0] = false")         # left up, so the next press is an edge
+        rt.run("TREK.Torpedo.poll()")
+        rt.run("SIM.mouse[0] = true")          # click
+        rt.run("TREK.Torpedo.poll()")
+        net.pump(2)
+        rt.run("SIM.mouse[0] = false; SIM.mouse[1] = false")
+        rt.run("TREK.Torpedo.poll()")
 
     # --- she will not fire from the ground --------------------------------
     # The blast is centred on the ground, so a shuttle sitting on it would be
     # inside its own explosion.
-    rt.run("SIM.traps = {}")
+    reset()
     fire(10, 0)
     check(rt.eval("#SIM.traps") == 0,
           "torpedoes: she fired while parked on the ground")
@@ -1287,29 +1320,39 @@ def torpedoes():
     check(ship(rt, "flying") is True, "torpedoes: she never got airborne to fire from")
 
     # --- a shot that should land ------------------------------------------
-    rt.run("SIM.traps = {}")
+    reset()
     fire(10, 0)
-    check(rt.eval("#SIM.traps") == 1,
-          "torpedoes: a valid shot from the pilot built no trap")
-    check(rt.eval("SIM.lastTrap().fired") is True,
-          "torpedoes: the trap was built but never triggered")
+    built = rt.eval("#SIM.traps") == 1
+    check(built,
+          "torpedoes: holding right mouse and clicking left built no trap -- "
+          "the pilot has no way to fire, which is exactly how this shipped "
+          "broken the first time")
 
-    # --- THE one that matters ---------------------------------------------
-    for field, why in (
-        ("fireChance", "IsoGridSquare.Burn() and IsoFireManager.StartFire are "
-                       "both gated on this; above zero the blast sets the street alight"),
-        ("fireEnergy", "fire starting energy must be zero"),
-        ("fireRange", "the fire radius must be zero"),
-    ):
-        got = rt.eval(f"SIM.lastTrap().{field}")
-        check(got == 0, f"torpedoes: trap {field} is {got}, not 0 -- {why}")
+    # Guarded, because everything below reads the trap. Without this the
+    # run dies on a nil index and the real failure above never gets printed --
+    # a test that cannot report its own finding is half a test.
+    if built:
+        check(rt.eval("SIM.lastTrap().fired") is True,
+              "torpedoes: the trap was built but never triggered")
 
-    check(rt.eval("SIM.lastTrap().power") == C("TorpedoPower"),
-          "torpedoes: the trap was not given the configured explosion power")
-    check(rt.eval("SIM.lastTrap().range") == C("TorpedoRange"),
-          "torpedoes: the trap was not given the configured blast radius")
+        # --- THE one that matters -----------------------------------------
+        for field, why in (
+            ("fireChance", "IsoGridSquare.Burn() and IsoFireManager.StartFire are "
+                           "both gated on this; above zero the blast sets the street alight"),
+            ("fireEnergy", "fire starting energy must be zero"),
+            ("fireRange", "the fire radius must be zero"),
+        ):
+            got = rt.eval(f"SIM.lastTrap().{field}")
+            check(got == 0, f"torpedoes: trap {field} is {got}, not 0 -- {why}")
+
+        check(rt.eval("SIM.lastTrap().power") == C("TorpedoPower"),
+              "torpedoes: the trap was not given the configured explosion power")
+        check(rt.eval("SIM.lastTrap().range") == C("TorpedoRange"),
+              "torpedoes: the trap was not given the configured blast radius")
 
     # --- the cooldown is real ---------------------------------------------
+    # Traps only: clearing the cooldown here would be clearing the thing
+    # under test.
     rt.run("SIM.traps = {}")
     fire(10, 0)
     check(rt.eval("#SIM.traps") == 0,
@@ -1325,19 +1368,19 @@ def torpedoes():
     check(int(C("TorpedoMaxRange")) <= 64,
           f"torpedoes: TorpedoMaxRange is {C('TorpedoMaxRange')} -- enforced, "
           f"but far enough to shell most of the map from the air")
-    rt.run("SIM.traps = {}; TREK.Util.state().torpedoAt = nil")
+    reset()
     fire(int(C("TorpedoMaxRange")) + 6, 0)
     check(rt.eval("#SIM.traps") == 0,
           "torpedoes: a shot beyond TorpedoMaxRange was allowed -- a crafted "
           "command is a map-wide mortar")
-    rt.run("SIM.traps = {}; TREK.Util.state().torpedoAt = nil")
+    reset()
     fire(1, 0)
     check(rt.eval("#SIM.traps") == 0,
           "torpedoes: a shot inside TorpedoMinRange was allowed -- she would "
           "be inside her own blast")
 
     # --- a passenger is not a gunner --------------------------------------
-    rt.run("SIM.traps = {}; TREK.Util.state().torpedoAt = nil")
+    reset()
     rt.run(f"""
         local v = TREK.Vehicle.ship()
         v.seats[0] = nil
@@ -1347,8 +1390,52 @@ def torpedoes():
     check(rt.eval("#SIM.traps") == 0,
           "torpedoes: someone who is not in the driver's seat fired them")
 
-    print("torpedoes: the pilot fires, the blast carries no fire at all, and "
-          "the ground, the cooldown, both range bounds and the passenger are "
+    # --- left click alone, with no right button held, must do nothing ------
+    # Aiming *is* the right mouse button. Without this, an ordinary left click
+    # while flying -- which is most clicks -- would launch a torpedo.
+    rt.run(f"""
+        local v = TREK.Vehicle.ship()
+        v.seats[1] = nil
+        v.seats[0] = SIM.players[1]
+    """)
+    reset()
+    aim(10, 0)
+    rt.run("SIM.mouse[1] = false; SIM.mouse[0] = false")
+    rt.run("TREK.Torpedo.poll()")
+    rt.run("SIM.mouse[0] = true")
+    rt.run("TREK.Torpedo.poll()")
+    net.pump(2)
+    check(rt.eval("#SIM.traps") == 0,
+          "torpedoes: a bare left click fired one -- right mouse is supposed "
+          "to be what arms the shot")
+
+    # --- holding left down must not fire every frame -----------------------
+    # The cooldown is taken out of the way first, and that is the point of the
+    # block. With it in place this check passes whether or not the click is
+    # taken on an edge, because the cooldown refuses the repeats -- so it was
+    # testing the cooldown twice and the edge never. What a missing edge
+    # actually costs is a fire attempt every frame the button is held: bounded
+    # damage, unbounded noise, and a log nobody can read.
+    cooldown = C("TorpedoCooldownMs")
+    rt.run("TREK.Config.TorpedoCooldownMs = 0")
+    reset()
+    aim(10, 0)
+    rt.run("SIM.mouse[1] = true; SIM.mouse[0] = false")
+    rt.run("TREK.Torpedo.poll()")
+    rt.run("SIM.mouse[0] = true")
+    for _ in range(8):
+        rt.run("TREK.Torpedo.poll()")
+    net.pump(2)
+    held = rt.eval("#SIM.traps")
+    rt.run(f"TREK.Config.TorpedoCooldownMs = {cooldown}")
+    check(held == 1,
+          f"torpedoes: holding the button down fired {held} of them -- the "
+          f"click is not being taken on the edge, and only the cooldown is "
+          f"standing between the pilot and one torpedo per frame")
+
+    print("torpedoes: the pilot aims with right mouse and fires with left, "
+          "the blast carries no fire at all, and the ground, a bare click, a "
+          "held button, the cooldown, both range bounds and a passenger are "
           "all refused")
 
 

@@ -916,6 +916,19 @@ local function derivable(name)
     function cls.new(self, x, y, w, h)
         return setmetatable({ x = x, y = y, width = w, height = h, children = {} }, self)
     end
+    -- The lifecycle every ISUIElement has. Absent, an overlay that is created
+    -- and torn down per tick throws on the first frame -- which is how the
+    -- torpedo reticle failed here after the aiming rewrite.
+    function cls:initialise() end
+    function cls:instantiate() end
+    function cls:setAlwaysOnTop() end
+    function cls:setCapture() end
+    function cls:addToUIManager() self.onScreen = true end
+    function cls:removeFromUIManager() self.onScreen = false end
+    function cls:drawTextureScaled() end
+    function cls:drawTexture() end
+    function cls:drawRect() end
+    function cls:drawText() end
     return cls
 end
 ISPanelJoypad = derivable("ISPanelJoypad")
@@ -923,6 +936,39 @@ ISButton = derivable("ISButton")
 -- The torpedo reticle is a bare overlay rather than a panel: it draws and
 -- never captures, so the game underneath stays steerable while armed.
 ISUIElement = derivable("ISUIElement")
+
+---------------------------------------------------------------------------
+-- Mouse and the screen -> world conversion
+---------------------------------------------------------------------------
+-- Modelled because the torpedoes are aimed with them, and because the first
+-- version of that feature was tested by calling the server handler directly:
+-- the blast was proven and the *input* was not, so a build in which no player
+-- could ever fire passed every check. A test that skips the way a thing is
+-- actually reached is testing something else.
+SIM.mouse = { [0] = false, [1] = false, [2] = false }
+SIM.mouseX, SIM.mouseY = 400, 300
+
+function isMouseButtonDown(b) return SIM.mouse[b] == true end
+function isMouseButtonPressed(b) return SIM.mouse[b] == true end
+function getMouseX() return SIM.mouseX end
+function getMouseY() return SIM.mouseY end
+
+--- Where the mouse is pointing, in world squares.
+---
+--- The real conversion is an isometric projection off the camera; here it is
+--- simply "the screen centre is the player, and SIM.aim says how far off it
+--- the cursor is". That is enough to test range bounds, refusals and the click
+--- edge, and it is honest about what it is: this cannot catch a projection
+--- error, only the logic built on top of one.
+SIM.aim = { dx = 0, dy = 0 }
+function screenToIsoX(_, _, _, _)
+    local p = SIM.players[1]
+    return (p and p.x or 0) + SIM.aim.dx
+end
+function screenToIsoY(_, _, _, _)
+    local p = SIM.players[1]
+    return (p and p.y or 0) + SIM.aim.dy
+end
 
 ---------------------------------------------------------------------------
 -- IsoTrap: build 42's explosive, and the only thing a torpedo is

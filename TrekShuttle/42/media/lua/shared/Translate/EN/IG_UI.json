@@ -70,8 +70,6 @@
     "IGUI_TREK_CeilingReached": "She will go no higher",
     "IGUI_TREK_FloorReached": "She will go no lower -- set her down instead",
     "IGUI_TREK_NoLift": "She will not lift -- see the log",
-    "IGUI_TREK_TorpedoOn": "Photon torpedoes: arm",
-    "IGUI_TREK_TorpedoOff": "Photon torpedoes: stand down",
     "IGUI_TREK_NotFlying": "She has to be in the air for that",
     "IGUI_TREK_TorpedoReloading": "The tubes are still cycling",
     "IGUI_TREK_TorpedoRange": "That target is out of range",
