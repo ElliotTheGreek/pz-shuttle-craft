@@ -64,6 +64,16 @@ function getText(key, ...)
 end
 function getTimestampMs() return py_clock() end
 
+-- Text measurement, roughly. tests/test_helm.py is where a panel's layout is
+-- actually checked -- against a generous per-glyph width, with every draw call
+-- recorded -- so all this has to do is answer plausibly when a panel here
+-- draws a frame.
+local textManager = {
+    MeasureStringX = function(_, _, text) return math.floor(#tostring(text or "") * 6.5) end,
+    MeasureStringY = function() return 14 end,
+}
+function getTextManager() return textManager end
+
 ---------------------------------------------------------------------------
 -- Java-ish lists
 ---------------------------------------------------------------------------
@@ -121,11 +131,101 @@ local function bareType(fullType)
     return (tostring(fullType):gsub("^.*%.", ""))
 end
 
+---------------------------------------------------------------------------
+-- The item catalogue
+---------------------------------------------------------------------------
+-- What getAllItems() hands back: every `item` script in the game, as Item
+-- objects. The replicator reads this instead of a hand-written recipe list.
+--
+-- **The obsolete and hidden ones are in here on purpose**, along with a
+-- Moveables entry, because they are the trap: an obsolete item is still in
+-- the scripts, still has a name and a category, and returns nil from
+-- instanceItem -- so a catalogue that forgets vanilla's filter fills with
+-- entries that look exactly like working ones and make nothing. A stub that
+-- only listed usable items would let that straight through.
+--
+-- The list is small and fixed rather than scraped from the installed game:
+-- what is being tested is the filtering and the arithmetic, and a test whose
+-- expectations move when somebody patches Project Zomboid is not a test.
+SIM.items = {}
+
+local function scriptItem(fullName, opts)
+    opts = opts or {}
+    local module = fullName:match("^(.-)%.") or "Base"
+    local it = {
+        fullName = fullName,
+        displayName = opts.name or bareType(fullName),
+        category = opts.category or "Item",
+        module = module,
+        weight = opts.weight or 1.0,
+        obsolete = opts.obsolete == true,
+        hidden = opts.hidden == true,
+        texture = opts.texture ~= false and { path = fullName } or nil,
+    }
+    function it:getFullName() return self.fullName end
+    function it:getDisplayName() return self.displayName end
+    function it:getDisplayCategory() return self.category end
+    function it:getModuleName() return self.module end
+    function it:getActualWeight() return self.weight end
+    function it:getObsolete() return self.obsolete end
+    function it:isHidden() return self.hidden end
+    function it:getNormalTexture() return self.texture end
+    table.insert(SIM.items, it)
+    return it
+end
+SIM.scriptItem = scriptItem
+
+scriptItem("Base.Bandage",      { name = "Bandage", category = "FirstAid", weight = 0.1 })
+scriptItem("Base.Hammer",       { name = "Hammer", category = "Tool", weight = 2.0 })
+scriptItem("Base.TinnedBeans",  { name = "Tinned Beans", category = "Food", weight = 0.8 })
+scriptItem("Base.Axe",          { name = "Axe", category = "Weapon", weight = 3.0 })
+scriptItem("Base.Generator",    { name = "Generator", category = "Appliance", weight = 60.0 })
+-- No icon at all: the catalogue holds other people's mods, and nothing in
+-- the panel may assume getNormalTexture() answered with something.
+scriptItem("Base.OddOne",       { name = "Odd One", category = "Item", texture = false })
+-- The three the filter has to remove.
+scriptItem("Base.OldSpanner",   { name = "Old Spanner", obsolete = true })
+scriptItem("Base.SecretThing",  { name = "Secret Thing", hidden = true })
+scriptItem("Moveables.Moveable_fridge", { name = "Fridge", category = "Furniture" })
+
+--- The mod's own items, declared the way media/scripts/trekshuttle.txt does.
+--- Added by name so the test can assert that the ship knows its own stores,
+--- and that the spec-only warhead is not among them.
+for _, id in ipairs({ "TrekShuttle.TrekPhaser", "TrekShuttle.TrekHypospray",
+                      "TrekShuttle.TrekBatleth", "TrekShuttle.TrekRationPack",
+                      "TrekShuttle.TrekDermalRegen", "TrekShuttle.TrekTricorder",
+                      "TrekShuttle.TrekMedTricorder", "TrekShuttle.TrekTorpedo",
+                      "TrekShuttle.TrekShuttleHull" }) do
+    scriptItem(id, { name = bareType(id), category = "Starfleet", weight = 0.6 })
+end
+
+function getAllItems() return jlist(SIM.items) end
+
+function getScriptManager()
+    return {
+        getAllItems = function() return jlist(SIM.items) end,
+        FindItem = function(_, id)
+            for _, it in ipairs(SIM.items) do
+                if it.fullName == id then return it end
+            end
+            return nil
+        end,
+    }
+end
+
 function SIM.container(capacity)
     local c = { items = {}, capacity = capacity or 40, explored = false }
+    --- Adds one item, and **refuses when the container is full**.
+    ---
+    --- Modelled because the engine does it silently: ItemContainer drops what
+    --- it is handed once the contents weigh as much as the capacity, with no
+    --- error anywhere, which is why U.stockEach reads the container back and
+    --- why the replicator counts the tray after every single item. A stub
+    --- that accepted everything would make a full tray look like a success.
     function c:AddItem(item)
         if type(item) == "string" then item = instanceItem(item) end
         if not item then return nil end
+        if self:getContentsWeight() + 0.5 > self.capacity then return nil end
         table.insert(self.items, item)
         return item
     end
@@ -158,6 +258,19 @@ function SIM.container(capacity)
     end
     function c:containsTypeRecurse(bare)
         return self:getAllTypeRecurse(bare):size() > 0
+    end
+    --- Everything that satisfies a predicate. Vanilla's own way of asking for
+    --- the lot is `getAllEvalRecurse(function() return true end)`
+    --- (ISInventoryPaneContextMenu.lua:1355), which is how the replicator
+    --- reads what a player is carrying. Nothing here nests containers, so the
+    --- recursion is the same list -- what is modelled is the call, not bags
+    --- inside bags.
+    function c:getAllEvalRecurse(pred)
+        local out = {}
+        for _, item in ipairs(self.items) do
+            if pred == nil or pred(item) then table.insert(out, item) end
+        end
+        return jlist(out)
     end
     return c
 end
@@ -1305,16 +1418,40 @@ local function derivable(name)
         sub.__index = sub
         return sub
     end
-    function cls.new(self, x, y, w, h)
-        return setmetatable({ x = x, y = y, width = w, height = h, children = {} }, self)
+    function cls.new(self, x, y, w, h, title, target, onclick)
+        return setmetatable({ x = x, y = y, width = w, height = h, children = {},
+                              title = title, target = target, onclick = onclick,
+                              enable = true }, self)
     end
     -- The lifecycle every ISUIElement has. Absent, an overlay that is created
     -- and torn down per tick throws on the first frame -- which is how the
     -- torpedo reticle failed here after the aiming rewrite.
     function cls:initialise() end
-    function cls:instantiate() end
+    --- Builds the panel's children, as the engine does.
+    ---
+    --- `instantiate()` makes the Java UIElement, and that constructor calls
+    --- back into the table's `createChildren`. A stub that did nothing left
+    --- every panel opened here with no buttons in it at all -- which meant a
+    --- test could "open" the replicator and then only reach it by calling
+    --- handlers directly, and a button wired to nothing would have passed.
+    function cls:instantiate()
+        if self.createChildren and not self.childrenMade then
+            self.childrenMade = true
+            self:createChildren()
+        end
+    end
+    -- Empty, as ISUIElement's is: a panel calls its parent's first.
+    function cls:createChildren() end
     function cls:setAlwaysOnTop() end
     function cls:setCapture() end
+    --- A button's title, target and handler are kept, and :click() really
+    --- calls it. They used to be dropped on the floor, which meant a test
+    --- could only reach a panel's controls by calling their handlers itself
+    --- -- and a handler that nothing on screen is wired to is exactly the
+    --- shape of "nobody could ever fire a torpedo, and every check passed".
+    function cls:click()
+        if self.onclick then self.onclick(self.target, self) end
+    end
     function cls:addToUIManager() self.onScreen = true end
     function cls:removeFromUIManager() self.onScreen = false end
     function cls:setVisible(v) self.visible = v end
@@ -1333,6 +1470,48 @@ local function derivable(name)
 end
 ISPanelJoypad = derivable("ISPanelJoypad")
 ISButton = derivable("ISButton")
+
+-- The two widgets the replicator's panel is built from. Modelled here rather
+-- than only in tests/test_helm.py because the panel is the *way in* to the
+-- feature: a protocol test that called the server handler directly would pass
+-- against a build whose Materialise button was wired to nothing.
+ISScrollingListBox = derivable("ISScrollingListBox")
+function ISScrollingListBox:clear() self.items = {} end
+function ISScrollingListBox:addItem(name, item)
+    self.items = self.items or {}
+    local row = { text = name, item = item, height = self.itemheight or 20,
+                  itemindex = #self.items + 1 }
+    table.insert(self.items, row)
+    return row
+end
+function ISScrollingListBox:ensureVisible() end
+
+-- The helm's course prompt. Nothing here opens the helm today, but a panel
+-- whose children are now really built would take the whole file down the
+-- first time something did.
+ISRichTextPanel = derivable("ISRichTextPanel")
+function ISRichTextPanel:setText(t) self.text = t end
+function ISRichTextPanel:paginate() end
+
+ISTextEntryBox = derivable("ISTextEntryBox")
+--- The engine's box takes its initial text first, so the stub does too --
+--- getting that wrong here would hide a real argument-order mistake.
+function ISTextEntryBox.new(self, text, x, y, w, h)
+    local o = setmetatable({ x = x, y = y, width = w, height = h, children = {},
+                             text = text or "" }, self)
+    return o
+end
+function ISTextEntryBox:getText() return self.text end
+function ISTextEntryBox:setClearButton() end
+function ISTextEntryBox:setPlaceholderText(s) self.placeholder = s end
+--- Types into the box the way a player does: the text changes and the box
+--- tells whoever asked. ISTextEntryBox:onTextChange is replaced on the
+--- instance (ISChat.lua:171 does the same), so it arrives with the box as
+--- self and not the window.
+function ISTextEntryBox:setText(s)
+    self.text = s
+    if self.onTextChange then self:onTextChange() end
+end
 -- The torpedo reticle is a bare overlay rather than a panel: it draws and
 -- never captures, so the game underneath stays steerable while armed.
 ISUIElement = derivable("ISUIElement")

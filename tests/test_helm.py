@@ -259,6 +259,7 @@ def make_lua():
             o.selected = 0
             return o
         end
+        function ISScrollingListBox:ensureVisible() end
         function ISScrollingListBox:clear() self.items = {} end
         function ISScrollingListBox:addItem(name, item)
             local row = { text = name, item = item, height = self.itemheight,
@@ -273,6 +274,60 @@ def make_lua():
         end
         function ISRichTextPanel:setText(t) self.text = t end
         function ISRichTextPanel:paginate() end
+
+        -- The replicator's search box. The engine's takes its initial text
+        -- first, so this does too: getting that argument order wrong is a
+        -- mistake worth failing on here rather than in game.
+        ISTextEntryBox = ISUIElement:derive("ISTextEntryBox")
+        function ISTextEntryBox:new(text, x, y, w, h)
+            local o = ISUIElement.new(self, x, y, w, h)
+            o.text = text or ""
+            return o
+        end
+        function ISTextEntryBox:getText() return self.text end
+        function ISTextEntryBox:setClearButton() end
+        function ISTextEntryBox:setPlaceholderText(s) self.placeholder = s end
+        function ISTextEntryBox:setText(s)
+            self.text = s
+            if self.onTextChange then self:onTextChange() end
+        end
+
+        -- The item catalogue the replicator reads. Deliberately more rows
+        -- than a screen holds and with a name long enough to run out of its
+        -- column, because "the list is fine" is easy to believe with four
+        -- short entries in it.
+        local catalogue = {}
+        local categories = { "FirstAid", "Tool", "Food", "Weapon" }
+        local function scriptItem(full, name, category, weight, flags)
+            flags = flags or {}
+            local it = { full = full, name = name, category = category,
+                         weight = weight, obsolete = flags.obsolete == true,
+                         hidden = flags.hidden == true }
+            function it:getFullName() return self.full end
+            function it:getDisplayName() return self.name end
+            function it:getDisplayCategory() return self.category end
+            function it:getModuleName() return (self.full:match("^(.-)%.")) end
+            function it:getActualWeight() return self.weight end
+            function it:getObsolete() return self.obsolete end
+            function it:isHidden() return self.hidden end
+            function it:getNormalTexture() return nil end
+            table.insert(catalogue, it)
+        end
+        for i = 1, 120 do
+            scriptItem("Base.Thing" .. i, "Thing number " .. i,
+                       categories[(i % 4) + 1], (i % 7) * 0.4)
+        end
+        scriptItem("Base.LongOne",
+                   "Extraordinarily Long Item Name That Will Not Fit In Its Column",
+                   "Tool", 1.5)
+        scriptItem("TrekShuttle.TrekPhaser", "Phaser", "Weapon", 0.6)
+        _G.getAllItems = function()
+            local list = catalogue
+            return { size = function() return #list end,
+                     get = function(_, i) return list[i + 1] end }
+        end
+        _G.SandboxVars = { TrekShuttle = {} }
+        _G.instanceof = function() return false end
 
         TREK = TREK or {}
         require "TREK/TREK_Config"
@@ -305,10 +360,28 @@ def make_lua():
                                         addToolTip = function() return {} end }
         _G.getTimestampMs = function() return 1000000 end
         require "TREK/TREK_MedKit"
+        require "TREK/TREK_ReplicatorUI"
 
         haloNotes = {}
         player = { setHaloNote = function(self, text) table.insert(haloNotes, text) end,
                    getPlayerNum = function() return 0 end }
+
+        -- Standing at the replicator's berth. The panel closes itself when
+        -- nobody is at the machine, so a player stub with no position would
+        -- shut the window on its first frame and every check after it would
+        -- be drawing nothing.
+        do
+            local ox, oy = TREK.Replicator.spot()
+            local bx, by = TREK.Util.at(ox, oy)
+            player.getX = function() return bx + 0.5 end
+            player.getY = function() return by + 0.5 end
+            player.getZ = function() return TREK.Config.CabinZ end
+        end
+
+        -- The ship's own patterns. In a game this happens on the authority
+        -- when the world's data loads; nothing fires events in here, and a
+        -- panel with an empty pattern set would draw every row greyed.
+        TREK.Replicator.seedDefaults()
 
         function frame(win)
             win:prerender()
@@ -568,6 +641,179 @@ def main():
         failures.append(f"tricorder: getText({key!r}) has no entry in IG_UI.json")
     print(f"tricorder: the contact plot drew {len(draws)} calls a frame with "
           f"contacts on the range limit, and its one control is on the stick")
+
+    # --- the replicator panel ----------------------------------------------
+    # The one panel in this mod whose contents are not written by this mod:
+    # the rows come from the whole item catalogue, so their number and the
+    # length of their names are not knowable in advance. That is exactly the
+    # shape that runs out of its column, and the only things that ever see it
+    # are a render and this file.
+    texture_files["on"] = True
+    lua, missing = make_lua()
+    C = lua.globals().TREK.Config
+    lua.execute("win = TREKReplicatorWindow:new(40, 40, player); win:createChildren()")
+    win = lua.globals().win
+
+    rows = int(lua.eval("#win.rows"))
+    if rows < 100:
+        failures.append(f"replicator: the panel opened with {rows} rows; the "
+                        f"catalogue stub has more than that, so the list is "
+                        f"not showing the catalogue at all")
+    check_bounds(lua, run_frames(lua, "replicator, full catalogue"),
+                 "replicator, full catalogue")
+
+    # The rows themselves draw through doDrawItem with the list as self, so
+    # they are never touched by the frame loop above. Only as many as fit,
+    # because a row drawn past the bottom of its own list is a scroll, not a
+    # bug.
+    lua.execute("""
+        draws = {}
+        local fit = math.floor(win.list.height / win.list.itemheight)
+        local y = 0
+        for i, row in ipairs(win.list.items) do
+            if i > fit then break end
+            y = win.drawRow(win.list, y, row, false)
+        end
+    """)
+    d = lua.globals().draws
+    check_bounds(lua, [d[i] for i in range(1, len(d) + 1)], "replicator, rows")
+
+    # --- searching, and what it says when nothing matches -------------------
+    lua.execute('win.search:setText("thing number 1")')
+    narrowed = int(lua.eval("#win.rows"))
+    if not 0 < narrowed < rows:
+        failures.append(f"replicator: searching narrowed {rows} rows to "
+                        f"{narrowed}; the filter is doing nothing")
+    lua.execute('win.search:setText("zzzznothing")')
+    if int(lua.eval("#win.rows")) != 0:
+        failures.append("replicator: a search that matches nothing still lists rows")
+    empty = run_frames(lua, "replicator, nothing matches")
+    check_bounds(lua, empty, "replicator, nothing matches")
+    if not any(str(x.extra) == IG["IGUI_TREK_RepNoMatch"]
+               for x in empty if x.kind == "text"):
+        failures.append("replicator: a search with no matches draws an empty "
+                        "box and says nothing")
+
+    # --- the button says what it will do ------------------------------------
+    lua.execute('win.search:setText("")')
+    lua.execute("win.list.selected = 0")
+    run_frames(lua, "replicator, nothing picked", 1)
+    if win.makeBtn.title != IG["IGUI_TREK_RepNothingPicked"]:
+        failures.append(f"replicator: with nothing selected the button reads "
+                        f"{win.makeBtn.title!r}")
+    if win.makeBtn.enable:
+        failures.append("replicator: the Materialise button is live with "
+                        "nothing selected")
+
+    lua.execute('win.search:setText("phaser"); win.list.selected = 1')
+    run_frames(lua, "replicator, a known pattern", 1)
+    if not win.makeBtn.enable:
+        failures.append("replicator: the ship's own phaser -- a pattern it has "
+                        "from the start -- cannot be materialised")
+    if str(int(C.ReplicatorBaseCost + 0.6 * C.ReplicatorWeightCost)) \
+            not in str(win.makeBtn.title):
+        failures.append(f"replicator: the button does not show what it will "
+                        f"cost ({win.makeBtn.title!r})")
+
+    lua.execute('win.search:setText("thing number 3"); win.list.selected = 1')
+    run_frames(lua, "replicator, no pattern", 1)
+    if win.makeBtn.enable:
+        failures.append("replicator: an item with no pattern can be materialised "
+                        "from the panel")
+
+    # An empty reserve greys the button rather than letting a player press it
+    # and be refused.
+    lua.execute("""
+        win.search:setText("phaser")
+        win.list.selected = 1
+        TREK.Util.state().repEnergy = 0
+    """)
+    run_frames(lua, "replicator, empty reserve", 1)
+    if win.makeBtn.enable:
+        failures.append("replicator: with an empty reserve the button is still live")
+    lua.execute(f"TREK.Util.state().repEnergy = {float(C.ReplicatorEnergyMax)}")
+
+    # --- the quantity and category buttons cycle ----------------------------
+    # Twice round the cycle, not once. An index that runs off the end of the
+    # list makes quantity() fall back to 1, so a single lap reads exactly like
+    # a wrap that works -- and then the button never offers 5 or 10 again.
+    seen_quantities = []
+    for _ in range(8):
+        seen_quantities.append(int(lua.eval("win:quantity()")))
+        lua.execute("win.qtyBtn:click()")
+    if seen_quantities != [1, 5, 10, 1, 5, 10, 1, 5]:
+        failures.append(f"replicator: the quantity button steps {seen_quantities}, "
+                        f"not [1, 5, 10] over and over")
+
+    # Clear the search first: the checks above left "phaser" in the box, and a
+    # category filter applied to one row proves nothing about either.
+    lua.execute('win.catIndex = 0; win.search:setText("")')
+    everything = int(lua.eval("#win.rows"))
+    lua.execute("win.catBtn:click()")
+    one_category = int(lua.eval("#win.rows"))
+    if not 0 < one_category < everything:
+        failures.append(f"replicator: picking a category left {one_category} of "
+                        f"{everything} rows; the category filter does nothing")
+    for _ in range(int(lua.eval("#TREK.Replicator.categories()"))):
+        lua.execute("win.catBtn:click()")
+    if int(lua.eval("win.catIndex")) != 0:
+        failures.append("replicator: the category button does not wrap back to All")
+
+    # --- a controller ---------------------------------------------------------
+    lua.execute('''
+        reachable = {}
+        for _, row in ipairs(win.joypadButtonsY) do
+            for _, b in ipairs(row) do reachable[b] = true end
+        end
+        unreachable = {}
+        for _, c in ipairs(win.children) do
+            if c.onclick and not reachable[c] and c ~= win.ISButtonB then
+                table.insert(unreachable, c.title or "?")
+            end
+        end
+    ''')
+    unreachable = lua.globals().unreachable
+    for i in range(1, len(unreachable) + 1):
+        failures.append(f"replicator: button {unreachable[i]!r} cannot be "
+                        f"reached with a controller")
+
+    lua.execute("jd = { player = 0, id = 0 }; win:onGainJoypadFocus(jd)")
+    if not win.catBtn.joypadFocused:
+        failures.append("replicator: a controller does not start on the category "
+                        "button -- a pad cannot type, so that is the only way in")
+
+    # The bumpers walk the list, which is the pad's answer to a search box.
+    lua.execute("""
+        win.catIndex = 0
+        win.search:setText("")
+        win.list.selected = 0
+        win:onJoypadDown(Joypad.RBumper, jd); first = win.list.selected
+        win:onJoypadDown(Joypad.RBumper, jd); second = win.list.selected
+        win:onJoypadDown(Joypad.LBumper, jd); back = win.list.selected
+    """)
+    g = lua.globals()
+    if (g.first, g.second, g.back) != (1, 2, 1):
+        failures.append(f"replicator: RB/LB step the catalogue as "
+                        f"{(g.first, g.second, g.back)}, not (1, 2, 1)")
+
+    if not any(str(x.extra) == IG["IGUI_TREK_RepJoypadHint"].upper()
+               for x in run_frames(lua, "replicator, controller hint", 1)
+               if x.kind == "text"):
+        failures.append("replicator: no button prompts are shown to a controller player")
+
+    lua.execute("focusLog = {}; win:onJoypadDown(Joypad.BButton, jd)")
+    if not win.removed:
+        failures.append("replicator: B did not close the panel")
+    if len(lua.globals().focusLog) != 1:
+        failures.append("replicator: closing with a controller did not release "
+                        "its focus, so the stick is left driving a panel that "
+                        "has gone")
+
+    for key in sorted(set(missing)):
+        failures.append(f"replicator: getText({key!r}) has no entry in IG_UI.json")
+    print(f"replicator: the panel drew a {rows}-row catalogue, its search, "
+          f"category and quantity controls all bite, and every button is on "
+          f"the stick")
 
     # --- the textures the console loads exist -----------------------------
     src = open(os.path.join(MOD, "media", "lua", "client", "TREK", "TREK_Helm.lua"),

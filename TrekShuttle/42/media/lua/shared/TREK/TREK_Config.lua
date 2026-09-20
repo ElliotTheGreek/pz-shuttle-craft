@@ -755,6 +755,117 @@ C.WaterCapacity = 20
 C.DevicePower = 1.0
 
 ---------------------------------------------------------------------------
+-- The replicator
+---------------------------------------------------------------------------
+-- The galley fixture that makes any item in the game. Two limits, and they
+-- answer two different questions:
+--
+--   a *pattern* decides WHAT the ship can make. It has to have scanned one
+--   of a thing before it can make that thing, which turns looting from "find
+--   supplies" into "find the first one" -- a different game, and still an
+--   interesting one. Scanning is free and gives the item back.
+--
+--   *energy* decides HOW MUCH. Every replication spends from a reserve that
+--   refills by itself, so a crew can equip for a bad day and then has to wait
+--   -- the same shape as the hypospray's six doses, one level up.
+--
+-- Neither is a cooldown dressed up: patterns are a progression and energy is
+-- a budget. A server owner who wants neither has the sandbox option below.
+
+-- The layout tag of the fixture. The berth at 0,5 is a bare steel counter the
+-- interior refit put there for exactly this, so the replicator arrives as a
+-- right-click on an object every save already has rather than as a migration
+-- (INTERIOR_REFIT.md section 3). Its own container is the tray.
+C.ReplicatorTag = "replicator"
+
+-- How close you have to stand, in tiles. Measured on the server against its
+-- own copy of where the player is, because a client is a request and never a
+-- fact -- the same reason C.UnlockRange exists.
+C.ReplicatorRange = 2
+
+-- The reserve, in units, and what it costs to make something.
+--
+-- Cost is weight-based because weight is the one number every item in the
+-- game has and it is roughly what the thing *is*: a bandage is 5, a tin of
+-- beans 12, a hammer 24, a shotgun 44. The cap stops a generator (60 kg)
+-- asking for six hundred.
+--
+-- The reserve is deliberately not huge: 1000 is two hundred bandages or
+-- forty hammers, which is a good day's work and not a warehouse.
+C.ReplicatorEnergyMax  = 1000
+C.ReplicatorBaseCost   = 4
+C.ReplicatorWeightCost = 10
+C.ReplicatorMaxCost    = 150
+
+-- What comes back every ten game minutes. 20 refills the whole reserve in
+-- 500 game minutes -- eight game hours, so **a night's sleep brings it back**
+-- and a busy afternoon does not.
+--
+-- Game minutes rather than real ones, on purpose: the ship's plant runs on
+-- the world's clock, so sleeping and waiting both work, and a server that has
+-- been empty overnight does not hand its crew a full tank for free the way a
+-- real-time timer would. Ten-minute steps rather than one-minute ones because
+-- every step that changes the number is a Ship.commit() to every client.
+C.ReplicatorRegen = 20
+
+-- What the panel offers per press. A quantity field is what makes the energy
+-- budget do its work in one decision rather than in ten clicks.
+C.ReplicatorQuantities = { 1, 5, 10 }
+
+-- Between cycles, in milliseconds, held on the ship rather than the player:
+-- there is one replicator, so two crew cannot take turns to halve it. Long
+-- enough to read as a machine working, short enough not to be a tax.
+C.ReplicatorCooldownMs = 2000
+
+-- Sandbox: 1 = Patterns and energy (the design), 2 = Unrestricted (anything
+-- in the catalogue, free), 3 = Off (the fixture is scenery, and says so).
+--
+-- An absent sandbox table reads as 1, which is the *restrictive* value. That
+-- is the opposite way round from C.TorpedoFire and it is deliberate in both
+-- cases: a missing option must mean the feature as designed, and "as
+-- designed" here is the one with the limits on.
+C.ReplicatorPatterns     = 1
+C.ReplicatorUnrestricted = 2
+C.ReplicatorOff          = 3
+
+-- The pattern set: its own global mod data key, and **not** part of the ship
+-- state, which is the one piece of engineering in this feature that is not
+-- obvious.
+--
+-- TREK_Ship.commit() transmits the whole ship table to every client on every
+-- change, and the ship changes constantly -- S.serviceVehicle commits each
+-- time the shuttle is driven a square, roughly once a second. A crew who have
+-- scanned two thousand items would be carrying two thousand strings through
+-- every one of those. So patterns live here, are transmitted only when a
+-- pattern is actually learned, and the ship state carries one number (the
+-- energy) instead.
+C.PatternKey = "TREK_Patterns_v1"
+
+-- Never replicated, whatever the sandbox says, and the list exists from day
+-- one because adding it later means adding it in a hurry.
+--
+-- The engine's own filter (obsolete, hidden, the Moveables module) does not
+-- catch these: every one of them is a real item with a real name that this
+-- mod declares for its own purposes.
+--
+--   TrekTorpedo    a specification handed to IsoTrap.new, not something
+--                  anybody holds -- it has no icon and offering it to a
+--                  player is offering them a warhead
+--   TrekShuttleHull  the world model the ship itself is drawn as
+--   TrekHelmConsole  the deleted helm prop, still declared so old saves can
+--                    load the ones lying on their decks
+C.ReplicatorBlocked = {
+    ["TrekShuttle.TrekTorpedo"]     = true,
+    ["TrekShuttle.TrekShuttleHull"] = true,
+    ["TrekShuttle.TrekHelmConsole"] = true,
+}
+
+-- Modules the catalogue skips wholesale. Vanilla's own item viewer skips
+-- Moveables (ISItemsListViewer.lua:71) and so does this: they are the
+-- pick-up-furniture placeholders, not things a player wants handed to them.
+C.ReplicatorSkipModules = { Moveables = true }
+
+---------------------------------------------------------------------------
 -- Items placed in the cabin
 ---------------------------------------------------------------------------
 -- The hull outside is a world model, defined in media/scripts/trekshuttle.txt.

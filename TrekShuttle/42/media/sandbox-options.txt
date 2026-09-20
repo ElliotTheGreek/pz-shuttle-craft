@@ -16,3 +16,8 @@ option TrekShuttle.TorpedoFire = {
     type = enum, numValues = 2, default = 1,
     page = TrekShuttle, translation = TrekShuttle.TorpedoFire, valueTranslation = TrekShuttle.TorpedoFire,
 }
+
+option TrekShuttle.Replicator = {
+    type = enum, numValues = 3, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.Replicator, valueTranslation = TrekShuttle.Replicator,
+}

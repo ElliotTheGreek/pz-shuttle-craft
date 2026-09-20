@@ -2524,6 +2524,580 @@ def medical():
           "second try inside the cooldown")
 
 
+def rep_energy(rt):
+    return float(rt.eval("TREK.Replicator.energy()"))
+
+
+def rep_knows(rt, item_id):
+    return rt.eval(f'TREK.Replicator.knows("{item_id}") and 1 or 0') == 1
+
+
+def rep_row(rt, item_id, field="cost"):
+    return rt.eval(f'(function() local r = TREK.Replicator.row("{item_id}") '
+                   f'return r and r.{field} or nil end)()')
+
+
+def tray(rt):
+    """Everything sitting in the replicator's tray, as full types."""
+    packed = rt.eval("""(function()
+        local C, U, R = TREK.Config, TREK.Util, TREK.Replicator
+        local ox, oy = R.spot()
+        if not ox then return "" end
+        local x, y = U.at(ox, oy)
+        local out = {}
+        for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+            if o.modData and o.modData.TREK == C.ReplicatorTag and o.container then
+                for _, it in ipairs(o.container.items) do
+                    table.insert(out, it.fullType)
+                end
+            end
+        end
+        return table.concat(out, "\\n")
+    end)()""")
+    return [x for x in str(packed).split("\n") if x]
+
+
+def carrying(rt, item_id):
+    """How many of one type the player has on them."""
+    return int(rt.eval(f"""(function()
+        local n = 0
+        for _, it in ipairs(SIM.players[1].inventory.items) do
+            if it.fullType == "{item_id}" then n = n + 1 end
+        end
+        return n
+    end)()"""))
+
+
+def stand_at(rt, net, ox, oy):
+    """Puts the player on a cabin square and lets the world catch up."""
+    rt.run(f"""
+        local U = TREK.Util
+        local x, y = U.at({ox}, {oy})
+        U.teleport(SIM.players[1], x, y, TREK.Config.CabinZ)
+    """)
+    net.pump(4)
+
+
+def replicator_menu(rt, ox, oy):
+    """Right-clicks a cabin square and returns what the menu offered.
+
+    The way a player actually reaches this feature. Driving the server
+    handler instead would pass against a build whose menu option was never
+    added at all -- which is precisely how the torpedoes shipped broken.
+    """
+    rt.run(f"""
+        local U = TREK.Util
+        local tx, ty = U.at({ox}, {oy})
+        local p = SIM.players[1]
+        SIM.aim.dx = tx - p.x
+        SIM.aim.dy = ty - p.y
+        repMenu = SIM.contextMenu()
+        TREK.ReplicatorUI.fillMenu(0, repMenu, {{}}, false)
+    """)
+    return str(rt.eval("repMenu:labels()"))
+
+
+def replicator():
+    """The replicator: the catalogue, the patterns, the reserve and the tray.
+
+    Three things in here are the ones worth having, and each of them is a
+    failure this project has already paid for once:
+
+      * **the catalogue's filter.** An obsolete item is still in the scripts,
+        still has a name, and returns nil from instanceItem -- so a catalogue
+        without vanilla's `not getObsolete() and not isHidden()` fills up with
+        entries that look real and make nothing;
+      * **the tray is counted.** A container at capacity drops what it is
+        handed in silence, so "made 5" has to mean five items arrived, not
+        five items were asked for -- and the player is charged for what
+        landed;
+      * **an absent sandbox option means the feature as designed**, which here
+        is the *restrictive* reading. Getting that backwards would hand every
+        world that never touched the setting an unlimited item printer.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('chef', 1000.5, 1000.5, 0)")
+    net.start()
+
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "replicator, beaming up"):
+        return
+    stand_at(rt, net, 1, 5)
+
+    # --- the catalogue ------------------------------------------------------
+    size = int(rt.eval("#TREK.Replicator.catalogue()"))
+    check(size > 0, "replicator: the catalogue is empty")
+    for item_id, why in (
+        ("Base.Bandage", "an ordinary vanilla item"),
+        ("Base.Hammer", "an ordinary vanilla item"),
+        ("TrekShuttle.TrekPhaser", "the mod's own"),
+    ):
+        check(rep_row(rt, item_id) is not None,
+              f"replicator: {item_id} ({why}) is not in the catalogue")
+    for item_id, why in (
+        ("Base.OldSpanner",
+         "obsolete -- it is still in the scripts and instanceItem answers nil, "
+         "so it would look like a working entry and make nothing"),
+        ("Base.SecretThing", "hidden"),
+        ("Moveables.Moveable_fridge",
+         "the Moveables module, which is pick-up-furniture placeholders"),
+        ("TrekShuttle.TrekTorpedo",
+         "a specification handed to IsoTrap.new, not something anybody holds -- "
+         "the engine's own filter does not catch it, which is why the blocklist "
+         "exists"),
+        ("TrekShuttle.TrekShuttleHull", "the model the ship itself is drawn as"),
+    ):
+        check(rep_row(rt, item_id) is None,
+              f"replicator: {item_id} is in the catalogue and should not be ({why})")
+
+    # --- what things cost ---------------------------------------------------
+    check(rep_row(rt, "Base.Bandage") == 5,
+          f"replicator: a bandage costs {rep_row(rt, 'Base.Bandage')}, not 5")
+    check(rep_row(rt, "Base.Hammer") == 24,
+          f"replicator: a hammer costs {rep_row(rt, 'Base.Hammer')}, not 24")
+    # A 60 kg generator would ask for 604 without the cap, which is most of a
+    # full reserve for one appliance.
+    check(rep_row(rt, "Base.Generator") == C("ReplicatorMaxCost"),
+          f"replicator: a generator costs {rep_row(rt, 'Base.Generator')}, not "
+          f"the capped {C('ReplicatorMaxCost')}")
+
+    # --- the ship knows its own stores --------------------------------------
+    for item_id in ("TrekShuttle.TrekPhaser", "TrekShuttle.TrekHypospray",
+                    "TrekShuttle.TrekBatleth"):
+        check(rep_knows(rt, item_id),
+              f"replicator: a fresh ship has no pattern for {item_id}, which is "
+              f"Starfleet issue -- the ship is meant to know its own")
+    check(not rep_knows(rt, "Base.Hammer"),
+          "replicator: the ship knows a vanilla hammer it has never seen")
+
+    # --- the way in ---------------------------------------------------------
+    use = str(rt.eval('getText("IGUI_TREK_RepUse")'))
+    ox, oy = int(rt.eval("(TREK.Replicator.spot())")), \
+             int(rt.eval("(select(2, TREK.Replicator.spot()))"))
+    check(use in replicator_menu(rt, ox, oy),
+          "replicator: right-clicking the berth offers no way to use it")
+    check(use not in replicator_menu(rt, C("Landing.x"), C("Landing.y")),
+          "replicator: the transporter pad offers the replicator; the menu is "
+          "not keyed to the berth at all")
+
+    # --- open it and drive it ----------------------------------------------
+    replicator_menu(rt, ox, oy)
+    rt.run(f'repMenu:click("{use}")')
+    check(rt.eval("TREK.ReplicatorUI.window ~= nil") is True,
+          "replicator: clicking the menu option opened no panel")
+
+    rt.run('TREK.ReplicatorUI.window.search:setText("hammer")')
+    rows = int(rt.eval("#TREK.ReplicatorUI.window.rows"))
+    check(rows == 1,
+          f"replicator: searching for 'hammer' left {rows} rows, not 1")
+    check(str(rt.eval("TREK.ReplicatorUI.window:selectedRow().id")) == "Base.Hammer",
+          "replicator: the search did not select the hammer")
+
+    # --- without a pattern, nothing happens ---------------------------------
+    before = rep_energy(rt)
+    rt.run("SIM.notes = {}")
+    rt.run("TREK.ReplicatorUI.window.makeBtn:click()")
+    net.pump(4)
+    check(tray(rt) == [],
+          f"replicator: it made {tray(rt)} with no pattern stored for it")
+    check(rep_energy(rt) == before,
+          "replicator: a refused replication still spent from the reserve")
+    check(any("IGUI_TREK_RepNoPattern" in n for n in rt.notes()),
+          "replicator: a player with no pattern is told nothing at all")
+
+    # --- scanning keeps the item --------------------------------------------
+    rt.run(f'{P}.inventory:AddItem(instanceItem("Base.Hammer"))')
+    rt.run("SIM.notes = {}")
+    rt.run("TREK.ReplicatorUI.window.scanBtn:click()")
+    net.pump(4)
+    check(rep_knows(rt, "Base.Hammer"),
+          "replicator: scanning a carried hammer stored no pattern")
+    check(carrying(rt, "Base.Hammer") == 1,
+          "replicator: scanning ate the item. It is a scan, not a recycler -- "
+          "the ship reads the thing and gives it back")
+    check(any("IGUI_TREK_RepScanned" in n for n in rt.notes()),
+          "replicator: a scan said nothing")
+
+    # --- and now it makes one -----------------------------------------------
+    before = rep_energy(rt)
+    rt.run("SIM.notes = {}")
+    rt.run("TREK.ReplicatorUI.window.makeBtn:click()")
+    net.pump(4)
+    check(tray(rt) == ["Base.Hammer"],
+          f"replicator: the tray holds {tray(rt)} after making one hammer")
+    check(before - rep_energy(rt) == 24,
+          f"replicator: a hammer cost {before - rep_energy(rt)} units, not 24")
+    check(any("IGUI_TREK_RepMade" in n for n in rt.notes()),
+          "replicator: it made something and said nothing")
+    check(rt.eval('SIM.heardSound("TREK_Replicate")') is True,
+          "replicator: it materialised an item in complete silence")
+
+    # --- the cooldown is real ------------------------------------------------
+    rt.run("SIM.notes = {}")
+    rt.run("TREK.ReplicatorUI.window.makeBtn:click()")
+    net.pump(4)
+    check(len(tray(rt)) == 1,
+          "replicator: a second item came straight out; the cooldown does nothing")
+    check(any("IGUI_TREK_RepCycling" in n for n in rt.notes()),
+          "replicator: the cooldown refused silently")
+
+    # --- a quantity costs a quantity ----------------------------------------
+    net.clock += int(C("ReplicatorCooldownMs")) + 500
+    rt.run("TREK.ReplicatorUI.window.qtyBtn:click()")      # 1 -> 5
+    check(int(rt.eval("TREK.ReplicatorUI.window:quantity()")) == 5,
+          "replicator: the quantity button did not step to 5")
+    before = rep_energy(rt)
+    rt.run("TREK.ReplicatorUI.window.makeBtn:click()")
+    net.pump(4)
+    check(len(tray(rt)) == 6,
+          f"replicator: asked for 5 and the tray holds {len(tray(rt))}")
+    check(before - rep_energy(rt) == 24 * 5,
+          f"replicator: five hammers cost {before - rep_energy(rt)}, not {24 * 5}")
+
+    # --- the reserve is a real limit ----------------------------------------
+    net.clock += int(C("ReplicatorCooldownMs")) + 500
+    rt.run("TREK.Util.state().repEnergy = 10")
+    rt.run("SIM.notes = {}")
+    held = len(tray(rt))
+    rt.run("TREK.ReplicatorUI.window.makeBtn:click()")
+    net.pump(4)
+    check(len(tray(rt)) == held,
+          "replicator: it made something it could not pay for")
+    check(any("IGUI_TREK_RepEnergy" in n for n in rt.notes()),
+          "replicator: an empty reserve refused without saying so")
+
+    # --- and it comes back ---------------------------------------------------
+    rt.fire("EveryTenMinutes")
+    check(rep_energy(rt) == 10 + C("ReplicatorRegen"),
+          f"replicator: ten game minutes put back {rep_energy(rt) - 10}, not "
+          f"{C('ReplicatorRegen')}")
+
+    # A tick that would overshoot must stop at the ceiling. Set five short of
+    # full, not full: a reserve that is already full takes the early way out of
+    # R.regen and proves nothing about the clamp.
+    #
+    # And read the number out of the *state* rather than through R.energy(),
+    # which clamps on the way out. What matters is the figure that gets saved
+    # and transmitted, not whether the reader hides it climbing.
+    rt.run(f"TREK.Util.state().repEnergy = {C('ReplicatorEnergyMax') - 5}")
+    rt.fire("EveryTenMinutes")
+    check(rt.eval("TREK.Util.state().repEnergy") == C("ReplicatorEnergyMax"),
+          f"replicator: the reserve charged past its own ceiling to "
+          f"{rt.eval('TREK.Util.state().repEnergy')}")
+
+    # --- the mod's own gear needs no scanning --------------------------------
+    net.clock += int(C("ReplicatorCooldownMs")) + 500
+    rt.run("""
+        local w = TREK.ReplicatorUI.window
+        w.qtyBtn:click(); w.qtyBtn:click()          -- 5 -> 10 -> 1
+        w.search:setText("trekphaser")
+    """)
+    check(int(rt.eval("TREK.ReplicatorUI.window:quantity()")) == 1,
+          "replicator: the quantity button does not wrap back to 1")
+    rt.run("TREK.ReplicatorUI.window.makeBtn:click()")
+    net.pump(4)
+    check("TrekShuttle.TrekPhaser" in tray(rt),
+          "replicator: the ship could not make its own phaser")
+
+    # --- a crafted command is still a request --------------------------------
+    # The panel would never send any of these. The server is what stops them,
+    # and **the refusal is checked as well as the effect**: "nothing came out"
+    # is also what a full tray or an empty reserve looks like, so a check that
+    # only counted the tray would pass with the guard under test deleted. The
+    # quantity one is the case that really needs it -- 999 hammers costs more
+    # than the whole reserve, so the energy check would refuse it anyway.
+    for args, expect, why in (
+        ('{ id = "Base.OldSpanner", count = 1 }', "RepUnknown",
+         "an obsolete item, which instanceItem answers nil for"),
+        ('{ id = "Moveables.Moveable_fridge", count = 1 }', "RepUnknown",
+         "a Moveables placeholder"),
+        ('{ id = "TrekShuttle.TrekTorpedo", count = 1 }', "RepUnknown",
+         "a live warhead"),
+        ('{ id = "Base.Hammer", count = 999 }', "RepUnknown",
+         "a quantity the panel does not offer -- without this the command is "
+         "an item printer"),
+        ('{ id = 12345, count = 1 }', "RepUnknown",
+         "an id that is not even a string"),
+    ):
+        net.clock += int(C("ReplicatorCooldownMs")) + 500
+        held = len(tray(rt))
+        rt.run("SIM.notes = {}")
+        rt.run(f"TREK.Core.send({P}, 'replicate', {args})")
+        net.pump(4)
+        check(len(tray(rt)) == held,
+              f"replicator: the server accepted {why}")
+        check(any(f"IGUI_TREK_{expect}" in n for n in rt.notes()),
+              f"replicator: {why} was refused for the wrong reason "
+              f"({rt.notes()}) -- the guard under test was never reached")
+
+    # --- you have to be standing at it ---------------------------------------
+    stand_at(rt, net, 1, 0)                     # the bow, five squares away
+    check(use in replicator_menu(rt, ox, oy),
+          "replicator: from across the cabin the option vanishes rather than "
+          "telling the player to walk over to it")
+    check(rt.eval("""(function()
+        local o = repMenu:find(getText("IGUI_TREK_RepUse"))
+        return o ~= nil and o.notAvailable == true
+    end)()""") is True,
+          "replicator: the option is live from across the cabin, so a player "
+          "gets a panel that closes itself the moment it opens")
+    net.clock += int(C("ReplicatorCooldownMs")) + 500
+    held = len(tray(rt))
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'Base.Hammer', count = 1 }})")
+    net.pump(4)
+    check(len(tray(rt)) == held,
+          "replicator: the server made something for a player standing at the "
+          "other end of the ship")
+    check(any("IGUI_TREK_RepFar" in n for n in rt.notes()),
+          "replicator: a refusal for being too far away said nothing")
+    # And the open panel closed itself rather than sitting there refusing.
+    rt.run("if TREK.ReplicatorUI.window then TREK.ReplicatorUI.window:prerender() end")
+    check(rt.eval("TREK.ReplicatorUI.window == nil") is True,
+          "replicator: the panel stayed open after the player walked away, "
+          "answering 'too far' to every press")
+
+    # --- the tray fills up, and it is counted rather than assumed ------------
+    stand_at(rt, net, 1, 5)
+    rt.run("""
+        local C, U, R = TREK.Config, TREK.Util, TREK.Replicator
+        local ox, oy = R.spot()
+        local x, y = U.at(ox, oy)
+        for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+            if o.modData and o.modData.TREK == C.ReplicatorTag and o.container then
+                -- One slot short of full: the next item fits and the rest do not.
+                while o.container:getContentsWeight() + 0.5 <= o.container.capacity - 0.5 do
+                    o.container:AddItem(instanceItem("Base.Bandage"))
+                end
+            end
+        end
+        SIM.notes = {}
+    """)
+    net.clock += int(C("ReplicatorCooldownMs")) + 500
+    held = len(tray(rt))
+    before = rep_energy(rt)
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'Base.Hammer', count = 5 }})")
+    net.pump(4)
+    made = len(tray(rt)) - held
+    check(made == 1,
+          f"replicator: a tray with room for one took {made} of the five asked "
+          f"for -- the engine drops what a full container is handed without "
+          f"raising anything")
+    check(before - rep_energy(rt) == 24 * made,
+          f"replicator: asked for 5, made {made}, and charged "
+          f"{before - rep_energy(rt)} rather than {24 * made}. The player pays "
+          f"for what arrived")
+    check(any("IGUI_TREK_RepPartial" in n for n in rt.notes()),
+          "replicator: a partial run said nothing about the tray being full")
+
+    # --- the sandbox option --------------------------------------------------
+    rt.run("SandboxVars.TrekShuttle.Replicator = TREK.Config.ReplicatorOff")
+    check(use in replicator_menu(rt, ox, oy),
+          "replicator: switched off, the menu option vanishes -- a player "
+          "cannot then tell the setting from a broken mod")
+    check(rt.eval("""(function()
+        local o = repMenu:find(getText("IGUI_TREK_RepUse"))
+        return o ~= nil and o.notAvailable == true
+    end)()""") is True,
+          "replicator: switched off, the menu option is still live")
+    # The tray is full from the check above, and a full tray refuses on its
+    # own -- so it is emptied first, or this passes with the sandbox check
+    # deleted. (It did: the mutation run caught exactly that.)
+    rt.run("""
+        local C, U, R = TREK.Config, TREK.Util, TREK.Replicator
+        local ox, oy = R.spot()
+        local x, y = U.at(ox, oy)
+        for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+            if o.modData and o.modData.TREK == C.ReplicatorTag and o.container then
+                o.container.items = {}
+            end
+        end
+        SIM.notes = {}
+    """)
+    net.clock += int(C("ReplicatorCooldownMs")) + 500
+    held = len(tray(rt))
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'Base.Hammer', count = 1 }})")
+    net.pump(4)
+    check(len(tray(rt)) == held,
+          "replicator: switched off in the sandbox and it still made something")
+    check(any("IGUI_TREK_RepOff" in n for n in rt.notes()),
+          "replicator: switched off, the refusal blamed something else")
+
+    rt.run("SandboxVars.TrekShuttle.Replicator = TREK.Config.ReplicatorUnrestricted")
+    net.clock += int(C("ReplicatorCooldownMs")) + 500
+    rt.run("TREK.Util.state().repEnergy = 0")
+    held = len(tray(rt))
+    rt.run("""
+        local C, U, R = TREK.Config, TREK.Util, TREK.Replicator
+        local ox, oy = R.spot()
+        local x, y = U.at(ox, oy)
+        for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+            if o.modData and o.modData.TREK == C.ReplicatorTag and o.container then
+                o.container.items = {}
+            end
+        end
+    """)
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'Base.Axe', count = 1 }})")
+    net.pump(4)
+    check(tray(rt) == ["Base.Axe"],
+          "replicator: unrestricted, it still refused an item nobody had scanned")
+    check(rep_energy(rt) == 0,
+          "replicator: unrestricted, it still charged for the item")
+
+    # The one that matters most, and it is the opposite reading from the
+    # torpedo's sandbox option: with nothing set at all the replicator must be
+    # the *limited* one. A missing option that means "no limits" is how a world
+    # nobody configured ends up with an item printer.
+    rt.run("SandboxVars.TrekShuttle.Replicator = nil")
+    check(int(rt.eval("TREK.Replicator.mode()")) == int(C("ReplicatorPatterns")),
+          "replicator: with no sandbox option set the replicator is not in its "
+          "patterns-and-energy mode")
+    rt.run("SandboxVars.TrekShuttle = nil")
+    check(int(rt.eval("TREK.Replicator.mode()")) == int(C("ReplicatorPatterns")),
+          "replicator: with no sandbox table at all the replicator is not in "
+          "its patterns-and-energy mode")
+    rt.run("SandboxVars.TrekShuttle = { Access = 1, TransporterLimit = 1 }")
+
+    for w in rt.warnings():
+        fail(f"replicator: {w}")
+    print(f"replicator: a catalogue of {size} filtered entries, the ship's own "
+          f"patterns, scanning that keeps the item, the reserve, the cooldown, "
+          f"a counted tray, both range ends and all three sandbox values")
+
+
+def replicator_multiplayer():
+    """Two clients: who may use it, where the item is made, and who is told.
+
+    The pattern set is the interesting half. It is shared by the crew and it
+    lives in its own mod data key rather than in the ship state -- a crew with
+    two thousand patterns would otherwise push two thousand strings through
+    every commit, and the ship commits each time it is driven a square.
+    """
+    net = Net("mp", clients=("owner", "stranger"))
+    srv = net.server
+    owner, stranger = net.clients["owner"], net.clients["stranger"]
+
+    for rt in net.all():
+        rt.run("SandboxVars.TrekShuttle.Access = 2")
+    srv.run("SIM.player('owner', 2000.5, 2000.5, 0); "
+            "SIM.player('stranger', 2000.5, 2000.5, 0)")
+    owner.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    stranger.run("SIM.player('stranger', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+
+    owner.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(owner, "replicator multiplayer, beaming up"):
+        return
+    check(ship(srv, "owner") == "owner", "replicator: the owner did not claim the ship")
+
+    # Both of them at the berth, on every machine: the server measures the
+    # range against its own copy of where they are standing.
+    for rt in net.all():
+        rt.run("""
+            local U, R = TREK.Util, TREK.Replicator
+            local x, y = U.at(1, 5)
+            for _, p in ipairs(SIM.players) do
+                p.x, p.y, p.z, p.lastZ = x + 0.5, y + 0.5, TREK.Config.CabinZ,
+                                         TREK.Config.CabinZ
+            end
+        """)
+    net.pump(10)
+
+    # --- the mod's own patterns reached the client --------------------------
+    check(rep_knows(owner, "TrekShuttle.TrekPhaser"),
+          "replicator: the ship's own patterns never reached the client, so "
+          "its panel shows Starfleet gear it believes the ship cannot make")
+
+    # --- a stranger is refused ----------------------------------------------
+    stranger.run("""
+        for _, p in ipairs(SIM.players) do
+            p.inventory:AddItem(instanceItem("Base.Hammer"))
+        end
+    """)
+    srv.run("""
+        for _, p in ipairs(SIM.players) do
+            if p.name == "stranger" then
+                p.inventory:AddItem(instanceItem("Base.Hammer"))
+            end
+        end
+    """)
+    stranger.run(f"TREK.Core.send({P}, 'scanCarried', {{}})")
+    net.pump(4)
+    check(not rep_knows(srv, "Base.Hammer"),
+          "replicator: a player who is not on the crew scanned a pattern into "
+          "the ship")
+    check(any("IGUI_TREK_NotCrew" in n for n in stranger.notes()),
+          "replicator: the stranger was refused without being told why")
+
+    # --- the owner scans, and it reaches the other machine -------------------
+    owner.run("""
+        for _, p in ipairs(SIM.players) do
+            p.inventory:AddItem(instanceItem("Base.Hammer"))
+        end
+    """)
+    srv.run("""
+        for _, p in ipairs(SIM.players) do
+            if p.name == "owner" then
+                p.inventory:AddItem(instanceItem("Base.Hammer"))
+            end
+        end
+    """)
+    owner.run(f"TREK.Core.send({P}, 'scanCarried', {{}})")
+    net.pump(4)
+    check(rep_knows(srv, "Base.Hammer"),
+          "replicator: the owner's scan did not reach the server")
+    check(rep_knows(stranger, "Base.Hammer"),
+          "replicator: a pattern one crewman scanned never reached the other "
+          "machine -- the pattern set is meant to be the ship's, not a player's")
+
+    # --- the item is made on the server, and both machines see the tray -----
+    before = rep_energy(srv)
+    owner.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'Base.Hammer', count = 1 }})")
+    net.pump(6)
+    check(tray(srv) == ["Base.Hammer"],
+          f"replicator: the server's tray holds {tray(srv)}")
+    check(tray(owner) == ["Base.Hammer"],
+          f"replicator: the asking client's tray holds {tray(owner)}; the item "
+          f"reached nobody")
+    check(tray(stranger) == ["Base.Hammer"],
+          f"replicator: the other client's tray holds {tray(stranger)} -- an "
+          f"item added to a container that is already in the world needs "
+          f"sendAddItemToContainer, or only the server has it")
+    check(before - rep_energy(srv) == 24,
+          "replicator: the server did not charge for the hammer")
+    check(rep_energy(owner) == rep_energy(srv) and rep_energy(stranger) == rep_energy(srv),
+          "replicator: the reserve on the clients does not match the server's")
+
+    # --- a client never makes anything itself --------------------------------
+    for name, c in net.clients.items():
+        check(c.eval("SIM.clientWorldEdit") is None,
+              f"replicator: {name}'s client edited the world directly")
+
+    # --- and a client's word about its own inventory is not evidence ---------
+    # The stranger is crew now, and asks for a pattern for something they are
+    # not carrying at all. The server looks in its own copy of their pockets.
+    owner.run(f"TREK.Core.send({P}, 'setCrew', {{ name = 'stranger', on = true }})")
+    net.pump(4)
+    stranger.run(f"TREK.Core.send({P}, 'storePattern', {{ id = 'Base.Axe' }})")
+    net.pump(4)
+    check(not rep_knows(srv, "Base.Axe"),
+          "replicator: the server stored a pattern for an item the asking "
+          "player was not carrying. A client is a request, never a fact")
+
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"replicator multiplayer ({rt.name}): {w}")
+    print("replicator multiplayer: crew access, a shared pattern set that "
+          "reaches both machines, an item made by the server and seen by "
+          "everyone, and an inventory the server checks for itself")
+
+
 def medical_multiplayer():
     """The medical set with two clients: who may open a lock, and who is asked.
 
@@ -2643,6 +3217,8 @@ def main():
     torpedoes()
     medical()
     medical_multiplayer()
+    replicator()
+    replicator_multiplayer()
     multiplayer()
     if failures:
         print(f"\n{len(failures)} PROBLEM(S):")

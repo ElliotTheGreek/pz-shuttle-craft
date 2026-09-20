@@ -29,6 +29,7 @@ require "TREK/TREK_Ship"
 require "TREK/TREK_World"
 require "TREK/TREK_Vehicle"
 require "TREK/TREK_Medical"
+require "TREK/TREK_Replicator"
 require "TREK/TREK_Build"
 
 TREK = TREK or {}
@@ -39,6 +40,7 @@ local Ship = TREK.Ship
 local W = TREK.World
 local V = TREK.Vehicle
 local B = TREK.Build
+local Rep = TREK.Replicator
 
 local S = {}
 TREK.Server = S
@@ -1214,6 +1216,254 @@ Net.onServer("unlock", function(player, args)
           name, x, y, z, opened and "open" or "refused")
 end)
 
+---------------------------------------------------------------------------
+-- The replicator
+---------------------------------------------------------------------------
+-- **The item is created here and nowhere else.** This is the one feature in
+-- the mod that can hand a player anything in the game, so every part of the
+-- request is checked against the server's own copy of the world: who is
+-- asking, whether they are standing at the machine, whether the id is a real
+-- catalogue entry, whether the ship holds a pattern for it, whether the
+-- reserve covers it -- and then the tray is counted before and after, because
+-- a replicator that reports success and produced nothing is this project's
+-- favourite bug.
+--
+-- Two things a client sends that are never trusted: the id (looked up in the
+-- real catalogue, never instanceItem'd blind) and the quantity (matched
+-- against the list the panel offers, so a crafted command cannot ask for a
+-- thousand).
+
+--- Everything the player is carrying, anywhere: pockets, bags and hands, as
+--- a map of full type to count.
+---
+--- `getAllEvalRecurse(function() return true end)` is vanilla's own way of
+--- asking for the lot -- ISInventoryPaneContextMenu.lua:1355 uses that exact
+--- predicate -- and it walks sub-containers, which matters because a player
+--- keeps everything in a bag. The hands are added separately: an equipped
+--- item is not always in the container listing.
+local function carriedTypes(player)
+    local out = {}
+    if not player then return out end
+
+    local inv = U.try("rep.inventory", function() return player:getInventory() end)
+    if not inv then return out end
+
+    local list = U.try("rep.allItems", function()
+        return inv:getAllEvalRecurse(function() return true end)
+    end)
+    if not list then
+        -- The top level alone is worse than nothing at all only if it is
+        -- silent, so it is the fallback and it is logged by U.try above.
+        list = U.try("rep.items", function() return inv:getItems() end)
+    end
+    if list then
+        local join = U.batch("rep.carried")
+        local n = join(function() return list:size() end) or 0
+        for i = 0, n - 1 do
+            join(function()
+                local item = list:get(i)
+                local t = item and item:getFullType()
+                if t then out[t] = (out[t] or 0) + 1 end
+            end)
+        end
+    end
+
+    local function hand(fn)
+        local t = U.try("rep.hand", function()
+            local item = fn(player)
+            return item and item:getFullType() or nil
+        end)
+        if t then out[t] = (out[t] or 0) + 1 end
+    end
+    hand(function(p) return p:getPrimaryHandItem() end)
+    hand(function(p) return p:getSecondaryHandItem() end)
+    return out
+end
+
+--- The tray: the fixture at the replicator's berth. Returns the object, or
+--- nil and a reason -- "unloaded" is not the same answer as "missing", and
+--- reading the first as the second is constraint 1 all over again.
+local function replicatorTray()
+    local ox, oy = Rep.spot()
+    if not ox then return nil, "nofixture" end
+    local x, y = U.at(ox, oy)
+    if not U.chunkLoaded(x, y, C.CabinZ) then return nil, "unloaded" end
+    local sq = U.square(x, y, C.CabinZ, false)
+    if not sq then return nil, "unloaded" end
+
+    local found = nil
+    U.eachObject(sq, function(o)
+        local md = U.try("rep.md", function() return o:getModData() end)
+        if md and md.TREK == C.ReplicatorTag then
+            found = o
+            return false
+        end
+    end)
+    if not found then return nil, "nofixture" end
+    if not U.containerOf(found) then return nil, "notray" end
+    return found
+end
+
+--- Materialises `count` of one item into the tray, and says how many actually
+--- landed.
+---
+--- The count is the whole point. A container at capacity drops what it is
+--- handed without raising anything, and `instanceItem` answers nil for an
+--- obsolete item that slipped the catalogue filter -- and from here those two
+--- look identical to success. So the tray is measured after every single one,
+--- and the player is charged for what arrived rather than for what they asked
+--- for.
+---
+--- U.batch rather than U.try because this repeats: ten copies of an item that
+--- cannot be made is ten Java stack traces otherwise.
+local function materialise(obj, id, count)
+    local container = U.containerOf(obj)
+    if not container then return 0 end
+
+    local join = U.batch("rep.materialise")
+    local made = 0
+    for _ = 1, count do
+        local before = U.itemCount(obj)
+        local ok = join(function()
+            local item = instanceItem(id)
+            if not item then return false end
+            container:AddItem(item)
+            -- The tray is already in the world and clients can see it, so each
+            -- item is sent on its own rather than riding inside the object.
+            if isServer() then sendAddItemToContainer(container, item) end
+            return true
+        end)
+        if ok ~= true or U.itemCount(obj) <= before then break end
+        made = made + 1
+    end
+    if made > 0 then
+        U.try("rep.dirty", function()
+            container:setExplored(true)
+            container:setDirty(true)
+            container:setDrawDirty(true)
+        end)
+    end
+    return made
+end
+
+--- Alive, allowed to use the ship, the machine is not switched off, and the
+--- player is really standing at it -- measured here, not taken from the
+--- command.
+local function atReplicator(player)
+    if not mayUse(player) then return false end
+    if Rep.isOff() then
+        deny(player, "repOff")
+        return false
+    end
+    if not Rep.inReachOf(player) then
+        deny(player, "repFar")
+        return false
+    end
+    return true
+end
+
+Net.onServer("replicate", function(player, args)
+    if not atReplicator(player) then return end
+
+    local row = Rep.row(args.id)
+    if not row then
+        deny(player, "repUnknown")
+        return
+    end
+    local count = int(args.count)
+    if not count or not Rep.isQuantity(count) then
+        deny(player, "repUnknown")
+        return
+    end
+    if not Rep.knows(row.id) then
+        deny(player, "repNoPattern")
+        return
+    end
+
+    local s = U.state()
+    local now = getTimestampMs()
+    if s.repAt and now - s.repAt < C.ReplicatorCooldownMs then
+        deny(player, "repCycling", { ms = C.ReplicatorCooldownMs - (now - s.repAt) })
+        return
+    end
+
+    local cost = Rep.cost(row, count)
+    local have = Rep.energy()
+    if cost > have then
+        deny(player, "repEnergy", { need = cost, have = math.floor(have) })
+        return
+    end
+
+    local tray, why = replicatorTray()
+    if not tray then
+        deny(player, "repNoTray", { why = why })
+        U.log("replicator: no tray to materialise into (%s)", tostring(why))
+        return
+    end
+
+    local made = materialise(tray, row.id, count)
+    local spent = Rep.cost(row, made)
+    s.repAt = now
+    if spent > 0 then Rep.spend(spent) end
+    Ship.commit()
+
+    Net.toClient(player, "replicated", {
+        id = row.id, name = row.name, asked = count, made = made,
+        cost = spent, energy = math.floor(Rep.energy()),
+    })
+    U.log("replicator: %s asked for %d x %s, made %d for %d unit(s); %d left",
+          Ship.usernameOf(player), count, row.id, made, spent,
+          math.floor(Rep.energy()))
+end)
+
+--- Storing one pattern, from the item's own right-click menu.
+---
+--- Scanning does not consume the item -- the ship reads it and gives it back
+--- -- so the only thing to check is that the player really has one, and that
+--- is checked in the player's inventory **on the server's own copy of it**.
+Net.onServer("storePattern", function(player, args)
+    if not atReplicator(player) then return end
+
+    local row = Rep.row(args.id)
+    if not row then
+        deny(player, "repUnknown")
+        return
+    end
+    if Rep.store().known[row.id] then
+        Net.toClient(player, "patternStored",
+                     { id = row.id, name = row.name, learned = 0, already = true })
+        return
+    end
+    if not carriedTypes(player)[row.id] then
+        deny(player, "repNoItem")
+        return
+    end
+
+    Rep.learn(row.id)
+    Rep.publish()
+    Net.toClient(player, "patternStored",
+                 { id = row.id, name = row.name, learned = 1 })
+    U.log("replicator: %s stored a pattern for %s (%d in all)",
+          Ship.usernameOf(player), row.id, Rep.patternCount())
+end)
+
+--- Everything the player is carrying, in one pass, from the panel's button.
+--- The same rule, applied to a bagful: read, keep, hand it all back.
+Net.onServer("scanCarried", function(player)
+    if not atReplicator(player) then return end
+
+    local learned, seen = 0, 0
+    for id in pairs(carriedTypes(player)) do
+        seen = seen + 1
+        if Rep.row(id) and Rep.learn(id) then learned = learned + 1 end
+    end
+    if learned > 0 then Rep.publish() end
+
+    Net.toClient(player, "patternStored", { learned = learned, seen = seen })
+    U.log("replicator: %s scanned %d carried item(s), %d new pattern(s), %d in all",
+          Ship.usernameOf(player), seen, learned, Rep.patternCount())
+end)
+
 --- Design and diagnostic tools behind the debug console. Single player, or a
 --- server admin.
 Net.onServer("debug", function(player, args)
@@ -1240,6 +1490,8 @@ Net.onServer("debug", function(player, args)
         local strays = S.sweepStrays(player)
         U.log("ghosts: cleared %d, plus %d stray(s) near %s",
               cleared, strays, Ship.usernameOf(player))
+    elseif what == "replicator" then
+        S.replicatorReport()
     elseif what == "charges" then
         local c = chargeOf(Ship.usernameOf(player))
         U.log("transporter: limited=%s, %d charge(s) for %s",
@@ -1289,6 +1541,13 @@ Events.EveryTenMinutes.Add(function()
     for _, p in ipairs(U.players()) do
         U.try("sweepStrays", S.sweepStrays, p)
     end
+    -- The replicator's reserve comes back on the world's clock, so sleeping
+    -- and waiting both work. Committed only when the number actually changed:
+    -- every commit is a transmit of the ship state to every client, and a
+    -- full reserve has nothing to say.
+    if U.try("replicatorRegen", Rep.regen) == true then
+        Ship.commit()
+    end
 end)
 
 -- The schema migration runs on the authority as soon as the world's data is
@@ -1315,7 +1574,44 @@ Events.OnInitGlobalModData.Add(function()
           C.BuildRev, tostring(s.landed), tostring(s.built), tostring(s.rev),
           tostring(s.owner), tostring(S.chargesLimited()))
     S.checkVoidMap()
+
+    -- The ship knows its own stores. Run on every start rather than once, so
+    -- an item added to the mod later is a pattern with no migration, and it
+    -- only publishes when something was actually new.
+    local seeded = U.try("seedPatterns", Rep.seedDefaults) or 0
+    if seeded > 0 then Rep.publish() end
 end)
+
+--- One line per thing that can be wrong with the replicator, for
+--- TREK_Replicator() from the console.
+---
+--- Four of this mod's bugs have been a fixture that is present, drawn and
+--- inert; the tray is the same shape of thing (a counter that is a container
+--- in the tileset is not a container at runtime unless one was made for it),
+--- so it is read back rather than assumed.
+function S.replicatorReport()
+    local mode = Rep.mode()
+    local modeName = (mode == C.ReplicatorOff and "off")
+                  or (mode == C.ReplicatorUnrestricted and "unrestricted")
+                  or "patterns and energy"
+    U.log("replicator: sandbox %s, reserve %d/%d, %d pattern(s), %d catalogue entr(ies)",
+          modeName, math.floor(Rep.energy()), C.ReplicatorEnergyMax,
+          Rep.patternCount(), #Rep.catalogue())
+
+    local ox, oy = Rep.spot()
+    if not ox then
+        U.log("replicator: nothing in the layout is tagged %s", tostring(C.ReplicatorTag))
+        return false
+    end
+    local tray, why = replicatorTray()
+    if not tray then
+        U.log("replicator: the berth at %d,%d has no tray (%s)", ox, oy, tostring(why))
+        return false
+    end
+    U.log("replicator: the tray at %d,%d holds %d item(s)",
+          ox, oy, U.itemCount(tray))
+    return true
+end
 
 --- Says, once, whether the void map is loaded. Without it the cabin still
 --- works, but the world generator fills the space outside with wilderness and

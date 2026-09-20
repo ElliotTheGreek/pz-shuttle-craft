@@ -106,6 +106,11 @@ end
 --   owner (username) | nil, crew {}   who may use it, when the server limits it
 --   built, rev                        the cabin, and the build that made it
 --   ghosts {{x,y,z}}                  old hulls still to be removed
+--   repEnergy                         the replicator's reserve
+--
+-- The replicator's *patterns* are deliberately not here: they are a list that
+-- grows without bound and this table is transmitted whole on every change.
+-- They have their own mod data key (C.PatternKey, TREK_Replicator.lua).
 --
 -- Per-player facts (where *you* beamed up from) moved to the character's own
 -- mod data in schema 2. A single-player save keeps its old ship-wide return
@@ -146,6 +151,10 @@ function U.state()
     -- `shields` is compared with nil rather than tested for truth: false is a
     -- real answer.
     if s.shields == nil then s.shields = C.ShieldsDefault end
+    -- The replicator's reserve, for the same reason: 0 is a real answer, and
+    -- a save from before the replicator starts with a full one rather than an
+    -- empty machine nobody can explain.
+    if s.repEnergy == nil then s.repEnergy = C.ReplicatorEnergyMax end
     return s
 end
 

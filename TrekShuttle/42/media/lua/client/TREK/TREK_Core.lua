@@ -103,6 +103,13 @@ local DENIALS = {
     torpedoTooClose   = "IGUI_TREK_TorpedoTooClose",
     torpedoNoGround   = "IGUI_TREK_TorpedoNoGround",
     torpedoFailed     = "IGUI_TREK_TorpedoFailed",
+    repOff            = "IGUI_TREK_RepOff",
+    repFar            = "IGUI_TREK_RepFar",
+    repUnknown        = "IGUI_TREK_RepUnknown",
+    repNoPattern      = "IGUI_TREK_RepNoPattern",
+    repCycling        = "IGUI_TREK_RepCycling",
+    repNoTray         = "IGUI_TREK_RepNoTray",
+    repNoItem         = "IGUI_TREK_RepNoItem",
 }
 
 Net.onClient("denied", function(args)
@@ -114,6 +121,11 @@ Net.onClient("denied", function(args)
     if args.why == "recharging" then
         U.note(player, getText("IGUI_TREK_Recharging", tostring(args.secs or "?")),
                255, 170, 90)
+    elseif args.why == "repEnergy" then
+        -- The numbers are the answer here: "not enough power" without them is
+        -- a refusal a player cannot plan around.
+        U.note(player, getText("IGUI_TREK_RepEnergy", tostring(args.need or "?"),
+                               tostring(args.have or "?")), 255, 170, 90)
     elseif DENIALS[args.why] then
         U.note(player, getText(DENIALS[args.why]), 255, 90, 90)
     end
@@ -487,6 +499,9 @@ function TREK_Water()   return debugCommand("water") end
 -- one that tells "the television is off" from "the television is scenery".
 function TREK_Power()   return debugCommand("power") end
 function TREK_Galley()  return debugCommand("galley") end
+-- The sandbox mode, the reserve, how many patterns the ship holds, how big
+-- the catalogue came out, and whether the tray is a container at all.
+function TREK_Replicator() return debugCommand("replicator") end
 function TREK_Ghosts()  return debugCommand("ghosts") end
 function TREK_Charges() return debugCommand("charges") end
 

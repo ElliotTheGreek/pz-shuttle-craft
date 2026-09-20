@@ -11,5 +11,10 @@
     "Sandbox_TrekShuttle.TorpedoFire": "Photon torpedo fire",
     "Sandbox_TrekShuttle.TorpedoFire_tooltip": "A photon torpedo sets fire to what it hits, and the fire spreads and burns buildings down. Full is the weapon as designed. Blast only keeps the explosion and the kill but starts no fire at all, for a server that would rather not have its towns burnt. Note that a server which has turned fire off entirely (the NoFire server option) or a safehouse already stops the burning by itself, whichever setting is chosen here.",
     "Sandbox_TrekShuttle.TorpedoFire_option1": "Full",
-    "Sandbox_TrekShuttle.TorpedoFire_option2": "Blast only"
+    "Sandbox_TrekShuttle.TorpedoFire_option2": "Blast only",
+    "Sandbox_TrekShuttle.Replicator": "Replicator",
+    "Sandbox_TrekShuttle.Replicator_tooltip": "The galley replicator makes any item in the game. Patterns and energy is the shuttle as designed: it can only make something it has scanned a pattern for (scanning is free and gives the item back, and the ship knows its own Starfleet gear from the start), and every replication spends from a reserve that refills itself over about eight game hours. Unrestricted removes both limits -- anything in the catalogue, immediately, for nothing. Off leaves the fixture in the galley as scenery, and says so when a player tries to use it.",
+    "Sandbox_TrekShuttle.Replicator_option1": "Patterns and energy",
+    "Sandbox_TrekShuttle.Replicator_option2": "Unrestricted",
+    "Sandbox_TrekShuttle.Replicator_option3": "Off"
 }
