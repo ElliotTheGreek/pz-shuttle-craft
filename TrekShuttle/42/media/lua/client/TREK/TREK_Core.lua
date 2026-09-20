@@ -97,6 +97,12 @@ local DENIALS = {
     crewSeated    = "IGUI_TREK_CrewSeated",
     notPilot      = "IGUI_TREK_NotPilot",
     inFlight      = "IGUI_TREK_InFlight",
+    notFlying         = "IGUI_TREK_NotFlying",
+    torpedoReloading  = "IGUI_TREK_TorpedoReloading",
+    torpedoRange      = "IGUI_TREK_TorpedoRange",
+    torpedoTooClose   = "IGUI_TREK_TorpedoTooClose",
+    torpedoNoGround   = "IGUI_TREK_TorpedoNoGround",
+    torpedoFailed     = "IGUI_TREK_TorpedoFailed",
 }
 
 Net.onClient("denied", function(args)

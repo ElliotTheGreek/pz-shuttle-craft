@@ -26,6 +26,7 @@ GOLD = (255, 204, 102, 255)      # LCARS gold: climbing
 BLUE = (153, 204, 255, 255)      # LCARS blue: descending
 PEACH = (255, 204, 153, 255)     # the cabin
 GREY = (170, 180, 200, 255)      # the ground line
+RED = (255, 102, 102, 255)       # LCARS red: a torpedo, and the target mark
 
 
 CX = S // 2
@@ -106,11 +107,48 @@ def aboard():
     return img
 
 
+def torpedo():
+    """Photon torpedoes: the ship above, a bolt going down and away.
+
+    The set's rule is that every icon is the same shuttle with the part that
+    matters changed, so this is the dive icon's composition with the arrow
+    replaced by a torpedo track -- which keeps it readable beside the other
+    four at 48px in a dark ring, and says "something leaves the ship going
+    down" without needing a second glance.
+
+    Drawn on the diagonal because a vertical bolt is indistinguishable from
+    the dive arrow at this size, and a torpedo that reads as "dive" is a
+    misfire waiting to happen.
+    """
+    img = Image(S, S)
+    shuttle(img, 3, WHITE)
+    # The bolt runs down and to the right, and it is **widest and brightest at
+    # the far end**. That is the way round a moving thing reads: a wedge that
+    # is fat where it started is a trail left behind, and a wedge that is fat
+    # where it is going is something travelling. The first draft had it the
+    # other way and looked like exhaust.
+    STEPS = 15
+    for i in range(STEPS):
+        t = i / (STEPS - 1.0)
+        half = int(round(1 + 2.5 * t))
+        px, py = 14 + i, 16 + i
+        img.rect(px - half, py - half, px + half + 1, py + half + 1,
+                 RED if t > 0.6 else GOLD)
+    # There was a small target cross under the bolt, and it is gone. Vetted at
+    # 48px against the other four (tools/vet_icons.py's lesson, applied to the
+    # radial set): it "is very difficult to discern clearly, often looking like
+    # pixel noise or an indistinct smudge", and the bolt's colour and shape
+    # already say weapon. A mark that small either gets much bolder or gets
+    # out of the way, and there is no room here for bolder.
+    return img
+
+
 ICONS = {
     "TREK_Ascend": ascend,
     "TREK_Descend": descend,
     "TREK_Land": land,
     "TREK_Aboard": aboard,
+    "TREK_Torpedo": torpedo,
 }
 
 

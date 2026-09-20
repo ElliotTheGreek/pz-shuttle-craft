@@ -1246,12 +1246,119 @@ def static():
     print(f"static: {len(sent)} client commands, {len(replies)} replies, guards checked")
 
 
+def torpedoes():
+    """Photon torpedoes: who may fire, where, how often, and without fire.
+
+    The load-bearing check here is the fire chance. IsoTrap's Explosion mode
+    gates both IsoGridSquare.Burn() and IsoFireManager.StartFire on one
+    Rand.Next(100) < getFireStartingChance() roll, so that single number is
+    what separates a weapon from an arson mod. Everything else in this
+    function is ordinary validation; that one is the reason it exists.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    seat(rt)
+
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    sx, sy = ship(rt, "x"), ship(rt, "y")
+
+    def fire(dx, dy):
+        rt.run(f"TREK.Net.serverHandlers.fireTorpedo({P}, "
+               f"{{x = {sx + dx}, y = {sy + dy}, z = 0}})")
+
+    # --- she will not fire from the ground --------------------------------
+    # The blast is centred on the ground, so a shuttle sitting on it would be
+    # inside its own explosion.
+    rt.run("SIM.traps = {}")
+    fire(10, 0)
+    check(rt.eval("#SIM.traps") == 0,
+          "torpedoes: she fired while parked on the ground")
+
+    # Get her up.
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+    check(ship(rt, "flying") is True, "torpedoes: she never got airborne to fire from")
+
+    # --- a shot that should land ------------------------------------------
+    rt.run("SIM.traps = {}")
+    fire(10, 0)
+    check(rt.eval("#SIM.traps") == 1,
+          "torpedoes: a valid shot from the pilot built no trap")
+    check(rt.eval("SIM.lastTrap().fired") is True,
+          "torpedoes: the trap was built but never triggered")
+
+    # --- THE one that matters ---------------------------------------------
+    for field, why in (
+        ("fireChance", "IsoGridSquare.Burn() and IsoFireManager.StartFire are "
+                       "both gated on this; above zero the blast sets the street alight"),
+        ("fireEnergy", "fire starting energy must be zero"),
+        ("fireRange", "the fire radius must be zero"),
+    ):
+        got = rt.eval(f"SIM.lastTrap().{field}")
+        check(got == 0, f"torpedoes: trap {field} is {got}, not 0 -- {why}")
+
+    check(rt.eval("SIM.lastTrap().power") == C("TorpedoPower"),
+          "torpedoes: the trap was not given the configured explosion power")
+    check(rt.eval("SIM.lastTrap().range") == C("TorpedoRange"),
+          "torpedoes: the trap was not given the configured blast radius")
+
+    # --- the cooldown is real ---------------------------------------------
+    rt.run("SIM.traps = {}")
+    fire(10, 0)
+    check(rt.eval("#SIM.traps") == 0,
+          "torpedoes: a second shot fired immediately -- the cooldown does nothing")
+
+    # --- range bounds, both ends ------------------------------------------
+    # The ceiling is asserted as a flat number as well as enforced, and that
+    # is deliberate. Firing at "TorpedoMaxRange + 6" only ever proves the
+    # comparison runs: raise the constant to 9999 and the shot moves out with
+    # it and the check still passes, which is exactly what the first version
+    # of this did. A bound that is enforced but enormous is not a bound, so
+    # the sane ceiling is named here where a mutation cannot follow it.
+    check(int(C("TorpedoMaxRange")) <= 64,
+          f"torpedoes: TorpedoMaxRange is {C('TorpedoMaxRange')} -- enforced, "
+          f"but far enough to shell most of the map from the air")
+    rt.run("SIM.traps = {}; TREK.Util.state().torpedoAt = nil")
+    fire(int(C("TorpedoMaxRange")) + 6, 0)
+    check(rt.eval("#SIM.traps") == 0,
+          "torpedoes: a shot beyond TorpedoMaxRange was allowed -- a crafted "
+          "command is a map-wide mortar")
+    rt.run("SIM.traps = {}; TREK.Util.state().torpedoAt = nil")
+    fire(1, 0)
+    check(rt.eval("#SIM.traps") == 0,
+          "torpedoes: a shot inside TorpedoMinRange was allowed -- she would "
+          "be inside her own blast")
+
+    # --- a passenger is not a gunner --------------------------------------
+    rt.run("SIM.traps = {}; TREK.Util.state().torpedoAt = nil")
+    rt.run(f"""
+        local v = TREK.Vehicle.ship()
+        v.seats[0] = nil
+        v.seats[1] = SIM.players[1]
+    """)
+    fire(10, 0)
+    check(rt.eval("#SIM.traps") == 0,
+          "torpedoes: someone who is not in the driver's seat fired them")
+
+    print("torpedoes: the pilot fires, the blast carries no fire at all, and "
+          "the ground, the cooldown, both range bounds and the passenger are "
+          "all refused")
+
+
 def main():
     static()
     migration()
     single_player()
     flight()
     flight_endings()
+    torpedoes()
     multiplayer()
     if failures:
         print(f"\n{len(failures)} PROBLEM(S):")

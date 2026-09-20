@@ -116,6 +116,7 @@ function VM.onTakeOff(player)  TREK.Flight.takeOff(player) end
 function VM.onLandBelow(player) TREK.Flight.land(player) end
 function VM.onClimb(player)    TREK.Flight.climb(player) end
 function VM.onDive(player)     TREK.Flight.dive(player) end
+function VM.onTorpedoes()      if TREK.Torpedo then TREK.Torpedo.toggle() end end
 
 function VM.onFlightSpeed(player)
     local F = TREK.Flight
@@ -156,6 +157,7 @@ local ICONS = {
     ascend  = "media/ui/TREK_Ascend.png",
     descend = "media/ui/TREK_Descend.png",
     land    = "media/ui/TREK_Land.png",
+    torpedo = "media/ui/TREK_Torpedo.png",
 }
 
 local function icon(key)
@@ -208,6 +210,16 @@ function ISVehicleMenu.showRadialMenu(playerObj)
         menu:addSlice(getText("IGUI_TREK_Climb"), icon("ascend"), VM.onClimb, playerObj)
         menu:addSlice(getText("IGUI_TREK_Dive"), icon("descend"), VM.onDive, playerObj)
         menu:addSlice(getText("IGUI_TREK_LandBelow"), icon("land"), VM.onLandBelow, playerObj)
+        -- Torpedoes are only offered in the air, because the blast is centred
+        -- on the ground and a shuttle sitting on it would be inside its own
+        -- explosion. The server refuses a shot taken from the deck as well;
+        -- this only keeps the slice from being there to press.
+        local T = TREK.Torpedo
+        if T then
+            menu:addSlice(getText(T.isArmed() and "IGUI_TREK_TorpedoOff"
+                                               or "IGUI_TREK_TorpedoOn"),
+                          icon("torpedo"), VM.onTorpedoes, playerObj)
+        end
     elseif Ship.get().landed then
         menu:addSlice(getText("IGUI_TREK_TakeOff"), icon("ascend"), VM.onTakeOff, playerObj)
     end

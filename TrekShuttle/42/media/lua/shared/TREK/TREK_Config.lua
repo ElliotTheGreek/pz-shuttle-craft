@@ -331,6 +331,43 @@ C.FlightSpeedCapFraction = 1.0
 C.FlightPilotGrace = 5
 
 ---------------------------------------------------------------------------
+-- Photon torpedoes
+---------------------------------------------------------------------------
+-- A cooldown, not ammunition: the shuttle makes her own, so there is nothing
+-- to run out of and nothing to stock a locker with.
+--
+-- These numbers are vanilla's, deliberately. A build 42 explosion is an
+-- IsoTrap, and vanilla's PipeBomb is ExplosionPower 90 over ExplosionRange 7
+-- -- so a torpedo is a pipe bomb's blast delivered from the air. Borrowing
+-- the figures rather than inventing them means the damage is already
+-- balanced against everything else that explodes in this game.
+C.TorpedoPower = 90
+C.TorpedoRange = 7
+
+-- **FireStartingChance must stay 0, and it is the whole reason torpedoes are
+-- publishable.** IsoTrap.drawCircleExplosion rolls Rand.Next(100) against it
+-- and uses that one roll to gate both IsoGridSquare.Burn() (bci 293) and
+-- IsoFireManager.StartFire (bci 316); IsoTrap.explosion gates body-part burns
+-- on it again at bci 148. At zero, none of the three can fire, and the blast
+-- still damages everything standing on the square. Vanilla's own PipeBomb
+-- ships 0 for exactly this reason. Raise it and the mod sets Muldraugh alight.
+-- See MULTIPLAYER.md, "Photon torpedoes".
+C.TorpedoFireChance = 0
+
+-- How far from the ship the pilot may put one, in tiles. Bounded because the
+-- target square arrives from a client and a client is a request, never a fact:
+-- without this, a crafted command is a mortar with map-wide reach.
+C.TorpedoMaxRange = 28
+
+-- Between shots, in milliseconds, held on the ship rather than the player --
+-- there is one set of tubes, so two crew cannot take turns to halve it.
+C.TorpedoCooldownMs = 6000
+
+-- The blast is centred on the ground, so a torpedo fired at your own shadow
+-- would catch the ship. Refuse anything nearer than this many tiles.
+C.TorpedoMinRange = 4
+
+---------------------------------------------------------------------------
 -- Travel
 ---------------------------------------------------------------------------
 -- Travel is also by the helm: lay in a course, then take her down. That is

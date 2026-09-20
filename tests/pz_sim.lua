@@ -245,6 +245,31 @@ function SquareMT:getVehicleContainer()
 end
 function SquareMT:setHaveElectricity(v) self.power = v end
 
+--- Everything standing on this square: the list an explosion walks.
+--- IsoTrap.explosion iterates getMovingObjects() and hits every
+--- IsoGameCharacter in it, so a square knows who is on it.
+function SquareMT:getMovingObjects()
+    local here = {}
+    for _, p in ipairs(SIM.players or {}) do
+        if math.floor(p.x) == self.x and math.floor(p.y) == self.y
+           and math.floor(p.z or 0) == self.z then
+            table.insert(here, p)
+        end
+    end
+    for _, z in ipairs(SIM.zombies or {}) do
+        if math.floor(z.x) == self.x and math.floor(z.y) == self.y
+           and math.floor(z.z or 0) == self.z then
+            table.insert(here, z)
+        end
+    end
+    return jlist(here)
+end
+
+--- A square belongs to the cell. IsoTrap.new wants it, and a square that
+--- cannot answer makes every torpedo fail silently -- which is how the first
+--- run of the torpedo test failed, and why this is here rather than absent.
+function SquareMT:getCell() return getCell() end
+
 -- Removing an object without recalculating leaves the square holding every
 -- conclusion the engine had already drawn from what was on it -- which is why
 -- floors that had genuinely been lifted went on darkening the ground beneath
@@ -895,6 +920,49 @@ local function derivable(name)
 end
 ISPanelJoypad = derivable("ISPanelJoypad")
 ISButton = derivable("ISButton")
+-- The torpedo reticle is a bare overlay rather than a panel: it draws and
+-- never captures, so the game underneath stays steerable while armed.
+ISUIElement = derivable("ISUIElement")
+
+---------------------------------------------------------------------------
+-- IsoTrap: build 42's explosive, and the only thing a torpedo is
+---------------------------------------------------------------------------
+-- Recorded rather than simulated. What matters to a test is not how much
+-- damage a blast does -- the engine decides that -- but **how it was
+-- configured**, because one of those settings is the difference between a
+-- torpedo and a wildfire. IsoTrap.drawCircleExplosion gates both
+-- IsoGridSquare.Burn() and IsoFireManager.StartFire on a single
+-- Rand.Next(100) < getFireStartingChance() roll, so a non-zero fire chance
+-- here means the mod sets Muldraugh alight. The test reads these back.
+SIM.traps = {}
+
+IsoTrap = {}
+function IsoTrap.new(attacker, weapon, cell, square)
+    local t = {
+        attacker = attacker, square = square,
+        fired = false,
+        power = 0, range = 0,
+        fireChance = nil, fireEnergy = nil, fireRange = nil, smokeRange = nil,
+        instant = false,
+    }
+    function t:setExplosionPower(v) self.power = v end
+    function t:setExplosionRange(v) self.range = v end
+    function t:setFireStartingChance(v) self.fireChance = v end
+    function t:setFireStartingEnergy(v) self.fireEnergy = v end
+    function t:setFireRange(v) self.fireRange = v end
+    function t:setSmokeRange(v) self.smokeRange = v end
+    function t:setInstantExplosion(v) self.instant = v end
+    function t:triggerExplosion() self.fired = true end
+    function t:place() end
+    table.insert(SIM.traps, t)
+    return t
+end
+
+--- The last trap built, for a test to inspect.
+function SIM.lastTrap()
+    return SIM.traps[#SIM.traps]
+end
+
 ISWorldMap = { onMouseUp = function() end, render = function() end,
                onJoypadDown = function() end }
 ISWorldObjectContextMenu = { setTest = function() return true end }

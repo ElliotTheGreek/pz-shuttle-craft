@@ -831,6 +831,105 @@ Net.onServer("touchdown", function(player, args)
     U.log("shuttle set down at %d,%d,%d", x, y, z)
 end)
 
+--- Photon torpedoes.
+---
+--- **The blast happens here and nowhere else**, and that is forced by the
+--- engine rather than chosen. IsoTrap.shouldProcess decides who an explosion
+--- may damage: a client processes only zombies it owns (isLocal) and never a
+--- player; the server processes every zombie. If both fired, a zombie owned by
+--- a client would be hit twice, once by its owner and once by us. So the
+--- server is the only trigger, and vanilla's own IsoMovingObject.Hit carries
+--- the damage to everyone -- no packet of ours, and no exception to
+--- "one authority per piece of state" of the kind the sky plane needed.
+---
+--- The trap is vanilla's explosive, configured the way vanilla configures a
+--- pipe bomb. C.TorpedoFireChance is 0 and the comment on it is not optional
+--- reading: it is the single value standing between a torpedo and a wildfire.
+Net.onServer("fireTorpedo", function(player, args)
+    if not mayUse(player) then return end
+    local s = U.state()
+    if not s.flying then
+        deny(player, "notFlying")
+        return
+    end
+    local _, driving = drivenBy(player)
+    if not driving then
+        deny(player, "notPilot")
+        return
+    end
+
+    local now = getTimestampMs()
+    if s.torpedoAt and now - s.torpedoAt < C.TorpedoCooldownMs then
+        deny(player, "torpedoReloading",
+             { ms = C.TorpedoCooldownMs - (now - s.torpedoAt) })
+        return
+    end
+
+    local x, y = int(args.x), int(args.y)
+    if not x or not y then return end
+    -- The ground under her, not her altitude: a torpedo falls.
+    local z = int(args.z) or s.z or 0
+    if z < 0 then return end
+
+    -- A client is a request, never a fact. Without this bound the command is
+    -- a mortar that reaches anywhere on the map.
+    local dx, dy = x - s.x, y - s.y
+    local dist = math.sqrt(dx * dx + dy * dy)
+    if dist > C.TorpedoMaxRange then
+        deny(player, "torpedoRange")
+        return
+    end
+    -- And the blast is centred on the ground, so firing at your own shadow
+    -- would catch the ship.
+    if dist < C.TorpedoMinRange then
+        deny(player, "torpedoTooClose")
+        return
+    end
+
+    -- Never build where no player is standing: an unloaded chunk hands back an
+    -- orphan square and the first engine call on it throws.
+    local sq = U.square(x, y, z, false)
+    if not sq then
+        deny(player, "torpedoNoGround")
+        U.log("torpedo: no loaded square at %d,%d,%d -- not fired", x, y, z)
+        return
+    end
+
+    local fired = U.try("torpedo.trap", function()
+        local trap = IsoTrap.new(player, nil, sq:getCell(), sq)
+        if not trap then return false end
+        trap:setExplosionPower(C.TorpedoPower)
+        trap:setExplosionRange(C.TorpedoRange)
+        -- All three of these keep the street from burning. See TREK_Config.
+        trap:setFireStartingChance(C.TorpedoFireChance)
+        trap:setFireStartingEnergy(0)
+        trap:setFireRange(0)
+        trap:setSmokeRange(0)
+        trap:setInstantExplosion(true)
+        trap:triggerExplosion()
+        return true
+    end) == true
+
+    if not fired then
+        deny(player, "torpedoFailed")
+        U.log("WARN torpedo: the trap would not fire at %d,%d,%d", x, y, z)
+        return
+    end
+
+    s.torpedoAt = now
+    Ship.commit()
+    Net.toAll("torpedoFired", { x = x, y = y, z = z })
+    -- Read the result back, as everything else here does: the count is what
+    -- proves the blast reached anything, and a torpedo that hits nothing looks
+    -- exactly like a torpedo that never went off.
+    local caught = U.try("torpedo.count", function()
+        local objs = sq:getMovingObjects()
+        return objs and objs:size() or 0
+    end) or 0
+    U.log("torpedo away: %d,%d,%d power %d range %d, %d on the target square, fired by %s",
+          x, y, z, C.TorpedoPower, C.TorpedoRange, caught, Ship.usernameOf(player))
+end)
+
 Net.onServer("setCourse", function(player, args)
     if not mayUse(player) then return end
     local x, y, z = position(args)
