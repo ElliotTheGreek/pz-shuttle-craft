@@ -1,328 +1,183 @@
-# The replicator — implementation guide
+# The replicator
 
-A galley fixture with a searchable interface that materialises **any item in
-the game**. Roadmap item 4, ahead of the EMH.
+**Built, revision 18. Not yet seen in game.**
 
-**Nothing is built.** Everything below is either an engine fact verified with
-`tools/pzapi.py` and a grep of vanilla Lua, or a decision that needs taking
-before code is written. Decisions are marked **DECIDE**.
+A lit alcove over the galley counter that makes any item in Project Zomboid.
+Two limits stand between the player and that, and they answer two different
+questions:
 
-`DEV_GUIDE.md` first, then `MULTIPLAYER.md` for the client/server split.
-`MEDICAL_SET.md` and `PHOTON_TORPEDOS.md` are the two worked examples of a
-feature built to these rules; this will end up in that shape once it exists.
+- a **pattern** decides *what*. The ship can make a thing once it has scanned
+  one, which turns looting from "find supplies" into "find the first one".
+  Scanning is free and gives the item straight back, and the ship knows its
+  own Starfleet gear from the day the world is made;
+- **energy** decides *how much*. Every replication spends from a reserve that
+  refills itself over about eight game hours, so a night's sleep is a full
+  tank and a busy afternoon is not.
 
-> **Blocked on the interior refit.** The replicator is a *cabin fixture*, so it
-> needs a square in `TREK_InteriorLayout.lua` and an entry in the `.tbx`, both
-> of which are being rewritten right now. Everything except the placement —
-> the catalogue, the UI, the protocol, the model — is independent of that and
-> can be built first. **Do not touch the layout files until the refit lands.**
+A server owner who wants neither, or none of it at all, has one sandbox
+option with three values.
 
----
-
-## The goal
-
-Walk up to the replicator, open it, type what you want, and the ship makes it.
-
-That is the fantasy, and it is a dangerous one: a button that produces any item
-in Project Zomboid is a creative-mode cheat with a Star Trek skin. The whole
-design problem here is keeping the *capability* universal — it really can make
-anything — while keeping the game a game.
-
-Three things this must be:
-
-- **Universal.** Not a hand-written recipe list. It reads the game's own item
-  catalogue, so it covers vanilla, future patches and other people's mods
-  without a line of maintenance.
-- **Legible.** The player must be able to see why they cannot have something,
-  and what to do about it. A grey entry with a reason beats a missing one.
-- **A server owner's choice.** On a public server this is an admin power. It
-  ships with a sandbox option and a default that does not wreck anybody's
-  world.
+This file is the working guide: what happens when somebody uses it, where
+each piece lives, how to change one, the engine facts not to re-derive, and
+what will bite you. `DEV_GUIDE.md`'s *Rules that exist because they were
+broken* applies to every line of it, and `MULTIPLAYER.md` is the client and
+server split every feature here obeys.
 
 ---
 
-## DECIDE: what it costs
+## What happens when the player uses one
 
-**This is the decision the whole feature hangs on, and it should be made before
-anything is written.** The recommendation is in bold; the others are here so
-the choice is a choice.
+```
+client   stand at the berth (0,5), right-click it
+         TREK_ReplicatorUI.fillMenu -- OnPreFillWorldObjectContextMenu, keyed
+         to the square, greyed with a reason when it is off or you are too far
 
-### Recommended: patterns, plus a sandbox option
+         TREKReplicatorWindow: the catalogue, filtered as you type, the
+         reserve across the top, a quantity of 1, 5 or 10
+             "Materialise"  -> Core.send("replicate",    { id, count })
+             "Scan"         -> Core.send("scanCarried",  {})
+         and, from an item's own inventory menu,
+             "Store a pattern"  -> Core.send("storePattern", { id })
 
-**The replicator can make any item the ship holds a *pattern* for**, and it
-learns a pattern by scanning one — put the item in the replicator (or hold it
-and pick *Store pattern*) and the ship keeps it for ever.
+server   Net.onServer("replicate")           TREK_Server.lua
+           alive, and Ship.canUse            the ship's own access rule
+           the sandbox is not Off
+           Rep.inReachOf(player)             measured HERE, not sent
+           Rep.row(id)                       the real catalogue, never a
+                                             string handed to instanceItem
+           Rep.isQuantity(count)             one of the three the panel offers
+           Rep.knows(id)                     unless the sandbox says otherwise
+           the ship's cooldown
+           the reserve covers it
+           -> materialise(tray, id, count)   instanceItem, AddItem,
+                                             sendAddItemToContainer, and the
+                                             tray counted after every one
+           -> spend for what LANDED, commit
+           Net.toClient("replicated", { made, asked, cost, energy })
 
-Why this one:
+client   a note saying what happened, the materialisation sound, and the
+         panel redraws from the ship state the server just published
+```
 
-- It keeps the capability honestly universal. Nothing is hand-listed; the limit
-  is what you have found, not what somebody wrote down.
-- It is a **progression mechanic rather than a tax**. Looting stops being
-  "find supplies" and becomes "find the first one" — which is a genuinely
-  different and still interesting game, and it is exactly what a replicator
-  should do to a supply chain.
-- It is canon without being twee: this is the transporter pattern buffer.
-- It costs no new resource, no power bar, no second UI.
-- It is **one set of strings in ship state**, which the crew share. Finding a
-  bandage helps everybody.
+The pattern set is published separately, and only when it changes.
 
-With a per-use delay of a few seconds so it reads as a machine working rather
-than a menu dispensing.
+---
 
-`TrekShuttle.Replicator`, three values:
+## Where everything lives
 
 | | |
 |---|---|
-| **Patterns** (default) | as above |
-| **Unrestricted** | anything in the catalogue, immediately — for people who want the sandbox toy |
-| **Off** | the fixture is scenery |
-
-### The alternatives, and why not
-
-- **Free and unlimited.** One line of code and it deletes the game. The mod
-  already has free-and-unlimited items (the phaser, the torpedoes, the dermal
-  regenerator) and they work because each does *one* thing. "Any item" is not
-  one thing.
-- **Energy budget.** A power reserve that drains per item, scaled by weight,
-  recharging over time. More simulation, a bar to draw, a number to balance
-  against every item in the game — and the thing it limits (how *fast* you
-  cheat) is less interesting than the thing patterns limit (*what* you can
-  cheat). Worth keeping as a later layer on top of patterns if the ship ever
-  gets a power system; not worth it as the first mechanic.
-- **Cooldown only.** Weak. You stand still for a minute and have everything.
+| `shared/TREK/TREK_Replicator.lua` | the catalogue, the blocklist, the patterns, the reserve arithmetic, what a thing costs, where the berth is |
+| `server/TREK/TREK_Server.lua` | the three handlers, the tray, `S.replicatorReport()` |
+| `server/TREK/TREK_Build.lua` | `furnishReplicator()`, which stands the alcove over the berth once |
+| `client/TREK/TREK_ReplicatorUI.lua` | the panel, both menus, the replies |
+| `shared/TREK/TREK_Config.lua` | every number, and the sandbox values |
+| `TREK_InteriorLayout.lua` | the berth itself: `tag = "replicator"` at 0,5 |
+| `tools/gen_replicator.py` | the alcove's mesh and texture, the sound, and the renders |
+| `media/scripts/trekshuttle.txt` | `item TrekReplicator`, `model TrekReplicatorModel`, `sound TREK_Replicate` |
 
 ---
 
-## How it will work
+## Changing it
 
-```
-client  walk up, right-click the fixture -> "Use the replicator"
-        (a world-object context menu, the same event the lock override uses)
+### What a replication costs
 
-        TREKReplicatorWindow  (ISPanelJoypad, helm LCARS parts)
-          ISTextEntryBox + onTextChange   -> filter
-          ISScrollingListBox              -> name, icon, category
-          category tabs / filter          -> a controller path that needs no typing
-          "Materialise"                   -> Core.send("replicate", { id = fullType })
+`C.ReplicatorBaseCost` (4) plus `C.ReplicatorWeightCost` (10) per kilogram,
+rounded, floored at 1 and capped by `C.ReplicatorMaxCost` (150). So a bandage
+is 5, a tin of beans 12, a hammer 24, a shotgun 44, and a 60 kg generator is
+the cap rather than the 604 the formula would otherwise ask for.
 
-server  Net.onServer("replicate")
-          alive / mayUse(player)                      the ship's own access rule
-          sandbox: Off -> deny
-          id is a string, sane length
-          **the id is looked up in the real catalogue** -- Rep.catalogue()[id]
-              not trusted from the client, and not instanceItem'd blind
-          sandbox: Patterns -> ship state must hold that pattern
-          cooldown
-          instanceItem(id)                            the only creation path
-          container:AddItem(item) + sendAddItemToContainer(...)
-              or sq:AddWorldInventoryItem(...) if the fixture has no container
-          Net.toClient("replicated", { id = ..., ok = ..., why = ... })
+Weight because it is the one number every item in the game has, and because
+it is roughly what the thing *is*. There is no per-item table and there
+should not be one: the catalogue includes other people's mods, so any table
+would be a list of the items somebody thought of.
 
-client  note, the sound, and the list refreshes
-```
+### The reserve
 
-Storing a pattern is the mirror image: `Core.send("storePattern", { id })`, the
-server checks the player really holds one, adds the id to ship state, commits.
+`C.ReplicatorEnergyMax` (1000) and `C.ReplicatorRegen` (20 per ten game
+minutes). Full from empty in 500 game minutes -- eight game hours -- and a
+full reserve is two hundred bandages or forty hammers.
 
----
+**Game minutes, not real ones**, and that is the interesting half. Sleeping
+and waiting both work, a server that sat empty overnight does not hand its
+crew a free tank the way a wall-clock timer would, and there is no timestamp
+arithmetic to get wrong across machines. The cost is one `Ship.commit()` per
+ten game minutes while it is charging, which is why the step is ten minutes
+rather than one.
 
-## What it can make, and what it cannot
+### What the ship already knows
 
-### The catalogue
+Every item declared in `module TrekShuttle`, seeded by `R.seedDefaults()` on
+each authority start -- not once, so an item added to the mod later is a
+pattern in an existing save with no migration. It publishes only when
+something was new.
 
-`getAllItems()` returns every `Item` script in the game — vanilla, this mod,
-and anything else installed. It is a **global** with non-debug vanilla call
-sites, and `getScriptManager():getAllItems()` is the same list.
+### The blocklist
 
-**The filter is vanilla's own**, and it is not optional:
+`C.ReplicatorBlocked`. Three ids today, and all three are items this mod
+declares for its own purposes: the torpedo specification (a warhead nobody
+holds, with no icon), the hull, and the deleted helm console. **The engine's
+own filter does not catch any of them** -- they are not obsolete, not hidden
+and not in `Moveables` -- which is precisely why the list exists.
 
-```lua
-if not item:getObsolete() and not item:isHidden() then ... end
-```
+Add to it rather than to a filter: a server owner reading the config should
+be able to see what the ship refuses to make.
 
-That line is lifted from `ISItemsListViewer:initList()`, and it exists because
-of the exact trap `DEV_GUIDE.md` already records: an **obsolete item is still
-in the scripts and still returns nil from `instanceItem`**. Without the filter
-the list fills with entries that look real and silently make nothing —
-"present, drawn and inert", the shape this mod has paid for six times.
+### The quantities
 
-Vanilla's viewer also skips the **`Moveables` module** entirely. Those are the
-pick-up-furniture placeholders; they are not things a player wants a replicator
-to hand them.
+`C.ReplicatorQuantities` = `{ 1, 5, 10 }`. The panel cycles them and **the
+server checks the number against the same list**, because it arrives from a
+client: without that check the command is an item printer.
 
-### Also excluded
+### Where it is in the ship
 
-- **The mod's own spec-only items.** `TrekShuttle.TrekTorpedo` is a
-  specification handed to `IsoTrap.new`, not something anybody holds. It is
-  marked neither obsolete nor hidden and it *does* have a translated name
-  ("Photon Torpedo"), so **the engine filter will not catch it** — it will
-  appear in the catalogue, with no icon, offering the player a warhead. It is
-  the proof that a hand-maintained blocklist is needed as well as the filter.
-- **DECIDE: a design blocklist.** Vehicle keys, quest-ish items, other mods'
-  internal placeholders. The hook should exist from day one even if it starts
-  empty, because adding it later means adding it in a hurry.
+`C.ReplicatorTag` finds the berth in `TREK_InteriorLayout.lua` -- the steel
+counter at 0,5 that the interior refit put there for it. Move the entry in
+BuildingEd and the machine follows; rename the tag and it has nowhere to
+stand, which `tests/test_layout.py` fails on and `TREK_Replicator()` reports.
 
-### What is shown per row
+The tray is that counter's own container. It is stocked with nothing on
+purpose, and the layout test insists on it.
 
-`Item` gives the UI everything it needs, all public:
+### The alcove
 
-```
-getDisplayName()      what the player reads
-getFullName()         "Base.Axe" -- the id to send, and what instanceItem takes
-getDisplayCategory()  grouping and the controller's browse path
-getNormalTexture()    the icon, so the list is scannable rather than a wall of text
-getModuleName()       "Base", "TrekShuttle", someone else's mod
-getWeightWet/Empty()  if a cost model ever needs a number
-```
+`python tools/gen_replicator.py TrekShuttle/42` writes the mesh, the texture,
+the sound and two renders into `design/art/replicator/`. It is **authored
+from y = 0.80 upwards** so it hangs above the counter rather than being drawn
+through it, and that is the one thing about it to check in game: if the
+engine draws world items from the square's floor regardless of where the mesh
+sits, the alcove will be sitting on the bench instead of over it. The fix
+would be to author from 0 and shorten it.
+
+### The panel
+
+Built from the helm's LCARS parts (`H.pill`, `TREKLcarsButton`, `H.P`), so
+the two consoles look like the same ship. `tests/test_helm.py` draws it
+against a 122-row catalogue with a name too long for its column.
 
 ---
 
-## The interface
-
-An LCARS panel, built from the helm's own parts (`H.pill`, `TREKLcarsButton`,
-`H.P`) so the two consoles look like the same ship. `tests/test_helm.py`
-already drives two panels and will drive a third.
-
-- **Search** is `ISTextEntryBox` with `onTextChange` — the pattern
-  `ISChat.lua:161` uses, so it is not a debug-only widget.
-- **The list** is `ISScrollingListBox` with a custom `doDrawItem`, the way the
-  helm draws its bookmarks: icon, display name, category on the right.
-- **Every panel must work with a controller** (`DEV_GUIDE.md`). This is the
-  hard part of this UI and it needs designing, not bolting on: **a pad has no
-  keyboard**, so the search box cannot be the only way in. The answer is
-  category tabs or a category filter that the stick can walk, with the text
-  box as the mouse-and-keyboard fast path. Decide this before laying the panel
-  out, or it gets retrofitted badly.
-- **Filtering thousands of rows every keystroke** is the one performance risk
-  in the UI. Build the filterable list **once** at open (id, lowercased name,
-  category, icon) and filter that array — not the java list, and not
-  `getAllItems()` per frame.
-
-### The art
-
-Same pipeline as the helm and the medical icons (`ROADMAP.md`, *How art gets
-made*):
-
-- **Gemini** (`generate-image` → `tools/key_icon.py` → `tools/vet_icons.py` →
-  `analyze-image`) for the panel backdrop and any emblem, generated on flat
-  magenta, vetted at the size it is drawn.
-- Raws and the contact sheet go in `design/art/replicator/`, never only in
-  `media/textures/`.
-- A **sound**: the materialisation shimmer, added to `tools/gen_medical.py`'s
-  sibling — or a new `tools/gen_replicator.py`. Synthesized, deterministic, and
-  played with `playSoundLocal` so it does not call the dead over.
-
----
-
-## The model
-
-The fixture is a **world model**, the same as the helm console: a `.x` mesh
-plus a texture, declared in `media/scripts/trekshuttle.txt` and placed with
-`sq:AddWorldInventoryItem(C.ReplicatorItem, 0.5, 0.5, 0.0)`.
-
-Two routes, and the second is new for this mod:
-
-### 1. Procedural, like the helm
-
-`tools/gen_helm.py` writes its mesh and texture from Python with
-`tools/meshbuild.py`. A replicator alcove is a recessed box with a lit panel —
-well within what that produces, and it stays reproducible from source with no
-network.
-
-### 2. Generated, through fal.ai — and the importer already exists
-
-This is why the fal toolkit is worth reaching for, and the plumbing is already
-in the repo:
-
-```
-Gemini or fal image model   a reference image of the alcove, one clean view
-        |
-fal-3d-trellis-v2 / fal-3d-hunyuan3d-v2 / fal-3d-triposr
-        |                   image -> 3D. ASYNC: submit, then poll
-        |                   fal-queue-status, then fal-queue-result
-        v
-   a GLB mesh URL
-        |
-tools/import_gltf.py        already reads glTF 2.0 binary: embedded buffers,
-        |                   node matrices, indexed triangles, one diffuse
-        v                   texture. No Blender, no third-party package.
-   .x mesh + .png texture -> media/models_X, media/textures
-        |
-tools/preview_model.py      RENDER IT AND LOOK before the game ever runs
-```
-
-`fal-3d-triposr` is the cheap fast one for candidates (~15 s); TRELLIS v2 or
-Hunyuan3D v2 for the one that ships.
-
-**Three things to expect**, all of which `DEV_GUIDE.md` already warns about in
-other words:
-
-- **Generated meshes are not authored meshes.** Expect far too many triangles,
-  a texture atlas laid out for a render rather than a game, and an arbitrary
-  scale and origin. The importer gets it in; making it a *one-tile fixture at
-  the right size, facing the right way* is still work. `tools/meshbbox.py`
-  measures the result, and the bracket is whatever the helm console occupies.
-- **Y is up** for PZ world models, and 1 unit is 1 tile. A GLB will almost
-  certainly arrive Y-up but at a metre scale, so it needs scaling — the hull
-  and the helm are the reference.
-- **Render it and look.** Four separate faults in the hull were invisible in
-  the source and obvious in one `preview_model.py` frame.
-
-**Keep the generated source.** The reference image, the GLB and the render go
-in `design/art/replicator/`; regenerating gets a *different* mesh, not the same
-one again.
-
----
-
-## Multiplayer
-
-Straightforward, and it must not be cut corners on: **this is the one feature
-in the mod that can hand a player anything in the game.**
+## The rules it obeys
 
 | | |
 |---|---|
-| The item is created | **Server**, on a validated `replicate` command |
-| Who may use it | **Server** — alive, and the ship's own `mayUse` (owner-and-crew respected) |
-| The pattern set | **Server**, ship state, shared by the crew, transmitted like everything else |
-| The sandbox setting | **Server** |
+| The item is created | **Server**, on a validated `replicate` |
+| Who may use it | **Server** -- alive, the ship's `canUse`, standing at the machine |
+| The pattern set | **Server**, its own mod data key, shared by the crew |
+| The reserve | **Server**, ship state, one number |
+| The catalogue | **Both**, built per process from the engine's own list |
 | The panel, the search, the list | **Client**, presentation only |
 
-- **A client is a request, never a fact.** The id arrives from a client, so it
-  is looked up in the real catalogue server-side before anything is created —
-  never `instanceItem`'d blind on a string somebody sent.
-- **`instanceItem(id)` works on the server**, and it is the only creation path
-  this mod uses (`DEV_GUIDE.md`, *The jar is not the API*).
-- **Items reach clients through the transmit calls**: `container:AddItem(item)`
-  then `sendAddItemToContainer(container, item)`, or
-  `AddWorldInventoryItem`.
-- **Read the result back.** Count the container before and after, as
-  `U.addVerified` does. A replicator that reports success and produced nothing
-  is this project's favourite bug.
-
-### The pattern set is the one thing to measure
-
-It lives in ship state, which is transmitted whole on every change. A crew who
-have scanned two thousand items are carrying two thousand short strings in
-global mod data, and every `Ship.commit()` sends them.
-
-That is probably fine and it is **not** something to assume. Measure it before
-shipping: log the serialised size at 100, 1000 and "everything", and if it is a
-problem the fix is to keep patterns out of `TREK_Ship` and give them their own
-mod data key that is transmitted only when it changes.
-
----
-
-## Where it goes in the ship
-
-**Owned by the interior refit — coordinate before touching.** When it lands:
-
-- a square in `TREK_InteriorLayout.lua` with a `tag`, in the galley;
-- the fixture placed by `TREK_Build.lua` the way `furnishHelmItem()` places the
-  helm console;
-- `C.BuildRev` bumped, so **new worlds only** (`DEV_GUIDE.md`, *Never restock
-  an existing container*);
-- `tests/test_layout.py` will check it is inside the hull and not stacked on
-  something.
+- **A client is a request, never a fact.** The id is looked up in the real
+  catalogue, the quantity is matched against the list the panel offers, the
+  range is measured on the server's own copy of where the player is standing,
+  and the inventory a scan reads is the server's copy of it.
+- **The tray is counted.** `U.itemCount` before and after every single item,
+  because a container at capacity drops what it is handed in silence.
+- **The player is charged for what landed**, not for what they asked for.
+- **An absent sandbox option means the feature as designed**, and here that is
+  the *restrictive* reading. This is the opposite way round from
+  `C.TorpedoFire` and both are deliberate.
 
 ---
 
@@ -333,79 +188,146 @@ it). Do not re-derive these.
 
 | Fact | Where |
 |---|---|
-| `getAllItems()` is a Lua global returning `ArrayList<Item>`; `getScriptManager():getAllItems()` is the same list | `ISItemsListViewer.lua:42`, `forageSystem.lua:679`, `ISLiteratureUI.lua:363` |
-| **The filter for a usable item is `not item:getObsolete() and not item:isHidden()`** | `ISItemsListViewer.lua:53` |
-| An **obsolete item is still in the scripts and returns nil from `instanceItem`** — it looks exactly like a working entry that makes nothing | `DEV_GUIDE.md`, *Changing what is in a container* |
+| `getAllItems()` is a `LuaManager$GlobalObject` static returning `ArrayList<Item>` | `shared/Foraging/forageSystem.lua:679` |
+| `getScriptManager():getAllItems()` is the same list | `client/ISUI/ISLiteratureUI.lua:363` |
+| **The filter for a usable item is `not item:getObsolete() and not item:isHidden()`** | `ISItemsListViewer.lua:53`, and `forageSystem.lua:680` for a non-admin one |
 | Vanilla's own item viewer skips the **`Moveables`** module | `ISItemsListViewer.lua:71` |
-| `Item.getDisplayName / getFullName / getDisplayCategory / getModuleName / getNormalTexture / getWeightWet / getWeightEmpty / getObsolete / isHidden` are all public | `pzapi.py` |
-| `getFullName()` is the id `instanceItem` takes — vanilla pairs them directly | `ISFluidItemsViewPanel.lua:110,112` |
-| `instanceItem(id)` is a `LuaManager$GlobalObject` static with 187 vanilla call sites, and works on the server | `DEV_GUIDE.md`, `MULTIPLAYER.md` |
-| `IsoGridSquare.AddWorldInventoryItem(String, float, float, float)` returns the `InventoryItem` | `pzapi.py`, and `TREK_Build.lua:662` already uses it for the helm |
-| `ISTextEntryBox:new(...)` with `.onTextChange` is the search widget, with a non-debug call site | `ISChat.lua:161,171` |
-| `tools/import_gltf.py` reads glTF 2.0 binary — embedded buffers, node matrices, indexed triangles, float positions/UVs, one diffuse texture — with no Blender and no third-party package | this repo |
-| fal.ai image→3D (`fal-3d-trellis-v2`, `fal-3d-hunyuan3d-v2`, `fal-3d-triposr`) is **async**: submit, poll `fal-queue-status`, then `fal-queue-result` for a **GLB** URL | the fal toolkit |
+| An **obsolete item is still in the scripts and returns nil from `instanceItem`** | `DEV_GUIDE.md`, *Changing what is in a container* |
+| `Item.getFullName / getDisplayName / getDisplayCategory / getModuleName / getActualWeight / getNormalTexture / getObsolete / isHidden` are all public | `pzapi.py` |
+| `getActualWeight()` is the weight of a **script** item, and vanilla calls it on one | `ISWorldObjectContextMenu.lua:2243` |
+| `getScriptManager():FindItem(id)` looks one up by full type | `ISInventoryPaneContextMenu.lua:3086` |
+| `inv:getAllEvalRecurse(function() return true end)` is everything a player carries, sub-containers included | `ISInventoryPaneContextMenu.lua:1355` |
+| `ISTextEntryBox:new("", x, y, w, h)` with `.onTextChange` assigned on the instance | `ISChat.lua:162,171` |
+| `instanceItem(id)` works on the server and is the only creation path this mod uses | `DEV_GUIDE.md`, *The jar is not the API* |
+| An item added to a container already in the world reaches clients with `sendAddItemToContainer` | `MULTIPLAYER.md` |
+
+### The call site that does not count
+
+`ISItemsListViewer.lua` is the obvious place to cite for `getAllItems()`, and
+it lives in **`client/ISUI/AdminPanel/`**. By this project's own rules that is
+not evidence: an admin-only file proves a method works for an admin, which is
+the `setGodMod` shape all over again. The filter is quoted from it because it
+is the clearest statement of the rule, but the two call sites that make
+`getAllItems()` safe to use are the foraging system and the literature UI.
+
+---
+
+## Testing
+
+```sh
+python tests/test_multiplayer.py    # replicator() and replicator_multiplayer()
+python tests/test_helm.py           # the panel
+python tests/test_layout.py         # the berth's tag and its empty tray
+python tests/test_assets.py         # the model, the sound, every string
+```
+
+`replicator()` plays it the way a player does: it right-clicks the berth,
+opens the panel from the menu option, types in the search box and presses the
+buttons. Driving the server handlers directly would pass against a build
+whose Materialise button was wired to nothing, which is exactly how the
+torpedoes once shipped unfireable.
+
+**Nineteen mutations were checked against it and all nineteen caught** -- and
+three of those mutations found tests that were passing for the wrong reason:
+
+- the quantity check was "proved" by the reserve, because 999 hammers cost
+  more than the ship has. It asserts the *refusal reason* now;
+- the sandbox `Off` check ran with a full tray, which refuses by itself;
+- the regen ceiling could not be broken by the mutation at all, because two
+  separate guards clamp it. The test sets the reserve five short of full now,
+  so the clamp is the only thing standing between it and overshooting.
+
+Eight more mutations were run against the panel test, and one of those found
+the same class of hole: the quantity button's wrap could be deleted without
+failing anything, because an index that runs off the end makes `quantity()`
+fall back to 1 and the first lap looks identical. It walks the cycle twice
+now.
 
 ---
 
 ## What will bite you
 
-- **Obsolete items.** Said twice on purpose. Skip the filter and the catalogue
-  fills with plausible entries that make nothing, and the failure is silent.
-- **The controller.** A search box is useless on a pad. Design the browse path
-  into the panel from the start.
-- **Filtering per keystroke.** Build the searchable array once at open.
-- **Other mods' items.** The catalogue includes them, which is the feature —
-  and it means the list contains ids this mod has never seen, with names it
-  cannot predict and icons that may be missing. Nothing may assume an icon
-  exists.
-- **`C.BuildRev`** — the fixture reaches new worlds only.
-- **No hot reload.** Every change is a full restart.
+- **Obsolete items.** Skip the filter and the catalogue fills with plausible
+  entries that make nothing, silently. Said twice on purpose.
+- **A container at capacity is silent.** Count the tray; never trust the
+  number you asked for.
+- **`Ship.commit()` transmits the whole ship table.** That is why the patterns
+  are not in it. Anything else that grows without bound belongs in its own mod
+  data key too.
+- **Other people's items.** The catalogue holds ids this mod has never seen,
+  with names it cannot predict and icons that may be missing. Nothing in the
+  panel may assume `getNormalTexture()` answered.
 - **`U.batch`, not `U.try`,** for anything that loops over the catalogue. A
-  wrong method name in a loop over two thousand items is two thousand Java
-  stack traces.
-- **This is the feature a server owner will be angriest about** if it ships
-  with a permissive default. *Patterns* is the default for a reason.
+  wrong method name over two thousand items is two thousand Java stack traces
+  and a game that looks crashed.
+- **The panel's first open builds the catalogue.** A few thousand items, once
+  per process. If that is ever felt as a hitch, build it at load instead --
+  but measure before believing it.
+- **The alcove is a world item**, and world items are saved and deliberately
+  preserved by `U.clearSquare`. Anything that places one must look first or it
+  stands a second one at every rebuild.
 
 ---
 
-## Build order
+## Not built, and still to settle in game
 
-Each step leaves the mod working and is committed.
+Nothing here has been seen in a game. In the order worth checking:
 
-1. **The catalogue, headless.** `Rep.catalogue()` in `shared/TREK/` — build it
-   once, filtered, sorted, with the searchable fields precomputed. A test that
-   asserts it is non-empty, contains a known item, and **excludes a known
-   obsolete one**.
-2. **The protocol.** `replicate` and `storePattern` handlers in
-   `TREK_Server.lua`, the pattern set in ship state, the sandbox option, and
-   the `medical_multiplayer()`-style two-client scenario: a client with no
-   pattern refused, the owner served, and no client ever creating an item.
-   **No UI yet** — drive it through the commands.
-3. **The panel.** LCARS, search, list, controller path. Extend
-   `tests/test_helm.py` to draw it, and mutation-check.
-4. **The item and the model.** Procedural first so the feature is complete and
-   playable; the fal route as a second pass once it is known to work.
-5. **Placement**, once the interior refit has landed.
-6. **Art and sound**, vetted at the size they are shown.
+1. **The way in.** Right-click the counter at 0,5 while standing beside it:
+   the option should read *Use the replicator*. It is on
+   `OnPreFillWorldObjectContextMenu` because the later event returns early on
+   squares the base game finds uninteresting -- but the berth *is* a
+   container, so the later event would probably work too. If the option does
+   not appear at all, that is the first thing to look at.
+2. **The alcove's height.** Authored from 0.80 up so it hangs over the
+   counter. If world models ignore that and sit on the floor, it will be
+   standing in the counter instead of above it.
+3. **The catalogue's real size.** Thirteen items in the simulation and a few
+   thousand in the game. `TREK_Replicator()` prints the count; the panel
+   should open without a visible pause and the search should stay responsive.
+4. **The reserve on the clock.** Sleep a night and watch it come back.
+5. **A pattern on a second machine.** One crewman scans; the other's panel
+   should stop saying *no pattern* without either of them reopening it.
+6. **The sound**, which is played locally and must not draw the dead.
+7. **`Unrestricted` and `Off`**, both of which a server owner will use before
+   the author does.
 
 ---
 
-## Open questions
+## What would have bitten you
 
-Worth answering before step 2, not after.
+### The pattern set nearly went into the ship state
 
-1. **The cost model** — the DECIDE at the top. Everything else follows from it.
-2. **How a pattern is stored.** Consume the item, or scan and keep it?
-   Consuming is a real cost and reads as "the ship took it apart", which is
-   what a replicator does. Keeping it is friendlier. *Recommendation:
-   consume* — it makes the first one matter.
-3. **Does the replicator hold a container?** Handing the item straight to the
-   player's inventory is simpler; materialising it into a tray is more Trek and
-   deals with a full inventory gracefully.
-4. **Stack size.** One at a time, or a quantity field? A quantity field makes
-   the cost model do all the work at once — worth having only if patterns are
-   the gate.
-5. **Does it need power?** The cabin has no power system today. If one ever
-   arrives, this is its first customer.
-6. **The design blocklist** — what, beyond obsolete, hidden and `Moveables`,
-   should never appear.
+`REPLICATOR.md` used to say the pattern set living in `TREK_Ship` was
+"probably fine and **not** something to assume", and recommended measuring it
+before shipping. Measuring it was not necessary: `Ship.commit()` transmits
+the whole table on every change, and `S.serviceVehicle` commits every time the
+shuttle is driven one square -- about once a second while anybody is flying
+her. Two thousand patterns would have gone down the wire with each of those.
+
+They have their own key and are transmitted only when one is learned. The
+reserve is one number, so it stays in the ship state where it belongs.
+
+### The cost model was decided twice
+
+The plan recommended a pattern buffer *instead of* an energy budget, on the
+grounds that patterns limit the more interesting thing (what you can make
+rather than how fast). The author asked for both, and both is better: the
+pattern is a progression and the reserve is a budget, and neither one is a
+cooldown wearing a hat. The plan's own alternative -- "worth keeping as a
+later layer on top of patterns" -- turned out to be the design.
+
+### Three renders and a louvred bin
+
+The alcove was authored, rendered, and read as a **wheelie bin**: a louvred
+box with a lid. Every fault was invisible in the source and obvious in one
+frame (`DEV_GUIDE.md`, *Render it and look*):
+
+- the emitter was 0.24 back, so the recess rendered as a hole straight
+  through the unit and the lit panel was a sliver. It sits just inside the
+  lip now;
+- the lid wore the flanks' louvres, and the game's camera looks down at
+  everything. The top has its own panel;
+- **the first two renders were of the back of it.** Yaw 0 and 40 show the
+  flanks; the opening faces east. Two careful pictures of a box, and the
+  fault was in the camera rather than the model.

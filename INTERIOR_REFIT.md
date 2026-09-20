@@ -122,8 +122,10 @@ and `_41`, the two halves of one range — a quarter of the new cabin on its own
 square, and grey suits a metal hull better than the green one.
 
 **0,5 is the replicator's berth**: a bare steel counter tagged `replicator`.
-Tagged now and empty on purpose, so the replicator arrives as a right-click on
-an object every save already has rather than as another migration.
+That is how it arrived, on 2026-09-20: `TREK_Replicator.spot()` finds the berth
+by that tag, the counter's own container is the tray a replication materialises
+into, and the alcove above it is a world model the build stands there. The
+right-click that opens the panel is keyed to this square. `REPLICATOR.md`.
 
 The sink is the only plumbed fixture left. `C.WaterTags` keys on the tag, so
 nothing in the water code changed.

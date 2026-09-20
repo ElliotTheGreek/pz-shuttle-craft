@@ -498,6 +498,39 @@ Three things about the lock are worth keeping here rather than only in
 clients, including the refusals and the one check that asserts a non-effect: a
 dose must leave a bite and the zombie infection alone.
 
+### The replicator
+
+Built 2026-09-20, not yet played. `REPLICATOR.md` is the dev guide; this
+section is the authority split and the one piece of engineering that is not
+obvious from it.
+
+| | |
+|---|---|
+| The item is created | **Server**, on a validated `replicate` command. This is the one feature in the mod that can hand a player anything in the game |
+| Who may use it | **Server** -- alive, the ship's own `canUse`, and standing at the berth, measured on the server's copy of where they are |
+| The pattern set | **Server**, its own global mod data key, shared by the crew |
+| The reserve | **Server**, ship state: one number |
+| The catalogue | **Both**, built per process out of `getAllItems()`. It is derived from the game's own scripts, so every process computes the same thing and none of it crosses the wire |
+| The panel, the search, the list | **Client**, presentation only |
+
+**The pattern set is deliberately not in `TREK_Ship`.** `Ship.commit()`
+transmits the whole ship table on every change, and `S.serviceVehicle` commits
+each time the shuttle is driven a square -- roughly once a second while
+anybody is flying her. A crew who have scanned two thousand items would push
+two thousand strings through every one of those. It has its own key
+(`TREK_Patterns_v1`) and the same request-and-receive handshake as the ship,
+and it is transmitted only when a pattern is actually learned. `DEV_GUIDE.md`
+has it under *State that is transmitted whole cannot hold a list that grows*.
+
+Three things the server does not take a client's word for: the **id** (looked
+up in the real catalogue, never handed to `instanceItem` blind), the
+**quantity** (matched against the list the panel offers, or the command is an
+item printer), and the **inventory** a scan reads (its own copy, via
+`getAllEvalRecurse`). The tray is an ordinary container already in the world,
+so each item reaches clients with `sendAddItemToContainer` -- and it is
+counted before and after every single one, because a container at capacity
+drops what it is handed without raising anything.
+
 ---
 
 ## Risks that only the game can settle
@@ -523,6 +556,13 @@ dose must leave a bite and the zombie infection alone.
 11. **A medical scan on another player**: the consent prompt appearing on
     their screen, and the panel that follows reporting at doctor level
     rather than at the scanner's own Doctor skill.
+12. **A pattern scanned by one player appearing for another**, which is the
+    only thing the replicator's separate mod data key has to get right: the
+    server transmits `TREK_Patterns_v1` when a pattern is learned and each
+    client stores what arrives. The simulated two-client scenario agrees.
+13. **An item made by one player appearing in the tray for the other.** The
+    tray is a container already in the world, so this rides
+    `sendAddItemToContainer` and nothing of ours.
 
 ---
 

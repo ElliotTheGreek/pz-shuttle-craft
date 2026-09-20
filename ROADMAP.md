@@ -61,11 +61,16 @@ player before.
 7. **She flies under a real client/server split** — up, level, down.
 8. **Shields** — the `isRemoteZombie()` path is live here in a way single
    player never exercises, even with one client.
-9. **The interior refit.** Newest of all: the 4x6 cabin, the three lockers,
+9. **The interior refit.** The 4x6 cabin, the three lockers,
    the five empty containers, the television, the biobed as a bed. Revision
    17. And, in a world made before it, the migration -- no furniture left
    standing outside the hull, the old contents piled on the pad.
-10. **The medical set.** Unproven: a hypospray dose and a
+10. **The replicator.** Newest of all. The parts a server adds are the
+   pattern set crossing to the other client and the tray filling on both
+   screens. Solo, the questions are simpler: does the right-click on the
+   berth at 0,5 offer it, does the alcove hang over the counter, and how big
+   is the real catalogue.
+11. **The medical set.** Unproven: a hypospray dose and a
    regenerator pass that must both leave a bite alone, a cut closed with no
    bandage, the health panel at doctor level, the sensor sweep in front of a
    real horde, and the lock override on a house door and then on a padlock.
@@ -80,24 +85,29 @@ The Deck needs `Zomboid/mods/TrekShuttle/` **copied to it by hand**:
 `TrekShuttleDev` is a local mod, `WorkshopItems=` is empty, and a server cannot
 push a non-Workshop mod to a client. Redo the copy after any code change.
 
-10. Loot one player takes disappears for the other.
-11. `TrekShuttle.Access = 2` — a stranger refused, then added to the crew.
-12. **A shuttle in the air seen from the other machine.** The wire format
+12. Loot one player takes disappears for the other.
+13. `TrekShuttle.Access = 2` — a stranger refused, then added to the crew.
+14. **A shuttle in the air seen from the other machine.** The wire format
     carries height and each client re-derives the level from its own copy of
     the plane; the simulated two-client test agrees, but the engine's half
     (`clientUpdateVehiclePos` writing `setZ(0)`, then `BaseVehicle.update()`
     recomputing) has only been reasoned about.
-13. Speed set at one helm reaching a pilot at another.
-14. **A torpedo fired by one player, seen and heard by the other**, and the
+15. Speed set at one helm reaching a pilot at another.
+16. **A torpedo fired by one player, seen and heard by the other**, and the
     fire it starts appearing on both machines. The projectile is drawn by each
     client from one `torpedoLaunched`, and the fire is synced by the engine's
     own `StartFire` packet — so this should need nothing of ours, which is
     exactly the kind of claim that wants checking.
-15. **A lock opened by one player, seen by the other**, and a medical scan
+17. **A lock opened by one player, seen by the other**, and a medical scan
     requested from one machine and accepted on the other. Neither has any
     code of ours behind the packet: the lock rides `obj:sync()` and the scan
     rides the engine's own consent events, which is exactly the kind of claim
     that wants checking.
+18. **A pattern scanned by one player, and an item made for both.** The
+    pattern set is the one thing the replicator publishes itself
+    (`TREK_Patterns_v1`, transmitted only when one is learned); the tray is
+    an ordinary container, so the item rides `sendAddItemToContainer`. Both
+    agree in simulation and neither has been across a wire.
 
 Watch it with a tight filter — a broad one matches every frame of every Java
 stack trace:
@@ -519,35 +529,55 @@ real world is the other one: **the migration out of a 6x9 save**.
 black void. It removes them, removes the helm prop, and spills the contents of
 the eleven deleted containers onto the transporter pad rather than eating them.
 
+## The replicator — built, not yet seen in game
+
+A lit alcove over the galley counter that makes **any item in the game**, and
+the ship's first system rather than another item. `REPLICATOR.md` is the
+working guide.
+
+Two limits, answering two different questions — the author's call, and better
+than the plan's own recommendation of one or the other:
+
+- a **pattern** decides *what*. The ship makes what it has scanned; scanning
+  is free and hands the item straight back, and it knows its own Starfleet
+  gear from the day the world is made. Looting becomes "find the first one";
+- **energy** decides *how much*. Every replication spends from a reserve that
+  refills over about eight game hours, on the world's clock, so a night's
+  sleep is a full tank.
+
+`TrekShuttle.Replicator` gives a server owner *Patterns and energy*,
+*Unrestricted* or *Off* — and an absent setting reads as the first, which is
+the restrictive one. That is the opposite way round from `TorpedoFire`, and
+both are deliberate: a missing option must mean the feature as designed.
+
+The catalogue is `getAllItems()` filtered the way vanilla filters it, so it
+covers vanilla, future patches and other people's mods with no maintenance at
+all — plus a blocklist for the three ids this mod declares that nobody should
+ever hold. The item is created on the server, and the tray is counted after
+every one: a container at capacity drops what it is handed in silence, so the
+player is charged for what arrived.
+
+The alcove is procedural (`tools/gen_replicator.py`), authored from 0.80
+upwards so it hangs over the counter rather than standing in it, and it took
+three renders to stop being a louvred bin. The fal.ai image-to-3D route in the
+old plan was not needed and is still there if a future fixture wants it.
+
+**Nineteen mutations were checked against the new tests and all nineteen
+caught**, three of which found tests passing for the wrong reason; eight more
+against the panel, one of which found another. Nothing has been seen in a
+game: `REPLICATOR.md`'s last section is the list, and the right-click on the
+berth is the first thing to try.
+
 ## Then: ship systems
-
-**`REPLICATOR.md` is the implementation guide** for the first of them — the
-goal, the engine facts verified before any of it was written, the traps, and a
-build order that leaves the interior files until last. Nothing is built.
-
-- **Replicator** — a galley fixture with a searchable UI that makes any item.
-  On a server the item is created by the server. **Medium–Hard.**
-
-  It reads the game's own catalogue (`getAllItems()`, filtered the way vanilla's
-  own item viewer filters it) rather than a hand-written recipe list, so it
-  covers vanilla, future patches and other people's mods with no maintenance.
-  **The decision to take before writing any of it is what a replication
-  costs**; `REPLICATOR.md` opens with it and recommends a *pattern buffer* —
-  the ship can make anything it has scanned once — behind a three-value sandbox
-  option defaulting to that rather than to unrestricted.
-
-  It needs a model, and the route is already half-built: `tools/import_gltf.py`
-  reads glTF 2.0 binary with no Blender, and fal.ai's image-to-3D tools return
-  a GLB. The helm's procedural generator is the route that certainly works.
-
-  **Its placement waits for the interior refit**, since it is a cabin fixture.
-  Everything else — catalogue, protocol, panel, model — is independent of that.
 
 - **EMH** — a wall switch that brings up a static model of the Doctor, a dialogue
   panel, full diagnosis and treatment, infinite supplies, and **the only cure for
   zombie infection** (decided). Treatment runs on the server. **Medium–Hard.**
   Inherits the medical set's treatment primitives (`Med.treatWith` and its two
-  lists) and the same wall-fixture placement problem as the replicator.
+  lists), and the replicator is now the worked example of the other half: a
+  cabin fixture with a panel behind it, found by its layout tag, opened from a
+  right-click on its own square and validated server-side. The EMH's wall
+  panel at 3,3 and its clear square at 2,4 are already in the interior.
 
 ---
 
@@ -580,8 +610,11 @@ the whole list at once rather than to each version.
 4. **The interior refit** -- built (2026-09-20), 4x6, Starfleet-issue lockers.
    Needs a fresh world *and* a pre-refit save, for the migration.
    `INTERIOR_REFIT.md` section 7 is the list.
-5. **Replicator, then EMH.**
-6. **Publish.**
+5. **The replicator** -- built (2026-09-20). Needs a world: the menu on the
+   berth, the alcove's height, the real catalogue's size, and a pattern
+   crossing between two machines.
+6. **The EMH.**
+7. **Publish.**
 
 Running alongside all of it: **the two-player session** (pinned below). It is
 no longer a release blocker, but every feature above is one more thing that

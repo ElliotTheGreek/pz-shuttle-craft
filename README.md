@@ -27,10 +27,11 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **A dermal regenerator** | Run it over the skin and the skin closes: lacerations, scratches, deep wounds and burns, with the stitches and the dressing that were holding them together. No bandage needed, and no charge to run out of. It will not mend a broken bone, touch an infected wound, or close over a piece of glass. |
 | **A medical tricorder** | Reads a body the way a surgeon would, whether or not you have ever held a scalpel. On yourself, or — with their say-so — on a crewmate. |
 | **A tricorder** | A sensor sweep out to forty tiles, drawn as a contact plot with you at the centre, and a lock override that talks most electronic locks open. Not padlocks, and not inside somebody's safehouse. |
+| **A replicator** | A lit alcove over the galley counter that makes any item in the game — if the ship holds a pattern for it, and if the reserve covers it. Search or browse the whole catalogue, pick one, five or ten, and it forms in the tray below. |
+| **Patterns** | The ship can make what it has scanned. Stand at the replicator and scan what you are carrying: the ship reads it and hands it straight back, and from then on it can make that thing for ever. Starfleet gear — phasers, hyposprays, rations, the blades — it knows from the day it is built. |
 | **Running water** | The galley sink has its own water supply, topped up every in-game minute, so it keeps running after the mains shut off. |
-| **A berth** | Somewhere to sleep, with a locker of linen. |
-| **A sick bay** | A biobed and eight wide medical cabinets, thirty items apiece. |
-| **Stores** | A galley with a hotplate, microwave, two fridges and a stocked pantry; a cargo bay of military crates packed with food and medical supplies; engineering shelves of tools. |
+| **A sick bay** | A biobed that is also the ship's bed, an EMH station, and a locker with one of each instrument in it. |
+| **Stores** | Three Starfleet lockers — an armoury, the rations and the sick bay — and five containers left empty on purpose: the fridge, the oven, both counters and the replicator's tray are yours to fill. |
 | **Shields** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed — no free experience, no free loot. Raise and lower them at the helm. |
 | **A shared ship** | In multiplayer there is one shuttle for everyone. Server owners can limit it to its owner and crew. |
 | **Bookmarks** | Log any position and set a course back to it later. |
@@ -65,12 +66,14 @@ player and the in-game Host settings add it for you; a dedicated server's
 log says `the 'TrekShuttle' map is not loaded`, and the view outside the cabin
 shows grass and trees.
 
-Two sandbox options, on the **Shuttlecraft** page:
+Four sandbox options, on the **Shuttlecraft** page:
 
 | Option | Choices | Default |
 |---|---|---|
 | **Who may use the shuttle** | *Everyone*, or *Owner and crew*: the first player to use it owns it; the owner or an admin adds crew from the aboard menu (**Shuttlecraft ▸ Crew**). Anyone may always beam down or step out. | Everyone |
 | **Transporter charges** | *Match anti-cheat*: when `AntiCheatSpeed` is set to kick or ban, each player gets 3 beams with one back every 150 seconds, and a fourth is refused ("recharging") instead of the server kicking them. *Always unlimited*: never refused. | Match anti-cheat |
+| **Photon torpedo fire** | *Full*: the torpedo burns, and the fire spreads. *Blast only*: the explosion and the kill without the fire. | Full |
+| **Replicator** | *Patterns and energy*: it makes what the ship has scanned, and each one spends from a reserve that refills over about eight game hours. *Unrestricted*: anything in the catalogue, immediately, for nothing. *Off*: the alcove is scenery, and says so. | Patterns and energy |
 
 Every beam moves a character a long way at once, and the speed anti-cheat
 counts each one. If your players want unlimited beaming, set
@@ -80,8 +83,8 @@ counts each one. If your players want unlimited beaming, set
 ## Playing
 
 1. Right-click anywhere → **Shuttlecraft ▸ Beam up to the shuttle**. You
-   materialise on the transporter pad amidships.
-2. Take a **phaser** from the locker right beside the pad before you go.
+   materialise on the transporter pad, aft.
+2. Take a **phaser** from the armoury in the starboard row before you go.
 3. Right-click aboard for the **Shuttlecraft** menu: the helm, beam down, log
    this position, and — when the ship is on the ground — step out of the hatch.
 4. At the **helm**, click the map to lay in a course or pick a logged position,
@@ -98,9 +101,18 @@ you get into, with four seats you can switch between. From the pilot's seat the
 radial menu takes her up, and she flies over buildings and trees; the helm is
 how you cross the map.
 
-The **medical set** lives in the forward starboard locker. Right-click the
-hypospray, the dermal regenerator or either tricorder in your inventory to use
-it; right-click a locked door with a tricorder on you to override the lock.
+The **medical set** lives in the sick-bay locker, third down the starboard row.
+Right-click the hypospray, the dermal regenerator or either tricorder in your
+inventory to use it; right-click a locked door with a tricorder on you to
+override the lock.
+
+The **replicator** is the lit alcove at the aft end of the galley. Stand at it
+and right-click it → **Use the replicator**. Type a few letters or walk the
+categories, pick a quantity, and press *Materialise*; what you asked for
+appears in the counter below it. **Scan what you carry** teaches the ship
+everything in your pockets at once — it costs nothing and you keep the lot.
+The reserve across the top is what a replication spends; it fills itself back
+up over about eight game hours, so a night's sleep is a full tank.
 
 ## How much room it needs
 
@@ -124,30 +136,17 @@ the vanilla map (which ends at cell x 77), of the Fifth-Wheel RV interior at
 cell 85,40, and of the TARDIS mod's decks at 92,40 if you have that installed
 too.
 
+Four squares across by six fore and aft: twenty-four squares against a hull
+that is fifteen, so the inside and the outside tell the same story.
+
 ```
-    01234567890123
-  0       ..           bow
-  1      V.V.          V viewscreens
-  2     ..H...         H helm console
-  3    .T.*..T.        T standing consoles
-  4   ...h..h...       h flight seats
-  5  ..T......T..
-  6 ..........*...
-  7 ......*.......
-  8 w..*......mB.M     w galley sink   m/B/M sick bay
-  9 cp.........B.M     c galley        p pantry
- 10 cp...........M
- 11 cph..........M
- 12 cp....*...*..M
- 13 F.h..........M     F fridges
- 14 F..*.........M
- 15 .....ooo.....M
- 16 w....o@oP....e     @ transporter pad   P phaser locker
- 17 w....ooo.....e     w head              e engineering
- 18 w............e
- 19  .bl..*..KKK.      b berth   l locker   K cargo
- 20   b......KKK
- 21    ..eeee..        stern
+    0123
+  0 TVTA      T monitor wall   V television   A armoury
+  1 F*.p      F fridge   * lamp   p rations
+  2 oh.M      o oven   h crew seat   M sick bay
+  3 w..E      w sink counter   E EMH panel
+  4 m*.B      m microwave counter   B biobed (head)
+  5 R.@B      R replicator   @ transporter pad   B biobed (foot)
 ```
 
 Run `python tests/test_layout.py` to print this from the source, so it can
@@ -184,6 +183,7 @@ engine facts it rests on.
 | `tools/gen_helm.py` | The helm console prop, no longer placed in the cabin. |
 | `tools/gen_phaser.py` | Phaser inventory icon. |
 | `tools/gen_medical.py` | The hypospray, tricorder and regenerator sounds. (Their icons come from the Gemini toolkit; the originals are in `design/art/medical/`.) |
+| `tools/gen_replicator.py` | The replicator's alcove — mesh, texture and materialisation sound — and the two renders it was judged on, into `design/art/replicator/`. |
 | `tools/gen_poster.py` | The mods-screen poster. |
 | `tools/luacheck.py` | Parses every Lua file through a real Lua VM. |
 | `tools/deploy_windows.py` | Copy the mod into the Zomboid mods folder as `TrekShuttleDev` and verify the copy. |
@@ -210,8 +210,8 @@ python tests/test_multiplayer.py                    # single player and a server
 into separate runtimes -- one for single player, then a server and two clients
 joined by a fake network that carries only plain data -- and plays the mod:
 beaming, the cabin build reaching every client, ownership and crew, transporter
-charges, landing, ghosts and shields. It fails if a client ever edits the world
-or the ship itself.
+charges, landing, ghosts, shields, the torpedoes, the medical set and the
+replicator. It fails if a client ever edits the world or the ship itself.
 
 In game, load a **fresh** world with the mod enabled. From the debug console
 (the reports go to the server's log, `console.txt` in single player):
@@ -227,6 +227,7 @@ In game, load a **fresh** world with the mod enabled. From the debug console
 | `TREK_Phaser()` | Report how many phasers the sweep can see on you and recharge them. |
 | `TREK_Ghosts()` | Sweep hulls still waiting to be cleared, and any near you. |
 | `TREK_Charges()` | Report whether beams are rationed and your charges. |
+| `TREK_Replicator()` | Report the sandbox mode, the reserve, how many patterns the ship holds, how big the catalogue came out, and whether the tray is really a container. |
 
 The design and diagnostic ones need single player or an admin on a server.
 
@@ -284,3 +285,17 @@ interior plus `TREK_InteriorLayout.lua`.
 - **The medical set reaches new worlds only.** Like every other change to what
   the ship carries, it is stocked when the cabin is built and an existing save
   keeps the lockers it already has.
+- **The replicator only makes what the ship has scanned.** Patterns belong to
+  the ship, not to a player, so a crew shares them — and the ship starts
+  knowing its own Starfleet gear and nothing else. Scanning is free and never
+  consumes the item.
+- **The reserve refills on the world's clock**, about eight game hours from
+  empty to full, so sleeping restores it and standing still for a real minute
+  does not.
+- **The catalogue is every item in your game**, including other mods'. That is
+  the point of reading it out of the engine rather than writing a recipe list,
+  and it means a name or an icon the shuttle has never heard of can appear in
+  it. Vehicle-furniture placeholders, hidden items and obsolete ones are
+  filtered out; the torpedo warhead and the hull are blocked by name.
+- **The tray is one container.** Ask for ten of something and only what fits
+  is made, and you are charged only for what arrived.

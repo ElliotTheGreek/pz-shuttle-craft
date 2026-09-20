@@ -160,6 +160,20 @@ the only symptom was empty lockers. Use `instanceItem(id)` — it is a
 
 **So: before calling a global, grep the game's own Lua for it.**
 
+And **read the path of the call site you find**, which is the one refinement
+this rule has needed. `getAllItems()` -- the whole of the replicator's
+catalogue -- has an obvious call site in `ISItemsListViewer.lua`, and that file
+is in `client/ISUI/**AdminPanel**/`. A call site under `AdminPanel/` or
+`DebugUIs/` proves a method works *for an admin, in a debug build*, which is
+the `setGodMod` shape one level up: exactly the thing this section exists to
+catch. The two that made `getAllItems()` safe to build on were
+`shared/Foraging/forageSystem.lua` and `client/ISUI/ISLiteratureUI.lua`.
+
+```sh
+PZ="/c/Program Files (x86)/Steam/steamapps/common/ProjectZomboid/media/lua"
+grep -rn "getAllItems()" "$PZ"      # and then look at the directories
+```
+
 ```sh
 PZ="/c/Program Files (x86)/Steam/steamapps/common/ProjectZomboid/media/lua"
 grep -ran "instanceItem(" "$PZ" | wc -l          # 187 -- real
@@ -383,6 +397,56 @@ Three details of that migration worth reusing:
   not its id: recreating from the full type resets a hypospray's doses and a
   magazine's rounds, which is the quiet half of losing it.
   `AddWorldInventoryItem(InventoryItem, f, f, f)` is the overload for that.
+
+### State that is transmitted whole cannot hold a list that grows
+
+**New in this mod.** `Ship.commit()` calls `ModData.transmit(C.StateKey)`,
+which sends the *entire* ship table to every client. That is fine for what was
+in it -- a position, a few flags, forty bookmarks -- and it is fine because
+those change rarely.
+
+Except they do not. `S.serviceVehicle` commits whenever the shuttle has moved
+a square, which while anybody is flying her is about once a second. Every
+commit is the whole table.
+
+The replicator's pattern set is a list of item ids that grows for the life of
+the save, and `REPLICATOR.md` originally put it in the ship state with a note
+to "measure it before shipping". The measurement is not needed: two thousand
+patterns times once a second is the answer. It has its own mod data key
+(`C.PatternKey`), the same request-and-receive handshake `TREK_Ship` uses, and
+it is transmitted only when a pattern is actually learned. The *reserve* --
+one number -- stayed in the ship state, where it costs nothing.
+
+The general shape: **before putting something in a table that is published on
+every change, ask how big it gets and how often that table is published.** The
+two questions have different answers and both matter.
+
+### The simulation has to be as unkind as the engine
+
+**New in this mod, and it cost three separate holes in one afternoon.**
+`tests/pz_sim.lua` is the only thing standing between a multiplayer bug and a
+second machine, and every place it is *gentler* than the real engine is a
+place a test passes and the game does not. Three were found in one pass, all
+by writing a test that should have been hard to satisfy and watching it sail
+through:
+
+1. **A container that never refuses.** `ItemContainer.AddItem` drops what it is
+   handed once the contents reach capacity, silently -- which is the whole
+   reason `U.stockEach` reads the container back. The stub accepted everything,
+   so "the tray is full" could not be tested at all.
+2. **Panels with no children.** `instantiate()` was a no-op, but the engine's
+   creates the Java `UIElement`, whose constructor calls back into Lua's
+   `createChildren`. Every panel opened in the simulation had no buttons in it,
+   so a test could only reach a feature by calling its handlers -- and a button
+   wired to nothing would have passed.
+3. **Buttons that dropped their handler.** The stub's `new` took only a
+   rectangle, so `title`, `target` and `onclick` went on the floor.
+
+All three are fixed, and the rule they share is worth more than any of them:
+**when a test is easy to satisfy, suspect the simulation before believing the
+code.** `MULTIPLAYER.md` says the same thing about vehicle gravity, the
+floor-gated height and the radial menu's one-frame delay, each of which let a
+real bug through first.
 
 ### A prop that nothing opens is worse than no prop
 
@@ -1137,6 +1201,7 @@ python tools/meshbbox.py --vanilla spear          # measure vanilla, or ours
 python tools/gen_poster.py  TrekShuttle/42
 python tools/gen_reticle.py TrekShuttle/42        # the torpedo reticle
 python tools/gen_medical.py TrekShuttle/42        # the medical set's three sounds
+python tools/gen_replicator.py TrekShuttle/42     # the alcove, its sound, its renders
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
@@ -1221,6 +1286,10 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A right-click offers nothing for a mod item** | Build 42 has no script hook for "using" an arbitrary item; it has to be an `OnFillInventoryObjectContextMenu` option. And an entry in that event's `items` is either an `InventoryItem` **or** a stack table with its own `items` list — code that handles one shape silently does nothing for the other. |
 | **A panel is fine with a mouse and dead on the Steam Deck** | It is not an `ISPanelJoypad`, or its buttons were never registered with `insertNewLineOfButtons`. Note that vanilla's `ISHealthPanel` *is* one already. |
 | **A feature is reported broken and every test passes** | Suspect the tests. See *A guard is only as good as the goal it was written from* — a test, a comment and a constant all agreeing with each other is not corroboration if they came from one misreading. |
+| **The replicator's menu option never appears** | It is keyed to the berth's square, so either nothing in the layout carries `C.ReplicatorTag` (`tests/test_layout.py` fails on that, and `TREK_Replicator()` says so) or the right-click resolved to a different square. |
+| **The replicator makes nothing and says the tray is full** | It is: the counter at 0,5 holds 40 units like any locker. Empty it. The count is real -- the server measures the tray after every single item and charges only for what landed. |
+| **An item is in the replicator's list and makes nothing** | An obsolete item that slipped the filter; `instanceItem` answers nil for those. The catalogue applies vanilla's own `not getObsolete() and not isHidden()`, so this means a *new* way past it. |
+| **The replicator knows nothing, not even the ship's own gear** | `R.seedDefaults()` runs on the authority when the world's data loads and needs the catalogue; if `getAllItems()` answered nothing there will be a WARN saying so. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
 ---
@@ -1232,11 +1301,11 @@ Learn these; they map to causes that are not obvious from the symptom.
 | Check | Catches |
 |---|---|
 | `tools/luacheck.py` | Lua syntax, via a real Lua VM |
-| `tests/test_assets.py` | sprites, items, meshes, textures, icons, the phaser's borrowed vanilla references, and every translation key |
+| `tests/test_assets.py` | sprites, items, meshes, textures, icons, the phaser's borrowed vanilla references, every translation key, and every sandbox option's name, tooltip and value names |
 | `tests/test_stock.py` | items that cannot be created at all; loot that does not spread across its list; containers that do not reach `C.FillFraction` |
-| `tests/test_multiplayer.py` | the real code as single player and as a server with two clients: cabin build and stock reaching every client, ownership and crew, transporter charges, landing round trips, ghosts, shields pushing only local zombies, the torpedoes, the medical set (including that a dose leaves a bite and the infection alone), a client editing the world or ship state, commands without handlers, missing file guards, role-gated setters, any logged `WARN` |
-| `tests/test_helm.py` | the mod's panels -- the helm console and the tricorder's contact plot -- for throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
-| `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; `special` names with no rule behind them; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
+| `tests/test_multiplayer.py` | the real code as single player and as a server with two clients: cabin build and stock reaching every client, ownership and crew, transporter charges, landing round trips, ghosts, shields pushing only local zombies, the torpedoes, the medical set (including that a dose leaves a bite and the infection alone), the replicator (the catalogue's filter, patterns, the reserve, a counted tray and all three sandbox values), a client editing the world or ship state, commands without handlers, missing file guards, role-gated setters, any logged `WARN` |
+| `tests/test_helm.py` | the mod's panels -- the helm console, the tricorder's contact plot and the replicator -- for throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
+| `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; `special` names with no rule behind them; the replicator's berth and its empty tray; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
 
 `test_stock.py` stubs the engine **the way it really behaves** — `instanceItem`
 present, `InventoryItemFactory` nil — and its first assertion is simply that an
@@ -1272,6 +1341,7 @@ single player, `server-console.txt` on a server).
 | `TREK_Phaser()` | Report phasers found on you and recharge them |
 | `TREK_Ghosts()` | Sweep hulls waiting to be cleared, and strays near you |
 | `TREK_Charges()` | Log whether beams are rationed on this server and your charges |
+| `TREK_Replicator()` | The sandbox mode, the reserve, how many patterns the ship holds, the catalogue's size, and whether the tray is really a container |
 
 ### On a dedicated server
 
@@ -1328,7 +1398,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.3.0**, build revision **15**.
+Version **1.3.0**, build revision **18**.
 
 **1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-9):
 server-owned ship and cabin, request protocol, transporter charges, shields per
@@ -1376,19 +1446,24 @@ slots. The torpedo's blast size and fire spread both needed no adjusting.
 
 **Not yet seen in game**, in the order worth checking:
 
-0. **The interior refit**: the shape, the three lockers, the five empty
+1. **The replicator**: the right-click on the berth, the alcove hanging over
+   the counter rather than standing in it, how big the real catalogue is and
+   whether the panel opens without a pause, a pattern scanned on one machine
+   reaching another, and the reserve coming back overnight. `REPLICATOR.md`'s
+   *Not built, and still to settle in game* is the list.
+2. **The interior refit**: the shape, the three lockers, the five empty
    containers, the television actually turning on, the biobed as a bed -- and,
    in a save made before it, the migration. `INTERIOR_REFIT.md` section 7.
-1. **The medical set**: the three items in the sick-bay locker, a dose that
+3. **The medical set**: the three items in the sick-bay locker, a dose that
    leaves a bite alone, the health panel at doctor level, the sensor sweep in
    front of a horde, and the lock override on a door and then on a padlock.
    `MEDICAL_SET.md`'s *Not built, and still to settle in game* is the list.
-2. **The dedicated server**: the interior cell loads there, the server-built
+4. **The dedicated server**: the interior cell loads there, the server-built
    cabin reaches the client with its stock, water fills with the mains off.
-3. **Two players**: one cabin, loot taken by one gone for the other, crew
+5. **Two players**: one cabin, loot taken by one gone for the other, crew
    access, charges — and a shuttle in the air seen from the other machine,
    which is the last unproven thing about flight.
-4. **The phaser firing** and staying charged on a server.
+6. **The phaser firing** and staying charged on a server.
 
 **The pattern worth carrying forward.** Six separate bugs in this mod have
 had the same shape: a plausible engine call that fails silently, leaving a
@@ -1431,7 +1506,24 @@ new sections in this file came out of it. **None of it has been seen in game,
 and the migration out of a 6x9 save is the part that most needs a real world
 to prove.**
 
-**Next up** is the replicator, and then the EMH.
+**The 2026-09-20 replicator** is the ship's first system rather than an item:
+a lit alcove over the galley counter that makes anything in the game, gated by
+a *pattern* the ship has scanned and an energy *reserve* that refills on the
+world's clock. The catalogue is the engine's own item list rather than a
+recipe file, so it covers vanilla, future patches and other people's mods with
+no maintenance; the item is made on the server and the tray is counted after
+every one. Revision 18. **None of it has been seen in game**, and
+`REPLICATOR.md` is the working guide -- what happens when somebody uses it,
+how to change each piece, the engine facts not to re-derive, and the seven
+things to check the first time it is carried into a world.
+
+Two new sections of this file came out of it, plus a refinement to a third:
+a table that is transmitted whole cannot hold a list that grows, a simulation
+has to be as unkind as the engine, and a vanilla call site under `AdminPanel/`
+is not a vanilla call site.
+
+**Next up** is the EMH, which inherits the medical set's treatment primitives
+and now has a working example of a cabin fixture with a panel behind it.
 
 Known limits are listed at the bottom of `README.md`.
 
@@ -1459,6 +1551,9 @@ TrekShuttle/42/media/lua/client/TREK/TREK_Helm.lua             the LCARS helm co
 TrekShuttle/42/media/lua/client/TREK/TREK_Travel.lua           courses, map picking, landing search
 TrekShuttle/42/media/lua/client/TREK/TREK_Phaser.lua           keeping phasers charged
 TrekShuttle/42/media/lua/shared/TREK/TREK_Medical.lua          treatment, doses, what counts as a lock
+TrekShuttle/42/media/lua/shared/TREK/TREK_Replicator.lua       the item catalogue, patterns, the reserve
+TrekShuttle/42/media/lua/shared/TREK/TREK_Power.lua            the ship's own electricity, per device
+TrekShuttle/42/media/lua/client/TREK/TREK_ReplicatorUI.lua     the replicator panel and its menus
 TrekShuttle/42/media/lua/client/TREK/TREK_MedKit.lua           the medical set: menus, panels, the sweep
 TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua             right-click menus, crew
 tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network
