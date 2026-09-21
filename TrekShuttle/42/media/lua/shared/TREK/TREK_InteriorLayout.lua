@@ -165,7 +165,7 @@ L.tiles = {
     -- reads when it decides to build an IsoLightSwitch instead of an
     -- IsoObject. A button that turns into a real light switch on the next
     -- world load is a bug that only shows up in somebody else's save.
-    { x = 3, y = 3, sprite = "industry_01_15", tag = "emhPanel" },
+
 
     -- C.Pieces.biobedS, and the ship's only bed now that the berth is gone:
     -- both halves carry BedType = goodBed. A shuttle with a sick bay *and* a

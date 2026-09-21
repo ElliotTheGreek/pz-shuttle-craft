@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 22
+C.BuildRev = 23
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -975,6 +975,7 @@ C.ReplicatorBlocked = {
     -- the galley, and the ship's own record of whether he is up is a single
     -- flag with one square behind it.
     ["TrekShuttle.TrekEMH"]         = true,
+    ["TrekShuttle.TrekEMHStation"]  = true,
 }
 
 -- Modules the catalogue skips wholesale. Vanilla's own item viewer skips
@@ -992,15 +993,18 @@ C.ReplicatorSkipModules = { Moveables = true }
 -- He is a world model on a square, the way the replicator and the warp core
 -- are, and he is placed and removed by the server. Nothing about him is a
 -- container or a fitting: what the ship knows is one flag, `s.emh`.
-C.EmhItem    = "TrekShuttle.TrekEMH"
+C.EmhItem        = "TrekShuttle.TrekEMH"
+C.EmhStationItem = "TrekShuttle.TrekEMHStation"
 
--- The wall panel, authored into the interior by the refit (industry_01_15 at
--- 3,3, tagged emhPanel -- it carries neither `solid` nor `solidtrans`, so the
--- square is still deck), and the clear square he stands on at the head of the
--- biobed. Both were put there before he existed, which is why this feature is
--- cheap in the cabin and expensive only in art.
-C.EmhStation = { x = 3, y = 3 }
-C.EmhSpot    = { x = 2, y = 4 }
+-- A purpose-built LCARS projector station and the Doctor share 3,3. The
+-- station is a shallow world model mounted high against the east bulkhead;
+-- the deck under it remains clear, so the hologram stands directly below the
+-- controls instead of appearing in the middle of the room. The old
+-- industry_01_15 tile looked like an air conditioner and is removed by the
+-- station service pass from cabins built before revision 23.
+C.EmhStation    = { x = 3, y = 3 }
+C.EmhSpot       = { x = 3, y = 3 }
+C.LegacyEmhSpot = { x = 2, y = 4 }
 
 -- His height in tiles. The warp core is 1.30 and stands in a passage the crew
 -- walk down; a person is a shade shorter than the ship's power plant. Kept in

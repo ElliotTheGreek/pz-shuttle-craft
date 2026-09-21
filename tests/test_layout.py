@@ -167,11 +167,11 @@ elif [e for e in entries if (e["x"], e["y"]) == beside]:
                     f"{beside[1]}) is occupied, so there is nowhere to stand")
 
 # --- the Doctor's square, and his station ---------------------------------
-# He stands at C.EmhSpot, a world model like the other two, and **nothing else
-# may be on that square**. His wall panel at C.EmhStation is different: it is a
-# layout entry, it carries neither `solid` nor `solidtrans`, and the square is
-# still deck -- which is the whole reason a twenty-four square cabin can carry
-# a sick bay at all.
+# The Doctor and custom projector station intentionally share one square. The
+# station mesh is shallow and elevated against the east bulkhead, leaving the
+# deck beneath it clear for the hologram. No authored tile may be there: the
+# old industry_01_15 entry looked like an air conditioner and would draw
+# through both custom models.
 emh = (int(C.EmhSpot.x), int(C.EmhSpot.y))
 station = (int(C.EmhStation.x), int(C.EmhStation.y))
 if not inside(*emh):
@@ -188,11 +188,17 @@ if on_emh:
 if not inside(*station):
     failures.append(f"the EMH station at {station[0]},{station[1]} is outside "
                     f"the hull")
-if not [e for e in entries if (e["x"], e["y"]) == station
-        and e["tag"] == "emhPanel"]:
-    failures.append(f"nothing tagged emhPanel is authored at "
-                    f"{station[0]},{station[1]}, so there is no wall panel to "
-                    f"right-click")
+if station != emh:
+    failures.append(f"the Doctor stands at {emh[0]},{emh[1]} instead of "
+                    f"directly below the wall station at {station[0]},"
+                    f"{station[1]}")
+if not C.EmhStationItem:
+    failures.append("C.EmhStationItem is empty; the custom wall station cannot place")
+on_station = [e for e in entries if (e["x"], e["y"]) == station]
+if on_station:
+    failures.append(f"{len(on_station)} authored fitting(s) stand on the shared "
+                    f"EMH square at {station[0]},{station[1]}: "
+                    f"{[e['tag'] for e in on_station]}. It must remain clear.")
 
 # --- no fixture's menu answers on another fixture's square -----------------
 # A right-click resolves to the floor square under the cursor, so every one of

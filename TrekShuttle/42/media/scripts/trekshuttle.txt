@@ -185,6 +185,29 @@ module TrekShuttle
         scale = 1.0,
     }
 
+    /*  Purpose-built LCARS projector controls, replacing the vanilla
+        industry_01_15 tile whose artwork is an air conditioner. The model is
+        shallow and elevated against the east bulkhead, leaving the deck at
+        3,3 clear for the hologram projected directly below it.  */
+    item TrekEMHStation
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = EMH Projector Station,
+        DisplayCategory = Furniture,
+        Icon = TREK_Shuttle,
+        Weight = 70.0,
+        WorldStaticModel = TrekEMHStationModel,
+        StaticModel = TrekEMHStationModel,
+    }
+
+    model TrekEMHStationModel
+    {
+        mesh = TREK_EMHStation,
+        texture = TREK_EMHStation,
+        scale = 1.0,
+    }
+
     item TrekDilithium
     {
         DisplayCategory = Material,

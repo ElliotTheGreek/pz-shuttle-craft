@@ -73,6 +73,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pngwrite import Image
 from preview_model import read_png_rgba, parse_x
 from import_gltf import import_glb
+from meshbuild import MeshBuilder
 
 SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                       "assets", "trek_emh", "trek_emh.glb")
@@ -367,12 +368,118 @@ def measure(path):
     return meshbbox.bbox(path)
 
 
+# The wall station is generated here with the Doctor because it is one
+# fixture: the controls that project him. It replaces industry_01_15, whose
+# artwork is unmistakably an air conditioner. The model is shallow, mounted
+# above shoulder height on the east bulkhead, and leaves the deck beneath it
+# clear for the hologram.
+STATION_TEX_W = 128
+STATION_TEX_H = 128
+STATION_REGIONS = {
+    "case":   (0, 0, 64, 64),
+    "screen": (64, 0, 128, 64),
+    "rail":   (0, 64, 64, 128),
+    "edge":   (64, 64, 128, 128),
+}
+
+
+def station_atlas(path):
+    """Paints a purpose-built LCARS projector control, not a household unit."""
+    dark = (25, 29, 42, 255)
+    case = (70, 76, 92, 255)
+    edge = (126, 134, 154, 255)
+    blue = (76, 158, 232, 255)
+    glow = (184, 226, 255, 255)
+    amber = (238, 154, 62, 255)
+    lilac = (162, 146, 216, 255)
+    red = (202, 86, 88, 255)
+
+    img = Image(STATION_TEX_W, STATION_TEX_H, dark)
+
+    x0, y0, x1, y1 = STATION_REGIONS["case"]
+    img.rect(x0, y0, x1, y1, case)
+    img.rect(x0, y0, x1, y0 + 4, edge)
+    img.rect(x0, y1 - 5, x1, y1, dark)
+    img.rect(x0 + 5, y0 + 7, x1 - 5, y1 - 8, (48, 53, 69, 255))
+
+    x0, y0, x1, y1 = STATION_REGIONS["screen"]
+    img.rect(x0, y0, x1, y1, dark)
+    img.rect(x0 + 4, y0 + 4, x1 - 4, y1 - 4, (20, 54, 88, 255))
+    img.rect(x0 + 8, y0 + 9, x1 - 8, y0 + 14, glow)
+    for i, colour in enumerate((blue, amber, lilac, blue, red)):
+        yy = y0 + 20 + i * 7
+        width = 39 - (i % 3) * 7
+        img.rect(x0 + 9, yy, x0 + 9 + width, yy + 4, colour)
+    img.rect(x1 - 12, y0 + 20, x1 - 8, y1 - 9, glow)
+
+    x0, y0, x1, y1 = STATION_REGIONS["rail"]
+    img.rect(x0, y0, x1, y1, dark)
+    img.rect(x0 + 5, y0 + 5, x1 - 5, y1 - 5, amber)
+    img.rect(x0 + 12, y0 + 13, x1 - 5, y0 + 24, lilac)
+    img.rect(x0 + 12, y0 + 29, x1 - 16, y0 + 40, blue)
+    img.rect(x0 + 12, y0 + 45, x1 - 8, y0 + 54, red)
+
+    x0, y0, x1, y1 = STATION_REGIONS["edge"]
+    img.rect(x0, y0, x1, y1, dark)
+    img.rect(x0, y0, x1, y0 + 5, edge)
+    img.rect(x0, y1 - 6, x1, y1, (12, 14, 22, 255))
+    img.save(path)
+
+
+def station_box(m, e0, n0, h0, e1, n1, h1, region):
+    """Adds one axis-aligned box in east/north/height coordinates."""
+    p = m.place
+    # west/east faces
+    m.quad(p(e0, n1, h0), p(e0, n0, h0), p(e0, n0, h1), p(e0, n1, h1),
+           region, p(-1, 0, 0))
+    m.quad(p(e1, n0, h0), p(e1, n1, h0), p(e1, n1, h1), p(e1, n0, h1),
+           region, p(1, 0, 0))
+    # north/south faces
+    m.quad(p(e0, n0, h0), p(e1, n0, h0), p(e1, n0, h1), p(e0, n0, h1),
+           region, p(0, -1, 0))
+    m.quad(p(e1, n1, h0), p(e0, n1, h0), p(e0, n1, h1), p(e1, n1, h1),
+           region, p(0, 1, 0))
+    # bottom/top
+    m.quad(p(e0, n1, h0), p(e1, n1, h0), p(e1, n0, h0), p(e0, n0, h0),
+           region, p(0, 0, -1))
+    m.quad(p(e0, n0, h1), p(e1, n0, h1), p(e1, n1, h1), p(e0, n1, h1),
+           region, p(0, 0, 1))
+
+
+def station_mesh(path):
+    """Builds a shallow LCARS station against the east edge of its square."""
+    m = MeshBuilder(STATION_TEX_W, STATION_TEX_H, up_axis="y")
+    r = STATION_REGIONS
+
+    # The wall is at east +0.5 from a centred world item. The backplate sits
+    # just inside it; every control protrudes west, into the room.
+    station_box(m, 0.38, -0.34, 0.78, 0.48, 0.34, 1.48, r["case"])
+    # Main medical display and a narrower LCARS command rail.
+    station_box(m, 0.345, -0.27, 0.90, 0.385, 0.12, 1.39, r["screen"])
+    station_box(m, 0.335, 0.15, 0.87, 0.385, 0.28, 1.41, r["rail"])
+    # A bright projector lip below the display makes its purpose legible and
+    # breaks the rectangular appliance silhouette of the old tile.
+    station_box(m, 0.315, -0.23, 0.79, 0.39, 0.24, 0.87, r["edge"])
+    return m.emit(path, "TREKEMHStation", "TREK_EMHStation.png")
+
+
+def station_preview(mesh, texture):
+    out = os.path.join("design", "art", "emh", "preview_emh_station.png")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    render_to(mesh, texture, out, 400, 40.0)
+    return out
+
+
 if __name__ == "__main__":
     root = sys.argv[1] if len(sys.argv) > 1 else "TrekShuttle/42"
     texture = os.path.join(root, "media", "textures", "TREK_EMH.png")
     mesh = os.path.join(root, "media", "models_X", "TREK_EMH.x")
     face = os.path.join(root, "media", "ui", "TREK_EmhPortrait.png")
-    for path in (texture, mesh, face):
+    station_texture = os.path.join(root, "media", "textures",
+                                   "TREK_EMHStation.png")
+    station_model = os.path.join(root, "media", "models_X",
+                                 "TREK_EMHStation.x")
+    for path in (texture, mesh, face, station_texture, station_model):
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
     nv, nf, width, length, height = import_glb(
@@ -399,4 +506,14 @@ if __name__ == "__main__":
     print(f"  TREK_EmhAppear   {write_wav(chime, appear_chime()):.2f}s")
     print(f"  portrait         {portrait(mesh, texture, face)}px")
     print(f"  renders in {previews(root, mesh, texture)}")
-    print("EMH model written")
+
+    station_atlas(station_texture)
+    station_nv, station_nf = station_mesh(station_model)
+    print(f"  TREK_EMHStation.x {station_nv} verts, {station_nf} tris")
+    station_box_size = measure(station_model)
+    if not station_box_size:
+        raise SystemExit("gen_emh: station mesh is not measurable")
+    sdx, sdy, sdz, _ = station_box_size
+    print(f"  station bounding {sdx:.3f} x {sdy:.3f} x {sdz:.3f} tiles")
+    print(f"  station render   {station_preview(station_model, station_texture)}")
+    print("EMH model and station written")
