@@ -1,743 +1,735 @@
-# The Emergency Medical Hologram
+# Emergency Medical Hologram developer guide
 
-How the ship's doctor works, how to change him, and what will bite you if you
-do.
+This document explains how to maintain, test, and troubleshoot the shuttle's
+Emergency Medical Hologram. It describes the **current implementation**, not the
+sequence used to build it.
 
-**Built 2026-09-20 and not yet seen in a game.** *Not built, and still to
-settle in game* below is the play-through that is owed. It needs **no fresh
-world**: the wall station at 3,3 and the clear square at 2,4 were authored
-into the interior by the refit, so `C.BuildRev` 22 is the whole migration and
-a cabin built at revision 17 or later gets him on the next arrival. That makes
-the Doctor the first system in this mod to reach an existing save.
+Read these first when changing adjacent systems:
 
-He is three things at once, and the third is the point of the other two:
+- `DEV_GUIDE.md` — repository workflow, engine constraints, and verification
+  rules.
+- `MULTIPLAYER.md` — server authority, requests, replies, and world sync.
+- `MEDICAL_SET.md` — shared treatment primitives and medical engine behavior.
+- `REPLICATOR.md` — the other powered cabin system and its dilithium economy.
 
-- a **model** the server stands on the deck when somebody asks for him;
-- a **dialogue panel** that diagnoses and treats, with supplies that never run
-  out and a power bill that does;
-- **the only cure for zombie infection in this mod.** Nothing else here
-  touches a bite. It costs one whole dilithium crystal and twelve in-game
-  hours aboard.
+The EMH consists of three related parts:
 
-`DEV_GUIDE.md` is the general one and its "Rules that exist because they were
-broken" all apply here. `MULTIPLAYER.md` is the client/server split,
-`MEDICAL_SET.md` is the four instruments whose primitives he inherits, and
-`REPLICATOR.md` is the other cabin fixture with a panel behind it. This file
-is the Doctor.
+1. a permanent custom projector station mounted in sick bay;
+2. a summoned Doctor model projected directly below that station;
+3. a server-authoritative medical service, including the mod's only cure for
+   zombie infection.
 
----
-
-## What happens when somebody consults him
-
-```
-client  right-click one of C.EmhMenuSpots -> "Consult the EMH"
-        M.fillMenu greys it, with a reason, for anything E.refusal() says
-        M.open -> emhSummon (only if he is not already up) + TREKEMHWindow
-
-server  Net.onServer("emhSummon")
-        atEMH: alive / Ship.canUse / sandbox / reach, all on its own copy
-        s.emh = true; Ship.commit(); B.serviceEMH()
-
-every   Ship.onChange -> s.emh flipped -> each client hangs its own light
-client  and plays TREK_EmhAppear once. Scenery, never ship state.
-
-client  the panel reads YOUR body directly, every frame
-        for anybody else: emhLook { who } -> emhFindings { ... }
-        (a remote body does not exist on a client to be read -- see below)
-
-client  Treat / Cure
-        yourself     -> straight through
-        anybody else -> the server mints a token and raises a yes/no on
-                        THEIR screen (emhOffered), never on yours
-
-server  treat:  Power.afford(C.EmhTreatCost) -> spend
-                Med.treatWith(TREATMENTS) -> Med.treatWith(SKIN, unskipped)
-                -> Med.removeForeign -> Med.publish (syncBodyPart per part)
-        cure:   Power.takeCrystal() NOW, s.emhCures[name] = worldHours + 12
-
-server  EveryOneMinute -> S.serviceCures
-        left the ship -> drop it, tell them, the crystal is gone
-        due          -> Med.cure (parts) + the BodyDamage flags + emhCured
-        offline      -> leave it; the register is ship state and is saved
-
-client  emhCured -> clear your own BodyDamage flags and the infection moodle,
-        because syncBodyPart carries BodyPart fields ONLY
-```
-
-Four orderings in there are deliberate and easy to break:
-
-- **The skin pass runs before the foreign bodies come out**, and unskipped.
-  That is the whole difference between the Doctor and the regenerator in your
-  pocket, which refuses to close skin over a shard. Take the glass out first
-  and applying `Med.obstructed` to his pass would change nothing at all.
-- **The crystal is spent when the cure starts, not when it lands.** It is a
-  commitment rather than a reservation, and that is the entire weight of the
-  twelve hours.
-- **Nothing is spent when an offer is made.** The token is a question.
-  Everything is re-validated when the answer comes back, because in between
-  the asker can walk away, the core can be emptied and the patient can leave.
-- **The body-level flags and the moodle are cleared at both ends.** The server
-  writes its copy and the patient's own client writes theirs. In single player
-  those are one process, which is exactly why that is easy to get wrong — see
-  *What would have bitten you*.
+The station and Doctor deliberately share cabin offset **`(3,3)`**. The station
+mesh is shallow and elevated against the east bulkhead, leaving the deck clear
+for the hologram. The old Doctor position at `(2,4)` and the old
+`industry_01_15` wall fitting are migration inputs only and must never be used
+for new placement.
 
 ---
 
-## Where everything lives
+## Quick verification
 
-| File | What it holds |
+After changing EMH code or assets, run:
+
+```sh
+python tools/gen_emh.py TrekShuttle/42
+python tools/luacheck.py TrekShuttle/42/media/lua
+python tests/test_assets.py
+python tests/test_stock.py
+python tests/test_layout.py
+python tests/test_helm.py
+python tests/test_multiplayer.py
+python tools/deploy_windows.py
+```
+
+The generator should report both models:
+
+- `TREK_EMH.x`
+- `TREK_EMHStation.x`
+
+The deployed mod must contain all four world-model files:
+
+```text
+42/media/models_X/TREK_EMH.x
+42/media/textures/TREK_EMH.png
+42/media/models_X/TREK_EMHStation.x
+42/media/textures/TREK_EMHStation.png
+```
+
+Project Zomboid has no hot reload. Fully restart the game after every Lua,
+script, model, or texture change. The cabin rebuild is lazy, so beam aboard
+before deciding that a revision change did nothing.
+
+---
+
+## Authoritative files
+
+| File | Responsibility |
 |---|---|
-| `shared/TREK/TREK_EMH.lua` | where he stands, who is in reach, who may be a patient, the sandbox, and **`E.refusal()` — the one copy of the rules**, so the panel greys for exactly the reason the server refuses |
-| `shared/TREK/TREK_Medical.lua` | `Med.CURE` (the named infection fields), `Med.cure`, `Med.removeForeign`, `Med.publish` |
-| `shared/TREK/TREK_Config.lua` | every constant — section *The Emergency Medical Hologram* — and his line in `C.ReplicatorBlocked` |
-| `server/TREK/TREK_Server.lua` | the seven handlers, the consent register, `S.beginCure`, `S.serviceCures`, `S.emhReport` |
-| `server/TREK/TREK_Build.lua` | `B.emhAt`, `B.serviceEMH`, `B.emhReport`, and the `emh` build phase |
-| `client/TREK/TREK_EMHUI.lua` | the menu, `TREKEMHWindow`, the light, the consent prompt, the replies |
-| `client/TREK/TREK_Core.lua` | his eleven `DENIALS` lines |
-| `media/scripts/trekshuttle.txt` | `item TrekEMH`, `model TrekEMHModel`, `sound TREK_EmhAppear` |
-| `media/sandbox-options.txt` | `TrekShuttle.EMH` — Full or Off |
-| `lua/shared/Translate/EN/` | `IG_UI.json` (his voice and every refusal), `ItemName.json`, `Tooltip.json`, `Sandbox.json` |
-| `tools/gen_emh.py` | the mesh, the texture, the portrait, the chime **and the renders it is judged on** |
-| `tools/assets/trek_emh/` | the vendored GLB and `SOURCE.txt` — the raw, so regenerating needs no network |
-| `design/art/emh/` | the concept image and three renders, including one at the size he is actually drawn |
-| `tests/test_multiplayer.py` | the `emh()` and `emh_multiplayer()` scenarios |
-| `tests/test_helm.py` | `TREKEMHWindow` drawn, twice, for a well patient and a wrecked one |
-| `tests/pz_sim.lua` | `SetBitten`'s trap, the infection latch, `syncBodyPart`, `ISModalDialog`, the world clock |
+| `TrekShuttle/42/media/lua/shared/TREK/TREK_Config.lua` | Item IDs, station and Doctor coordinates, menu squares, range, costs, duration, light, sandbox values, and build revision |
+| `TrekShuttle/42/media/lua/shared/TREK/TREK_EMH.lua` | Shared eligibility rules, patient lookup, reach checks, findings, and refusal reasons |
+| `TrekShuttle/42/media/lua/shared/TREK/TREK_Medical.lua` | Treatment lists, infection fields, cure, foreign-body removal, and body-part publishing |
+| `TrekShuttle/42/media/lua/server/TREK/TREK_Build.lua` | Permanent station placement, Doctor placement/removal, legacy cleanup, deduplication, straightening, rebuild repair, and diagnostics |
+| `TrekShuttle/42/media/lua/server/TREK/TREK_Server.lua` | EMH commands, consent offers, treatment, cure scheduling, crystal spending, and completion |
+| `TrekShuttle/42/media/lua/client/TREK/TREK_EMHUI.lua` | Context menu, LCARS dialogue window, portrait, local light, sounds, consent prompt, and client-side infection-display cleanup |
+| `TrekShuttle/42/media/scripts/trekshuttle.txt` | Doctor and station item/model declarations and summon sound |
+| `TrekShuttle/42/media/lua/shared/Translate/EN/IG_UI.json` | Dialogue, buttons, findings, and refusals |
+| `TrekShuttle/42/media/lua/shared/Translate/EN/ItemName.json` | Doctor and projector-station item names |
+| `TrekShuttle/42/media/lua/shared/Translate/EN/Tooltip.json` | Item tooltips |
+| `TrekShuttle/42/media/lua/shared/Translate/EN/Sandbox.json` | Sandbox option labels and tooltips |
+| `TrekShuttle/42/media/sandbox-options.txt` | EMH Full/Off setting |
+| `tools/gen_emh.py` | Deterministic Doctor and station asset generation, portrait, chime, and preview renders |
+| `tools/assets/trek_emh/` | Vendored Doctor GLB and source record |
+| `design/art/emh/` | Source art and generated review renders |
+| `design/buildinged/TrekShuttle_Interior.tbx` | Cabin furniture source; the EMH square must contain no authored appliance panel |
+| `tests/test_layout.py` | Shared station/Doctor square and fixture-menu separation |
+| `tests/test_helm.py` | EMH panel drawing, labels, disabled states, and controller navigation |
+| `tests/test_multiplayer.py` | Station lifecycle, migration, Doctor lifecycle, treatment, cure, consent, authority, and replication |
 
-**Nothing is in the `.tbx`.** The station and the square were authored by the
-refit before he existed, which is why this feature is cheap in the cabin and
-expensive only in art.
-
-### State
-
-One field in the ship state, and one register beside it.
-
-```lua
-s.emh      = true | nil      -- he is up. Ship state: every client sees the
-                             -- same figure standing on the deck
-s.emhCures = { [username] = <world age in hours when it completes> }
-```
-
-**`s.emh` is cleared in `OnInitGlobalModData`**, beside the block that clears
-`s.flying`. A hologram does not survive a world reload, and clearing it
-deletes the entire class of stale-flag bug. **`s.emhCures` is kept**: a cure
-in progress has been paid for with a crystal and has to survive a relog.
-
-`s.emhCures` is a table inside a state that is transmitted whole on every
-change, which `DEV_GUIDE.md` warns about by name. It is allowed here because
-it is bounded by the number of people **simultaneously under treatment**, each
-entry is one number, and entries are removed the moment they complete or are
-abandoned. It is not a log and it must never become one.
-
-**There is no cooldown.** Treatment does nothing to a healthy patient and the
-cure takes twelve hours, so a held button is already its own limit; a cycle
-guard here would be the cooldown-wearing-a-hat that `REPLICATOR.md` threw out
-by name.
-
-### The protocol
-
-```
-client -> server            server does
-  emhSummon                 stands him up at 2,4, s.emh = true
-  emhDismiss                takes him down, s.emh = nil
-  emhLook   { who }         reads that patient's body and reports back
-  emhTreat  { who }         treats, or offers if `who` is somebody else
-  emhCure   { who }         cures, or offers
-  emhAccept { token }       the patient agreeing
-  emhDecline{ token }
-
-server -> client
-  emhFindings{ who, total, infected, bitten, items }   to the ASKER
-  emhOffered { token, from, what, cost }               to the PATIENT
-  emhTreated { who, counts, total }                    to the patient
-  emhCureStarted { hours }                             to the patient
-  emhCured   { }            to the patient: clear your own body-level flags
-  emhCureLost{ }            to the patient: you left, and so did the crystal
-  denied     { why, ... }   to whoever asked
-```
-
-**`emhLook` is not a convenience.** In multiplayer a remote player's body
-damage does not exist on a client to be read, so the panel cannot work out
-what is wrong with the crewman on the biobed by itself. For yourself it reads
-your own body directly and sends nothing.
-
-**There is no `emhDiagnose`.** Opening a health panel on a body is client UI
-and the sandbox is readable in every process; a handler whose only job is to
-answer "yes" is a round trip that can drift out of step with the panel that
-calls it.
+Do not add a second placement path. The station and Doctor are world items
+managed by `TREK_Build.lua`; they are not entries in
+`TREK_InteriorLayout.lua`.
 
 ---
 
-## Changing it
+## Current constants
 
-### What he costs
-
-```lua
-C.EmhTreatCost    = 25    -- reserve units, so 200 treatments to a crystal
-C.EmhCureCrystals = 1     -- whole crystals, not units
-C.EmhCureHours    = 12    -- in-game hours aboard
-```
-
-**Supplies are infinite; power is not.** There is nothing to restock, no doses
-and no dressings — which is what `ROADMAP.md` asks for — and the limit is the
-same dilithium the replicator burns. He will not come up at all on an empty
-reserve with no spares, which is what four separate comments in this
-repository promised before he existed: *"a crew with no crystals has a galley
-fixture and a hologram that will not switch on."*
-
-At 25 against a crystal's 5000 a treatment is unlimited in play and still
-honest about what it runs on. If you raise it far enough to matter, raise it
-knowing the refusal a player meets is `emhNoPower`, which sends them looking
-for dilithium rather than telling them the mod is broken.
-
-### The cure, and the twelve hours
-
-Per part, **`part:RestoreToFullHealth()`** — a deliberate inversion of
-`DEV_GUIDE.md`'s rule about convenience methods. That rule forbids it to the
-hypospray *because* it clears the bite; the EMH is the one thing in this mod
-that may, and the disassembly says the short call is also the **safe** one
-here: thirty-seven fields by direct putfield, no call to `SetBitten` anywhere,
-so it cannot spring the trap that method is.
-
-Then, once, on the character, on the server:
+The relevant configuration is grouped under **The Emergency Medical
+Hologram** in `TREK_Config.lua`:
 
 ```lua
-damage:setInfected(false)
-damage:setIsFakeInfected(false)
-damage:setReduceFakeInfection(false)
-damage:setInfectionTime(-1.0)                 -- -1, NOT 0
-damage:setInfectionMortalityDuration(-1.0)
-```
+C.EmhItem        = "TrekShuttle.TrekEMH"
+C.EmhStationItem = "TrekShuttle.TrekEMHStation"
 
-**Both levels, in one pass.** `BodyDamage.isInfected` is a one-way latch
-re-derived from the parts every tick and *skipped* once true: clearing it
-alone is undone next tick, and clearing the parts alone never clears it.
+C.EmhStation    = { x = 3, y = 3 }
+C.EmhSpot       = { x = 3, y = 3 }
+C.LegacyEmhSpot = { x = 2, y = 4 }
 
-Then `Med.publish(patient)` and `Net.toClient(patient, "emhCured", {})`. That
-last message is **not optional** — `syncBodyPart`'s mask carries `BodyPart`
-fields only, so the flags above and the infection moodle do not ride it, and
-the patient's own client clears them itself.
-
-**`Med.CURE` is a list of questions, not of fixes**, and that is the one thing
-about it worth knowing. `RestoreToFullHealth` clears every field in it in a
-single call, so a `fix` beside each entry would be code no test could tell
-from its own absence — and one of them would be actively dangerous. It is the
-named list `medical()` and `emh()` both walk, so the hypospray's promise and
-the Doctor's reason to exist cannot drift apart, and `Med.cure` asks every one
-of them again afterwards and warns about anything still set.
-
-**`infectedWound` is deliberately not in that list.** An infected *wound* is
-an ordinary dirty cut, the hypospray cures it by design, and it is one letter
-away in the source from the thing that kills you.
-
-The timer is ship state and the register is walked on `EveryOneMinute`:
-leaving the cabin drops the entry and **does not refund the crystal**. Both
-halves of the biobed carry `BedType = goodBed`, so a patient can sleep it off;
-on a server they cannot, and twelve game hours at the default day length is
-about half an hour confined to the cabin. That is the cost, and it is
-deliberate.
-
-### What a treatment does
-
-```lua
-Med.treatWith(patient, Med.TREATMENTS)   -- the hypospray's list
-Med.treatWith(patient, Med.SKIN)         -- the regenerator's, UNSKIPPED
-Med.removeForeign(patient)               -- glass and bullets, last
-Med.publish(patient)
-```
-
-`Med.SKIN` is applied **without** `Med.obstructed`: the regenerator refuses to
-close skin over glass, and the Doctor closes it and then takes the glass out,
-which is the whole reason he is better than the instrument in your pocket.
-Reversing those last two lines makes that difference untestable.
-
-`Med.removeForeign` is two setters per part and the second takes two
-arguments:
-
-```lua
-part:setHaveGlass(false)
-part:setHaveBullet(false, 0)        -- (boolean, int). One argument throws.
-```
-
-**Treatment leaves a bite and the zombie infection exactly where it found
-them.** The hypospray's six-dose limit, the regenerator's scope and the reason
-the EMH exists all rest on the bite being the one thing you come home for.
-Nothing in the treat path touches `Med.CURE`.
-
-### Who may be a patient, and consent
-
-**Anyone aboard.** The panel lists everyone in the cabin; the server resolves
-the patient from its **own** copy of where people are standing and refuses
-anyone who is not there. A client is a request, never a fact, including about
-whose body it is.
-
-Treating yourself needs no consent. Treating anybody else mints a token,
-raises an `ISModalDialog` on **their** screen naming who is asking and what it
-costs, and re-validates everything from scratch when the answer comes back.
-The offer expires (`C.EmhOfferMs`) and is single-use.
-
-**Nobody can force-heal — or force-anything — another player.** That is the
-padlock-and-safehouse rule from `MULTIPLAYER.md` applied to bodies. In single
-player the offer path never runs, so it is only ever exercised by
-`emh_multiplayer()`.
-
-### Where he is in the ship
-
-```lua
-C.EmhStation   = { x = 3, y = 3 }   -- the wall panel, authored in the .tbx
-C.EmhSpot      = { x = 2, y = 4 }   -- where he stands
 C.EmhMenuSpots = { {2,3}, {3,2}, {3,3}, {2,4}, {3,4} }
-C.EmhRange     = 2                  -- the replicator's and the core's
+C.EmhRange = 2
+
+C.EmhTreatCost    = 25
+C.EmhCureCrystals = 1
+C.EmhCureHours    = 12
 ```
 
-`industry_01_15`, tag `emhPanel`, is from the hull's own wall set and carries
-neither `solid` nor `solidtrans` — so 3,3 is still deck. Deliberately **not** a
-light switch: every `lighting_indoor_01` switch carries the `lightswitch` tile
-property, and a mod button that turns into a real `IsoLightSwitch` on the next
-world load is a bug that only appears in somebody else's save.
+### Placement invariants
 
-A right-click resolves to the **floor square under the cursor** and he is a
-tall model, so the menu answers on a named set rather than one square. A
-*named set*, not a box: the warp core's menu used to be a one-square box
-around 1,3, which reaches 2,4, so walking up to the Doctor offered to load a
-dilithium crystal into a hologram. It is `C.CoreMenuSpots` now, and
-`tests/test_layout.py` holds the rule for all three fixtures — **no fixture's
-menu squares may contain another fixture's own square, or the transporter
-pad.** The replicator's margin lives in `C.ReplicatorMenuMargin` so that rule
-reads the number the menu actually uses rather than a copy of it.
+Keep all of these true:
 
-### Standing him up and taking him down
+- `C.EmhStation` and `C.EmhSpot` are the same square.
+- The station mesh is elevated and leaves that square's floor clear.
+- `C.LegacyEmhSpot` remains `(2,4)` so old projected Doctors can be removed.
+- No authored fitting occupies the station square in
+  `TREK_InteriorLayout.lua` or the `.tbx` floor objects.
+- `C.EmhMenuSpots` must not include the warp core, replicator, or transporter
+  pad square.
+- Both `C.EmhItem` and `C.EmhStationItem` remain in
+  `C.ReplicatorBlocked`; they are Furniture items for world-model placement,
+  not objects players should manufacture.
 
-`B.serviceEMH()` makes the deck match `s.emh`, **idempotent in both
-directions**, so it is safe from a summon, a dismissal, a build and the
-per-minute tick. Five things it has to do, each of which has already cost this
-project a bug elsewhere:
+Any placement or generated-geometry change requires a `C.BuildRev` bump.
+Moving geometry is also a migration: preserve the old coordinate long enough
+for `TREK_Build.lua` to remove saved world items from existing cabins.
 
-1. **Count before placing.** A world item is saved and `U.clearSquare`
-   deliberately preserves world items, so a pass that does not look first
-   stands a second Doctor there every time it runs — and it runs every game
-   minute.
-2. **Remove all of them, not the first.**
-3. **Straighten.** `IsoWorldInventoryObject`'s constructor writes
-   `Rand.Next(0, 360)` into an unset yaw. On placement *and* on every later
-   pass, because that later pass is the only thing that will ever reach a
-   crooked Doctor in an existing save.
-4. **Run as a build phase**, beside `furnishReplicator` and `furnishCore` —
-   not only on the timer. `B.forceRebuild` wipes everything but the floor, so
-   `TREK_Rebuild()` really does delete him while `s.emh` still says he is up.
-5. **Use `removeWorldItem(sq, fullType)`** through `removeSynced` →
-   `transmitRemoveItemFromSquare`. `removeWorldObject` throws on a server.
+---
 
-**There is no ghost list, and that is worth knowing why.** A hull that could
-not be removed has to be *remembered*, because nothing else will ever go back
-and look. A Doctor left standing in an unloaded chunk is simply a disagreement
-with a flag, and the next pass over a loaded cabin settles it.
+## Asset pipeline
 
-### The panel
-
-`TREKEMHWindow`, an `ISPanelJoypad` built from the helm's own LCARS parts
-(`H.pill`, `TREKLcarsButton`, `H.P`), so the ship's third console does not look
-like a third mod.
-
-**It is a dialogue, not a control panel**, and that is a requirement rather
-than a flourish. He speaks: a line at the top that changes with what he has
-been asked and what he found, above his portrait. Every action is a thing he
-says he is doing and then a thing he reports having done — which is also,
-usefully, the only way a player can tell a treatment that worked from one that
-was refused in silence.
-
-| Part | What it shows |
-|---|---|
-| Portrait | `media/ui/TREK_EmhPortrait.png`, rendered from the same mesh and texture he is, so the two cannot drift apart |
-| His line | one or two sentences from `IGUI_TREK_Emh*`, chosen by state |
-| Patient | a stepper over everyone aboard; you are first and selected by default, and it is dead when there is only you |
-| Findings | itemised, from the same lists the treatment walks — so the readout cannot drift from what the button does |
-| Infection | **whether they are carrying it** — the one thing the medical tricorder deliberately will not say |
-| Reserve and crystals | what a treatment costs and what a cure costs |
-| **Treat** | greyed, with a reason, when there is nothing to treat |
-| **Cure the infection** | greyed, with a reason, when they are not infected or the core is empty |
-| **Full readout** | `M.openHealthPanel` — vanilla's `ISHealthPanel` at `C.MedDoctorLevel`. Never `ISHealthPanel.cheat` |
-| **Dismiss** | takes him down |
-
-Opening the panel sends `emhSummon` if he is not already up; *Dismiss* sends
-`emhDismiss`. **Closing the window does neither** — a crewman closing his own
-panel must not take the Doctor away from somebody else at the biobed.
-
-Shown-and-greyed, never hidden; the panel closes itself when the player walks
-out of reach (`ISFeedingTroughUI:prerender` is vanilla's precedent).
-
-Two things about the labels. A refusal is **not a caption**: there are two
-tables, `M.BUTTON_TEXT` in two or three words for the control and
-`M.REFUSAL_TEXT` in a sentence for the tooltip and the note, because "The cure
-needs a whole dilithium crystal, and there are none aboard" measures 435
-pixels against a 165-pixel button. And the roster is read **once a frame** —
-`E.patients()` walks `getOnlinePlayers()`, and `prerender` is the only place it
-is recomputed.
-
-### His model
-
-`C.EmhHeight = 1.25` tiles, fitted by **height**. The warp core is 1.30 and
-stands in a passage the crew walk down; a person is a shade shorter than the
-ship's power plant. The number to trust is the **bounding box `gen_emh.py`
-prints**, not the constant — `DEV_GUIDE.md`'s bat'leth lesson, where
-`SPAN = 0.46` drew 0.531.
+Run:
 
 ```sh
 python tools/gen_emh.py TrekShuttle/42
 ```
 
-writes the mesh, the texture, the portrait, the chime and three renders, and
-is **deterministic** — no randomness anywhere, so re-running writes
-byte-identical files and a regenerated asset is never a silent diff.
+The generator is deterministic and owns all deployed EMH art:
 
-The figure itself is **vendored, not generated**: `tools/assets/trek_emh/`
-holds the GLB with a `SOURCE.txt` naming the model, the date, the seed and the
-prompt. Re-running fal gives a *different* figure, not the same one again, so
-the GLB is the raw — the convention `tools/assets/type6_shuttle/` set and the
-reason `import_quaternius.py`'s header gives: **regenerating the mod must not
-require network access, Blender or a third-party package.**
+```text
+TrekShuttle/42/media/models_X/TREK_EMH.x
+TrekShuttle/42/media/textures/TREK_EMH.png
+TrekShuttle/42/media/models_X/TREK_EMHStation.x
+TrekShuttle/42/media/textures/TREK_EMHStation.png
+TrekShuttle/42/media/ui/TREK_EmhPortrait.png
+TrekShuttle/42/media/sound/TREK_EmhAppear.wav
 
-What makes him a hologram rather than a mannequin is entirely in the texture,
-and all of it is under our control:
+design/art/emh/preview_emh_front.png
+design/art/emh/preview_emh_quarter.png
+design/art/emh/preview_emh_atsize.png
+design/art/emh/preview_emh_station.png
+```
 
-- **one hue** — luminance-mapped onto the LCARS blue ramp (`H.P.blue`), because
-  a monochrome figure cannot read as a shop dummy the way a flesh-toned one
-  can;
-- **scanlines**, banded in **world height** rather than in texture rows (see
-  *What would have bitten you*);
-- **a lifted floor**, so the darkest parts glow rather than going black
-  against a dark deck.
+Never hand-edit generated meshes or textures. Change the generator or replace
+the vendored source asset, regenerate, and inspect the previews.
 
-`import_glb` grew three additive parameters for him — `target_height`, `name`
-and `yaw` — and the hull's call site is byte-identical, which
-`tests/test_assets.py` would notice if it were not.
+### Doctor model
 
-### His voice and likeness
+The Doctor is imported from the vendored GLB in `tools/assets/trek_emh/` and
+fitted by **height**, not footprint. `C.EmhHeight` and the generator's target
+height must stay in step. Trust the generator's printed bounding box rather
+than the input constant.
 
-He is the **Emergency Medical Hologram**, a descriptive designation, not a
-named character. His lines are written for this mod — dry, impatient,
-competent — and not quoted from the show; the famous one is not his signature
-line here. There is no speech audio and no imitated voice: the summon sound is
-a synthesised chime from `gen_emh.py`'s own oscillators, like the medical
-set's three. Nothing in `design/art/emh/` is derived from a frame of anything,
-and the concept prompt describes a uniform and a stance, never a person — the
-first generation came back wearing a Starfleet delta and was thrown away for
-it.
+The texture supplies the holographic treatment:
 
-`ROADMAP.md` sets the standard — *"is it Star Trek without copying a frame of
-the show"* — and this is the feature where it bites.
+- LCARS-blue monochrome ramp;
+- lifted dark values so the figure remains luminous;
+- scanlines derived from mesh/world height, not horizontal texture rows.
 
-### The sandbox
+Imported UVs are an atlas. Texture-row stripes turn into unrelated diagonals
+across different mesh islands, so any level effect must be calculated from the
+surface's world height.
 
-`TrekShuttle.EMH`, two values, default 1:
+The portrait is rendered from the same model and texture as the world figure.
+Do not maintain a separate likeness by hand; that lets the panel and projected
+figure drift apart.
 
-| | |
+### Projector station
+
+The station is a custom, shallow, elevated LCARS medical/projector control. It
+replaces the old `industry_01_15` fitting, which read as an air conditioner.
+
+Its geometry must remain:
+
+- against the east bulkhead;
+- elevated above the Doctor;
+- shallow enough not to read as floor furniture;
+- clear beneath, because the Doctor occupies the same square;
+- visibly different from a vanilla appliance or HVAC unit.
+
+Always inspect `design/art/emh/preview_emh_station.png` after changing it and
+measure the mesh if its bounds change:
+
+```sh
+python tools/meshbbox.py TrekShuttle/42/media/models_X/TREK_EMHStation.x
+```
+
+A dropped world model starts at a random yaw. Asset geometry alone does not
+mount it correctly; `B.serviceEMHStation()` straightens it on initial
+placement and on every later service pass.
+
+### Replacing the Doctor source through Fal/Gemini
+
+If generating a new source model:
+
+1. Generate and review the candidate through the configured Fal/Gemini
+   toolkit.
+2. Keep the selected raw source in `tools/assets/trek_emh/`.
+3. Update `SOURCE.txt` with the provider, model, date, prompt, seed or job ID,
+   and selection notes.
+4. Do not make normal builds depend on network access. The selected GLB must
+   be vendored.
+5. Regenerate with `tools/gen_emh.py`.
+6. Inspect front, quarter, at-size, portrait, and in-game views.
+7. Run the complete validation suite and deployer.
+
+Judge the at-size render, not only a large preview. Facial and uniform details
+that read at 600 pixels may disappear at the model's actual game size.
+
+---
+
+## World placement and migration
+
+### Permanent station
+
+`B.serviceEMHStation()` is responsible for the station. It:
+
+1. resolves `C.EmhStation` in the interior;
+2. removes the old tagged `emhPanel` tile object;
+3. counts existing `C.EmhStationItem` world items;
+4. removes duplicates;
+5. places one station when absent;
+6. straightens existing and newly placed stations;
+7. logs a warning if placement fails.
+
+The station is permanent regardless of whether the Doctor is active.
+
+World items are saved, and generic cabin clearing deliberately preserves them
+because that is also where player-dropped objects live. Therefore every
+station service pass must count before placing. Blind placement creates one
+new station per rebuild or timer pass.
+
+### Summoned Doctor
+
+`B.serviceEMH()` first services the permanent station, then removes any Doctor
+saved at `C.LegacyEmhSpot`, and finally brings the current square into line
+with `s.emh`.
+
+The ship-state flag is authoritative:
+
+```lua
+s.emh = true  -- exactly one Doctor should stand at C.EmhSpot
+s.emh = nil   -- no Doctor should stand there
+```
+
+The service is idempotent in both directions:
+
+- zero Doctors while wanted → place one;
+- one Doctor while wanted → straighten it;
+- multiple Doctors while wanted → remove the duplicates and recover to one;
+- any Doctors while dismissed → remove them all.
+
+The service runs from summon/dismiss handling, cabin construction, and the
+per-minute maintenance path. Keep the cabin-build phase: `TREK_Rebuild()`
+deletes world items while ship state can still say the Doctor is active, so a
+timer-only implementation leaves the state and deck disagreeing immediately
+after a rebuild.
+
+### Old cabin cleanup
+
+Revision 23 replaces two visible pieces of the old arrangement:
+
+- tagged tile object `emhPanel` / `industry_01_15` at `(3,3)`;
+- Doctor world item at legacy spot `(2,4)`.
+
+Do not remove the cleanup code merely because new cabins look correct. Existing
+saves retain tagged objects and world items that no current layout pass visits.
+Migration checks in `tests/test_multiplayer.py` deliberately plant both old
+objects and require one service pass to remove them.
+
+The BuildingEd source may keep the old tile definition in its furniture
+catalogue, but the `<floor>` object list must not place `FurnitureTiles="32"`
+at `(3,3)`.
+
+---
+
+## Runtime architecture
+
+### Authority split
+
+| Responsibility | Owner |
 |---|---|
-| 1 **Full** | the Doctor as designed |
-| 2 **Off** | the station is inactive and says so |
+| Station and Doctor world items | Server / single-player authority |
+| `s.emh`, cure register, reserve, and crystals | Server |
+| Eligibility and refusal rules | Shared code, revalidated by server |
+| Patient body changes | Server |
+| Body-part synchronization | Server |
+| Infection moodle and client-local body flags after cure | Patient's client, on `emhCured` |
+| Panel, portrait, dialogue, local light, and sound | Each client |
+| Consent prompt | Patient's client; token lifecycle remains server-owned |
 
-An absent option reads as 1 — the feature as designed — which is the rule
-`C.ReplicatorPatterns` and `C.TorpedoFire` both follow.
+A client requests an action; it never supplies an authoritative patient,
+position, injury, permission, or cost.
 
-**There is deliberately no value that keeps the Doctor and removes the cure.**
-`ROADMAP.md` marks *the only cure for zombie infection* **(decided)**, and a
-server setting that switches off a decided headline feature is not a setting,
-it is a second opinion. A server owner who does not want the cure turns the
-EMH off.
+### Protocol
+
+Client to server:
+
+```text
+emhSummon
+emhDismiss
+emhLook    { who }
+emhTreat   { who }
+emhCure    { who }
+emhAccept  { token }
+emhDecline { token }
+```
+
+Server to client:
+
+```text
+emhFindings    { who, total, infected, bitten, items }
+emhOffered     { token, from, what, cost }
+emhTreated     { who, counts, total }
+emhCureStarted { hours }
+emhCured       {}
+emhCureLost    {}
+denied         { why, ... }
+```
+
+Remote bodies do not provide reliable medical state on a client. A panel can
+read the local player's body directly, but findings for another player must
+come from `emhLook` on the server.
+
+### Shared refusal rules
+
+The client and server both call the rules in `TREK_EMH.lua`. This keeps a
+greyed control and the server's refusal aligned, but the server remains the
+authority and must revalidate every request.
+
+A valid action generally requires:
+
+- a living player;
+- permission under `Ship.canUse`;
+- EMH sandbox mode enabled;
+- player and patient aboard;
+- player within `C.EmhRange`;
+- sufficient reserve or crystals;
+- a condition the requested action can address;
+- valid consent when treating another player.
+
+Never move one of these checks exclusively into the UI. A crafted command does
+not pass through a greyed button.
 
 ---
 
-## The rules it obeys
+## Treatment and cure
 
-Not optional; `MULTIPLAYER.md` has the reasoning.
+### Standard treatment
 
-- **Every body is written on the server and nowhere else**, and that is forced
-  by the engine rather than chosen. `BodyDamage.Update()` decides who
-  simulates a body at bci 21–62: not a client, run the whole simulation; a
-  client with its own body, return; a client with somebody *else's* body,
-  `RestoreToFullHealth()` it. So a remote player's body on a client is wiped
-  clean every single tick. The server is not a better place to treat somebody
-  from — it is the only machine that knows they are hurt.
-- **A client is a request, never a fact**, including about who the patient is.
-  Every command re-resolves the patient from the server's own view.
-- **One copy of the rules.** The panel greys a control and the server refuses a
-  command from the same `E.refusal()`, so they cannot disagree.
-- **The hologram is ship state; the light is not.** Everyone aboard sees the
-  same figure because `s.emh` is committed; each client hangs its own
-  `addLamppost` and plays its own chime, which is the same documented
-  exception the cabin's lamps and the torpedo's light already use.
-- **No admin-only or `-debug`-gated calls.** `panel.doctorLevel` on the
-  instance, never `ISHealthPanel.cheat`.
+A treatment performs, in order:
 
-| | |
+```lua
+Med.treatWith(patient, Med.TREATMENTS)
+Med.treatWith(patient, Med.SKIN)
+Med.removeForeign(patient)
+Med.publish(patient)
+```
+
+The skin pass is intentionally **not** blocked by glass or bullets. The Doctor
+closes the wound and removes foreign bodies afterward; that is one of the ways
+he is better than the handheld dermal regenerator.
+
+Standard treatment must leave all of these unchanged:
+
+- bite state;
+- limb zombie-infection state;
+- body-level zombie infection;
+- infection moodle.
+
+Treatment costs `C.EmhTreatCost` reserve units. It must do nothing to a healthy
+patient and must not spend power when there is nothing to treat.
+
+### Zombie-infection cure
+
+The cure is the only feature in this mod allowed to clear a bite and zombie
+infection. It costs `C.EmhCureCrystals` whole crystals when treatment starts
+and completes after `C.EmhCureHours` in-game hours aboard.
+
+Leaving the cabin cancels the pending cure and does not refund the crystal.
+The cure register persists through relogging; `s.emh` does not.
+
+Per limb, `RestoreToFullHealth()` is appropriate here because the cure intends
+to clear every injury field, including the bite. Do not use one-argument
+`SetBitten(false)`: in build 42 it clears the bite flag and then infects and
+bleeds the limb.
+
+After restoring body parts, clear the body-level latch on the server:
+
+```lua
+damage:setInfected(false)
+damage:setIsFakeInfected(false)
+damage:setReduceFakeInfection(false)
+damage:setInfectionTime(-1.0)
+damage:setInfectionMortalityDuration(-1.0)
+```
+
+Both levels are required. `BodyDamage.isInfected` is re-derived from infected
+parts and then latches; clearing only the body flag returns next tick, while
+clearing only the parts leaves the latch set.
+
+`syncBodyPart` carries body-part fields only. It does not carry the body-level
+flags or infection moodle, so completion also sends `emhCured` to the patient's
+client. That client clears its local body flags and
+`CharacterStat.ZOMBIE_INFECTION`.
+
+Single player cannot prove which side performed those writes because client and
+server code share one process. Keep the multiplayer test that inspects the
+server's own patient copy after completion.
+
+### Consent
+
+Self-treatment requires no prompt. Treating or curing another player requires
+server-issued consent:
+
+1. requester asks for an action on another patient;
+2. server validates and issues a short-lived token;
+3. only the patient's client receives the modal;
+4. acceptance returns the token;
+5. server consumes it once and revalidates everything;
+6. only then is power or a crystal spent.
+
+Do not spend resources when creating an offer. The requester can move, the
+patient can leave, and the ship's power state can change before acceptance.
+
+---
+
+## User interface
+
+`TREKEMHWindow` is an `ISPanelJoypad` using the same LCARS components as the
+helm. It must remain fully usable by mouse and controller.
+
+The panel includes:
+
+- portrait and dialogue line;
+- patient selector;
+- itemized findings;
+- zombie-infection status;
+- reserve and crystal counts;
+- Treat;
+- Cure the infection;
+- Full readout;
+- Dismiss.
+
+Controls are shown and greyed with a reason rather than hidden. Keep button
+captions short and put full refusal text in the note/tooltip; sentence-length
+refusals do not fit a 165-pixel control.
+
+Closing the panel does not dismiss the Doctor. The explicit Dismiss action does.
+One crew member closing their window must not remove the Doctor from another
+crew member using the biobed.
+
+The panel closes when its local player leaves range. The player roster is
+recomputed once per frame, not separately by every widget.
+
+`Full readout` uses a normal `ISHealthPanel` instance with
+`panel.doctorLevel = C.MedDoctorLevel`. Never assign `ISHealthPanel.cheat`; it
+is debug/admin gated.
+
+---
+
+## Menus and interaction geometry
+
+A right-click is resolved against the floor plane, not the pixels of a tall
+model. That is why the EMH uses the explicit `C.EmhMenuSpots` list rather than
+only the station square.
+
+When changing the model height or position:
+
+1. inspect where clicks resolve in game;
+2. update `C.EmhMenuSpots` only if necessary;
+3. run `tests/test_layout.py`;
+4. verify no EMH menu square is another fixture's own square or the transporter
+   pad;
+5. test both direct clicks near the station and clicks on the Doctor's upper
+   body.
+
+Do not replace the named list with a rectangular margin. The old core margin
+reached the Doctor and offered to load a dilithium crystal into a hologram.
+
+---
+
+## Diagnostics
+
+Use `TREK_EMH()` from the debug console while someone is aboard. The report
+compares:
+
+- whether ship state says the Doctor is active;
+- number of Doctor world items at `(3,3)`;
+- number of projector stations at `(3,3)`.
+
+Healthy states are:
+
+```text
+up=false, 0 Doctors, 1 projector station
+up=true,  1 Doctor,  1 projector station
+```
+
+Any other count should log a warning and be repaired by the next service pass.
+
+Useful log searches:
+
+```sh
+sh tools/readtest.sh
+grep -E "\[TREK\] (WARN|emh:)" "$USERPROFILE/Zomboid/console.txt"
+```
+
+On Windows without a Unix shell, inspect `console.txt` directly and search for
+`[TREK] WARN` and `emh:`.
+
+### Symptom map
+
+| Symptom | Check |
 |---|---|
-| The hologram standing on the deck | **Server**, `s.emh`, placed and removed as a world item |
-| Who may use him | **Server** — alive, `Ship.canUse`, the sandbox and the reach, on its own copy |
-| Who the patient is | **Server**, from its own copy of who is aboard. Never sent by a client |
-| Consent | **The patient's client** raises it; the server mints, expires and re-validates the token |
-| **The body** | **Server**, written directly, pushed with `syncBodyPart` |
-| The body-level infection flags and the moodle | **The patient's client**, on `emhCured`, because the packet does not carry them |
-| The crystal and the cure register | **Server**, ship state, one writer |
-| The light at 2,4, the panel, the portrait | **Each client, for itself.** Scenery and presentation |
+| Old air-conditioner-like panel remains | Existing cabin has not reached revision 23, or `removeLegacyEmhPanel` did not find tag `emhPanel`; inspect build log and run `TREK_EMH()` |
+| No custom station | Confirm station item/model declarations, generated mesh and texture, `B.serviceEMHStation()`, and deployed files |
+| Multiple stations | Station service is placing without counting, or duplicate cleanup failed |
+| Doctor appears in the middle of the room | Effective config still uses `(2,4)`, legacy item was not removed, or deployed Lua is stale |
+| Station is at a random angle | `straighten()` is missing from placement or existing-item service |
+| Doctor is at a random angle | Same issue in `B.serviceEMH()` |
+| Ship says Doctor is up but square is empty | Build/service phase missing, placement failed, or square was unloaded |
+| Doctor duplicates after rebuild/minute ticks | Placement occurs without `B.emhAt()` count |
+| Menu option is absent | Click resolved outside `C.EmhMenuSpots`, client file failed to load, or deployed config is stale |
+| Menu option is greyed | Read its tooltip; the UI and server use the same refusal rules |
+| Treatment works locally but not for another player | Server body write or `syncBodyPart` publication is missing |
+| Infection returns after cure | Limb and body-level infection were not both cleared |
+| Infection moodle remains | Patient did not receive or process `emhCured` |
+| Cure finishes instantly | Due-time or world-hour comparison is wrong |
+| Cure never finishes | Patient left the cabin, due register was lost, or minute service is not running |
+| Consent appears on requester | `emhOffered` was sent to the wrong client |
+| Station files exist in source but not game | Generator ran but deployer did not; inspect deployed `models_X` and `textures` directly |
 
 ---
 
-## Engine facts, established
+## Testing responsibilities
 
-With `tools/pzapi.py` (exists, public), a grep of vanilla Lua for a call site
-whose path is **not** `AdminPanel/` or `DebugUIs/` (may I call it), and
-`tools/javadis.py` (**under what condition** — the one that matters). Do not
-re-derive these.
+### `tests/test_assets.py`
 
-| Fact | Where |
-|---|---|
-| **`BodyPart.SetBitten(boolean)` — one argument — infects the part.** The guard ends at bci 102; `isInfected = true` and `generateBleeding()` follow unconditionally | `javadis.py` |
-| **`SetBitten(false, false)` is correct** — bci 33 `iload_1; ifeq -> 105` puts the whole block behind the guard | `javadis.py` |
-| Vanilla's admin health cheat uses the broken form, twice | `ClientCommands.lua:490`, `ISHealthPanel.lua:222` |
-| **`BodyDamage.isInfected` is a one-way latch**, re-derived from the parts each tick (bci 280–300) and **skipped once true** (bci 271). Both levels must be cleared in one pass | `javadis.py` |
-| **`RestoreToFullHealth()` writes 37 fields by putfield and never calls `SetBitten`** — right for the cure, wrong everywhere else in this mod | `javadis.py` |
-| **`getInfectionTime() < 0` is the "not started" sentinel** — `Update()` bci 371–377. Write `-1.0` | `javadis.py` |
-| **The infection moodle freezes rather than clearing**: the countdown is gated on `isInfected()` and is the stat's only writer | `javadis.py` |
-| `setHaveGlass(boolean)`; **`setHaveBullet(boolean, int)`** | `ISRemoveGlass.lua:73`, `ISRemoveBullet.lua:69` |
-| `Capability.CanMedicalCheat` gates only added pain, instant completion and the consent bypass — **not** the foreign-body setters | `ISRemoveGlass.lua:66,83` |
-| **`syncBodyPart(part, mask)` returns unless `GameServer.server`**, then sends `BodyPartSync` to that one player's own connection. Ten vanilla call sites, all under `shared/TimedActions/` | `javadis.py`, `ISApplyBandage.lua:148` |
-| Its mask is **42 bits**; `0xFFFFFFFFFFF` is "everything", which is what vanilla passes | `javadis.py`, `ClientCommands.lua:596` |
-| **It carries `BodyPart` fields only** — `BodyDamage` flags and the `Stats` moodle do not ride it | `javadis.py` |
-| `getGameTime():getWorldAgeHours()` is public with non-debug call sites | `ISButtonPrompt.lua:520`, `WinterIsComing.lua:8` |
-| `ISModalDialog:new(x, y, w, h, text, yesno, target, onclick, player, p1, p2)`; `onclick(target, button, p1, p2)` with `button.internal` = `"YES"`/`"NO"` | `ISTradingUI.lua`, `ISInventoryPane.lua`, `ISPostDeathUI.lua` |
-| `character:playSound(String)` is reachable for an ordinary player | `FishingStates.lua:91`, `ISBuildAction.lua:217` |
-| `CharacterStat.ZOMBIE_INFECTION` appears only under `DebugUIs/`, so it is wrapped in `U.try` — but `getStats():set(CharacterStat.X, v)` itself has ordinary call sites | `ISAnimalContextMenu.lua:739`, `AReallyCDDAy.lua:70` |
-| `cell:addLamppost(x, y, z, r, g, b, radius)` returns the light; `removeLamppost(light)` takes that object, not a position | this mod, `TREK_Torpedo.lua:180-194` |
-| `panel.doctorLevel` on the instance opens every Doctor gate; `ISHealthPanel.cheat` is `false or getDebug()` | `MEDICAL_SET.md` |
-| **No vanilla humanoid model is static** — every one is `static = false` with an `animationsMesh`, so none can be borrowed as a `WorldStaticModel`. The mod makes its own | `scripts/generated/models_characters.txt` |
-| `import_glb` handles glTF Y-up, smooths normals, and takes one embedded PNG diffuse texture | `tools/import_gltf.py` |
+Must verify:
 
----
+- Doctor item and model declarations;
+- station item and model declarations;
+- both meshes and textures exist;
+- portrait and summon sound exist;
+- translations resolve;
+- station and Doctor are blocked from replication.
 
-## Testing
+### `tests/test_layout.py`
 
-`tests/test_multiplayer.py::emh()` plays it **through the menu and the panel**,
-never by calling a handler — driving a handler passes against a build whose
-button is wired to nothing, which is how the torpedoes once shipped unfireable
-and the replicator once shipped un-right-clickable. It covers: the option at
-the station and greyed from across the cabin, with the reason on it; the
-server refusing the same thing without the menu ever being opened; one Doctor
-standing square, **counted before anything rebuilds**; three service passes
-leaving one; a treatment clearing both lists plus the glass and the bullet and
-the wound *under* the glass, and leaving the bite and the infection exactly as
-it found them; the cure taking one crystal and not touching the reserve; the
-cure not landing early and landing on time; every per-part and body-level
-field checked one at a time, then the body **ticked** to catch the latch; the
-moodle; a cure that did not work reporting so; the refusal naming dilithium;
-leaving the ship costing the crystal; `TREK_Rebuild()` deleting him and the
-build phase putting him back; dismissal; a crooked Doctor squared up; and both
-sandbox values.
+Must verify:
 
-`emh_multiplayer()` covers what single player cannot show: both machines
-seeing one Doctor, the yes/no on the **patient's** screen and nowhere else,
-declining costing nothing, accepting treating them on the server and pushing
-**every** body part back, the server's own copy of the body-level flags after
-a cure, a lapsed offer, a forged patient, and a stranger refused under
-*Owner and crew*.
+- no authored fitting occupies `(3,3)`;
+- station and Doctor deliberately share `(3,3)`;
+- the shared square is valid deck and is not the pad;
+- EMH menu squares do not collide with another fixture's square;
+- `.tbx` and runtime container geometry remain consistent.
 
-`tests/test_helm.py` draws the panel for a well patient and a wrecked one, with
-a long name and an empty core, and checks every control is on the stick.
-`tests/test_layout.py` holds the cross-fixture menu rule. `tests/test_assets.py`
-checks the mesh, texture, portrait, sound and every string.
+The `.tbx` comparison is strongest for containers. Directly inspect its floor
+object list when removing a non-container fitting such as the old EMH panel.
 
-**Thirty-two mutations, one pass at a time, all caught.** The runner is not in
-`tools/` — write one in the scratchpad, and make it run **every** suite: three
-of the first pass's nine survivors were guards whose only observable effect is
-a greyed button, and the suite that draws buttons was not being run. Hash the
-files before and after; two overlapping runs share them, and this repository
-has already shipped `if false then` in a refusal under a green suite.
+### `tests/test_helm.py`
 
-**Write every check so it cannot pass empty.** `#Med.TREATMENTS >= 8`,
-`#Med.SKIN >= 8` and `#Med.CURE >= 4` are asserted before anything iterates
-them, and the "a dose leaves the EMH's fields alone" check compares the list
-**before** the dose with the list after — a field nobody ever set is not
-evidence.
+Must render at least:
+
+- a healthy patient;
+- a badly injured and infected patient;
+- long names and refusal text;
+- disabled Treat and Cure for distinct reasons;
+- every control reachable by controller;
+- focus returned correctly on close.
+
+### `tests/test_multiplayer.py`
+
+The EMH scenarios must cover:
+
+- one permanent station in a fresh cabin;
+- station yaw is zero;
+- station and Doctor coordinates are identical;
+- no Doctor at `C.LegacyEmhSpot`;
+- old tagged appliance panel removed;
+- legacy Doctor removed;
+- repeated service leaves one station and at most one Doctor;
+- rebuild restores the station and an active Doctor;
+- summon and dismiss through the real menu/panel path;
+- treatment leaves bite and zombie infection untouched;
+- cure spends a crystal immediately and lands only after the configured time;
+- every limb- and body-level infection field clears;
+- infection remains cleared after body updates;
+- client moodle clears;
+- leaving the cabin cancels without refund;
+- sandbox and power refusals;
+- two-client visibility;
+- consent appears only on the patient;
+- server owns all body and world changes;
+- patient receives all body-part syncs;
+- forged and expired requests are refused;
+- owner-and-crew access is enforced.
+
+A test that calls a server handler directly does not prove a player can reach
+the feature. Keep the context-menu and panel-driven path.
 
 ---
 
-## What will bite you
+## Safe change procedures
 
-- **No hot reload.** Mod Lua loads when a world starts, and `.txt` script
-  changes too. Every change needs a full restart.
-- **`SetBitten(false)` — one argument — infects the limb**, and vanilla's own
-  admin health cheat calls it that way twice. Use the two-argument form, or
-  `RestoreToFullHealth()`, which calls neither.
-- **`setInfectionTime(0)` leaves a running clock.** `Update()` only
-  initialises the countdown when the value is negative. Write `-1.0`.
-- **`setHaveBullet(false)` throws.** It is `(boolean, int)`.
-- **`syncBodyPart` is a no-op off the server.** Called from `client/` it looks
-  like a sync and is nothing; `static()` forbids it there.
-- **`B.forceRebuild` deletes him** while `s.emh` still says he is up. The build
-  phase is what repairs it, and a test must assert the *placement* before
-  anything rebuilds — otherwise it is checking the repair.
-- **Single player collapses the server and the client into one process**, so a
-  field both ends write looks correct however badly the server half is broken.
-- **Read the result back.** `Med.cure` asks every field again and warns;
-  `B.emhReport` prints what the ship believes against what is standing there.
-  `TREK_EMH()` from the console is the one line that tells them apart.
-- **A right-click lands on the floor, not on the picture.** Anything keyed to a
-  tall model needs a named set of squares, and that set must not reach another
-  fixture's own square.
+### Change the station appearance
 
----
+1. Edit the station-generation section of `tools/gen_emh.py`.
+2. Regenerate all EMH assets.
+3. Inspect `preview_emh_station.png`.
+4. Measure the station mesh.
+5. Confirm the geometry stays elevated and clear beneath.
+6. Run assets, layout, multiplayer, and full Lua checks.
+7. Deploy and directly confirm both station files in the installed mod.
+8. Fully restart the game and beam aboard.
 
-## Not built, and still to settle in game
+### Change the Doctor model or likeness
 
-Nothing here has been seen in the game. The panel shows everything a console
-report would, and the log is read afterwards with `sh tools/readtest.sh`.
+1. Select and vendor the new GLB; update `SOURCE.txt`.
+2. Keep the generator deterministic and offline after selection.
+3. Regenerate.
+4. Inspect front, quarter, at-size, and portrait renders.
+5. Check facing, scale, scanline orientation, silhouette, and likeness in game.
+6. Run all checks and deploy.
 
-**In any world built at revision 17 or later** — no fresh world needed:
+### Move the station and Doctor
 
-1. **Beam up, walk aft, right-click the wall panel** beside the biobed. The
-   option should read *Consult the Emergency Medical Hologram*, and be there
-   and greyed from the far end of the cabin.
-2. **He appears.** A figure standing at the square beside the bed, square to
-   the ship, lit blue, about the height of the warp core. Look at him from
-   both sides. This is the check that cannot be done anywhere but here.
-3. **The panel.** He says something. The portrait reads at panel size. Your
-   name is in the patient row.
-4. **Get hurt properly** — cut, scratched, deep wound, burn, fracture, and
-   something with glass in it — and press **Treat**. Everything closes, the
-   splint and the dressing come off, the glass comes out, and he says what he
-   did. Then the one that matters: **get bitten first, and check the bite is
-   still there afterwards, with the infection moodle still on.**
-5. **Get bitten and cure it.** The panel should say you are infected — the
-   first time anything in this mod has told you. Press **Cure**: one crystal
-   goes, the reserve does not move, and he tells you to stay aboard.
-6. **Sleep on the biobed.** Wake up: no bite, no infection, **and no infection
-   moodle.** Look hardest at the third one.
-7. **Do it again and walk out of the cabin halfway through.** It stops, he
-   says so, and the crystal is gone.
-8. **Empty the core** with the replicator and try again — the refusal names
-   dilithium.
-9. **Dismiss him**, then `TREK_Rebuild()` while he is up, then beam out and
-   back: he should be standing exactly once each time, and never twice.
-10. **A controller**: walk the panel with the stick, act with A, close with B,
-    and check focus returns to the game.
-11. **Sandbox *Off*** in a second world: the option says the station is
-    inactive. Then spend the reserve to nothing with the replicator and
-    right-click the station — he should not come up at all.
+1. Pick one shared destination square.
+2. Set both `C.EmhStation` and `C.EmhSpot` to it.
+3. Preserve the previous square as a legacy coordinate.
+4. Update `B.serviceEMH()` migration cleanup if necessary.
+5. Remove any authored fitting from the destination in both `.tbx` and runtime
+   layout.
+6. Reassess `C.EmhMenuSpots` and cross-fixture collisions.
+7. Bump `C.BuildRev`.
+8. Add a migration test that plants old station/Doctor objects.
+9. Run the complete suite and test an existing save as well as a fresh world.
 
-**Then with two people**, on the session pinned in `ROADMAP.md`:
+### Change treatment scope
 
-12. one player consults, the other is the patient — **the yes/no appears on
-    the patient's screen**, and declining costs nothing;
-13. accepting spends one crystal and both panels show the new count;
-14. the cure lands on the patient's own machine, moodle included;
-15. the hologram is standing on both screens, and goes on both when dismissed;
-16. a player not on the crew is refused under *Owner and crew*.
+1. Decide whether the change belongs to `Med.TREATMENTS`, `Med.SKIN`,
+   `Med.CURE`, or EMH-only ordering.
+2. Preserve the rule that standard treatment never changes `Med.CURE` fields.
+3. Set every field under test before asserting it survives or clears.
+4. Tick `BodyDamage` after a cure to test the infection latch.
+5. Run single-player and multiplayer scenarios; either alone is insufficient.
+
+### Change costs or timing
+
+Update the constants only, then check:
+
+- panel values and refusal text;
+- server validation;
+- resource spending order;
+- no spending on offers or refused actions;
+- cure persistence across relog;
+- abandonment behavior;
+- tests using the constants still include a fixed lower/upper sanity bound
+  where appropriate.
 
 ---
 
-## What would have bitten you
+## Engine facts not to re-derive
 
-Kept because each generalises, and `DEV_GUIDE.md` cites three of them as the
-cases that produced its rules. Six of the eight were found by a render or a
-test that the plan itself called for, which is the argument for calling for
-them.
+- `BodyPart.SetBitten(false)` with one argument infects and bleeds the limb.
+- `RestoreToFullHealth()` writes the whole body-part state directly and is
+  appropriate only for the full EMH cure in this mod.
+- `infectionTime < 0` means the infection countdown has not started; reset it
+  to `-1.0`, not `0`.
+- `BodyDamage.isInfected` is a one-way latch derived from infected parts. Clear
+  both levels in one pass.
+- The infection moodle's writer stops running after cure, so the patient's
+  client must explicitly reset it.
+- `syncBodyPart` works only on the server and carries body-part fields, not
+  body-level flags or stats.
+- `setHaveBullet(false)` is the wrong overload; use
+  `setHaveBullet(false, 0)`.
+- A world inventory object's constructor chooses a random yaw when none is
+  set. Straighten fixtures after placement and during maintenance.
+- Generic square clearing preserves world items and tagged mod objects. Every
+  migration must explicitly name obsolete ones.
+- A right-click resolves to a floor square, not to the visible pixels of a tall
+  model.
+- A client may request treatment or placement but may not authoritatively
+  change a body, ship state, or cabin world object.
+- A vanilla Lua call site proves reachability, not that the method has the
+  semantics this feature needs. Read bytecode when behavior matters.
 
-### A vanilla call site proved the wrong thing
+---
 
-`part:SetBitten(false)` is the obvious way to cure a bite. It is public, it
-reads exactly like what it says, and **vanilla's own admin health cheat calls
-it that way in two places**. Every test this repository knows how to write
-would have passed.
+## In-game acceptance checklist
 
-Its bytecode writes `bittenZ` from the argument and then runs on regardless:
-`isInfectedZ = 1` and `generateBleeding()`. A player who paid a dilithium
-crystal and slept twelve game hours would have woken up infected, on an arm
-that was now bleeding, with the mod reporting a successful cure and the log
-silent.
+After deployment and a full restart:
 
-**A vanilla call site is evidence about reachability and nothing else.** It
-says the global resolves and the engine accepts the arguments; it says nothing
-about whether the author of that call site wanted what you want — and an admin
-cheat wants the limb bitten-and-infected, because it is about to restore the
-whole body anyway.
+1. Beam aboard so revision 23 is applied.
+2. Confirm the old appliance-looking wall object is gone.
+3. Confirm one custom LCARS projector station is mounted at the sick-bay wall.
+4. Right-click the station and consult the EMH.
+5. Confirm exactly one Doctor appears directly below the station, not at the
+   old middle-of-room square.
+6. Look from both sides for facing, scale, clipping, and station clearance.
+7. Confirm the portrait resembles the projected model.
+8. Treat ordinary injuries and verify bite/infection remain.
+9. Start a cure and verify one crystal is spent immediately.
+10. Complete the cure aboard and verify bite, infection, and moodle all clear.
+11. Start another cure, leave the cabin, and verify cancellation without a
+    refund.
+12. Dismiss and resummon the Doctor; the permanent station must remain.
+13. With a controller, navigate every control, activate with A, close with B,
+    and verify focus returns to the game.
+14. Run `TREK_EMH()` and confirm one station plus zero or one Doctor matching
+    ship state.
+15. Repeat the placement check in an existing revision-22 save to exercise the
+    old panel and old Doctor cleanup.
 
-### He faced north
-
-An image-to-3D model is built looking down its own +Z, which this engine reads
-as due north. The first render had him standing in the sick bay with his back
-to the entire cabin. `import_glb` takes a `yaw` now.
-
-Nothing about an imported mesh was *decided*, which is the general point: the
-hull got the same treatment and cost four faults before the game was ever
-involved. **Render it and look.**
-
-### The scanlines rendered as wood grain
-
-The plan asked for "horizontal scanlines, one pixel in four", and written that
-way they are not horizontal at all: an auto-unwrapped atlas has no horizontal,
-so a row of the sheet is a different diagonal on every patch of him, and at
-1024 texels over a figure 1.25 tiles tall the pitch aliases into moiré as
-well. The first render was a man in a fingerprint.
-
-`gen_emh.py` rasterises the mesh's own UVs once to give every texel the
-**world height** of the surface it lands on, and bands on that. Anything that
-has to be level, plumb or aligned on an imported model needs the same.
-
-And the first version that worked was a man in a striped prison jumper, judged
-at 400 pixels. The generator renders him at 96 now — the size he is actually
-drawn — because judging art at ten times its size is how the first gagh
-shipped as a bowl of chili.
-
-### A belt that could only ever undo the braces
-
-`Med.CURE` shipped as a list of `ask`/`fix` pairs beside
-`RestoreToFullHealth()`. That call clears every field in the list by direct
-putfield, so no mutation could distinguish the fixes from their own absence —
-and one of them, `SetBitten`, sitting *after* the bundle, could only ever put
-back what the bundle had just taken off.
-
-`DEV_GUIDE.md`'s rule for a branch a mutation cannot break is to delete it or
-write the test, and there is no honest test for a fallback that runs only if
-the engine stops matching its own bytecode. The fixes are gone; the read-back
-stands in their place, and a test that makes one part's
-`RestoreToFullHealth` a no-op proves the read-back fires.
-
-### The list conflated two infections
-
-`infectedWound` went into `Med.CURE` with the rest, and it does not belong
-there: an infected *wound* is an ordinary dirty cut and the hypospray cures it
-by design. The check that a dose leaves every `Med.CURE` field alone failed
-the moment it was written, and it was right to — had the list shipped as it
-was, the mod would have been asserting that the hypospray must not cure an
-infected cut, which is the opposite of what `TREK_Medical.lua`'s own header
-promises.
-
-### Single player could not see half the cure
-
-The body-level flags are written twice on purpose: the server clears them, and
-the patient's own client clears them again on `emhCured`, because
-`syncBodyPart` does not carry them. **In single player those are one
-process** — `Net.toClient` runs the handler directly — so three mutations that
-deleted the server's half entirely left a green suite, because the client
-repaired every one of them a millisecond later.
-
-The rule is narrower and more useful than "test it in multiplayer": whenever
-two processes both write the same field, single player proves only that
-*somebody* wrote it. The assertion has to name the process, which is why
-`emh_multiplayer()` reads the **server's own copy** of the patient after a
-cure.
-
-### Three tests that passed for the wrong reason
-
-| | |
-|---|---|
-| The expiry test sent `token = 1` | By then the server had minted three offers, so it was refused as *no such offer* — which looks exactly like the expiry working. It reads the token off the modal the patient was actually shown |
-| Two mutations appended a line to an existing `fix` | Which inherits that entry's `ask`, so `SetBitten` only ever reached a limb that was in pain and the bitten limb was never touched. They are entries of their own now |
-| A dose was asserted to leave the virus "not set" | Which counts a field nobody ever set. It compares the list before the dose with the list after |
-
-### A refusal is not a caption
-
-"The cure needs a whole dilithium crystal, and there are none aboard" measures
-435 pixels against a 165-pixel button, so it was drawn from x = −49 and ran off
-both ends of the panel. Two tables now: short for the control, the sentence
-for the tooltip and the note. Found by `tests/test_helm.py`, which is the only
-thing short of the game that can see it.
+Static validation proves the mod's own logic and generated references. Only
+this in-game pass proves final rendering, click geometry, engine placement, and
+visual likeness.
