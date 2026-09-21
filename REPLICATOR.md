@@ -451,16 +451,27 @@ buttons. Driving the server handlers directly would pass against a build
 whose Materialise button was wired to nothing, which is exactly how the
 torpedoes once shipped unfireable.
 
-**Twenty-two more mutations were run for the warp core**, and the first pass
-caught eighteen. The four misses were all branches nothing exercised: a client
-writing the crystal count (a guard every write in `TREK_Power` has and no test
-had ever asked for), the read-back that catches a `Remove` which did nothing,
-the full-pack path where a crystal is made and counted before the ship's
-number goes down, and -- the familiar one -- a freshly placed core's angle,
-masked because the check ran after a rebuild had already straightened it. The
-same masking caught the replicator's own yaw check an hour earlier, which is
-the lesson: **a check that runs after a self-healing pass is a check of the
-self-healing pass.**
+**Twenty-two mutations were run for the warp core and all twenty-two are
+caught**; the first pass caught eighteen. Four of the five holes that took
+were branches nothing exercised: a client writing the crystal count (a guard
+every write in `TREK_Power` has and no test had ever asked for), the read-back
+that catches a `Remove` which did nothing, the full-pack path where a crystal
+is made and counted before the ship's number goes down, and -- the familiar
+one -- a freshly placed core's angle, masked because the check ran after a
+rebuild had already straightened it. The same masking caught the replicator's
+own yaw check an hour earlier, which is the lesson: **a check that runs after
+a self-healing pass is a check of the self-healing pass.**
+
+The fifth is the same lesson wearing a different hat, and it is the better
+story. Deleting the guard that refuses an empty-handed player broke nothing:
+the code falls through, reaches for a crystal that is not there, and **the
+read-back further down catches the damage and denies with the very same
+message**. Same note, same outcome, one stray WARN -- and a `SIM.log = {}` in
+a later block of the test had wiped that warning before the end-of-test sweep
+ever ran. The check now asserts, at that exact moment, that an empty-handed
+refusal is silent in the log: *a refusal is not a fault, and the difference
+between them is the only thing that tells a guard from the safety net
+underneath it.*
 
 **Twenty-one mutations were run for the dilithium work, and the first
 pass caught eleven of twenty.** Every one of the nine misses was a hole in the

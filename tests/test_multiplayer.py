@@ -2998,7 +2998,7 @@ def replicator():
           f"core: standing at it, the menu offers {labels}")
 
     spares = crystals_aboard(rt)
-    rt.run("SIM.notes = {}")
+    rt.run("SIM.notes = {}; SIM.log = {}")
     rt.run(f"TREK.Core.send({P}, 'loadCrystal', {{}})")
     net.pump(4)
     check(crystals_aboard(rt) == spares,
@@ -3006,6 +3006,15 @@ def replicator():
           f"({crystals_aboard(rt)} aboard, was {spares})")
     check(any("IGUI_TREK_CoreNoCrystal" in n for n in rt.notes()),
           f"core: loading with nothing to load said nothing ({rt.notes()})")
+    # **And it is a refusal, not a fault.** Asking with empty pockets has to
+    # be turned away by the check at the top of the handler; without it the
+    # code reaches for a crystal that is not there, and the read-back further
+    # down catches the damage and denies with the very same message. Same
+    # note, same outcome, one stray WARN -- which is the only thing that can
+    # tell the two apart, and it is worth asserting for exactly that reason.
+    check(rt.warnings() == [],
+          f"core: an empty-handed player asking to load one made the ship "
+          f"warn: {rt.warnings()}")
 
     # An impostor is not dilithium. The engine's recursive inventory search
     # compares the **bare** type, which is not namespaced, so another mod's

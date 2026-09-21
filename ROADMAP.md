@@ -588,11 +588,13 @@ machine you *wait at*, which is a cooldown wearing a hat. The dilithium
 chamber at 1,3, the loot tables, the blocklist entry and the tricorder's
 mineral pass are all the same decision.
 
-**Fifty-one mutations have been checked against the tests across three passes
-and all fifty-one caught**, eight of which found tests passing for the wrong
-reason — including a blocklist check that could not fail because the
-simulation's catalogue had never heard of the item it was meant to be
-refusing. `REPLICATOR.md`'s last section is what is still open.
+**Eighty-one mutations have been checked against the tests across five passes
+and all eighty-one caught**, twelve of which found tests passing for the wrong
+reason — a blocklist check that could not fail because the simulation's
+catalogue had never heard of the item it was meant to be refusing; two
+placement checks that ran after the pass which repairs placement; and a guard
+whose absence the safety net below it covered for, with the same message and
+the same outcome. `REPLICATOR.md`'s last section is what is still open.
 
 ## Then: ship systems
 
