@@ -44,6 +44,16 @@ WORKSHOP_ID = "3801178990"
 # a genuinely unpublished first upload.
 VISIBILITY = "public"
 
+# What the 256x256 Workshop thumbnail is cut from. The in-game uploader takes
+# this one image and no other -- the gallery is added on the Steam web page
+# afterwards -- so it is worth naming here rather than leaving to a default.
+# Set to None to fall back to the generated mods-screen poster.
+PREVIEW_SOURCE = ROOT / "screen_shots" / "ShuttleLanded.png"
+
+# Shift the square crop, in source pixels: positive x moves it right,
+# positive y moves it down. Zero centres it.
+PREVIEW_OFFSET = (0, 0)
+
 TITLE = "Starfleet Shuttlecraft (Build 42)"
 DESCRIPTION = [
     "A Starfleet Type 6 shuttlecraft for Project Zomboid Build 42 -- single player, hosted co-op and dedicated servers.",
@@ -100,19 +110,44 @@ def png_dimensions(path):
         return struct.unpack(">II", stream.read(8))
 
 
-def square_preview(source, output, size=256):
-    """Center-crop and nearest-neighbor scale the generated poster."""
+def square_preview(source, output, size=256, offset_x=0, offset_y=0):
+    """Center-crop and box-filter the preview source down to `size`.
+
+    The source used to be the generated pixel-art poster, where a
+    nearest-neighbour pick was not just adequate but correct: sampling a
+    pixel-art image is supposed to keep hard edges. PREVIEW_SOURCE is now a
+    gameplay screenshot, and the same pick aliases it badly -- 705 down to 256
+    throws away five pixels in six and whichever one it lands on becomes the
+    whole square. Averaging the footprint instead is the difference between a
+    hull and a handful of noise.
+
+    offset_x/offset_y shift the crop window in source pixels, because the
+    subject of a screenshot is rarely in the exact middle of the frame. They
+    are clamped so the window cannot run off the edge.
+    """
     width, height, pixels = read_png_rgba(str(source))
     crop = min(width, height)
-    left = (width - crop) // 2
-    top = (height - crop) // 2
+    left = max(0, min(width - crop, (width - crop) // 2 + offset_x))
+    top = max(0, min(height - crop, (height - crop) // 2 + offset_y))
     image = Image(size, size)
     for y in range(size):
-        source_y = top + min(crop - 1, y * crop // size)
+        y0 = top + y * crop // size
+        y1 = max(y0 + 1, top + (y + 1) * crop // size)
         for x in range(size):
-            source_x = left + min(crop - 1, x * crop // size)
-            index = (source_y * width + source_x) * 4
-            image.set(x, y, tuple(pixels[index:index + 4]))
+            x0 = left + x * crop // size
+            x1 = max(x0 + 1, left + (x + 1) * crop // size)
+            r = g = b = a = 0
+            count = 0
+            for sy in range(y0, y1):
+                row = sy * width
+                for sx in range(x0, x1):
+                    i = (row + sx) * 4
+                    r += pixels[i]
+                    g += pixels[i + 1]
+                    b += pixels[i + 2]
+                    a += pixels[i + 3]
+                    count += 1
+            image.set(x, y, (r // count, g // count, b // count, a // count))
     image.save(str(output))
 
 
@@ -181,7 +216,12 @@ def main():
     packaged_mod.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(MOD, packaged_mod)
     (BUILD / "workshop.txt").write_text(workshop_text(), encoding="utf-8")
-    square_preview(MOD / "42" / "poster.png", BUILD / "preview.png")
+    source = PREVIEW_SOURCE if PREVIEW_SOURCE else MOD / "42" / "poster.png"
+    if not source.is_file():
+        raise SystemExit("preview source is missing: " + str(source))
+    square_preview(source, BUILD / "preview.png", offset_x=PREVIEW_OFFSET[0],
+                   offset_y=PREVIEW_OFFSET[1])
+    print("preview cut from", source.name)
     validate(BUILD)
     print("package ->", BUILD)
 
