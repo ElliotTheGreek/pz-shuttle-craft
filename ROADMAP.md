@@ -649,9 +649,10 @@ the whole list at once rather than to each version.
    world**: the station and the square were authored into the interior by the
    refit, so `C.BuildRev` 22 is the whole migration and a cabin built at
    revision 17 or later gets him on the next arrival. That makes him the
-   first system in this mod to reach an existing save. `EMH.md` section 14 is
-   the play-through, and the one to look hardest at is number 6: no bite, no
-   infection, **and no infection moodle**.
+   first system in this mod to reach an existing save. `EMH.md`'s *Not built,
+   and still to settle in game* is the play-through, and the one to look
+   hardest at is number 6: no bite, no infection, **and no infection
+   moodle**.
 7. **Publish.**
 
 Running alongside all of it: **the two-player session** (pinned below). It is

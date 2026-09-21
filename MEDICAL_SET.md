@@ -483,8 +483,8 @@ client-side. It is not a general rule. `BodyDamage.Update()` restores a
 **remote** player's body to full on a client every single tick, so somebody
 else's body does not exist on your machine to be read or written at all —
 which is why every line of the EMH's treatment runs on the server and why its
-panel has to *ask* what is wrong with the crewman on the biobed. See `EMH.md`
-section 6.
+panel has to *ask* what is wrong with the crewman on the biobed. See
+`EMH.md`, *The rules it obeys*.
 
 ---
 

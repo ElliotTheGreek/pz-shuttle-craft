@@ -1849,14 +1849,16 @@ of the cure, four of the separation, four of the timer and the model and five
 of the protocol -- and the first pass caught twenty-three. Of the nine that
 survived, **three were real design faults and three were tests passing for
 the wrong reason**; the rest were the harness only running one suite. All of
-that is in `EMH.md` section 15, and the two general lessons are the sections
+that is in `EMH.md`'s *What would have bitten you*, and the two general
+lessons are the sections
 *A vanilla call site proves reachability* and *Single player cannot test a fix
 that both ends apply* above.
 
 **Not yet seen in game**, in the order worth checking:
 
 0. **The EMH**, built 2026-09-20 and not played at all. The only one on this
-   list that needs **no fresh world**. `EMH.md` section 14.
+   list that needs **no fresh world**. `EMH.md`, *Not built, and still to
+   settle in game*.
 1. **Dilithium and the warp core**, built 2026-09-20 and not played at all.
    The ship's power is a crystal now, held in the mod's own model at 1,3 with
    *Load a crystal* and *Take a crystal* on its menu; twelve vanilla loot

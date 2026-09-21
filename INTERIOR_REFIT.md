@@ -37,7 +37,8 @@ still enough room to give every system a place a player can find without a map.
   1 F*.p        V television on its console   F fridge   * lamp   p rations
   2 oh.M        h crew seat, facing the screen   o oven   M sick bay
   3 wD.E        w sink counter   D the warp core       E EMH panel (wall)
-  4 m*.B        m microwave counter                     B biobed (head)
+  4 m*HB        m microwave counter   H the EMH stands here (kept clear)
+                                                      B biobed (head)
   5 R.@B        @ transporter pad   R the replicator    B biobed (foot)
 ```
 
@@ -491,7 +492,10 @@ free: the cabin and its stock reaching a client, and whether a runtime
 
 ## 8. Still open
 
-- **The EMH panel's name** — §3.
+- **The EMH panel's name** — §3. Still open: the Doctor was built on
+  2026-09-20 (`EMH.md`) and his station is this panel, but what `CustomName`
+  the game shows for `industry_01_15` when you hover it is a question only the
+  game answers.
 - **A custom biobed.** A custom *tile* needs a TileZed-packed texture pack and
   is out of this pipeline; a custom *world model* is the helm's proven route
   but carries no `BedType`, so the vanilla sprite has to stay underneath and
