@@ -302,8 +302,9 @@ function R.learn(id)
     if not R.row(id) then return false end
     local data = R.store()
     if data.known[id] then return false end
+    local count = R.patternCount()
     data.known[id] = true
-    data.count = (data.count or 0) + 1
+    data.count = count + 1
     return true
 end
 

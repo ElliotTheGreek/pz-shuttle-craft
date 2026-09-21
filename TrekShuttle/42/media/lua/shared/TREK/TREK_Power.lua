@@ -323,7 +323,10 @@ end
 function P.spend(n)
     if isClient() then return false end
     local s = U.state()
-    local left = P.reserve() - (n or 0)
+    if type(n) ~= "number" or n ~= n or n <= 0 or n > C.PowerMax then
+        return false
+    end
+    local left = P.reserve() - n
     if left < 0 then left = 0 end
     s.power = left
     return true

@@ -91,7 +91,12 @@ local function place(sq, sprite, tag, prepare)
     if tag then
         U.try("tagObject", function() obj:getModData().TREK = tag end)
     end
-    if prepare then U.try("prepare:" .. tostring(tag), prepare, obj) end
+    if prepare then
+        local prepared = U.try("prepare:" .. tostring(tag), function()
+            return prepare(obj) ~= false
+        end)
+        if prepared ~= true then return nil, false end
+    end
     if not addSynced(sq, obj) then return nil, false end
     return obj, true
 end
@@ -177,7 +182,11 @@ local function spillToPad(obj)
         -- indistinguishable from one that failed.
         if join(function()
             container:Remove(item)
-            pad:AddWorldInventoryItem(item, 0.5, 0.5, 0.0)
+            local placed = pad:AddWorldInventoryItem(item, 0.5, 0.5, 0.0)
+            if not placed then
+                container:AddItem(item)
+                return false
+            end
             return true
         end) then spilled = spilled + 1 end
     end
@@ -599,7 +608,7 @@ end
 local function prepareContainer(obj, entry)
     obj:createContainersFromSpriteProperties()
     local container = U.containerOf(obj)
-    if not container then return end
+    if not container then return false end
     -- Explored, or vanilla rolls its own loot into it the first time a
     -- client opens it, on top of ours.
     container:setExplored(true)
@@ -635,10 +644,11 @@ local function repairContainer(obj, entry)
     U.onItemAdded = isServer() and function(c, item)
         sendAddItemToContainer(c, item)
     end or nil
-    local ok = stockAuthored(obj, entry)
+    local ok = U.try("repairStock:" .. tostring(entry.tag),
+                     stockAuthored, obj, entry)
     U.onItemAdded = nil
 
-    if ok then
+    if ok == true then
         data.TREKStockRev = C.BuildRev
         U.try("transmitModData", function() obj:transmitModData() end)
     end

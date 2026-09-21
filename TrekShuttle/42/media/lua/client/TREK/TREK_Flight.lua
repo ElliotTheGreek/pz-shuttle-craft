@@ -92,7 +92,7 @@ end
 local function ownsPhysics(vehicle)
     return U.try("isLocalPhysicSim", function()
         return vehicle:isLocalPhysicSim()
-    end) ~= false
+    end) == true
 end
 
 --- True when this player is in the driver's seat of the shuttle.
@@ -321,6 +321,7 @@ Net.onClient("takeoffGranted", function(args)
     local player = Core.lastAsker or U.player(0)
     local vehicle = F.vehicle()
     if not vehicle then return end
+    if not ownsPhysics(vehicle) then return end
     local level = math.floor(args.level or C.FlightCruise)
     rising = {
         vehicle = vehicle, level = level, ticks = 0,
@@ -478,10 +479,13 @@ end
 Net.onClient("touchdownGranted", function(args)
     local vehicle = F.vehicle()
     U.log("setting her down at %d,%d", args.x or -1, args.y or -1)
-    if vehicle then
+    if vehicle and ownsPhysics(vehicle) then
         -- Down onto real ground first, and only then take the plane up: the
         -- other way round is a five-tonne shuttle with nothing under it.
-        F.lift(vehicle, math.floor(args.z or 0))
+        if not F.lift(vehicle, math.floor(args.z or 0)) then
+            U.log("WARN touchdown transform failed; keeping the sky plane under the shuttle")
+            return
+        end
         restoreSpeed(vehicle)
     end
     Sky.report("landing")

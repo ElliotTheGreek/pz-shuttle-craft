@@ -623,9 +623,13 @@ function Med.lockOn(sq, username)
     if not sq then return nil, "nosquare" end
 
     if username then
-        local safe = U.try("med.safehouse", function()
+        local ok, safe = pcall(function()
             return SafeHouse.isSafeHouse(sq, username, true)
         end)
+        if not ok then
+            U.warnOnce("med.safehouse", tostring(safe))
+            return nil, "safehouse"
+        end
         if safe then return nil, "safehouse" end
     end
 
@@ -681,14 +685,30 @@ end
 function Med.unlock(obj)
     if not obj then return false end
 
-    U.try("med.setLockedByKey", function()
+    local keySet = U.try("med.setLockedByKey", function()
         if obj.setLockedByKey then obj:setLockedByKey(false) end
+        return true
     end)
-    U.try("med.setIsLocked", function() obj:setIsLocked(false) end)
-    U.try("med.lockSync", function() obj:sync() end)
+    local lockSet = U.try("med.setIsLocked", function()
+        obj:setIsLocked(false)
+        return true
+    end)
+    if keySet ~= true or lockSet ~= true then return false end
 
-    local still = U.try("med.isLocked", function() return obj:isLocked() end)
-    return still ~= true
+    local stillLocked = U.try("med.isLocked", function()
+        return obj:isLocked()
+    end)
+    local stillKeyed = U.try("med.isLockedByKey", function()
+        if obj.isLockedByKey then return obj:isLockedByKey() end
+        return false
+    end)
+    if stillLocked ~= false or stillKeyed ~= false then return false end
+
+    local synced = U.try("med.lockSync", function()
+        obj:sync()
+        return true
+    end)
+    return synced == true
 end
 
 return Med

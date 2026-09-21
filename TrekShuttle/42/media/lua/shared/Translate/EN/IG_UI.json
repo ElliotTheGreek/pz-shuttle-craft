@@ -222,5 +222,7 @@
     "IGUI_TREK_EmhBtnNoPatient": "No patient",
     "IGUI_TREK_EmhBtnWell": "Nothing to treat",
     "IGUI_TREK_EmhBtnNotInfected": "No infection",
-    "IGUI_TREK_EmhBtnCuring": "Cure running"
+    "IGUI_TREK_EmhBtnCuring": "Cure running",
+    "IGUI_TREK_ProbeAboard": "Return aboard before launching a probe",
+    "IGUI_TREK_ProbeActive": "A probe is already in flight"
 }

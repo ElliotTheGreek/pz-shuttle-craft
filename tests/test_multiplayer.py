@@ -3087,6 +3087,21 @@ def replicator():
           f"core: a fresh ship carries {crystals_aboard(rt)} spare crystals, "
           f"not {C('DilithiumIssue')}")
 
+    # `spend` is an authority boundary shared by every powered system. A
+    # negative value used to add power, and NaN could poison the persisted
+    # reserve so every later comparison failed. Invalid costs must be refused
+    # without changing the ship.
+    rt.run("TREK.Util.state().power = 1234")
+    for bad, label in (("-25", "negative"), ("0 / 0", "NaN"),
+                       ("TREK.Config.PowerMax + 1", "oversized")):
+        accepted = rt.eval(f"TREK.Power.spend({bad})")
+        check(accepted is False,
+              f"power: an invalid {label} spend was accepted")
+        check(rep_energy(rt) == 1234,
+              f"power: an invalid {label} spend changed the reserve to "
+              f"{rep_energy(rt)}")
+    rt.run("TREK.Util.state().power = TREK.Config.PowerMax")
+
     # Issued once, and keyed on the count being absent rather than on it being
     # zero: a crew who burned all three and came home empty must not be handed
     # three more by the next rebuild.

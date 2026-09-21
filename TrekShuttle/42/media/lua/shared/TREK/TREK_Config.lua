@@ -948,6 +948,33 @@ C.ReplicatorOff          = 3
 -- energy) instead.
 C.PatternKey = "TREK_Patterns_v1"
 
+---------------------------------------------------------------------------
+-- Long-range probes and contacts
+---------------------------------------------------------------------------
+-- Probe reports can grow over a save, so they have their own global mod data
+-- rather than riding in the ship table that is transmitted on every move.
+C.ContactKey = "TREK_Contacts_v1"
+
+-- A launch fabricates the probe and sends it in one authority-side
+-- transaction. One crystal can fund many probes, but a launch is expensive
+-- enough to remain a decision after the cold start.
+C.ProbeCost = 250
+
+-- Logical flight, in server ticks. The probe is not a world object crossing
+-- unloaded chunks: its bearing, distance and progress are persisted here and
+-- the client only presents the report.
+C.ProbeFlightTicks = 300
+C.ProbeMinDistance = 1200
+C.ProbeMaxDistance = 2400
+
+-- Work per authority tick and the bounded shared history. The first probe
+-- implementation resolves one logical route rather than touching distant
+-- world squares; these limits still keep persistence and future corridor
+-- scans bounded.
+C.ProbeWorkPerTick = 1
+C.MaxContacts = 64
+C.MaxResolvedContacts = 16
+
 -- Never replicated, whatever the sandbox says, and the list exists from day
 -- one because adding it later means adding it in a hurry.
 --
