@@ -166,6 +166,13 @@ So a server-side file guarded by `if isClient() then return end` runs in
 | Phaser charge | **The carrying client** | Items in a player's own inventory |
 | Helm, menus, map markers, notes | **Client** | Presentation only |
 | Access rules | **Server**, sandbox options | Server owner decides |
+| The Doctor standing on the deck | **Server**, `s.emh` in the ship state | A world item, so everyone aboard sees the same one |
+| Who may consult him, and who the patient is | **Server**, from its own copy of where people are standing | A client is a request, never a fact -- including about whose body it is |
+| **Any body the EMH treats or cures** | **Server**, written directly and pushed with `syncBodyPart` | Forced by the engine: `BodyDamage.Update()` restores a *remote* player's body to full on a client every tick, so the server is the only machine that knows they are hurt |
+| The body-level infection flags and the infection moodle | **The patient's own client**, on `emhCured` | `syncBodyPart` carries `BodyPart` fields only; the `BodyDamage` flags and the moodle do not ride it |
+| Consent to be treated | **The patient's client** raises it; the server mints, expires and re-validates the token | Nobody can force-heal, or force-anything, another player |
+| The crystal and the cure register | **Server**, ship state, one writer | Paid for, and it has to survive a relog |
+| The light at the EMH's square, his panel and his portrait | **Each client, for itself** | Scenery and presentation, like the cabin's lamps |
 
 ### Files
 
@@ -221,6 +228,10 @@ sane numbers, player alive):
 | `callDown {x,y,z}` / `recall` | Same, from the ground |
 | `refillWater` | Tops up the cabin's plumbed fixtures |
 | `claim` / `setCrew {name, on}` | Ownership and crew, if access rules allow |
+| `emhSummon` / `emhDismiss` | Projects the Doctor onto 2,4, or takes him down; `s.emh` is the truth and `B.serviceEMH` makes the deck match it |
+| `emhLook {who}` | Reads that patient's body and answers `emhFindings` -- the panel cannot read a remote body itself |
+| `emhTreat {who}` / `emhCure {who}` | Treats or cures; naming somebody else mints a consent token and asks **them** |
+| `emhAccept {token}` / `emhDecline {token}` | The patient's answer, re-validated from scratch |
 
 Server -> client (`OnServerCommand` / direct in SP):
 
@@ -229,6 +240,10 @@ Server -> client (`OnServerCommand` / direct in SP):
 | `landed {x,y,z}` / `landingRefused {why, blocked}` | Notes, and the beam-back if refused |
 | `cabinReady` | Ends the arrival hold |
 | `denied {why}` | Explains a refused request (access, transporter charge) |
+| `emhFindings {who, total, infected, bitten, items}` | What the Doctor can see about a patient this client cannot read |
+| `emhOffered {token, from, what, cost}` | To the **patient**: a yes/no |
+| `emhTreated {who, counts, total}` | What he put right |
+| `emhCureStarted {hours}` / `emhCured` / `emhCureLost` | The cure beginning, landing (clear your own flags and moodle) or being abandoned |
 
 ---
 
@@ -318,6 +333,9 @@ server's, set by validated commands, exactly like everything else.
 |---|---|---|
 | `TrekShuttle.Access` | Everyone / Owner and crew | Everyone |
 | `TrekShuttle.TransporterLimit` | Match anti-cheat / Always unlimited | Match anti-cheat |
+| `TrekShuttle.TorpedoFire` | Full / Blast only | Full |
+| `TrekShuttle.Replicator` | Patterns and energy / Unrestricted / Off | Patterns and energy |
+| `TrekShuttle.EMH` | Full / Off | Full |
 
 - **Owner**: the first player to use the ship claims it -- on a hosted game
   that is naturally the host. Admins can reassign; the owner manages the crew

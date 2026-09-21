@@ -1,0 +1,61 @@
+trek_emh.glb -- the Emergency Medical Hologram's figure.
+
+Vendored so that regenerating the mod needs no network access, no Blender and
+no third-party package. Re-running the pipeline below gives a *different*
+figure, not the same one again, so this file is the raw and
+tools/gen_emh.py is everything after it.
+
+  model      fal-ai/trellis (Microsoft TRELLIS, image-to-3D), via the fal.ai
+             FlowDot toolkit
+  date       2026-09-20
+  seed       1701
+  settings   texture_size 1024, ss_sampling_steps 20, slat_sampling_steps 20
+  source     design/art/emh/emh_concept_raw.png, generated with the Gemini
+             Image toolkit (gemini-2.5-flash-image)
+  size       1229608 bytes, one mesh, one material, one embedded PNG diffuse
+
+The concept prompt, in full:
+
+  A full-length, front-on character reference sheet of an original fictional
+  24th-century starship medical officer, standing straight and still: feet
+  together, both arms hanging straight down at the sides, palms flat against
+  the thighs, shoulders square to the camera, head level, looking directly
+  forward. Entirely centred in frame, whole body from the top of the head to
+  the soles of the boots, nothing cropped, generous empty margin above the
+  head and below the feet.
+
+  The figure is a middle-aged man of average build, completely bald,
+  clean-shaven, with a plain unremarkable face and a flat neutral expression.
+  No distinguishing features and no resemblance to any real or famous person.
+
+  He wears a plain, close-fitting two-tone uniform: a dark charcoal jumpsuit
+  with a teal-blue yoke across the shoulders and upper chest, a narrow raised
+  collar, plain sleeves with one thin teal band at each cuff, and plain dark
+  boots.
+
+  IMPORTANT: on the left breast there is one small badge and it is a
+  COMPLETELY PLAIN, SMOOTH, FEATURELESS BRUSHED SILVER OVAL, like a blank
+  pebble or a blank oval button. The badge has NO shape inside it of any kind:
+  no arrowhead, no delta, no triangle, no chevron, no star, no bird, no wing,
+  no swoosh, no emblem, no engraving, no symbol, no text. It is a blank oval
+  and nothing else. There are no other badges, pips, patches, numbers,
+  letters, logos or insignia anywhere on the uniform.
+
+  Studio character-sheet lighting: flat, even, diffuse frontal light, no
+  dramatic shadows, no rim light, no cast shadow on the ground, no
+  reflections. The background is a completely flat uniform light grey,
+  entirely empty, with no floor line, no horizon, no gradient, no props and no
+  scenery.
+
+  Clean photoreal 3D character render with a clear readable silhouette and
+  crisp edges, detail concentrated in the shape of the uniform rather than in
+  the face. One single subject only.
+
+On the likeness (EMH.md section 8): he is the Emergency Medical Hologram, a
+descriptive designation, not a named character. The prompt describes a
+uniform and a stance, never a person, and the badge is deliberately a blank
+oval -- the first generation returned a Starfleet delta and was thrown away
+for it. Nothing here is derived from a frame of anything.
+
+Licence: generated output from the author's own fal.ai and Google AI Studio
+accounts, made for this mod. No third-party asset is redistributed.

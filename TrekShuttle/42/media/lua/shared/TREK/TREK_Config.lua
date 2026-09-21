@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 21
+C.BuildRev = 22
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -808,6 +808,21 @@ C.LegacyDilithiumTag = "dilithium"
 -- would feel like a bug rather than a rule.
 C.CoreRange = 2
 
+-- Which squares offer the core's menu.
+--
+-- **An explicit list, and it used to be a one-square box.** A right-click
+-- resolves to the floor square under the cursor and the core is drawn tall,
+-- so the menu has to answer for more than the square it stands on -- but
+-- `|x-1| <= 1 and |y-3| <= 1` reaches 2,4, which is where the Doctor stands.
+-- Two fixtures answering on one square is a menu that offers to load a
+-- crystal into a hologram.
+--
+-- So it is named rather than measured: its own square, the passage either
+-- side of it, and the deck fore and aft. tests/test_layout.py holds the rule
+-- for all three fixtures -- no fixture's menu squares may contain another
+-- fixture's own square, or the transporter pad.
+C.CoreMenuSpots = { {1,3}, {0,3}, {1,2}, {1,4}, {2,3} }
+
 -- What a new ship is issued with, on top of the crystal it arrives burning.
 -- Three is enough to teach the player what they are for and not enough to
 -- skip the hunt.
@@ -876,6 +891,20 @@ C.LegacyReplicatorTag = "replicator"
 -- fact -- the same reason C.UnlockRange exists.
 C.ReplicatorRange = 2
 
+-- How far around the berth a right-click still finds the machine, in squares.
+--
+-- **Not slack.** A right-click resolves to the floor square under the cursor,
+-- and the alcove is drawn a metre and a half above its own square, so the
+-- pixels a player aims at map to a square a tile north-west of it. Keyed to
+-- the exact square the option was never offered at all -- seen in game on
+-- 2026-09-20 with the machine plainly visible and nothing to click.
+--
+-- Here rather than in TREK_ReplicatorUI so that tests/test_layout.py's
+-- cross-fixture rule reads the number the menu actually uses instead of a
+-- copy of it. One square, so the transporter pad two away still offers
+-- nothing.
+C.ReplicatorMenuMargin = 1
+
 -- What it costs to make something.
 --
 -- Cost is weight-based because weight is the one number every item in the
@@ -940,12 +969,113 @@ C.ReplicatorBlocked = {
     -- is a replicator with no limit at all, and the hunt for dilithium is the
     -- only reason the whole system has stakes.
     ["TrekShuttle.TrekDilithium"]   = true,
+    -- **The Doctor.** He is a Furniture item so the server can stand him on
+    -- the deck, which means the catalogue would happily offer him like a
+    -- chair. A player who could replicate one would stand a second EMH in
+    -- the galley, and the ship's own record of whether he is up is a single
+    -- flag with one square behind it.
+    ["TrekShuttle.TrekEMH"]         = true,
 }
 
 -- Modules the catalogue skips wholesale. Vanilla's own item viewer skips
 -- Moveables (ISItemsListViewer.lua:71) and so does this: they are the
 -- pick-up-furniture placeholders, not things a player wants handed to them.
 C.ReplicatorSkipModules = { Moveables = true }
+
+---------------------------------------------------------------------------
+-- The Emergency Medical Hologram
+---------------------------------------------------------------------------
+-- The ship's doctor: a wall station in the sick bay, a figure that stands up
+-- on the deck beside the biobed, a dialogue panel, and **the only cure for
+-- zombie infection in this mod**. EMH.md is the working guide.
+--
+-- He is a world model on a square, the way the replicator and the warp core
+-- are, and he is placed and removed by the server. Nothing about him is a
+-- container or a fitting: what the ship knows is one flag, `s.emh`.
+C.EmhItem    = "TrekShuttle.TrekEMH"
+
+-- The wall panel, authored into the interior by the refit (industry_01_15 at
+-- 3,3, tagged emhPanel -- it carries neither `solid` nor `solidtrans`, so the
+-- square is still deck), and the clear square he stands on at the head of the
+-- biobed. Both were put there before he existed, which is why this feature is
+-- cheap in the cabin and expensive only in art.
+C.EmhStation = { x = 3, y = 3 }
+C.EmhSpot    = { x = 2, y = 4 }
+
+-- His height in tiles. The warp core is 1.30 and stands in a passage the crew
+-- walk down; a person is a shade shorter than the ship's power plant. Kept in
+-- step by hand with EMH_HEIGHT in tools/gen_emh.py, which is what actually
+-- sizes the mesh -- and the number to trust is the bounding box that script
+-- prints, not this one. See the bat'leth in DEV_GUIDE.md.
+C.EmhHeight  = 1.25
+
+-- Which squares offer his menu. The station, the square you stand on to work
+-- it, the medical locker above it, his own square and the head of the biobed.
+--
+-- A list rather than a box, for the reason C.CoreMenuSpots is one: a box
+-- around a tall model reaches squares that belong to something else, and two
+-- fixtures answering on one square is how a player comes to be offered a
+-- crystal slot on a hologram.
+C.EmhMenuSpots = { {2,3}, {3,2}, {3,3}, {2,4}, {3,4} }
+
+-- How close you have to stand to consult him, in tiles. The replicator's and
+-- the core's number: three fixtures a pace apart that took different reaches
+-- would read as a bug rather than as a rule.
+C.EmhRange = 2
+
+-- How long a consent offer stands before it lapses, in milliseconds.
+--
+-- Treating somebody else asks them first, and between the offer and the
+-- answer the asker can walk away, the core can be emptied and the patient can
+-- leave the ship -- so the token expires, is single-use, and everything is
+-- re-validated when it comes back.
+C.EmhOfferMs = 30000
+
+-- What a treatment costs, in reserve units.
+--
+-- **Supplies are infinite; power is not.** There is nothing to restock, no
+-- doses and no dressings -- which is what ROADMAP.md asks for -- and the
+-- limit is the same dilithium the replicator burns. At 25 against a crystal's
+-- 5000 that is two hundred treatments to a crystal: unlimited in play, and
+-- honest about what he runs on. The Doctor will not come up at all on an
+-- empty reserve, which is what four separate comments in this repository
+-- already promised ("a crew with no crystals has a galley fixture and a
+-- hologram that will not switch on").
+C.EmhTreatCost = 25
+
+-- What the cure costs: **one whole crystal**, not units.
+--
+-- It is the only price in the feature and it is meant to be felt. A crystal
+-- is a trip out into the world, and curing the thing the whole game is built
+-- around should cost one.
+C.EmhCureCrystals = 1
+
+-- And how long it takes, in **in-game hours aboard**.
+--
+-- The crystal is spent when the treatment starts, not when it finishes: this
+-- is a commitment, not a reservation, and leaving the ship halfway costs the
+-- crystal. Both halves of the biobed carry BedType = goodBed so a patient can
+-- sleep it off; at the default day length twelve hours is about half an hour
+-- confined to the cabin.
+C.EmhCureHours = 12
+
+-- The light he casts on the deck. Per client, like the cabin's lamps and the
+-- torpedo's -- scenery, never ship state.
+C.EmhLight = { r = 0.55, g = 0.80, b = 1.00, radius = 4 }
+
+-- Sandbox: 1 = Full (the Doctor as designed), 2 = Off (the station is
+-- inactive and says so).
+--
+-- An absent option reads as 1 -- the feature as designed -- which is the rule
+-- C.ReplicatorPatterns and C.TorpedoFire both follow.
+--
+-- **There is deliberately no value that keeps the Doctor and removes the
+-- cure.** ROADMAP.md marks "the only cure for zombie infection" as decided,
+-- and a server setting that switches off a decided headline feature is not a
+-- setting, it is a second opinion. A server owner who does not want the cure
+-- turns the EMH off.
+C.EmhFull = 1
+C.EmhOff  = 2
 
 ---------------------------------------------------------------------------
 -- Items placed in the cabin

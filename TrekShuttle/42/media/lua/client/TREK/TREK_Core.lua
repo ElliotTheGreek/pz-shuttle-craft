@@ -113,6 +113,21 @@ local DENIALS = {
     repNoPattern      = "IGUI_TREK_RepNoPattern",
     repCycling        = "IGUI_TREK_RepCycling",
     repNoItem         = "IGUI_TREK_RepNoItem",
+    -- The Doctor. Every one of these is a line the server can send, and
+    -- tests/test_multiplayer.py's static pass fails if a deny() literal in
+    -- server/ has no entry here: a refusal that arrives and says nothing is
+    -- a menu option that silently does nothing.
+    emhOff            = "IGUI_TREK_EmhOff",
+    emhFar            = "IGUI_TREK_EmhFar",
+    emhNoPower        = "IGUI_TREK_EmhNoPower",
+    emhNoCrystal      = "IGUI_TREK_EmhNoCrystal",
+    emhNoPatient      = "IGUI_TREK_EmhNoPatient",
+    emhWell           = "IGUI_TREK_EmhWell",
+    emhNotInfected    = "IGUI_TREK_EmhNotInfected",
+    emhCuring         = "IGUI_TREK_EmhCuring",
+    emhNoOffer        = "IGUI_TREK_EmhNoOffer",
+    emhOfferLapsed    = "IGUI_TREK_EmhOfferLapsed",
+    emhGone           = "IGUI_TREK_EmhGone",
 }
 
 Net.onClient("denied", function(args)
@@ -507,6 +522,10 @@ function TREK_Galley()  return debugCommand("galley") end
 -- the catalogue came out, and whether the tray is a container at all.
 function TREK_Replicator() return debugCommand("replicator") end
 function TREK_Ghosts()  return debugCommand("ghosts") end
+-- The sandbox mode, the reserve, the spare crystals, what the Doctor costs,
+-- any cure that is running -- and whether he is actually standing there, as
+-- against what the ship believes.
+function TREK_EMH()     return debugCommand("emh") end
 function TREK_Charges() return debugCommand("charges") end
 
 --- TREK_Room(): whether the shuttle could set down where you are standing,

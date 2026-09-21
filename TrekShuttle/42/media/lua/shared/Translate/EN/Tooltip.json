@@ -20,5 +20,6 @@
     "Tooltip_TREK_DermalRegen": "Run it over the skin and the skin closes — cuts, scratches, deep wounds, burns, and the stitches and dressing that were holding them together. It does nothing for an infected wound, a broken bone or a bite, and it will not close over glass.",
     "Tooltip_TREK_Replicator": "The ship's replicator. It makes anything it holds a pattern for, out of a reserve that fills itself back up given a few hours. Scan a thing once and the ship can make it for ever.",
     "Tooltip_TREK_WarpCore": "The shuttle's power plant. It burns one dilithium crystal at a time and loads a spare when that one is spent — and when there are no spares, the replicator stops. Stand at it to load a crystal or take one back.",
-    "Tooltip_TREK_Dilithium": "A lattice of dilithium. The shuttle's replicator burns one of these at a time and will not run without it — and it cannot make more, which is the point. Keep them in the chamber amidships."
+    "Tooltip_TREK_Dilithium": "A lattice of dilithium. The shuttle's replicator burns one of these at a time and will not run without it — and it cannot make more, which is the point. Keep them in the chamber amidships.",
+    "Tooltip_TREK_EMH": "The sick bay's holographic doctor. Diagnosis, treatment and supplies without end, and the only thing aboard that will cure a zombie bite -- for one dilithium crystal and twelve hours in the ship."
 }

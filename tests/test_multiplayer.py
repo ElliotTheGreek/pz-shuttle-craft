@@ -1717,6 +1717,17 @@ def static():
     for cmd in sorted(sent - handled):
         fail(f"static: clients send {cmd!r} and no server handler exists")
 
+    # **A floor on the count.** The check above compares two sets scraped out
+    # of the source, and a pattern that stopped matching would make `sent`
+    # empty -- at which point every command is handled, trivially, for ever.
+    # Both sides of a lookup check need a floor; this one is the cheap half.
+    check(len(sent) >= 20,
+          f"static: only {len(sent)} client commands were found in client/. "
+          f"The pattern that scrapes them has probably stopped matching, and "
+          f"an empty set is not a passing check")
+    check(len(handled) >= 20,
+          f"static: only {len(handled)} server handlers were found")
+
     replies = set()
     for src in server.values():
         replies |= set(re.findall(r'Net\.toClient\([^,]+,\s*"(\w+)"', src))
@@ -1738,6 +1749,54 @@ def static():
     for f, src in server.items():
         if not re.search(r"^if isClient\(\) then return end$", src, re.M):
             fail(f"static: server/{f} has no 'if isClient() then return end' guard")
+
+    # --- every refusal the server can send has words behind it -------------
+    # A `deny(player, "reason")` with no entry in TREK_Core's DENIALS table
+    # arrives on the client and says *nothing at all* -- which from inside the
+    # game is a menu option that silently does nothing, the one thing
+    # TREK_Menu's own header forbids. This was a real gap before the EMH: the
+    # table was kept in step by hand and nothing checked it.
+    denials = set()
+    for src in client.values():
+        block = re.search(r"local DENIALS = \{(.*?)\n\}", src, re.S)
+        if block:
+            denials |= set(re.findall(r"^\s*(\w+)\s*=", block.group(1), re.M))
+        # Two refusals are handled by name in the `denied` reply rather than
+        # through the table, because they carry numbers a player needs.
+        denials |= set(re.findall(r'args\.why == "(\w+)"', src))
+    denied = set()
+    for f, src in server.items():
+        denied |= set(re.findall(r'deny\([^,]+,\s*"(\w+)"', src))
+    check(len(denied) >= 15,
+          f"static: only {len(denied)} deny() reasons were found in server/; "
+          f"the pattern has stopped matching")
+    for why in sorted(denied - denials):
+        fail(f"static: the server denies {why!r} and TREK_Core.lua's DENIALS "
+             f"has no line for it, so the refusal arrives and says nothing")
+
+    # --- syncBodyPart is a no-op off the server ----------------------------
+    # Its first instruction is `getstatic GameServer.server; ifeq -> return`.
+    # Called from client/ it looks exactly like a sync and is nothing, which
+    # is the "present, drawn and inert" shape this project has paid for six
+    # times. shared/ is allowed: TREK_Medical.publish refuses on a client
+    # itself, and the server is what calls it.
+    for f, src in client.items():
+        for n, line in enumerate(src.splitlines(), 1):
+            if "syncBodyPart" in line.split("--", 1)[0]:
+                fail(f"static: client/{f}:{n} calls syncBodyPart, which does "
+                     f"nothing at all off the server")
+
+    # --- and nothing sets the debug-only health cheat ----------------------
+    # `ISHealthPanel.cheat` is `false or getDebug()` in vanilla and otherwise
+    # admin-only: it would work for this developer under -debug and for nobody
+    # on the Workshop. The per-instance `doctorLevel` is the real lever.
+    for folder, files in (("client", client), ("server", server), ("shared", shared)):
+        for f, src in files.items():
+            for n, line in enumerate(src.splitlines(), 1):
+                code = line.split("--", 1)[0]
+                if re.search(r"ISHealthPanel\s*\.\s*cheat\s*=", code):
+                    fail(f"static: {folder}/{f}:{n} assigns ISHealthPanel.cheat, "
+                         f"which is debug-and-admin-only")
 
     gated = ("setGodMod", "setGodModCheat", "setZombiesDontAttack", "setInvincible",
              "setNoClip", "setInvisible", "setGhostMode")
@@ -2326,16 +2385,44 @@ def medical():
         check(want in labels,
               f"medical: {what} offers no way to use it -- the menu reads {labels!r}")
 
+    # --- the lists are not empty --------------------------------------------
+    # Every check below walks one of these. A check against an empty set is
+    # not a check, and "the hypospray treated everything in Med.TREATMENTS"
+    # passes triumphantly against a table somebody emptied.
+    for name, floor in (("TREATMENTS", 8), ("SKIN", 8), ("CURE", 4)):
+        n = int(rt.eval(f"#TREK.Medical.{name}"))
+        check(n >= floor,
+              f"medical: Med.{name} has {n} entries, fewer than the {floor} "
+              f"every check that walks it assumes")
+
     # --- a dose, and what it must not touch ---------------------------------
     rt.run("""
         for _, what in ipairs({ "bleeding", "deepWound", "infectedWound", "burn",
                                 "fracture", "pain", "stiffness", "health" }) do
             SIM.hurt(SIM.players[1], what, 1)
         end
-        SIM.hurt(SIM.players[1], "bite", 2)
-        SIM.players[1]:getBodyDamage():setInfected(true)
+        -- **The whole virus on that limb**, not just the bite: every field in
+        -- Med.CURE, so the assertion below has something to be about. A test
+        -- that infects a body by hand and then checks only what it set proves
+        -- nothing at all.
+        SIM.hurt(SIM.players[1], "infection", 2)
         SIM.sounds = {}
     """)
+    # Which of the EMH's fields are actually set on that limb, before the
+    # dose. Compared afterwards rather than asserted to be false: a field
+    # that was never set is not evidence that a dose left it alone, and a
+    # check that counts one is a check that passes for the wrong reason.
+    before_cure = str(rt.eval("""(function()
+        local p = SIM.players[1]:getBodyDamage().parts[2]
+        local on = {}
+        for _, t in ipairs(TREK.Medical.CURE) do
+            if t.ask(p) then table.insert(on, t.key) end
+        end
+        return table.concat(on, ", ")
+    end)()"""))
+    check(before_cure != "",
+          "medical: nothing in Med.CURE is set on the bitten limb, so the "
+          "check that a dose leaves them alone has nothing to be about")
     inventory_menu()
     click("medMenu", text("IGUI_TREK_HypoUse", C("HyposprayDoses")), "using a full hypospray")
 
@@ -2356,6 +2443,25 @@ def medical():
     end)()""")
     check(str(healed) == "yes",
           "medical: a hypospray dose left some of the injuries it treats behind")
+
+    # **Through Med.CURE, one named list**, so that the hypospray's promise and
+    # the EMH's reason to exist cannot drift apart: `emh()` asserts the cure
+    # clears every one of these and this asserts a dose clears none of them,
+    # and both walk the same table. Adding an entry to Med.TREATMENTS that
+    # touches any of them fails here.
+    after_cure = str(rt.eval("""(function()
+        local p = SIM.players[1]:getBodyDamage().parts[2]
+        local on = {}
+        for _, t in ipairs(TREK.Medical.CURE) do
+            if t.ask(p) then table.insert(on, t.key) end
+        end
+        return table.concat(on, ", ")
+    end)()"""))
+    check(after_cure == before_cure,
+          f"medical: a hypospray dose changed the EMH's fields on that limb "
+          f"({before_cure!r} -> {after_cure!r}). Every field in Med.CURE is "
+          f"the EMH's, and clearing any of them here is how a pocket item "
+          f"quietly becomes the cure the whole game is built around")
 
     still_bitten = rt.eval("SIM.players[1]:getBodyDamage().parts[2].isBitten")
     still_infected = rt.eval("SIM.players[1]:getBodyDamage():isInfected()")
@@ -3654,6 +3760,520 @@ def replicator():
           f"by item, both range ends and all three sandbox values")
 
 
+def emh_menu(rt, ox, oy):
+    """Right-clicks a cabin square and returns what the EMH offered.
+
+    The way a player actually reaches this feature. Driving the server
+    handlers instead would pass against a build whose menu option was never
+    added at all -- which is precisely how the torpedoes shipped unfireable
+    and the replicator shipped un-right-clickable.
+    """
+    rt.run(f"""
+        local U = TREK.Util
+        local tx, ty = U.at({ox}, {oy})
+        local p = SIM.players[1]
+        SIM.aim.dx = tx - p.x
+        SIM.aim.dy = ty - p.y
+        emhMenu = SIM.contextMenu()
+        TREK.EMHUI.fillMenu(0, emhMenu, {{}}, false)
+    """)
+    return str(rt.eval("emhMenu:labels()"))
+
+
+def doctors(rt):
+    """How many Doctors are standing on his square, and at what angle."""
+    return rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(C.EmhSpot.x, C.EmhSpot.y)
+        local n, yaw = 0, nil
+        for _, w in ipairs(SIM.rawSquare(x, y, C.CabinZ).worldObjects or {}) do
+            local it = w.item
+            local id = it and (it.fullType or it:getFullType())
+            if id == C.EmhItem then
+                n = n + 1
+                yaw = it:getWorldZRotation()
+            end
+        end
+        return n, yaw
+    end)()""")
+
+
+def body(rt, part, field, who=1):
+    return rt.eval(f"SIM.players[{who}]:getBodyDamage().parts[{part}].{field}")
+
+
+def emh():
+    """The Emergency Medical Hologram: the Doctor, the treatment and the cure.
+
+    Three things in here are the ones worth having, and each of them is a
+    failure this mod has already paid for once or would have paid for next:
+
+      * **a dose still does not cure a bite, and the Doctor does.** Both
+        halves go through Med.CURE, one named list, so the hypospray's promise
+        and the EMH's reason to exist cannot drift apart. `medical()` asserts
+        every field in that list survives a dose; this asserts every one of
+        them is cleared by the cure, field by field, plus the body-level flags
+        and the moodle that no packet carries;
+
+      * **the cure is a commitment.** The crystal goes when the treatment
+        starts, twelve game hours later it lands, and walking out of the cabin
+        halfway through costs it. A refund would make the number decorative;
+
+      * **the deck and the ship state are kept in step in both directions.**
+        `s.emh` is the truth and B.serviceEMH makes the world match it, so a
+        rebuild that deletes him puts him back and a dismissal that happened
+        with the chunks unloaded heals itself. Everything about him is played
+        here through the menu and the panel, never by calling a handler.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('emh', 1000.5, 1000.5, 0)")
+    net.start()
+
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "emh, beaming up"):
+        return
+
+    station = (int(C("EmhStation").x), int(C("EmhStation").y))
+    spot = (int(C("EmhSpot").x), int(C("EmhSpot").y))
+
+    # --- nobody is standing there until he is asked for ---------------------
+    # The build stands the replicator and the warp core up unconditionally; the
+    # Doctor is different, because he is a person who is either projected or
+    # not, and a fresh cabin has him off.
+    standing, _ = doctors(rt)
+    check(standing == 0,
+          f"emh: {standing} Doctor(s) are standing in a cabin nobody has asked "
+          f"for one in")
+
+    # --- the way in ---------------------------------------------------------
+    stand_at(rt, net, station[0] - 1, station[1])
+    labels = emh_menu(rt, station[0], station[1])
+    check("IGUI_TREK_EmhConsult" in labels,
+          f"emh: standing at the station, the menu offers {labels!r}")
+
+    # Greyed, not hidden, from across the cabin: a missing option is
+    # indistinguishable from a broken mod.
+    stand_at(rt, net, 0, 0)
+    emh_menu(rt, station[0], station[1])
+    far = rt.eval("""(function()
+        local o = emhMenu:find("IGUI_TREK_EmhConsult")
+        if not o then return "missing" end
+        if not o.notAvailable then return "live" end
+        return tostring(o.toolTip and o.toolTip.description or "silent")
+    end)()""")
+    check("IGUI_TREK_EmhFar" in str(far),
+          f"emh: from the far end of the cabin the option reads {far!r} -- it "
+          f"has to be there, greyed, and say why")
+
+    # **And the server refuses it too, without the menu ever being opened.**
+    # The panel greying itself is a courtesy; this is the rule, and a guard
+    # that lives only in the menu is a guard a crafted command walks past.
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'emhSummon', {{}})")
+    net.pump(4)
+    check(ship(rt, "emh") is None,
+          "emh: the server projected the Doctor for a player standing at the "
+          "far end of the cabin. A client is a request, never a fact")
+    check(any("IGUI_TREK_EmhFar" in n for n in rt.notes()),
+          f"emh: a summon from across the cabin said {rt.notes()}")
+
+    # --- he comes up, exactly once, and square to the ship ------------------
+    stand_at(rt, net, station[0] - 1, station[1])
+    rt.run("SIM.sounds = {}; SIM.lamps = 0")
+    emh_menu(rt, station[0], station[1])
+    rt.run('emhMenu:click("IGUI_TREK_EmhConsult")')
+    net.pump(4)
+
+    standing, yaw = doctors(rt)
+    check(standing == 1,
+          f"emh: {standing} Doctor(s) stand at {spot} after one summon, not 1")
+    # **Asked before anything rebuilds.** A world model picks its own yaw --
+    # IsoWorldInventoryObject writes Rand.Next(0, 360) into an unset one -- and
+    # every later build pass straightens whatever is there, so asking after a
+    # rebuild would be checking the repair rather than the placement. That hole
+    # was in this file twice.
+    check(yaw == 0,
+          f"emh: a freshly projected Doctor stands at {yaw} degrees rather "
+          f"than square to the ship")
+    check(ship(rt, "emh") is True, "emh: the ship state does not say he is up")
+    check(rt.eval("TREK.EMHUI.window ~= nil") is True,
+          "emh: consulting him opened no panel")
+    check(rt.eval('SIM.heardSound("TREK_EmhAppear")') is True,
+          "emh: the Doctor was projected in complete silence")
+
+    # He says something. A dialogue whose first line is empty is a control
+    # panel with a picture on it.
+    line = str(rt.eval("TREK.EMHUI.line.key"))
+    check(line.startswith("IGUI_TREK_Emh"),
+          f"emh: the Doctor's opening line is {line!r}")
+
+    # --- and nothing stands a second one up ---------------------------------
+    # A world item is **saved**, and U.clearSquare keeps world items by design,
+    # so a pass that places without counting first adds one every time it runs
+    # -- and it runs on every build and every game minute. That is the "Two
+    # shuttles" signature indoors, on a fixture that is meant to be a person.
+    emh_menu(rt, station[0], station[1])
+    rt.run('emhMenu:click("IGUI_TREK_EmhConsult")')
+    net.pump(4)
+    standing, _ = doctors(rt)
+    check(standing == 1,
+          f"emh: consulting him twice left {standing} Doctors on the deck")
+
+    # The per-minute tick is the pass that actually repeats. Three of them.
+    for _ in range(3):
+        rt.fire("EveryOneMinute")
+    net.pump(4)
+    standing, _ = doctors(rt)
+    check(standing == 1,
+          f"emh: three service passes left {standing} Doctors standing at "
+          f"{spot}, not 1")
+
+    # --- treatment ----------------------------------------------------------
+    # Everything a hypospray treats, everything a regenerator closes, and the
+    # foreign bodies neither will touch -- and a bite and the infection left
+    # exactly as they were found.
+    rt.run("""
+        local p = SIM.players[1]
+        for _, what in ipairs({ "bleeding", "deepWound", "infectedWound", "burn",
+                                "fracture", "pain", "stiffness", "health" }) do
+            SIM.hurt(p, what, 1)
+        end
+        for _, what in ipairs({ "cut", "scratch", "stitches" }) do
+            SIM.hurt(p, what, 3)
+        end
+        -- **A wound AND the glass on the same limb.** The Doctor runs the
+        -- regenerator's list unskipped and takes the shard out afterwards,
+        -- which is the whole difference between him and the instrument in
+        -- your pocket. With glass alone on that limb there would be nothing
+        -- left unhealed to notice, and applying Med.obstructed to his pass
+        -- would be a change no check could see.
+        SIM.hurt(p, "glass", 4)
+        SIM.hurt(p, "cut", 4)
+        SIM.hurt(p, "bullet", 5)
+        SIM.hurt(p, "infection", 6)
+        SIM.sounds = {}
+    """)
+    before_reserve = float(rt.eval("TREK.Power.reserve()"))
+    rt.run("TREK.EMHUI.window.treatBtn:click()")
+    net.pump(4)
+
+    healed = rt.eval("""(function()
+        local p = SIM.players[1]:getBodyDamage().parts[1]
+        return (p.isBleeding or p.isDeepWounded or p.infectedWound
+                or p.burnTime > 0 or p.fractureTime > 0 or p.additionalPain > 0
+                or p.stiffness > 0 or p.health < 100) and "no" or "yes"
+    end)()""")
+    check(str(healed) == "yes",
+          "emh: a treatment left some of the injuries a hypospray would have "
+          "treated behind")
+    check(body(rt, 3, "cut") is False and body(rt, 3, "isStitched") is False,
+          "emh: a treatment left skin open -- he runs the regenerator's list "
+          "as well, and unskipped")
+    check(body(rt, 4, "glass") is False,
+          "emh: a treatment left glass in a wound. Taking it out is the whole "
+          "reason he is better than the instrument in your pocket")
+    check(body(rt, 4, "cut") is False,
+          "emh: a treatment skipped the wound on a limb that had glass in it. "
+          "The regenerator refuses to close skin over a shard and the Doctor "
+          "does not -- he closes it and then takes the shard out")
+    check(body(rt, 5, "bullet") is False,
+          "emh: a treatment left a bullet in a limb")
+
+    # **And the bite is still there.** This is the load-bearing assertion in
+    # the whole feature: treatment and the cure are different things, the cure
+    # costs a crystal, and a treatment that quietly cured a bite would make the
+    # price -- and the hunt for dilithium behind it -- pointless.
+    check(body(rt, 6, "isBitten") is True,
+          "emh: a TREATMENT cured a bite. Only the cure may, and only for a "
+          "crystal")
+    check(body(rt, 6, "infected") is True,
+          "emh: a treatment cleared the zombie infection in a limb")
+    check(rt.eval("SIM.players[1]:getBodyDamage():isInfected()") is True,
+          "emh: a treatment cleared the body-level zombie infection")
+
+    spent = before_reserve - float(rt.eval("TREK.Power.reserve()"))
+    check(spent == float(C("EmhTreatCost")),
+          f"emh: a treatment spent {spent} units of the reserve, not "
+          f"{C('EmhTreatCost')} -- supplies are infinite and power is not")
+    # Nothing is asserted here about syncBodyPart, and that is deliberate: its
+    # first instruction is `getstatic GameServer.server; ifeq -> return`, so in
+    # single player it really does nothing and there is nobody to tell. The
+    # push is checked in emh_multiplayer(), where it is the only thing that
+    # makes a server-side treatment visible at all.
+
+    # --- the cure, and what it costs ----------------------------------------
+    # A body carrying the fake-infection flags as well as the real thing.
+    # That is a state the engine really produces -- a scratch under the "fake
+    # infection" lore setting sets them -- and the cure has to clear every
+    # field it touches rather than the ones a test happened to set. Without
+    # this, deleting setIsFakeInfected from the cure would change nothing any
+    # check could see.
+    rt.run("""
+        local d = SIM.players[1]:getBodyDamage()
+        d.fakeInfected = true
+        d.reduceFakeInfection = true
+        d.parts[6].fakeInfected = true
+    """)
+    spares = crystals_aboard(rt)
+    check(spares > 0, "emh: the ship has no crystals to be cured with")
+    reserve_before = float(rt.eval("TREK.Power.reserve()"))
+    rt.run("SIM.notes = {}")
+    rt.run("TREK.EMHUI.window.cureBtn:click()")
+    net.pump(4)
+
+    check(crystals_aboard(rt) == spares - int(C("EmhCureCrystals")),
+          f"emh: the cure took {spares - crystals_aboard(rt)} crystal(s), not "
+          f"{C('EmhCureCrystals')}")
+    check(float(rt.eval("TREK.Power.reserve()")) == reserve_before,
+          "emh: the cure came out of the reserve as well as a crystal -- it "
+          "costs a whole crystal and nothing else")
+
+    # --- and it does not land for twelve hours ------------------------------
+    rt.fire("EveryOneMinute")
+    net.pump(2)
+    check(body(rt, 6, "isBitten") is True,
+          "emh: the cure landed at once. It takes C.EmhCureHours aboard, and "
+          "the hours are the whole weight of the price")
+
+    # Most of the way, and still not cured: a floor as well as a ceiling, or
+    # "it took twelve hours" would pass for "it took any time at all".
+    rt.run(f"SIM.advanceHours({float(C('EmhCureHours')) - 1})")
+    rt.fire("EveryOneMinute")
+    net.pump(2)
+    check(body(rt, 6, "isBitten") is True,
+          f"emh: the cure landed after {C('EmhCureHours')} - 1 hours")
+
+    rt.run("SIM.advanceHours(1.5)")
+    rt.fire("EveryOneMinute")
+    net.pump(4)
+
+    # --- every field, one at a time -----------------------------------------
+    # Not "the bite is gone": the one-argument SetBitten clears the bite and
+    # infects the limb on its way past, and vanilla's own admin health cheat
+    # calls it that way twice. A check that only asked about the bite would
+    # pass against a build that left the player infected on a bleeding arm.
+    left = rt.eval("""(function()
+        local p = SIM.players[1]:getBodyDamage().parts[6]
+        local out = {}
+        if p.isBitten then table.insert(out, "bitten") end
+        if p.biteTime > 0 then table.insert(out, "biteTime") end
+        if p.infected then table.insert(out, "part infected") end
+        if p.fakeInfected then table.insert(out, "part fake-infected") end
+        if p.infectedWound then table.insert(out, "infected wound") end
+        if p.woundInfection > 0 then table.insert(out, "wound infection level") end
+        return table.concat(out, ", ")
+    end)()""")
+    check(str(left) == "",
+          f"emh: after the cure the limb still carries: {left}")
+
+    bd = rt.eval("""(function()
+        local d = SIM.players[1]:getBodyDamage()
+        local out = {}
+        if d.infected then table.insert(out, "isInfected") end
+        if d.fakeInfected then table.insert(out, "isFakeInfected") end
+        if d.reduceFakeInfection then table.insert(out, "reduceFakeInfection") end
+        if d.infectionTime >= 0 then table.insert(out, "infectionTime " .. d.infectionTime) end
+        if d.infectionMortalityDuration >= 0 then
+            table.insert(out, "mortality " .. d.infectionMortalityDuration)
+        end
+        return table.concat(out, ", ")
+    end)()""")
+    check(str(bd) == "",
+          f"emh: after the cure the body still carries: {bd}. Both levels have "
+          f"to go in one pass -- isInfected is a one-way latch re-derived from "
+          f"the parts, so clearing either alone is undone")
+
+    # **The latch.** Tick the body: if the parts were left infected, the body
+    # flag comes straight back and the player dies anyway.
+    rt.run("SIM.tickBody(SIM.players[1], 3)")
+    check(rt.eval("SIM.players[1]:getBodyDamage():isInfected()") is False,
+          "emh: three ticks after the cure the infection is back. The parts "
+          "were not cleared, and BodyDamage.Update re-derives the body flag "
+          "from them every tick")
+
+    moodle = rt.eval(
+        "SIM.players[1]:getStats():get(CharacterStat.ZOMBIE_INFECTION)")
+    check(float(moodle) == 0,
+          f"emh: the infection moodle still reads {moodle} after a cure. "
+          f"syncBodyPart carries BodyPart fields only, and the block that "
+          f"writes that stat runs inside a countdown gated on isInfected() -- "
+          f"so curing the player STOPS its only writer and the last value it "
+          f"wrote is what stays on screen")
+
+    # --- and the cure notices when it has NOT worked ------------------------
+    # `Med.cure` asks every field in Med.CURE again afterwards and warns about
+    # anything still set. Nothing the mod can do to itself makes that fire --
+    # RestoreToFullHealth clears the lot -- so the only honest way to test it
+    # is to make the *engine* misbehave, which is precisely the case it exists
+    # for: this mod has shipped six bugs where a plausible engine call did
+    # nothing and looked exactly like one that worked.
+    rt.run("""
+        SIM.hurt(SIM.players[1], "infection", 7)
+        stubbornPart = SIM.players[1]:getBodyDamage().parts[7]
+        stubbornPart.RestoreToFullHealth = function() end
+        SIM.log = {}
+    """)
+    rt.run("TREK.Medical.cure(SIM.players[1])")
+    noticed = [w for w in rt.warnings() if "the cure left" in w]
+    check(noticed != [],
+          "emh: a cure that left the virus in a limb reported success. The "
+          "read-back is the only thing that can tell a setter which worked "
+          "from one which quietly did not, and it has to say so")
+    rt.run("stubbornPart.RestoreToFullHealth = nil; SIM.log = {}")
+    rt.run("TREK.Medical.cure(SIM.players[1])")
+    check([w for w in rt.warnings() if "the cure left" in w] == [],
+          "emh: the cure still complains once the limb really is clear")
+    rt.run("SIM.log = {}")
+
+    # --- with no crystals, it is refused and says why -----------------------
+    rt.run("""
+        SIM.hurt(SIM.players[1], "infection", 6)
+        TREK.Util.state().crystals = 0
+        SIM.notes = {}
+    """)
+    rt.run("TREK.Core.send(SIM.players[1], 'emhCure', {})")
+    net.pump(4)
+    check(body(rt, 6, "isBitten") is True,
+          "emh: an infected player was cured with no crystals aboard")
+    check(any("IGUI_TREK_EmhNoCrystal" in n for n in rt.notes()),
+          f"emh: a cure with no crystals said {rt.notes()} -- the refusal has "
+          f"to name dilithium, because that is what sends a player out looking")
+
+    # --- leaving the ship costs the crystal ---------------------------------
+    rt.run(f"TREK.Util.state().crystals = 2")
+    rt.run("SIM.notes = {}")
+    rt.run("TREK.Core.send(SIM.players[1], 'emhCure', {})")
+    net.pump(4)
+    started = crystals_aboard(rt)
+    check(started == 1, f"emh: starting a cure left {started} crystals, not 1")
+
+    rt.run(f"TREK.Util.teleport({P}, 1000, 1000, 0)")
+    net.pump(4)
+    rt.fire("EveryOneMinute")
+    net.pump(2)
+    check(crystals_aboard(rt) == 1,
+          "emh: walking out of the cabin refunded the crystal. The treatment "
+          "is a commitment rather than a reservation, and the twelve hours "
+          "mean nothing if leaving is free")
+    check(rt.eval("TREK.EMH.cureDue('emh') == nil") is True,
+          "emh: the cure register still holds a patient who has left the ship")
+    check(any("IGUI_TREK_EmhCureLost" in n for n in rt.notes()),
+          "emh: the treatment was abandoned without telling the patient")
+
+    # --- a rebuild deletes him, and the build phase puts him back -----------
+    # B.forceRebuild wipes everything on the square but the floor -- world
+    # items included -- and `s.emh` would still say he was up. The build phase
+    # is what repairs it, which is why it is a phase and not only a timer.
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    stand_at(rt, net, station[0] - 1, station[1])
+    check(ship(rt, "emh") is True,
+          "emh: the ship forgot he was up while nobody was aboard")
+    rt.run("TREK.Build.forceRebuild()")
+    net.pump(4)
+    standing, _ = doctors(rt)
+    check(standing == 1,
+          f"emh: after TREK_Rebuild() {standing} Doctor(s) stand there. The "
+          f"rebuild really does delete him -- the build phase is what puts him "
+          f"back, and without it the ship says he is up and the deck is empty")
+
+    # --- dismissing takes him down ------------------------------------------
+    # Asked before any build pass, for the same reason the yaw is: a rebuild
+    # would settle it either way and cover for a dismissal that did nothing.
+    rt.run("TREK.EMHUI.window = nil")
+    emh_menu(rt, station[0], station[1])
+    rt.run('emhMenu:click("IGUI_TREK_EmhConsult")')
+    net.pump(2)
+    rt.run("TREK.EMHUI.window.dismissBtn:click()")
+    net.pump(4)
+    standing, _ = doctors(rt)
+    check(standing == 0,
+          f"emh: dismissing him left {standing} standing on the deck")
+    check(ship(rt, "emh") is None,
+          "emh: he was taken off the deck and the ship still says he is up")
+    check(rt.eval("TREK.EMHUI.window == nil") is True,
+          "emh: dismissing him left the panel open on an empty square")
+
+    # --- a crooked Doctor in an older save is squared up --------------------
+    rt.run("TREK.Util.state().emh = true")
+    rt.run("TREK.Build.serviceEMH()")
+    rt.run("""
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(C.EmhSpot.x, C.EmhSpot.y)
+        for _, w in ipairs(SIM.rawSquare(x, y, C.CabinZ).worldObjects or {}) do
+            if w.item and w.item.fullType == C.EmhItem then
+                w.item:setWorldZRotation(137)
+            end
+        end
+    """)
+    rt.run("TREK.Build.serviceEMH()")
+    _, yaw = doctors(rt)
+    check(yaw == 0,
+          f"emh: a Doctor left at an angle by an older save is still at {yaw} "
+          f"degrees after a service pass")
+
+    # --- the sandbox ---------------------------------------------------------
+    rt.run("SandboxVars.TrekShuttle.EMH = TREK.Config.EmhOff")
+    stand_at(rt, net, station[0] - 1, station[1])
+    emh_menu(rt, station[0], station[1])
+    off = rt.eval("""(function()
+        local o = emhMenu:find("IGUI_TREK_EmhConsult")
+        if not o then return "missing" end
+        if not o.notAvailable then return "live" end
+        return tostring(o.toolTip and o.toolTip.description or "silent")
+    end)()""")
+    check("IGUI_TREK_EmhOff" in str(off),
+          f"emh: with the sandbox Off the option reads {off!r}")
+
+    # And the server refuses it too, because a client is a request. The panel
+    # greying itself is a courtesy; this is the rule.
+    rt.run("TREK.Util.state().emh = nil")
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'emhSummon', {{}})")
+    net.pump(4)
+    check(ship(rt, "emh") is None,
+          "emh: the server brought the Doctor up with the sandbox set to Off")
+    check(any("IGUI_TREK_EmhOff" in n for n in rt.notes()),
+          f"emh: a summon refused by the sandbox said {rt.notes()}")
+    rt.run("SandboxVars.TrekShuttle.EMH = TREK.Config.EmhFull")
+
+    # --- a flat ship cannot project him at all ------------------------------
+    # Four separate comments in this repository promised this before he
+    # existed: "a crew with no crystals has a galley fixture and a hologram
+    # that will not switch on".
+    rt.run("""
+        TREK.Util.state().power = 0
+        TREK.Util.state().crystals = 0
+        SIM.notes = {}
+    """)
+    emh_menu(rt, station[0], station[1])
+    flat = rt.eval("""(function()
+        local o = emhMenu:find("IGUI_TREK_EmhConsult")
+        if not o then return "missing" end
+        if not o.notAvailable then return "live" end
+        return tostring(o.toolTip and o.toolTip.description or "silent")
+    end)()""")
+    check("IGUI_TREK_EmhNoPower" in str(flat),
+          f"emh: with a flat reserve and no crystals the option reads {flat!r}")
+    rt.run(f"TREK.Core.send({P}, 'emhSummon', {{}})")
+    net.pump(4)
+    check(ship(rt, "emh") is None,
+          "emh: a ship with no power at all still projected the Doctor")
+
+    for w in rt.warnings():
+        fail(f"emh: {w}")
+    print("emh: the station offers him and greys itself with a reason, he "
+          "stands up once and square, a treatment clears everything but the "
+          "bite and the infection, the cure takes a crystal and twelve hours "
+          "and clears both levels and the moodle, leaving the ship costs it, "
+          "a rebuild is repaired, and the sandbox and an empty core both "
+          "refuse him")
+
+
 def replicator_multiplayer():
     """Two clients: who may use it, where the item is made, and who is told.
 
@@ -3991,6 +4611,302 @@ def medical_multiplayer():
           "write one, and asks a player before reading their body")
 
 
+def emh_multiplayer():
+    """The Doctor with two clients: consent, and who a reply is addressed to.
+
+    Every check in here is invisible in single player, which is the whole
+    reason the function exists. The one that matters most is the last:
+    **nobody can force-heal, or force-anything, another player.** That is the
+    padlock-and-safehouse rule from MULTIPLAYER.md applied to bodies, and it
+    is the difference between a mod and a griefing tool -- a yes/no that
+    appeared on the asker's own screen would let one player treat, cure and
+    spend the ship's dilithium on anybody aboard without them ever seeing it.
+    """
+    net = Net("mp", clients=("owner", "crew"))
+    server = net.server
+    owner, crew = net.clients["owner"], net.clients["crew"]
+
+    # Both standing at the station. The server holds every player and each
+    # client holds itself, which is the shape the engine really has -- and the
+    # reason a client's word about who is aboard is not evidence.
+    server.run("SIM.player('owner', 1000.5, 1000.5, 0); "
+               "SIM.player('crew', 1000.5, 1000.5, 0)")
+    owner.run("SIM.player('owner', 1000.5, 1000.5, 0)")
+    crew.run("SIM.player('crew', 1000.5, 1000.5, 0)")
+    net.start()
+    net.pump(4)
+
+    for rt in net.all():
+        rt.run("SandboxVars.TrekShuttle.Access = 1")
+
+    owner.run("TREK.Transport.beamUp(SIM.players[1])")
+    crew.run("TREK.Transport.beamUp(SIM.players[1])")
+    net.pump(220)
+    if died(owner, "emh mp, the owner beaming up"):
+        return
+    if died(crew, "emh mp, the crewman beaming up"):
+        return
+
+    C = lambda n: server.eval(f"TREK.Config.{n}")
+    sx, sy = int(C("EmhStation").x), int(C("EmhStation").y)
+
+    def put(rt, name, ox, oy):
+        rt.run(f"""
+            local U = TREK.Util
+            local x, y = U.at({ox}, {oy})
+            for _, p in ipairs(SIM.players) do
+                if p.name == "{name}" then U.teleport(p, x, y, TREK.Config.CabinZ) end
+            end
+        """)
+
+    for rt in net.all():
+        put(rt, "owner", sx - 1, sy)
+        put(rt, "crew", sx - 1, sy + 1)
+    net.pump(6)
+
+    # --- both machines see the same Doctor ----------------------------------
+    owner.run("TREK.Core.send(SIM.players[1], 'emhSummon', {})")
+    net.pump(6)
+    for name, rt in (("the server", server), ("the owner", owner),
+                     ("the crewman", crew)):
+        standing = doctors(rt)[0]
+        check(standing == 1,
+              f"emh mp: {name} sees {standing} Doctor(s) standing; the "
+              f"hologram is ship state so that everybody sees the same one")
+
+    # --- an offer appears on the PATIENT's screen and nowhere else ----------
+    server.run("""
+        for _, p in ipairs(SIM.players) do
+            if p.name == "crew" then SIM.hurt(p, "bleeding", 1) end
+        end
+    """)
+    for rt in net.all():
+        rt.run("SIM.modals = {}")
+    owner.run("TREK.Core.send(SIM.players[1], 'emhTreat', { who = 'crew' })")
+    net.pump(6)
+
+    check(crew.eval("#SIM.modals") == 1,
+          "emh mp: the patient was never asked. Treating somebody else raises "
+          "a yes/no on THEIR screen; anything else is a mod that reaches into "
+          "other people's bodies")
+    check(owner.eval("#SIM.modals") == 0,
+          "emh mp: the yes/no appeared on the asker's own screen, which would "
+          "let one player agree to a treatment on another player's behalf")
+    check(server.eval("""(function()
+              for _, p in ipairs(SIM.players) do
+                  if p.name == "crew" then
+                      return p:getBodyDamage().parts[1].isBleeding
+                  end
+              end
+          end)()""") is True,
+          "emh mp: the patient was treated before they had agreed")
+
+    # --- declining spends nothing -------------------------------------------
+    before = float(server.eval("TREK.Power.reserve()"))
+    crew.run("SIM.lastModal():answer(false)")
+    net.pump(6)
+    check(float(server.eval("TREK.Power.reserve()")) == before,
+          "emh mp: declining a treatment still spent the ship's power")
+    check(server.eval("""(function()
+              for _, p in ipairs(SIM.players) do
+                  if p.name == "crew" then
+                      return p:getBodyDamage().parts[1].isBleeding
+                  end
+              end
+          end)()""") is True,
+          "emh mp: a declined treatment happened anyway")
+
+    # --- accepting treats them, on the server, and reaches their client -----
+    server.run("SIM.bodySyncs = {}")
+    for rt in net.all():
+        rt.run("SIM.modals = {}")
+    owner.run("TREK.Core.send(SIM.players[1], 'emhTreat', { who = 'crew' })")
+    net.pump(6)
+    crew.run("SIM.lastModal():answer(true)")
+    net.pump(6)
+
+    check(server.eval("""(function()
+              for _, p in ipairs(SIM.players) do
+                  if p.name == "crew" then
+                      return p:getBodyDamage().parts[1].isBleeding
+                  end
+              end
+          end)()""") is False,
+          "emh mp: an accepted treatment did not reach the patient's body")
+    check(float(server.eval("TREK.Power.reserve()")) == before - float(C("EmhTreatCost")),
+          "emh mp: an accepted treatment did not spend the reserve")
+
+    # **The push.** A body is written on the server and nowhere else -- a
+    # client restores a *remote* body to full every tick -- so syncBodyPart is
+    # the only thing that makes the treatment visible to the patient at all.
+    # Recorded per part rather than counted, because "synced the first one
+    # only" and "synced all seventeen" are otherwise the same answer.
+    synced = server.eval("""(function()
+        local seen = {}
+        local n = 0
+        for _, s in ipairs(SIM.bodySyncs) do
+            if not seen[s.part] then seen[s.part] = true n = n + 1 end
+        end
+        return n
+    end)()""")
+    check(int(synced) >= 17,
+          f"emh mp: the treatment pushed {synced} distinct body parts to the "
+          f"patient. All of them have to go, or the limbs that were mended "
+          f"stay broken on the only screen that matters")
+
+    # --- an expired offer is refused ----------------------------------------
+    for rt in net.all():
+        rt.run("SIM.modals = {}")
+    server.run("""
+        for _, p in ipairs(SIM.players) do
+            if p.name == "crew" then SIM.hurt(p, "bleeding", 2) end
+        end
+    """)
+    owner.run("TREK.Core.send(SIM.players[1], 'emhTreat', { who = 'crew' })")
+    net.pump(6)
+    # **The real token, read off the offer the patient was actually shown.**
+    # A hard-coded 1 passes for the wrong reason the moment more than one
+    # offer has ever been minted: the server answers "no such offer" and the
+    # treatment does not happen, which looks exactly like the expiry working.
+    token = crew.eval("SIM.lastModal() and SIM.lastModal().param1")
+    check(token is not None, "emh mp: the patient was never offered anything")
+    # The offer's clock is the simulated one, which net.pump moves 16 ms a
+    # tick; jump it past C.EmhOfferMs rather than pumping for half a minute.
+    net.clock += int(C("EmhOfferMs")) + 1000
+    crew.run("SIM.modals = {}")
+    crew.run(f"TREK.Core.send(SIM.players[1], 'emhAccept', {{ token = {int(token)} }})")
+    net.pump(6)
+    check(server.eval("""(function()
+              for _, p in ipairs(SIM.players) do
+                  if p.name == "crew" then
+                      return p:getBodyDamage().parts[2].isBleeding
+                  end
+              end
+          end)()""") is True,
+          "emh mp: an offer that had lapsed was still honoured. Between the "
+          "question and the answer the asker can walk away and the core can "
+          "be emptied, which is why it expires and is re-validated")
+
+    # --- a client naming somebody else changes nothing ----------------------
+    # A crafted command is the whole reason the patient is resolved on the
+    # server: without it, `who` is a way to reach into anybody's body from
+    # anywhere on the map.
+    server.run("""
+        for _, p in ipairs(SIM.players) do
+            if p.name == "owner" then SIM.hurt(p, "bleeding", 3) end
+        end
+    """)
+    crew.run("TREK.Core.send(SIM.players[1], 'emhTreat', { who = 'nobody-at-all' })")
+    net.pump(6)
+    check(server.eval("""(function()
+              for _, p in ipairs(SIM.players) do
+                  if p.name == "owner" then
+                      return p:getBodyDamage().parts[3].isBleeding
+                  end
+              end
+          end)()""") is True,
+          "emh mp: a command naming a patient who is not aboard treated "
+          "somebody")
+
+    # --- a cure, and the server's own copy of the body ----------------------
+    # **This is what single player cannot show.** There, the patient's client
+    # handler runs in the same process as the server and repairs whatever the
+    # server left wrong -- so a cure that cleared none of the body-level flags
+    # on the authority still looked perfect. With two processes the server's
+    # copy is the one the simulation runs on (`BodyDamage.Update` is the
+    # server's), and it is the one that has to be right.
+    server.run("TREK.Util.state().crystals = 2")
+    server.run("""
+        for _, p in ipairs(SIM.players) do
+            if p.name == "crew" then
+                SIM.hurt(p, "infection", 4)
+                local d = p:getBodyDamage()
+                d.fakeInfected = true
+                d.reduceFakeInfection = true
+            end
+        end
+    """)
+    crew.run("TREK.Core.send(SIM.players[1], 'emhCure', {})")
+    net.pump(6)
+    check(int(server.eval("TREK.Power.crystals()")) == 1,
+          "emh mp: the cure did not take a crystal")
+
+    server.run(f"SIM.advanceHours({float(C('EmhCureHours')) + 1})")
+    server.fire("EveryOneMinute")
+    net.pump(6)
+
+    on_server = server.eval("""(function()
+        local out = {}
+        for _, p in ipairs(SIM.players) do
+            if p.name == "crew" then
+                local d = p:getBodyDamage()
+                if d.infected then table.insert(out, "isInfected") end
+                if d.fakeInfected then table.insert(out, "isFakeInfected") end
+                if d.reduceFakeInfection then table.insert(out, "reduceFakeInfection") end
+                if d.infectionTime >= 0 then
+                    table.insert(out, "infectionTime " .. d.infectionTime)
+                end
+                if d.infectionMortalityDuration >= 0 then
+                    table.insert(out, "mortality " .. d.infectionMortalityDuration)
+                end
+                if d.parts[4].isBitten then table.insert(out, "bitten") end
+            end
+        end
+        return table.concat(out, ", ")
+    end)()""")
+    check(str(on_server) == "",
+          f"emh mp: after the cure the SERVER's copy of the patient still "
+          f"carries: {on_server}. The server is the machine that simulates a "
+          f"body -- a client only ever fixes its own, and in single player "
+          f"that repair hides this entirely")
+
+    # And the patient's own client cleared what the packet cannot carry.
+    moodle = crew.eval(
+        "SIM.players[1]:getStats():get(CharacterStat.ZOMBIE_INFECTION)")
+    check(float(moodle) == 0,
+          f"emh mp: the patient's own client still shows the infection moodle "
+          f"at {moodle}")
+
+    # --- he goes on both screens --------------------------------------------
+    owner.run("TREK.Core.send(SIM.players[1], 'emhDismiss', {})")
+    net.pump(6)
+    for name, rt in (("the server", server), ("the owner", owner),
+                     ("the crewman", crew)):
+        standing = doctors(rt)[0]
+        check(standing == 0,
+              f"emh mp: after a dismissal {name} still sees {standing} Doctor(s)")
+
+    # --- a stranger is refused under owner-and-crew --------------------------
+    for rt in net.all():
+        rt.run("SandboxVars.TrekShuttle.Access = 2")
+    server.run('TREK.Util.state().owner = "owner"; TREK.Util.state().crew = {}')
+    server.run("Ship = TREK.Ship")
+    crew.run("SIM.notes = {}")
+    crew.run("TREK.Core.send(SIM.players[1], 'emhSummon', {})")
+    net.pump(6)
+    check(server.eval("TREK.Util.state().emh") is None,
+          "emh mp: a player who is not on the crew brought the Doctor up")
+    check(any("IGUI_TREK_NotCrew" in n for n in crew.notes()),
+          f"emh mp: a refused stranger was told {crew.notes()}")
+
+    # --- and no client wrote the world or the ship --------------------------
+    for name, rt in (("owner", owner), ("crew", crew)):
+        edits = rt.eval("SIM.clientWorldEdit")
+        check(edits is None,
+              f"emh mp: the {name} client made {edits} world edit(s) of its "
+              f"own; the Doctor is placed and removed by the server")
+
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"emh multiplayer: {w}")
+
+    print("emh multiplayer: both machines see one Doctor, the yes/no appears "
+          "on the patient's screen and nowhere else, declining costs nothing, "
+          "accepting treats them on the server and pushes every body part "
+          "back, a lapsed offer and a forged patient are refused, and a "
+          "stranger is turned away")
+
+
 def main():
     static()
     migration()
@@ -4003,6 +4919,8 @@ def main():
     medical_multiplayer()
     replicator()
     replicator_multiplayer()
+    emh()
+    emh_multiplayer()
     multiplayer()
     if failures:
         print(f"\n{len(failures)} PROBLEM(S):")

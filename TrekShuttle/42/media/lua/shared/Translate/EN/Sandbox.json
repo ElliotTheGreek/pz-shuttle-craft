@@ -13,8 +13,12 @@
     "Sandbox_TrekShuttle.TorpedoFire_option1": "Full",
     "Sandbox_TrekShuttle.TorpedoFire_option2": "Blast only",
     "Sandbox_TrekShuttle.Replicator": "Replicator",
-    "Sandbox_TrekShuttle.Replicator_tooltip": "The galley replicator makes any item in the game. Patterns and energy is the shuttle as designed: it can only make something it has scanned a pattern for (scanning is free and gives the item back, and the ship knows its own Starfleet gear from the start), and every replication spends from a reserve that refills itself over about eight game hours. Unrestricted removes both limits -- anything in the catalogue, immediately, for nothing. Off leaves the machine in the galley as scenery, and says so when a player tries to use it.",
+    "Sandbox_TrekShuttle.Replicator_tooltip": "The galley replicator makes any item in the game. Patterns and energy is the shuttle as designed: it can only make something it has scanned a pattern for (scanning is free and gives the item back, and the ship knows its own Starfleet gear from the start), and every replication spends from a reserve that is one dilithium crystal burning in the warp core -- when it runs dry the ship loads a spare, and when there are no spares the machine stops until somebody finds one. Unrestricted removes both limits -- anything in the catalogue, immediately, for nothing. Off leaves the machine in the galley as scenery, and says so when a player tries to use it.",
     "Sandbox_TrekShuttle.Replicator_option1": "Patterns and energy",
     "Sandbox_TrekShuttle.Replicator_option2": "Unrestricted",
-    "Sandbox_TrekShuttle.Replicator_option3": "Off"
+    "Sandbox_TrekShuttle.Replicator_option3": "Off",
+    "Sandbox_TrekShuttle.EMH": "Emergency Medical Hologram",
+    "Sandbox_TrekShuttle.EMH_tooltip": "The sick bay's holographic doctor: full diagnosis, unlimited treatment for everything a hypospray treats and more, and the only cure for zombie infection in this mod. He draws on the same dilithium reserve the replicator does, and the cure costs a whole crystal and twelve game hours confined to the ship. Full is the Doctor as designed. Off leaves the sick bay's wall station inactive and says so. There is deliberately no setting that keeps him and removes the cure -- a server owner who does not want the cure turns him off.",
+    "Sandbox_TrekShuttle.EMH_option1": "Full",
+    "Sandbox_TrekShuttle.EMH_option2": "Off"
 }

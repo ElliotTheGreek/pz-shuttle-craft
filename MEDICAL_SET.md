@@ -467,12 +467,24 @@ Nothing here has been seen in the game. In the order worth checking:
 
 Item 7 belongs to the two-player session pinned in `ROADMAP.md`.
 
-**Open design question for the author.** The medical tricorder reports
-everything a Doctor 10 sees — wounds, pain, burns, stitches and *wound*
-infection — and does **not** reveal the zombie infection, because the EMH is
-meant to be the thing that knows. A tricorder that announced "you are infected"
-with no cure in reach is a different and much harsher item. Worth deciding
-before the EMH is built.
+**That open design question is answered, and the answer is the one this file
+already guessed.** The medical tricorder reports everything a Doctor 10 sees —
+wounds, pain, burns, stitches and *wound* infection — and still does **not**
+reveal the zombie infection. The EMH does, in as many words, on the panel at
+his station: he is the thing that knows, and he is also the thing that can do
+something about it. A tricorder that announced "you are infected" with no cure
+in reach would be a much harsher item; announcing it in the one room where the
+cure lives is the whole point of walking aft.
+
+**And one correction to what this file says above.** "A character's body
+damage belongs to the client that owns them and syncs from there" is right for
+your *own* body, and it is why the hypospray and the regenerator work
+client-side. It is not a general rule. `BodyDamage.Update()` restores a
+**remote** player's body to full on a client every single tick, so somebody
+else's body does not exist on your machine to be read or written at all —
+which is why every line of the EMH's treatment runs on the server and why its
+panel has to *ask* what is wrong with the crewman on the biobed. See `EMH.md`
+section 6.
 
 ---
 

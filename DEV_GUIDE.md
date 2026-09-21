@@ -201,6 +201,49 @@ When a method's behaviour matters, read what it does, not just its name. The
 game's own bytecode says which fields and capabilities a method touches; that
 is how the role check was found.
 
+### A vanilla call site proves reachability, never correctness
+
+**New in this mod, and it is the sharpest edge of the rule above.** Grepping
+vanilla Lua answers "may I call this". It does not answer "is this the call I
+want", and the two are easy to run together when the grep comes back with
+eight hits.
+
+`BodyPart.SetBitten(false)` is the obvious way to cure a bite. It is public,
+it reads exactly like what it says, and **vanilla's own admin health cheat
+calls it that way in two places** -- `ClientCommands.lua:490` and
+`ISHealthPanel.lua:222`. Every test this repository knows how to write would
+have passed. The disassembly:
+
+```
+SetBitten(Z)      2  putfield  BodyPart.bittenZ      <-- the argument
+                  6  ifeq -> 102                     <-- only the bleed block
+                120  putfield  BodyPart.isInfectedZ = 1
+                163  invokevirtual BodyPart.generateBleeding()
+```
+
+The guard ends at bci 102 and **everything after it runs whatever you passed**.
+So `SetBitten(false)` clears the bite, infects the limb and starts it
+bleeding. A player who paid a dilithium crystal and slept twelve game hours
+would have woken up infected, on an arm that was now bleeding, with the mod
+reporting a successful cure and the log saying nothing at all.
+
+The two-argument form puts the whole block behind its first argument
+(`33 iload_1; ifeq -> 105`) and is safe. So is `RestoreToFullHealth()`, which
+writes thirty-seven fields by direct putfield and calls nothing.
+
+Three things follow:
+
+- **A vanilla call site is evidence about the method's reachability and
+  nothing else.** It says the global resolves and the engine accepts the
+  arguments. It says nothing about whether the author of that call site wanted
+  what you want -- and an *admin cheat* wants the limb bitten-and-infected,
+  because it is about to restore the whole body anyway.
+- **An overload count is a warning.** Two signatures for one name usually
+  means one of them grew a flag, and the flag usually guards something.
+- The same shape is in this file twice already -- `setGodMod` (public, silently
+  refuses) and `getAllItems()` (real, but found under `AdminPanel/`). This is
+  the third face of it: **real, reachable, called by vanilla, and wrong.**
+
 **And design out the permission instead of fighting it.** Hands-on flight
 tried to keep the pilot safe with those setters, then by holding the body in
 mid-air; both failed in game, and flying a body at 90 tiles a second would be
@@ -710,6 +753,79 @@ was written for. This mod has now been bitten by the mirror image of this
 twice: `addFluid` really does sync from the server, and a vehicle's mod data
 really does not reach clients at all.
 
+### Single player cannot test a fix that both ends apply
+
+**New in this mod, and it hid three mutations behind a green suite.** The
+EMH's cure is written in two places on purpose: the server clears the body's
+infection flags, and the patient's own client clears the same flags again on
+`emhCured`, because `syncBodyPart` carries `BodyPart` fields only and the
+`BodyDamage` flags and the moodle do not ride it.
+
+In single player those are **one process**. `Net.toClient` runs the handler
+directly, so the client's clear lands on the same table the server just wrote
+-- and three mutations that deleted the server's half entirely (the infection
+time, the mortality duration, the fake-infection flag) left a suite that could
+not tell, because the client repaired every one of them a millisecond later.
+
+The rule is not "test it in multiplayer" -- it is narrower and more useful:
+
+- **Whenever two processes both write the same field, single player proves
+  only that *somebody* wrote it.** Which one is doing the work is invisible
+  until they are separate machines.
+- So the assertion has to name the process: `emh_multiplayer()` reads the
+  **server's own copy** of the patient after a cure, which is the copy that
+  matters, because the server is the machine that runs `BodyDamage.Update`.
+- And the mirror of it is worth keeping in mind: a check that runs on the
+  client is not evidence about the server either. The moodle check is
+  client-side and correct there; the flags check had to move.
+
+This is the same shape as *A check that runs after a self-healing pass checks
+the healing* -- something else was quietly covering for the code under test --
+one process apart rather than one pass apart.
+
+### A derived flag that latches needs clearing at both ends
+
+**New in this mod.** The zombie infection is kept in two places with nearly
+the same names, and they are not two copies of one fact -- one is *derived*
+from the other, once, and then sticks:
+
+| | |
+|---|---|
+| `BodyPart.IsInfected()` | the virus in one limb |
+| `BodyDamage.isInfected()` | the virus in the person |
+
+`BodyDamage.Update()` walks the parts and sets the body flag when any of them
+is infected (bci 280-300) -- and **skips that walk entirely once the flag is
+true** (bci 271). So it is a one-way latch over a derived value, and there are
+exactly two ways to get it wrong, both of which look like a working cure from
+outside:
+
+- **clear the body flag alone** and the next tick re-derives it from the parts
+  that are still infected. The player is cured for one frame;
+- **clear the parts alone** and the latch never drops, because the code that
+  would have dropped it is the code that is skipped.
+
+Both have to go in one pass, and the test has to **tick the body afterwards**
+-- a check taken on the same frame passes for either mistake.
+
+There is a third end to it, and it is the one that would have reached a
+player. The infection **moodle** is not a flag at all: `CharacterStat
+.ZOMBIE_INFECTION` is written from inside the countdown at bci 2007-2014, and
+the countdown is gated on `isInfected()` at bci 1877. Cure the player and that
+block stops running -- so the last value it ever wrote is the value that stays
+on screen. A perfect cure, with the moodle still saying you are dying.
+
+**And none of it rides the sync.** `syncBodyPart(part, mask)` carries
+`BodyPart` fields only, so the body-level flags and the moodle do not reach
+the patient's client with the limbs. The EMH sends them a message and their
+own client clears its own.
+
+The general shape: **before clearing a flag, ask what derives it, how often,
+and whether anything stops deriving it once it is set.** A value that is
+recomputed is safe to write; a value that is recomputed *until it latches* is
+two writes, and a value drawn from inside a loop that your fix switches off is
+three.
+
 ### Never trust one way of doing it when the cost of being wrong is silence
 
 `U.addVerified` tries `instanceItem`, then `container:AddItem(id)`, then
@@ -1177,6 +1293,48 @@ skinning, no animation files. Vanilla's `Katana` model block is four lines.
   frame could not touch it, because the frame was the fault.) Every other icon
   here is 64×64 and right: nothing else attaches. `test_assets.py` enforces it.
 
+### An imported mesh has no author, and three of its properties are accidents
+
+**New in this mod.** The hull and the Doctor are both imported rather than
+built out of `MeshBuilder` calls -- a GLB from a generator, through
+`tools/import_gltf.py`. That is the right route for anything with a shape
+worth more than a script can describe, and the cost is that nothing about the
+result was *decided*. Three things in particular, all of which looked finished
+in the source and all of which one render settled:
+
+- **It faces the camera that made it.** An image-to-3D model is built looking
+  down its own +Z, which this engine reads as due north -- so the Doctor
+  stood in the sick bay with his back to the entire cabin. There is no way to
+  know that except by looking, and no reason the generator would have done
+  anything else. `import_glb` takes a `yaw` now, and he is turned to face
+  south, which is the facing every sprite set in `C.Sprites` falls back to and
+  the one the isometric camera shows the front of.
+- **Its UVs are an atlas, so a texture row is not a line on the model.** The
+  hologram's scanlines were written the obvious way -- one texel row in four,
+  dimmed -- and rendered as **wood grain**: the islands of an auto-unwrapped
+  atlas lie at whatever angle packed best, so a row of the sheet is a
+  different diagonal on every patch of him, and at 1024 texels over a figure
+  1.25 tiles tall the pitch aliases as well. The fix is to stop working in
+  texture space: `gen_emh.py` rasterises the mesh's own UVs once to give every
+  texel the *world height* of the surface it lands on, and bands on that.
+  Anything that has to be level, plumb or aligned on an imported model needs
+  the same treatment.
+- **It has to be fitted by the dimension that means something.** A hull is
+  fitted into a parking space, so `min(width/x, length/z)` is right for it. A
+  person is fitted under a deckhead, and scaling a standing figure by its
+  footprint makes its size an accident of how wide its shoulders happen to
+  be. Hence `target_height`.
+
+And one thing that is not about imports at all: `preview_model.py`'s parser
+was **dropping the last vertex of every mesh it read**. A `.x` list ends
+`a;b;c;;` and the non-greedy match stopped inside that pair, leaving the final
+entry one semicolon short of the per-entry pattern. On a generated mesh the
+last vertex is usually unreferenced and nothing happened; on an imported one a
+face used it and the previewer threw. It now puts the separator back and
+**fails loudly when the count it parses does not match the count the file
+declares** -- because a previewer that quietly reads a different model from
+the one on disk is worse than no previewer at all.
+
 ### A drink is a fluid, and a modded fluid is a string
 
 A build 42 drink is a `fluid` block plus a vessel item with a
@@ -1393,6 +1551,7 @@ python tools/gen_medical.py TrekShuttle/42        # the medical set's three soun
 python tools/gen_replicator.py TrekShuttle/42     # the machine, its sound, its renders
 python tools/gen_dilithium.py TrekShuttle/42      # the crystal's icon
 python tools/gen_warpcore.py TrekShuttle/42       # the warp core and its renders
+python tools/gen_emh.py     TrekShuttle/42       # the Doctor: mesh, texture, portrait, chime
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
@@ -1486,6 +1645,13 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **The replicator makes nothing and says the tray is full** | It is: the counter at 0,5 holds 40 units like any locker. Empty it. The count is real -- the server measures the tray after every single item and charges only for what landed. |
 | **An item is in the replicator's list and makes nothing** | An obsolete item that slipped the filter; `instanceItem` answers nil for those. The catalogue applies vanilla's own `not getObsolete() and not isHidden()`, so this means a *new* way past it. |
 | **The replicator knows nothing, not even the ship's own gear** | `R.seedDefaults()` runs on the authority when the world's data loads and needs the catalogue; if `getAllItems()` answered nothing there will be a WARN saying so. |
+| **The EMH's option is missing at the wall panel** | It is keyed to `C.EmhMenuSpots`, a named set, because a right-click lands on the floor square under the cursor. `TREK_EMH()` reports whether he is standing there at all. |
+| **The ship says the Doctor is up and the sick bay is empty** | `B.serviceEMH` brings the deck into line with `s.emh` in both directions and runs as a build phase *and* on the per-minute tick, so this is self-healing -- unless the build phase was removed, which is what `TREK_Rebuild()` would then expose. |
+| **Two Doctors** | Something placed without counting first. A world item is saved and `U.clearSquare` keeps world items by design; `B.emhAt` is the count and the service pass removes the lot and projects one. |
+| **A cured player still has the infection moodle** | The moodle is written from inside a countdown gated on `isInfected()`, so curing them stops its only writer and the last value it wrote stays on screen. The patient's own client has to reset `CharacterStat.ZOMBIE_INFECTION`; no packet carries it. |
+| **A cure lands and the infection comes straight back** | Only one of the two levels was cleared. `BodyDamage.isInfected` is a one-way latch re-derived from the parts, so both have to go in one pass -- and a test that does not tick the body afterwards cannot tell. |
+| **A cured limb is infected and bleeding** | One-argument `SetBitten(false)`. It clears the bite and then infects the limb regardless, and vanilla's admin health cheat calls it that way twice. |
+| **The Doctor will not come up at all** | The reserve is empty and there are no spares. He runs on the same dilithium as the replicator, which four comments in this repository promised before he existed. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
 ---
@@ -1497,11 +1663,11 @@ Learn these; they map to causes that are not obvious from the symptom.
 | Check | Catches |
 |---|---|
 | `tools/luacheck.py` | Lua syntax, via a real Lua VM |
-| `tests/test_assets.py` | sprites, items, meshes, textures, icons, the phaser's borrowed vanilla references, every translation key, and every sandbox option's name, tooltip and value names |
+| `tests/test_assets.py` | sprites, items, meshes, textures, icons, sounds (both ways: a clip file that is missing, and a `playSound` the scripts never declared), the phaser's borrowed vanilla references, every translation key, and every sandbox option's name, tooltip and value names |
 | `tests/test_stock.py` | items that cannot be created at all; loot that does not spread across its list; containers that do not reach `C.FillFraction` |
-| `tests/test_multiplayer.py` | the real code as single player and as a server with two clients: cabin build and stock reaching every client, ownership and crew, transporter charges, landing round trips, ghosts, shields pushing only local zombies, the torpedoes, the medical set (including that a dose leaves a bite and the infection alone), the replicator (the catalogue's filter, patterns, the reserve, a counted tray and all three sandbox values), a client editing the world or ship state, commands without handlers, missing file guards, role-gated setters, any logged `WARN` |
-| `tests/test_helm.py` | the mod's panels -- the helm console, the tricorder's contact plot and the replicator -- for throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
-| `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; `special` names with no rule behind them; the replicator's berth and its empty tray; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
+| `tests/test_multiplayer.py` | the real code as single player and as a server with two clients: cabin build and stock reaching every client, ownership and crew, transporter charges, landing round trips, ghosts, shields pushing only local zombies, the torpedoes, the medical set (including that a dose leaves a bite and the infection alone), the replicator (the catalogue's filter, patterns, the reserve, a counted tray and all three sandbox values), the EMH (the menu, one Doctor standing square, a treatment that leaves the bite, a cure that clears both levels and the moodle for a crystal and twelve hours, consent raised on the patient's screen and nowhere else), a client editing the world or ship state, commands without handlers, missing file guards, role-gated setters, every `deny()` reason having words behind it, any logged `WARN` |
+| `tests/test_helm.py` | the mod's panels -- the helm console, the tricorder's contact plot, the replicator and the EMH's dialogue -- for throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
+| `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; `special` names with no rule behind them; the replicator's berth, the core's square and the EMH's; **no fixture's menu squares containing another fixture's own square or the pad**; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
 
 `test_stock.py` stubs the engine **the way it really behaves** — `instanceItem`
 present, `InventoryItemFactory` nil — and its first assertion is simply that an
@@ -1606,7 +1772,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.3.0**, build revision **21**.
+Version **1.3.0**, build revision **22**.
 
 **1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-9):
 server-owned ship and cabin, request protocol, transporter charges, shields per
@@ -1652,8 +1818,45 @@ and their projectile, and the **mek'leth, lirpa and ushaan-tor** alongside the
 bat'leth -- all four at the right size with icons that stay in their own hotbar
 slots. The torpedo's blast size and fire spread both needed no adjusting.
 
+**The 2026-09-20 EMH** is the last item on `ROADMAP.md`'s *ship systems* list
+and the first system in this mod that reaches an **existing save**: the wall
+station at 3,3 and the clear square at 2,4 were authored into the interior by
+the refit, so `C.BuildRev` 22 is the whole migration and no fresh world is
+needed. He is a world model standing on the deck, placed and removed by the
+server the way the replicator and the warp core are; the panel is the helm's
+LCARS a third time; his supplies are infinite and his power is the same
+dilithium the replicator burns; and the cure for zombie infection -- the one
+thing nothing else in the mod touches -- costs a whole crystal and twelve game
+hours aboard, spent the moment it starts. `EMH.md` is the working guide, and
+section 14 is the play-through.
+
+Three things about it are worth carrying past this feature:
+
+- **A vanilla call site proves reachability, never correctness.**
+  `SetBitten(false)` is the obvious cure, vanilla's own admin health cheat
+  calls it that way twice, and its bytecode clears the bite and then infects
+  the limb regardless. A player would have paid a crystal, slept twelve hours
+  and woken up infected on a bleeding arm, with the log silent.
+- **A derived flag that latches needs clearing at both ends**, and the moodle
+  is a third end that no packet carries.
+- **Render it and look**, again. The Doctor came out of the importer facing
+  north -- standing in the sick bay with his back to the whole cabin -- and
+  his scanlines came out as wood grain, because an auto-unwrapped atlas has
+  no horizontal. Both were invisible in the source and obvious in one picture.
+
+Thirty-two mutations were run one pass at a time -- ten of the guards, nine
+of the cure, four of the separation, four of the timer and the model and five
+of the protocol -- and the first pass caught twenty-three. Of the nine that
+survived, **three were real design faults and three were tests passing for
+the wrong reason**; the rest were the harness only running one suite. All of
+that is in `EMH.md` section 15, and the two general lessons are the sections
+*A vanilla call site proves reachability* and *Single player cannot test a fix
+that both ends apply* above.
+
 **Not yet seen in game**, in the order worth checking:
 
+0. **The EMH**, built 2026-09-20 and not played at all. The only one on this
+   list that needs **no fresh world**. `EMH.md` section 14.
 1. **Dilithium and the warp core**, built 2026-09-20 and not played at all.
    The ship's power is a crystal now, held in the mod's own model at 1,3 with
    *Load a crystal* and *Take a crystal* on its menu; twelve vanilla loot
@@ -1748,8 +1951,10 @@ ASCII; a check that runs after a self-healing pass checks the healing; and the
 simulation has to be as unkind as the engine, which has now cost seven holes
 rather than three.
 
-**Next up** is the EMH, which inherits the medical set's treatment primitives
-and now has a working example of a cabin fixture with a panel behind it.
+**Next up** is `ROADMAP.md`'s step 7: publishing. Everything on the roadmap is
+built; what is left is playing it. Four systems have never been in a game at
+all, and the two-player session has been pinned for long enough that it is now
+the largest single piece of unproven work in the project.
 
 Known limits are listed at the bottom of `README.md`.
 
@@ -1776,12 +1981,14 @@ TrekShuttle/42/media/lua/client/TREK/TREK_Flight.lua           taking her up, ch
 TrekShuttle/42/media/lua/client/TREK/TREK_Helm.lua             the LCARS helm console
 TrekShuttle/42/media/lua/client/TREK/TREK_Travel.lua           courses, map picking, landing search
 TrekShuttle/42/media/lua/client/TREK/TREK_Phaser.lua           keeping phasers charged
-TrekShuttle/42/media/lua/shared/TREK/TREK_Medical.lua          treatment, doses, what counts as a lock
+TrekShuttle/42/media/lua/shared/TREK/TREK_Medical.lua          treatment, doses, the cure, what counts as a lock
+TrekShuttle/42/media/lua/shared/TREK/TREK_EMH.lua              the Doctor's rules, shared so the panel and the ship agree
 TrekShuttle/42/media/lua/shared/TREK/TREK_Replicator.lua       the item catalogue, patterns, what a thing costs
 TrekShuttle/42/media/lua/server/Items/TrekDilithium.lua        where crystals spawn in the world
 TrekShuttle/42/media/lua/client/TREK/TREK_ReplicatorUI.lua     the replicator panel and its menus
 TrekShuttle/42/media/lua/client/TREK/TREK_WarpCore.lua         the warp core's menu: load a crystal, take one back
 TrekShuttle/42/media/lua/client/TREK/TREK_MedKit.lua           the medical set: menus, panels, the sweep
+TrekShuttle/42/media/lua/client/TREK/TREK_EMHUI.lua            the Doctor: his menu, his panel, his light, consent
 TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua             right-click menus, crew
 tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network
 ```

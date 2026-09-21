@@ -365,10 +365,103 @@ def make_lua():
         _G.getTimestampMs = function() return 1000000 end
         require "TREK/TREK_MedKit"
         require "TREK/TREK_ReplicatorUI"
+        require "TREK/TREK_EMHUI"
 
         haloNotes = {}
         player = { setHaloNote = function(self, text) table.insert(haloNotes, text) end,
-                   getPlayerNum = function() return 0 end }
+                   getPlayerNum = function() return 0 end,
+                   getUsername = function() return "doctorless" end,
+                   getDisplayName = function() return "doctorless" end,
+                   isDead = function() return false end }
+
+        -- A body, for the EMH panel. Enough BodyPart and BodyDamage for
+        -- TREK_EMH.findings to walk Med.TREATMENTS and Med.SKIN over it and
+        -- come back with something to draw: the panel's findings list is the
+        -- half of it that is easiest to get wrong and impossible to see
+        -- without a render.
+        do
+            local parts = {}
+            for i = 1, 17 do
+                local p = { health = 100, bleed = false, deep = 0, infW = false,
+                            wound = 0, burn = 0, frac = 0, pain = 0, stiff = 0,
+                            cut = false, cutT = 0, scr = false, scrT = 0,
+                            sti = false, stiT = 0, band = false, bandL = 0,
+                            bite = false, biteT = 0, glass = false, bullet = false,
+                            infected = false, fake = false, index = i - 1 }
+                function p:getHealth() return self.health end
+                function p:SetHealth(v) self.health = v end
+                function p:bleeding() return self.bleed end
+                function p:setBleeding(v) self.bleed = v end
+                function p:setBleedingTime() end
+                function p:deepWounded() return self.deep > 0 end
+                function p:setDeepWounded() end
+                function p:getDeepWoundTime() return self.deep end
+                function p:setDeepWoundTime(v) self.deep = v end
+                function p:isInfectedWound() return self.infW end
+                function p:setInfectedWound(v) self.infW = v end
+                function p:getWoundInfectionLevel() return self.wound end
+                function p:setWoundInfectionLevel(v) self.wound = v end
+                function p:getBurnTime() return self.burn end
+                function p:setBurnTime(v) self.burn = v end
+                function p:isNeedBurnWash() return false end
+                function p:setNeedBurnWash() end
+                function p:getFractureTime() return self.frac end
+                function p:setFractureTime(v) self.frac = v end
+                function p:isSplint() return false end
+                function p:setSplint() end
+                function p:getAdditionalPain() return self.pain end
+                function p:setAdditionalPain(v) self.pain = v end
+                function p:getStiffness() return self.stiff end
+                function p:setStiffness(v) self.stiff = v end
+                function p:isCut() return self.cut end
+                function p:setCut(v) self.cut = v end
+                function p:getCutTime() return self.cutT end
+                function p:setCutTime(v) self.cutT = v end
+                function p:scratched() return self.scr end
+                function p:setScratched(v) self.scr = v end
+                function p:getScratchTime() return self.scrT end
+                function p:setScratchTime(v) self.scrT = v end
+                function p:stitched() return self.sti end
+                function p:setStitched(v) self.sti = v end
+                function p:getStitchTime() return self.stiT end
+                function p:setStitchTime(v) self.stiT = v end
+                function p:bandaged() return self.band end
+                function p:getBandageLife() return self.bandL end
+                function p:bitten() return self.bite end
+                function p:SetBitten(v) self.bite = v end
+                function p:getBiteTime() return self.biteT end
+                function p:setBiteTime(v) self.biteT = v end
+                function p:haveGlass() return self.glass end
+                function p:setHaveGlass(v) self.glass = v end
+                function p:haveBullet() return self.bullet end
+                function p:setHaveBullet(v) self.bullet = v end
+                function p:IsInfected() return self.infected end
+                function p:SetInfected(v) self.infected = v end
+                function p:IsFakeInfected() return self.fake end
+                function p:SetFakeInfected(v) self.fake = v end
+                function p:getIndex() return self.index end
+                table.insert(parts, p)
+            end
+            bodyParts = parts
+            local damage = { infected = false }
+            function damage:getBodyParts()
+                return { size = function() return #parts end,
+                         get = function(_, i) return parts[i + 1] end }
+            end
+            function damage:isInfected() return self.infected end
+            function damage:setInfected(v) self.infected = v end
+            function damage:SetBandaged() end
+            player.getBodyDamage = function() return damage end
+            playerDamage = damage
+        end
+
+        -- Who is aboard, from the EMH panel's point of view. One player in
+        -- single player, which is the shape the patient control has to cope
+        -- with -- a stepper over a list of one must not be live.
+        _G.IsoPlayer = { getPlayers = function()
+            return { size = function() return 1 end,
+                     get = function() return player end }
+        end }
 
         -- Standing at the replicator's berth. The panel closes itself when
         -- nobody is at the machine, so a player stub with no position would
@@ -974,6 +1067,153 @@ def main():
     print(f"replicator: the panel drew a {rows}-row catalogue, its search, "
           f"category and quantity controls all bite, and every button is on "
           f"the stick")
+
+    # --- the EMH's dialogue panel -------------------------------------------
+    # Drawn rather than reasoned about, for the reason every panel in this mod
+    # is: prerender and render run sixty times a second, so one nil in them is
+    # a stack trace per frame for as long as the window is open, and a label
+    # that runs off its button can otherwise only be seen in game.
+    #
+    # Twice over, deliberately: once with a healthy patient and a full core,
+    # and once with a wrecked one and an empty core. The second is the state
+    # every control has something to say about, and a panel that only ever
+    # draws the happy case is a panel whose refusals have never been drawn.
+    lua, missing = make_lua()
+    C = lua.globals().TREK.Config
+
+    # Standing at the station rather than at the replicator's berth: the panel
+    # closes itself from inside prerender when nobody is at it, so a player
+    # left across the cabin would shut the window on its first frame and every
+    # check after it would be drawing nothing at all.
+    lua.execute("""
+        local sx, sy = TREK.EMH.station()
+        local bx, by = TREK.Util.at(sx, sy)
+        player.getX = function() return bx + 0.5 end
+        player.getY = function() return by + 0.5 end
+        player.getZ = function() return TREK.Config.CabinZ end
+        local s = TREK.Util.state()
+        s.emh = true
+        -- A core with spares in it. There is no cabin in this harness, so the
+        -- count is whatever the ship state says -- and with it absent every
+        -- Cure check below would pass for the wrong reason, on a ship that
+        -- could not have cured anybody anyway.
+        s.crystals = 3
+    """)
+
+    lua.execute("win = TREKEMHWindow:new(40, 40, player); win:createChildren()")
+    win = lua.globals().win
+    check_bounds(lua, run_frames(lua, "emh, a well patient"), "emh, a well patient")
+
+    if not win.dismissBtn.enable:
+        failures.append("emh: the dismiss button is dead, so there is no way "
+                        "to put the Doctor away from inside the panel")
+    if win.patientBtn.enable:
+        failures.append("emh: the patient stepper is live with one person "
+                        "aboard -- a control that cannot change anything is "
+                        "worse than none")
+    if win.treatBtn.enable:
+        failures.append("emh: Treat is live on a patient with nothing wrong "
+                        "with them")
+    if win.cureBtn.enable:
+        failures.append("emh: Cure is live on a patient who is not infected")
+
+    # --- and now a patient worth treating ------------------------------------
+    lua.execute("""
+        local p = bodyParts[1]
+        p.bleed, p.deep, p.burn, p.frac = true, 12, 20, 21
+        p.pain, p.stiff, p.health = 40, 30, 55
+        bodyParts[2].glass = true
+        bodyParts[3].cut, bodyParts[3].cutT = true, 10
+        bodyParts[4].bite, bodyParts[4].biteT = true, 10
+        bodyParts[4].infected = true
+        playerDamage:setInfected(true)
+    """)
+    draws = run_frames(lua, "emh, a hurt patient")
+    check_bounds(lua, draws, "emh, a hurt patient")
+
+    if not win.treatBtn.enable:
+        failures.append("emh: Treat is greyed on a patient who is bleeding, "
+                        "burnt, broken and full of glass")
+    if not win.cureBtn.enable:
+        failures.append("emh: Cure is greyed on an infected patient with "
+                        "crystals aboard")
+
+    # The findings list is the half of the panel that is easiest to get wrong:
+    # it is built from Med.TREATMENTS' and Med.SKIN's own keys, so a concern
+    # the lists stop carrying stops being drawn, and one that is drawn under
+    # the wrong name is only visible here.
+    texts = [str(d.extra) for d in draws if d.kind == "text"]
+    for key, what in (("IGUI_TREK_TreatBleeding", "bleeding"),
+                      ("IGUI_TREK_TreatFracture", "a fracture"),
+                      ("IGUI_TREK_EmhGlass", "glass in a wound"),
+                      ("IGUI_TREK_EmhInfected", "the zombie infection")):
+        want = IG[key]
+        if not any(want in t or want.upper() in t for t in texts):
+            failures.append(f"emh: the panel never says anything about {what} "
+                            f"on a patient who has it")
+
+    # **The infection is said out loud**, and it is the one thing the medical
+    # tricorder deliberately will not tell you. A panel that drew everything
+    # else and stayed quiet about that would have no reason to exist.
+    if any(IG["IGUI_TREK_EmhClean"].upper() in t for t in texts):
+        failures.append("emh: the panel reports an infected patient as clean")
+
+    # --- a long name, and an empty core --------------------------------------
+    # Two states that only a render shows: a username longer than its button,
+    # and a ship with nothing to cure anybody with.
+    lua.execute("""
+        player.getUsername = function()
+            return "Lieutenant Commander Extremely Long Name Indeed"
+        end
+        TREK.Util.state().crystals = 0
+    """)
+    draws = run_frames(lua, "emh, a long name and no crystals")
+    check_bounds(lua, draws, "emh, a long name and no crystals")
+    if win.cureBtn.enable:
+        failures.append("emh: Cure is live with no crystals aboard -- the "
+                        "player presses it and is refused, which reads as a "
+                        "broken machine")
+    if IG["IGUI_TREK_EmhNoSpares"] not in [str(d.extra) for d in draws
+                                           if d.kind == "text"]:
+        failures.append("emh: with an empty core the panel does not say so, "
+                        "so a player cannot tell a refusal from a fault")
+
+    # --- a controller ---------------------------------------------------------
+    lua.execute('''
+        reachable = {}
+        for _, row in ipairs(win.joypadButtonsY) do
+            for _, b in ipairs(row) do reachable[b] = true end
+        end
+        unreachable = {}
+        for _, c in ipairs(win.children) do
+            if c.onclick and not reachable[c] and c ~= win.ISButtonB then
+                table.insert(unreachable, c.title or "?")
+            end
+        end
+    ''')
+    unreachable = lua.globals().unreachable
+    for i in range(1, len(unreachable) + 1):
+        failures.append(f"emh: button {unreachable[i]!r} cannot be reached "
+                        f"with a controller")
+
+    lua.execute("jd = { player = 0, id = 0 }; win:onGainJoypadFocus(jd)")
+    if not win.patientBtn.joypadFocused:
+        failures.append("emh: a controller does not start on the first row of "
+                        "the panel")
+
+    lua.execute("focusLog = {}; win:onJoypadDown(Joypad.BButton, jd)")
+    if not win.removed:
+        failures.append("emh: B did not close the panel")
+    if len(lua.globals().focusLog) != 1:
+        failures.append("emh: closing with a controller did not release its "
+                        "focus, so the stick is left driving a panel that has "
+                        "gone")
+
+    for key in sorted(set(missing)):
+        failures.append(f"emh: getText({key!r}) has no entry in IG_UI.json")
+    print("emh: the Doctor's panel drew a well patient and a wrecked one, "
+          "named every finding and the infection, greyed Treat and Cure for "
+          "their own reasons, and every control is on the stick")
 
     # --- the textures the console loads exist -----------------------------
     src = open(os.path.join(MOD, "media", "lua", "client", "TREK", "TREK_Helm.lua"),

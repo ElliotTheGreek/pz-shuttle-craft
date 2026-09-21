@@ -378,6 +378,225 @@ function Med.needsTreatment(character, list, skip)
 end
 
 ---------------------------------------------------------------------------
+-- Foreign bodies
+---------------------------------------------------------------------------
+--- Takes the glass and the bullets out of every limb. Returns counts.
+---
+--- The dermal regenerator refuses to close skin over a shard (Med.obstructed)
+--- and the hypospray never looks; the EMH takes them out first, which is the
+--- whole reason he is better than the instrument in your pocket.
+---
+--- **`setHaveBullet` is `(boolean, int)`.** One argument throws out of Java,
+--- and vanilla passes the count too (ISRemoveBullet.lua:69). `setHaveGlass`
+--- really is the one-argument setter it looks like (ISRemoveGlass.lua:73).
+--- Neither is gated on Capability.CanMedicalCheat -- that gates added pain,
+--- instant completion and the consent bypass, and nothing else.
+function Med.removeForeign(character)
+    local counts = { total = 0 }
+    local join = U.batch("med.foreign")
+    for _, part in ipairs(Med.bodyParts(character)) do
+        join(function()
+            if part:haveGlass() then
+                part:setHaveGlass(false)
+                if not part:haveGlass() then
+                    counts.glass = (counts.glass or 0) + 1
+                    counts.total = counts.total + 1
+                end
+            end
+            if part:haveBullet() then
+                part:setHaveBullet(false, 0)
+                if not part:haveBullet() then
+                    counts.bullet = (counts.bullet or 0) + 1
+                    counts.total = counts.total + 1
+                end
+            end
+        end)
+    end
+    return counts
+end
+
+---------------------------------------------------------------------------
+-- The cure
+---------------------------------------------------------------------------
+-- **The one thing in this mod that may clear a bite**, and the reason the
+-- EMH is worth building at all. Everything above this line is decided *not*
+-- to touch it.
+--
+-- The infection has two levels with nearly the same names, and both have to
+-- go in one pass:
+--
+--   BodyPart.IsInfected()     the virus in a limb
+--   BodyDamage.isInfected()   the virus in the person -- a one-way latch,
+--                             re-derived from the parts every tick and
+--                             skipped once true
+--
+-- Clear the body flag alone and the next tick puts it straight back from the
+-- parts; clear the parts alone and the body flag never drops. Med.cure does
+-- the parts and TREK_Server does the body, in the same handler.
+--
+-- **SetBitten(false) -- one argument -- infects the limb.** Its bytecode
+-- writes bittenZ from the argument and then runs on regardless: isInfectedZ
+-- = 1 and generateBleeding(). Vanilla's own admin health cheat calls it that
+-- way in two places, which is exactly the trap DEV_GUIDE.md's *the jar is
+-- not the API* describes one level in -- a vanilla call site proves a method
+-- is reachable, never that it is correct. The two-argument form guards the
+-- whole block on its first argument and is safe.
+
+-- Everything that means "this limb has the zombie virus in it", as one named
+-- list so the hypospray's promise and the EMH's cure cannot drift apart:
+-- `medical()` asserts a dose leaves every one of these alone and `emh()`
+-- asserts the cure clears every one of them, and both walk this table.
+--
+-- **These are questions, not fixes**, and that is the one thing about this
+-- list worth knowing. `RestoreToFullHealth()` clears all of them by direct
+-- putfield in a single call, so a `fix` beside each would be code no test
+-- could ever tell from its own absence -- and one of them would be actively
+-- dangerous: the obvious `p:SetBitten(false)` clears the bite and then
+-- **infects the limb on its way past**, so a belt fastened after the braces
+-- would put back exactly what the braces had taken off.
+--
+-- DEV_GUIDE.md's rule for a branch a mutation cannot break is to delete it or
+-- to write the test, and there is no honest test for a fallback that runs
+-- only if the engine stops matching its own bytecode. So the fallback is gone
+-- and the **read-back** stands in its place: Med.cure asks every one of these
+-- again afterwards and warns about anything still set. That is the check that
+-- would actually catch the engine changing, and it is the same answer
+-- `U.addVerified` reaches by counting a container.
+-- **`infectedWound` is deliberately not in here**, and that is the whole
+-- reason the list is worth having. An infected *wound* is an ordinary dirty
+-- cut, the hypospray cures it, and it is one letter away in the source from
+-- the thing that kills you. A list that held both would have asserted the
+-- hypospray does not cure an infected cut -- which it does, by design, and
+-- which nothing else in the mod would have noticed was now forbidden.
+Med.CURE = {
+    { key = "partFakeInfected",
+      ask = function(p) return p:IsFakeInfected() end },
+
+    { key = "partInfected",
+      ask = function(p) return p:IsInfected() end },
+
+    { key = "biteTime",
+      ask = function(p) return p:getBiteTime() > 0 end },
+
+    { key = "bitten",
+      ask = function(p) return p:bitten() end },
+}
+
+
+--- Cures one character's body, part by part. Returns counts, and `left`:
+--- how many infection fields were still set when it read them all back.
+---
+--- `RestoreToFullHealth()` is the whole fix, and that is a **deliberate
+--- inversion** of DEV_GUIDE.md's rule about convenience methods. That rule
+--- forbids it to the hypospray *because* it clears the bite; the EMH is the
+--- one thing in this mod that may, and the disassembly says the short call is
+--- also the safe one here -- thirty-seven fields by direct putfield and no
+--- call to `SetBitten` anywhere, so it cannot spring the trap that method is.
+---
+--- Then a sweep that asks every field on every part again. `left` is what it
+--- found, and anything above zero is a WARN: a cure that reported success and
+--- left the virus in an arm is the exact shape of the six bugs DEV_GUIDE.md's
+--- *pattern worth carrying forward* describes, and the only thing that can
+--- see it is reading the result back.
+function Med.cure(character)
+    local counts = { total = 0, left = 0, parts = 0 }
+    local parts = Med.bodyParts(character)
+    if #parts == 0 then return counts end
+
+    local heal = U.batch("med.cure.restore")
+
+    for _, part in ipairs(parts) do
+        counts.parts = counts.parts + 1
+        for _, t in ipairs(Med.CURE) do
+            if U.try("med.cure.ask." .. t.key, t.ask, part) then
+                counts[t.key] = (counts[t.key] or 0) + 1
+                counts.total = counts.total + 1
+            end
+        end
+        heal(function() part:RestoreToFullHealth() end)
+    end
+
+    for _, part in ipairs(parts) do
+        for _, t in ipairs(Med.CURE) do
+            if U.try("med.cure.verify." .. t.key, t.ask, part) then
+                counts.left = counts.left + 1
+                U.warnOnce("med.cure." .. t.key .. ".left",
+                           "the cure left " .. t.key .. " set on a body part")
+            end
+        end
+    end
+    return counts
+end
+
+--- True when this character is carrying the zombie infection.
+---
+--- Asked of the **body**, which is the latch, and of the parts, which is what
+--- the latch is derived from. Either one alone would answer wrongly for a
+--- tick: the body flag is a frame behind a fresh bite and the parts are
+--- cleared before the body is.
+function Med.isInfected(character)
+    local damage = Med.damageOf(character)
+    if damage and U.try("med.infected", function()
+        return damage:isInfected()
+    end) == true then
+        return true
+    end
+    for _, part in ipairs(Med.bodyParts(character)) do
+        if U.try("med.partInfected", function() return part:IsInfected() end) == true then
+            return true
+        end
+    end
+    return false
+end
+
+--- True when anything on this character is bitten.
+function Med.isBitten(character)
+    for _, part in ipairs(Med.bodyParts(character)) do
+        if U.try("med.partBitten", function() return part:bitten() end) == true then
+            return true
+        end
+    end
+    return false
+end
+
+---------------------------------------------------------------------------
+-- Pushing a body to the client that owns it
+---------------------------------------------------------------------------
+--- Sends every body part to the patient's own client. Authority only.
+---
+--- `syncBodyPart(part, mask)` is a Lua global with ten vanilla call sites
+--- under shared/TimedActions/ -- none of them admin or debug -- and its first
+--- instruction is `getstatic GameServer.server; ifeq -> return`. **On a
+--- client it is nothing at all**, which is why this is never called from
+--- client/ and tests/test_multiplayer.py's static pass forbids it there.
+---
+--- The mask is 42 bits wide (BodyPartSyncPacket.parse loops i = 0..41) and
+--- 0xFFFFFFFFFFF is "everything", which is what vanilla's own
+--- ClientCommands.lua:596 passes.
+---
+--- **It carries BodyPart fields only.** The BodyDamage flags and the
+--- infection moodle do not ride it, which is why the EMH's cure also sends
+--- the patient a message telling their client to clear its own.
+Med.SYNC_ALL = 0xFFFFFFFFFFF
+
+function Med.publish(character)
+    if isClient() then
+        U.warnOnce("syncOnClient",
+                   "a client tried to sync a body part; the engine ignores it")
+        return 0
+    end
+    local sent = 0
+    local join = U.batch("med.publish")
+    for _, part in ipairs(Med.bodyParts(character)) do
+        if join(function()
+            syncBodyPart(part, Med.SYNC_ALL)
+            return true
+        end) then sent = sent + 1 end
+    end
+    return sent
+end
+
+---------------------------------------------------------------------------
 -- Locks
 ---------------------------------------------------------------------------
 -- What the tricorder will and will not open, and the second half is the

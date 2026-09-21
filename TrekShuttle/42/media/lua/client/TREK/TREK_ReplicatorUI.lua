@@ -644,7 +644,13 @@ end
 --- a fridge by clicking its base, not its top -- so the margin is what makes
 --- the natural gesture work rather than a licence. One square, so the
 --- transporter pad two squares away still offers nothing.
-local BERTH_MARGIN = 1
+---
+--- The number lives in the config rather than here so that
+--- tests/test_layout.py's cross-fixture rule reads the one the menu actually
+--- uses. A copy of it in the test would go stale the first time this moved,
+--- and the rule it enforces is the one that stopped the warp core answering
+--- on the Doctor's square.
+local BERTH_MARGIN = C.ReplicatorMenuMargin
 
 local function isBerth(x, y, z)
     local ox, oy = R.spot()

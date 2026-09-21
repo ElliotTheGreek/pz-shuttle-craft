@@ -223,15 +223,19 @@ scriptItem("Moveables.Moveable_fridge", { name = "Fridge", category = "Furniture
 --- The mod's own items, declared the way media/scripts/trekshuttle.txt does.
 --- Added by name so the test can assert that the ship knows its own stores,
 --- and that the spec-only warhead is not among them.
---- The last three are the ones the replicator must **refuse**, and they are
+--- The last four are the ones the replicator must **refuse**, and they are
 --- listed here for that reason: a blocklist tested against a catalogue that
---- never offered the item in the first place passes whatever it says.
+--- never offered the item in the first place passes whatever it says. That is
+--- not hypothetical -- deleting the dilithium entry from C.ReplicatorBlocked
+--- changed nothing at all until the crystal was added here, and the Doctor is
+--- the same bug waiting to happen: a player who could replicate one would
+--- stand a second EMH in the galley.
 for _, id in ipairs({ "TrekShuttle.TrekPhaser", "TrekShuttle.TrekHypospray",
                       "TrekShuttle.TrekBatleth", "TrekShuttle.TrekRationPack",
                       "TrekShuttle.TrekDermalRegen", "TrekShuttle.TrekTricorder",
                       "TrekShuttle.TrekMedTricorder", "TrekShuttle.TrekTorpedo",
                       "TrekShuttle.TrekShuttleHull", "TrekShuttle.TrekHelmConsole",
-                      "TrekShuttle.TrekDilithium" }) do
+                      "TrekShuttle.TrekDilithium", "TrekShuttle.TrekEMH" }) do
     scriptItem(id, { name = bareType(id), category = "Starfleet", weight = 0.6 })
 end
 
@@ -586,7 +590,29 @@ end
 function SquareMT:getX() return self.x end
 function SquareMT:getY() return self.y end
 function SquareMT:getZ() return self.z end
-function SquareMT:getObjects() return jlist(self.objects) end
+
+--- Everything on the square, **world items included**.
+---
+--- The engine keeps one object list per square and a dropped item is an
+--- IsoWorldInventoryObject in it; getWorldObjects() is a filtered view of the
+--- same list, not a second one. The stub used to keep them apart, which made
+--- two guards untestable and one of them is load-bearing:
+---
+---   * U.clearSquare and TREK_Build's clearSquare both skip world items on
+---     purpose -- that is where a player's dropped things live, and where the
+---     replicator, the warp core and the Doctor stand. With world items
+---     invisible to getObjects() those skips could not fail;
+---   * B.forceRebuild walks this list and removes everything but the floor,
+---     which really does delete all three machines. TREK_Rebuild() leaving the
+---     Doctor standing while s.emh says he is up is a bug the build phase
+---     exists to repair, and it could not be reproduced here at all.
+function SquareMT:getObjects()
+    local all = {}
+    for _, o in ipairs(self.objects) do table.insert(all, o) end
+    for _, w in ipairs(self.worldObjects) do table.insert(all, w) end
+    return jlist(all)
+end
+
 function SquareMT:getWorldObjects() return jlist(self.worldObjects) end
 function SquareMT:getFloor()
     for _, o in ipairs(self.objects) do if o.isFloor then return o end end
@@ -733,6 +759,9 @@ end
 
 function SquareMT:RemoveTileObjectErosionNoRecalc(o)
     if isClient() then SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1 end
+    for i, v in ipairs(self.worldObjects) do
+        if v == o then table.remove(self.worldObjects, i) return 0 end
+    end
     for i, v in ipairs(self.objects) do
         if v == o then
             table.remove(self.objects, i)
@@ -1236,6 +1265,41 @@ function PlayerMT:getRole()
     local admin = self.admin
     return { hasAdminPower = function() return admin end }
 end
+---------------------------------------------------------------------------
+-- Stats, and the infection moodle
+---------------------------------------------------------------------------
+-- CharacterStat is a Java enum whose members are registered at startup, and
+-- the only thing in this mod that touches it is the EMH clearing the
+-- infection moodle -- which it has to, because the block that writes that
+-- stat lives *inside* the countdown and the countdown is gated on
+-- isInfected(). Cure the player and the writer stops running, so the last
+-- value it wrote is the value that stays on screen.
+--
+-- Modelled as a real store rather than a no-op: a setter that quietly did
+-- nothing would make "the moodle is cleared" pass against a build that never
+-- cleared it, which is this project's favourite failure.
+CharacterStat = {
+    ZOMBIE_INFECTION = "ZOMBIE_INFECTION",
+    HUNGER = "HUNGER",
+    THIRST = "THIRST",
+    FITNESS = "FITNESS",
+}
+
+function PlayerMT:getStats()
+    if self.stats then return self.stats end
+    local values = {}
+    local s = { values = values }
+    function s:get(stat) return values[stat] or 0 end
+    function s:set(stat, v)
+        if stat == nil then error("getStats():set(nil, ...)", 2) end
+        values[stat] = v
+        return true
+    end
+    function s:add(stat, v) values[stat] = (values[stat] or 0) + v return true end
+    self.stats = s
+    return s
+end
+
 function PlayerMT:getInventory() return self.inventory end
 function PlayerMT:getPrimaryHandItem() return nil end
 function PlayerMT:getSecondaryHandItem() return nil end
@@ -1274,6 +1338,11 @@ local function newBodyPart(name, index)
         fractureTime = 0, splint = false,
         additionalPain = 0, stiffness = 0,
         isBitten = false, biteTime = 0,
+        -- The per-part zombie infection, which is **not** infectedWound. One
+        -- is an infected cut and the hypospray cures it; this one is the
+        -- virus, and only the EMH may touch it. The names give no help at
+        -- all, which is why both are modelled.
+        infected = false, fakeInfected = false,
         cut = false, cutTime = 0,
         isScratched = false, scratchTime = 0,
         isStitched = false, stitchTime = 0,
@@ -1308,7 +1377,70 @@ function BodyPartMT:setAdditionalPain(v) self.additionalPain = v end
 function BodyPartMT:getStiffness() return self.stiffness end
 function BodyPartMT:setStiffness(v) self.stiffness = v end
 function BodyPartMT:bitten() return self.isBitten end
-function BodyPartMT:SetBitten(v) self.isBitten = v end
+
+--- SetBitten, with the engine's trap in it.
+---
+--- **The one-argument form infects the limb whatever you pass it**, and this
+--- is modelled because it is the worst bug available in the EMH: the obvious
+--- way to cure a bite is `part:SetBitten(false)`, vanilla's own admin health
+--- cheat calls it that way twice (ClientCommands.lua:490,
+--- ISHealthPanel.lua:222), and a player who paid a dilithium crystal and slept
+--- twelve hours would wake up infected on a limb that was now bleeding, with
+--- the mod reporting a successful cure.
+---
+--- The bytecode is unambiguous (tools/javadis.py BodyPart SetBitten):
+---
+---   SetBitten(Z)     2  putfield bittenZ          <- the argument
+---                    6  ifeq -> 102               <- only the bleed block
+---                  120  putfield isInfectedZ = 1  <- runs regardless
+---                  163  invokevirtual generateBleeding()
+---
+---   SetBitten(ZZ)    2  putfield bittenZ
+---                   33  iload_1; ifeq -> 105      <- ALL of it is guarded
+---
+--- So the two-argument form is the safe one, and a stub that treated them the
+--- same would let mutation 11 straight through.
+function BodyPartMT:SetBitten(v, second)
+    self.isBitten = v
+    if second ~= nil and not v then return end
+    if v or second == nil then
+        self.isBleeding = true
+        self.isBandaged = false
+        if v then self.infectedWound = true end
+        self.infected = true
+        self.fakeInfected = false
+    end
+end
+
+--- Everything the engine's own RestoreToFullHealth writes, and nothing else.
+---
+--- Thirty-seven fields by direct putfield, no call to SetBitten anywhere, so
+--- it side-steps the trap above -- which is why it is the EMH's cure and is
+--- forbidden everywhere else in this mod. It clears the bite, and that is the
+--- whole reason the hypospray may never use it.
+function BodyPartMT:RestoreToFullHealth()
+    self.health = 100
+    self.additionalPain = 0
+    self.isBleeding, self.bleedingTime = false, 0
+    self.isBandaged, self.bandageLife = false, 0
+    self.isBitten, self.biteTime = false, 0
+    self.burnTime, self.needBurnWash = 0, false
+    self.isDeepWounded, self.deepWoundTime = false, 0
+    self.fractureTime = 0
+    self.bullet, self.glass = false, false
+    self.infectedWound, self.woundInfection = false, 0
+    self.infected, self.fakeInfected = false, false
+    self.isScratched, self.scratchTime = false, 0
+    self.splint = false
+    self.isStitched, self.stitchTime = false, 0
+    self.cut, self.cutTime = false, 0
+    self.stiffness = 0
+end
+
+function BodyPartMT:IsInfected() return self.infected end
+function BodyPartMT:SetInfected(v) self.infected = v end
+function BodyPartMT:IsFakeInfected() return self.fakeInfected end
+function BodyPartMT:SetFakeInfected(v) self.fakeInfected = v end
 function BodyPartMT:getBiteTime() return self.biteTime end
 function BodyPartMT:setBiteTime(v) self.biteTime = v end
 function BodyPartMT:getIndex() return self.index end
@@ -1343,17 +1475,49 @@ function BodyPartMT:getBandageLife() return self.bandageLife end
 function BodyPartMT:haveGlass() return self.glass end
 function BodyPartMT:setHaveGlass(v) self.glass = v end
 function BodyPartMT:haveBullet() return self.bullet end
-function BodyPartMT:setHaveBullet(v) self.bullet = v end
+--- setHaveBullet is **(boolean, int)**, and one argument throws.
+---
+--- Its signature really is setHaveBullet(ZI)V -- vanilla passes the count as
+--- well (ISRemoveBullet.lua:69) -- so a stub that accepted one argument would
+--- make the EMH's foreign-body pass look fine here and throw out of Java the
+--- first time anybody was shot.
+function BodyPartMT:setHaveBullet(v, n)
+    if n == nil then
+        error("setHaveBullet(boolean) does not exist; it is (boolean, int)", 2)
+    end
+    self.bullet = v
+    self.bulletCount = n
+end
 
 local function newBodyDamage()
     local parts = {}
     for i, name in ipairs(BODY_PARTS) do
         table.insert(parts, newBodyPart(name, i - 1))
     end
-    local bd = { parts = parts, infected = false }
+    local bd = { parts = parts, infected = false, fakeInfected = false,
+                 reduceFakeInfection = false,
+                 -- Negative is the engine's "the countdown has not started".
+                 -- Update() bci 371-377 only initialises it when it is below
+                 -- zero, so clearing a cure to 0 leaves a clock running and
+                 -- the player dies anyway. Written as -1 by anything that
+                 -- means "not infected"; the default matches a fresh body.
+                 infectionTime = -1.0,
+                 infectionMortalityDuration = -1.0 }
     function bd:getBodyParts() return jlist(self.parts) end
     function bd:isInfected() return self.infected end
     function bd:setInfected(v) self.infected = v end
+    function bd:isIsFakeInfected() return self.fakeInfected end
+    function bd:setIsFakeInfected(v) self.fakeInfected = v end
+    function bd:isReduceFakeInfection() return self.reduceFakeInfection end
+    function bd:setReduceFakeInfection(v) self.reduceFakeInfection = v end
+    function bd:getInfectionTime() return self.infectionTime end
+    function bd:setInfectionTime(v) self.infectionTime = v end
+    function bd:getInfectionMortalityDuration()
+        return self.infectionMortalityDuration
+    end
+    function bd:setInfectionMortalityDuration(v)
+        self.infectionMortalityDuration = v
+    end
     --- Bandaging goes through BodyDamage by index, not through the part.
     --- Both methods exist in the engine and only this one has a vanilla Lua
     --- call site, so this is the one modelled.
@@ -1373,11 +1537,74 @@ function PlayerMT:getBodyDamage()
     return self.bodyDamage
 end
 
+--- One tick of BodyDamage.Update's infection bookkeeping.
+---
+--- **The body-level flag is a one-way latch re-derived from the parts.**
+--- Update() walks the parts and sets isInfected when any of them is infected
+--- (bci 280-300), and it is *skipped once true* (bci 271) -- so clearing the
+--- body flag alone is undone on the next tick, and clearing the parts alone
+--- never clears the body flag. Both have to go in one pass, and this is what
+--- makes a test able to tell the difference: run it after a cure and a cure
+--- that did only half the job comes back infected.
+---
+--- The countdown is the same shape: once running it kills, and a value below
+--- zero is the only "not started".
+function SIM.tickBody(player, minutes)
+    local bd = player:getBodyDamage()
+    for _ = 1, (minutes or 1) do
+        if not bd.infected then
+            for _, p in ipairs(bd.parts) do
+                if p.infected then bd.infected = true end
+            end
+        end
+        if bd.infected and bd.infectionTime < 0 then
+            bd.infectionTime = 0.0
+            if bd.infectionMortalityDuration < 0 then
+                bd.infectionMortalityDuration = 48.0
+            end
+        end
+        if bd.infected and bd.infectionTime >= 0 then
+            bd.infectionTime = bd.infectionTime + 1
+            -- The moodle is written from inside the countdown, and the
+            -- countdown is gated on isInfected(). Clear the infection and
+            -- this stops running, so whatever it last wrote is what stays on
+            -- screen -- a perfect cure with the player still told they are
+            -- dying. That is why the EMH resets the stat itself.
+            local stats = player:getStats()
+            stats:set(CharacterStat.ZOMBIE_INFECTION,
+                      math.min(1.0, bd.infectionTime
+                                    / math.max(1, bd.infectionMortalityDuration)))
+        end
+    end
+    return bd
+end
+
 --- Inflicts something on one body part, so a test has a body worth treating.
 --- `which` is an index into the part list; the defaults hurt a hand.
+---
+--- **"infection" sets every field the virus really touches**, both on the
+--- part and on the body, rather than the one the next line happens to read
+--- back. A test that infects a body by hand and then checks only what it set
+--- proves nothing about a cure: it is the field nobody remembered that
+--- survives, and the whole cure is "both levels, in one pass".
 function SIM.hurt(player, what, which)
-    local parts = player:getBodyDamage().parts
+    local bd = player:getBodyDamage()
+    local parts = bd.parts
     local p = parts[which or 1]
+    if what == "infection" then
+        p.isBitten, p.biteTime = true, 10
+        p.isBleeding = true
+        p.infected = true
+        p.fakeInfected = false
+        p.infectedWound, p.woundInfection = true, 1
+        bd.infected = true
+        bd.fakeInfected = false
+        bd.reduceFakeInfection = false
+        bd.infectionTime = 2.0
+        bd.infectionMortalityDuration = 48.0
+        player:getStats():set(CharacterStat.ZOMBIE_INFECTION, 0.25)
+        return p
+    end
     if what == "bleeding" then p.isBleeding, p.bleedingTime = true, 10
     elseif what == "deepWound" then p.isDeepWounded, p.deepWoundTime = true, 10
     elseif what == "infectedWound" then p.infectedWound, p.woundInfection = true, 5
@@ -1396,6 +1623,48 @@ function SIM.hurt(player, what, which)
     else error("SIM.hurt: no such injury " .. tostring(what)) end
     return p
 end
+
+---------------------------------------------------------------------------
+-- Pushing a body part to the client that owns it
+---------------------------------------------------------------------------
+-- syncBodyPart(part, mask) is a Lua global with ten vanilla call sites under
+-- shared/TimedActions/ -- none of them admin or debug -- and its first
+-- instruction is `getstatic GameServer.server; ifeq -> return`. So on a
+-- client it is **nothing at all**: it looks like a sync, it is a no-op, and
+-- a body written on a client stays written only there.
+--
+-- The part is recorded rather than counted, because "synced the first one
+-- only" and "synced all seventeen" are the same number of calls away from
+-- each other and only the list can tell them apart.
+SIM.bodySyncs = {}
+
+function syncBodyPart(part, mask)
+    if part == nil then
+        error("syncBodyPart: nil body part", 2)
+    end
+    if not isServer() then return end        -- exactly what the engine does
+    table.insert(SIM.bodySyncs, { part = part, mask = mask })
+end
+
+---------------------------------------------------------------------------
+-- The world clock
+---------------------------------------------------------------------------
+-- getGameTime():getWorldAgeHours() is how long the world has been running, in
+-- game hours, and it is what the EMH's twelve-hour cure is measured against.
+-- Advanceable, because a test that could not move the clock could only prove
+-- that the cure had not landed yet.
+SIM.worldAgeHours = 0.0
+
+function SIM.advanceHours(n)
+    SIM.worldAgeHours = SIM.worldAgeHours + (n or 1)
+    return SIM.worldAgeHours
+end
+
+local gameTime = {
+    getWorldAgeHours = function() return SIM.worldAgeHours end,
+    getWorldAgeDaysSinceBegin = function() return SIM.worldAgeHours / 24 end,
+}
+function getGameTime() return gameTime end
 
 ---------------------------------------------------------------------------
 -- Sounds a character makes
@@ -1624,6 +1893,49 @@ end
 -- The torpedo reticle is a bare overlay rather than a panel: it draws and
 -- never captures, so the game underneath stays steerable while armed.
 ISUIElement = derivable("ISUIElement")
+
+---------------------------------------------------------------------------
+-- The yes/no box
+---------------------------------------------------------------------------
+-- Vanilla's own consent prompt, and the EMH's: treating somebody else asks
+-- them first, and the offer has to appear on the **patient's** screen and
+-- nowhere else. A test can only see that if the dialog is recorded per
+-- runtime, so every one raised here goes in a list with the text it carried.
+--
+-- The signature is vanilla's, in vanilla's order
+-- (ISModalDialog.lua:187), and answering calls back exactly the way
+-- ISModalDialog:onClick does: onclick(target, button, param1, param2) with
+-- the button carrying `internal` = "YES" or "NO".
+SIM.modals = {}
+
+ISModalDialog = derivable("ISModalDialog")
+
+function ISModalDialog.new(self, x, y, w, h, text, yesno, target, onclick,
+                           player, param1, param2)
+    local o = setmetatable({ x = x, y = y, width = w, height = h,
+                             children = {}, text = text, yesno = yesno,
+                             target = target, onclick = onclick,
+                             player = player, param1 = param1,
+                             param2 = param2 }, self)
+    table.insert(SIM.modals, o)
+    return o
+end
+
+--- Presses Yes or No, as the player does.
+function ISModalDialog:answer(yes)
+    self.answered = yes and "YES" or "NO"
+    self.onScreen = false
+    if self.onclick then
+        self.onclick(self.target, { internal = self.answered,
+                                    player = self.player },
+                     self.param1, self.param2)
+    end
+end
+
+function ISModalDialog:destroy() self.onScreen = false end
+
+--- The last one raised here, for a test to answer.
+function SIM.lastModal() return SIM.modals[#SIM.modals] end
 
 ---------------------------------------------------------------------------
 -- Mouse and the screen -> world conversion

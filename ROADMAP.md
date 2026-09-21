@@ -598,14 +598,14 @@ the same outcome. `REPLICATOR.md`'s last section is what is still open.
 
 ## Then: ship systems
 
-- **EMH** — a wall switch that brings up a static model of the Doctor, a dialogue
-  panel, full diagnosis and treatment, infinite supplies, and **the only cure for
-  zombie infection** (decided). Treatment runs on the server. **Medium–Hard.**
-  Inherits the medical set's treatment primitives (`Med.treatWith` and its two
-  lists), and the replicator is now the worked example of the other half: a
-  cabin fixture with a panel behind it, found by its layout tag, opened from a
-  right-click on its own square and validated server-side. The EMH's wall
-  panel at 3,3 and its clear square at 2,4 are already in the interior.
+- ~~**EMH**~~ — **built, 2026-09-20.** The wall station at 3,3 projects a
+  figure onto 2,4, a dialogue panel diagnoses and treats, supplies are
+  infinite and power is not, and the cure for zombie infection costs one
+  dilithium crystal and twelve game hours aboard. Treatment runs on the
+  server -- which is not a preference but the only option, because
+  `BodyDamage.Update()` restores a *remote* player's body to full on a client
+  every tick, so the server is the only machine that knows anybody is hurt.
+  `EMH.md` is the working guide. **Not yet seen in game.**
 
 ---
 
@@ -645,7 +645,13 @@ the whole list at once rather than to each version.
    core amidships with its load and take options, a crystal loading itself
    when the reserve runs dry, the refusal when there are none, finding one in
    a town with the tricorder, and a ground survey flown over one.
-6. **The EMH.**
+6. **The EMH** -- built 2026-09-20 and not played at all. It needs **no fresh
+   world**: the station and the square were authored into the interior by the
+   refit, so `C.BuildRev` 22 is the whole migration and a cabin built at
+   revision 17 or later gets him on the next arrival. That makes him the
+   first system in this mod to reach an existing save. `EMH.md` section 14 is
+   the play-through, and the one to look hardest at is number 6: no bite, no
+   infection, **and no infection moodle**.
 7. **Publish.**
 
 Running alongside all of it: **the two-player session** (pinned below). It is

@@ -76,6 +76,35 @@ for icon in sorted(mod_icons):
                         f"expected media/textures/Item_{icon}.png")
 
 
+# --- the mod's own sounds ----------------------------------------------
+# `playSoundLocal("TREK_HypoHiss")` on a name no script declares, or a script
+# naming a .wav that is not on disk, both do exactly nothing and say exactly
+# nothing. An instrument that works in silence is the shape of half the bugs
+# in DEV_GUIDE.md, and the mod already relies on a sound to prove a scan
+# happened at all.
+declared_sounds = set()
+for block in re.finditer(r"sound\s+(\w+)\s*\{(.*?)\n    \}", script, re.S):
+    name, body = block.group(1), block.group(2)
+    declared_sounds.add(name)
+    for clip in re.findall(r"file\s*=\s*([\w/]+\.wav)\s*,", body):
+        if not os.path.exists(os.path.join(MOD, clip)):
+            failures.append(f"sound {name} names {clip}, which is not on disk")
+if len(declared_sounds) < 4:
+    failures.append(f"only {len(declared_sounds)} sound blocks were found in "
+                    f"trekshuttle.txt; the pattern has stopped matching")
+
+played = set()
+for dp, _, fns in os.walk(os.path.join(MOD, "media", "lua")):
+    for fn in fns:
+        if fn.endswith(".lua"):
+            body = open(os.path.join(dp, fn), encoding="utf-8").read()
+            played |= set(re.findall(r'playSound(?:Local)?\(\s*"(\w+)"', body))
+for name in sorted(played):
+    # Vanilla's own sounds are fair game; only the mod's need declaring here.
+    if name.startswith("TREK_") and name not in declared_sounds:
+        failures.append(f"the Lua plays {name}, which no sound block declares")
+
+
 # --- an attachable item's icon has to be 32x32 -------------------------
 # An item with an `AttachmentType` is the only kind vanilla's hotbar ever
 # draws, and the hotbar assumes a 32x32 icon. `ISHotbar.lua:52`:

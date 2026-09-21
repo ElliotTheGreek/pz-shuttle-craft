@@ -30,6 +30,7 @@ require "TREK/TREK_World"
 require "TREK/TREK_Vehicle"
 require "TREK/TREK_Medical"
 require "TREK/TREK_Replicator"
+require "TREK/TREK_EMH"
 require "TREK/TREK_Build"
 
 TREK = TREK or {}
@@ -1548,6 +1549,415 @@ Net.onServer("scanCarried", function(player)
           Ship.usernameOf(player), seen, learned, Rep.patternCount())
 end)
 
+---------------------------------------------------------------------------
+-- The Emergency Medical Hologram
+---------------------------------------------------------------------------
+-- **Every body in this feature is written here and nowhere else**, and that
+-- is forced by the engine rather than chosen for tidiness.
+-- `BodyDamage.Update()` decides who simulates a body at bci 21-62: not a
+-- client, run the whole simulation; a client with its own body, return; a
+-- client with somebody *else's* body, `RestoreToFullHealth()` it. So in
+-- multiplayer a remote player's body on a client is wiped clean every single
+-- tick. The server is not a better place to treat somebody from; it is the
+-- only machine that knows they are hurt.
+--
+-- Three consequences the rest of this section is shaped by:
+--
+--   * the panel cannot read another patient by itself, so `emhLook` exists
+--     and answers with what the server can see;
+--   * the parts are pushed back with `syncBodyPart`, which is a no-op off
+--     the server -- Med.publish;
+--   * the BodyDamage flags and the infection moodle do **not** ride that
+--     packet (it carries BodyPart fields only), so a cured patient's own
+--     client is told to clear its own.
+--
+-- And nobody is ever treated without being asked. Treating yourself needs no
+-- consent; treating anybody else mints a token, raises a yes/no on *their*
+-- screen, and re-validates everything from scratch when the answer comes
+-- back -- because between the offer and the answer the asker can walk away,
+-- the core can be emptied and the patient can leave the ship. That is the
+-- padlock-and-safehouse rule from MULTIPLAYER.md applied to bodies: nobody
+-- can force-heal, or force-anything, another player.
+
+local EMH = TREK.EMH
+local Med = TREK.Medical
+
+-- token -> { from, who, what, cost, at }. Server-local, transient, never
+-- published and never saved: an offer that outlived a restart would be a
+-- promise the ship had forgotten making.
+local offers = {}
+local offerSerial = 0
+
+--- The common gate. Alive, allowed, the sandbox is on, standing at the
+--- station -- all measured here, on the server's own copy of the world.
+local function atEMH(player)
+    if not alive(player) then return false end
+    local why = EMH.refusal(player)
+    if why then
+        deny(player, why)
+        return false
+    end
+    return true
+end
+
+--- The patient a command names, resolved **from the server's own view**.
+---
+--- A client may say who it wants treated and the server looks that name up
+--- among the people it can see standing in the cabin. A client is a request,
+--- never a fact, including about who the patient is: without this, a crafted
+--- command is a way to reach into anybody's body from anywhere on the map.
+local function patientFor(player, args)
+    local name = args and args.who
+    if name == nil or name == "" then return player, Ship.usernameOf(player) end
+    local patient = EMH.patientNamed(name)
+    if not patient then
+        deny(player, "emhNoPatient")
+        return nil, nil
+    end
+    return patient, Ship.usernameOf(patient)
+end
+
+--- Spends the treatment's power. Returns true when the ship could pay.
+local function spendTreatment(player)
+    local cost = EMH.treatCost()
+    if not TREK.Power.afford(cost) then
+        deny(player, "emhNoPower")
+        return false
+    end
+    TREK.Power.spend(cost)
+    Ship.commit()
+    return true
+end
+
+--- Treats a body. **Supplies are infinite; power is not.**
+---
+--- The hypospray's list, then the regenerator's **unskipped**, and the glass
+--- and the bullets come out. `Med.obstructed` is deliberately not applied:
+--- the regenerator refuses to close skin over a shard, and the Doctor takes
+--- the shard out first -- which is the whole reason he is better than the
+--- instrument in your pocket.
+---
+--- **It leaves a bite and the infection exactly where it found them.** The
+--- hypospray's six-dose limit, the regenerator's scope and the reason the
+--- EMH exists all rest on the bite being the one thing you come home for.
+--- Nothing here touches Med.CURE.
+local function treatBody(patient)
+    local counts = { total = 0 }
+    local function merge(part)
+        for key, n in pairs(part) do
+            if type(n) == "number" and key ~= "total" and key ~= "skipped" then
+                counts[key] = (counts[key] or 0) + n
+            end
+        end
+        counts.total = counts.total + (part.total or 0)
+    end
+    -- **The order is the design.** The skin pass runs while the glass is
+    -- still in the wound, and it runs *unskipped* -- that is the whole
+    -- difference between the Doctor and the regenerator in your pocket,
+    -- which refuses to close skin over a shard. Take the foreign bodies out
+    -- first and applying Med.obstructed here would change nothing at all,
+    -- which would make the one thing worth asserting about this pass
+    -- unassertable.
+    merge(Med.treatWith(patient, Med.TREATMENTS))
+    merge(Med.treatWith(patient, Med.SKIN))
+    merge(Med.removeForeign(patient))
+    Med.publish(patient)
+    return counts
+end
+
+--- Cures the zombie infection. Authority only, and only from the register.
+---
+--- **Both levels in one pass.** Med.cure does the parts -- including the
+--- bite, through the two-argument SetBitten that does not re-infect the limb
+--- -- and this does the body. `BodyDamage.isInfected` is a one-way latch
+--- re-derived from the parts each tick and skipped once true, so clearing it
+--- alone is undone next tick and clearing the parts alone never clears it.
+---
+--- `-1`, not `0`, for the two times: `Update()` treats a negative value as
+--- "the countdown has not started" and initialises it from any other, so a
+--- cure written as zero leaves a running clock and the player dies anyway.
+local function cureBody(patient)
+    local counts = Med.cure(patient)
+
+    local damage = Med.damageOf(patient)
+    if damage then
+        U.try("emh.cureBody", function()
+            damage:setInfected(false)
+            damage:setIsFakeInfected(false)
+            damage:setReduceFakeInfection(false)
+            damage:setInfectionTime(-1.0)
+            damage:setInfectionMortalityDuration(-1.0)
+        end)
+        local still = U.try("emh.cureCheck", function()
+            return damage:isInfected()
+        end)
+        if still == true then
+            U.log("WARN emh: the body still reports the infection after a cure")
+            counts.left = (counts.left or 0) + 1
+        end
+    end
+
+    Med.publish(patient)
+    return counts
+end
+
+Net.onServer("emhSummon", function(player)
+    if not atEMH(player) then return end
+    local s = U.state()
+    if s.emh ~= true then
+        s.emh = true
+        Ship.commit()
+    end
+    -- The deck is brought into line straight away rather than waiting for a
+    -- tick: the player is standing at the station looking at an empty square.
+    B.serviceEMH()
+    U.log("emh: %s brought the Doctor up", Ship.usernameOf(player))
+end)
+
+Net.onServer("emhDismiss", function(player)
+    -- Deliberately **not** atEMH: dismissing is the way out, and a player who
+    -- has walked off, or whose ship has run flat while the panel was open,
+    -- must still be able to put him away. Alive and allowed to use the ship
+    -- is the whole gate.
+    if not alive(player) then return end
+    if not Ship.canUse(player) then
+        deny(player, "access")
+        return
+    end
+    local s = U.state()
+    if s.emh ~= nil then
+        s.emh = nil
+        Ship.commit()
+    end
+    B.serviceEMH()
+    U.log("emh: %s dismissed the Doctor", Ship.usernameOf(player))
+end)
+
+--- What he can see about a patient, for a panel that cannot look itself.
+Net.onServer("emhLook", function(player, args)
+    if not atEMH(player) then return end
+    local patient, name = patientFor(player, args)
+    if not patient then return end
+
+    local found = EMH.findings(patient)
+    Net.toClient(player, "emhFindings", {
+        who = name,
+        total = found.total,
+        infected = found.infected,
+        bitten = found.bitten,
+        items = found.items,
+    })
+end)
+
+--- Mints a consent offer and puts it on the patient's screen.
+local function offer(player, patient, name, what, cost)
+    offerSerial = offerSerial + 1
+    local token = offerSerial
+    offers[token] = { from = Ship.usernameOf(player), who = name,
+                      what = what, cost = cost, at = getTimestampMs() }
+    Net.toClient(patient, "emhOffered", {
+        token = token, from = offers[token].from, what = what, cost = cost,
+    })
+    U.log("emh: %s asked to %s %s (offer %d)",
+          offers[token].from, what, name, token)
+end
+
+--- Treating. Yourself at once; anybody else only if they say yes.
+Net.onServer("emhTreat", function(player, args)
+    if not atEMH(player) then return end
+    local patient, name = patientFor(player, args)
+    if not patient then return end
+
+    local why = EMH.treatRefusal(patient)
+    if why then
+        deny(player, why)
+        return
+    end
+
+    if name ~= Ship.usernameOf(player) then
+        -- Nothing is spent yet. The offer is a question, not a reservation.
+        offer(player, patient, name, "treat", EMH.treatCost())
+        return
+    end
+
+    if not spendTreatment(player) then return end
+    local counts = treatBody(patient)
+    Net.toClient(player, "emhTreated", { who = name, counts = counts,
+                                         total = counts.total })
+    U.log("emh: treated %s -- %d thing(s) put right, %d unit(s) spent, "
+          .. "%d left in the reserve", name, counts.total, EMH.treatCost(),
+          math.floor(TREK.Power.reserve()))
+end)
+
+--- The cure. Yourself at once; anybody else only if they say yes.
+Net.onServer("emhCure", function(player, args)
+    if not atEMH(player) then return end
+    local patient, name = patientFor(player, args)
+    if not patient then return end
+
+    local why = EMH.cureRefusal(patient, name)
+    if why then
+        deny(player, why)
+        return
+    end
+
+    if name ~= Ship.usernameOf(player) then
+        offer(player, patient, name, "cure", C.EmhCureCrystals)
+        return
+    end
+    S.beginCure(player, patient, name)
+end)
+
+--- Takes the crystal and writes the patient into the register.
+---
+--- **The crystal is spent now**, and the panel says so before the button is
+--- pressed. The treatment is a commitment rather than a reservation, which
+--- is the whole weight of the twelve hours: walking out of the cabin halfway
+--- through costs it.
+function S.beginCure(player, patient, name)
+    if TREK.Power.crystals() < C.EmhCureCrystals then
+        deny(player, "emhNoCrystal")
+        return false
+    end
+    for _ = 1, C.EmhCureCrystals do
+        if not TREK.Power.takeCrystal() then
+            deny(player, "emhNoCrystal")
+            return false
+        end
+    end
+
+    local due = EMH.worldHours() + C.EmhCureHours
+    EMH.cures()[name] = due
+    Ship.commit()
+
+    Net.toClient(patient, "emhCureStarted", { hours = C.EmhCureHours })
+    U.log("emh: a cure has begun for %s -- due at world hour %.1f, %d spare "
+          .. "crystal(s) left", name, due, TREK.Power.crystals())
+    return true
+end
+
+--- The patient's answer. Re-validated from scratch, because the world moves
+--- between the question and the answer.
+local function resolveOffer(player, args, accepted)
+    if not alive(player) then return end
+    local token = int(args and args.token)
+    local job = token and offers[token]
+    if not job then
+        deny(player, "emhNoOffer")
+        return
+    end
+    -- Single use, whatever happens next.
+    offers[token] = nil
+
+    if job.who ~= Ship.usernameOf(player) then
+        -- Somebody else's offer. Not an error a player can see -- it is a
+        -- crafted command -- but it is worth a line in the log.
+        U.log("WARN emh: %s answered an offer addressed to %s",
+              Ship.usernameOf(player), tostring(job.who))
+        return
+    end
+
+    if getTimestampMs() - job.at > C.EmhOfferMs then
+        deny(player, "emhOfferLapsed")
+        return
+    end
+    if not accepted then
+        U.log("emh: %s declined to be %sed", job.who, job.what)
+        return
+    end
+
+    -- Everything again, from scratch: the asker may have walked off, the
+    -- patient may have left the ship, the core may have been emptied.
+    local asker = playerNamed(job.from)
+    if not asker or EMH.refusal(asker) then
+        deny(player, "emhGone")
+        return
+    end
+    local patient = EMH.patientNamed(job.who)
+    if not patient then
+        deny(player, "emhNoPatient")
+        return
+    end
+
+    if job.what == "cure" then
+        local why = EMH.cureRefusal(patient, job.who)
+        if why then
+            deny(player, why)
+            return
+        end
+        S.beginCure(asker, patient, job.who)
+        return
+    end
+
+    local why = EMH.treatRefusal(patient)
+    if why then
+        deny(player, why)
+        return
+    end
+    if not spendTreatment(asker) then return end
+    local counts = treatBody(patient)
+    Net.toClient(patient, "emhTreated", { who = job.who, counts = counts,
+                                          total = counts.total })
+    U.log("emh: treated %s at %s's asking -- %d thing(s) put right",
+          job.who, job.from, counts.total)
+end
+
+Net.onServer("emhAccept", function(player, args)
+    resolveOffer(player, args, true)
+end)
+
+Net.onServer("emhDecline", function(player, args)
+    resolveOffer(player, args, false)
+end)
+
+--- Finishes, abandons or leaves alone every cure in the register.
+---
+--- Three cases and they are all deliberate:
+---
+---   * **the patient has left the ship** -- the entry goes, they are told,
+---     and the crystal does not come back. Not a refund: see S.beginCure;
+---   * **it is due** -- cure them, both levels, and tell their own client to
+---     clear the flags and the moodle the packet cannot carry;
+---   * **they are not online** -- leave it. The register is ship state and is
+---     saved, so a cure survives a relog.
+function S.serviceCures()
+    local cures = EMH.cures()
+    local names = {}
+    for name in pairs(cures) do table.insert(names, name) end
+    if #names == 0 then return 0 end
+
+    local now = EMH.worldHours()
+    local done, dropped = 0, 0
+    for _, name in ipairs(names) do
+        local patient = playerNamed(name)
+        if patient then
+            if not U.isInteriorPlayer(patient) then
+                cures[name] = nil
+                dropped = dropped + 1
+                Net.toClient(patient, "emhCureLost", {})
+                U.log("emh: %s left the ship and the cure is lost, crystal "
+                      .. "and all", name)
+            elseif now >= (cures[name] or 0) then
+                cures[name] = nil
+                done = done + 1
+                local counts = cureBody(patient)
+                -- **The reply is not optional.** syncBodyPart carries
+                -- BodyPart fields only, so the BodyDamage flags above and
+                -- the infection moodle do not ride it -- and the moodle is
+                -- written from inside a countdown that is gated on
+                -- isInfected(), so clearing the infection *stops* its only
+                -- writer and the last value it wrote is what stays on screen:
+                -- a perfect cure with the player still told they are dying.
+                Net.toClient(patient, "emhCured", {})
+                U.log("emh: %s is cured -- %d field(s) cleared, %d left set",
+                      name, counts.total or 0, counts.left or 0)
+            end
+        end
+    end
+    if done > 0 or dropped > 0 then Ship.commit() end
+    return done
+end
+
 --- Design and diagnostic tools behind the debug console. Single player, or a
 --- server admin.
 Net.onServer("debug", function(player, args)
@@ -1576,6 +1986,8 @@ Net.onServer("debug", function(player, args)
               cleared, strays, Ship.usernameOf(player))
     elseif what == "replicator" then
         S.replicatorReport()
+    elseif what == "emh" then
+        S.emhReport()
     elseif what == "charges" then
         local c = chargeOf(Ship.usernameOf(player))
         U.log("transporter: limited=%s, %d charge(s) for %s",
@@ -1608,10 +2020,18 @@ Events.EveryOneMinute.Add(function()
     -- certain to run, so a build can never be stranded waiting.
     U.try("serviceWaiting", serviceWaiting)
     U.try("sweepGhosts", S.sweepGhosts)
+    -- The cure is measured in game hours and lands on this tick. Outside the
+    -- cabin-loaded branch on purpose: a patient who has left the ship has to
+    -- lose their treatment whether or not anybody is aboard to see it.
+    U.try("serviceCures", S.serviceCures)
     if B.cabinCurrent() and B.cabinLoaded() then
         -- Nobody can drain the tap faster than a game minute refills it.
         U.try("refillWater", B.refillWater)
         if anyoneAboard() then
+            -- The deck brought back into line with s.emh. Idempotent both
+            -- ways, so this is also what heals a dismissal that happened
+            -- while the cabin's chunks were not loaded -- no ghost list.
+            U.try("serviceEMH", B.serviceEMH)
             -- Power is not here: TREK_Power registers its own per-minute tick,
             -- because the engine drains a device's cell in every process and
             -- a server-only top-up would leave each client switching the
@@ -1647,6 +2067,17 @@ Events.OnInitGlobalModData.Add(function()
         s.pilot = nil
         s.level = nil
         s.pilotGrace = nil
+    end
+    -- A hologram does not survive a world reload, and clearing the flag here
+    -- deletes the entire class of stale-flag bug: nobody ever has to explain
+    -- why the Doctor is standing in an empty sick bay after a restart.
+    --
+    -- **s.emhCures is kept.** A cure in progress has been paid for with a
+    -- crystal and has to survive, which is the whole reason it is ship state
+    -- rather than a table in this file.
+    if s.emh then
+        U.log("the world was saved with the Doctor projected; he is off now")
+        s.emh = nil
     end
     Ship.commit()
     U.log("ship authority ready (%s, v%s, build %d): landed=%s built=%s rev=%s owner=%s, " ..
@@ -1695,6 +2126,30 @@ function S.replicatorReport()
               .. "if it is zero")
     end
     return standing == 1
+end
+
+--- One line per thing that can be wrong with the Doctor, for TREK_EMH().
+---
+--- Four of this mod's bugs have been a fixture that is present, drawn and
+--- inert, so the figure is looked for rather than assumed -- and the two
+--- numbers that matter are on separate lines: what the ship *believes* and
+--- what is actually standing there.
+function S.emhReport()
+    local modeName = EMH.isOff() and "off" or "full"
+    local cures = EMH.cures()
+    local waiting, now = 0, EMH.worldHours()
+    for name, due in pairs(cures) do
+        waiting = waiting + 1
+        U.log("emh: a cure for %s is due at world hour %.1f (%.1f to go)",
+              name, due, math.max(0, due - now))
+    end
+    U.log("emh: sandbox %s, reserve %d/%d units, %d spare crystal(s), "
+          .. "a treatment costs %d, a cure costs %d crystal and %d hours, "
+          .. "%d cure(s) running",
+          modeName, math.floor(TREK.Power.reserve()), C.PowerMax,
+          TREK.Power.crystals(), C.EmhTreatCost, C.EmhCureCrystals,
+          C.EmhCureHours, waiting)
+    return B.emhReport()
 end
 
 --- Says, once, whether the void map is loaded. Without it the cabin still

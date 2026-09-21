@@ -101,7 +101,32 @@ def _smooth_normals(vertices, faces):
 
 
 def import_glb(source, mesh_output, texture_output, texture_file,
-               target_length=5.0, target_width=3.0):
+               target_length=5.0, target_width=3.0, target_height=None,
+               name="TREKShuttle", yaw=0):
+    """Imports a GLB as a Project Zomboid world model.
+
+    Three of the parameters exist for the EMH and are additive, so the hull's
+    call site behaves exactly as it did:
+
+    `target_height` fits the model by **height** instead of by footprint. A
+    hull is a thing you fit into a parking space and a person is a thing you
+    fit under a deckhead, and scaling a standing figure by
+    min(width/xspan, length/zspan) makes its size an accident of how wide its
+    shoulders happen to be. Fitting by height also skips the axis swap below,
+    which exists to put a vehicle's long axis fore-and-aft and would only turn
+    a figure sideways.
+
+    `name` is the mesh name written into the .x file, which was hardcoded to
+    the hull's.
+
+    `yaw` turns the model about the up axis, in whole degrees, before it is
+    fitted. **A figure has a front and a hull does not** -- the hull's heading
+    is decided by the footprint swap above, while a person imported as drawn
+    faces whichever way the camera that generated him was pointing, which for
+    an image-to-3D model is +Z, or due north in this engine. A world model
+    standing in the cabin at north is a man with his back to everyone in it.
+    Seen in the first render; invisible in the source.
+    """
     document, binary = _load_glb(source)
     vertices, uvs, faces = [], [], []
 
@@ -135,16 +160,29 @@ def import_glb(source, mesh_output, texture_output, texture_file,
     if not vertices or not faces:
         raise ValueError("GLB contains no indexed triangle mesh")
 
-    # glTF is Y-up. Put the longest horizontal axis fore/aft on Z.
-    xspan = max(v[0] for v in vertices) - min(v[0] for v in vertices)
-    zspan = max(v[2] for v in vertices) - min(v[2] for v in vertices)
-    if xspan > zspan:
-        vertices = [(-z, y, x) for x, y, z in vertices]
+    # glTF is Y-up. Put the longest horizontal axis fore/aft on Z -- for a
+    # hull, whose length is the thing that has to line up with the road. A
+    # figure has no long horizontal axis worth naming, and this would simply
+    # stand him at right angles to the way he was drawn.
+    if target_height is None:
+        xspan = max(v[0] for v in vertices) - min(v[0] for v in vertices)
+        zspan = max(v[2] for v in vertices) - min(v[2] for v in vertices)
+        if xspan > zspan:
+            vertices = [(-z, y, x) for x, y, z in vertices]
+
+    if yaw:
+        angle = math.radians(yaw)
+        cos, sin = math.cos(angle), math.sin(angle)
+        vertices = [(x * cos + z * sin, y, -x * sin + z * cos)
+                    for x, y, z in vertices]
 
     xmin, xmax = min(v[0] for v in vertices), max(v[0] for v in vertices)
-    ymin = min(v[1] for v in vertices)
+    ymin, ymax = min(v[1] for v in vertices), max(v[1] for v in vertices)
     zmin, zmax = min(v[2] for v in vertices), max(v[2] for v in vertices)
-    scale = min(target_width/(xmax-xmin), target_length/(zmax-zmin))
+    if target_height is not None:
+        scale = target_height/(ymax-ymin)
+    else:
+        scale = min(target_width/(xmax-xmin), target_length/(zmax-zmin))
     xcenter, zcenter = (xmin+xmax)/2, (zmin+zmax)/2
     vertices = [((x-xcenter)*scale, (y-ymin)*scale, (z-zcenter)*scale)
                 for x, y, z in vertices]
@@ -166,6 +204,14 @@ def import_glb(source, mesh_output, texture_output, texture_file,
     texture = binary[start:start + view["byteLength"]]
     if image.get("mimeType") != "image/png" or not texture.startswith(b"\x89PNG"):
         raise ValueError("diffuse texture is not an embedded PNG")
+    # glTF pads a bufferView out to a four-byte boundary, so the slice can end
+    # with a byte or three of nothing. Written straight out that is a PNG with
+    # rubbish stuck to it: every image viewer shrugs and a strict reader --
+    # including this project's own read_png_rgba -- walks off the end of the
+    # last chunk and throws. Cut it at the end of IEND.
+    end = texture.rfind(b"IEND")
+    if end != -1:
+        texture = texture[:end + 8]
     open(texture_output, "wb").write(texture)
 
     mesh = MeshBuilder(up_axis="y")
@@ -173,7 +219,7 @@ def import_glb(source, mesh_output, texture_output, texture_file,
     mesh.faces = faces
     mesh.norms = _smooth_normals(vertices, faces)
     mesh.uvs = uvs
-    nv, nf = mesh.emit(mesh_output, "TREKShuttle", texture_file)
+    nv, nf = mesh.emit(mesh_output, name, texture_file)
     width = max(v[0] for v in vertices) - min(v[0] for v in vertices)
     length = max(v[2] for v in vertices) - min(v[2] for v in vertices)
     height = max(v[1] for v in vertices)

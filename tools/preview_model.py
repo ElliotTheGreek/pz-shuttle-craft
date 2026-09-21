@@ -66,13 +66,23 @@ def parse_x(path):
     nums = lambda s: [float(x) for x in re.findall(r"-?\d+\.\d+", s)]
     mv = re.search(r"Mesh\s+\w+\s*\{\s*(\d+);(.*?);;\s*(\d+);(.*?);;\s*MeshNormals", src, re.S)
     nv = int(mv.group(1))
-    vs = re.findall(r"(-?\d+\.\d+);(-?\d+\.\d+);(-?\d+\.\d+);", mv.group(2))
+    # A .x list is `a;b;c;,` per entry and `a;b;c;;` on the last one, so the
+    # non-greedy match above stops *inside* that final pair and leaves the
+    # last entry one semicolon short of the per-entry pattern. It was dropped
+    # silently, which costs nothing on a mesh whose last vertex no face uses
+    # and throws IndexError on one where a face does -- every imported mesh.
+    # Putting the separator back is cheaper than making the pattern optional.
+    vs = re.findall(r"(-?\d+\.\d+);(-?\d+\.\d+);(-?\d+\.\d+);", mv.group(2) + ";")
     verts = [tuple(float(c) for c in v) for v in vs][:nv]
-    fs = re.findall(r"3;(\d+),(\d+),(\d+);", mv.group(4))
+    fs = re.findall(r"3;(\d+),(\d+),(\d+);", mv.group(4) + ";")
     faces = [tuple(int(c) for c in f) for f in fs]
     mt = re.search(r"MeshTextureCoords\s*\{\s*(\d+);(.*?);;\s*\}", src, re.S)
     uvs = [(float(a), float(b)) for a, b in
-           re.findall(r"(-?\d+\.\d+);(-?\d+\.\d+);", mt.group(2))][:nv]
+           re.findall(r"(-?\d+\.\d+);(-?\d+\.\d+);", mt.group(2) + ";")][:nv]
+    if len(verts) != nv:
+        raise ValueError(f"{path}: the mesh declares {nv} vertices and "
+                         f"{len(verts)} parsed -- the previewer is reading it "
+                         f"wrongly, so anything it draws is a different model")
     return verts, faces, uvs
 
 def render(xpath, texpath, outpath, size=400, up_axis="y", yaw_deg=-35):

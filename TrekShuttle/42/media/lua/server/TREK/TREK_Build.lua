@@ -957,6 +957,146 @@ local function furnishCore()
     return false
 end
 
+---------------------------------------------------------------------------
+-- The Emergency Medical Hologram
+---------------------------------------------------------------------------
+--- How many Doctors are standing on a square.
+---
+--- Counted, never assumed, for the reason the replicator and the core are:
+--- a world item is **saved**, and U.clearSquare deliberately preserves world
+--- items, so a pass that places without looking first stands a second one
+--- there at every rebuild. That is the "Two shuttles" signature, indoors, on
+--- a fixture that is supposed to be a single person.
+function B.emhAt(sq)
+    if not sq then return 0 end
+    local standing = 0
+    U.try("emh.scan", function()
+        local items = sq:getWorldObjects()
+        if not items then return end
+        for i = 0, items:size() - 1 do
+            local worldItem = items:get(i)
+            local item = worldItem and worldItem:getItem()
+            if item and item:getFullType() == C.EmhItem then
+                standing = standing + 1
+            end
+        end
+    end)
+    return standing
+end
+
+--- The Doctor's world item on his square, or nil.
+local function emhItem(sq)
+    local found = nil
+    U.try("emh.find", function()
+        local items = sq:getWorldObjects()
+        if not items then return end
+        for i = 0, items:size() - 1 do
+            local worldItem = items:get(i)
+            local item = worldItem and worldItem:getItem()
+            if item and item:getFullType() == C.EmhItem then
+                found = item
+                return
+            end
+        end
+    end)
+    return found
+end
+
+--- Brings the deck into line with `s.emh`. **Idempotent in both directions.**
+---
+--- The ship state is the truth and this pass makes the world match it, so it
+--- is safe to call from a summon, from a dismissal, from a build and from the
+--- per-minute tick. That is stronger than the hull's ghost list and it is
+--- worth knowing why: a hull that could not be removed has to be *remembered*
+--- because nothing else will ever go back and look, while a Doctor left
+--- standing in an unloaded chunk is simply a disagreement with a flag, and
+--- the next pass over a loaded cabin settles it. No ghost list, no retry
+--- queue, no state of its own.
+---
+--- Four things it must do, each of which has already cost this project a bug:
+---
+---   * count before placing -- a world item is saved;
+---   * remove **all** of them, not the first -- a save that collected two
+---     would keep one for ever;
+---   * straighten, on placement *and* here, because
+---     IsoWorldInventoryObject's constructor writes Rand.Next(0, 360) into an
+---     unset yaw and this pass is the only thing that will ever reach a
+---     crooked Doctor in an existing save;
+---   * remove by **named type** through removeSynced, which is
+---     transmitRemoveItemFromSquare -- `removeWorldObject` throws on a server.
+---
+--- Returns `placed, removed`.
+function B.serviceEMH()
+    local x, y = at(C.EmhSpot.x, C.EmhSpot.y)
+    if not U.chunkLoaded(x, y, C.CabinZ) then return 0, 0 end
+    local sq = U.square(x, y, C.CabinZ, true)
+    if not sq then return 0, 0 end
+
+    local wanted = U.state().emh == true
+    local standing = B.emhAt(sq)
+
+    if not wanted then
+        if standing == 0 then return 0, 0 end
+        local gone = removeWorldItem(sq, C.EmhItem)
+        U.log("emh: the Doctor is dismissed (%d removed)", gone)
+        return 0, gone
+    end
+
+    -- Wanted, and already there: square him up rather than leave him. A save
+    -- made before the rotation was understood has him at whatever the dice
+    -- gave, and nothing else will ever touch him again.
+    if standing > 0 then
+        straighten(emhItem(sq), "emh: the Doctor at " ..
+                   tostring(C.EmhSpot.x) .. "," .. tostring(C.EmhSpot.y))
+        -- More than one is a save that collected a second. Take them all out
+        -- and let the next pass stand exactly one back up.
+        if standing > 1 then
+            local gone = removeWorldItem(sq, C.EmhItem)
+            U.log("WARN emh: %d Doctors were standing at %d,%d; removed %d, "
+                  .. "one will be projected again",
+                  standing, C.EmhSpot.x, C.EmhSpot.y, gone)
+            return 0, gone
+        end
+        return 0, 0
+    end
+
+    local placed = U.try("emh.place", function()
+        return sq:AddWorldInventoryItem(C.EmhItem, 0.5, 0.5, 0.0)
+    end)
+    if placed then
+        straighten(placed, "emh: a freshly projected Doctor")
+        U.log("emh: the Doctor is standing at %d,%d",
+              C.EmhSpot.x, C.EmhSpot.y)
+        return 1, 0
+    end
+    U.log("WARN emh: %s would not place at %d,%d; the panel still opens, but "
+          .. "there is nobody standing there", tostring(C.EmhItem),
+          C.EmhSpot.x, C.EmhSpot.y)
+    return 0, 0
+end
+
+--- One line per thing that can be wrong with the Doctor, for TREK_EMH().
+function B.emhReport()
+    local x, y = at(C.EmhSpot.x, C.EmhSpot.y)
+    local s = U.state()
+    if not U.chunkLoaded(x, y, C.CabinZ) then
+        U.log("emh: %d,%d is not loaded, so the Doctor cannot be looked for "
+              .. "from here (state says up=%s)",
+              C.EmhSpot.x, C.EmhSpot.y, tostring(s.emh == true))
+        return false
+    end
+    local standing = B.emhAt(U.square(x, y, C.CabinZ, false))
+    U.log("emh: state says up=%s, %d standing at %d,%d",
+          tostring(s.emh == true), standing, C.EmhSpot.x, C.EmhSpot.y)
+    if standing > 1 then
+        U.log("WARN emh: more than one Doctor is standing there")
+    elseif (s.emh == true) ~= (standing == 1) then
+        U.log("WARN emh: the deck and the ship state disagree; the next "
+              .. "service pass will settle it")
+    end
+    return standing == 1
+end
+
 --- The lamp fittings. The light they give is a client-side light source and
 --- is hung by TREK_Core on each client; only the fixture is world state.
 local function fitLamps()
@@ -1151,6 +1291,12 @@ function B.buildCabin()
         { "fitLamps",       fitLamps },
         { "replicator",     furnishReplicator },
         { "warpCore",       furnishCore },
+        -- **A build phase, not only the per-minute tick.** B.forceRebuild
+        -- wipes everything on the square but the floor, which really does
+        -- delete the Doctor -- and `s.emh` would still say he was up. This
+        -- is what puts him back, and it runs in both directions so a rebuild
+        -- with him dismissed does not stand him up again.
+        { "emh",            B.serviceEMH },
         { "stockReport", function() B.stockReport() end },
         { "clearMargin",    clearSurroundings },
     }

@@ -32,7 +32,9 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Dilithium** | The ship's power is a crystal burning in the warp core amidships, and one crystal is a thousand bandages' worth — but nothing refills it for free, and **the replicator cannot make one**. They turn up where a small, valuable, electrical thing would be: a jeweller's case, a pawn shop, an electronics store, a mechanic's shelf. The ship carries three spares, the tricorder finds more, and when the last one is gone the replicator is a cupboard. |
 | **The warp core** | Amidships, in the port passage. Right-click it to load a crystal you have found, or to take one back before a trip. It says how many the ship is holding on the option itself, so you never have to guess. |
 | **Running water** | The galley sink has its own water supply, topped up every in-game minute, so it keeps running after the mains shut off. |
-| **A sick bay** | A biobed that is also the ship's bed, an EMH station, and a locker with one of each instrument in it. |
+| **The Doctor** | The sick bay's wall station projects an Emergency Medical Hologram. He diagnoses, he treats -- everything a hypospray and a regenerator do between them, plus the glass and the bullets neither will touch -- and his supplies never run out. He also tells you the one thing the medical tricorder will not: whether you are infected. |
+| **The only cure for a bite** | He is it. Nothing else in the mod touches a zombie bite. It costs **one whole dilithium crystal and twelve game hours aboard**, the crystal goes the moment the treatment starts, and walking out of the cabin halfway through loses it. Sleep it off on the biobed. |
+| **A sick bay** | A biobed that is also the ship's bed, the EMH's station, and a locker with one of each instrument in it. |
 | **Stores** | Three Starfleet lockers — an armoury, the rations and the sick bay — and five containers left empty on purpose: the fridge, the oven, both counters and the microwave are yours to fill. |
 | **Shields** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed — no free experience, no free loot. Raise and lower them at the helm. |
 | **A shared ship** | In multiplayer there is one shuttle for everyone. Server owners can limit it to its owner and crew. |
@@ -68,7 +70,7 @@ player and the in-game Host settings add it for you; a dedicated server's
 log says `the 'TrekShuttle' map is not loaded`, and the view outside the cabin
 shows grass and trees.
 
-Four sandbox options, on the **Shuttlecraft** page:
+Five sandbox options, on the **Shuttlecraft** page:
 
 | Option | Choices | Default |
 |---|---|---|
@@ -76,6 +78,7 @@ Four sandbox options, on the **Shuttlecraft** page:
 | **Transporter charges** | *Match anti-cheat*: when `AntiCheatSpeed` is set to kick or ban, each player gets 3 beams with one back every 150 seconds, and a fourth is refused ("recharging") instead of the server kicking them. *Always unlimited*: never refused. | Match anti-cheat |
 | **Photon torpedo fire** | *Full*: the torpedo burns, and the fire spreads. *Blast only*: the explosion and the kill without the fire. | Full |
 | **Replicator** | *Patterns and energy*: it makes what the ship has scanned, and each one spends from a reserve that only dilithium refills. *Unrestricted*: anything in the catalogue, immediately, for nothing. *Off*: the machine is scenery, and says so. | Patterns and energy |
+| **Emergency Medical Hologram** | *Full*: the Doctor as designed, cure included. *Off*: the sick bay's station is inactive and says so. There is deliberately no setting that keeps him and removes the cure -- a server owner who does not want the cure turns him off. | Full |
 
 Every beam moves a character a long way at once, and the speed anti-cheat
 counts each one. If your players want unlimited beaming, set
@@ -157,7 +160,7 @@ that is fifteen, so the inside and the outside tell the same story.
   1 F*.p      F fridge   * lamp   p rations
   2 oh.M      o oven   h crew seat   M sick bay
   3 wD.E      w sink counter   D warp core   E EMH panel
-  4 m*.B      m microwave counter   B biobed (head)
+  4 m*HB      m microwave counter   H the EMH   B biobed (head)
   5 R.@B      R the replicator   @ transporter pad   B biobed (foot)
 ```
 
@@ -242,6 +245,7 @@ In game, load a **fresh** world with the mod enabled. From the debug console
 | `TREK_Ghosts()` | Sweep hulls still waiting to be cleared, and any near you. |
 | `TREK_Charges()` | Report whether beams are rationed and your charges. |
 | `TREK_Replicator()` | Report the sandbox mode, the reserve, how many spare crystals the ship is holding, how many patterns it holds, and how big the catalogue came out. |
+| `TREK_EMH()` | Report the sandbox mode, the reserve and the spares, what the Doctor costs, any cure that is running -- and whether he is actually standing on the deck, as against what the ship believes. |
 
 The design and diagnostic ones need single player or an admin on a server.
 
@@ -290,7 +294,14 @@ interior plus `TREK_InteriorLayout.lua`.
   target and gives up rather than putting you inside a wall.
 - **Nothing in the medical set cures a bite**, and the medical tricorder does
   not tell you whether you are infected. Both are deliberate: the cure is the
-  Emergency Medical Hologram's, and the EMH is not built yet.
+  Emergency Medical Hologram's, and so is the diagnosis. Walk aft to the sick
+  bay and ask him.
+- **The Doctor needs power, and the cure needs a crystal.** He draws on the
+  same dilithium the replicator does, so a ship with nothing left in the warp
+  core has a galley fixture and a hologram that will not switch on. The cure
+  costs a whole crystal on top of that.
+- **A cure is a commitment.** The crystal is spent when it starts, not when it
+  finishes, and leaving the ship before the twelve hours are up loses both.
 - **The dermal regenerator will not close a wound with glass or a bullet in
   it**, and will not take the dressing off a bitten limb. It says so both
   times.

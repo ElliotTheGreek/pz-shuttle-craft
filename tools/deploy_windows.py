@@ -77,6 +77,15 @@ critical = [
     Path("42/media/ui/TREK_HelmEmblem.png"),
     Path("42/media/lua/shared/Translate/EN/IG_UI.json"),
     Path("42/media/lua/shared/Translate/EN/Sandbox.json"),
+    # The Doctor. His mesh and texture are the largest generated assets in the
+    # mod after the hull, and a model that does not arrive draws nothing and
+    # says nothing -- which is the failure this whole list exists to catch.
+    Path("42/media/lua/shared/TREK/TREK_EMH.lua"),
+    Path("42/media/lua/client/TREK/TREK_EMHUI.lua"),
+    Path("42/media/models_X/TREK_EMH.x"),
+    Path("42/media/textures/TREK_EMH.png"),
+    Path("42/media/ui/TREK_EmhPortrait.png"),
+    Path("42/media/sound/TREK_EmhAppear.wav"),
 ]
 for relative in critical:
     source_hash = digest(SOURCE / relative)

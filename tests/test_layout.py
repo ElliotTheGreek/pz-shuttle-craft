@@ -166,6 +166,93 @@ elif [e for e in entries if (e["x"], e["y"]) == beside]:
     failures.append(f"the only square beside the warp core ({beside[0]},"
                     f"{beside[1]}) is occupied, so there is nowhere to stand")
 
+# --- the Doctor's square, and his station ---------------------------------
+# He stands at C.EmhSpot, a world model like the other two, and **nothing else
+# may be on that square**. His wall panel at C.EmhStation is different: it is a
+# layout entry, it carries neither `solid` nor `solidtrans`, and the square is
+# still deck -- which is the whole reason a twenty-four square cabin can carry
+# a sick bay at all.
+emh = (int(C.EmhSpot.x), int(C.EmhSpot.y))
+station = (int(C.EmhStation.x), int(C.EmhStation.y))
+if not inside(*emh):
+    failures.append(f"the EMH at {emh[0]},{emh[1]} is outside the hull")
+if is_pad(*emh):
+    failures.append(f"the EMH at {emh[0]},{emh[1]} stands on the transporter pad")
+if emh in (rep, core):
+    failures.append("the EMH stands on another fixture's square")
+on_emh = [e for e in entries if (e["x"], e["y"]) == emh]
+if on_emh:
+    failures.append(f"{len(on_emh)} authored fitting(s) stand on the EMH's "
+                    f"square at {emh[0]},{emh[1]}: {[e['tag'] for e in on_emh]}. "
+                    f"He owns it.")
+if not inside(*station):
+    failures.append(f"the EMH station at {station[0]},{station[1]} is outside "
+                    f"the hull")
+if not [e for e in entries if (e["x"], e["y"]) == station
+        and e["tag"] == "emhPanel"]:
+    failures.append(f"nothing tagged emhPanel is authored at "
+                    f"{station[0]},{station[1]}, so there is no wall panel to "
+                    f"right-click")
+
+# --- no fixture's menu answers on another fixture's square -----------------
+# A right-click resolves to the floor square under the cursor, so every one of
+# these three machines has to answer for more than the square it stands on --
+# and the moment two of them answer for the same square, the player walking up
+# to the Doctor is offered a dilithium slot.
+#
+# That is not hypothetical: the warp core's menu was a one-square box around
+# 1,3, which reaches 2,4, which is where the Doctor stands. This rule is why
+# it is a named list now.
+#
+# The pad is in here too. Nothing is ever placed on it and a menu that claimed
+# it would fire every time somebody beamed in and right-clicked their feet.
+pad = (int(C.Landing.x), int(C.Landing.y))
+
+
+def spots(table):
+    return {(int(table[i][1]), int(table[i][2]))
+            for i in range(1, len(table) + 1)}
+
+
+# `named` says whether the squares were written out by hand. Only a hand
+# written list has to be inside the hull -- a typo in one is a square that can
+# never be clicked, and nothing at runtime would say so. The replicator's is a
+# margin box around its own square, and a box at the corner of the cabin spills
+# into the void by construction: those squares are unreachable rather than
+# wrong, and demanding otherwise would be asking the box not to be a box.
+margin = int(C.ReplicatorMenuMargin)
+menus = {
+    "the warp core": (core, spots(C.CoreMenuSpots), True),
+    "the EMH": (emh, spots(C.EmhMenuSpots), True),
+    "the replicator": (rep, {(rep[0] + dx, rep[1] + dy)
+                             for dx in range(-margin, margin + 1)
+                             for dy in range(-margin, margin + 1)}, False),
+}
+owned = {"the warp core": {core}, "the EMH": {emh, station},
+         "the replicator": {rep}}
+
+for name, (own, squares, named) in menus.items():
+    if not squares:
+        failures.append(f"{name} has no menu squares at all, so it can never "
+                        f"be right-clicked")
+    if own not in squares:
+        failures.append(f"{name} does not answer on its own square {own}")
+    if pad in squares:
+        failures.append(f"{name}'s menu answers on the transporter pad at "
+                        f"{pad[0]},{pad[1]}")
+    if named:
+        for ox, oy in sorted(squares):
+            if not inside(ox, oy):
+                failures.append(f"{name}'s menu names {ox},{oy}, which is "
+                                f"outside the hull and can never be clicked")
+    for other, theirs in owned.items():
+        if other == name:
+            continue
+        for clash in sorted(squares & theirs):
+            failures.append(
+                f"{name}'s menu answers on {clash[0]},{clash[1]}, which is "
+                f"{other}'s own square -- two fixtures on one right-click")
+
 # --- every `special` names a rule the build actually has ------------------
 # A special is a string in one file that has to be matched by a key in another,
 # with nothing at runtime to notice a typo: a container marked `special =
@@ -241,6 +328,12 @@ for oy in range(L_LEN + 1):
             row += "R"
         elif (ox, oy) == core:
             row += "D"
+        elif (ox, oy) == emh:
+            # He is only standing there when somebody has asked for him, so
+            # the square is open deck the rest of the time. It is still worth
+            # a glyph: it is the one square in the cabin that has to stay
+            # clear, and the plan is where anybody moving furniture looks.
+            row += "H"
         elif (ox, oy) in grid:
             # the topmost non-rug layer is what you actually walk up to
             tags = [t for t in grid[(ox, oy)] if t != "rug"] or grid[(ox, oy)]
@@ -255,6 +348,7 @@ print("   t tv console   h crew seat   F fridge   o oven   c counter")
 print("   w sink   m microwave   R the replicator (a world model)")
 print("   A armoury   p rations   M sick bay   E EMH panel   B biobed")
 print("   D the warp core (a world model)")
+print("   H where the EMH stands when he is projected (kept clear)")
 print("   * lamp      . open deck")
 
 print(f"\n{len(entries)} authored fittings, {len(containers)} containers:")

@@ -46,16 +46,24 @@ TREK.WarpCoreUI = W
 
 --- Whether this square is the core's, or close enough to be its handle.
 ---
---- One tile of margin, for the reason the replicator's menu has it: a model
---- is drawn tall and the cursor naturally lands on the deck in front of it
---- rather than on the square it stands on.
-local MARGIN = 1
-
+--- A model is drawn tall and the cursor naturally lands on the deck in front
+--- of it rather than on the square it stands on, so the menu has to answer
+--- for more than one square.
+---
+--- **A named list, and it used to be a one-square box.** That box reached
+--- 2,4 -- the square the Doctor stands on -- so walking up to the EMH and
+--- right-clicking him offered to load a dilithium crystal into a hologram.
+--- C.CoreMenuSpots is the set, and tests/test_layout.py holds the rule for
+--- all three fixtures: no fixture's menu squares may contain another
+--- fixture's own square, or the transporter pad.
 function W.isCore(x, y, z)
     if not x or not y then return false end
     if math.floor(z or 0) ~= C.CabinZ then return false end
-    local cx, cy = U.at(P.chamberSpot())
-    return math.abs(x - cx) <= MARGIN and math.abs(y - cy) <= MARGIN
+    for _, spot in ipairs(C.CoreMenuSpots) do
+        local sx, sy = U.at(spot[1], spot[2])
+        if math.floor(x) == sx and math.floor(y) == sy then return true end
+    end
+    return false
 end
 
 function W.onLoad(player)
