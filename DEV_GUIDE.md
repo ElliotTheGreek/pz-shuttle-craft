@@ -456,7 +456,21 @@ Two more since, from the dilithium work, and both are the same shape:
    changed nothing at all. The three items the replicator must refuse are
    declared in `pz_sim.lua` now, for that reason alone.
 
-All five are fixed, and the rule they share is worth more than any of them:
+Two more again, from the warp core:
+
+6. **A seated character was still on the tarmac.** `PlayerMT:getZ()` answered
+   the last z anybody had set on them, while the engine moves a passenger with
+   the vehicle every tick. A pilot at cruise reported ground level, which made
+   the cockpit indistinguishable from the runway -- and the tricorder's whole
+   reason for reading downwards in flight is that the two are three levels
+   apart.
+7. **Only half of the inventory sync existed.** `sendAddItemToContainer` was
+   stubbed and `sendRemoveItemFromContainer` was not, so the first thing the
+   mod ever took *out* of a player's inventory on the server threw. Both
+   directions are there now, and both reach only the player whose pockets they
+   are.
+
+All seven are fixed, and the rule they share is worth more than any of them:
 **when a test is easy to satisfy, suspect the simulation before believing the
 code.** `MULTIPLAYER.md` says the same thing about vehicle gravity, the
 floor-gated height and the radial menu's one-frame delay, each of which let a
@@ -585,6 +599,58 @@ Two things follow:
 The cheap tell from outside the game: the feature works, the log says the
 fixture was placed, and there is no error anywhere -- because nothing is
 wrong. The menu is simply being asked about a different square.
+
+### A dropped world model picks its own angle
+
+**New in this mod.** Both of the ship's machines are placed with
+`sq:AddWorldInventoryItem(...)`, and both stood at a random yaw until somebody
+looked at a screenshot. `IsoWorldInventoryObject`'s constructor is the reason,
+and the bytecode says it plainly:
+
+```
+worldXRotation = 0
+worldYRotation = 0
+if (worldZRotation < 0) worldZRotation = Rand.Next(0, 360)
+```
+
+A fresh item's `worldZRotation` is negative -- nobody has set it -- so every
+dropped thing lands at a random angle. That is right for a hammer on the floor
+and wrong for a machine bolted to a bulkhead.
+
+The fix is three setters after the placement, and two things make it stick:
+the rotations are **saved and loaded with the item**, so setting them on the
+server persists and reaches clients with the item itself, and the build pass
+straightens whatever is already standing there, which is the only thing that
+will ever touch a machine in an existing save.
+
+`tests/pz_sim.lua` does the same thing with a fixed angle now -- the
+simulation has to be as unkind as the engine, not as unpredictable.
+
+### A check that runs after a self-healing pass checks the healing, not the thing
+
+**New in this mod, and it happened twice in one afternoon.** Both machines are
+straightened on placement *and* again by every later build pass, which is what
+brings a crooked one in an existing save back square. The test asked for the
+angle after a block that had already rebuilt the cabin twice -- so deleting
+the straightening at placement changed nothing, and the mutation that should
+have caught it sailed through. The warp core's version of the same check, a
+hundred lines later, had exactly the same hole.
+
+Both now ask **before anything rebuilds**, and the repair path is a separate
+check that deliberately makes a mess first.
+
+The general shape: anything that is fixed up on every pass -- a migration, a
+restock, a straighten, a re-seed -- will cover for the code that should have
+got it right the first time. Order the test so the first observation happens
+before the second chance.
+
+### A string that gets upper-cased has to be ASCII
+
+**New in this mod, and cheap to learn twice.** A panel title drawn as
+`string.upper(getText(...))` went through a Lua `upper` that works a byte at a
+time: an em dash came out as mangled bytes, and the UI harness died decoding
+them. Punctuation in prose is fine; punctuation in a string the code
+upper-cases is not.
 
 ### A convenience method is a bundle of writes somebody else chose
 
@@ -1326,6 +1392,7 @@ python tools/gen_reticle.py TrekShuttle/42        # the torpedo reticle
 python tools/gen_medical.py TrekShuttle/42        # the medical set's three sounds
 python tools/gen_replicator.py TrekShuttle/42     # the machine, its sound, its renders
 python tools/gen_dilithium.py TrekShuttle/42      # the crystal's icon
+python tools/gen_warpcore.py TrekShuttle/42       # the warp core and its renders
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
@@ -1411,9 +1478,11 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A panel is fine with a mouse and dead on the Steam Deck** | It is not an `ISPanelJoypad`, or its buttons were never registered with `insertNewLineOfButtons`. Note that vanilla's `ISHealthPanel` *is* one already. |
 | **A feature is reported broken and every test passes** | Suspect the tests. See *A guard is only as good as the goal it was written from* — a test, a comment and a constant all agreeing with each other is not corroboration if they came from one misreading. |
 | **The replicator's menu option never appears** | It is keyed to `C.ReplicatorSpot` (0,5) and its neighbours, so the right-click resolved to a different square -- which is what a model drawn above its own square does every time. `TREK_Replicator()` reports what is standing there. |
-| **The replicator refuses everything, with no crystal in the chamber** | Working as designed: the reserve is one dilithium crystal and nothing refills it for free. Find one -- the tricorder plots them out to twenty tiles. `TREK_Replicator()` reports the reserve and the spares. |
-| **The dilithium chamber is empty in a save made before it** | Stock is placed when the cabin is built, and existing saves keep the containers they have. Crystals in the *world* are placed when the world is generated, so the loot needs a fresh world too. |
-| **A crystal is in the chamber and the ship says there is none** | Another mod's item with the same bare type, or a container the engine did not build from that sprite. `getAllTypeRecurse` compares the bare name only -- everything counting mod items filters on the full id. |
+| **The replicator refuses everything, with no crystal aboard** | Working as designed: the reserve is one dilithium crystal and nothing refills it for free. Find one -- the tricorder plots them out to twenty tiles. `TREK_Replicator()` reports the reserve and the spares. |
+| **The warp core is empty in a save made before it** | The ship is issued its crystals when the cabin is built, once, keyed on the count being absent. Crystals in the *world* are placed when the world is generated, so the loot needs a fresh world too. |
+| **A machine in the cabin stands at a crooked angle** | A dropped world model picks its own yaw; see the rule above. The build pass straightens both of them, so it takes a rebuild (or a `C.BuildRev` bump) to reach a machine in an existing save. |
+| **A tricorder sweep from the cockpit finds nothing** | Working as designed only if she is on the ground. In the air the sweep reads every level below the seat and the panel says *Ground Survey*; if it does not, the player is not in a shuttle seat -- a crewman aft is in the cabin, which is nowhere near the ground the ship is passing over. |
+| **A crystal will not load into the core** | Another mod's item with the same bare type. `getAllTypeRecurse` compares the bare name only, which is not namespaced -- everything counting mod items filters on the full id. |
 | **The replicator makes nothing and says the tray is full** | It is: the counter at 0,5 holds 40 units like any locker. Empty it. The count is real -- the server measures the tray after every single item and charges only for what landed. |
 | **An item is in the replicator's list and makes nothing** | An obsolete item that slipped the filter; `instanceItem` answers nil for those. The catalogue applies vanilla's own `not getObsolete() and not isHidden()`, so this means a *new* way past it. |
 | **The replicator knows nothing, not even the ship's own gear** | `R.seedDefaults()` runs on the authority when the world's data loads and needs the catalogue; if `getAllItems()` answered nothing there will be a WARN saying so. |
@@ -1440,6 +1509,18 @@ item can be created. Against the old code that assertion prints `0 items` and
 fails. Keep it first: with item creation broken, every other check in the file
 still passes on an empty container, which is exactly how this reached the game
 twice.
+
+**Mutation-test anything new, and run one pass at a time.** The harness edits
+a source file, runs the checks, and puts the file back in a `finally`. Two
+passes at once share those files: the second reads a file the first has
+already mutated, calls that the original, and restores *that* when it is
+done. It happened here -- two runs overlapped and left `if false then` in a
+refusal and a missing `straighten` in the build, with a green suite on top of
+them, because the checks for both had been mutated out along with the code.
+
+The cheap guard is a list of every line a harness touches, checked back
+against the source afterwards; the expensive one is reading a diff line by
+line. Do the first.
 
 These have caught more real bugs than the in-game test has. Extend them in
 preference to adding in-game checks — but note what they cannot do: they run a
@@ -1468,7 +1549,7 @@ single player, `server-console.txt` on a server).
 | `TREK_Phaser()` | Report phasers found on you and recharge them |
 | `TREK_Ghosts()` | Sweep hulls waiting to be cleared, and strays near you |
 | `TREK_Charges()` | Log whether beams are rationed on this server and your charges |
-| `TREK_Replicator()` | The sandbox mode, the reserve, the spare crystals in the chamber, how many patterns the ship holds, and the catalogue's size |
+| `TREK_Replicator()` | The sandbox mode, the reserve, the ship's spare crystals, how many patterns the ship holds, and the catalogue's size |
 
 ### On a dedicated server
 
@@ -1525,7 +1606,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.3.0**, build revision **20**.
+Version **1.3.0**, build revision **21**.
 
 **1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-9):
 server-owned ship and cabin, request protocol, transporter charges, shields per
@@ -1573,12 +1654,14 @@ slots. The torpedo's blast size and fire spread both needed no adjusting.
 
 **Not yet seen in game**, in the order worth checking:
 
-1. **Dilithium**, built 2026-09-20 and not played at all. The ship's power is
-   a crystal now: three spares in a chamber at 1,3, twelve vanilla loot tables
-   to find more in, a tricorder pass that plots them out to twenty tiles, and
-   no way to replicate one. **It needs a fresh world** -- both the ship's
-   spares and the ones in the town are placed when the world is made. The
-   route to check it is at the end of `REPLICATOR.md`.
+1. **Dilithium and the warp core**, built 2026-09-20 and not played at all.
+   The ship's power is a crystal now, held in the mod's own model at 1,3 with
+   *Load a crystal* and *Take a crystal* on its menu; twelve vanilla loot
+   tables to find more in; a tricorder pass that plots them out to twenty
+   tiles and reads the ground from the air; and no way to replicate one. **It
+   needs a fresh world** -- both the ship's spares and the ones in the town
+   are placed when the world is made. The route to check it is at the end of
+   `REPLICATOR.md`.
 2. **The replicator**, half-settled on 2026-09-20: it loads, the catalogue is
    4913 items in 78 categories, 19 patterns seed, and the machine places where
    it was authored. The first version could not be right-clicked at all, which
@@ -1655,12 +1738,14 @@ new rule above, and it is fixed. `REPLICATOR.md` is the working guide -- what ha
 how to change each piece, the engine facts not to re-derive, and the seven
 things to check the first time it is carried into a world.
 
-Five new sections of this file came out of it, plus a refinement to a sixth:
+Eight new sections of this file came out of it, plus a refinement to a ninth:
 a table that is transmitted whole cannot hold a list that grows; a vanilla
 call site under `AdminPanel/` is not a vanilla call site; a check against an
 empty set is not a passing check; a branch a mutation cannot break may be
-unreachable; a harness must record the distinctions the code makes; and the
-simulation has to be as unkind as the engine, which has now cost five holes
+unreachable; a harness must record the distinctions the code makes; a dropped
+world model picks its own angle; a string that gets upper-cased has to be
+ASCII; a check that runs after a self-healing pass checks the healing; and the
+simulation has to be as unkind as the engine, which has now cost seven holes
 rather than three.
 
 **Next up** is the EMH, which inherits the medical set's treatment primitives
@@ -1695,6 +1780,7 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_Medical.lua          treatment, doses,
 TrekShuttle/42/media/lua/shared/TREK/TREK_Replicator.lua       the item catalogue, patterns, what a thing costs
 TrekShuttle/42/media/lua/server/Items/TrekDilithium.lua        where crystals spawn in the world
 TrekShuttle/42/media/lua/client/TREK/TREK_ReplicatorUI.lua     the replicator panel and its menus
+TrekShuttle/42/media/lua/client/TREK/TREK_WarpCore.lua         the warp core's menu: load a crystal, take one back
 TrekShuttle/42/media/lua/client/TREK/TREK_MedKit.lua           the medical set: menus, panels, the sweep
 TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua             right-click menus, crew
 tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network

@@ -623,17 +623,8 @@ end
 --- The square the cursor is over, taken from the menu position so that it
 --- resolves whatever is on the tile. TREK_Menu.lua does the same thing for
 --- the same reason.
-local function clickedSquare(playerIndex, context, player)
-    local z = math.floor(player:getZ())
-    local x = U.try("rep.screenToIsoX", function()
-        return screenToIsoX(playerIndex, context.x, context.y, z)
-    end)
-    local y = U.try("rep.screenToIsoY", function()
-        return screenToIsoY(playerIndex, context.x, context.y, z)
-    end)
-    if not x or not y then return nil end
-    return math.floor(x), math.floor(y), z
-end
+-- U.clickedSquare, shared with the warp core: both machines own a square
+-- and neither can be found from the objects the menu event is handed.
 
 --- True when a click is at the replicator's berth, or near enough.
 ---
@@ -672,7 +663,7 @@ function M.fillMenu(playerIndex, context, worldobjects, test)
     if not player then return end
     if not U.isInteriorPlayer(player) then return end
 
-    local x, y, z = clickedSquare(playerIndex, context, player)
+    local x, y, z = U.clickedSquare(playerIndex, context, player)
     if not x or not isBerth(x, y, z) then return end
     if test then return ISWorldObjectContextMenu.setTest() end
 

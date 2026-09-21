@@ -26,13 +26,14 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **A hypospray** | One dose puts right bleeding, deep wounds, infected cuts, burns, fractures, pain and stiffness — everywhere on your body at once. It will not touch a bite. Six doses, and the ship replicates more while you are aboard; out in the field, what you are carrying is what you have. |
 | **A dermal regenerator** | Run it over the skin and the skin closes: lacerations, scratches, deep wounds and burns, with the stitches and the dressing that were holding them together. No bandage needed, and no charge to run out of. It will not mend a broken bone, touch an infected wound, or close over a piece of glass. |
 | **A medical tricorder** | Reads a body the way a surgeon would, whether or not you have ever held a scalpel. On yourself, or — with their say-so — on a crewmate. |
-| **A tricorder** | A sensor sweep out to forty tiles, drawn as a contact plot with you at the centre, and a lock override that talks most electronic locks open. Not padlocks, and not inside somebody's safehouse. It reads dilithium too, out to twenty tiles and through the walls of whatever it is shut in. |
+| **A tricorder** | A sensor sweep out to forty tiles, drawn as a contact plot with you at the centre, and a lock override that talks most electronic locks open. Not padlocks, and not inside somebody's safehouse. It reads dilithium too, out to twenty tiles and through the walls of whatever it is shut in — and **from a seat in the shuttle it reads the ground below you**, which is how you pick a town worth landing at. |
 | **A replicator** | A machine at the aft end of the galley that makes any item in the game — if the ship holds a pattern for it, and if the reserve covers it. Browse the catalogue by category or search it, pick one, five or ten, and it forms into your hands. |
 | **Patterns** | The ship can make what it has scanned. Stand at the replicator and scan what you are carrying: the ship reads it and hands it straight back, and from then on it can make that thing for ever. Starfleet gear — phasers, hyposprays, rations, the blades — it knows from the day it is built. |
-| **Dilithium** | The ship's power is a crystal burning in a chamber amidships, and one crystal is a thousand bandages' worth — but nothing refills it for free, and **the replicator cannot make one**. They turn up where a small, valuable, electrical thing would be: a jeweller's case, a pawn shop, an electronics store, a mechanic's shelf. The ship carries three spares, the tricorder finds more, and when the last one is gone the replicator is a cupboard. |
+| **Dilithium** | The ship's power is a crystal burning in the warp core amidships, and one crystal is a thousand bandages' worth — but nothing refills it for free, and **the replicator cannot make one**. They turn up where a small, valuable, electrical thing would be: a jeweller's case, a pawn shop, an electronics store, a mechanic's shelf. The ship carries three spares, the tricorder finds more, and when the last one is gone the replicator is a cupboard. |
+| **The warp core** | Amidships, in the port passage. Right-click it to load a crystal you have found, or to take one back before a trip. It says how many the ship is holding on the option itself, so you never have to guess. |
 | **Running water** | The galley sink has its own water supply, topped up every in-game minute, so it keeps running after the mains shut off. |
 | **A sick bay** | A biobed that is also the ship's bed, an EMH station, and a locker with one of each instrument in it. |
-| **Stores** | Three Starfleet lockers — an armoury, the rations and the sick bay — the dilithium chamber, and five containers left empty on purpose: the fridge, the oven, both counters and the microwave are yours to fill. |
+| **Stores** | Three Starfleet lockers — an armoury, the rations and the sick bay — and five containers left empty on purpose: the fridge, the oven, both counters and the microwave are yours to fill. |
 | **Shields** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed — no free experience, no free loot. Raise and lower them at the helm. |
 | **A shared ship** | In multiplayer there is one shuttle for everyone. Server owners can limit it to its owner and crew. |
 | **Bookmarks** | Log any position and set a course back to it later. |
@@ -117,12 +118,13 @@ to those. Pick a quantity, press *Materialise*, and it forms into your hands.
 it costs nothing and you keep the lot.
 
 The reserve across the top is what a replication spends, and **nothing refills
-it for free**. It is a dilithium crystal burning in the chamber amidships —
-the cabinet at the port side of the second row — and when it is spent the ship
-loads a spare from that same chamber by itself. One crystal is about a
-thousand bandages or two hundred hammers, so this is not a thing to ration; it
-is a thing to go and find, once in a long while, with the tricorder. The ship
-starts with three, and the replicator cannot make a fourth.
+it for free**. It is a dilithium crystal burning in the warp core — the lit
+blue column standing in the port passage — and when it is spent the ship loads
+a spare by itself. One crystal is about a thousand bandages or two hundred
+hammers, so this is not a thing to ration; it is a thing to go and find, once
+in a long while, with the tricorder. The ship starts with three, the
+replicator cannot make a fourth, and you put the ones you find in by
+right-clicking the core.
 
 ## How much room it needs
 
@@ -154,7 +156,7 @@ that is fifteen, so the inside and the outside tell the same story.
   0 TVTA      T monitor wall   V television   A armoury
   1 F*.p      F fridge   * lamp   p rations
   2 oh.M      o oven   h crew seat   M sick bay
-  3 wD.E      w sink counter   D dilithium   E EMH panel
+  3 wD.E      w sink counter   D warp core   E EMH panel
   4 m*.B      m microwave counter   B biobed (head)
   5 R.@B      R the replicator   @ transporter pad   B biobed (foot)
 ```
@@ -195,6 +197,7 @@ engine facts it rests on.
 | `tools/gen_medical.py` | The hypospray, tricorder and regenerator sounds. (Their icons come from the Gemini toolkit; the originals are in `design/art/medical/`.) |
 | `tools/gen_replicator.py` | The replicator — mesh, texture and materialisation sound — and the two renders it was judged on, into `design/art/replicator/`. |
 | `tools/gen_dilithium.py` | The dilithium crystal's inventory icon, into `design/art/dilithium/`. |
+| `tools/gen_warpcore.py` | The warp core — mesh and texture — and the two renders it was judged on, into `design/art/warpcore/`. |
 | `tools/gen_poster.py` | The mods-screen poster. |
 | `tools/luacheck.py` | Parses every Lua file through a real Lua VM. |
 | `tools/deploy_windows.py` | Copy the mod into the Zomboid mods folder as `TrekShuttleDev` and verify the copy. |
@@ -238,7 +241,7 @@ In game, load a **fresh** world with the mod enabled. From the debug console
 | `TREK_Phaser()` | Report how many phasers the sweep can see on you and recharge them. |
 | `TREK_Ghosts()` | Sweep hulls still waiting to be cleared, and any near you. |
 | `TREK_Charges()` | Report whether beams are rationed and your charges. |
-| `TREK_Replicator()` | Report the sandbox mode, the reserve, how many spare crystals are in the chamber, how many patterns the ship holds, and how big the catalogue came out. |
+| `TREK_Replicator()` | Report the sandbox mode, the reserve, how many spare crystals the ship is holding, how many patterns it holds, and how big the catalogue came out. |
 
 The design and diagnostic ones need single player or an admin on a server.
 
@@ -304,9 +307,12 @@ interior plus `TREK_InteriorLayout.lua`.
   the only way to get another is to find one. Sleeping does nothing, waiting
   does nothing, and the replicator cannot make them — which is the point of
   the whole arrangement.
-- **Crystals reach new worlds only.** Both the three in the ship's chamber and
+- **Crystals reach new worlds only.** Both the three in the ship's core and
   the ones out in the town are placed when a world is made, so an existing
   save will not have them.
+- **The warp core is not a cupboard.** It holds crystals and nothing else, and
+  you put them in and take them out from its right-click menu rather than by
+  opening it.
 - **The catalogue is every item in your game**, including other mods'. That is
   the point of reading it out of the engine rather than writing a recipe list,
   and it means a name or an icon the shuttle has never heard of can appear in

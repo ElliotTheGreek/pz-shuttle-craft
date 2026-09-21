@@ -704,6 +704,28 @@ function U.teleport(player, x, y, z)
 end
 
 --- A halo note over the player's head, in the transporter's own blue.
+--- The square a right-click landed on.
+---
+--- **Not the objects the menu was handed.** A click on a fixture that is
+--- drawn tall resolves to the floor square under the cursor, and the objects
+--- passed to the menu event are whatever is on *that* square -- which for the
+--- replicator was a bare patch of deck a tile away from the machine. Both of
+--- the mod's world-model fixtures find their square this way and allow a tile
+--- of margin around it.
+---
+--- Returns x, y, z, or nil when the projection cannot be read.
+function U.clickedSquare(playerIndex, context, player)
+    local z = math.floor(player:getZ())
+    local x = U.try("ui.screenToIsoX", function()
+        return screenToIsoX(playerIndex, context.x, context.y, z)
+    end)
+    local y = U.try("ui.screenToIsoY", function()
+        return screenToIsoY(playerIndex, context.x, context.y, z)
+    end)
+    if not x or not y then return nil end
+    return math.floor(x), math.floor(y), z
+end
+
 function U.note(player, text, r, g, b)
     if not player or not text then return end
     U.try("haloNote", function()

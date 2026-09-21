@@ -122,8 +122,18 @@ function instanceItem(id)
     -- item from a stack, sees neither and offers nothing at all.
     local it = { fullType = id, modData = {}, class = "InventoryItem",
                  ammo = 0, chambered = false, jammed = false, condition = 10,
+                 -- Negative is the engine's "nobody has set this yet", and it
+                 -- is what makes a dropped item pick its own angle below.
+                 worldXRotation = 0, worldYRotation = 0, worldZRotation = -1,
                  getFullType = function(self) return self.fullType end,
                  getModData = function(self) return self.modData end }
+
+    function it:getWorldZRotation() return self.worldZRotation end
+    function it:setWorldZRotation(v) self.worldZRotation = v end
+    function it:getWorldYRotation() return self.worldYRotation end
+    function it:setWorldYRotation(v) self.worldYRotation = v end
+    function it:getWorldXRotation() return self.worldXRotation end
+    function it:setWorldXRotation(v) self.worldXRotation = v end
 
     -- The weapon half, because a **phaser can be in a pocket now**: the
     -- replicator makes one into the player's own inventory, and TREK_Phaser's
@@ -324,6 +334,28 @@ function sendAddItemToContainer(container, item)
     if obj and obj.square then
         py_replicate("containerItem", { x = obj.square.x, y = obj.square.y, z = obj.square.z,
                                         sprite = obj.spriteName, item = item.fullType })
+    end
+end
+
+--- The other direction: an item the server took *out* of a container.
+---
+--- Vanilla's own pairing -- ISBuildUtil.lua removes an item and follows it
+--- with this call -- and the warp core needs it, because a crystal loaded
+--- into the ship comes out of the player's own inventory on the server and
+--- their client has to be told.
+function sendRemoveItemFromContainer(container, item)
+    if not isServer() then error("sendRemoveItemFromContainer off the server") end
+    if container.ownerName then
+        py_replicate("playerItemGone", { x = 0, y = 0, z = 0,
+                                         who = container.ownerName,
+                                         item = item.fullType })
+        return
+    end
+    local obj = container.parentObject
+    if obj and obj.square then
+        py_replicate("containerItemGone",
+                     { x = obj.square.x, y = obj.square.y, z = obj.square.z,
+                       sprite = obj.spriteName, item = item.fullType })
     end
 end
 
@@ -728,6 +760,20 @@ function SquareMT:AddWorldInventoryItem(fullType)
     else
         fullType = item.fullType or (item.getFullType and item:getFullType())
     end
+    -- **A dropped item picks its own yaw.** IsoWorldInventoryObject's
+    -- constructor zeroes worldXRotation and worldYRotation and then, if
+    -- worldZRotation is still unset, writes Rand.Next(0, 360) into it. That is
+    -- right for a hammer on the floor and wrong for a machine against a
+    -- bulkhead -- the replicator stood at a random angle for two revisions
+    -- because nothing here modelled it.
+    --
+    -- A fixed angle rather than a random one: the simulation has to be as
+    -- unkind as the engine, not as unpredictable. 137 is simply not zero.
+    if item.worldZRotation and item.worldZRotation < 0 then
+        item.worldXRotation, item.worldYRotation = 0, 0
+        item.worldZRotation = 137
+    end
+
     local w = SIM.object(fullType, "IsoWorldInventoryObject")
     w.item = item
     w.square = self
@@ -1117,7 +1163,18 @@ end
 
 function PlayerMT:getX() return self.x end
 function PlayerMT:getY() return self.y end
-function PlayerMT:getZ() return self.z end
+--- A character in a seat is wherever the vehicle is.
+---
+--- The engine moves a passenger with the vehicle every tick, so a pilot at
+--- cruise reports the flight level, not the ground they took off from. The
+--- stub used to answer the last z anybody had set on them, which made the
+--- cockpit indistinguishable from the tarmac -- and the tricorder's whole
+--- reason for reading downwards in flight is that the two are three levels
+--- apart.
+function PlayerMT:getZ()
+    if self.vehicle then return self.vehicle:getZ() end
+    return self.z
+end
 function PlayerMT:setX(v) self.x = v end
 function PlayerMT:setY(v) self.y = v end
 function PlayerMT:setZ(v) self.z = v end

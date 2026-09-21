@@ -114,21 +114,20 @@ L.tiles = {
     -- counter is cleaned up by B.refitCabin, contents and all.
 
     ---------------------------------------------------------------------
-    -- Amidships: the dilithium chamber
+    -- Amidships: the warp core -- 1,3, and no entry here either
     ---------------------------------------------------------------------
     -- **The ship's power plant, and the only thing aboard it cannot make.**
-    -- The replicator burns one crystal at a time out of this cabinet and
-    -- swaps in a spare when it runs dry; when the spares are gone, so is the
-    -- replicator, and later the EMH with it.
+    -- The replicator burns one crystal at a time and the core swaps in a
+    -- spare when it runs dry; when the spares are gone, so is the replicator,
+    -- and later the EMH with it.
     --
-    -- `location_business_machinery_01_33` is a Tool Cabinet from the
-    -- machinery set: grey, industrial, twenty units, and -- the part that
-    -- matters -- visibly *not* one of the three Starfleet lockers, so the one
-    -- container in the ship with a job of its own does not read as a fourth
-    -- locker. It stands at 1,3, off the pad's corridor, facing east so you
-    -- work it from the middle of the cabin.
-    { x = 1, y = 3, sprite = "location_business_machinery_01_33", tag = "dilithium",
-      container = true, special = "dilithium" },
+    -- It was a vanilla Tool Cabinet on this square for one revision: correct,
+    -- and indistinguishable from a tool cabinet. It is the mod's own model
+    -- now -- `C.DilithiumSpot`, `C.WarpCoreItem`, stood up by TREK_Build --
+    -- and what it holds is a number in the ship state rather than a
+    -- container, because a container comes from a tile sprite's properties
+    -- and a custom model has none. `B.refitCabin` takes the old cabinet out
+    -- of a save that still has one and keeps the crystals that were in it.
 
     ---------------------------------------------------------------------
     -- Starboard forward: the three Starfleet lockers

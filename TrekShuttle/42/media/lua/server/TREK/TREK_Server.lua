@@ -1366,11 +1366,6 @@ Net.onServer("replicate", function(player, args)
 
     -- **The ship burns a crystal here if it has to.** The reserve is one
     -- crystal's charge, so running out mid-shift is normal: Power.afford
-    -- swaps a spare in from the chamber and answers again. Only when there
-    -- are no spares is this a refusal, and then the player is told which of
-    -- the two problems they have.
-    -- **The ship burns a crystal here if it has to.** The reserve is one
-    -- crystal's charge, so running out mid-shift is normal: Power.afford
     -- swaps a spare in from the chamber and answers again.
     --
     -- One refusal rather than two, and that is a correction: there was a
@@ -1400,6 +1395,109 @@ Net.onServer("replicate", function(player, args)
     U.log("replicator: %s asked for %d x %s, made %d for %d unit(s); %d left",
           Ship.usernameOf(player), count, row.id, made, spent,
           math.floor(TREK.Power.reserve()))
+end)
+
+---------------------------------------------------------------------------
+-- The warp core
+---------------------------------------------------------------------------
+--- One crystal the player is really carrying, or nil.
+---
+--- The engine's recursive search compares the **bare** type, which is not
+--- namespaced, so the results are filtered on the full id: another mod's
+--- TrekDilithium is not the ship's fuel. The phaser and the medical set do
+--- the same, and the chamber count used to as well.
+--- Returns one crystal and how many they are carrying.
+local function carriedCrystals(player)
+    local inv = U.try("core.inv", function() return player:getInventory() end)
+    if not inv then return nil, 0 end
+    local list = U.try("core.carried", function()
+        return inv:getAllTypeRecurse(C.DilithiumType)
+    end)
+    if not list then return nil, 0 end
+
+    local join = U.batch("core.findCrystal")
+    local size = join(function() return list:size() end) or 0
+    local first, n = nil, 0
+    for i = 0, size - 1 do
+        local item = join(function() return list:get(i) end)
+        local t = item and U.try("core.type", function() return item:getFullType() end)
+        if t == C.DilithiumItem then
+            n = n + 1
+            if not first then first = item end
+        end
+    end
+    return first, n
+end
+
+--- The two things a player may do at the core, and the checks they share.
+local function atCore(player)
+    if not mayUse(player) then return false end
+    if not TREK.Power.inReachOf(player) then
+        deny(player, "coreFar")
+        return false
+    end
+    return true
+end
+
+--- Loading one in. The client asks; the server looks in its own copy of the
+--- player's inventory, takes the crystal out of it and puts it in the ship.
+Net.onServer("loadCrystal", function(player)
+    if not atCore(player) then return end
+
+    local crystal, before = carriedCrystals(player)
+    if not crystal then
+        deny(player, "coreNoCrystal")
+        return
+    end
+
+    -- Out of the player's hands first, and **counted** rather than compared:
+    -- a Remove that did nothing would turn one crystal into an unlimited
+    -- supply, and two Java objects are not a thing to test with `==` from
+    -- here. This is the same read-back the old chamber had.
+    local inv = U.try("core.inv", function() return player:getInventory() end)
+    U.try("core.remove", function() inv:Remove(crystal) end)
+    local _, after = carriedCrystals(player)
+    if after >= before then
+        U.log("WARN core: %s's crystal would not come out of their inventory",
+              Ship.usernameOf(player))
+        deny(player, "coreNoCrystal")
+        return
+    end
+    if isServer() then
+        U.try("core.syncInv", function() sendRemoveItemFromContainer(inv, crystal) end)
+    end
+
+    TREK.Power.addCrystals(1)
+    Ship.commit()
+    Net.toClient(player, "crystalLoaded",
+                 { crystals = TREK.Power.crystals() })
+    U.log("core: %s loaded a crystal; %d spare(s) aboard",
+          Ship.usernameOf(player), TREK.Power.crystals())
+end)
+
+--- Taking one back out, for a crew splitting their stores before a trip.
+Net.onServer("takeCrystal", function(player)
+    if not atCore(player) then return end
+
+    if TREK.Power.crystals() <= 0 then
+        deny(player, "coreEmpty")
+        return
+    end
+
+    -- Made into the player's hands and **counted**, exactly as a replication
+    -- is: a container at capacity drops what it is handed in silence, and the
+    -- ship must not lose a crystal to that.
+    local made = materialise(player, C.DilithiumItem, 1)
+    if made < 1 then
+        deny(player, "coreFull")
+        return
+    end
+    TREK.Power.takeCrystal()
+    Ship.commit()
+    Net.toClient(player, "crystalTaken",
+                 { crystals = TREK.Power.crystals() })
+    U.log("core: %s took a crystal; %d spare(s) aboard",
+          Ship.usernameOf(player), TREK.Power.crystals())
 end)
 
 --- Storing one pattern, from the item's own right-click menu.

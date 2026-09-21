@@ -542,8 +542,9 @@ than the plan's own recommendation of one or the other:
   is free and hands the item straight back, and it knows its own Starfleet
   gear from the day the world is made. Looting becomes "find the first one";
 - **energy** decides *how much*. Every replication spends from a reserve, and
-  **nothing refills it for free**: it is a dilithium crystal burning in a
-  chamber amidships. The ship swaps in a spare when one is spent, it starts
+  **nothing refills it for free**: it is a dilithium crystal burning in the
+  warp core amidships -- the mod's own model, with the crystal lit in its
+  collar, loaded and unloaded from its right-click menu. The ship swaps in a spare when one is spent, it starts
   with three, and it cannot make a fourth — crystals are found out in the
   world, at a jeweller's, a pawn shop, an electronics store, a mechanic's
   shelf. One is worth a thousand bandages, so the system is an expedition
@@ -635,13 +636,13 @@ the whole list at once rather than to each version.
 4. **The interior refit** -- built (2026-09-20), 4x6, Starfleet-issue lockers.
    Needs a fresh world *and* a pre-refit save, for the migration.
    `INTERIOR_REFIT.md` section 7 is the list.
-5. **The replicator** -- built and twice in a game (2026-09-20). Still needs
-   a **fresh** world for: the fixed right-click, whether the machine looks
-   like it belongs at its new size, the tree and the known-only toggle, a
-   pattern crossing between two machines, and all of dilithium — the three
-   spares in the chamber, a crystal loading itself when the reserve runs dry,
-   the refusal when there are none, and finding one in a town with the
-   tricorder.
+5. **The replicator** -- built and three times in a game (2026-09-20). Still
+   needs a **fresh** world for: whether the machine looks like it belongs at
+   its third size and standing square, the tree and the known-only toggle, a
+   pattern crossing between two machines, and all of dilithium — the warp
+   core amidships with its load and take options, a crystal loading itself
+   when the reserve runs dry, the refusal when there are none, finding one in
+   a town with the tricorder, and a ground survey flown over one.
 6. **The EMH.**
 7. **Publish.**
 

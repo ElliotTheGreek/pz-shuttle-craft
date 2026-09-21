@@ -138,6 +138,34 @@ if on_spot:
 if not inside(rep[0] + 1, rep[1]):
     failures.append(f"there is no square beside the replicator to work it from")
 
+# --- the warp core's square ----------------------------------------------
+# Same rule, same reason: the core is the mod's own world model on
+# C.DilithiumSpot and **nothing else may be on that square**. It was a vanilla
+# Tool Cabinet for one revision -- which worked, and looked like a tool
+# cabinet -- and a fitting put back there in the map editor would be drawn
+# straight through the core.
+core = (int(C.DilithiumSpot.x), int(C.DilithiumSpot.y))
+if not inside(*core):
+    failures.append(f"the warp core at {core[0]},{core[1]} is outside the hull")
+if is_pad(*core):
+    failures.append(f"the warp core at {core[0]},{core[1]} stands on the "
+                    f"transporter pad")
+if core == rep:
+    failures.append("the warp core and the replicator are on the same square")
+on_core = [e for e in entries if (e["x"], e["y"]) == core]
+if on_core:
+    failures.append(f"{len(on_core)} authored fitting(s) stand on the warp "
+                    f"core's square at {core[0]},{core[1]}: "
+                    f"{[e['tag'] for e in on_core]}. The core owns it.")
+# It stands in the port passage, so the square to starboard is where you work
+# it from -- and that one has to be open deck, not another fitting.
+beside = (core[0] + 1, core[1])
+if not inside(*beside):
+    failures.append("there is no square beside the warp core to work it from")
+elif [e for e in entries if (e["x"], e["y"]) == beside]:
+    failures.append(f"the only square beside the warp core ({beside[0]},"
+                    f"{beside[1]}) is occupied, so there is nowhere to stand")
+
 # --- every `special` names a rule the build actually has ------------------
 # A special is a string in one file that has to be matched by a key in another,
 # with nothing at runtime to notice a typo: a container marked `special =
@@ -211,6 +239,8 @@ for oy in range(L_LEN + 1):
             row += "@"
         elif (ox, oy) == rep:
             row += "R"
+        elif (ox, oy) == core:
+            row += "D"
         elif (ox, oy) in grid:
             # the topmost non-rug layer is what you actually walk up to
             tags = [t for t in grid[(ox, oy)] if t != "rug"] or grid[(ox, oy)]
@@ -224,7 +254,7 @@ print("\n   @ transporter pad   T monitor wall   V television")
 print("   t tv console   h crew seat   F fridge   o oven   c counter")
 print("   w sink   m microwave   R the replicator (a world model)")
 print("   A armoury   p rations   M sick bay   E EMH panel   B biobed")
-print("   D the dilithium chamber")
+print("   D the warp core (a world model)")
 print("   * lamp      . open deck")
 
 print(f"\n{len(entries)} authored fittings, {len(containers)} containers:")

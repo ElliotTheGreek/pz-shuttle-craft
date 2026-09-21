@@ -511,7 +511,9 @@ it.
 | Who may use it | **Server** -- alive, the ship's own `canUse`, and standing at the berth, measured on the server's copy of where they are |
 | The pattern set | **Server**, its own global mod data key, shared by the crew |
 | The reserve | **Server**, ship state: one number. A client with no copy yet reads it as full rather than empty, so a panel opened before the first sync does not grey its own button |
-| The crystals | **Server**, and they are *items in a container*, not a number. `P.burnCrystal` removes one, reads the container back to prove the removal happened, and marks it dirty and transmits its mod data so every client's copy of the chamber agrees with the server's |
+| The crystals | **Server**, ship state: one number beside the reserve. They were items in a container for one revision; the core is the mod's own model and a model cannot have a container, and the number turns out to be the better half of the trade -- every client knows the spare count without standing in front of anything |
+| Loading one in | **Server**, on `loadCrystal`. It looks in its own copy of the player's inventory, filtered on the **full** id, removes the crystal, counts the inventory before and after, and follows it with `sendRemoveItemFromContainer` so the asking client's own copy agrees |
+| Taking one out | **Server**, on `takeCrystal`. The crystal is made into the player's hands and **counted first**; the ship's number only goes down once one really landed |
 | Loading a spare | **Server**, inside `P.afford`, which is guarded by `isClient()` -- a client asked to pay for something it cannot afford simply answers no |
 | The catalogue | **Both**, built per process out of `getAllItems()`. It is derived from the game's own scripts, so every process computes the same thing and none of it crosses the wire |
 | The panel, the search, the list | **Client**, presentation only |

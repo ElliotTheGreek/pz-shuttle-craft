@@ -111,6 +111,37 @@ module TrekShuttle
         the right shape and already in the game; tests/test_assets.py checks
         the borrowed name, because a model that does not resolve draws
         nothing and says nothing.  */
+    /*  The warp core: the fixture the crystals live in.
+
+        A model and not a cupboard. A container in this engine comes from a
+        tile sprite's properties, so a custom model cannot have one -- and
+        standing a model over a vanilla cabinet to borrow its container is the
+        arrangement the replicator was rebuilt to get rid of. The core owns
+        its square, and what it holds is one number in the ship state.
+
+        Same shape as TrekReplicator below it: a Furniture item that is never
+        in anybody's inventory, placed as a world model by TREK_Build, and
+        right-clicked through the square it stands on.  */
+    item TrekWarpCore
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Warp Core,
+        DisplayCategory = Furniture,
+        Icon = TREK_Shuttle,
+        Weight = 90.0,
+        WorldStaticModel = TrekWarpCoreModel,
+        StaticModel = TrekWarpCoreModel,
+        Tooltip = Tooltip_TREK_WarpCore,
+    }
+
+    model TrekWarpCoreModel
+    {
+        mesh = TREK_WarpCore,
+        texture = TREK_WarpCore,
+        scale = 1.0,
+    }
+
     item TrekDilithium
     {
         DisplayCategory = Material,

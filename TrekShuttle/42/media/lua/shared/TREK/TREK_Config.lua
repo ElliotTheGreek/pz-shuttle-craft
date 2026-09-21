@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 20
+C.BuildRev = 21
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -782,14 +782,35 @@ C.DilithiumCharge = 5000
 -- on the panel mean something: it is the crystal in the chamber, burning.
 C.PowerMax = C.DilithiumCharge
 
--- The chamber: a layout tag, like the water fixtures use. Whatever the map
--- editor puts there, the crystals live in its container and the ship burns
--- them out of it.
-C.DilithiumTag = "dilithium"
+-- The warp core: where the crystals are, and the square it stands on.
+--
+-- **A model rather than a cupboard, and a count rather than a container.**
+-- It was a vanilla Tool Cabinet for one revision. That worked and it looked
+-- like a tool cabinet, and the fix could not be "stand a model over the
+-- cabinet" -- borrowing another fixture's container is the arrangement the
+-- replicator was rebuilt to get rid of. A container in this engine comes from
+-- a *tile sprite's* properties, so a custom model cannot have one at all.
+--
+-- So the core owns its square the way the replicator owns 0,5: no layout
+-- entry, a world model standing on it, and what it holds is one number in the
+-- ship state. That number is transmitted with everything else, which is a
+-- gain rather than a compromise: every client's panel now reads the same
+-- spare count without opening anything.
+C.WarpCoreItem = "TrekShuttle.TrekWarpCore"
+C.DilithiumSpot = { x = 1, y = 3 }
 
--- What a new ship is issued with, in the chamber, on top of the crystal it
--- arrives burning. Three is enough to teach the player what they are for and
--- not enough to skip the hunt.
+-- The tag the old cabinet carried, for the migration that takes it out and
+-- keeps what was inside. Nothing places one any more.
+C.LegacyDilithiumTag = "dilithium"
+
+-- How close you have to stand to work the core, in tiles. The replicator's
+-- number, deliberately: two fixtures a pace apart that took different reaches
+-- would feel like a bug rather than a rule.
+C.CoreRange = 2
+
+-- What a new ship is issued with, on top of the crystal it arrives burning.
+-- Three is enough to teach the player what they are for and not enough to
+-- skip the hunt.
 C.DilithiumIssue = 3
 
 ---------------------------------------------------------------------------

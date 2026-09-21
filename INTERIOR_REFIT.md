@@ -36,7 +36,7 @@ still enough room to give every system a place a player can find without a map.
   0 TVTA        T monitor wall (wall object, deck underneath)   A armoury
   1 F*.p        V television on its console   F fridge   * lamp   p rations
   2 oh.M        h crew seat, facing the screen   o oven   M sick bay
-  3 wD.E        w sink counter   D dilithium chamber   E EMH panel (wall)
+  3 wD.E        w sink counter   D the warp core       E EMH panel (wall)
   4 m*.B        m microwave counter                     B biobed (head)
   5 R.@B        @ transporter pad   R the replicator    B biobed (foot)
 ```
@@ -64,7 +64,7 @@ Everything is reachable from an open square:
 | armoury | 2,0 |
 | rations, sick bay | 2,1 and 2,2 |
 | fridge, oven, sink, microwave, the replicator | the port passage, 1,1 .. 1,5 |
-| the dilithium chamber | 1,3 itself is the passage square it stands on; worked from 2,3 |
+| the warp core | 1,3 itself; worked from 2,3, which the layout keeps clear |
 | biobed, EMH panel | 2,4, the pad at 2,5, and the open square at 3,3 |
 
 ---
@@ -132,24 +132,29 @@ machine makes goes into the player's hands. `B.refitCabin` takes the counter
 out of a save that still has one, and spills what was in it onto the pad.
 `REPLICATOR.md`.
 
-**1,3 is the dilithium chamber.** A Tool Cabinet
-(`location_business_machinery_01_33`, `container = toolcabinet`, capacity 20),
-tagged `dilithium`, standing in the middle of the port passage where the crew
-walk past it. It holds the crystals that power the ship: three when she is
-built, and whatever the crew bring home after that.
+**1,3 is the warp core's, and it carries no fitting at all.** The second
+square in the cabin to be owned by a model rather than a tile, for the same
+reasons as the first.
 
-It is the first fitting in the cabin that is **load-bearing for another
-system** rather than storage with a theme. `TREK_Power` finds it by the tag
-rather than by a second constant, takes a crystal out of it when the reserve
-runs dry, and counts what is left; the container is the only record, so
-nothing can drift out of step with it. `REPLICATOR.md` is the system, this is
-the furniture.
+It was a vanilla Tool Cabinet (`location_business_machinery_01_33`,
+`container = toolcabinet`, capacity 20) for one revision. That worked
+perfectly and looked like a tool cabinet — which, for the ship's power plant,
+is the same failure the helm prop had in reverse. It is the mod's own model
+now (`tools/gen_warpcore.py`): a banded plasma column with a lit crystal in
+its collar, slim enough to stand in a passage the crew walk down.
 
-It also cost the test harness a fix, which is worth knowing before the next
-fitting is chosen: `tests/pz_sim.lua` decides whether a sprite has a container
-from a list of substrings in its name, and `..._machinery_...` was not one of
-them. The cabinet was placed, never stocked, and eight checks failed on a
-power system that was working perfectly.
+**It has no container, and it does not want one.** A container comes from a
+tile sprite's properties, so a custom model cannot have one, and standing the
+model over the cabinet to borrow its container is the arrangement the
+replicator was rebuilt to get rid of. What it holds is one number in the ship
+state, loaded and unloaded from its right-click menu. `REPLICATOR.md` is the
+system; this is the furniture.
+
+The cabinet did leave one lesson behind: `tests/pz_sim.lua` decides whether a
+sprite has a container from a list of substrings in its name, and
+`..._machinery_...` was not one of them, so it was placed, never stocked, and
+eight checks failed on a power system that was working perfectly. The list
+still needs a new entry for any *tile* fitting that holds something.
 
 The sink is the only plumbed fixture left. `C.WaterTags` keys on the tag, so
 nothing in the water code changed.
@@ -228,10 +233,10 @@ was deleted with it.
 That is the second half of the refit and it is why `C.Loot` is four lines long
 now instead of nine lists.
 
-- **Five of the nine containers hold nothing.** The fridge, the oven, both
-  counters and the microwave are the player's shelves. (Eight for a while:
-  the replicator replaced the counter it used to stand on, and the dilithium
-  chamber arrived after it.)
+- **Five of the eight containers hold nothing.** The fridge, the oven, both
+  counters and the microwave are the player's shelves. (Nine for a while: the
+  replicator replaced the counter it used to stand on, the dilithium cabinet
+  arrived, and then the warp core replaced that too.)
 - **The three lockers hold the mod's own items and nothing else.** A locker of
   pistols and bandages was what a 40-unit container needed when there were
   eight of them; with three it is just the vanilla game, in a cupboard, on a

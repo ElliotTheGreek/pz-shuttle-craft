@@ -272,6 +272,60 @@ local function removeLegacyBerth(sq)
     return removed, spilled
 end
 
+--- The Tool Cabinet that held the crystals for one revision.
+---
+--- The core is the mod's own model now and what it holds is ship state, so
+--- the cabinet has to be named to be removed -- nothing that walks the new
+--- layout visits that square any more. **The crystals inside it are counted
+--- into the ship** rather than spilled: they are the hardest thing in the mod
+--- to come by, and a player who put six in the cabinet should find six in the
+--- core. Anything else in there is the player's and goes onto the pad.
+local function removeLegacyChamber(sq)
+    if not sq then return 0, 0, 0 end
+    local doomed = {}
+    U.eachObject(sq, function(o)
+        local md = U.try("md", function() return o:getModData() end)
+        if md and md.TREK == C.LegacyDilithiumTag then
+            table.insert(doomed, o)
+        end
+    end)
+
+    local removed, spilled, kept = 0, 0, 0
+    for _, o in ipairs(doomed) do
+        local container = U.containerOf(o)
+        if container then
+            -- Count them, then take them out, so what is left to spill is
+            -- what the player put there and nothing of the ship's.
+            local list = U.try("chamber.crystals", function()
+                return container:getAllTypeRecurse(C.DilithiumType)
+            end)
+            local join = U.batch("chamber.migrate")
+            local size = list and (join(function() return list:size() end) or 0) or 0
+            local crystals = {}
+            for i = 0, size - 1 do
+                local item = join(function() return list:get(i) end)
+                local t = item and U.try("chamber.type", function()
+                    return item:getFullType()
+                end)
+                if t == C.DilithiumItem then table.insert(crystals, item) end
+            end
+            for _, item in ipairs(crystals) do
+                U.try("chamber.take", function() container:Remove(item) end)
+                kept = kept + 1
+            end
+        end
+        spilled = spilled + spillToPad(o)
+        if removeSynced(sq, o) then removed = removed + 1 end
+    end
+
+    if kept > 0 then
+        TREK.Power.addCrystals(kept)
+        U.log("refit: %d crystal(s) moved out of the old chamber and into the "
+              .. "core", kept)
+    end
+    return removed, spilled, kept
+end
+
 function B.refitCabin()
     local s = U.state()
     if s.refitRev == C.BuildRev then return 0 end
@@ -295,6 +349,10 @@ function B.refitCabin()
                 props = props + removeWorldItem(sq, C.LegacyHelmItem)
                 if ox == C.ReplicatorSpot.x and oy == C.ReplicatorSpot.y then
                     local gone, out = removeLegacyBerth(sq)
+                    removed, spilled = removed + gone, spilled + out
+                end
+                if ox == C.DilithiumSpot.x and oy == C.DilithiumSpot.y then
+                    local gone, out = removeLegacyChamber(sq)
                     removed, spilled = removed + gone, spilled + out
                 end
                 if not inShape(ox, oy) and sq then
@@ -484,11 +542,6 @@ local SPECIALS = {
     medkit  = { items = { C.HyposprayItem, C.DermalRegenItem,
                           C.MedTricorderItem, C.TricorderItem },
                 copies = function() return 1 end },
-    -- The ship is issued with spare crystals on top of the one it arrives
-    -- burning. Enough to learn what they are for; not enough to skip looking
-    -- for more, which is the whole point of them.
-    dilithium = { items = { C.DilithiumItem },
-                  copies = function() return C.DilithiumIssue end },
 }
 
 --- Stocks one authored container. Returns true when something went in.
@@ -754,6 +807,50 @@ function B.replicatorsAt(sq)
     return standing
 end
 
+--- Stands a dropped world model square to the ship.
+---
+--- **`IsoWorldInventoryObject`'s constructor randomises the yaw.** It zeroes
+--- worldXRotation and worldYRotation, and then, if worldZRotation is still
+--- unset (negative, which it is on a fresh item), it writes
+--- `Rand.Next(0, 360)` into it. That is exactly right for a dropped hammer
+--- and exactly wrong for a machine bolted to a bulkhead, which stood at
+--- whatever angle the dice gave it.
+---
+--- The three rotations are saved and loaded with the item, so setting them
+--- here persists and reaches clients with the item itself -- there is no
+--- separate packet to send. Safe to call on a machine that is already
+--- straight; it reports whether it changed anything.
+local function straighten(item, what)
+    if not item then return false end
+    local yaw = U.try("worldYaw", function() return item:getWorldZRotation() end)
+    if yaw == 0 then return false end
+    U.try("straighten", function()
+        item:setWorldXRotation(0)
+        item:setWorldYRotation(0)
+        item:setWorldZRotation(0)
+    end)
+    U.log("%s was standing at %s degrees; squared up", what, tostring(yaw))
+    return true
+end
+
+--- The replicator on its square, or nil.
+local function replicatorItem(sq)
+    local found = nil
+    U.try("replicator.find", function()
+        local items = sq:getWorldObjects()
+        if not items then return end
+        for i = 0, items:size() - 1 do
+            local worldItem = items:get(i)
+            local item = worldItem and worldItem:getItem()
+            if item and item:getFullType() == C.ReplicatorItem then
+                found = item
+                return
+            end
+        end
+    end)
+    return found
+end
+
 local function furnishReplicator()
     local ox, oy = TREK.Replicator.spot()
     if not ox then return false end
@@ -761,17 +858,102 @@ local function furnishReplicator()
     local sq = U.square(x, y, C.CabinZ, true)
     if not sq then return false end
 
-    if B.replicatorsAt(sq) > 0 then return false end
+    -- Already standing: square it up rather than leaving it. A save made
+    -- before the rotation was understood has a machine at a random yaw, and
+    -- this is the only pass that will ever touch it again.
+    if B.replicatorsAt(sq) > 0 then
+        straighten(replicatorItem(sq), "replicator: the machine at " ..
+                   tostring(ox) .. "," .. tostring(oy))
+        return false
+    end
 
     local placed = U.try("replicator.place", function()
         return sq:AddWorldInventoryItem(C.ReplicatorItem, 0.5, 0.5, 0.0)
     end)
     if placed then
-        U.log("replicator: the alcove stands at %d,%d", ox, oy)
+        straighten(placed, "replicator: a freshly placed machine")
+        U.log("replicator: the machine stands at %d,%d", ox, oy)
         return true
     end
     U.log("WARN replicator: %s would not place at %d,%d; the machine still "
           .. "works from the counter", tostring(C.ReplicatorItem), ox, oy)
+    return false
+end
+
+--- The warp core's world item on its square, or nil.
+local function coreItem(sq)
+    local found = nil
+    U.try("core.find", function()
+        local items = sq:getWorldObjects()
+        if not items then return end
+        for i = 0, items:size() - 1 do
+            local worldItem = items:get(i)
+            local item = worldItem and worldItem:getItem()
+            if item and item:getFullType() == C.WarpCoreItem then
+                found = item
+                return
+            end
+        end
+    end)
+    return found
+end
+
+--- How many warp cores are standing on a square. The replicator's check, for
+--- the replicator's reason: a world item is saved, and something that places
+--- one without looking first stands a second one there at every rebuild.
+function B.coresAt(sq)
+    if not sq then return 0 end
+    local standing = 0
+    U.try("core.scan", function()
+        local items = sq:getWorldObjects()
+        if not items then return end
+        for i = 0, items:size() - 1 do
+            local worldItem = items:get(i)
+            local item = worldItem and worldItem:getItem()
+            if item and item:getFullType() == C.WarpCoreItem then
+                standing = standing + 1
+            end
+        end
+    end)
+    return standing
+end
+
+--- Stands the warp core amidships, and issues the ship its spare crystals.
+---
+--- The crystals are issued **once**, keyed on the count being absent rather
+--- than on it being zero: a crew who burned their way through all three and
+--- came home empty must not be handed three more by the next rebuild.
+local function furnishCore()
+    -- Two locals, not `U.square(at(x, y), ...)`: a call in the middle of an
+    -- argument list is truncated to one value, and the cabin's y would have
+    -- been the z.
+    local x, y = at(C.DilithiumSpot.x, C.DilithiumSpot.y)
+    local sq = U.square(x, y, C.CabinZ, true)
+    if not sq then return false end
+
+    local s = U.state()
+    if s.crystals == nil then
+        s.crystals = C.DilithiumIssue
+        U.log("core: the ship is issued %d spare crystal(s)", C.DilithiumIssue)
+    end
+
+    if B.coresAt(sq) > 0 then
+        straighten(coreItem(sq), "core: the warp core")
+        return false
+    end
+
+    local placed = U.try("core.place", function()
+        return sq:AddWorldInventoryItem(C.WarpCoreItem, 0.5, 0.5, 0.0)
+    end)
+    if placed then
+        straighten(placed, "core: a freshly placed warp core")
+        U.log("core: the warp core stands at %d,%d",
+              C.DilithiumSpot.x, C.DilithiumSpot.y)
+        return true
+    end
+    U.log("WARN core: %s would not place at %d,%d; the ship still has its "
+          .. "power, but there is nothing to load a crystal into",
+          tostring(C.WarpCoreItem), C.DilithiumSpot.x, C.DilithiumSpot.y)
     return false
 end
 
@@ -968,6 +1150,7 @@ function B.buildCabin()
           end },
         { "fitLamps",       fitLamps },
         { "replicator",     furnishReplicator },
+        { "warpCore",       furnishCore },
         { "stockReport", function() B.stockReport() end },
         { "clearMargin",    clearSurroundings },
     }

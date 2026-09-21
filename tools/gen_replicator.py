@@ -147,7 +147,12 @@ UP_AXIS = "y"
 # the galley counters. Everything scales together from here rather than by
 # hand, because a unit whose niche did not shrink with its body would end up
 # as a letterbox.
-SCALE = 0.86
+#
+# Two looks in game, two cuts: 0.86 was still a shade too big, and this is
+# ten per cent off that again. A model is judged standing next to the fridge
+# it shares a bulkhead with, not in a render, so the number moves when the
+# author says it looks wrong and stops when they stop saying it.
+SCALE = 0.86 * 0.9
 
 BACK, FRONT = -0.46 * SCALE, 0.22 * SCALE   # against the wall, and its face
 SIDE = 0.40 * SCALE                 # north and south half-width

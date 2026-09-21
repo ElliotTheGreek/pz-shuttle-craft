@@ -172,6 +172,27 @@ APPLY = r"""
             for _, p in ipairs(SIM.players) do
                 if p.name == d.who then p.inventory:AddItem(instanceItem(d.item)) end
             end
+        elseif op == "playerItemGone" then
+            for _, p in ipairs(SIM.players) do
+                if p.name == d.who then
+                    for i, it in ipairs(p.inventory.items) do
+                        if it.fullType == d.item then
+                            table.remove(p.inventory.items, i)
+                            break
+                        end
+                    end
+                end
+            end
+        elseif op == "containerItemGone" then
+            local o = find(sq.objects, d.sprite)
+            if o and o.container then
+                for i, it in ipairs(o.container.items) do
+                    if it.fullType == d.item then
+                        table.remove(o.container.items, i)
+                        break
+                    end
+                end
+            end
         elseif op == "containerItem" then
             local o = find(sq.objects, d.sprite)
             if o and o.container then table.insert(o.container.items, instanceItem(d.item)) end
@@ -829,6 +850,71 @@ def flight():
           f"flight: she did not come back down a level (z {vehicle_z(rt)})")
     check(ship(rt, "flying") is True, "flight: diving dropped her out of flight")
 
+    # --- the tricorder reads the ground from up here -----------------------
+    # A sweep reads the deck it is standing on, and three levels up that deck
+    # is empty sky: every zombie in the county is at z 0 and every crystal
+    # with them. Taken from a seat in a flying shuttle it reads *downwards*
+    # instead, every level from the ground up to the ship -- which is what
+    # makes the instrument any use for finding a town worth landing at.
+    rt.run("""
+        SIM.zombies = {}
+        local p = SIM.players[1]
+        local px, py = math.floor(p:getX()), math.floor(p:getY())
+        for i = 1, 6 do SIM.zombie(px + i, py + 1, 0) end
+        -- One on a first floor, which is still below her and still hers.
+        SIM.zombie(px + 2, py + 2, 1)
+        local cell = getCell()
+        cell:getOrCreateGridSquare(px + 3, py, 0)
+            :AddWorldInventoryItem(TREK.Config.DilithiumItem)
+        -- And one a floor up, which is between her and the ground: a survey
+        -- that only read the bottom level would miss every crystal in every
+        -- upstairs room in the town.
+        cell:getOrCreateGridSquare(px - 2, py + 1, 1)
+            :AddWorldInventoryItem(TREK.Config.DilithiumItem)
+        SIM.notes = {}
+    """)
+    check(rt.eval(f"SIM.players[1]:getZ()") == cruise,
+          f"flight: the pilot reports z {rt.eval('SIM.players[1]:getZ()')} in a "
+          f"ship at level {cruise} -- the sweep below would prove nothing")
+    check(rt.eval(f"TREK.MedKit.startSweep({P})") is True,
+          "flight: the tricorder would not sweep from the cockpit")
+    slices = 0
+    while rt.eval("TREK.MedKit.sweeping()") and slices < 600:
+        rt.run("TREK.MedKit.serviceSweep()")
+        slices = slices + 1
+    aloft = rt.eval("TREK.MedKit.lastSweep.aloft")
+    found = int(rt.eval("TREK.MedKit.lastSweep.total") or -1)
+    crystals = int(rt.eval("TREK.MedKit.lastSweep.crystalTotal") or -1)
+    check(aloft is True,
+          "flight: a sweep from the cockpit at cruise does not know it is a "
+          "ground survey, so the panel will call it a sensor sweep")
+    check(found == 7,
+          f"flight: the sweep found {found} contacts from the air, not the 7 "
+          f"on the ground below her (six at z 0 and one on a first floor)")
+    check(crystals == 2,
+          f"flight: the sweep found {crystals} dilithium traces from the air, "
+          f"not the two below her -- one on the ground and one a floor up")
+
+    # And on the deck it is still one level. The ship is the only reason to
+    # look down, and a sweep on foot that started reading through floors would
+    # be a different instrument.
+    rt.run("""
+        local p = SIM.players[1]
+        SIM.aloftPlayer = p
+        p.vehicleWas = p.vehicle
+        p.vehicle = nil
+    """)
+    net.clock += int(rt.eval("TREK.Config.SweepIntervalMs")) + 100
+    rt.run(f"TREK.MedKit.startSweep({P})")
+    slices = 0
+    while rt.eval("TREK.MedKit.sweeping()") and slices < 600:
+        rt.run("TREK.MedKit.serviceSweep()")
+        slices = slices + 1
+    check(rt.eval("TREK.MedKit.lastSweep.aloft") is False,
+          "flight: a sweep taken out of the seat still calls itself a ground "
+          "survey")
+    rt.run("SIM.players[1].vehicle = SIM.players[1].vehicleWas")
+
     # --- the ceiling is real, and says so ---------------------------------
     # She is at cruise + 1 now, which is the top. Asking for more must be
     # refused out loud rather than silently clamped to where she already is --
@@ -1296,6 +1382,65 @@ def refit():
           "refit: what was in the old replicator counter was destroyed rather "
           "than spilled onto the pad")
 
+    # --- the old dilithium chamber ------------------------------------------
+    # A Tool Cabinet at 1,3 held the crystals for one revision. The core is
+    # the mod's own model now and what it holds is a number, so the cabinet
+    # has to be named to be removed -- and **the crystals in it are the
+    # hardest thing in the mod to come by**, so they are counted into the ship
+    # rather than spilled with the rest.
+    rt.run("""
+        local C, U = TREK.Config, TREK.Util
+        U.state().refitRev = nil
+        U.state().crystals = 1
+        local x, y = U.at(C.DilithiumSpot.x, C.DilithiumSpot.y)
+        local sq = SIM.rawSquare(x, y, C.CabinZ)
+        local o = SIM.object("location_business_machinery_01_33")
+        o.square = sq
+        o.modData.TREK = C.LegacyDilithiumTag
+        o.container = SIM.container(20)
+        o.container.parentObject = o
+        for _ = 1, 4 do o.container:AddItem(C.DilithiumItem) end
+        o.container:AddItem("OtherMod.TrekDilithium")
+        o.container:AddItem("Base.Screwdriver")
+        table.insert(sq.objects, o)
+    """)
+    rt.eval("TREK.Build.refitCabin()")
+
+    cabinet = rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(C.DilithiumSpot.x, C.DilithiumSpot.y)
+        for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+            if o.modData and o.modData.TREK == C.LegacyDilithiumTag then
+                return true
+            end
+        end
+        return false
+    end)()""")
+    check(cabinet is False,
+          "refit: the old dilithium cabinet is still standing on the core's "
+          "square, so the ship has two power plants drawn through each other")
+    check(crystals_aboard(rt) == 5,
+          f"refit: the ship kept {crystals_aboard(rt)} crystals across the "
+          f"migration, not the one it had plus the four in the cabinet -- and "
+          f"an impostor with the same bare type is not a fifth")
+
+    # The screwdriver was the player's, so it is on the pad with everything
+    # else the sweep displaced.
+    tools = rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(C.Landing.x, C.Landing.y)
+        local n = 0
+        for _, w in ipairs(SIM.rawSquare(x, y, C.CabinZ).worldObjects or {}) do
+            local it = w.item
+            local id = it and (it.fullType or it:getFullType())
+            if id == "Base.Screwdriver" then n = n + 1 end
+        end
+        return n
+    end)()""")
+    check(tools >= 1,
+          "refit: what else was in the old chamber was destroyed rather than "
+          "spilled onto the pad")
+
     # It only claims to be done when it reached everything, and it does not
     # run twice.
     check(ship(rt, "refitRev") == rt.eval("TREK.Config.BuildRev"),
@@ -1308,10 +1453,11 @@ def refit():
     # would delete the cabin's own lockers and their stock -- silently, and
     # only in somebody's existing save.
     containers, stocked, _, wanted = cabin_objects(rt)
-    # Nine: the galley's five, the three stocked lockers, and the dilithium
-    # chamber. The replicator is not among them -- it used to stand on a
-    # counter, and that counter was a tenth until the machine replaced it.
-    check(containers == 9 and stocked == wanted,
+    # Eight: the galley's five and the three stocked lockers. Neither of the
+    # ship's two machines is among them -- the replicator stood on a counter
+    # once and the warp core was a tool cabinet, and both of those were
+    # fixtures leaning on other fixtures.
+    check(containers == 8 and stocked == wanted,
           f"refit: the sweep ate the new cabin -- {containers} containers "
           f"left, {stocked} of {wanted} still stocked")
 
@@ -2614,25 +2760,31 @@ def made_items(rt, who=1):
     return [x for x in str(packed).split("\n") if x]
 
 
-def crystals_in_chamber(rt):
+def crystals_aboard(rt):
     """How many spare dilithium crystals the ship is holding.
 
-    Read out of the chamber's own container rather than from a counter in the
-    ship state, because the container is the truth: the crystals are items a
-    player can take out and put back, and a count kept beside them would be
-    one more thing to get out of step.
+    Asked of TREK.Power rather than read out of the ship state directly: the
+    count is the answer to a question the rest of the mod asks that way, and a
+    helper that re-implemented the read would be testing itself. That is a
+    mistake this file has already made once, with the old chamber's container
+    filter.
     """
-    return int(rt.eval("""(function()
-        local U, P = TREK.Util, TREK.Power
-        local obj = P.chamber()
-        local container = obj and U.containerOf(obj)
-        if not container then return -1 end
-        local n = 0
-        for _, it in ipairs(container.items) do
-            if it.fullType == TREK.Config.DilithiumItem then n = n + 1 end
+    return int(rt.eval("TREK.Power.crystals()"))
+
+
+def core_item(rt):
+    """The warp core standing on its square: its yaw, or None."""
+    return rt.eval("""(function()
+        local C, U, P = TREK.Config, TREK.Util, TREK.Power
+        local x, y = U.at(P.chamberSpot())
+        for _, w in ipairs(SIM.rawSquare(x, y, C.CabinZ).worldObjects or {}) do
+            local it = w.item
+            if it and (it.fullType or it:getFullType()) == C.WarpCoreItem then
+                return it:getWorldZRotation()
+            end
         end
-        return n
-    end)()"""))
+        return nil
+    end)()""")
 
 
 def carrying(rt, item_id, who=None):
@@ -2684,6 +2836,20 @@ def replicator_menu(rt, ox, oy):
         TREK.ReplicatorUI.fillMenu(0, repMenu, {{}}, false)
     """)
     return str(rt.eval("repMenu:labels()"))
+
+
+def core_menu(rt, ox, oy):
+    """Right-clicks a cabin square and returns what the core offered."""
+    rt.run(f"""
+        local U = TREK.Util
+        local tx, ty = U.at({ox}, {oy})
+        local p = SIM.players[1]
+        SIM.aim.dx = tx - p.x
+        SIM.aim.dy = ty - p.y
+        coreMenu = SIM.contextMenu()
+        TREK.WarpCoreUI.fillMenu(0, coreMenu, {{}}, false)
+    """)
+    return str(rt.eval("coreMenu:labels()"))
 
 
 def replicator():
@@ -2739,11 +2905,252 @@ def replicator():
     check(alcoves() == 1,
           f"replicator: {alcoves()} alcoves stand over the berth after the "
           f"first build, not 1")
+
+    # A dropped item picks its own yaw: the engine writes Rand.Next(0, 360)
+    # into worldZRotation when nobody has set it, which is right for a hammer
+    # on the floor and wrong for a machine bolted to a bulkhead. The simulation
+    # does the same thing with a fixed angle.
+    def yaw():
+        return rt.eval(f"""(function()
+            local C, U, R = TREK.Config, TREK.Util, TREK.Replicator
+            local ox, oy = R.spot()
+            local x, y = U.at(ox, oy)
+            for _, w in ipairs(SIM.rawSquare(x, y, C.CabinZ).worldObjects or {{}}) do
+                local it = w.item
+                local id = it and (it.fullType or it:getFullType())
+                if id == C.ReplicatorItem then return it:getWorldZRotation() end
+            end
+            return -1
+        end)()""")
+
+    check(yaw() == 0,
+          f"replicator: a freshly placed machine stands at {yaw()} degrees "
+          f"rather than square to the ship")
+    # The core is placed the same way and picks its own angle the same way,
+    # and this has to be asked **before** anything rebuilds the cabin: a
+    # rebuild takes the "already standing, straighten it" path, which would
+    # quietly cover for a placement that never squared it up.
+    check(core_item(rt) == 0,
+          f"core: a freshly placed warp core stands at {core_item(rt)} degrees "
+          f"rather than square to the ship")
+
     rt.eval("TREK.Build.buildCabin()")
     rt.eval("TREK.Build.buildCabin()")
     check(alcoves() == 1,
           f"replicator: rebuilding the cabin left {alcoves()} alcoves stacked "
           f"on the berth")
+
+    # --- and an older save's machine is squared up --------------------------
+    # A save made before that was understood has one standing at whatever the
+    # dice gave it, and the build pass is the only thing that will ever touch
+    # it again.
+    rt.run(f"""
+        local C, U, R = TREK.Config, TREK.Util, TREK.Replicator
+        local ox, oy = R.spot()
+        local x, y = U.at(ox, oy)
+        for _, w in ipairs(SIM.rawSquare(x, y, C.CabinZ).worldObjects or {{}}) do
+            if w.item and w.item.fullType == C.ReplicatorItem then
+                w.item:setWorldZRotation(137)
+            end
+        end
+    """)
+    rt.eval("TREK.Build.buildCabin()")
+    check(yaw() == 0,
+          f"replicator: a machine left at an angle by an older save is still "
+          f"at {yaw()} degrees after a rebuild")
+
+    # --- the warp core ------------------------------------------------------
+    # The fixture that holds the ship's dilithium. It is a world model on its
+    # own square like the replicator, and what it holds is a number in the
+    # ship state rather than a container -- a custom model cannot have one,
+    # because a container comes from a tile sprite's properties.
+    cores = int(rt.eval("""(function()
+        local C, U, P = TREK.Config, TREK.Util, TREK.Power
+        local x, y = U.at(P.chamberSpot())
+        local n = 0
+        for _, w in ipairs(SIM.rawSquare(x, y, C.CabinZ).worldObjects or {}) do
+            local it = w.item
+            local id = it and (it.fullType or it:getFullType())
+            if id == C.WarpCoreItem then n = n + 1 end
+        end
+        return n
+    end)()"""))
+    check(cores == 1,
+          f"core: {cores} warp cores stand amidships after the build, not 1")
+    check(crystals_aboard(rt) == C("DilithiumIssue"),
+          f"core: a fresh ship carries {crystals_aboard(rt)} spare crystals, "
+          f"not {C('DilithiumIssue')}")
+
+    # Issued once, and keyed on the count being absent rather than on it being
+    # zero: a crew who burned all three and came home empty must not be handed
+    # three more by the next rebuild.
+    rt.run("TREK.Util.state().crystals = 0")
+    rt.eval("TREK.Build.buildCabin()")
+    check(crystals_aboard(rt) == 0,
+          f"core: rebuilding the cabin refilled an empty core with "
+          f"{crystals_aboard(rt)} crystals -- dilithium is free after all")
+    rt.run(f"TREK.Util.state().crystals = {int(C('DilithiumIssue'))}")
+
+    # --- loading one in -----------------------------------------------------
+    stand_at(rt, net, int(C("DilithiumSpot").x) + 1, int(C("DilithiumSpot").y))
+    labels = core_menu(rt, int(C("DilithiumSpot").x), int(C("DilithiumSpot").y))
+    check("IGUI_TREK_CoreLoad" in labels and "IGUI_TREK_CoreTake" in labels,
+          f"core: standing at it, the menu offers {labels}")
+
+    spares = crystals_aboard(rt)
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'loadCrystal', {{}})")
+    net.pump(4)
+    check(crystals_aboard(rt) == spares,
+          f"core: it took a crystal off a player who had none "
+          f"({crystals_aboard(rt)} aboard, was {spares})")
+    check(any("IGUI_TREK_CoreNoCrystal" in n for n in rt.notes()),
+          f"core: loading with nothing to load said nothing ({rt.notes()})")
+
+    # An impostor is not dilithium. The engine's recursive inventory search
+    # compares the **bare** type, which is not namespaced, so another mod's
+    # TrekDilithium comes back from it -- and would be free power.
+    rt.run("""
+        local p = SIM.players[1]
+        p.inventory:AddItem(instanceItem("OtherMod.TrekDilithium"))
+    """)
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'loadCrystal', {{}})")
+    net.pump(4)
+    check(crystals_aboard(rt) == spares,
+          "core: another mod's TrekDilithium loaded into the ship as fuel")
+
+    rt.run("""
+        local C = TREK.Config
+        SIM.players[1].inventory:AddItem(instanceItem(C.DilithiumItem))
+    """)
+    check(carrying(rt, "TrekShuttle.TrekDilithium") == 1,
+          "core: the test player is not carrying the crystal it just took")
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'loadCrystal', {{}})")
+    net.pump(4)
+    check(crystals_aboard(rt) == spares + 1,
+          f"core: loading a crystal left {crystals_aboard(rt)} aboard, not "
+          f"{spares + 1}")
+    check(carrying(rt, "TrekShuttle.TrekDilithium") == 0,
+          "core: the crystal went into the ship and stayed in the player's "
+          "pocket as well -- one crystal became two")
+
+    # A Remove that did nothing would turn one crystal into an unlimited
+    # supply: the ship would count a crystal in and the player would still be
+    # holding it. The server counts the inventory before and after, and this
+    # is the container that refuses to give anything up.
+    rt.run("""
+        local C = TREK.Config
+        local inv = SIM.players[1].inventory
+        inv:AddItem(instanceItem(C.DilithiumItem))
+        inv.RemoveWas = inv.Remove
+        inv.Remove = function() end
+    """)
+    stuck = crystals_aboard(rt)
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'loadCrystal', {{}})")
+    net.pump(4)
+    check(crystals_aboard(rt) == stuck,
+          f"core: a crystal that would not come out of the player's inventory "
+          f"was counted into the ship anyway ({crystals_aboard(rt)} aboard, "
+          f"was {stuck}) -- one crystal is now two")
+    rt.run("""
+        local inv = SIM.players[1].inventory
+        inv.Remove = inv.RemoveWas
+        -- Put the pocket back the way the checks below expect it, and drop
+        -- the WARN this block exists to provoke: the ship complaining that a
+        -- crystal would not come out is the pass condition, not a fault.
+        local keep = {}
+        for _, it in ipairs(inv.items) do
+            if it.fullType ~= TREK.Config.DilithiumItem then
+                table.insert(keep, it)
+            end
+        end
+        inv.items = keep
+        SIM.log = {}
+    """)
+
+    # --- and taking one back out --------------------------------------------
+    check(carrying(rt, "TrekShuttle.TrekDilithium") == 0,
+          "core: the test player is carrying a crystal before asking for one")
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'takeCrystal', {{}})")
+    net.pump(4)
+    check(crystals_aboard(rt) == spares,
+          f"core: taking one back left {crystals_aboard(rt)} aboard, not "
+          f"{spares}")
+    check(carrying(rt, "TrekShuttle.TrekDilithium") == 1,
+          "core: the ship lost a crystal and the player never got it")
+
+    # A full pack is the other way to lose one. The crystal is made into the
+    # player's hands and **counted** before the ship's number goes down,
+    # because a container at capacity drops what it is handed in silence --
+    # and dilithium is the one item where losing one to that would matter.
+    aboard = crystals_aboard(rt)
+    rt.run("""
+        local inv = SIM.players[1].inventory
+        inv.capacityWas = inv.capacity
+        inv.capacity = 0
+    """)
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'takeCrystal', {{}})")
+    net.pump(4)
+    check(crystals_aboard(rt) == aboard,
+          f"core: the ship gave up a crystal the player could not carry "
+          f"({crystals_aboard(rt)} aboard, was {aboard})")
+    check(any("IGUI_TREK_CoreFull" in n for n in rt.notes()),
+          f"core: a crystal that would not fit was refused silently "
+          f"({rt.notes()})")
+    rt.run("""
+        local inv = SIM.players[1].inventory
+        inv.capacity = inv.capacityWas
+    """)
+
+    # An empty core has none to give, and says so rather than handing over a
+    # crystal it does not have.
+    rt.run("TREK.Util.state().crystals = 0")
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'takeCrystal', {{}})")
+    net.pump(4)
+    check(carrying(rt, "TrekShuttle.TrekDilithium") == 1,
+          "core: an empty core still handed out a crystal")
+    check(any("IGUI_TREK_CoreEmpty" in n for n in rt.notes()),
+          f"core: an empty core refused without saying so ({rt.notes()})")
+    check(crystals_aboard(rt) == 0,
+          f"core: an empty core went to {crystals_aboard(rt)} crystals")
+
+    # --- and you have to be standing at it ----------------------------------
+    rt.run(f"TREK.Util.state().crystals = {int(C('DilithiumIssue'))}")
+    far = core_menu(rt, 3, 0)
+    check("IGUI_TREK_CoreLoad" not in far,
+          f"core: right-clicking the armoury offered the core's menu ({far})")
+
+    stand_at(rt, net, 3, 0)
+    rt.run("SIM.notes = {}")
+    held = carrying(rt, "TrekShuttle.TrekDilithium")
+    rt.run(f"TREK.Core.send({P}, 'takeCrystal', {{}})")
+    net.pump(4)
+    check(carrying(rt, "TrekShuttle.TrekDilithium") == held,
+          "core: a player across the cabin took a crystal out of it")
+    check(any("IGUI_TREK_CoreFar" in n for n in rt.notes()),
+          f"core: reaching it from across the cabin was refused silently "
+          f"({rt.notes()})")
+    stand_at(rt, net, int(C("ReplicatorSpot").x) + 1, int(C("ReplicatorSpot").y))
+
+    # Empty the test player's pockets of dilithium before moving on: what
+    # follows asks what the *replicator* has made, and a crystal carried out
+    # of this block would be counted as one of its answers.
+    rt.run("""
+        local inv = SIM.players[1].inventory
+        local keep = {}
+        for _, it in ipairs(inv.items) do
+            if not tostring(it.fullType):find("Dilithium") then
+                table.insert(keep, it)
+            end
+        end
+        inv.items = keep
+    """)
 
     # --- the catalogue ------------------------------------------------------
     size = int(rt.eval("#TREK.Replicator.catalogue()"))
@@ -2908,7 +3315,7 @@ def replicator():
           f"{rep_energy(rt)} on its own -- crystals are then decoration")
 
     # --- a crystal is what brings it back ------------------------------------
-    spares = crystals_in_chamber(rt)
+    spares = crystals_aboard(rt)
     check(spares == C("DilithiumIssue"),
           f"replicator: a fresh ship carries {spares} spare crystals, not "
           f"{C('DilithiumIssue')}")
@@ -2919,28 +3326,14 @@ def replicator():
     rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'Base.Hammer', count = 1 }})")
     net.pump(4)
     check(carrying(rt, "Base.Hammer") == held + 1,
-          "replicator: with 10 units left and crystals in the chamber it "
-          "refused rather than loading one")
-    check(crystals_in_chamber(rt) == spares - 1,
+          "replicator: with 10 units left and crystals aboard it refused "
+          "rather than loading one")
+    check(crystals_aboard(rt) == spares - 1,
           f"replicator: it made something on an empty reserve without taking "
-          f"a crystal ({crystals_in_chamber(rt)} left of {spares})")
+          f"a crystal ({crystals_aboard(rt)} left of {spares})")
     check(rep_energy(rt) == C("PowerMax") - 24,
           f"replicator: after loading a crystal the reserve is "
           f"{rep_energy(rt)}, not a full {C('PowerMax')} less the hammer")
-
-    # A spanner in the chamber is not a crystal. The engine's recursive
-    # lookup matches the *bare* type, which is not namespaced, so the count
-    # is filtered on the full id -- and without that filter a hoarder's
-    # cupboard would read as a decade of free power.
-    rt.run("""
-        local C, U, P = TREK.Config, TREK.Util, TREK.Power
-        U.containerOf(P.chamber()):AddItem(instanceItem("OtherMod.TrekDilithium"))
-    """)
-    counted = int(rt.eval("TREK.Power.crystals()") or -1)
-    check(counted == spares - 1,
-          f"replicator: another mod's TrekDilithium counts as ours -- the ship "
-          f"reads {counted} crystals in a chamber holding {spares - 1} of them "
-          f"and one impostor")
 
     # A reserve above the maximum reads as the maximum. Tuning DilithiumCharge
     # down in a later revision would otherwise leave every existing save with
@@ -2948,14 +3341,12 @@ def replicator():
     rt.run("TREK.Util.state().power = TREK.Config.PowerMax * 3")
     check(rep_energy(rt) == C("PowerMax"),
           f"replicator: a reserve of three crystals' charge reads as "
-          f"{rep_energy(rt)}, not the one crystal the chamber can hold")
+          f"{rep_energy(rt)}, not the one crystal the core burns at a time")
 
     # --- and when there are none, it stops -----------------------------------
     rt.run("""
-        local C, U, P = TREK.Config, TREK.Util, TREK.Power
-        local obj = P.chamber()
-        local container = obj and U.containerOf(obj)
-        if container then container.items = {} end
+        local U = TREK.Util
+        U.state().crystals = 0
         U.state().power = 1
     """)
     net.clock += int(C("ReplicatorCooldownMs")) + 500
@@ -2965,17 +3356,15 @@ def replicator():
     net.pump(4)
     check(carrying(rt, "Base.Hammer") == held,
           "replicator: it made something with a flat reserve and an empty "
-          "chamber -- the power system has no floor at all")
+          "core -- the power system has no floor at all")
     check(any("IGUI_TREK_RepNoCrystal" in n for n in rt.notes()),
           f"replicator: with no dilithium left the refusal blamed something "
           f"else ({rt.notes()})")
 
     # Put the ship back on its feet for the checks that follow.
-    rt.run(f"""
-        local C, U, P = TREK.Config, TREK.Util, TREK.Power
-        local obj = P.chamber()
-        local container = obj and U.containerOf(obj)
-        if container then container:AddItem(instanceItem(C.DilithiumItem)) end
+    rt.run("""
+        local C, U = TREK.Config, TREK.Util
+        U.state().crystals = 1
         U.state().power = C.PowerMax
     """)
 
@@ -2985,7 +3374,7 @@ def replicator():
     # failure it guards against is the worst kind: the player loses the
     # crystal *and* is refused, with nothing on screen tying the two together.
     net.clock += int(C("ReplicatorCooldownMs")) + 500
-    spares = crystals_in_chamber(rt)
+    spares = crystals_aboard(rt)
     held = carrying(rt, "Base.Hammer")
     rt.run("SIM.notes = {}")
     rt.run("""
@@ -2996,9 +3385,9 @@ def replicator():
     net.pump(4)
     check(carrying(rt, "Base.Hammer") == held,
           "replicator: it made a hammer no crystal in the ship could pay for")
-    check(crystals_in_chamber(rt) == spares,
+    check(crystals_aboard(rt) == spares,
           f"replicator: it burned a crystal for a cost the crystal could not "
-          f"cover ({crystals_in_chamber(rt)} left of {spares})")
+          f"cover ({crystals_aboard(rt)} left of {spares})")
     rt.run("""
         TREK.Config.PowerMax = TREK.Config.DilithiumCharge
         TREK.Util.state().power = TREK.Config.PowerMax
@@ -3011,7 +3400,7 @@ def replicator():
     # on the ground and a crystal shut inside a container, which is where
     # every one of them in the world actually starts.
     net.clock += int(C("SweepIntervalMs")) + 100
-    inChamber = crystals_in_chamber(rt)
+    inChamber = crystals_aboard(rt)
     rt.run("""
         local C, U = TREK.Config, TREK.Util
         local p = SIM.players[1]
@@ -3384,13 +3773,104 @@ def replicator_multiplayer():
           "replicator: the server stored a pattern for an item the asking "
           "player was not carrying. A client is a request, never a fact")
 
+    # --- the warp core, from two machines -----------------------------------
+    # The crystals are ship state now rather than items in a container, which
+    # is the arrangement that makes this check worth having: one number, one
+    # writer, and it has to reach everybody. Both players stand at the berth
+    # at 1,5, which is also within reach of the core at 1,3.
+    for rt in net.all():
+        rt.run("""
+            local U = TREK.Util
+            local x, y = U.at(1, 4)
+            for _, p in ipairs(SIM.players) do
+                p.x, p.y, p.z, p.lastZ = x + 0.5, y + 0.5, TREK.Config.CabinZ,
+                                         TREK.Config.CabinZ
+            end
+        """)
+    net.pump(10)
+
+    aboard = crystals_aboard(srv)
+    # The owner has a crystal; the stranger has one too, and must keep it.
+    for rt in (srv, owner):
+        rt.run("""
+            local C = TREK.Config
+            for _, p in ipairs(SIM.players) do
+                if p.name == "owner" then
+                    p.inventory:AddItem(instanceItem(C.DilithiumItem))
+                end
+            end
+        """)
+    for rt in (srv, stranger):
+        rt.run("""
+            local C = TREK.Config
+            for _, p in ipairs(SIM.players) do
+                if p.name == "stranger" then
+                    p.inventory:AddItem(instanceItem(C.DilithiumItem))
+                end
+            end
+        """)
+
+    owner.run(f"TREK.Core.send({P}, 'loadCrystal', {{}})")
+    net.pump(6)
+    check(crystals_aboard(srv) == aboard + 1,
+          f"core: the server has {crystals_aboard(srv)} crystals aboard after "
+          f"one was loaded, not {aboard + 1}")
+    check(carrying(srv, "TrekShuttle.TrekDilithium", who="owner") == 0,
+          "core: the ship took the crystal and the owner is still carrying "
+          "it -- one crystal became two")
+    check(carrying(srv, "TrekShuttle.TrekDilithium", who="stranger") == 1,
+          "core: loading the owner's crystal took the other player's as well")
+    # And the owner's *own client* has to know the crystal is gone. The
+    # server removed it from its copy of their inventory; without the
+    # matching sendRemoveItemFromContainer they would still be holding one
+    # on their own screen -- and would load it again.
+    check(carrying(owner, "TrekShuttle.TrekDilithium") == 0,
+          f"core: the owner's client still shows "
+          f"{carrying(owner, 'TrekShuttle.TrekDilithium')} crystal(s) after "
+          f"loading one into the ship")
+    check(crystals_aboard(owner) == crystals_aboard(srv)
+          and crystals_aboard(stranger) == crystals_aboard(srv),
+          f"core: the spare count on the clients ({crystals_aboard(owner)}, "
+          f"{crystals_aboard(stranger)}) does not match the server's "
+          f"({crystals_aboard(srv)}) -- a crewman would walk to a core that "
+          f"is not there")
+
+    # **A client may not take from the core itself.** Every write in
+    # TREK_Power is guarded with isClient(), and this is the one that would
+    # matter: a client that could decrement the count would see a crystal that
+    # the server still has and the server would never know.
+    before_client = crystals_aboard(owner)
+    check(owner.eval("TREK.Power.takeCrystal()") is False,
+          "core: a client took a crystal out of the ship by itself")
+    check(owner.eval("TREK.Power.addCrystals(5)") is False,
+          "core: a client put five crystals into the ship by itself")
+    check(crystals_aboard(owner) == before_client,
+          f"core: the client's own count moved to {crystals_aboard(owner)} "
+          f"without the server saying anything")
+
+    # And it comes back out to whoever asks, not to whoever is nearest.
+    stranger.run(f"TREK.Core.send({P}, 'takeCrystal', {{}})")
+    net.pump(6)
+    check(crystals_aboard(srv) == aboard,
+          f"core: taking one back left {crystals_aboard(srv)} aboard, not "
+          f"{aboard}")
+    check(carrying(srv, "TrekShuttle.TrekDilithium", who="stranger") == 2,
+          f"core: the crystal was given to somebody other than the player who "
+          f"asked for it")
+    check(carrying(srv, "TrekShuttle.TrekDilithium", who="owner") == 0,
+          "core: the owner was handed the crystal the other player asked for")
+    check(carrying(stranger, "TrekShuttle.TrekDilithium") == 2,
+          f"core: the crystal never reached the asking player's own client "
+          f"({carrying(stranger, 'TrekShuttle.TrekDilithium')} in hand)")
+
     for rt in net.all():
         for w in rt.warnings():
             fail(f"replicator multiplayer ({rt.name}): {w}")
     print("replicator multiplayer: crew access, a shared pattern set that "
           "reaches both machines, an item the server makes into the asking "
-          "player's own hands and nobody else's, and an inventory the server "
-          "checks for itself")
+          "player's own hands and nobody else's, an inventory the server "
+          "checks for itself, and a warp core whose spare count is one "
+          "number with one writer that reaches both machines")
 
 
 def medical_multiplayer():

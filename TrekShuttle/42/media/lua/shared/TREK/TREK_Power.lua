@@ -198,118 +198,109 @@ function P.reserve()
     return e
 end
 
---- The chamber's own square, out of the authored layout.
-local chamber = nil
-
+--- The core's square, and the model standing on it.
+---
+--- A constant rather than a layout tag: **there is no fitting on that
+--- square.** The core is the mod's own world model, the way the replicator
+--- is, and the layout deliberately has no entry for 1,3.
 function P.chamberSpot()
-    if chamber then return chamber[1], chamber[2] end
-    for _, entry in ipairs(L.tiles) do
-        if entry.tag == C.DilithiumTag then
-            chamber = { entry.x, entry.y }
-            return chamber[1], chamber[2]
-        end
-    end
-    U.warnOnce("power:chamber",
-               "no layout entry is tagged " .. tostring(C.DilithiumTag) ..
-               "; the ship has nowhere to keep its crystals")
-    return nil
+    return C.DilithiumSpot.x, C.DilithiumSpot.y
 end
 
---- The chamber object, or nil. Authority only in practice -- a client's copy
---- of the cabin has the same object, but only the server ever takes from it.
-function P.chamber()
+--- The warp core's world item, or nil. Both sides have it -- it is a world
+--- object like any other -- but only the server ever changes what it holds.
+function P.core()
     local ox, oy = P.chamberSpot()
-    if not ox then return nil end
     local x, y = U.at(ox, oy)
     if not U.chunkLoaded(x, y, C.CabinZ) then return nil end
     local sq = U.square(x, y, C.CabinZ, false)
     if not sq then return nil end
 
     local found = nil
-    U.eachObject(sq, function(o)
-        local md = U.try("power.md", function() return o:getModData() end)
-        if md and md.TREK == C.DilithiumTag then
-            found = o
-            return false
+    U.try("power.core", function()
+        local items = sq:getWorldObjects()
+        if not items then return end
+        for i = 0, items:size() - 1 do
+            local worldItem = items:get(i)
+            local item = worldItem and worldItem:getItem()
+            if item and item:getFullType() == C.WarpCoreItem then
+                found = item
+                return
+            end
         end
     end)
     return found
 end
 
---- How many spare crystals are in the chamber.
+--- How many spare crystals the ship is holding.
+---
+--- **Ship state, not a container.** It was a container for one revision and
+--- the container was the truth; the core cannot have one, because a container
+--- comes from a tile sprite's properties. The number rides with the rest of
+--- the ship state instead, which costs nothing -- it is one integer beside a
+--- position and a few flags -- and means a client's panel knows the spare
+--- count without opening anything.
+---
+--- Missing reads as **none**, which is the opposite of how the reserve reads
+--- a missing value and deliberately so: a reserve that reads empty would grey
+--- a button on a client that has not been told yet, while spares that read
+--- full would offer a crystal the ship does not have.
 function P.crystals()
-    local obj = P.chamber()
-    local container = obj and U.containerOf(obj)
-    if not container then return 0 end
-    local list = U.try("power.crystals", function()
-        return container:getAllTypeRecurse(C.DilithiumType)
-    end)
-    if not list then return 0 end
-    -- The recursive lookup compares the **bare** type, so the results are
-    -- filtered on the full id: the bare name is not namespaced and another
-    -- mod could plausibly use it. Med.carried has the same pair.
-    local n = 0
-    local join = U.batch("power.countCrystals")
-    local size = join(function() return list:size() end) or 0
-    for i = 0, size - 1 do
-        local item = join(function() return list:get(i) end)
-        local t = item and U.try("power.type", function() return item:getFullType() end)
-        if t == C.DilithiumItem then n = n + 1 end
-    end
-    return n
+    local n = U.state().crystals
+    if type(n) ~= "number" or n < 0 then return 0 end
+    return math.floor(n)
 end
 
---- Takes one crystal out of the chamber and puts its charge in the reserve.
+--- Puts crystals in. Authority only; the caller commits.
+function P.addCrystals(n)
+    if isClient() then return false end
+    n = math.floor(n or 0)
+    if n <= 0 then return false end
+    local s = U.state()
+    s.crystals = P.crystals() + n
+    return true
+end
+
+--- Takes one out, without burning it: the player is having it back.
+--- Authority only; the caller commits.
+function P.takeCrystal()
+    if isClient() then return false end
+    local have = P.crystals()
+    if have <= 0 then return false end
+    U.state().crystals = have - 1
+    return true
+end
+
+--- Burns one: it leaves the ship and the reserve is full again.
 --- Authority only. Returns true when one was burned.
 ---
---- The item is *removed* and the reserve is **set** rather than added to: the
---- reserve is one crystal, so a fresh one replaces what was left rather than
---- stacking on top of it. Anything still in the old one is lost, which is why
---- the swap only happens when the reserve cannot cover what is being asked
---- for.
+--- The reserve is **set** rather than added to, because the reserve is one
+--- crystal: a fresh one replaces what was left rather than stacking on top of
+--- it. Anything still in the old one is lost, which is why the swap only
+--- happens when the reserve cannot cover what is being asked for.
 function P.burnCrystal()
     if isClient() then return false end
-    local obj = P.chamber()
-    local container = obj and U.containerOf(obj)
-    if not container then return false end
-
-    local list = U.try("power.crystals", function()
-        return container:getAllTypeRecurse(C.DilithiumType)
-    end)
-    if not list then return false end
-
-    local crystal = nil
-    local join = U.batch("power.takeCrystal")
-    local size = join(function() return list:size() end) or 0
-    for i = 0, size - 1 do
-        local item = join(function() return list:get(i) end)
-        local t = item and U.try("power.type", function() return item:getFullType() end)
-        if t == C.DilithiumItem then crystal = item break end
-    end
-    if not crystal then return false end
-
-    -- Read it back: a Remove that did nothing would burn the same crystal
-    -- for ever, which is an infinite power supply and the exact opposite of
-    -- the point.
-    local before = U.itemCount(obj)
-    U.try("power.consume", function() container:Remove(crystal) end)
-    if U.itemCount(obj) >= before then
-        U.warnOnce("power.stuckCrystal",
-                   "a dilithium crystal would not come out of the chamber")
-        return false
-    end
-    if isServer() then
-        U.try("power.syncChamber", function()
-            container:setDirty(true)
-            container:setDrawDirty(true)
-            obj:transmitModData()
-        end)
-    end
-
+    if not P.takeCrystal() then return false end
     U.state().power = C.PowerMax
-    U.log("power: a dilithium crystal is in the chamber -- reserve %d units, "
+    U.log("power: a dilithium crystal is in the core -- reserve %d units, "
           .. "%d spare(s) left", C.PowerMax, P.crystals())
     return true
+end
+
+--- Whether a player is standing close enough to work the core.
+---
+--- Measured the way the replicator's is, and for the same reason: the numbers
+--- come from the *server's* copy of where the player is standing, never from
+--- anything a client sent.
+function P.inReachOf(player)
+    if not player then return false end
+    local x = U.try("core.px", function() return player:getX() end)
+    local y = U.try("core.py", function() return player:getY() end)
+    local z = U.try("core.pz", function() return player:getZ() end)
+    if not x or not y then return false end
+    if not U.isAboard(x, y, z) then return false end
+    local cx, cy = U.at(P.chamberSpot())
+    return U.dist2(x, y, cx + 0.5, cy + 0.5) <= C.CoreRange * C.CoreRange
 end
 
 --- True when the ship can pay `cost`, swapping in a crystal if it has to.

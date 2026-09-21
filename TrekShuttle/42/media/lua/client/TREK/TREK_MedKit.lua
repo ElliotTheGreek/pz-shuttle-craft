@@ -375,6 +375,28 @@ end
 --- or three zombies a sweep finishes inside a single tick, so the button
 --- could be held down and would chirp every frame. C.SweepIntervalMs is what
 --- makes it an instrument being read rather than a key being mashed.
+--- Whether this sweep is being taken from a seat in the shuttle.
+---
+--- It matters because **a sweep reads the deck it is standing on**, and three
+--- levels up that deck is empty sky: every zombie in the county is at z 0 and
+--- every crystal with them, so the honest answer from the cockpit at cruise
+--- was "nothing anywhere". From a seat the instrument reads *downwards*
+--- instead, every level from the ground up to the ship.
+---
+--- **No check for whether she is flying**, deliberately. One was written and
+--- then deleted: a shuttle on the ground sits at level zero, so "every level
+--- below the seat" and "the level the seat is on" are the same sweep, and the
+--- branch could not change an outcome. See DEV_GUIDE.md, *A branch a mutation
+--- cannot break may be unreachable*.
+---
+--- A seat, and not simply being aboard. A crewman aft during the same flight
+--- is in the cabin, which is a room in the void nowhere near the ground the
+--- ship is passing over, and reading a town from in there would be a lie.
+local function inShuttleSeat(player)
+    local vehicle = U.try("sweep.vehicle", function() return player:getVehicle() end)
+    return TREK.Vehicle ~= nil and TREK.Vehicle.isShuttle(vehicle) == true
+end
+
 function M.startSweep(player)
     if not player then return false end
     if sweep then return false end
@@ -393,6 +415,12 @@ function M.startSweep(player)
     if not list then return false end
     local n = U.try("sweep.count", function() return list:size() end) or 0
 
+    -- On foot this is one level, the one under the player, and everything
+    -- below behaves exactly as it did. In the air it is every level from the
+    -- ground up to the ship.
+    local top = math.floor(player:getZ())
+    local bottom = inShuttleSeat(player) and 0 or top
+
     sweep = {
         player = player,
         list = list,
@@ -400,7 +428,9 @@ function M.startSweep(player)
         i = 0,
         x = player:getX(),
         y = player:getY(),
-        z = math.floor(player:getZ()),
+        z = top,
+        zTop = top,
+        zBottom = bottom,
         contacts = {},
         counts = { 0, 0, 0 },
         total = 0,
@@ -411,6 +441,7 @@ function M.startSweep(player)
         crystalTotal = 0,
         sx = -C.CrystalScanRadius,
         sy = -C.CrystalScanRadius,
+        sz = bottom,
         minerals = false,
     }
     U.try("sweep.sound", function() player:playSoundLocal("TREK_TricorderChirp") end)
@@ -433,6 +464,14 @@ local function crystalsOnSquare(sq, join)
             local w = items:get(i)
             local it = w and w:getItem()
             if it and it:getFullType() == C.DilithiumItem then found = found + 1 end
+            -- The ship's own core reads like any other cache. It holds its
+            -- crystals as a number rather than as items, so there is nothing
+            -- on the square for the loop above to find -- and a tricorder
+            -- that could not see the ship's own dilithium would be a strange
+            -- instrument to carry aboard her.
+            if it and it:getFullType() == C.WarpCoreItem then
+                found = found + (TREK.Power and TREK.Power.crystals() or 0)
+            end
         end
     end)
     join(function()
@@ -461,10 +500,18 @@ local function serviceMinerals()
     local join = U.batch("sweep.minerals")
     local done = 0
     local r = C.CrystalScanRadius
-    local px, py, pz = math.floor(sweep.x), math.floor(sweep.y), sweep.z
+    local px, py = math.floor(sweep.x), math.floor(sweep.y)
 
     while done < C.SweepPerTick do
-        if sweep.sy > r then return false end
+        -- The cursor runs over a box per level, lowest first, and the sweep
+        -- is finished when it walks off the top one. On foot that is a single
+        -- level and the loop is what it always was.
+        if sweep.sy > r then
+            sweep.sz = sweep.sz + 1
+            sweep.sx, sweep.sy = -r, -r
+        end
+        if sweep.sz > sweep.zTop then return false end
+        local pz = sweep.sz
         local dx, dy = sweep.sx, sweep.sy
         -- advance the cursor first, so an early `return` below can never
         -- leave it standing on the same square for ever
@@ -506,13 +553,22 @@ function M.serviceSweep()
             crystals = sweep.crystals,
             crystalTotal = sweep.crystalTotal,
             crystalRadius = C.CrystalScanRadius,
+            -- Read from the air, looking down, rather than along the deck.
+            -- The panel says so: a plot that silently means something else is
+            -- worse than one that found nothing.
+            aloft = sweep.zBottom < sweep.zTop,
+            -- Carried on the result rather than read back off `sweep`, which
+            -- is nil by the time anything below wants them.
+            zBottom = sweep.zBottom,
+            zTop = sweep.zTop,
         }
         M.lastSweep = result
         sweep = nil
         if M.window then M.window:onSweepDone(result) end
-        U.log("sensor sweep: %d contacts within %d tiles, %d dilithium trace(s) "
-              .. "within %d", result.total, result.radius, result.crystalTotal,
-              result.crystalRadius)
+        U.log("sensor sweep: %d contacts within %d tiles, %d dilithium "
+              .. "trace(s) within %d, levels %d..%d", result.total,
+              result.radius, result.crystalTotal, result.crystalRadius,
+              result.zBottom, result.zTop)
         return false
     end
 
@@ -526,7 +582,8 @@ function M.serviceSweep()
         join(function()
             local z = sweep.list:get(i)
             if not z then return end
-            if math.floor(z:getZ()) ~= sweep.z then return end
+            local zz = math.floor(z:getZ())
+            if zz < sweep.zBottom or zz > sweep.zTop then return end
             local dx, dy = z:getX() - sweep.x, z:getY() - sweep.y
             local dist = math.sqrt(dx * dx + dy * dy)
             if dist > radius then return end
@@ -609,7 +666,9 @@ function TREKTricorderWindow:prerender()
     H.pill(self, 0, 0, R * 2, R * 2, P.gold, true, true)
     block(R, 0, SIDE - R, R, P.gold)
     block(0, R, SIDE, 90 - R, P.gold)
-    local title = string.upper(getText("IGUI_TREK_SweepTitle"))
+    local title = string.upper(getText(
+        self.result and self.result.aloft and "IGUI_TREK_SweepTitleAloft"
+        or "IGUI_TREK_SweepTitle"))
     local closeX = self.closeBtn and self.closeBtn.x or (w - 90)
     block(SIDE, 0, math.max(0, closeX - 8 - SIDE), TOPH, P.gold)
     local fh = getTextManager():MeasureStringY(UIFont.Medium, title) or 14

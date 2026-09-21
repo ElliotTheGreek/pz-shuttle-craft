@@ -615,6 +615,24 @@ def main():
     draws = run_frames(lua, "tricorder, with contacts")
     check_bounds(lua, draws, "tricorder, with contacts")
 
+    # The title names what the instrument is doing. A sweep taken from a seat
+    # in the shuttle reads every level below it rather than the one it is on,
+    # and a plot that quietly means something else is worse than one that
+    # found nothing.
+    if not any(str(d.extra) == IG["IGUI_TREK_SweepTitle"].upper()
+               for d in draws if d.kind == "text"):
+        failures.append("tricorder: a sweep on foot is not titled a sensor "
+                        "sweep")
+    lua.execute("win.result.aloft = true")
+    survey = run_frames(lua, "tricorder, surveying from the air")
+    check_bounds(lua, survey, "tricorder, surveying from the air")
+    if not any(str(d.extra) == IG["IGUI_TREK_SweepTitleAloft"].upper()
+               for d in survey if d.kind == "text"):
+        failures.append("tricorder: a survey taken from the air is still "
+                        "titled a sensor sweep, so nothing on screen says it "
+                        "is reading the ground")
+    lua.execute("win.result.aloft = false")
+
     # Staying inside the box is not the same as being in the right place.
     # A crystal is a ring with a bright middle -- the only 8x8 border on the
     # plot -- and the three in the result have to be three rings, in the
