@@ -18,15 +18,31 @@
     If there is not enough room the player is beamed straight back aboard with
     the reason. That is the whole point of doing it in this order: a failed
     landing must never strand anybody on foot a hundred miles from the ship.
+
+    In multiplayer the client searches, because the ground is loaded around
+    its player, and the server decides: it looks again at the site the client
+    found, against its own copy of the world, and places the hull or refuses.
+    Course and bookmarks are ship state and change only by asking the server.
 ]]
+
+if isServer() then return end
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+require "TREK/TREK_Net"
+require "TREK/TREK_Ship"
+require "TREK/TREK_World"
+require "TREK/TREK_Core"
+require "TREK/TREK_Transport"
 require "TREK/TREK_Helm"
 
 TREK = TREK or {}
 local C = TREK.Config
 local U = TREK.Util
+local Net = TREK.Net
+local Ship = TREK.Ship
+local W = TREK.World
+local Core = TREK.Core
 
 local T = {}
 TREK.Travel = T
@@ -34,14 +50,16 @@ TREK.Travel = T
 T.picking = false
 
 ---------------------------------------------------------------------------
--- Bookmarks
+-- Bookmarks and courses: requests to the server
 ---------------------------------------------------------------------------
 function T.bookmarks()
-    return U.state().bookmarks
+    return Ship.get().bookmarks
 end
 
-function T.addBookmark(name, x, y, z)
-    local s = U.state()
+--- Logs a position. With no position, the course if one is laid in, or else
+--- where the ship stands.
+function T.addBookmark(player, name, x, y, z)
+    local s = Ship.get()
     if #s.bookmarks >= C.MaxBookmarks then
         return false, getText("IGUI_TREK_BookmarksFull")
     end
@@ -54,210 +72,168 @@ function T.addBookmark(name, x, y, z)
             return false, getText("IGUI_TREK_NowhereToBookmark")
         end
     end
-    table.insert(s.bookmarks, {
-        name = name and name ~= "" and name or string.format("%d, %d", x, y),
-        x = x, y = y, z = z or 0,
-    })
-    U.log("bookmarked %s at %d,%d", tostring(name), x, y)
+    Core.send(player, "addBookmark", { name = name or "", x = x, y = y, z = z or 0 })
     return true
 end
 
-function T.removeBookmark(index)
-    local s = U.state()
-    if s.bookmarks[index] then
-        table.remove(s.bookmarks, index)
-        return true
-    end
-    return false
-end
-
----------------------------------------------------------------------------
--- Courses
----------------------------------------------------------------------------
-function T.setDestination(x, y, z)
-    local s = U.state()
-    s.destination = { x = math.floor(x), y = math.floor(y), z = math.floor(z or 0) }
-    U.log("course set for %d,%d", s.destination.x, s.destination.y)
+function T.removeBookmark(player, index)
+    if not Ship.get().bookmarks[index] then return false end
+    Core.send(player, "removeBookmark", { index = index })
     return true
 end
 
-function T.clearDestination()
-    U.state().destination = nil
+function T.setDestination(player, x, y, z)
+    Core.send(player, "setCourse",
+              { x = math.floor(x), y = math.floor(y), z = math.floor(z or 0) })
+    return true
+end
+
+function T.clearDestination(player)
+    Core.send(player, "clearCourse", {})
 end
 
 ---------------------------------------------------------------------------
 -- Setting down
 ---------------------------------------------------------------------------
--- Candidate landing positions, nearest first. Built once: the ring order does
--- not depend on where you are, only on how far out to look.
-local searchOrder = nil
-
-local function candidates()
-    if searchOrder then return searchOrder end
-    local out = {}
-    for r = 0, C.LandingSearchRadius do
-        for dx = -r, r do
-            for dy = -r, r do
-                if math.max(math.abs(dx), math.abs(dy)) == r then
-                    table.insert(out, { dx, dy })
-                end
-            end
-        end
-    end
-    searchOrder = out
-    return out
-end
-
--- How many candidate positions to examine per tick.
---
--- This is the number that decides whether landing is a pause or a freeze. The
--- search covers a 49x49 area and each position asks about all fifteen squares
--- of the footprint, so a whole pass is some thirty-six thousand square
--- lookups -- fine spread over a few seconds, and a hard lock if it is done
--- every frame. The search therefore resumes where it left off rather than
--- starting again, and wraps round when it runs out, because ground that was
--- not loaded on the first pass may well be by the third.
-local SITES_PER_TICK = 48
-
---- Examines the next slice of candidates around a target.
----
---- Returns `square, reason, exhausted`: a square when the whole hull fits,
---- and otherwise the best refusal seen so far plus whether a full pass has
---- just been completed.
-local function searchSlice(job)
-    local order = candidates()
-    local exempt = TREK.Core.exemptFor(job.player)
-    local checked, exhausted = 0, false
-
-    while checked < SITES_PER_TICK do
-        job.cursor = (job.cursor or 0) + 1
-        if job.cursor > #order then
-            job.cursor = 1
-            job.passes = (job.passes or 0) + 1
-            exhausted = true
-        end
-        local d = order[job.cursor]
-        local x, y = job.x + d[1], job.y + d[2]
-
-        -- One cheap lookup rejects most candidates before the fifteen-square
-        -- footprint test is worth running at all.
-        local sq = U.square(x, y, job.z, false)
-        if sq and U.try("landProbe", function() return sq:getFloor() ~= nil end) then
-            local ok, why = TREK.Core.roomToLand(x, y, job.z, exempt)
-            if ok then return sq, nil, exhausted end
-            if why and why ~= "unloaded" then job.reason = job.reason or why end
-        end
-        checked = checked + 1
-    end
-    return nil, job.reason, exhausted
-end
-
---- The nearest square to a target the whole hull will fit on, or nil.
----
---- The one-shot form, for the self-test and the debug console. The landing job
---- uses searchSlice instead so it can spread the same work over many ticks.
+--- The nearest square to a target the whole hull will fit on, or nil. The
+--- one-shot form, for the debug console; the landing job spreads the same
+--- work over many ticks.
 function T.findLandingSite(cx, cy, z, player)
     local job = { x = cx, y = cy, z = z, cursor = 0, player = player }
-    local order = candidates()
-    for _ = 1, math.ceil(#order / SITES_PER_TICK) do
-        local sq, why, exhausted = searchSlice(job)
+    while true do
+        local sq, why, exhausted = W.searchSlice(job)
         if sq then return sq, nil end
         if exhausted then return nil, why end
     end
-    return nil, job.reason
 end
 
 --- Takes the ship down at a destination.
 ---
 --- The player goes first, which is not a convenience but the only way this
 --- can work: chunks stream around a player and nothing else, so until they
---- are standing there the ground cannot be inspected at all. The actual
---- placement is retried on a tick job until the world catches up.
+--- are standing there the ground cannot be inspected at all -- by this client
+--- or by the server.
 function T.descend(player, dest)
     if not player or not dest then return false end
-
+    if T.pending or Core.moveWaiting() then return false end
     local spot = { x = dest.x, y = dest.y, z = dest.z or 0 }
-    if not U.teleport(player, spot.x, spot.y, spot.z) then return false end
 
-    local s = U.state()
-    s.inside = false
-
-    T.pending = {
-        x = spot.x, y = spot.y, z = spot.z,
-        tries = 0, cursor = 0, passes = 0, reason = nil, player = player,
-    }
-    U.note(player, getText("IGUI_TREK_ComingIn"))
-    U.log("taking her down at %d,%d", spot.x, spot.y)
-    return true
+    return Core.requestMove(player, "descend", function(p)
+        if not U.teleport(p, spot.x, spot.y, spot.z) then return end
+        Ship.playerData(p).aboard = false
+        T.pending = {
+            x = spot.x, y = spot.y, z = spot.z,
+            tries = 0, cursor = 0, passes = 0, reason = nil, player = p,
+            asking = false,
+        }
+        U.note(p, getText("IGUI_TREK_ComingIn"))
+        U.log("taking her down at %d,%d", spot.x, spot.y)
+    end)
 end
 
 --- Turns a refusal reason into something worth reading.
-local function refusalText(why, blocked)
+function T.refusalText(why, blocked)
     if why == "vehicle" then
         return getText("IGUI_TREK_NoRoomVehicle")
     elseif why == "void" then
         return getText("IGUI_TREK_NoRoomVoid")
     end
-    return getText("IGUI_TREK_NoRoom", TREK.Core.footprintArea(), blocked or 0)
+    return getText("IGUI_TREK_NoRoom", W.footprintArea(), blocked or 0)
 end
 
---- Runs once a tick while a landing is outstanding.
----
---- The work is deliberately sliced: see SITES_PER_TICK above.
+local function giveUp(job, why, blocked)
+    T.pending = nil
+    U.log("no room to set down near %d,%d after %d passes (%s)",
+          job.x, job.y, job.passes or 0, tostring(why))
+    -- Never leave anybody stranded on foot where the ship could not follow.
+    TREK.Transport.recoverAboard(job.player, T.refusalText(why, blocked))
+end
+
+-- Ticks to wait for the server to answer about a site before looking again.
+local ANSWER_TIMEOUT = 300
+
+--- Runs once a tick while a landing is outstanding. The search is sliced:
+--- see W.SITES_PER_TICK.
 local function serviceLanding()
     local job = T.pending
     if not job then return end
     job.tries = job.tries + 1
 
-    local sq, why = searchSlice(job)
-    if sq then
-        T.pending = nil
-        local player = job.player
-        local ok, failed = TREK.Core.land(sq, player)
-        if not ok then
-            -- The site passed the search and then refused the landing, which
-            -- means the world changed under us between the two. Treat it the
-            -- same as never finding one: nobody gets left on foot.
-            TREK.Transport.recoverAboard(player, refusalText(failed, nil))
-            return
-        end
-        -- Core.land already steps the player clear if they were under the
-        -- hull; this covers the case where they were merely beside it.
-        local beside = TREK.Core.landingBeside(sq:getX(), sq:getY(), sq:getZ())
-        if beside and player then
-            U.teleport(player, beside.x, beside.y, beside.z)
-            local s = U.state()
-            s.returnX, s.returnY, s.returnZ = beside.x, beside.y, beside.z
-        end
-        U.note(player, getText("IGUI_TREK_Landed"))
+    if job.asking then
+        if job.tries - job.askedAt > ANSWER_TIMEOUT then job.asking = false end
         return
     end
 
-    -- Give the world time to stream the area in before admitting defeat. A
-    -- real obstruction found on an early pass is still not a reason to stop:
-    -- more ground arrives as the player stands there, and somewhere in a ring
-    -- that was empty a moment ago may now be open.
-    if job.tries <= C.LandingTimeout then return end
+    if job.tries > C.LandingTimeout then
+        local blocked = select(3, W.roomToLand(job.x, job.y, job.z,
+                                               W.exemptFor(job.player)))
+        giveUp(job, job.reason, blocked)
+        return
+    end
 
-    T.pending = nil
-    local blocked = select(3, TREK.Core.roomToLand(job.x, job.y, job.z,
-                                                  TREK.Core.exemptFor(job.player)))
-    U.log("no room to set down near %d,%d after %d passes (%s)",
-          job.x, job.y, job.passes or 0, tostring(why))
-    -- Never leave anybody stranded on foot where the ship could not follow.
-    TREK.Transport.recoverAboard(job.player, refusalText(why, blocked))
+    local sq = W.searchSlice(job)
+    if sq then
+        job.asking = true
+        job.askedAt = job.tries
+        Core.send(job.player, "land", { x = sq:getX(), y = sq:getY(), z = sq:getZ() })
+    end
 end
 
 Events.OnTick.Add(serviceLanding)
+
+--- The server set the ship down. Step clear of the hull.
+Net.onClient("landed", function(args)
+    local job = T.pending
+    local player = job and job.player or Core.lastAsker or U.player(0)
+    T.pending = nil
+    if not player then return end
+    local beside = W.clearOfShip(args.x, args.y, args.z) or W.landingBeside(args.x, args.y, args.z)
+    local dx, dy = player:getX() - args.x, player:getY() - args.y
+    if beside and (W.hullCovers(player:getX(), player:getY(), player:getZ())
+                   or dx * dx + dy * dy < 9) then
+        U.teleport(player, beside.x, beside.y, beside.z)
+    end
+    if job and beside then
+        Ship.setReturnPoint(player, beside.x, beside.y, beside.z)
+    end
+    U.note(player, getText("IGUI_TREK_Landed"))
+end)
+
+--- The server would not set down where this client found room. On a landing
+--- job, keep searching until the timeout: the world changed, or the server
+--- had not loaded that ground yet. From the call-down menu, say why.
+Net.onClient("landingRefused", function(args)
+    local job = T.pending
+    if job and job.asking then
+        job.asking = false
+        if args.why ~= "unloaded" and args.why ~= "far" then
+            job.reason = job.reason or args.why
+        end
+        return
+    end
+    if args.why == "unloaded" or args.why == "far" then return end
+    U.note(Core.lastAsker or U.player(0), T.refusalText(args.why, args.blocked),
+           255, 90, 90)
+end)
+
+Net.onClient("recalled", function()
+    U.note(Core.lastAsker or U.player(0), getText("IGUI_TREK_Recalled"))
+end)
 
 ---------------------------------------------------------------------------
 -- Map picking
 ---------------------------------------------------------------------------
 function T.onMapPick(worldX, worldY)
     if not T.picking then return end
-    T.setDestination(worldX, worldY, 0)
-    if T.window then T.window:refresh() end
+    local player = T.window and T.window.player or U.player(0)
+    T.setDestination(player, worldX, worldY, 0)
 end
+
+-- The helm redraws whenever the ship's state changes, wherever the change
+-- came from: this client's own request coming back, or another crewman's.
+Ship.onChange(function()
+    if T.window then T.window:refresh() end
+end)
 
 -- ISWorldMap has no hook for "the player clicked here", so its mouse-up is
 -- wrapped once at load. A click that was not a drag is a pick.
@@ -304,7 +280,7 @@ function ISWorldMap:render()
     baseRender(self)
     if not T.picking then return end
 
-    local s = U.state()
+    local s = Ship.get()
     for _, b in ipairs(s.bookmarks) do
         marker(self, b.x, b.y, 0.65, 0.65, 0.7, b.name)
     end
@@ -351,16 +327,17 @@ end
 ---------------------------------------------------------------------------
 -- The helm window
 ---------------------------------------------------------------------------
--- The console itself -- the LCARS panel, shields, flight speed and the
--- navigation controls -- lives in TREK_Helm.lua.
+-- The console itself -- the LCARS panel, shields and the navigation
+-- controls -- lives in TREK_Helm.lua.
 
 --- Opens the world map plus the helm window beside it.
 function T.openHelm(player)
     if T.window then T.window:close() end
 
-    local s = U.state()
-    local cx = s.landed and s.x or (s.returnX or 0)
-    local cy = s.landed and s.y or (s.returnY or 0)
+    local s = Ship.get()
+    local rx, ry = Ship.returnPoint(player)
+    local cx = s.landed and s.x or (rx or 0)
+    local cy = s.landed and s.y or (ry or 0)
 
     U.try("showWorldMap", function()
         ISWorldMap.ShowWorldMap(player:getPlayerNum(), cx, cy, 60)

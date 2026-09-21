@@ -30,6 +30,8 @@
     a frozen game.
 ]]
 
+if isServer() then return end
+
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 
@@ -171,7 +173,10 @@ end
 ---------------------------------------------------------------------------
 local tick = 0
 
+-- Only this client's own characters: OnPlayerUpdate also runs for the other
+-- players a client can see, and their inventories are not ours to change.
 Events.OnPlayerUpdate.Add(function(player)
+    if not player or not player:isLocalPlayer() then return end
     tick = tick + 1
     if tick < C.PhaserInterval then return end
     tick = 0

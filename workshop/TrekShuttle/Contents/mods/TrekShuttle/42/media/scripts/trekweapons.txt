@@ -1,0 +1,59 @@
+/*  Weapon models -- and they live in `module Base`, deliberately.
+
+    The first attempt declared this block in `module TrekShuttle` alongside the
+    hull and the helm, where every other model in this mod lives, and the
+    bat'leth drew nothing in hand. The log said:
+
+        WARN MeshAssetManager.loadCallback
+             Failed to load asset: AssetPath{ "TrekBatlethModel" }
+
+    which is the tell: the engine is trying to load the *model block's name* as
+    if it were a mesh path. It only does that when the name resolved to no
+    ModelScript at all -- had the block been found, the asset it failed on
+    would have been `weapons/2handed/TREK_Batleth`.
+
+    So `WeaponSprite` does not resolve the way `StaticModel` does.
+    ScriptManager.resolveModelScript takes a ScriptModule, and the hull and
+    helm prove an in-module lookup works for StaticModel; the weapon path
+    evidently searches Base. Every vanilla weapon model is in `module Base`
+    (media/scripts/generated/models_weapons.txt), and the one Workshop mod
+    shipping custom in-hand blades puts its models in `module Base` while
+    keeping its items in its own module. Both agree, so this follows them.
+
+    A separate file because no vanilla script file declares two modules, and
+    because this is what vanilla does: models_weapons.txt beside weapon.txt.
+
+    The item that uses this stays in module TrekShuttle, in trekshuttle.txt,
+    and refers to it by bare name.
+
+    No `attachment` blocks. Both of the two that matter -- `Bip01_Prop2` for
+    the hand and `world` for the ground -- are optional, and their six offsets
+    each can only honestly be set by looking at the weapon in a fist. Vanilla's
+    Katana is the baseline to copy from when that happens.  */
+
+module Base
+{
+    model TrekBatlethModel
+    {
+        mesh = weapons/2handed/TREK_Batleth,
+        texture = weapons/2handed/TREK_Batleth,
+    }
+
+    model TrekMeklethModel
+    {
+        mesh = weapons/1handed/TREK_Mekleth,
+        texture = weapons/1handed/TREK_Mekleth,
+    }
+
+    model TrekLirpaModel
+    {
+        mesh = weapons/2handed/TREK_Lirpa,
+        texture = weapons/2handed/TREK_Lirpa,
+    }
+
+    model TrekUshaanTorModel
+    {
+        mesh = weapons/1handed/TREK_UshaanTor,
+        texture = weapons/1handed/TREK_UshaanTor,
+    }
+}

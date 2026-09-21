@@ -1,0 +1,28 @@
+VERSION = 1,
+
+/***** SHUTTLECRAFT *****/
+
+option TrekShuttle.Access = {
+    type = enum, numValues = 2, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.Access, valueTranslation = TrekShuttle.Access,
+}
+
+option TrekShuttle.TransporterLimit = {
+    type = enum, numValues = 2, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.TransporterLimit, valueTranslation = TrekShuttle.TransporterLimit,
+}
+
+option TrekShuttle.TorpedoFire = {
+    type = enum, numValues = 2, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.TorpedoFire, valueTranslation = TrekShuttle.TorpedoFire,
+}
+
+option TrekShuttle.Replicator = {
+    type = enum, numValues = 3, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.Replicator, valueTranslation = TrekShuttle.Replicator,
+}
+
+option TrekShuttle.EMH = {
+    type = enum, numValues = 2, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.EMH, valueTranslation = TrekShuttle.EMH,
+}
