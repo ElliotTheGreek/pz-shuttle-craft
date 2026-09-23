@@ -32,6 +32,7 @@
     "IGUI_TREK_MapHere": "Shuttle",
     "IGUI_TREK_MapDestination": "Course",
     "IGUI_TREK_ArrivalFailed": "The cabin would not hold; you have been put back outside",
+    "IGUI_TREK_NoWayOut": "There is no way off her but the hatch or the transporter",
     "IGUI_TREK_HelmTitle": "Helm Control",
     "IGUI_TREK_Close": "Close",
     "IGUI_TREK_ShieldsHeader": "Shields",

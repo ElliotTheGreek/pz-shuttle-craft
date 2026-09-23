@@ -549,6 +549,51 @@ def single_player():
     rt.fire("EveryOneMinute")
     check(cabin_objects(rt)[2] >= 1, "single player: the sink was not refilled after draining")
 
+    # --- nobody climbs out of her -----------------------------------------
+    # **Build 42 lets a player climb over a wall, not merely a fence.**
+    # IsoPlayer.canClimbOverWall refuses the climb over a square that has a
+    # roof or belongs to an IsoBuilding, which is every wall of every house on
+    # the map. The cabin is raised at runtime in a cell with no map behind it
+    # and has neither, so the climb was allowed -- and what is on the other
+    # side is the ring of deck the walls stand on, with the void one square
+    # past that. Seen in game: climb out, walk on, fall for ever.
+    check(rt.eval(f"{P}:isIgnoreAutoVault()") is True,
+          "single player: the vault is not locked while anyone is aboard, so "
+          "the crew can climb over the cabin wall and out of the world")
+    # The flag has to *refuse a climb*, not merely hold a value: an assertion
+    # about a field nothing reads would pass against a build that set it and
+    # changed nothing. SIM.climbOverWall performs the climb the way the engine
+    # does, and reads ignoreAutoVault first, as both routes into it do.
+    before = pos(rt)
+    check(rt.eval(f"SIM.climbOverWall({P}, 0, -1)") is False,
+          "single player: a climb over the bow wall was allowed")
+    check(pos(rt) == before,
+          f"single player: the refused climb moved the player to {pos(rt)} anyway")
+
+    # And the containment behind the lock, which is also what rescues anybody
+    # already standing out there in a save made before this. The first of
+    # these squares is floored -- a wall on a midair square behaves badly, so
+    # the deck runs under every one of them -- which is exactly why a check
+    # for "is there a floor under me" was happy to leave somebody on it.
+    cabin_w = int(rt.eval("TREK.Config.CabinW"))
+    cabin_l = int(rt.eval("TREK.Config.CabinL"))
+    for ox, oy, where in ((0, -1, "the deck ring outside the bow wall"),
+                          (cabin_w + 1, 2, "the deck ring the starboard wall stands on"),
+                          (2, cabin_l + 3, "the void abaft her")):
+        rt.run(f"""
+            local U = TREK.Util
+            local x, y = U.at({ox}, {oy})
+            U.teleport({P}, x, y, TREK.Config.CabinZ)
+        """)
+        net.pump(6)
+        if died(rt, f"single player, put on {where}"):
+            return
+        check(at_pad(rt), f"single player: somebody on {where} was left at "
+                          f"{pos(rt)} instead of being put back on the pad")
+    check(any("IGUI_TREK_NoWayOut" in n for n in rt.notes()),
+          "single player: a player put back inside the hull was never told "
+          "why, which is a rescue that reads as the game teleporting you")
+
     # --- helm --------------------------------------------------------------
     rt.run(f"TREK.Travel.setDestination({P}, 3000, 3000, 0)")
     net.pump(2)
@@ -592,6 +637,14 @@ def single_player():
           f"single player: stepping out put the player at {x},{y}, not beside the hull")
     check(not rt.eval(f"SIM.rawSquare({int(x)}, {int(y)}, 0):getVehicleContainer() ~= nil"),
           "single player: stepping out put the player under the shuttle vehicle")
+    # And the vault is the character's again. A crewman who stepped out of the
+    # hatch and could no longer climb a fence would be a worse bug than the
+    # one the lock fixes, and it would follow them for the life of the save.
+    check(rt.eval(f"{P}:isIgnoreAutoVault()") is False,
+          "single player: stepping out of the hatch left the player unable to "
+          "climb anything, for good")
+    check(rt.eval(f"SIM.climbOverWall({P}, 0, -1)") is True,
+          "single player: a climb outside the ship was still refused")
 
     # --- driving it: the ship follows its vehicle -------------------------
     vid = ship_vehicle(rt)
@@ -1520,6 +1573,21 @@ def multiplayer():
     net.pump(180)
     check(at_pad(B), f"multiplayer: crewman bob is at {pos(B)}, not on the pad")
     check(tuple(cabin_objects(B)) == tuple(sc), "multiplayer: bob sees a different cabin")
+
+    # --- the vault lock is each client's own -------------------------------
+    # Every client takes the climb away from its own character and from
+    # nobody else's, which is the only kind of write a client owns outright.
+    # Doing it on the server instead would reach a character the server does
+    # not move and would leave every real player climbing out of the hull.
+    for c, who in ((A, "alice"), (B, "bob")):
+        check(c.eval(f"{P}:isIgnoreAutoVault()") is True,
+              f"multiplayer: {who}'s client did not lock the vault while "
+              f"{who} is aboard")
+        check(c.eval(f"SIM.climbOverWall({P}, 0, -1)") is False,
+              f"multiplayer: {who} could climb over the cabin wall")
+    check(srv.eval(f"{P}:isIgnoreAutoVault()") is not True,
+          "multiplayer: the server set the vault flag on a character it does "
+          "not move; every real client is still climbing out")
 
     # --- transporter charges -------------------------------------------------
     # alice has spent 1 (up). down = 2, up = 3, down = refused.

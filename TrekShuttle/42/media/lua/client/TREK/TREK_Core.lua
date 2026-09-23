@@ -446,8 +446,67 @@ function Core.repelZombies()
 end
 
 ---------------------------------------------------------------------------
+-- Nobody climbs out
+---------------------------------------------------------------------------
+--- Takes the vault away from a character while they are aboard, and gives it
+--- back when they are not.
+---
+--- **Build 42 lets a player climb over a wall, not merely a fence**, and the
+--- cabin is exactly the shape that permits it. `IsoPlayer.canClimbOverWall`
+--- refuses the climb over a square that `haveRoof` or whose `getBuilding()`
+--- is not null -- which is every wall of every house on the map. The cabin is
+--- raised at runtime in a cell with no map behind it, so it has neither: to
+--- the engine it is four walls standing in the open air, and the climb is
+--- allowed. What is on the other side is the ring of deck the walls stand on,
+--- and one square past that is the void the cell is made of.
+---
+--- `ignoreAutoVault` is the engine's own switch and is the *first* thing both
+--- routes into the climb read:
+---
+---     doContextClimbOverWall(dir)    0  getfield IsoPlayer.ignoreAutoVault
+---                                    4  ifeq -> 9
+---                                    7  iconst_0; ireturn
+---     doContextHopOverFence(dir)     the same three instructions
+---
+--- Neither offers the contextual action while it is set, and `climbOverWall`
+--- is only ever reached from `performContextualAction` on an action one of
+--- them added -- so nothing is offered and nothing can be performed. Vanilla
+--- sets it the same way in `client/Tutorial/Steps.lua:214`, and a client
+--- setting a flag on its own character is the one kind of write a client owns
+--- outright.
+---
+--- The two engine-native alternatives were both worse. `IsoFlagType.CantClimb`
+--- on the square is read from the square's `PropertyContainer`, which
+--- `RecalcProperties()` clears and rebuilds from sprite properties, so it
+--- would have to be re-applied for ever and would still be gone for the one
+--- frame that mattered. Roofing the cabin or putting it in an `IsoBuilding`
+--- changes what the whole cell is -- lighting, weather, the camera's cutaway
+--- -- to fix one gesture.
+---
+--- It is a flag on the character, so it has to be handed back: a crew member
+--- who beamed down and could no longer climb a fence would be a worse bug
+--- than this one, and it would follow them for the life of the save. This
+--- only ever clears what it set.
+local vaultHeld = {}
+
+local function holdVault(player)
+    local aboard = U.isInteriorPlayer(player)
+    local who = U.try("username", function() return player:getUsername() end) or "?"
+    if aboard == (vaultHeld[who] == true) then return end
+    vaultHeld[who] = aboard or nil
+    U.try("setIgnoreAutoVault", function() player:setIgnoreAutoVault(aboard) end)
+    U.log("the vault is %s", aboard and "locked while aboard" or "given back")
+end
+
+---------------------------------------------------------------------------
 -- Keeping anyone aboard on solid ground
 ---------------------------------------------------------------------------
+-- Consecutive updates with nowhere aboard to stand before the player is put
+-- back outside. Fifty, because this runs on every update now and used to run
+-- on every tenth: the wait is the same five-dozen frames it has always been,
+-- which is long enough for a deck that is merely still streaming in.
+local VOID_STRIKES = 50
+
 local voidStrikes = 0
 
 local function checkAboard(player)
@@ -462,18 +521,38 @@ local function checkAboard(player)
     end
     lightCabin()
 
-    local sq = U.square(player:getX(), player:getY(), math.floor(player:getZ()), false)
-    if sq and sq:getFloor() then
-        voidStrikes = 0
-        return
+    -- **The deck is the cabin's own shape, not "any square with a floor".**
+    -- The ring the walls stand on is floored too -- a wall on a midair square
+    -- behaves badly, so buildFloor lays deck under every one of them -- and
+    -- that ring is where a climb over the wall used to land. A player stood
+    -- there passed a floor check, walked one more square, and fell out of the
+    -- world. Nothing that carries anybody aboard puts them outside
+    -- C.inShape, so anything out there is on its way into the void.
+    local x, y, z = player:getX(), player:getY(), player:getZ()
+    local offDeck = not U.isAboard(x, y, z)
+    if not offDeck then
+        local sq = U.square(x, y, math.floor(z), false)
+        if sq and sq:getFloor() then
+            voidStrikes = 0
+            return
+        end
     end
+
     if padHasFloor() then
         voidStrikes = 0
-        U.teleport(player, U.padSpot())
+        -- hold, not teleport. The engine keeps its own fall state across a
+        -- move, so a falling player put back on the pad carries the fall with
+        -- them and drops through it on the next tick -- which is what an
+        -- infinite fall actually looked like from inside the game.
+        Core.hold(player, U.padSpot())
+        if offDeck then
+            U.log("put back on the pad from outside the cabin walls")
+            U.note(player, getText("IGUI_TREK_NoWayOut"), 255, 170, 90)
+        end
         return
     end
     voidStrikes = voidStrikes + 1
-    if voidStrikes >= 5 then
+    if voidStrikes >= VOID_STRIKES then
         voidStrikes = 0
         Core.ejectToOutside(player, "the cabin has no floor to stand on")
     end
@@ -486,14 +565,17 @@ Events.OnGameStart.Add(function()
           C.Version)
 end)
 
-local rescueTick, fieldTick = 0, 0
+local fieldTick = 0
 Events.OnPlayerUpdate.Add(function(player)
     if not player or not player:isLocalPlayer() or player:isDead() then return end
-    rescueTick = rescueTick + 1
-    if rescueTick >= 10 then
-        rescueTick = 0
-        checkAboard(player)
-    end
+    -- checkAboard used to run on every tenth update, and a fall is measured
+    -- in frames: a rescue that arrives nine frames late arrives after the
+    -- drop that kills. It costs two square lookups and only for somebody
+    -- standing in the cabin's own cell -- which is what the arrival hold has
+    -- done on every tick since 1.0. The shields stay on their own cadence:
+    -- they sweep every zombie this client simulates.
+    holdVault(player)
+    checkAboard(player)
     fieldTick = fieldTick + 1
     if fieldTick >= 20 then
         fieldTick = 0

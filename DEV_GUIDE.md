@@ -408,6 +408,68 @@ Two consequences that are easy to get backwards:
 than assuming every fitting is an obstacle, which is what had it refusing a
 layout that was actually fine.
 
+### A wall keeps a player in only where the engine thinks there is a building
+
+**New in this mod, and it killed people.** Build 42 lets a player climb over a
+**wall**, not merely a fence, and the cabin is exactly the shape that permits
+it: climb out of the hull, walk one more square, and fall for ever.
+
+`IsoPlayer.canClimbOverWall(dir)` is the gate, and every early return in it is
+about a *building*:
+
+```
+ 30  getfield  IsoGridSquare.haveRoof      ifeq -> 38   ; a roof: refused
+ 42  invokevirtual  IsoGridSquare.getBuilding()         ; in a building: refused
+112  getfield  IsoGridSquare.haveRoof                   ; and the same two
+137  invokevirtual  IsoGridSquare.getBuilding()         ; for the far side
+248  IsoFlagType.CantClimb                              ; or the flag
+```
+
+Every wall of every house on the map is refused by the first two. **The cabin
+is raised at runtime in a cell with no map behind it**, so it has no roof, no
+`IsoRoom` and no `IsoBuilding` — to the engine it is four walls standing in a
+field, and a field is the one place climbing a wall is meant to work. Nothing
+in the mod was wrong; the cabin simply is not a building, and *every* engine
+behaviour that keys on one has to be read in that light.
+
+And `isSafeToClimbOver` only asks whether the destination has a floor, which
+the ring outside the hull does: `buildFloor` lays deck under every square a
+wall stands on, because a wall on a midair square behaves badly. So the climb
+looked safe to the engine, landed on deck, and the void was one square further
+on.
+
+- **The fix is the engine's own switch.** `IsoPlayer.ignoreAutoVault` is read
+  as the *first instruction* of both routes in — `doContextClimbOverWall` and
+  `doContextHopOverFence` — before either offers the contextual action, and
+  `climbOverWall` is only ever reached from an action one of them added.
+  Vanilla's tutorial sets it the same way (`client/Tutorial/Steps.lua:214`).
+  `TREK_Core.holdVault` sets it while a character is aboard **and clears it
+  when they leave**: a flag left on would follow that character for the life
+  of the save, and a crewman who could no longer climb a fence is a worse bug
+  than the one it fixes.
+- **`IsoFlagType.CantClimb` was the obvious answer and is not durable.**
+  `IsoGridSquare.has(IsoFlagType)` reads the square's `PropertyContainer`, and
+  `RecalcProperties()` opens with `properties.Clear()` and rebuilds it from
+  the objects' *sprite* properties. Anything set by hand is gone the next time
+  an object is added or the chunk reloads, in every process, and it would be
+  gone for exactly the one frame that mattered.
+- **"Is there a floor under me" is not "am I aboard".** The rescue in
+  `checkAboard` had always asked the first, and the ring the walls stand on
+  answers yes. It asks `U.isAboard` now — the cabin's own shape — because
+  nothing that carries anybody aboard ever puts them outside `C.inShape`.
+- **A rescue on a timer has to beat a fall.** That check ran on every tenth
+  player update, which is nine frames of falling; it runs on every one now,
+  and puts the player back with `Core.hold` rather than `U.teleport`, because
+  the engine carries its own fall state through a move and a falling player
+  simply falls again from the pad. That is what "an infinite fall" was.
+
+The general shape, and it is worth more than the bug: **a runtime-generated
+interior is not a building, and the engine's own idea of indoors is what a
+great many of its rules key on.** Roofs, rooms, buildings, `isOutside`,
+climbing, rain, temperature and the camera's cutaway all read it. Before
+relying on any of them, ask what `getBuilding()` answers out here — it is
+always `null`.
+
 ### `U.clearSquare` keeps two things on purpose, and a migration has to name them
 
 **New in this mod.** `clearSurroundings` strips the ring around the cabin

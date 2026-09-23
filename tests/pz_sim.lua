@@ -1215,6 +1215,29 @@ function PlayerMT:setFallTime() end
 function PlayerMT:setLastFallSpeed() end
 function PlayerMT:clearFallDamage() self.fallDamage = 0 end
 
+--- The engine's own vault switch. Build 42 reads it first in both routes
+--- into a climb -- doContextClimbOverWall and doContextHopOverFence -- before
+--- either offers the contextual action, so a character carrying it can climb
+--- nothing at all.
+function PlayerMT:setIgnoreAutoVault(v) self.ignoreAutoVault = v == true end
+function PlayerMT:isIgnoreAutoVault() return self.ignoreAutoVault == true end
+
+--- Climbs a character one square, the way build 42's contextual climb does.
+---
+--- The simulation performs the climb rather than merely recording the flag,
+--- because a test that asserted `ignoreAutoVault == true` would pass against
+--- a build that set a field nothing reads. Returns whether it happened.
+---
+--- Only the gate this mod relies on is modelled: the roof and IsoBuilding
+--- tests in canClimbOverWall are what every wall on the map is refused by,
+--- and the cabin -- raised in a cell with no map behind it -- has neither,
+--- which is the whole premise of the bug.
+function SIM.climbOverWall(p, dx, dy)
+    if p.ignoreAutoVault then return false end
+    p.x, p.y = p.x + dx, p.y + dy
+    return true
+end
+
 --- Gravity, the way the engine moves a character: from its *last* height, not
 --- the height Lua last set. A hold that only calls setZ still falls. Landing
 --- two or more floors down kills, which is what happened in game.

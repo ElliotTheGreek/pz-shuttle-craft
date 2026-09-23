@@ -477,14 +477,24 @@ All seven static checks pass. None of this has been seen in a game.
    name does the game show for it?
 8. **No big box on the deck.** The helm console prop is gone; the Helm panel
    is still on the right-click *Shuttlecraft* menu and must still open.
+9. **The walls hold.** Walk into each of the four bulkheads and hold the
+   context key: no *Climb over* prompt anywhere, on any wall. Build 42 lets a
+   player climb a wall as well as a fence, and it refuses only over a square
+   with a roof or an `IsoBuilding` behind it -- which the cabin, raised in a
+   cell with no map under it, has neither of. Climbing out landed you on the
+   ring of deck the walls stand on, and one square past that is the void.
+   `TREK_Core.holdVault` takes `ignoreAutoVault` away while you are aboard and
+   gives it back when you leave, so **check the other half too**: beam down,
+   find a fence, and climb it. `DEV_GUIDE.md`'s *A wall keeps a player in only
+   where the engine thinks there is a building*.
 
 **In a save made before today** — keep one, this is the only way to test it:
 
-9. **The migration.** Beam up and look outside the hull. No lockers left
-   standing in the void, and the contents of the eleven deleted containers in a
-   pile on the transporter pad. `grep "refit:" console.txt` reports what it
-   removed and spilled, and says so again on the next build if part of the old
-   cabin had not streamed in yet.
+10. **The migration.** Beam up and look outside the hull. No lockers left
+    standing in the void, and the contents of the eleven deleted containers in
+    a pile on the transporter pad. `grep "refit:" console.txt` reports what it
+    removed and spilled, and says so again on the next build if part of the
+    old cabin had not streamed in yet.
 
 **Then on the dedicated server**, because a second client sees none of this for
 free: the cabin and its stock reaching a client, and whether a runtime
