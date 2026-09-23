@@ -347,6 +347,50 @@ for kind in sorted(kinds):
                         f"C.ContactLabels, so the sensor menu would show it "
                         f"as a raw translation key")
 
+# **A map symbol category of our own crashes the world map.** Vanilla's symbol
+# palette lays a category out at eight buttons a row and then does
+#
+#   ISWorldMapSymbols.lua:1226  tab.joypadIndexY = floor(#tab.joypadButtonsY / 2)
+#                        :1227  tab.joypadButtons = tab.joypadButtonsY[...]
+#                        :1228  tab.joypadIndex   = ceil(#tab.joypadButtons / 2)
+#
+# so a category with one row of buttons indexes [0], gets nil, and `#nil`
+# throws. A category needs **nine** symbols before it can be laid out at all.
+# Two Starfleet symbols in a "Starfleet" category made opening the map throw,
+# with an error naming neither the mod nor the symbol.
+#
+# The mod's symbols therefore join one of vanilla's categories, and this holds
+# them there: the category must be one vanilla declares, and vanilla's own
+# count in it must already clear the row threshold.
+VANILLA_SYMBOLS = os.path.join(PZ, "lua", "shared", "Definitions",
+                               "MapSymbolDefinitions.lua")
+SYMBOL_COLUMNS = 8
+if registered and os.path.isfile(VANILLA_SYMBOLS):
+    vanilla_cats = {}
+    for _id, _path, _cat in re.findall(
+            r'addTexture\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)',
+            open(VANILLA_SYMBOLS, encoding="utf-8").read()):
+        vanilla_cats[_cat] = vanilla_cats.get(_cat, 0) + 1
+    if not vanilla_cats:
+        failures.append("no categories were parsed out of vanilla's "
+                        "MapSymbolDefinitions.lua; this check proves nothing")
+    mod_cats = set(re.findall(
+        r'addTexture\(\s*"[^"]+"\s*,\s*"[^"]+"\s*,\s*"([^"]+)"\s*\)',
+        open(SYMBOL_DEFS, encoding="utf-8").read()))
+    for cat in sorted(mod_cats):
+        total = vanilla_cats.get(cat, 0)
+        if cat not in vanilla_cats:
+            failures.append(
+                f"TrekMapSymbols.lua puts symbols in a category {cat!r} that "
+                f"vanilla does not have. A category with {SYMBOL_COLUMNS} or "
+                f"fewer symbols makes ISWorldMapSymbols index joypadButtonsY"
+                f"[0], and opening the world map throws.")
+        elif total <= SYMBOL_COLUMNS:
+            failures.append(
+                f"category {cat!r} holds only {total} vanilla symbols, at or "
+                f"under the {SYMBOL_COLUMNS}-per-row threshold where "
+                f"ISWorldMapSymbols throws")
+
 for symbol_id in sorted(registered):
     if symbol_id not in contact_symbols.values():
         failures.append(f"TrekMapSymbols.lua registers {symbol_id!r} and no "

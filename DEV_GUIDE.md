@@ -1915,6 +1915,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A container in the cabin is empty and that is fine** | Five of them are the player's shelves. Only entries with `loot` or `special` are stocked; `wantsStock` is why they do not each log a WARN. |
 | **A right-click offers nothing for a mod item** | Build 42 has no script hook for "using" an arbitrary item; it has to be an `OnFillInventoryObjectContextMenu` option. And an entry in that event's `items` is either an `InventoryItem` **or** a stack table with its own `items` list — code that handles one shape silently does nothing for the other. |
 | **A panel is fine with a mouse and dead on the Steam Deck** | It is not an `ISPanelJoypad`, or its buttons were never registered with `insertNewLineOfButtons`. Note that vanilla's `ISHealthPanel` *is* one already. |
+| **Opening the world map throws `__len not defined`** | A map symbol category with **eight or fewer** symbols. `ISWorldMapSymbols` lays a category out eight to a row and then indexes `joypadButtonsY[floor(rows/2)]`, which is `[0]` for one row -- nil, and `#nil` throws. The error names neither the mod nor the symbol. Put mod symbols in one of vanilla's three categories. |
 | **A menu option works and its submenu is empty** | Nothing tests what is inside a submenu unless the harness models one. `pz_sim`'s `addSubMenu` was a no-op, so every option one level down was invisible; `deepLabels()` and `all()` are what see them. |
 | **A bearing or an angle throws only in the tests** | `math.atan2` is Kahlua-only. See *The game runs Lua 5.1*. |
 | **A feature is reported broken and every test passes** | Suspect the tests. See *A guard is only as good as the goal it was written from* — a test, a comment and a constant all agreeing with each other is not corroboration if they came from one misreading. |
@@ -2348,6 +2349,20 @@ said the same thing -- so it was **deleted**. And the whole-area load check
 and one whose ground is merely not loaded must never. Getting those two the
 same way round destroys a contact the moment somebody walks past the edge of
 it.
+
+**And the first thing play found** was that adding a map symbol *category*
+crashes the world map. Vanilla's palette lays a category out eight buttons to
+a row and then reads `joypadButtonsY[floor(rows / 2)]`; a category with one
+row indexes `[0]`, which is nil, and `#nil` throws inside vanilla with an
+error naming neither the mod nor the symbol. **Nine symbols** is the minimum a
+category can be laid out at, and vanilla's own three all hold twenty-eight or
+more. The mod's two join `Locations`, and `tests/test_assets.py` now refuses
+any category vanilla does not already have enough symbols in.
+
+It is the same shape as *A vanilla call site proves reachability, never
+correctness*, one step further out: the call was right, the arguments were
+right, and the **shape of the data** was outside what vanilla's own UI can
+cope with.
 
 **Next up** is `ROADMAP.md`'s step 7: publishing. Everything on the roadmap is
 built; what is left is playing it. Four systems have never been in a game at

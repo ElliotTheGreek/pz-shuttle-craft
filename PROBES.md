@@ -124,6 +124,12 @@ two apart. That was a real mutation escape.
 sensors submenu is gone, but the lesson outlived it and the harness keeps the
 fix.
 
+**Never give the mod its own map symbol category.** Two symbols in a
+"Starfleet" category made *opening the world map* throw, inside vanilla:
+`ISWorldMapSymbols` lays a category out eight buttons to a row and then reads
+`joypadButtonsY[floor(rows / 2)]`, so one row indexes `[0]`, which is nil, and
+`#nil` throws. Nine symbols is the minimum. The mod's join `Locations`.
+
 **A per-cent sign beside a `%1` comes out mangled.** "Probe in flight -- 16$s%"
 was what a player saw. Put the sign in the *argument*; no other translation in
 this mod has a literal one, which was the tell.

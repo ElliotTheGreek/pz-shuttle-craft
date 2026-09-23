@@ -143,6 +143,24 @@ SYMBOLS = {
     "TrekContactPersonnel": delta,
 }
 
+# **Never a category of our own.** These went in a "Starfleet" category and
+# opening the world map threw, inside vanilla's symbol palette:
+#
+#   ISWorldMapSymbols.lua:1226  tab.joypadIndexY = floor(#tab.joypadButtonsY / 2)
+#                        :1227  tab.joypadButtons = tab.joypadButtonsY[tab.joypadIndexY]
+#                        :1228  tab.joypadIndex = ceil(#tab.joypadButtons / 2)
+#
+# The palette lays a category out at eight buttons a row, so a category of N
+# symbols has ceil(N/8) rows. With one row, `floor(1 / 2)` is **0**,
+# `joypadButtonsY[0]` is nil, and `#nil` throws -- "__len not defined for
+# operand java.lang.RuntimeException", which names neither the symbol nor the
+# mod. A category needs **nine symbols** before vanilla can lay it out at all,
+# and every one of vanilla's three has at least twenty-eight.
+#
+# So the mod's symbols join an existing category. "Locations" is where a place
+# on the map belongs anyway.
+CATEGORY = "Locations"
+
 # Where the registration file goes, and what it contains. Written by this
 # script so the ids, the paths and the art cannot drift apart -- the same
 # reason gen_uniform.py writes the clothing XML beside the texture.
@@ -172,7 +190,7 @@ def build(root):
         rel = f"media/ui/TrekMap/{name}.png"
         img.save(os.path.join(root, *rel.split("/")))
         rows.append(f'MapSymbolDefinitions.getInstance():addTexture('
-                    f'"{name}", "{rel}", "Starfleet")')
+                    f'"{name}", "{rel}", "{CATEGORY}")')
         print(f"  {name:<24} {drawn * 100 // (SIZE * SIZE)}% of the frame")
 
     out = os.path.join(def_dir, "TrekMapSymbols.lua")
