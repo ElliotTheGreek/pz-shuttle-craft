@@ -5544,6 +5544,90 @@ def probes():
           "probes: an empty report was never put in front of the player, so a "
           "probe that found nothing looks exactly like one that never flew")
 
+    # --- a probe never reports outside the playable world -------------------
+    # The first contact anybody got in a real game was placed far north of the
+    # map entirely, and the crew walked toward a mark that could never have
+    # had anything on it. The bearing is chosen against the world's own
+    # bounds now, and the range is a few blocks rather than a quarter of the
+    # map.
+    rt.run("""
+        SIM.worldBounds = { x1 = 1000, y1 = 1000, x2 = 3000, y2 = 3000 }
+        TREK.Probes.store().contacts = {}
+        local s = TREK.Util.state()
+        s.probeEverFound = nil
+        -- In a **corner** of the box, not the middle. With the ship centred
+        -- and a 450-square reach inside a 2000-square world, every bearing
+        -- lands in bounds by accident and the check under test never has to
+        -- do anything -- which is exactly how a mutation of it survived.
+        s.x, s.y = 1080, 1080
+    """)
+    reach = int(rt.eval("TREK.Config.ProbeMaxDistance"))
+    check(reach <= 600,
+          f"probes: a probe reaches {reach} squares, which is most of a map "
+          f"rather than the few blocks the range is meant to be")
+    for _ in range(6):
+        rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+        rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+        net.pump(6)
+        for _ in range(ticks + 2):
+            rt.run("TREK.Server.serviceProbe()")
+    outside = rt.eval("""(function()
+        local b = SIM.worldBounds
+        for _, c in ipairs(TREK.Probes.contacts()) do
+            if c.x < b.x1 or c.x > b.x2 or c.y < b.y1 or c.y > b.y2 then
+                return c.x .. "," .. c.y
+            end
+        end
+        return false
+    end)()""")
+    check(outside is False,
+          f"probes: a contact was reported at {outside}, outside the playable "
+          f"world -- a mark the crew can walk toward for ever")
+
+    # The scatter is applied after the bearing was checked, so it can push an
+    # otherwise valid fix back out of the world. Reached directly, because a
+    # probe has to arrive within sixty squares of an edge for it to matter and
+    # waiting for that to happen by chance is not a test.
+    rt.run("""
+        TREK.Probes.store().contacts = {}
+        TREK.Probes.store().active = {
+            id = "probe:edge", x0 = 1080, y0 = 1080, bearing = 0,
+            distance = 10, x = 1010, y = 1010, progress = 0, ticks = 1,
+        }
+        TREK.Util.state().probeEverFound = nil
+        SIM.randQueue = { 0, 0 }      -- scatter both axes to the minimum
+    """)
+    rt.run("TREK.Server.serviceProbe()")
+    fix = rt.eval("""(function()
+        local c = TREK.Probes.contacts()[1]
+        return c and (c.x .. "," .. c.y) or "none"
+    end)()""")
+    inside = rt.eval("""(function()
+        local b, c = SIM.worldBounds, TREK.Probes.contacts()[1]
+        if not c then return false end
+        return c.x >= b.x1 and c.x <= b.x2 and c.y >= b.y1 and c.y <= b.y2
+    end)()""")
+    check(inside is True,
+          f"probes: the report's scatter put the fix at {fix}, outside the "
+          f"world -- the endpoint was valid and the scatter was not clamped")
+
+    # And a contact already in a save from before the range was corrected is
+    # retired rather than left on the map.
+    rt.run("""
+        local c = TREK.Probes.addContact("dilithium", 20000, 20000, 0, "old", true)
+        TREK.Server.serviceContacts()
+    """)
+    stale = rt.eval("""(function()
+        for _, c in ipairs(TREK.Probes.contacts()) do
+            if c.probe == "old" then return c.status end
+        end
+        return "gone"
+    end)()""")
+    check(str(stale) == "invalid",
+          f"probes: a contact outside the world reads {stale!r}; an old save's "
+          f"unreachable marks have to retire themselves")
+    rt.run("SIM.worldBounds = { x1 = 0, y1 = 0, x2 = 15000, y2 = 15000 }")
+
     # --- the refusals ------------------------------------------------------
     rt.run(f"{P}.x, {P}.y, {P}.z = 3000.5, 3000.5, 0")
     rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')

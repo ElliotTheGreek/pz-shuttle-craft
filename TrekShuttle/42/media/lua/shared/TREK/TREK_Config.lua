@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 26
+C.BuildRev = 27
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -999,8 +999,26 @@ C.MaxProbes = 8
 -- makes this an hour of game time -- long enough that a launch is something
 -- you do and then get on with, short enough to sit through while testing.
 C.ProbeFlightTicks = 60
-C.ProbeMinDistance = 1200
-C.ProbeMaxDistance = 2400
+
+-- How far a probe reaches, in squares.
+--
+-- **This was 1200 to 2400 and it was wrong.** A quarter of the map in one
+-- hop: the first contact anybody got was placed far north of the playable
+-- world entirely, and the crew walked toward a mark that was never going to
+-- have anything on it. "Across a great map distance" is what ROADMAP2 asks
+-- for and it is not what the game can pay -- the roadmap says as much about
+-- the ensign, that "about a mile" has to be tuned by actual travel time
+-- rather than converted literally.
+--
+-- A few blocks: far enough that going is a trip and not a stroll, close
+-- enough that the contact is somewhere you might plausibly already have been.
+C.ProbeMinDistance = 120
+C.ProbeMaxDistance = 450
+
+-- How many bearings to try before giving up on finding one that lands inside
+-- the world. Only matters near an edge of the map, where most of the compass
+-- points at nothing.
+C.ProbeBearingTries = 24
 
 -- How often a probe finds anything. ROADMAP2: "Random probes may find
 -- nothing" -- an honest empty report is a valid outcome and the interface has

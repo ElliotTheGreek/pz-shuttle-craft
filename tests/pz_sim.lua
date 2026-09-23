@@ -546,12 +546,6 @@ function ObjectMT:createContainersFromSpriteProperties()
        or self.spriteName:find("refrigeration") or self.spriteName:find("cooking")
        or self.spriteName:find("medical") or self.spriteName:find("shelving")
        or self.spriteName:find("military") or self.spriteName:find("machinery")
-       -- The tape rack: location_shop_generic_01_1, a video-shop display.
-       -- Nothing in its name resembles any of the words above, which is the
-       -- dilithium chamber's fault exactly -- the rack would have been placed
-       -- and never stocked, and every tape check would have failed against a
-       -- feature that worked.
-       or self.spriteName:find("shop_generic")
        or self.spriteName:find("CONTAINER") then
         self.container = SIM.container(40)
         self.container.parentObject = self
@@ -1093,7 +1087,31 @@ function cell:removeLamppost(light)
     SIM.lampsLive = SIM.lampsLive - 1
 end
 function getCell() return cell end
-function getWorld() return { getCell = function() return cell end } end
+-- The playable world's bounds, as the engine answers them. `isValidChunk` is
+-- what vanilla's own map asks before it will offer to teleport you somewhere
+-- (ISWorldMap.lua:941), and it takes **world squares divided by ten**, which
+-- is how it is called here and there.
+--
+-- Modelled as a real box rather than "always true": a probe that reports a
+-- contact outside the map sends the crew on a walk to nowhere, which is
+-- exactly what happened the first time anybody played it, and a stub that
+-- said yes to every square could not have caught it.
+SIM.worldBounds = { x1 = 0, y1 = 0, x2 = 15000, y2 = 15000 }
+
+function getWorld()
+    return {
+        getCell = function() return cell end,
+        getMetaGrid = function()
+            return {
+                isValidChunk = function(_, cx, cy)
+                    local b = SIM.worldBounds
+                    local x, y = cx * 10, cy * 10
+                    return x >= b.x1 and x <= b.x2 and y >= b.y1 and y <= b.y2
+                end,
+            }
+        end,
+    }
+end
 SIM.zombies = {}
 
 ---------------------------------------------------------------------------

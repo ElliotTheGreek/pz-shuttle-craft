@@ -1996,15 +1996,46 @@ Net.onServer("launchProbe", function(player, args)
     end
     s.probes = (s.probes or 0) - 1
 
-    local bearing = (U.try("probeBearing", function()
-        return ZombRand(3600) / 3600.0
-    end) or 0) * math.pi * 2
-    local span = C.ProbeMaxDistance - C.ProbeMinDistance
-    local distance = C.ProbeMinDistance + (U.try("probeRange", function()
-        return ZombRand(span + 1)
-    end) or math.floor(span / 2))
+    local ox, oy = s.x or 0, s.y or 0
 
-    local probe = Probes.begin(s.x or 0, s.y or 0, bearing, distance,
+    -- **Pick a bearing that actually lands somewhere.** A straight line from a
+    -- ship parked near the edge of the map spends much of the compass
+    -- pointing at nothing, and a contact outside the world is a mark the crew
+    -- walk toward that can never have anything on it. That is what the first
+    -- probe anybody launched did.
+    local span = C.ProbeMaxDistance - C.ProbeMinDistance
+    local bearing, distance
+    for _ = 1, C.ProbeBearingTries do
+        local b = (U.try("probeBearing", function()
+            return ZombRand(3600) / 3600.0
+        end) or 0) * math.pi * 2
+        local d = C.ProbeMinDistance + (U.try("probeRange", function()
+            return ZombRand(span + 1)
+        end) or math.floor(span / 2))
+        -- Shrink toward the ship rather than abandon the bearing: a shorter
+        -- hop the same way is still a probe, and near a map edge that is the
+        -- difference between reporting something and reporting nothing.
+        while d >= C.ProbeMinDistance do
+            if U.inWorld(ox + math.cos(b) * d, oy + math.sin(b) * d) then
+                bearing, distance = b, d
+                break
+            end
+            d = d - 30
+        end
+        if bearing then break end
+    end
+
+    if not bearing then
+        -- Every bearing tried and none lands in the world. Give the probe
+        -- back rather than charging for a launch that cannot report.
+        s.probes = (s.probes or 0) + 1
+        Ship.commit()
+        deny(player, "probeNoRoom")
+        U.log("WARN no bearing from %d,%d puts a probe inside the world", ox, oy)
+        return
+    end
+
+    local probe = Probes.begin(ox, oy, bearing, distance,
                                C.ProbeFlightTicks)
     if not probe then
         -- Nothing took the power. begin() only refuses when a probe is
@@ -2171,7 +2202,17 @@ end
 function S.serviceContacts()
     local changed = false
     for _, contact in ipairs(Probes.contacts()) do
-        if contact.kind == "dilithium" and not Probes.isResolved(contact.status) then
+        -- A contact outside the playable world can never be reached, let
+        -- alone have a crystal put on it. Saves made before the range was
+        -- corrected carry these, so they are retired here rather than left on
+        -- the map as a mark the crew walk toward for ever.
+        if not Probes.isResolved(contact.status)
+           and not U.inWorld(contact.x, contact.y) then
+            contact.status = "invalid"
+            changed = true
+            U.log("contact %s at %d,%d is outside the world; retired",
+                  contact.id, contact.x, contact.y)
+        elseif contact.kind == "dilithium" and not Probes.isResolved(contact.status) then
             if not contact.placed then
                 -- No proximity pre-check. There was one -- skip contacts no
                 -- player is near -- and it could not be observed from
@@ -2238,9 +2279,12 @@ function S.serviceProbe()
                 return ZombRand(C.ProbeReportSpread * 2 + 1)
             end) or C.ProbeReportSpread) - C.ProbeReportSpread
         end
-        local contact = Probes.addContact("dilithium",
-                                          done.x + scatter(), done.y + scatter(),
-                                          0, done.id, true)
+        -- The scatter is applied *after* the bearing was checked, so it can
+        -- push an otherwise valid fix back out of the world. Fall back to the
+        -- endpoint itself rather than reporting a square nobody can reach.
+        local cx, cy = done.x + scatter(), done.y + scatter()
+        if not U.inWorld(cx, cy) then cx, cy = done.x, done.y end
+        local contact = Probes.addContact("dilithium", cx, cy, 0, done.id, true)
         if contact then
             U.log("probe %s reports %s at %d,%d", done.id, contact.kind,
                   contact.x, contact.y)

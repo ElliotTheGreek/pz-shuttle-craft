@@ -247,5 +247,6 @@
     "IGUI_TREK_ProbeFound": "Probe reports a contact.",
     "IGUI_TREK_ProbeEmpty": "Probe reports nothing on that bearing.",
     "IGUI_TREK_ProbeLastFound": "Last report: contact",
-    "IGUI_TREK_ProbeLastEmpty": "Last report: nothing found"
+    "IGUI_TREK_ProbeLastEmpty": "Last report: nothing found",
+    "IGUI_TREK_ProbeNoRoom": "No bearing from here reaches anywhere worth scanning."
 }

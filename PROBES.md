@@ -65,13 +65,34 @@ a probe in flight nowhere to show progress.
 | `C.ContactPlaceRadius` | 6 | how far the ship will look for ground to put it on |
 | `C.ProbeFlightTicks` | 60 | advanced once a **game minute**, so one game hour |
 | `C.ProbeWorkPerTick` | 1 | |
-| `C.ProbeMinDistance` / `Max` | 1200 / 2400 | tiles |
+| `C.ProbeMinDistance` / `Max` | 120 / 450 | squares -- a few blocks, not a quarter of the map |
+| `C.ProbeBearingTries` | 24 | bearings tried before giving up near a map edge |
 | `C.ProbeFindChance` | 0.65 | an empty report is a real outcome |
 | `C.ProbeReportSpread` | 60 | tiles of uncertainty in a long-range fix |
 
 The flight is advanced per **game minute and not per server tick**. At sixty
 ticks a second a three-hundred-tick flight is five seconds, which is not a
 journey across a great map distance, it is a loading pause.
+
+**The range was 1200-2400 and it was wrong.** A quarter of the map in one
+hop: the first contact anybody got in a real game was placed far north of the
+playable world altogether, and the crew set off toward a mark that could never
+have had anything on it. "Across a great map distance" is what ROADMAP2 asks
+for and it is not what the game can pay -- the roadmap says as much about the
+ensign, that "about a mile" has to be tuned by travel time rather than
+converted literally.
+
+**And the endpoint is now checked against the world.** `U.inWorld` asks
+`getWorld():getMetaGrid():isValidChunk(x / 10, y / 10)`, called exactly as
+vanilla's own map calls it before offering to teleport somewhere
+(`ISWorldMap.lua:941`). A bearing that leaves the map is shrunk toward the
+ship until it lands, and if no bearing works the probe goes back in the rack
+rather than flying off to report nothing. The **scatter is clamped too** --
+it is applied after the bearing was checked, so it can push an otherwise good
+fix back over an edge.
+
+Contacts already in a save from before this are retired on the next service
+pass, so an old mark out in the void stops being somewhere to walk.
 
 The spread is what keeps the tricorder worth having. A probe that named the
 exact square from two thousand tiles away would make the whole close-range
@@ -141,6 +162,13 @@ the feature as broken, correctly. There is a note on arrival and a line on the
 panel now, and **the first probe of a save is guaranteed**, because a new crew
 whose opening launch costs 250 units and an hour of game time and reports
 nothing has been taught the wrong thing about their ship.
+
+**"Inside the world" is not "loaded", and neither is "somewhere there is
+ground".** Three different questions, and this system asks all three:
+`U.inWorld` (is the square on the map at all), `U.chunkLoaded` (can the engine
+be asked about it yet), and the placement search (is there a floor). Confusing
+the first two is how a probe reported a contact two thousand squares off the
+top of the map.
 
 **A per-cent sign beside a `%1` comes out mangled.** "Probe in flight -- 16$s%"
 was what a player saw. Put the sign in the *argument*; no other translation in
