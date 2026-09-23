@@ -124,6 +124,22 @@ Verify both body types; ordinary movement, combat, sitting, and vehicle poses; d
 
 # 1.5 — Long-range probes
 
+> **Decided 2026-09-23:** probes get a **separate console**, not a page on the
+> helm. That is a new fitting in the authored interior, so it is a change to
+> `design/buildinged/TrekShuttle_Interior.tbx` in BuildingEd rather than to
+> the Lua — and with twenty-four deck squares already spoken for, *where it
+> goes* is the open question.
+>
+> **Researched 2026-09-23: `MAP_MARKERS.md`.** The map-symbol API is
+> Lua-exposed, takes world coordinates and has ordinary-player call sites —
+> but the half that makes a symbol *shared and persistent*
+> (`sendShareSymbol`, `WorldMapSymbolNetworkInfo`, `WorldMapServer`) is not
+> exposed to Lua at all, and no vanilla Lua calls it. So contacts stay the
+> mod's own bounded store, as this roadmap already specifies, and symbols
+> become presentation rebuilt from it when the map opens. Map *markers* are a
+> different system: transient, unshared, and their only vanilla Lua call site
+> is a main-menu test branch.
+
 Probes turn ship energy into information. They launch from a ship interface, initially a science page on the helm unless play shows that they need a separate console.
 
 ## Player experience
