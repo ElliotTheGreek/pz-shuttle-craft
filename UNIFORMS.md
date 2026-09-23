@@ -201,14 +201,21 @@ that does not apply proves exactly nothing.
 
 ---
 
-## 6. Not built, and still to settle in game
+## 6. Seen in game, and still to settle
 
-**None of this has been seen in a game.** In the order worth checking:
+**Confirmed in single player on 2026-09-23**: the armoury locker at 3,0
+carries all six, they equip, and they draw on the character.
 
-1. **That the GUID table merged at all.** Beam up in a fresh world, open the
-   armoury locker at 3,0, wear a uniform and look at the character. Clothes
-   change: it merged. Nothing changes while the uniform reads as worn: it did
-   not. Everything else is downstream of this.
+That settles the item at the top of this list, which was the one thing no
+static check could reach — whether this mod's `fileGuidTable.xml` actually
+merged into the engine's table. It did. Everything else in the wardrobe is
+downstream of that, so what follows is now a list of *details*, not of risks:
+
+1. ~~**That the GUID table merged at all.**~~ Confirmed. The play route, for
+   anyone repeating it: beam up in a fresh world, open the locker at 3,0, wear
+   a uniform, look at the character. Clothes change and it merged; the
+   inventory saying "worn" while nothing changes means it did not, and no log
+   line will say so either way.
 2. **Both bodies.** Make a female character and look. One texture serves both
    and the male render cannot show the female one going wrong.
 3. **Movement, sitting and the vehicle poses.** The rigs are vanilla and the
@@ -216,8 +223,7 @@ that does not apply proves exactly nothing.
    confirm rather than assume.
 4. **Dirt, blood, holes, wetness, washing and repair**, which come from the
    body location and the `BloodLocation` rather than from anything here.
-5. **The armoury locker** holding one of each in a new world, and the log line
-   `WARN uniforms locker holds 0 of 1 ...` never appearing.
+5. ~~**The armoury locker** holding one of each in a new world.~~ Confirmed.
 6. **The replicator**, which should offer all six from the first minute of an
    existing save.
 7. **Two clients.** Clothing replicates through vanilla's own

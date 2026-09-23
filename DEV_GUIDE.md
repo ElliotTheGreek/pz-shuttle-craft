@@ -2253,10 +2253,18 @@ only after the harness learned to assert that its own edit had applied, which
 is how the one apparent MISS turned out to be a backslash in the harness
 rather than a hole in a check.
 
-**None of it has been seen in a game**, and the part that most needs one is
-the first: `TREK_Uniform()` in a fresh world, to prove the mod's
-`fileGuidTable.xml` actually merged. Every file can be perfect and every
-uniform still draw nothing, with nothing in the log.
+**Seen working in game** (2026-09-23), the same day: the armoury carries all
+six, they wear, and they draw. That was the one thing no static check could
+reach -- whether the mod's own `fileGuidTable.xml` merged into the engine's
+table -- and it is the whole chain in one observation, because every file can
+be perfect and every uniform still draw nothing with nothing in the log.
+
+Three art faults survived every check and were caught by *looking at it*: the
+combadge sat on the hip, the texture had vanilla's breast pockets and zip
+showing through borrowed luminance, and the collar was a black bib from
+shoulder to shoulder. All three are in `UNIFORMS.md`; the first two are the
+sections above. A female character, the replicator listing and two clients are
+still unproven.
 
 **Next up** is `ROADMAP.md`'s step 7: publishing. Everything on the roadmap is
 built; what is left is playing it. Four systems have never been in a game at

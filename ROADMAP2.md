@@ -21,7 +21,7 @@ The dependency order is deliberate: uniforms before the ensign; contacts before 
 
 ---
 
-# 1.4 — The first wardrobe  **[BUILT 2026-09-23, not yet played]**
+# 1.4 — The first wardrobe  **[BUILT AND PLAYED 2026-09-23]**
 
 > **Built.** Six garments on two vanilla rigs: a one-piece duty uniform and a
 > long dress uniform, in command, operations and sciences. `UNIFORMS.md` is the
@@ -50,9 +50,14 @@ The dependency order is deliberate: uniforms before the ensign; contacts before 
 >   stat; vanilla's `Boilersuit` has `ScratchDefense = 10` and it is not
 >   copied. A test fails any mod garment that sets one.
 >
-> **The one thing to check first in game** is `TREK_Uniform()`: a garment whose
-> GUID row did not merge equips, weighs, insulates and draws nothing at all,
-> with nothing in the log.
+> **Confirmed in a game on 2026-09-23**: the armoury carries all six, they
+> wear, and they draw. That settles the one thing no static check could —
+> whether the mod's `fileGuidTable.xml` actually merged, without which every
+> garment would have equipped, weighed, insulated and drawn nothing, with
+> nothing in any log.
+>
+> Still unproven: a female character, the replicator listing, two clients, and
+> dirt/blood/washing over a long save. `UNIFORMS.md` section 6 is the list.
 
 Add a classic Star Trek-style uniform as the mod’s first custom outfit.
 
