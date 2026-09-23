@@ -575,7 +575,19 @@ Two more again, from the warp core:
    directions are there now, and both reach only the player whose pockets they
    are.
 
-All seven are fixed, and the rule they share is worth more than any of them:
+And one more, the most expensive of the set, because it hid a bug that
+shipped:
+
+8. **A vehicle whose physics this machine always owned.**
+   `isLocalPhysicSim()` was stubbed as `SIM_ROLE ~= "server"` -- true in
+   single player. The engine answers **false** there, for ever, and
+   `takeoffGranted` had grown a guard on it, so a real single-player game
+   could not take off at all while every test passed. The stub models the
+   engine's own rule now: false in single player, and on a client true only
+   for the machine whose player is driving. See *Single player is neither a
+   client nor a server* below.
+
+All eight are fixed, and the rule they share is worth more than any of them:
 **when a test is easy to satisfy, suspect the simulation before believing the
 code.** `MULTIPLAYER.md` says the same thing about vehicle gravity, the
 floor-gated height and the radial menu's one-frame delay, each of which let a
@@ -814,6 +826,63 @@ setter is documented -- or observed -- to replicate, check which process it
 was written for. This mod has now been bitten by the mirror image of this
 twice: `addFluid` really does sync from the server, and a vehicle's mod data
 really does not reach clients at all.
+
+### Single player is neither a client nor a server, and the engine assumes it is one
+
+**New in this mod, and it shipped: the ship would not take off.** A pilot sat
+at the controls, the radial menu offered *Take her up*, the server logged
+`clearing her for level 3` -- and nothing happened, four times, with no error
+anywhere. The cause was one line added to `takeoffGranted`:
+
+```lua
+if not ownsPhysics(vehicle) then return end   -- vehicle:isLocalPhysicSim()
+```
+
+`isLocalPhysicSim()` is public, obvious, and exactly what it says. It is also
+**unanswerable in single player**:
+
+```
+BaseVehicle.<init>        netPlayerAuthorization = Authorization.Server
+constraintChanged()   14  getstatic  GameServer.server
+                      17  ifeq -> 92        <-- off a server: set nothing
+                      89  authorizationChanged(getDriver())   ; -> Local
+isLocalPhysicSim()     0  getstatic  GameServer.server
+                       3  ifeq -> 14        ; a server: is it still Server?
+                      14  authorization == LocalCollide || == Local
+```
+
+Only a server ever hands a vehicle's authorization to a driver, so off a
+server it is never anything but `Server`, and `isLocalPhysicSim()` is
+permanently false. **Vanilla never asks it in single player either** --
+`isBrakePedalPressed()` consults it only inside its `GameClient.client`
+branch and otherwise goes straight to the controller, which is the tell.
+
+Three things follow, and the first is the general one:
+
+- **A method written for the client/server split has a third caller nobody
+  tested.** `isLocalPhysicSim`, `isLocalPlayer`, `isRemoteZombie`,
+  `sync()`, `setLockedByKey` -- all of them mean something in two of the
+  three setups and something accidental in the third. This file already has
+  *A setter's own sync may be one-sided* and *Single player cannot test a fix
+  that both ends apply*; this is the same fault from the reading side.
+  **Before guarding anything on one of them, ask what it answers in all
+  three.**
+- **Ask the question the guard is for, not the one the engine can answer.**
+  The goal was "only one machine moves her". In single player that machine is
+  this one -- there is no other -- so `ownsPhysics` says so itself and asks
+  the engine only when there is a server to disagree with (*A guard is only as
+  good as the goal it was written from*).
+- **And the simulation was kindest about the broken case.**
+  `tests/pz_sim.lua` answered `SIM_ROLE ~= "server"`, which is true for single
+  player, so the whole flight suite passed against a build that could not
+  leave the ground. *The simulation has to be as unkind as the engine* -- and
+  the place to look first is wherever the stub's answer is a one-liner about
+  `SIM_ROLE`.
+
+The silence was the other half of it. Both of that handler's early returns
+said nothing, so the log could not tell "granted and refused" from "never
+asked", which `PILOTING.md` section 6 had already written down after the same
+thing happened to `F.land`. Both say which one they took now.
 
 ### Single player cannot test a fix that both ends apply
 

@@ -104,8 +104,18 @@ shared/TREK/TREK_Config.lua   every number below
 |---|---|
 | **The plane** | Each client, for itself. Never synced. |
 | **`flying`, `level`, `pilot`** | The server, as ship state, set by validated commands |
-| **The lift between levels** | The client that owns the physics (`isLocalPhysicSim`) |
+| **The lift between levels** | The machine that moves her: the driver's client on a server, and in single player this one (see below) |
 | **Driving, steering, seats, camera, sync** | Vanilla. The mod does not touch any of it. |
+
+**Single player owns the physics and the engine will not say so.**
+`isLocalPhysicSim()` is `authorization == LocalCollide || == Local` off a
+server, and a vehicle's authorization is only ever moved off its constructor
+default (`Authorization.Server`) by `constraintChanged()`, whose whole body
+sits behind `getstatic GameServer.server; ifeq -> return`. So it is **false in
+single player for ever**, and a guard on it refused every take-off there --
+silently -- for one release. `F.ownsPhysics` answers for itself when there is
+no server to disagree with; vanilla does the same, consulting the method only
+inside `isBrakePedalPressed`'s `GameClient.client` branch.
 
 **Why a client lays world floor**, when `MULTIPLAYER.md` says a client never
 edits the world: the plane is not the ship and it is not state, it is scenery

@@ -1075,7 +1075,35 @@ end
 
 function VehicleMT:setPhysicsActive(a) self.physicsActive = a end
 function VehicleMT:isPhysicsActive() return self.physicsActive ~= false end
-function VehicleMT:isLocalPhysicSim() return SIM_ROLE ~= "server" end
+--- Which machine simulates this vehicle's physics.
+---
+--- **False in single player**, and that is the engine's real answer rather
+--- than an oversight. `BaseVehicle`'s constructor sets
+--- `netPlayerAuthorization = Authorization.Server`, and the only thing that
+--- ever sets it to `Local` is `constraintChanged() ->
+--- authorizationChanged(getDriver())`, whose whole body sits behind
+--- `getstatic GameServer.server; ifeq -> return`. Off a server nothing
+--- touches it, so `isLocalPhysicSim()` -- which is
+--- `authorization == LocalCollide || authorization == Local` off a server --
+--- can never be true there. Vanilla never asks it in single player either:
+--- `isBrakePedalPressed()` consults it only inside its `GameClient.client`
+--- branch.
+---
+--- This stub used to answer `SIM_ROLE ~= "server"`, which made single player
+--- the one case it was kindest about -- and a guard that refused every
+--- take-off in a real single-player game passed every test in here.
+function VehicleMT:isLocalPhysicSim()
+    if SIM_ROLE == "server" then
+        -- A server keeps the authorization until a driver takes it, and the
+        -- mod's flight code does not load there at all (TREK_Flight is
+        -- client-side), so this is only ever asked by the simulation itself.
+        return self.seats == nil or self.seats[0] == nil
+    end
+    if SIM_ROLE == "sp" then return false end
+    -- A client: the server hands the authorization to the driver's machine.
+    return self.seats ~= nil and self.seats[0] ~= nil
+           and self.seats[0] == SIM.players[1]
+end
 function VehicleMT:setAngles(x, y, z)
     self.angleX, self.angleY, self.angleZ = x, y, z
 end

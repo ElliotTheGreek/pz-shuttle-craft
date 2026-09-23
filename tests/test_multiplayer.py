@@ -801,6 +801,24 @@ def flight():
     check(ship(rt, "landed") is True, "flight: the ship would not land to start with")
     seat(rt)
 
+    # --- single player owns the physics, and the engine will not say so ----
+    # BaseVehicle's constructor sets netPlayerAuthorization = Authorization
+    # .Server, and the only thing that ever sets it to Local is
+    # constraintChanged() -> authorizationChanged(getDriver()), whose whole
+    # body is behind `getstatic GameServer.server; ifeq -> return`. So off a
+    # server nothing touches it and isLocalPhysicSim() is false for ever --
+    # vanilla never asks it in single player either, consulting it only inside
+    # isBrakePedalPressed's GameClient.client branch.
+    #
+    # A guard that asked the engine unconditionally therefore refused every
+    # take-off in single player, in silence. It shipped, because this stub
+    # used to answer `SIM_ROLE ~= "server"` and was kindest about exactly the
+    # case that was broken.
+    check(rt.eval("TREK.Vehicle.ship():isLocalPhysicSim()") is False,
+          "flight: the simulation claims single player owns the vehicle "
+          "physics. The engine says the opposite, and a simulation kinder "
+          "than the engine is how the ship came to be unable to take off")
+
     # --- the radial menu actually offers it --------------------------------
     # Vanilla's radial is a toggle, and a hook that adds slices only when the
     # menu reports itself visible runs solely while it is being dismissed. That
@@ -4990,25 +5008,26 @@ def emh_multiplayer():
           "stranger is turned away")
 
 
+SECTIONS = (static, migration, single_player, refit, flight, flight_endings,
+            torpedoes, medical, medical_multiplayer, replicator,
+            replicator_multiplayer, emh, emh_multiplayer, multiplayer)
+
+
 def main():
-    static()
-    migration()
-    single_player()
-    refit()
-    flight()
-    flight_endings()
-    torpedoes()
-    medical()
-    medical_multiplayer()
-    replicator()
-    replicator_multiplayer()
-    emh()
-    emh_multiplayer()
-    multiplayer()
+    # A later section that reads what an earlier one was supposed to produce
+    # throws rather than fails: torpedoes() compares two positions that are
+    # both None when the ship never got off the ground. Everything already
+    # found is printed either way, because a traceback on top of a silent list
+    # of failures is how a real regression gets read as a broken harness.
+    try:
+        for section in SECTIONS:
+            section()
+    finally:
+        if failures:
+            print(f"\n{len(failures)} PROBLEM(S):")
+            for f in dict.fromkeys(failures):
+                print("  " + f)
     if failures:
-        print(f"\n{len(failures)} PROBLEM(S):")
-        for f in dict.fromkeys(failures):
-            print("  " + f)
         sys.exit(1)
     print("\nsingle player and multiplayer behave as designed")
 

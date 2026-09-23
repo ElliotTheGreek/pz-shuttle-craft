@@ -89,7 +89,36 @@ end
 --- True when this machine is the one simulating the vehicle's physics. Asked
 --- rather than assumed: the engine knows, and two clients driving one
 --- transform would fight.
+---
+--- **Single player is not one of the cases the engine can answer, and its
+--- answer there is always no.** `BaseVehicle`'s constructor sets
+--- `netPlayerAuthorization = Authorization.Server`, and the only thing that
+--- ever changes it to `Local` is `constraintChanged()`, which calls
+--- `authorizationChanged(getDriver())` behind
+---
+---     14  getstatic  GameServer.server
+---     17  ifeq -> 92            <-- off a server: return, having set nothing
+---
+--- So off a server nothing ever touches it, and `isLocalPhysicSim()` -- which
+--- off a server is `authorization == LocalCollide || authorization == Local`
+--- -- is **false in single player for ever**. Vanilla never asks it there
+--- either: `isBrakePedalPressed()` consults it only inside its
+--- `GameClient.client` branch and otherwise goes straight to the controller.
+---
+--- This file does not load on a server at all (line one), so "not a client"
+--- here means single player: one process, which is this one, and it owns
+--- every vehicle's physics by having nobody to share them with.
+---
+--- It cost a release. `takeoffGranted` gained this guard in "multiplayer
+--- updates" and, with it, single player could not take off at all -- silently,
+--- because the guard simply returned. The simulation answered
+--- `SIM_ROLE ~= "server"` and was therefore kindest about exactly the case
+--- that was broken, so every test passed. `DEV_GUIDE.md`'s *The simulation has
+--- to be as unkind as the engine*, and *A guard is only as good as the goal it
+--- was written from*: the goal was "only one machine moves her", and in single
+--- player that machine is this one.
 local function ownsPhysics(vehicle)
+    if not isClient() then return true end
     return U.try("isLocalPhysicSim", function()
         return vehicle:isLocalPhysicSim()
     end) == true
@@ -320,8 +349,20 @@ end
 Net.onClient("takeoffGranted", function(args)
     local player = Core.lastAsker or U.player(0)
     local vehicle = F.vehicle()
-    if not vehicle then return end
-    if not ownsPhysics(vehicle) then return end
+    -- Both of these used to return in silence, and a take-off that is granted
+    -- and then does nothing at all is indistinguishable from one that was
+    -- never asked for. Silence is not a diagnosis (PILOTING.md section 6).
+    if not vehicle then
+        U.log("WARN take-off was granted and this machine cannot see the shuttle")
+        U.note(player, getText("IGUI_TREK_NoLift"), 255, 90, 90)
+        return
+    end
+    if not ownsPhysics(vehicle) then
+        -- Not a refusal: on a server the pilot's own machine is the only one
+        -- that moves her, and the rest are told she is up by the ship state.
+        U.log("take-off granted, but this machine does not move her")
+        return
+    end
     local level = math.floor(args.level or C.FlightCruise)
     rising = {
         vehicle = vehicle, level = level, ticks = 0,
