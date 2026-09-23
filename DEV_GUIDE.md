@@ -2364,6 +2364,21 @@ correctness*, one step further out: the call was right, the arguments were
 right, and the **shape of the data** was outside what vanilla's own UI can
 cope with.
 
+**And the second thing play found** was not a bug at all: a probe came back
+empty, which is a 35% outcome working exactly as designed, and it was reported
+as broken -- correctly, because the only trace of it was a line in
+`console.txt`. From inside the game an honest empty result and a feature that
+did nothing are the same thing. The fix is three lines of feedback and one
+design change: the crew are told when a probe lands either way, the verdict
+stays on the console afterwards, and **the first probe of a save always finds
+something**.
+
+The general shape is worth more than the fix: **a correct refusal that nobody
+is shown is indistinguishable from a broken feature**, and this file already
+says the same thing about `deny()` reasons and about `TREK_Uniform()`. An
+outcome the design calls valid still has to be delivered to the player, not
+merely recorded.
+
 **Next up** is `ROADMAP.md`'s step 7: publishing. Everything on the roadmap is
 built; what is left is playing it. Four systems have never been in a game at
 all, and the two-player session has been pinned for long enough that it is now

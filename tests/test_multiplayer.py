@@ -5482,9 +5482,38 @@ def probes():
           "probes: the flight's progress is not in the store, so a restart "
           "mid-flight would lose the probe and the power that bought it")
 
-    # --- and it reports ----------------------------------------------------
-    rt.run("SIM.randQueue = { 0, 30, 30 }")   # a find, then the scatter
+    # --- the first probe of a save always finds something ------------------
+    # At a 65% hit rate one launch in three is 250 units and an hour of game
+    # time for nothing, and the *first* one coming back empty is
+    # indistinguishable from the feature being broken. It read exactly that
+    # way the first time anybody played it.
+    check(rt.eval("TREK.Util.state().probeEverFound") is None,
+          "probes: a fresh ship already thinks a probe has found something")
+    rt.run("SIM.randQueue = { 99, 30, 30 }")   # a roll that would MISS
     ticks = int(rt.eval("TREK.Config.ProbeFlightTicks"))
+    for _ in range(ticks + 2):
+        rt.run("TREK.Server.serviceProbe()")
+    check(int(rt.eval("#TREK.Probes.contacts()")) == 1,
+          "probes: the first probe of a save came back empty; the opening is "
+          "guaranteed so that a new crew is never told 'nothing' first")
+    check(rt.eval("TREK.Util.state().probeEverFound") is True,
+          "probes: the ship did not record that it has found something")
+
+    # And every probe after it is an honest roll again.
+    rt.run("TREK.Probes.store().contacts = {}")
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(10)
+    rt.run("SIM.randQueue = { 99 }")
+    for _ in range(ticks + 2):
+        rt.run("TREK.Server.serviceProbe()")
+    check(int(rt.eval("#TREK.Probes.contacts()")) == 0,
+          "probes: a later probe still cannot come back empty, so the "
+          "guarantee is permanent rather than an opening")
+
+    # --- and it reports ----------------------------------------------------
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(10)
+    rt.run("SIM.randQueue = { 0, 30, 30 }")   # a find, then the scatter
     for _ in range(ticks + 2):
         rt.run("TREK.Server.serviceProbe()")
     check(rt.eval("TREK.Probes.active() == nil") is True,
@@ -5497,6 +5526,9 @@ def probes():
     check(rt.eval("TREK.Probes.contacts()[1].approximate") is True,
           "probes: a long-range fix was reported as exact; the spread is what "
           "the tricorder is for")
+    check(any("IGUI_TREK_ProbeFound" in n for n in rt.notes()),
+          "probes: a probe came home with a contact and nobody was told -- an "
+          "hour of game time with the only trace in console.txt")
 
     # --- an empty report is a real outcome ---------------------------------
     rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
@@ -5508,6 +5540,9 @@ def probes():
           "probes: a probe that found nothing added a contact anyway")
     check(any("returned nothing" in str(l) for l in rt.logLines()),
           "probes: an empty report said nothing at all")
+    check(any("IGUI_TREK_ProbeEmpty" in n for n in rt.notes()),
+          "probes: an empty report was never put in front of the player, so a "
+          "probe that found nothing looks exactly like one that never flew")
 
     # --- the refusals ------------------------------------------------------
     rt.run(f"{P}.x, {P}.y, {P}.z = 3000.5, 3000.5, 0")

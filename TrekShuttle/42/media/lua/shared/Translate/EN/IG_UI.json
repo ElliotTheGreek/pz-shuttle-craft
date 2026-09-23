@@ -243,5 +243,9 @@
     "IGUI_TREK_ProbeShow": "Show on map",
     "IGUI_TREK_ProbeNone": "No probes aboard. Fabricate one first.",
     "IGUI_TREK_ProbeRackFull": "The probe rack is full.",
-    "IGUI_TREK_SensorTitle": "Long-range sensors"
+    "IGUI_TREK_SensorTitle": "Long-range sensors",
+    "IGUI_TREK_ProbeFound": "Probe reports a contact.",
+    "IGUI_TREK_ProbeEmpty": "Probe reports nothing on that bearing.",
+    "IGUI_TREK_ProbeLastFound": "Last report: contact",
+    "IGUI_TREK_ProbeLastEmpty": "Last report: nothing found"
 }

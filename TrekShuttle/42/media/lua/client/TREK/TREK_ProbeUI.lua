@@ -27,6 +27,7 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Core"
+require "TREK/TREK_Net"
 require "TREK/TREK_Probes"
 require "TREK/TREK_Power"
 require "TREK/TREK_Helm"
@@ -35,6 +36,7 @@ TREK = TREK or {}
 local C = TREK.Config
 local U = TREK.Util
 local Core = TREK.Core
+local Net = TREK.Net
 local P = TREK.Probes
 local H = TREK.Helm
 local Pal = H.P
@@ -253,6 +255,19 @@ function TREKProbeWindow:render()
         or getText("IGUI_TREK_NoContacts")
     self:drawText(label, cx, self.listY - 18,
                   Pal.peach[1], Pal.peach[2], Pal.peach[3], 1, UIFont.Small)
+
+    -- The last probe's verdict, kept on screen. The note above is gone in a
+    -- few seconds and a player who was walking when it landed would otherwise
+    -- never learn that the probe came back at all -- which reads as the
+    -- launch having done nothing.
+    local report = s.probeReport
+    if report and not active then
+        local text = report.found and getText("IGUI_TREK_ProbeLastFound")
+                     or getText("IGUI_TREK_ProbeLastEmpty")
+        local c = report.found and Pal.blue or Pal.dim
+        self:drawTextRight(text, self.width - PAD, y,
+                           c[1], c[2], c[3], 1, UIFont.Small)
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -276,6 +291,22 @@ function S.bearing(fromX, fromY, toX, toY)
         return dx > 0 and "SE" or "SW"
     end
 end
+
+---------------------------------------------------------------------------
+-- What the ship says when a probe comes home
+---------------------------------------------------------------------------
+-- A note over the player's head, whether or not the console is open. A probe
+-- takes an hour of game time and nobody watches the panel for an hour; the
+-- one moment worth interrupting them for is the one where it lands.
+Net.onClient("probeReport", function(args)
+    local player = U.player(0)
+    if not player then return end
+    if args and args.found then
+        U.note(player, getText("IGUI_TREK_ProbeFound"), 150, 220, 255)
+    else
+        U.note(player, getText("IGUI_TREK_ProbeEmpty"), 220, 190, 120)
+    end
+end)
 
 ---------------------------------------------------------------------------
 -- Opening it

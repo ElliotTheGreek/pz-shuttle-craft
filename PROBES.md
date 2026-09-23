@@ -48,9 +48,12 @@ a probe in flight nowhere to show progress.
    persisted, so a restart mid-flight resumes rather than losing the probe and
    the power that bought it. It runs outside the cabin-loaded branch, so it
    keeps flying whether or not anybody is aboard.
-6. On arrival it rolls against `C.ProbeFindChance`. A hit adds a `dilithium`
+6. On arrival it rolls against `C.ProbeFindChance` -- except for the **first
+   probe of a save, which always finds something**. A hit adds a `dilithium`
    contact scattered up to `C.ProbeReportSpread` tiles off the endpoint and
-   marked **approximate**; a miss logs that the probe returned nothing.
+   marked **approximate**; a miss reports nothing, honestly.
+7. Either way **the crew are told**: a note when it lands, and a "Last
+   report" line that stays on the console afterwards.
 
 ## 3. The numbers, and why
 
@@ -129,6 +132,15 @@ fix.
 `ISWorldMapSymbols` lays a category out eight buttons to a row and then reads
 `joypadButtonsY[floor(rows / 2)]`, so one row indexes `[0]`, which is nil, and
 `#nil` throws. Nine symbols is the minimum. The mod's join `Locations`.
+
+**An empty report has to reach the player, not the log.** At a 65% hit rate
+one launch in three finds nothing, and the only trace of that was a line in
+`console.txt`. From the console a probe that returned empty and a probe that
+never happened looked identical -- and the first person to play it reported
+the feature as broken, correctly. There is a note on arrival and a line on the
+panel now, and **the first probe of a save is guaranteed**, because a new crew
+whose opening launch costs 250 units and an hour of game time and reports
+nothing has been taught the wrong thing about their ship.
 
 **A per-cent sign beside a `%1` comes out mangled.** "Probe in flight -- 16$s%"
 was what a player saw. Put the sign in the *argument*; no other translation in

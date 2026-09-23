@@ -2212,9 +2212,22 @@ function S.serviceProbe()
         return
     end
 
-    local found = (U.try("probeRoll", function()
-        return ZombRand(100)
-    end) or 0) < math.floor(C.ProbeFindChance * 100)
+    -- **The first probe of a save always finds something.** At a 65% hit rate
+    -- one launch in three is 250 units and an hour of game time for a line in
+    -- a log the player never reads, and the very first one coming back empty
+    -- is indistinguishable from the feature being broken -- which is exactly
+    -- how it read the first time anybody played it. ROADMAP2 1.6 wants a
+    -- guaranteed opening for the cold start anyway; this is the honest
+    -- minimum of it, and every probe after the first is a fair roll.
+    local s = U.state()
+    local found
+    if not s.probeEverFound then
+        found = true
+    else
+        found = (U.try("probeRoll", function()
+            return ZombRand(100)
+        end) or 0) < math.floor(C.ProbeFindChance * 100)
+    end
 
     if found then
         -- A long-range fix is a region, not a square. The spread is what the
@@ -2239,10 +2252,19 @@ function S.serviceProbe()
         U.log("probe %s returned nothing", done.id)
     end
 
-    local s = U.state()
+    if found then s.probeEverFound = true end
     s.probeReport = { id = done.id, found = found, at = getTimestampMs() }
     Ship.commit()
     Probes.publish()
+
+    -- **Tell the crew.** Until this, the only trace of an empty report was a
+    -- line in console.txt, so from the console a probe that found nothing and
+    -- a probe that never happened looked exactly the same. ROADMAP2 asks for
+    -- the page to show recent reports, and an honest empty result is a real
+    -- outcome that has to be reported as one.
+    for _, p in ipairs(U.players()) do
+        Net.toClient(p, "probeReport", { found = found })
+    end
 end
 
 --- Design and diagnostic tools behind the debug console. Single player, or a
