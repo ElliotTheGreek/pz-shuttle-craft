@@ -126,14 +126,17 @@ through an API it does not have, a menu hook that never ran, a weapon model
 one module from where the engine looks. What has always caught it is *reading
 the result back*:
 
-```
-TREK_Uniform()
-```
+**From play, the tell is simple: take a uniform out of the armoury and wear
+it.** If the character's clothes change, the GUID resolved and everything
+downstream of it is fine. If the character looks exactly as before while the
+inventory says the uniform is worn, the table did not merge — and no log line
+will say so.
 
-reports, per garment, whether `getClothingItem()` came back at all and what
-male model, female model and texture it carries. **Run it the first time the
-mod is carried into a world.** The static checks prove the files agree with
-each other; only this proves the engine found them.
+`S.uniformReport()` is the developer's version of that question: it asks the
+engine for each garment's `ClothingItem` and writes the model and texture it
+came back with to the server log. It is wired to the debug console as
+`TREK_Uniform()` for whoever is debugging this later; it is **not** part of
+the play route above, which needs nothing typed.
 
 **A texture painted in texture space will be wrong.** These atlases are
 auto-packed, so a rectangle in the sheet is not a shape on the garment.
@@ -145,14 +148,23 @@ grain the one time this was done the obvious way.
 models, so a texture right for one body can be wrong for the other — on a
 character the author may never have made. The generator builds its region map
 from *both* rigs and fails if more than 2% of shared texels land in a
-different panel. The duty rigs differ at 0.97% (the collar sits 5 cm
-off-centre on Bob and centred on Kate); the dress rigs at 0.00%.
+different panel. The duty rigs differ at 1.33%, almost all of it along the
+waist seam and the collar, where Bob and Kate are simply different shapes;
+the dress rigs at 0.00%.
 
 *The first version of that gate measured the raw distance between the rigs and
 failed the boilersuit at 0.077 — which was two bodies of different shape
 sharing one layout, exactly what vanilla ships. It was measuring millimetres
 when the question is which panel.* See DEV_GUIDE, *A guard is only as good as
 the goal it was written from*.
+
+**Do not borrow the vanilla texture's cloth detail.** Reusing its luminance
+gives the rig's painted folds for free, and it also gives you the garment they
+belong to: even clamped hard, the boilersuit's zip, breast pockets and cuff
+seams came through, and the finished uniform read as a jumpsuit with jumpsuit
+pockets. `form_shade()` computes the shading from the mesh instead — an
+outward normal approximated from position, radially from the body's vertical
+axis for the torso and from the arm's own axis for a sleeve, lit by one lamp.
 
 **Unpadded UVs fringe.** Everything outside an island is transparent, and the
 sampler does not respect island boundaries, so filtering along an edge mixes
@@ -193,8 +205,10 @@ that does not apply proves exactly nothing.
 
 **None of this has been seen in a game.** In the order worth checking:
 
-1. **That the GUID table merged at all.** `TREK_Uniform()` in a fresh world.
-   Everything else is downstream of it.
+1. **That the GUID table merged at all.** Beam up in a fresh world, open the
+   armoury locker at 3,0, wear a uniform and look at the character. Clothes
+   change: it merged. Nothing changes while the uniform reads as worn: it did
+   not. Everything else is downstream of this.
 2. **Both bodies.** Make a female character and look. One texture serves both
    and the male render cannot show the female one going wrong.
 3. **Movement, sitting and the vehicle poses.** The rigs are vanilla and the

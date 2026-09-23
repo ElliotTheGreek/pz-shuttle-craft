@@ -166,12 +166,24 @@ All three are `furniture_storage_02_11` — Locker, facing W, capacity 40.
 
 | Square | Tag | `special` | `loot` | `cap` | Ends up holding |
 |---|---|---|---|---|---|
-| 3,0 | `armoury` | `phasers` | `weapons` | 8 | 4 phasers, 2 each of the 4 blades |
+| 3,0 | `armoury` | `phasers`, `uniforms` | `weapons` | 8 | 4 phasers, 2 each of the 4 blades, 1 of each of the 6 uniforms |
 | 3,1 | `provisions` | — | `food` | 27 | 3 each of 5 dishes and 4 drinks |
 | 3,2 | `medical` | `medkit` | `medical` | 8 | 3 each of the 4 instruments |
 
 `C.PhaserRack` follows the armoury to 3,0; `tests/test_layout.py` holds the two
 in step.
+
+**The armoury took the wardrobe too** (2026-09-23). `special` is a list now,
+because a container can owe more than one guarantee and four phasers and one
+uniform of each division are two different counts. The locker ends up at 25.8
+of its 40 units — 2.4 of phasers, 15.0 of blades, 8.4 of uniforms — so nothing
+is dropped for want of room, and `U.stockEach` reads it back either way.
+
+It is the armoury and not a wardrobe of its own because the cabin has three
+Starfleet lockers and none of them is a slop chest: 3,0 is where the crew's
+issue lives, which is sidearms, blades and what they wear. A fourth locker is
+a change to the `.tbx` in BuildingEd, not to the Lua. `UNIFORMS.md` is the
+working guide.
 
 ### Starboard aft: the sick bay and the EMH's station
 
@@ -248,6 +260,8 @@ C.Loot.medical   4   hypospray, dermal regenerator, medical tricorder, tricorder
 C.Loot.food      9   ration pack, gagh, leola stew, plomeek soup, jumja stick,
                      raktajino, Earl Grey, Romulan ale, bloodwine
 C.Loot.weapons   4   bat'leth, mek'leth, lirpa, ushaan-tor   (phasers via `special`)
+C.UniformIssue   6   duty and dress uniforms, command/operations/sciences
+                     (all six via `special`, one each, not rolled)
 ```
 
 `C.Loot.fresh`, `cookware`, `drinks`, `tools`, `linen` and `survival` are

@@ -1552,7 +1552,7 @@ shape sharing one layout, which is exactly what vanilla ships.
 
 The guard was measuring millimetres when the question is **which panel**. It
 counts texels that land in a different *region* on the two rigs now: the duty
-rigs differ at 0.97% (seams), the dress rigs at 0.00%. Same lesson as *A guard
+rigs differ at 1.33% (seams), the dress rigs at 0.00%. Same lesson as *A guard
 is only as good as the goal it was written from*, arrived at from the other
 end -- the guard was accurate about the geometry and wrong about the goal.
 
@@ -1564,11 +1564,19 @@ Two smaller things from the same pass, both of which produce a plausible file:
   fringe down every seam, on the sleeve heads and the collar, which is where a
   person looks. Vanilla's own clothing textures are padded; ours dilates four
   passes.
-- **Normalise borrowed detail to its own mean.** The uniform reuses the
-  vanilla texture's luminance so the rig's painted folds survive. Centring
-  that on mid grey works for the boilersuit and does nothing for the judge's
-  robe, which is black: every texel pins to the bottom of the clamp and the
-  skirt comes out a flat slab.
+- **Borrowed cloth detail brings the garment it was painted for.** The rigs
+  are unwrapped for garments that already have creases and shading in the
+  right places, so reusing the vanilla texture's luminance gives fold detail
+  for nothing. It also gives you *their garment*: clamped to a fraction of its
+  range the boilersuit's zip, breast pockets and cuff seams still came
+  through, and the first thing said about the finished uniform was that it
+  looked like a jumpsuit with jumpsuit pockets. The shading is computed from
+  the mesh instead now -- an outward normal approximated from position, lit by
+  one lamp -- which is the same amount of code and borrows nothing.
+
+  The sting is that it *looked* fine in isolation. A texture that carries
+  somebody else's hardware is not a rendering fault and no check can see it;
+  only somebody looking at the thing and saying "why does it have pockets".
 
 ### A mutation that does not apply proves nothing
 

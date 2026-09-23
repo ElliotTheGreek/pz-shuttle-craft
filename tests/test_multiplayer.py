@@ -342,6 +342,29 @@ def cabin_objects(rt):
     end)()""")
 
 
+def container_at(rt, ox, oy):
+    """What the container on one authored cabin square is holding.
+
+    cabin_stores() answers "is it aboard", which is not the same question as
+    "is it in the locker the layout put it in". A uniform that ended up in the
+    galley fridge would pass the first and be wrong.
+    """
+    packed = rt.eval(f"""(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at({ox}, {oy})
+        local out = {{}}
+        for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+            if o.container then
+                for _, it in ipairs(o.container.items) do
+                    out[#out + 1] = it.getFullType and it:getFullType() or tostring(it)
+                end
+            end
+        end
+        return table.concat(out, "\\n")
+    end)()""")
+    return [x for x in str(packed).split("\n") if x]
+
+
 def cabin_stores(rt):
     """Every distinct item id sitting in a cabin container."""
     packed = rt.eval("""(function()
@@ -477,10 +500,19 @@ def single_player():
     check(len(issue) == 6,
           f"single player: C.UniformIssue holds {len(issue)} uniforms, not 6 "
           f"-- this check would pass against an empty list")
+    # In the armoury specifically, not merely somewhere aboard: the layout
+    # names that locker and a uniform anywhere else is a different bug.
+    armoury = container_at(rt, 3, 0)
     for item_id in issue:
         check(item_id in stores,
               f"single player: the ship sails without {item_id} "
               f"(special = \"uniforms\" on the armoury)")
+        check(item_id in armoury,
+              f"single player: {item_id} is aboard but not in the armoury "
+              f"locker at 3,0")
+    print(f"  wardrobe: the armoury at 3,0 holds "
+          f"{len([x for x in armoury if 'Uniform' in x])} uniforms among "
+          f"{len(armoury)} items")
     # Starfleet issue only. Five of the cabin's containers are the player's own
     # shelves and start empty, so at build time everything aboard is ours; a
     # vanilla id in here means a ship list grew one back.

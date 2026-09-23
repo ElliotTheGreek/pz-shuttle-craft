@@ -40,7 +40,7 @@ so the convention is written down here rather than remembered.
 
 Both sexes share one texture -- vanilla points `textureChoices` at a single
 path for both models -- so the region map is built from **both** rigs and they
-have to agree. `--check` reports the disagreement; a texture that is right for
+have to agree, and the generator refuses above 2%. A texture that is right for
 one body and wrong for the other is exactly the failure this mod keeps
 meeting, and it would only ever show on a character nobody happened to make.
 """
@@ -225,16 +225,30 @@ class Garment:
         self.name = name
 
 
+# The heights below are read off each rig's own **skeleton** rather than
+# guessed, because guessing put the combadge on the wearer's hip. The bones
+# weight vertices, so the mean height of the vertices a bone drives is that
+# part of the body, in the model's own units:
+#
+#   Bip01_L_Foot   hn 0.005      Bip01_Spine1     hn 0.886
+#   Bip01_L_Calf   hn 0.144      Bip01_L_Clavicle hn 0.955
+#   Bip01_L_Thigh  hn 0.443      Bip01_Neck       hn 0.997
+#   Bip01_Pelvis   hn 0.619
+#   Bip01_Spine    hn 0.767
+#
+# So the waist is a shade under the pelvis, and the upper chest -- where a
+# combadge goes -- is between Spine1 and the clavicle. The first version put
+# it at 0.755, which is between the spine and the pelvis: the waist.
 DUTY = Garment(
     "duty",
     ["Bob_BoilerSuit.X", "Kate_BoilerSuit.x"],
-    lower_top=0.46, torso_top=0.80, badge_h=0.755,
+    lower_top=0.60, torso_top=0.80, badge_h=0.912,
     name="duty uniform")
 
 DRESS = Garment(
     "dress",
     ["Bob_JudegsRobe.x", "Kate_JudegsRobe.x"],
-    lower_top=0.55, torso_top=0.80, badge_h=0.760,
+    lower_top=0.55, torso_top=0.80, badge_h=0.905,
     name="dress uniform")
 
 
@@ -248,45 +262,43 @@ def region_of(garment, p, y0, y1):
     return "lower"
 
 
-def source_mean(src, covered):
-    """The source texture's own mean luminance over the texels that matter.
+# Where the light comes from: in front, above, and a little from the wearer's
+# right. Only the *direction* matters; the range it is mapped into is below.
+LIGHT = (-0.34, 0.44, -0.83)
+SHADE_FLOOR, SHADE_RANGE = 0.80, 0.30
 
-    Centring `cloth_detail` on mid grey works for the boilersuit and does
-    nothing at all for the judge's robe, which is black: every texel sits far
-    below 0.5, every multiplier pins to the bottom of the clamp, and the skirt
-    comes out a flat slab with no folds in it. Normalising to the source's own
-    mean gives the same relative fold detail whatever its overall value.
+
+def form_shade(p, reg, zmid, arm_y):
+    """Roundness taken from the mesh's own shape.
+
+    **This replaced borrowing the vanilla texture's luminance, and the reason
+    is worth keeping.** The rigs are unwrapped for garments that already have
+    creases and shading painted in, so reusing that luminance gives cloth
+    detail for free -- and it also gives you *their garment*. Clamped to a
+    fraction of its range the boilersuit's zip, breast pockets and cuff seams
+    still came through as ghosts, and the first thing anybody said about the
+    uniform was that it looked like a jumpsuit with jumpsuit pockets. A
+    Starfleet uniform is smooth.
+
+    So the shading is computed instead. An outward normal is approximated from
+    position -- radially from the body's vertical axis for the torso and legs,
+    and radially from the arm's own horizontal axis for a sleeve, which is the
+    one place the body axis is the wrong one -- and lit with a single lamp.
+    That gives the roundness that stops a flat fill reading as plastic, with
+    nothing borrowed and nothing to leak through.
     """
-    if src is None:
-        return 0.5
-    total, n = 0.0, 0
-    for k in range(len(covered)):
-        if not covered[k]:
-            continue
-        i = k * 4
-        total += (0.299 * src[i] + 0.587 * src[i + 1] + 0.114 * src[i + 2]) / 255.0
-        n += 1
-    return (total / n) if n else 0.5
-
-
-def cloth_detail(src, k, mean):
-    """A fold multiplier borrowed from the vanilla texture this rig was cut for.
-
-    The rigs are unwrapped for garments that already have creases, seams and
-    shading painted in the right places. Throwing that away gives a uniform
-    that reads as a flat sticker, so the source's luminance is reused -- but
-    **hard-clamped**, because at full strength the flight suit's zip, pockets
-    and squadron patch come through as ghosts of somebody else's garment.
-    """
-    if src is None:
+    if reg == "sleeve":
+        n = (0.0, p[1] - arm_y, p[2] - zmid)
+    else:
+        n = (p[0], 0.0, p[2] - zmid)
+    m = math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2])
+    if m < 1e-9:
         return 1.0
-    i = k * 4
-    r, g, b = src[i], src[i + 1], src[i + 2]
-    lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
-    return max(0.86, min(1.14, 1.0 + (lum - mean) * 0.55))
+    d = (n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]) / m
+    return SHADE_FLOOR + SHADE_RANGE * (0.5 + 0.5 * d)
 
 
-def paint(garment, colour, out_path, source_texture=None, regions_path=None):
+def paint(garment, colour, out_path, regions_path=None):
     """Writes one 256x256 uniform texture, and reports what it covered.
 
     Returns the texel counts per region. A region that came out empty means
@@ -301,12 +313,12 @@ def paint(garment, colour, out_path, source_texture=None, regions_path=None):
     y0, y1, zmid = extents(pos, covered)
     differ, shared = region_disagreement(garment, maps)
 
-    src = None
-    if source_texture and os.path.isfile(source_texture):
-        sw, sh, src_px = read_png_rgba(source_texture)
-        if (sw, sh) == (SIZE, SIZE):
-            src = src_px
-    src_mean = source_mean(src, covered)
+    # The sleeves' own axis, for the shading. Measured rather than assumed:
+    # an arm runs along x, so the body's vertical axis is the wrong one to
+    # take a normal from out there.
+    sleeve_ys = [pos[k][1] for k in range(len(covered))
+                 if covered[k] and region_of(garment, pos[k], y0, y1) == "sleeve"]
+    arm_y = sum(sleeve_ys) / len(sleeve_ys) if sleeve_ys else (y0 + y1) / 2
 
     img = Image(SIZE, SIZE, (0, 0, 0, 0))
     dbg = Image(SIZE, SIZE, (0, 0, 0, 0)) if regions_path else None
@@ -317,10 +329,10 @@ def paint(garment, colour, out_path, source_texture=None, regions_path=None):
 
     span = y1 - y0
     badge_y = y0 + span * garment.badge_h
-    # About six centimetres on a figure this size. Nudged up for legibility:
-    # the character is drawn some forty pixels tall and a true-scale badge is
-    # two of them.
-    badge_rx, badge_ry = 0.031, 0.021
+    # About six centimetres on a figure this size -- a shade over true scale,
+    # because the character is drawn some forty pixels tall. The first pass
+    # doubled that "for legibility" and the badge read as a gold plate.
+    badge_rx, badge_ry = 0.023, 0.016
 
     for y in range(SIZE):
         for x in range(SIZE):
@@ -356,9 +368,9 @@ def paint(garment, colour, out_path, source_texture=None, regions_path=None):
                     base = BADGE_GOLD if d > 0.52 else BADGE_SILVER
                     counts["badge"] += 1
 
-            f = cloth_detail(src, k, src_mean)
-            # A touch darker toward the hem of each panel, which is what stops
-            # a flat fill reading as plastic at the size this is drawn.
+            f = form_shade(p, reg, zmid, arm_y)
+            # And a touch darker toward the hem, which reads as the garment
+            # hanging rather than being printed on.
             f *= 0.94 + 0.06 * min(1.0, hn * 1.4)
             img.set(x, y, shade(base, f) + (255,))
 
@@ -413,21 +425,31 @@ def dilate(img, covered, w, h, passes):
     return filled
 
 
-# How near the centre line a texel has to be to count as the collar rather
-# than the shoulder. Height alone does not separate them: the top of the
-# shoulder *is* the highest part of the torso, so a collar defined by height
-# came out as a black band from sleeve head to sleeve head. Measured from the
-# rigs -- the neck opening sits inside 0.07.
-NECK_X = 0.072
+# The collar band.
+#
+# Height alone cannot find it: the top of the shoulder *is* the highest part
+# of the torso, so a collar defined by height came out as a black band running
+# from one sleeve head to the other. It needs the neck as well, and the neck
+# opening was measured off the rigs rather than guessed -- above hn 0.98 the
+# median |x| is 0.058 and the ninetieth percentile 0.114, so 0.095 takes the
+# collar and leaves the shoulders.
+#
+# The band itself sits above the clavicle (hn 0.955) and below the neck bone
+# (hn 0.997). The first version started at 0.952, which is *on* the clavicle,
+# and read as a shapeless dark patch across the upper chest rather than as a
+# collar.
+NECK_X = 0.105
+COLLAR_BOTTOM = 0.988
+UNDERSHIRT_BOTTOM = 0.997
 
 
 def _collar(reg, hn, p, colour):
-    """The collar band and the grey undershirt at the throat, or None."""
+    """The standing collar and the grey undershirt at the throat, or None."""
     if abs(p[0]) > NECK_X:
         return None
-    if hn > 0.985:
+    if hn > UNDERSHIRT_BOTTOM:
         return UNDERSHIRT
-    if hn > 0.952:
+    if hn > COLLAR_BOTTOM:
         return COLLAR
     return None
 
@@ -527,13 +549,6 @@ def build(root, scratch):
     for d in (tex_dir, icon_dir, art, scratch):
         os.makedirs(d, exist_ok=True)
 
-    sources = {
-        "duty": os.path.join(PZ, "media", "textures", "clothes",
-                             "BolierSuit", "Boilersuit_Grey.png"),
-        "dress": os.path.join(PZ, "media", "textures", "Clothes",
-                              "Dress_Textures", "judgesrobes.png"),
-    }
-
     made = []
     for garment in (DUTY, DRESS):
         for division, colour in DIVISIONS.items():
@@ -542,7 +557,7 @@ def build(root, scratch):
             dbg = os.path.join(art, f"regions_{garment.key}.png") \
                 if division == "Command" else None
             counts, (differ, shared), (y0, y1) = paint(
-                garment, colour, out, sources.get(garment.key), dbg)
+                garment, colour, out, dbg)
 
             empty = [r for r in ("sleeve", "yoke", "torso", "lower")
                      if counts[r] == 0]
