@@ -366,6 +366,7 @@ def make_lua():
         require "TREK/TREK_MedKit"
         require "TREK/TREK_ReplicatorUI"
         require "TREK/TREK_EMHUI"
+        require "TREK/TREK_ProbeUI"
 
         haloNotes = {}
         player = { setHaloNote = function(self, text) table.insert(haloNotes, text) end,
@@ -1214,6 +1215,99 @@ def main():
     print("emh: the Doctor's panel drew a well patient and a wrecked one, "
           "named every finding and the infection, greyed Treat and Cure for "
           "their own reasons, and every control is on the stick")
+
+    # --- the sensor console --------------------------------------------------
+    # The fourth LCARS panel. It draws a progress bar and a list that both
+    # come from a table the server republishes, so the interesting states are
+    # "nothing yet", "a probe is out" and "contacts on file" -- and all three
+    # have to draw inside the panel and leave every control reachable.
+    lua.execute("""
+        local U = TREK.Util
+        local s = U.state()
+        s.power = TREK.Config.PowerMax
+        s.probes = 0
+        -- This harness has its own small stubs rather than pz_sim, so the
+        -- contact store is reached through the module itself.
+        local store = TREK.Probes.store()
+        store.contacts = {}
+        store.active = nil
+        store.serial = 0
+    """)
+    lua.execute("win = TREKProbeWindow:new(40, 40, player); win:createChildren()")
+    win = lua.globals().win
+    check_bounds(lua, run_frames(lua, "probes, an empty rack"), "probes, an empty rack")
+
+    if win.launchBtn.enable:
+        failures.append("probes: Launch is live with an empty rack")
+    if not win.buildBtn.enable:
+        failures.append("probes: Fabricate is dead on a full reserve, so "
+                        "there is no way to get a probe at all")
+    if win.showBtn.enable:
+        failures.append("probes: Show on map is live with no contacts")
+
+    # A probe in the rack, and then one in flight.
+    lua.execute("TREK.Util.state().probes = 2")
+    run_frames(lua, "probes, a probe aboard")
+    if not win.launchBtn.enable:
+        failures.append("probes: Launch is dead with probes in the rack")
+
+    lua.execute("""
+        TREK.Probes.begin(2000, 2000, 1.0, 1500, 60)
+        TREK.Probes.store().active.progress = 30
+    """)
+    draws = run_frames(lua, "probes, in flight")
+    check_bounds(lua, draws, "probes, in flight")
+    if win.launchBtn.enable:
+        failures.append("probes: Launch is live while a probe is already up")
+    if not any(d.kind == "rect" for d in draws):
+        failures.append("probes: nothing was drawn for the flight -- the "
+                        "progress bar is the whole reason this panel exists "
+                        "rather than a menu")
+
+    # And a list of contacts, at a distance and a bearing.
+    lua.execute("""
+        TREK.Probes.store().active = nil
+        TREK.Probes.addContact("dilithium", 2400, 1800, 0, "probe:1", true)
+        TREK.Probes.addContact("downedPersonnel", 1500, 2600, 0, "probe:1", false)
+    """)
+    draws = run_frames(lua, "probes, contacts on file")
+    check_bounds(lua, draws, "probes, contacts on file")
+    rows = int(lua.eval("#win.list.items"))
+    if rows != 2:
+        failures.append(f"probes: the list holds {rows} of 2 contacts")
+    if not win.showBtn.enable:
+        failures.append("probes: Show on map is dead with contacts on file")
+
+    # Both bearings have to be real compass points rather than nil, which is
+    # what math.atan2 would have produced here.
+    bearing = lua.globals().TREK.ProbeUI.bearing
+    for dx, dy, want in ((0, -10, "N"), (10, 0, "E"), (0, 10, "S"),
+                         (-10, 0, "W"), (10, -10, "NE"), (-10, 10, "SW")):
+        got = bearing(0, 0, dx, dy)
+        if got != want:
+            failures.append(f"probes: a contact {dx},{dy} away reads {got!r}, "
+                            f"not {want!r}")
+
+    lua.execute('''
+        reachable = {}
+        for _, row in ipairs(win.joypadButtonsY) do
+            for _, b in ipairs(row) do reachable[b] = true end
+        end
+        unreachable = {}
+        for _, c in ipairs(win.children) do
+            if c.onclick and not reachable[c] and c ~= win.ISButtonB then
+                table.insert(unreachable, c.title or "?")
+            end
+        end
+    ''')
+    unreachable = lua.globals().unreachable
+    for i in range(1, len(unreachable) + 1):
+        failures.append(f"probes: button {unreachable[i]!r} cannot be reached "
+                        f"with a controller")
+
+    print("probes: the sensor console draws an empty rack, a probe in flight "
+          "with its bar, and a list of contacts at a bearing, greying each "
+          "control for its own reason and leaving all of them on the stick")
 
     # --- the textures the console loads exist -----------------------------
     src = open(os.path.join(MOD, "media", "lua", "client", "TREK", "TREK_Helm.lua"),

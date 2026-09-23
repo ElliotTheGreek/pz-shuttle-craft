@@ -2321,6 +2321,34 @@ the launch handler was made to log a WARN. Until then it refused with the same
 reason the guard above it would have given, and nothing could tell the two
 apart.
 
+**The 2026-09-23 sensor console** is what the probes became after ten minutes
+of play. Five things came back from it and all five are in:
+
+* a **panel** rather than a menu -- the mod's fourth LCARS console, with a
+  progress bar, because a probe that is "away" for an hour of game time with
+  nothing moving reads as broken;
+* **probes as stock**: energy fabricates one, a launch spends one, eight in
+  the rack. "Three probes aboard" is a state a player can plan around;
+  "830 units of reserve" is arithmetic they have to do first;
+* **real crystals**. A contact is a record until a player loads its ground,
+  and then the server puts an actual `TrekDilithium` on the first square that
+  will hold one -- deferred placement, the `s.ghosts` pattern run backwards;
+* the **map uncovered** around a contact, with `setKnownInSquares`, which is
+  precisely what reading a paper map does
+  (`shared/TimedActions/ISReadABook.lua:318` -- ordinary shared code);
+* and the `%` bug: a literal per-cent sign beside a `%1` came out as
+  "Probe in flight -- 16$s%". No other translation in this mod has one, which
+  was the tell.
+
+Two mutation escapes, and they wanted opposite fixes. A proximity pre-check
+before placing a crystal could not be observed at all -- `chunkLoaded` already
+said the same thing -- so it was **deleted**. And the whole-area load check
+*was* load-bearing and untested, so the test that reaches the expire path was
+**written**: a contact with genuinely nowhere to put a crystal retires itself,
+and one whose ground is merely not loaded must never. Getting those two the
+same way round destroys a contact the moment somebody walks past the edge of
+it.
+
 **Next up** is `ROADMAP.md`'s step 7: publishing. Everything on the roadmap is
 built; what is left is playing it. Four systems have never been in a game at
 all, and the two-player session has been pinned for long enough that it is now

@@ -1986,19 +1986,16 @@ Net.onServer("launchProbe", function(player, args)
         return
     end
 
-    local cost = C.ProbeCost
-    if not TREK.Power.afford(cost) then
-        deny(player, "probeNoPower",
-             { need = cost, have = math.floor(TREK.Power.reserve()) })
-        return
-    end
-    if not TREK.Power.spend(cost) then
-        deny(player, "probeNoPower",
-             { need = cost, have = math.floor(TREK.Power.reserve()) })
-        return
-    end
-
+    -- Launching costs a **probe**, not energy. Energy bought it earlier, at
+    -- the fabricator, which is what makes "three probes aboard" a thing the
+    -- crew can see and plan around.
     local s = U.state()
+    if (s.probes or 0) < 1 then
+        deny(player, "probeNone")
+        return
+    end
+    s.probes = (s.probes or 0) - 1
+
     local bearing = (U.try("probeBearing", function()
         return ZombRand(3600) / 3600.0
     end) or 0) * math.pi * 2
@@ -2020,18 +2017,183 @@ Net.onServer("launchProbe", function(player, args)
         -- given, and is indistinguishable from the guard working. A test
         -- cannot tell the two apart and neither could anybody reading a log.
         U.log("WARN probe launch got past the active check and begin() still "
-              .. "refused; %d units refunded", cost)
-        s.power = math.min(C.PowerMax, TREK.Power.reserve() + cost)
+              .. "refused; the probe is back in the rack")
+        s.probes = (s.probes or 0) + 1
         Ship.commit()
         deny(player, "probeActive")
         return
     end
 
-    Ship.commit()       -- the reserve changed
+    Ship.commit()       -- the rack changed
     Probes.publish()    -- and so did the probe log
-    U.log("probe %s away on bearing %.2f for %d tiles, %d units spent",
-          probe.id, bearing, distance, cost)
+    U.log("probe %s away on bearing %.2f for %d tiles, %d left in the rack",
+          probe.id, bearing, distance, s.probes)
 end)
+
+--- Turns reserve into a probe. One at a time, and the same shape as a launch:
+--- validate, spend, and hand the thing over in one handler.
+Net.onServer("buildProbe", function(player, args)
+    if not mayUse(player) then return end
+    if not U.isAboard(player:getX(), player:getY(), player:getZ()) then
+        deny(player, "probeAboard")
+        return
+    end
+
+    local s = U.state()
+    if (s.probes or 0) >= C.MaxProbes then
+        deny(player, "probeRackFull")
+        return
+    end
+
+    local cost = C.ProbeCost
+    -- afford() burns a spare crystal when the reserve is short, which is the
+    -- whole reason a crystal is worth carrying; spend() then takes the units.
+    if not TREK.Power.afford(cost) or not TREK.Power.spend(cost) then
+        deny(player, "probeNoPower",
+             { need = cost, have = math.floor(TREK.Power.reserve()) })
+        return
+    end
+
+    s.probes = (s.probes or 0) + 1
+    Ship.commit()
+    U.log("a probe is fabricated; %d in the rack, %d units left",
+          s.probes, math.floor(TREK.Power.reserve()))
+end)
+
+--- Puts the crystal in the world, once somebody is close enough to ask.
+---
+--- **This is what makes a probe report real.** A contact out of a probe is a
+--- record and nothing else: its squares are in unloaded chunks, and asking
+--- the engine about those is the one thing DEV_GUIDE forbids outright --
+--- `getOrCreateGridSquare` on an unloaded chunk hands back an orphan and the
+--- first call touching it throws. So the crystal is placed when a player
+--- legitimately loads the chunk, which is exactly the pattern `s.ghosts` and
+--- `sweepGhosts` already use for removal, run the other way round.
+---
+--- A nil square in a *loaded* chunk really is nothing there; only an unloaded
+--- chunk means "ask again later". Getting that backwards is what leaves a
+--- sweep re-walking the same squares for the life of the save.
+local function placeContact(contact)
+    if contact.placed then return false end
+
+    -- **The whole search area has to be loaded, not just the centre.** The
+    -- search below spans ContactPlaceRadius squares either side and can cross
+    -- a chunk boundary, and a nil square in an unloaded chunk means "ask
+    -- again later", never "nothing there" (DEV_GUIDE, *Never build where no
+    -- player is standing*). Checking only the middle would let a player
+    -- walking past the edge of a contact retire it before they ever arrived.
+    --
+    -- One check rather than two: this is also the cheap early-out that stops
+    -- a hundred and sixty-nine square lookups happening for every contact on
+    -- file, every game minute, for ever.
+    local r = C.ContactPlaceRadius
+    if not (U.chunkLoaded(contact.x - r, contact.y - r, contact.z)
+            and U.chunkLoaded(contact.x + r, contact.y - r, contact.z)
+            and U.chunkLoaded(contact.x - r, contact.y + r, contact.z)
+            and U.chunkLoaded(contact.x + r, contact.y + r, contact.z)) then
+        return false
+    end
+
+    -- Search outward from the reported square for ground that will hold it.
+    -- The probe's fix is approximate by design, so the exact square it named
+    -- may be a wall, a roof or a pond.
+    local best = nil
+    for ring = 0, r do
+        for dx = -ring, ring do
+            for dy = -ring, ring do
+                if math.abs(dx) == ring or math.abs(dy) == ring then
+                    local sq = U.square(contact.x + dx, contact.y + dy,
+                                        contact.z, false)
+                    if sq then
+                        local ok = U.try("contactGround", function()
+                            return sq:getFloor() ~= nil and not sq:isSolid()
+                                   and not sq:isSolidTrans()
+                        end)
+                        if ok then best = sq break end
+                    end
+                end
+            end
+            if best then break end
+        end
+        if best then break end
+    end
+
+    if not best then
+        -- Loaded, looked at, and genuinely nowhere to put it -- the middle of
+        -- a lake or inside a building. Retire it rather than retrying the
+        -- same squares for the life of the save.
+        U.log("WARN contact %s: no ground within %d squares of %d,%d; expired",
+              contact.id, C.ContactPlaceRadius, contact.x, contact.y)
+        contact.status = "expired"
+        return true
+    end
+
+    local item = U.try("contactCrystal", function()
+        return best:AddWorldInventoryItem(C.DilithiumItem, 0.5, 0.5, 0.0)
+    end)
+    if not item then
+        U.log("WARN contact %s: the crystal could not be created", contact.id)
+        return false
+    end
+
+    contact.placed = true
+    contact.x = U.try("contactX", function() return math.floor(best:getX()) end)
+                or contact.x
+    contact.y = U.try("contactY", function() return math.floor(best:getY()) end)
+                or contact.y
+    -- No longer a guess: the ship knows exactly where it put it.
+    contact.approximate = false
+    contact.status = "investigated"
+    U.log("contact %s: a crystal is on the ground at %d,%d",
+          contact.id, contact.x, contact.y)
+    return true
+end
+
+--- True when the crystal this contact placed is no longer lying there.
+local function crystalTaken(contact)
+    local sq = U.square(contact.x, contact.y, contact.z, false)
+    if not sq then return false end     -- unloaded: cannot tell, not "gone"
+    local found = U.try("contactLook", function()
+        local items = sq:getWorldObjects()
+        if not items then return false end
+        for i = 0, items:size() - 1 do
+            local o = items:get(i)
+            local it = o and o.getItem and o:getItem()
+            if it and it:getFullType() == C.DilithiumItem then return true end
+        end
+        return false
+    end)
+    return found == false
+end
+
+--- Places crystals people have come to find, and retires the ones they took.
+--- Authority only, on the per-minute tick.
+function S.serviceContacts()
+    local changed = false
+    for _, contact in ipairs(Probes.contacts()) do
+        if contact.kind == "dilithium" and not Probes.isResolved(contact.status) then
+            if not contact.placed then
+                -- No proximity pre-check. There was one -- skip contacts no
+                -- player is near -- and it could not be observed from
+                -- outside: `placeContact` asks `U.chunkLoaded` first, and a
+                -- chunk is only loaded when somebody *is* near, so the two
+                -- guards always agreed. A branch a mutation cannot break is
+                -- either untested or unreachable, and this one was neither
+                -- load-bearing nor measurable. The cap is 64 contacts and
+                -- this runs once a game minute.
+                if placeContact(contact) then changed = true end
+            elseif crystalTaken(contact) then
+                contact.status = "recovered"
+                changed = true
+                U.log("contact %s: the crystal has been recovered", contact.id)
+            end
+        end
+    end
+    if changed then
+        Probes.prune()
+        Probes.publish()
+    end
+end
 
 --- Advances the probe and reports what it found. Authority only.
 ---
@@ -2155,6 +2317,9 @@ Events.EveryOneMinute.Add(function()
     -- a logical job with no world object behind it, and it must keep flying
     -- whether or not anybody is aboard to watch it.
     U.try("serviceProbe", S.serviceProbe)
+    -- Contacts become crystals only when somebody goes and looks, so this
+    -- runs wherever the players are rather than only near the ship.
+    U.try("serviceContacts", S.serviceContacts)
     if B.cabinCurrent() and B.cabinLoaded() then
         -- Nobody can drain the tap faster than a game minute refills it.
         U.try("refillWater", B.refillWater)

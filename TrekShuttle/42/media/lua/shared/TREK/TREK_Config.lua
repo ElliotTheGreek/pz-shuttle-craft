@@ -955,10 +955,19 @@ C.PatternKey = "TREK_Patterns_v1"
 -- rather than riding in the ship table that is transmitted on every move.
 C.ContactKey = "TREK_Contacts_v1"
 
--- A launch fabricates the probe and sends it in one authority-side
--- transaction. One crystal can fund many probes, but a launch is expensive
--- enough to remain a decision after the cold start.
+-- **Fabricating** a probe costs this; launching one costs nothing but the
+-- probe. The two were one action and are now two, because a ship that turns
+-- energy into a *countable* thing reads better than one that turns energy
+-- into an event: "three probes aboard" is a state a player can plan around,
+-- where "830 units of reserve" is arithmetic they have to do first.
+--
+-- One crystal is 5000, so a crystal is twenty probes.
 C.ProbeCost = 250
+
+-- How many fabricated probes the ship will hold. A cap so that a crew who
+-- have nothing else to spend energy on cannot bank a hundred of them and
+-- remove the decision entirely.
+C.MaxProbes = 8
 
 -- Logical flight. The probe is not a world object crossing unloaded chunks:
 -- its bearing, distance and progress are persisted and the client only
@@ -978,6 +987,19 @@ C.ProbeMaxDistance = 2400
 -- to be able to say so. The opening guarantee that 1.6 needs is a separate
 -- mechanism and is deliberately not this number.
 C.ProbeFindChance = 0.65
+
+-- How far from the reported square the ship will actually put the crystal,
+-- and how far a player has to come before the world is asked to hold it.
+--
+-- A contact is a record until somebody goes there: the crystal is placed when
+-- a player loads its chunk, which is the only moment the engine can be asked
+-- about those squares at all. See PROBES.md, "Real dilithium".
+-- How much ground a contact uncovers on the map, in squares either side.
+-- Enough to see the roads in and pick a route, not so much that one probe
+-- hands the player the county.
+C.ContactRevealRadius = 120
+
+C.ContactPlaceRadius = 6
 
 -- How far a long-range fix can be out, in tiles. A probe reports a region and
 -- the tricorder resolves the rest; a contact that named the exact cupboard

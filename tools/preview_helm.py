@@ -34,11 +34,23 @@ def measure(_, font, text):
     return ImageDraw.Draw(Image.new("L", (1, 1))).textlength(str(text or ""), font=f)
 
 
-def render(out, shields="up", step=3, joypad=False):
+def render(out, shields="up", step=3, joypad=False, panel="helm"):
     lua, _ = harness["make_lua"]()
     # Measure the way this preview draws, so layout computed from string
     # widths (the title gap in the top bar) is judged honestly.
     lua.globals().py_measureX = measure
+    # Which panel to draw. The helm was the only one when this was written;
+    # the sensor console draws a progress bar and a list from the same LCARS
+    # widgets and is exactly as worth looking at.
+    lua.execute("PANEL_IS_PROBES = " + ("true" if panel == "probes" else "false"))
+    if panel == "probes":
+        lua.execute("""
+            function WINDOW_FACTORY() return TREKProbeWindow:new(0, 0, player) end
+        """)
+    else:
+        lua.execute("""
+            function WINDOW_FACTORY() return TREKHelmWindow:new(0, 0, player) end
+        """)
     # Record the texture, and text colour, which the test does not need.
     lua.execute("""
         local rec = function(el, kind, x, y, w, h, extra)
@@ -58,9 +70,23 @@ def render(out, shields="up", step=3, joypad=False):
         function ISUIElement:drawRect(x, y, w, h, a, r, g, b)
             rec(self, "rect", x, y, w, h, { a = a, r = r, g = g, b = b })
         end
-        win = TREKHelmWindow:new(0, 0, player)
+        win = WINDOW_FACTORY()
         win:createChildren()
         local s = TREK.Util.state()
+        if PANEL_IS_PROBES then
+            s.power = TREK.Config.PowerMax
+            s.probes = 3
+            local store = TREK.Probes.store()
+            store.contacts = {}
+            store.serial = 0
+            TREK.Probes.begin(2000, 2000, 1.0, 1500, 60)
+            store.active.progress = 38
+            TREK.Probes.addContact("dilithium", 3900, 1200, 0, "probe:1", true)
+            TREK.Probes.addContact("downedPersonnel", 900, 3400, 0, "probe:1", false)
+            TREK.Probes.addContact("dilithium", 2600, 2900, 0, "probe:1", true)
+            win:refresh()
+            return
+        end
         s.bookmarks = {
             { name = "Muldraugh water tower", x = 10612, y = 9412, z = 0 },
             { name = "Riverside dock", x = 6500, y = 5400, z = 0 },
@@ -70,18 +96,22 @@ def render(out, shields="up", step=3, joypad=False):
         win:refresh()
         win.list.selected = 2
     """)
-    lua.execute(f"TREK.Util.setShields({'true' if shields == 'up' else 'false'})")
-    lua.execute(f"TREK.Util.setFlightStep({int(step)})")
+    if panel != "probes":
+        lua.execute(f"TREK.Util.setShields({'true' if shields == 'up' else 'false'})")
+        lua.execute(f"TREK.Util.setFlightStep({int(step)})")
     if joypad:
         lua.execute("win:onGainJoypadFocus({ player = 0, id = 0 })")
     lua.execute("draws = {}; frame(win)")
-    # The list rows draw through the list itself.
-    lua.execute("""
-        local y = 0
-        for _, row in ipairs(win.list.items) do
-            y = win.drawBookmark(win.list, y, row, false)
-        end
-    """)
+    # The list rows draw through the list itself. Only the helm paints its
+    # own rows; the sensor console uses the stock ISScrollingListBox drawing,
+    # which this harness does not model.
+    if panel != "probes":
+        lua.execute("""
+            local y = 0
+            for _, row in ipairs(win.list.items) do
+                y = win.drawBookmark(win.list, y, row, false)
+            end
+        """)
 
     win = lua.globals().win
     W, H = int(win.width), int(win.height)
@@ -169,7 +199,12 @@ def render(out, shields="up", step=3, joypad=False):
                 x -= tw
             ImageDraw.Draw(img).text((x, y), str(e.s), font=f,
                 fill=(int(e.r * 255), int(e.g * 255), int(e.b * 255)))
+    # The helm's navigation prompt. Only it has one.
     info = win.info
+    if info is None:
+        img.convert("RGB").save(out)
+        print("wrote", out, f"({W}x{H}, {panel})")
+        return
     ix, iy, iw, ih = int(info.x), int(info.y), int(info.width), int(info.height)
     colour = (200, 220, 255)
     lines, cur = [], ""
@@ -203,4 +238,5 @@ if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "helm_preview.png"
     render(out, sys.argv[2] if len(sys.argv) > 2 else "up",
            int(sys.argv[3]) if len(sys.argv) > 3 else 3,
-           len(sys.argv) > 4 and sys.argv[4] == "joypad")
+           len(sys.argv) > 4 and sys.argv[4] == "joypad",
+           sys.argv[5] if len(sys.argv) > 5 else "helm")

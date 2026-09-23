@@ -8,23 +8,31 @@ how contacts reach the map; this is what was built on top of it.
 
 ## 1. What the player does
 
-Right-click anywhere aboard → **Shuttlecraft** → **Long-range sensors**:
+Right-click anywhere aboard → **Shuttlecraft** → **Long-range sensors**
+opens the console, the mod's fourth LCARS panel:
 
 ```
-Launch probe (250 units)          spends once, sends one probe
-Probe in flight — 40%             while one is out (greyed, informational)
-Dilithium trace — 1830 tiles NE   every contact the ship holds
-No contacts on file               when it holds none
+Reserve: 4750 / 5000 units                          Probes: 3 / 8
+Probe in flight: 63%
+[============================------------------]
+  FABRICATE (250)            LAUNCH PROBE
+Contacts on file: 3
+  Dilithium trace: 1830 tiles NE
+  Life sign: 640 tiles SW
+  SHOW ON MAP
 ```
 
-Clicking a contact opens the world map centred on it, with the contact drawn
-as a Starfleet symbol.
+**Energy buys a probe; a probe buys a launch.** Those were one action and are
+now two, because a ship that turns energy into a *countable* thing reads
+better than one that turns energy into an event: "three probes aboard" is a
+state you can plan around, where "830 units of reserve" is arithmetic you have
+to do first.
 
-**There is no probe console and no new fitting.** There was going to be one; a
-submenu does the same job, costs no deck in a twenty-four square cabin, and
-needs no change to the authored interior. The launch option carries its own
-cost for the reason the warp core's options carry their spare count: a button
-with no number is one a player cannot plan around.
+**There is no new fitting.** The console was going to be one and would have
+cost one of twenty-four deck squares and a BuildingEd change; it is reached
+the same way the helm is. It was briefly a right-click submenu, which worked
+and read as a list of settings rather than a station on a starship -- and gave
+a probe in flight nowhere to show progress.
 
 ## 2. What happens
 
@@ -48,7 +56,10 @@ with no number is one a player cannot plan around.
 
 | | | |
 |---|---|---|
-| `C.ProbeCost` | 250 | a crystal is 5000, so a crystal is twenty probes |
+| `C.ProbeCost` | 250 | to **fabricate** one; a crystal is 5000, so twenty probes |
+| `C.MaxProbes` | 8 | so energy cannot be banked until the decision goes away |
+| `C.ContactRevealRadius` | 120 | squares of map uncovered around a contact |
+| `C.ContactPlaceRadius` | 6 | how far the ship will look for ground to put it on |
 | `C.ProbeFlightTicks` | 60 | advanced once a **game minute**, so one game hour |
 | `C.ProbeWorkPerTick` | 1 | |
 | `C.ProbeMinDistance` / `Max` | 1200 / 2400 | tiles |
@@ -70,7 +81,8 @@ region; the tricorder locates the person."*
 shared/TREK/TREK_Probes.lua        the store: contacts, the active job, the bounds
 shared/TREK/TREK_Config.lua        every number above, plus the kinds/statuses
 server/TREK/TREK_Server.lua        launchProbe, and S.serviceProbe on the minute tick
-client/TREK/TREK_Menu.lua          the sensors submenu
+client/TREK/TREK_ProbeUI.lua       the sensor console (the LCARS panel)
+client/TREK/TREK_Menu.lua          the one option that opens it
 client/TREK/TREK_MapContacts.lua   contacts drawn on the world map
 shared/Definitions/TrekMapSymbols.lua   the symbol registration (generated)
 tools/gen_map_symbols.py           the two glyphs and that registration
@@ -108,28 +120,35 @@ the guard above would have given, and neither a test nor a log could tell the
 two apart. That was a real mutation escape.
 
 **Nothing tests inside a submenu unless the harness models one.** `pz_sim`'s
-`addSubMenu` was a no-op, so every option one level down was invisible and the
-sensors menu could have been empty.
+`addSubMenu` was a no-op, so every option one level down was invisible. The
+sensors submenu is gone, but the lesson outlived it and the harness keeps the
+fix.
+
+**A per-cent sign beside a `%1` comes out mangled.** "Probe in flight -- 16$s%"
+was what a player saw. Put the sign in the *argument*; no other translation in
+this mod has a literal one, which was the tell.
 
 ## 7. Not built, and still to settle in game
 
 **Seen working:** nothing yet. This is the first version.
 
-1. **The loop end to end** in a fresh world: launch, wait an hour of game
-   time, read the report, click the contact, see it on the map.
-2. **Whether an hour is the right wait.** It is a guess; it is one constant.
+1. **The loop end to end** in a fresh world: fabricate, launch, wait an hour
+   of game time, read the report, open the map, walk there, pick the crystal
+   up and watch the contact retire.
+2. **Whether an hour is the right wait**, and whether 250 is the right price.
+   Both are guesses and both are one constant.
 3. **Whether the contact symbol reads** on the real map among street names and
    the player's own annotations, at the zoom people actually use.
-4. **Two clients** — the store is shared and tested as such in the
-   simulation, but the map view has never been drawn on two machines.
-5. **A probe across a server restart.** Progress is persisted and tested; the
+4. **Whether the revealed area is the right size.** 120 squares either side is
+   enough to see the roads in; it may be too generous or not enough.
+5. **Two clients** -- the store is shared and tested as such in the
+   simulation, but the map view has never been drawn on two machines, and the
+   reveal is per-player by design.
+6. **A probe across a server restart.** Progress is persisted and tested; the
    real save/load round trip is not.
 
 ## 8. Deliberately not built yet
 
-- **Real dilithium.** The contact is synthetic: a point on the map, not a
-  crystal in the world. Connecting the two is ROADMAP2 step 5 and it is the
-  hard one — the *Unloaded-world problem*.
 - **The opening guarantee.** 1.6 needs one probe that certainly finds
   something; `C.ProbeFindChance` is deliberately not that mechanism.
 - **`downedPersonnel` contacts.** The kind, the symbol and the label all exist

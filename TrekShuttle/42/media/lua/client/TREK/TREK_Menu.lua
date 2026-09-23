@@ -116,111 +116,14 @@ end
 ---------------------------------------------------------------------------
 -- Long-range sensors
 ---------------------------------------------------------------------------
---- Greys an option and says why. A menu entry that is simply absent teaches
---- the player nothing; one that is there and refuses, with the reason on its
---- tooltip, teaches them what to go and fix.
-local function grey(option, why)
-    option.notAvailable = true
-    option.toolTip = ISWorldObjectContextMenu.addToolTip()
-    option.toolTip.description = getText(why)
-end
+-- One option, which opens the console. This was a submenu that carried the
+-- launch button, the flight percentage and every contact; it worked and it
+-- read as a list of settings rather than as a station on a starship, and a
+-- probe in flight had nowhere to show progress. TREK_ProbeUI is the panel it
+-- became -- the helm's LCARS for the fourth time.
 
--- **The menu is the console.** The probes were going to get a fitting of
--- their own and a panel to go with it; a right-click submenu does the same
--- job, costs no deck in a twenty-four square cabin, and needs no change to
--- the authored interior.
---
--- Everything here is a *request*. The client does not know whether the ship
--- can afford a probe -- it reads the reserve the server last published, which
--- is good enough to grey an option and not good enough to act on -- so the
--- server checks again and refuses with a reason.
-
-function M.onLaunchProbe(_, player)
-    Core.send(player, "launchProbe", {})
-    U.note(player, getText("IGUI_TREK_ProbeAway"), 150, 200, 255)
-end
-
-function M.onShowContact(_, player, contactId)
-    local num = U.try("contactPlayerNum", function()
-        return player:getPlayerNum()
-    end) or 0
-    if not TREK.MapContacts or not TREK.MapContacts.focus(num, contactId) then
-        U.note(player, getText("IGUI_TREK_ContactGone"), 255, 170, 90)
-    end
-end
-
---- Which compass point a contact lies on from here, so the list reads as
---- directions rather than as coordinates nobody can picture.
--- tan(22.5 degrees): half an octant, which is all the trigonometry this
--- needs. The first version used math.atan2, which **Kahlua has and Lua 5.3
--- onwards does not** -- so it would have worked in the game and threw in the
--- tests. The test VM being stricter than the engine is the lucky direction
--- for that to break in; comparing two ratios is clearer anyway.
-local OCTANT = 0.4142135
-
-local function bearingOf(fromX, fromY, toX, toY)
-    local dx, dy = toX - fromX, toY - fromY
-    local ax, ay = math.abs(dx), math.abs(dy)
-    -- North is -y on this map, as it is on the screen.
-    if ax <= OCTANT * ay then
-        return dy < 0 and "N" or "S"
-    elseif ay <= OCTANT * ax then
-        return dx > 0 and "E" or "W"
-    elseif dy < 0 then
-        return dx > 0 and "NE" or "NW"
-    else
-        return dx > 0 and "SE" or "SW"
-    end
-end
-
-local function sensorMenu(menu, player, worldobjects)
-    local sub = menu:addOption(getText("IGUI_TREK_Sensors"), worldobjects, nil)
-    local sensors = ISContextMenu:getNew(menu)
-    menu:addSubMenu(sub, sensors)
-
-    local P = TREK.Probes
-    local active = P.active()
-    local reserve = math.floor(TREK.Power.reserve())
-
-    -- The cost is on the option, because "Launch probe" with no number is a
-    -- button a player cannot plan around -- the same reason the warp core
-    -- puts its spare count on its own option.
-    local launch = sensors:addOption(
-        getText("IGUI_TREK_ProbeLaunch", tostring(C.ProbeCost)),
-        worldobjects, M.onLaunchProbe, player)
-    if active then
-        grey(launch, "IGUI_TREK_ProbeActive")
-    elseif reserve < C.ProbeCost then
-        grey(launch, "IGUI_TREK_ProbeNoPower")
-    end
-
-    if active then
-        local pct = math.floor((active.progress / math.max(1, active.ticks)) * 100)
-        local flying = sensors:addOption(
-            getText("IGUI_TREK_ProbeFlight", tostring(pct)), worldobjects, nil)
-        flying.notAvailable = true
-    end
-
-    local contacts = P.unresolved()
-    if #contacts == 0 then
-        local none = sensors:addOption(getText("IGUI_TREK_NoContacts"),
-                                       worldobjects, nil)
-        none.notAvailable = true
-        return
-    end
-
-    local px = U.try("contactX", function() return player:getX() end) or 0
-    local py = U.try("contactY", function() return player:getY() end) or 0
-    for _, contact in ipairs(contacts) do
-        local dist = math.floor(math.sqrt((contact.x - px) ^ 2 + (contact.y - py) ^ 2))
-        local key = C.ContactLabels[contact.kind]
-        if key then
-            local label = getText(key, tostring(dist),
-                                  bearingOf(px, py, contact.x, contact.y))
-            sensors:addOption(label, worldobjects, M.onShowContact, player,
-                              contact.id)
-        end
-    end
+function M.onSensors(_, player)
+    TREK.ProbeUI.open(player)
 end
 
 function M.onBookmarkHere(_, player)
@@ -288,7 +191,8 @@ local function aboardMenu(context, player, worldobjects, test)
     end
     menu:addOption(getText("IGUI_TREK_BookmarkHere"), worldobjects,
                    M.onBookmarkHere, player)
-    sensorMenu(menu, player, worldobjects)
+    menu:addOption(getText("IGUI_TREK_Sensors"), worldobjects, M.onSensors,
+                   player)
     crewMenu(menu, player, worldobjects)
     return true
 end

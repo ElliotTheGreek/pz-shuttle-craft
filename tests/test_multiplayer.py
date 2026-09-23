@@ -5394,11 +5394,12 @@ def aboard_menu(rt):
 
 
 def probes():
-    """Launching one probe: the transaction, the flight, and the report.
+    """Fabricating, launching, flying and reporting.
 
-    ROADMAP2 step 4. The probe is a **logical job** -- no world object crosses
-    two thousand unloaded squares -- so everything here is persistence and
-    state transitions, which is exactly what can be proven without a game.
+    ROADMAP2 step 4, in the shape the author asked for after playing it:
+    energy buys a **probe**, and a probe is what a launch costs. "Three probes
+    aboard" is a state you can plan around; "830 units of reserve" is
+    arithmetic you have to do first.
     """
     net = Net("sp")
     rt = net.server
@@ -5412,42 +5413,71 @@ def probes():
         return
 
     cost = int(rt.eval("TREK.Config.ProbeCost"))
-    before = int(rt.eval("math.floor(TREK.Power.reserve())"))
+    rack = lambda: int(rt.eval("TREK.Util.state().probes or 0"))
+    reserve = lambda: int(rt.eval("math.floor(TREK.Power.reserve())"))
 
-    # --- the launch is one transaction ------------------------------------
+    # --- an empty rack refuses a launch ------------------------------------
+    check(rack() == 0, f"probes: a new ship starts with {rack()} probes, not 0")
     rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
     net.pump(10)
-    after = int(rt.eval("math.floor(TREK.Power.reserve())"))
-    check(after == before - cost,
-          f"probes: the reserve went {before} -> {after}, expected a single "
-          f"{cost}-unit deduction")
+    check(any("IGUI_TREK_ProbeNone" in n for n in rt.notes()),
+          "probes: launching with an empty rack was not refused with a reason")
+    check(rt.eval("TREK.Probes.active() == nil") is True,
+          "probes: a probe went up out of an empty rack")
+
+    # --- fabricating turns energy into a probe -----------------------------
+    before = reserve()
+    rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+    net.pump(10)
+    check(reserve() == before - cost,
+          f"probes: fabricating moved the reserve {before} -> {reserve()}, "
+          f"expected a single {cost}-unit deduction")
+    check(rack() == 1, f"probes: the rack holds {rack()} after one fabrication")
+
+    # And the rack has a ceiling, so energy cannot simply be banked away.
+    cap = int(rt.eval("TREK.Config.MaxProbes"))
+    for _ in range(cap + 3):
+        rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+        net.pump(4)
+    check(rack() == cap,
+          f"probes: the rack holds {rack()}, over the {cap} cap")
+    check(any("IGUI_TREK_ProbeRackFull" in n for n in rt.notes()),
+          "probes: a full rack refused without saying so")
+
+    # --- launching costs a probe and not energy ----------------------------
+    held, fuel = rack(), reserve()
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(10)
+    check(rack() == held - 1,
+          f"probes: launching took {held - rack()} probes, expected 1")
+    check(reserve() == fuel,
+          f"probes: launching also spent energy ({fuel} -> {reserve()}); "
+          f"the fabricator is what costs energy now")
     check(rt.eval("TREK.Probes.active() ~= nil") is True,
           "probes: nothing is in flight after a launch")
 
-    # Racing launches make one probe and one deduction. ROADMAP2 asks for it
-    # by name, and it falls out of the whole thing being one handler.
+    # Racing launches make one probe and one deduction.
+    held = rack()
     rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
     rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
     net.pump(10)
-    check(int(rt.eval("math.floor(TREK.Power.reserve())")) == after,
-          "probes: a second launch while one was in flight took more power")
+    check(rack() == held,
+          "probes: a second launch while one was in flight took another probe")
     check(any("IGUI_TREK_ProbeActive" in n for n in rt.notes()),
           "probes: a second launch was refused without saying why")
 
-    # --- the flight is persisted ------------------------------------------
+    # --- the flight is persisted and advances ------------------------------
     progress = int(rt.eval("TREK.Probes.active().progress"))
     rt.run("TREK.Server.serviceProbe()")
     check(int(rt.eval("TREK.Probes.active().progress")) > progress,
           "probes: a service tick did not advance the flight")
     stored = rt.eval("SIM.globalData[TREK.Config.ContactKey].active.progress")
     check(stored is not None and int(stored) > 0,
-          "probes: the flight's progress is not in the store, so a server "
-          "restart mid-flight would lose the probe and the power that bought it")
+          "probes: the flight's progress is not in the store, so a restart "
+          "mid-flight would lose the probe and the power that bought it")
 
     # --- and it reports ----------------------------------------------------
-    # The find roll is forced, so this exercises the reporting path rather
-    # than waiting to get lucky.
-    rt.run("SIM.randQueue = { 0, 30, 30 }")   # roll 0 = a find, then scatter
+    rt.run("SIM.randQueue = { 0, 30, 30 }")   # a find, then the scatter
     ticks = int(rt.eval("TREK.Config.ProbeFlightTicks"))
     for _ in range(ticks + 2):
         rt.run("TREK.Server.serviceProbe()")
@@ -5456,32 +5486,29 @@ def probes():
     found = int(rt.eval("#TREK.Probes.contacts()"))
     check(found == 1,
           f"probes: {found} contacts after a probe that was made to find one")
-    kind = rt.eval("TREK.Probes.contacts()[1].kind")
-    check(str(kind) == "dilithium",
-          f"probes: the report was a {kind!r}, not a dilithium trace")
-    approx = rt.eval("TREK.Probes.contacts()[1].approximate")
-    check(approx is True,
+    check(str(rt.eval("TREK.Probes.contacts()[1].kind")) == "dilithium",
+          "probes: the report was not a dilithium trace")
+    check(rt.eval("TREK.Probes.contacts()[1].approximate") is True,
           "probes: a long-range fix was reported as exact; the spread is what "
           "the tricorder is for")
 
     # --- an empty report is a real outcome ---------------------------------
     rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
     net.pump(10)
-    rt.run("SIM.randQueue = { 99 }")          # roll 99 = a miss
+    rt.run("SIM.randQueue = { 99 }")
     for _ in range(ticks + 2):
         rt.run("TREK.Server.serviceProbe()")
     check(int(rt.eval("#TREK.Probes.contacts()")) == found,
           "probes: a probe that found nothing added a contact anyway")
     check(any("returned nothing" in str(l) for l in rt.logLines()),
-          "probes: an empty report said nothing at all -- it must be "
-          "distinguishable from a probe that is still out")
+          "probes: an empty report said nothing at all")
 
     # --- the refusals ------------------------------------------------------
-    rt.run(f"{P}.x, {P}.y, {P}.z = 3000.5, 3000.5, 0")   # off the ship
-    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    rt.run(f"{P}.x, {P}.y, {P}.z = 3000.5, 3000.5, 0")
+    rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
     net.pump(10)
     check(any("IGUI_TREK_ProbeAboard" in n for n in rt.notes()),
-          "probes: a launch from outside the ship was not refused")
+          "probes: fabricating from outside the ship was not refused")
 
     rt.run("""
         local U = TREK.Util
@@ -5489,89 +5516,205 @@ def probes():
         SIM.players[1].x, SIM.players[1].y = x + 0.5, y + 0.5
         SIM.players[1].z, SIM.players[1].lastZ = TREK.Config.CabinZ, TREK.Config.CabinZ
         -- Empty reserve AND no spares: afford() burns a crystal when the
-        -- reserve is short, so leaving one in the chamber would fund the
-        -- launch and this refusal could never fire.
+        -- reserve is short, so a spare in the chamber would fund it.
         U.state().power = 1
         U.state().crystals = 0
+        U.state().probes = 0
     """)
-    rt.run("SIM.globalData[TREK.Config.ContactKey].active = nil")
-    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
     net.pump(10)
     check(any("IGUI_TREK_ProbeNoPower" in n for n in rt.notes()),
-          "probes: a launch with an empty reserve was not refused with a "
-          "reason a player can act on")
+          "probes: fabricating on an empty reserve was not refused")
 
     for w in rt.warnings():
         fail(f"probes: {w}")
 
-    print("probes: a launch spends once and makes one job, racing launches "
-          "make neither, the flight is persisted and advances, a find is "
-          "reported as an approximate fix and an empty result says so, and "
-          "launching from outside the ship or on an empty reserve is refused")
+    print("probes: energy buys a probe and a launch spends one, the rack has "
+          "a ceiling, racing launches make one job, the flight is persisted "
+          "and advances, a find is an approximate fix and an empty result "
+          "says so, and every refusal names itself")
 
 
-def probe_menu():
-    """The sensors submenu: the cost on the option, and why it is greyed."""
+def contact_world():
+    """A contact becomes a real crystal, once somebody goes and looks.
+
+    This is what "results should be real" means: the probe reports a record,
+    and the crystal is put in the world when a player loads the chunk --
+    because asking the engine about an unloaded chunk is the one thing
+    DEV_GUIDE forbids outright.
+    """
     net = Net("sp")
     rt = net.server
     rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
     net.start()
-    P = "SIM.players[1]"
-    rt.run(f"TREK.Transport.beamUp({P})")
-    net.pump(210)
-    if died(rt, "probe menu, beaming up"):
-        return
 
-    cost = int(rt.eval("TREK.Config.ProbeCost"))
-    labels = aboard_menu(rt)
-    check("IGUI_TREK_Sensors" in labels,
-          f"probe menu: the ship's menu has no sensors entry ({labels})")
-    check(str(cost) in labels,
-          f"probe menu: the launch option does not carry its cost -- a "
-          f"player cannot plan around a button with no number ({labels})")
-    check("IGUI_TREK_NoContacts" in labels,
-          f"probe menu: a ship with no contacts does not say so ({labels})")
-
-    # With a probe up, launching is greyed and the flight is on the menu.
-    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
-    net.pump(10)
-    labels = aboard_menu(rt)
-    check("IGUI_TREK_ProbeFlight" in labels,
-          f"probe menu: a probe in flight is not shown ({labels})")
-    greyed = rt.eval("""(function()
-        for _, o in ipairs(aboardCtx:all()) do
-            if o.name and string.find(o.name, "ProbeLaunch", 1, true) then
-                return o.notAvailable == true
-            end
-        end
-        return "no launch option"
-    end)()""")
-    check(greyed is True,
-          f"probe menu: launching is not greyed while a probe is up ({greyed})")
-
-    # And a contact appears as a contact rather than a raw key.
     rt.run("""
         TREK.Probes.addContact("dilithium", 2400, 2400, 0, "probe:1", true)
         TREK.Probes.publish()
     """)
-    labels = aboard_menu(rt)
-    check("IGUI_TREK_Contact_dilithium" in labels,
-          f"probe menu: the contact is not listed ({labels})")
-    check("IGUI_TREK_NoContacts" not in labels,
-          f"probe menu: the ship still says it has no contacts ({labels})")
+    contact = rt.eval("TREK.Probes.contacts()[1].id")
+
+    # Nobody near it: nothing is placed, and the contact is untouched. A
+    # distant chunk is "cannot tell", never "nothing there".
+    rt.run("TREK.Server.serviceContacts()")
+    check(rt.eval("TREK.Probes.contacts()[1].placed") is None,
+          "contact world: a crystal was placed with nobody within miles of it")
+    check(str(rt.eval("TREK.Probes.contacts()[1].status")) == "reported",
+          "contact world: a contact nobody has visited changed status")
+
+    # Walk over. The crystal lands on real ground and the fix stops being a
+    # guess, because the ship now knows exactly where it put it.
+    # streamX/streamY are what decides which chunks are loaded, and they lag
+    # the character until streaming ticks -- exactly as the engine's do. Move
+    # both, or the square is "not loaded yet" and nothing is placed.
+    rt.run("""
+        local p = SIM.players[1]
+        p.x, p.y, p.streamX, p.streamY = 2400.5, 2400.5, 2400.5, 2400.5
+    """)
+    rt.run("TREK.Server.serviceContacts()")
+    check(rt.eval("TREK.Probes.contacts()[1].placed") is True,
+          "contact world: standing on the contact did not place a crystal")
+    check(str(rt.eval("TREK.Probes.contacts()[1].status")) == "investigated",
+          "contact world: a placed contact is still only 'reported'")
+    check(rt.eval("TREK.Probes.contacts()[1].approximate") is False,
+          "contact world: the fix is still marked approximate after the ship "
+          "put the crystal down itself")
+
+    on_ground = rt.eval("""(function()
+        local c = TREK.Probes.contacts()[1]
+        local sq = TREK.Util.square(c.x, c.y, c.z, false)
+        if not sq then return "no square" end
+        local items = sq:getWorldObjects()
+        for i = 0, items:size() - 1 do
+            local o = items:get(i)
+            local it = o and o.getItem and o:getItem()
+            if it and it:getFullType() == TREK.Config.DilithiumItem then
+                return true
+            end
+        end
+        return false
+    end)()""")
+    check(on_ground is True,
+          f"contact world: no crystal is lying on the contact's square ({on_ground})")
+
+    # Placing twice would litter the map with crystals; the flag is what stops
+    # it, and this is the "Two shuttles" shape again.
+    rt.run("TREK.Server.serviceContacts()")
+    count = int(rt.eval("""(function()
+        local c = TREK.Probes.contacts()[1]
+        local sq = TREK.Util.square(c.x, c.y, c.z, false)
+        local n, items = 0, sq:getWorldObjects()
+        for i = 0, items:size() - 1 do
+            local o = items:get(i)
+            local it = o and o.getItem and o:getItem()
+            if it and it:getFullType() == TREK.Config.DilithiumItem then
+                n = n + 1
+            end
+        end
+        return n
+    end)()"""))
+    check(count == 1,
+          f"contact world: {count} crystals on the square after a second pass")
+
+    # Taking it retires the contact, so the map stops advertising it.
+    rt.run("""
+        local c = TREK.Probes.contacts()[1]
+        local sq = TREK.Util.square(c.x, c.y, c.z, false)
+        sq.worldObjects = {}
+    """)
+    rt.run("TREK.Server.serviceContacts()")
+    check(str(rt.eval("TREK.Probes.contacts()[1].status")) == "recovered",
+          "contact world: picking the crystal up left the contact live, so "
+          "the map would keep pointing at an empty square")
+
+    # --- nowhere to put it -------------------------------------------------
+    # A contact in the middle of a lake or inside a building. Loaded, looked
+    # at, and genuinely no ground: that retires the contact rather than
+    # retrying the same squares for the life of the save. The distinction
+    # that matters is against the case above -- *not loaded* must never do
+    # this, or a player walking past the edge of a contact destroys it.
+    rt.run("""
+        local P, U = TREK.Probes, TREK.Util
+        P.addContact("dilithium", 2600, 2600, 0, "probe:2", true)
+        local p = SIM.players[1]
+        p.x, p.y, p.streamX, p.streamY = 2600.5, 2600.5, 2600.5, 2600.5
+        -- Solid everywhere the search can reach.
+        local r = TREK.Config.ContactPlaceRadius
+        for dx = -r, r do for dy = -r, r do
+            local sq = SIM.rawSquare(2600 + dx, 2600 + dy, 0)
+            sq.solid = true
+        end end
+    """)
+    rt.run("TREK.Server.serviceContacts()")
+    doomed = rt.eval("""(function()
+        for _, c in ipairs(TREK.Probes.contacts()) do
+            if c.probe == "probe:2" then return c.status end
+        end
+        return "gone"
+    end)()""")
+    check(str(doomed) == "expired",
+          f"contact world: a contact with no ground anywhere near it reads "
+          f"{doomed!r}; it should expire rather than be retried for ever")
+    check(any("no ground within" in w for w in rt.warnings()),
+          "contact world: a contact was expired without saying why")
+    rt.run("SIM.log = {}")
 
     for w in rt.warnings():
-        fail(f"probe menu: {w}")
+        fail(f"contact world: {w}")
 
-    print("probe menu: the sensors submenu carries the launch cost on its own "
-          "option, greys it with a reason while a probe is up, shows the "
-          "flight's progress, and lists each contact by kind and bearing")
+    print("contact world: a contact stays a record until somebody loads its "
+          "chunk, then becomes one crystal on real ground exactly once, "
+          "retires itself when the crystal is taken, and expires only when "
+          "the ground really was looked at and had nowhere to put it")
+
+
+def contact_reveal():
+    """The ground around a contact is uncovered on the player's own map."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+
+    check(len(rt.eval("SIM.revealed") or []) == 0,
+          "contact reveal: something revealed map before any contact existed")
+
+    rt.run("""
+        TREK.Probes.addContact("dilithium", 4400, 9100, 0, "probe:1", true)
+        TREK.Probes.publish()
+    """)
+    boxes = rt.eval("""(function()
+        local out = {}
+        for _, r in ipairs(SIM.revealed) do
+            table.insert(out, r.x1 .. "," .. r.y1 .. "," .. r.x2 .. "," .. r.y2)
+        end
+        return table.concat(out, " ")
+    end)()""")
+    radius = int(rt.eval("TREK.Config.ContactRevealRadius"))
+    want = f"{4400 - radius},{9100 - radius},{4400 + radius},{9100 + radius}"
+    check(want in str(boxes),
+          f"contact reveal: the map was not uncovered around the contact "
+          f"(wanted {want}, got {boxes})")
+
+    # Revealing once per contact: publishing again must not re-reveal, or a
+    # ship that commits every second would call into the engine every second.
+    n = len(str(boxes).split())
+    rt.run("TREK.Probes.publish(); TREK.Probes.publish()")
+    check(int(rt.eval("#SIM.revealed")) == n,
+          f"contact reveal: publishing again revealed the same ground twice "
+          f"({n} -> {int(rt.eval('#SIM.revealed'))})")
+
+    for w in rt.warnings():
+        fail(f"contact reveal: {w}")
+
+    print("contact reveal: a report uncovers the ground around it on this "
+          "player's own map, once per contact")
+
 
 SECTIONS = (static, migration, single_player, refit, flight, flight_endings,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
-            contact_map, contacts_multiplayer, probes, probe_menu,
-            multiplayer)
+            contact_map, contacts_multiplayer, probes, contact_world,
+            contact_reveal, multiplayer)
 
 
 def main():

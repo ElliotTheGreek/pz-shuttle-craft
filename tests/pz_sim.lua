@@ -1899,6 +1899,21 @@ function ZombRand(a, b)
     return lo + (randState % span)
 end
 
+-- The player's explored map. `setKnownInSquares` is what reading a paper map
+-- does (shared/TimedActions/ISReadABook.lua:318), and it is how a probe
+-- survey uncovers the ground around a contact. Per-player and client-side --
+-- this is *this* character's map, not ship state -- so each machine reveals
+-- its own, and the tests check the rectangles rather than a count.
+SIM.revealed = {}
+WorldMapVisited = {}
+function WorldMapVisited.getInstance()
+    return {
+        setKnownInSquares = function(_, x1, y1, x2, y2)
+            table.insert(SIM.revealed, { x1 = x1, y1 = y1, x2 = x2, y2 = y2 })
+        end,
+    }
+end
+
 MapSymbolDefinitions = {}
 local symbolRegistry = {}
 

@@ -74,6 +74,7 @@ end
 --- keeps every place the ship has ever been is a map nobody reads.
 function M.draw(mapUI)
     M.clear()
+    M.revealAll()
     local symbols = symbolsAPI(mapUI)
     if not symbols then return 0 end
     api = symbols
@@ -107,8 +108,48 @@ function M.draw(mapUI)
     return n
 end
 
+---------------------------------------------------------------------------
+-- Revealing the ground
+---------------------------------------------------------------------------
+-- A contact is no use if the map around it is still black. `setKnownInSquares`
+-- is what a **paper map** does when you read one -- `ISReadABook.lua:318`,
+-- ordinary shared code, no admin panel in sight -- so a probe survey doing
+-- the same thing is the engine being used as intended rather than bent.
+--
+-- It is per-player and client-side: WorldMapVisited is *this* character's
+-- explored map. So every client reveals its own when it hears about a
+-- contact, which is the same shape as the lights and the shields -- a thing
+-- each machine recomputes rather than a piece of ship state.
+local revealed = {}
+
+function M.reveal(contact)
+    if not contact or revealed[contact.id] then return false end
+    local r = C.ContactRevealRadius
+    local ok = U.try("revealArea", function()
+        WorldMapVisited.getInstance():setKnownInSquares(
+            contact.x - r, contact.y - r, contact.x + r, contact.y + r)
+        return true
+    end)
+    if ok then revealed[contact.id] = true end
+    return ok == true
+end
+
+--- Reveals every contact the ship holds. Cheap after the first pass: each id
+--- is revealed once per session.
+function M.revealAll()
+    local n = 0
+    for _, contact in ipairs(P.unresolved()) do
+        if M.reveal(contact) then n = n + 1 end
+    end
+    return n
+end
+
 --- Redraws while the map is open, so a report that arrives mid-look appears.
 local function refresh()
+    -- Reveal first and regardless of whether the map is open: a report that
+    -- arrives while the player is walking should have uncovered its ground by
+    -- the time they look.
+    M.revealAll()
     if not api then return end
     local mapUI = ISWorldMap_instance
     if mapUI then M.draw(mapUI) end

@@ -421,7 +421,10 @@ Never inspect live squares in unloaded chunks, create orphan squares, or place t
 4. ~~**Build one logical probe.**~~ Built 2026-09-23: sliced flight advanced
    on the game-minute tick, one atomic launch transaction, progress
    persisted across a restart, and synthetic reports. `PROBES.md`.
-5. **Connect probes to dilithium.** Solve unloaded-world contacts and guarantee a reachable opening source.
+5. ~~**Connect probes to dilithium.**~~ Built 2026-09-23. A contact is a
+   record until a player loads its ground; the server then places a real
+   crystal on the first square that will hold one, and retires the contact
+   when it is taken. The opening guarantee 1.6 needs is still separate.
 6. **Build cold start.** Add commissioning state, system gates, emergency power, first-crystal recovery, and power-up.
 7. **Build the ensign mission.** Add offer UI, deferred target placement, tricorder contact, right-click rescue, atomic reward, and cleanup.
 
