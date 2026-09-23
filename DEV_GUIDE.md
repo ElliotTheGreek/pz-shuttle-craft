@@ -1822,6 +1822,7 @@ python tools/gen_dilithium.py TrekShuttle/42      # the crystal's icon
 python tools/gen_warpcore.py TrekShuttle/42       # the warp core and its renders
 python tools/gen_emh.py     TrekShuttle/42       # the Doctor: mesh, texture, portrait, chime
 python tools/gen_uniform.py TrekShuttle/42        # the six uniforms: textures, icons, clothing XML, GUID table
+python tools/gen_map_symbols.py TrekShuttle/42    # the world-map contact glyphs and their registration
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
@@ -2266,6 +2267,28 @@ shoulder to shoulder. All three are in `UNIFORMS.md`; the first two are the
 sections above. A female character, the replicator listing and two clients are
 still unproven.
 
+**The 2026-09-23 contact store** is `ROADMAP2.md` step 3, built against
+synthetic contacts because that is what the roadmap asks for: the store, its
+bounds, its map view and two-client publication can all be proven before a
+probe exists to fill them.
+
+`TREK_Probes.lua` already existed from an earlier session and **was required
+by nothing** -- dead code that never loaded in the game, with most of its
+config constants unreferenced. It is wired in now, and three faults came out
+of writing the tests for it: a kind and a status were both unchecked strings,
+and the history bound was applied only when a contact was *created* when the
+thing it bounds is changed by `setStatus`, so the resolved list sat one over
+its cap for the life of the save.
+
+The map view is deliberately a **view**. Build 42 has a complete shared
+annotation system and Lua is handed the drawing end and not the sharing end,
+so contacts are the mod's own bounded store and the symbols are rebuilt from
+it when the map opens and removed when it closes. `MAP_MARKERS.md` is the
+research and `tests/test_multiplayer.py` has three new sections.
+
+**Nothing of it is visible in a world yet**: contacts are made by probes,
+which is step 4.
+
 **Next up** is `ROADMAP.md`'s step 7: publishing. Everything on the roadmap is
 built; what is left is playing it. Four systems have never been in a game at
 all, and the two-player session has been pinned for long enough that it is now
@@ -2308,6 +2331,9 @@ TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua             right-click menus
 TrekShuttle/42/media/clothing/clothingItems/*.xml              the six uniforms: vanilla rigs, our textures (generated)
 TrekShuttle/42/media/fileGuidTable.xml                         the GUID each garment is reached by (generated)
 TrekShuttle/42/media/textures/clothes/trek/*.png               the uniform textures (generated)
+TrekShuttle/42/media/lua/shared/TREK/TREK_Probes.lua           the contact store: bounded, server-owned, its own mod-data key
+TrekShuttle/42/media/lua/client/TREK/TREK_MapContacts.lua      contacts drawn on the world map, rebuilt from the store
+TrekShuttle/42/media/lua/shared/Definitions/TrekMapSymbols.lua the map symbol registration (generated)
 tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network
 ```
 

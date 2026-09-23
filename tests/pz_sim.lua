@@ -1859,6 +1859,115 @@ end
 -- Global mod data and the network
 ---------------------------------------------------------------------------
 local globalData = {}
+---------------------------------------------------------------------------
+-- The world map, its symbols, and the symbol registry
+---------------------------------------------------------------------------
+-- Modelled because TREK_MapContacts draws the ship's contacts on the map and
+-- nothing else in this simulation had a map at all.
+--
+-- **The registry refuses an id nothing registered**, which is the one thing
+-- that has to be as unkind as the engine here: `addTexture` on an unknown
+-- symbol draws nothing, silently, and a stub that accepted every string would
+-- make a test pass against a map the player would have seen as empty. The
+-- ids come from the mod's own shared/Definitions/TrekMapSymbols.lua, which
+-- the runtime now loads for real rather than being listed here a second time.
+
+MapSymbolDefinitions = {}
+local symbolRegistry = {}
+
+function MapSymbolDefinitions.getInstance()
+    return {
+        addTexture = function(_, id, path, category)
+            symbolRegistry[id] = { id = id, path = path, category = category }
+        end,
+        getSymbolById = function(_, id) return symbolRegistry[id] end,
+        getSymbolCount = function()
+            local n = 0
+            for _ in pairs(symbolRegistry) do n = n + 1 end
+            return n
+        end,
+    }
+end
+
+SIM.symbolRegistry = symbolRegistry
+
+--- One map's symbol list, recording what was added and what was taken away.
+local function newSymbolsAPI()
+    local api = { symbols = {}, added = 0, removed = 0, refused = 0 }
+
+    function api:addTexture(id, worldX, worldY)
+        -- The engine draws nothing for an unregistered id. So does this.
+        if not symbolRegistry[id] then
+            api.refused = api.refused + 1
+            return nil
+        end
+        local symbol = {
+            id = id, x = worldX, y = worldY,
+            r = 1, g = 1, b = 1, a = 1, ax = 0, ay = 0,
+        }
+        function symbol:setRGBA(r, g, b, a)
+            self.r, self.g, self.b, self.a = r, g, b, a
+        end
+        function symbol:setAnchor(x, y) self.ax, self.ay = x, y end
+        function symbol:getWorldX() return self.x end
+        function symbol:getWorldY() return self.y end
+        table.insert(api.symbols, symbol)
+        api.added = api.added + 1
+        return symbol
+    end
+
+    function api:removeSymbol(symbol)
+        for i, s in ipairs(api.symbols) do
+            if rawequal(s, symbol) then
+                table.remove(api.symbols, i)
+                api.removed = api.removed + 1
+                return
+            end
+        end
+        -- Removing something that is not there is a real mistake, not a
+        -- no-op: it means the view lost track of what it had put on the map.
+        error("removeSymbol: that symbol is not on this map")
+    end
+
+    function api:getSymbolCount() return #api.symbols end
+    function api:getSymbolByIndex(i) return api.symbols[i + 1] end
+    function api:clear() api.symbols = {} end
+    return api
+end
+
+ISWorldMap = ISWorldMap or {}
+ISWorldMap_instance = nil
+
+--- Opens the map. The real one builds a UIWorldMap and hands out the API off
+--- it; there is no global symbols object, which is why TREK_MapContacts has
+--- to hook the open at all.
+function ISWorldMap.ShowWorldMap(playerNum, centerX, centerY, zoom)
+    local symbols = newSymbolsAPI()
+    ISWorldMap_instance = {
+        playerNum = playerNum,
+        centerX = centerX, centerY = centerY, zoom = zoom,
+        mapAPI = {
+            getSymbolsAPIv2 = function() return symbols end,
+            uiToWorldX = function(_, x) return x end,
+            uiToWorldY = function(_, y) return y end,
+        },
+    }
+    SIM.map = ISWorldMap_instance
+    return ISWorldMap_instance
+end
+
+function ISWorldMap:onClose()
+    ISWorldMap_instance = nil
+    SIM.map = nil
+end
+
+--- What is on the open map, for the tests.
+function SIM.mapSymbols()
+    local m = SIM.map
+    if not m then return {} end
+    return m.mapAPI:getSymbolsAPIv2().symbols
+end
+
 ModData = {}
 function ModData.getOrCreate(k)
     globalData[k] = globalData[k] or {}
@@ -2237,8 +2346,14 @@ function SIM.lastTrap()
     return SIM.traps[#SIM.traps]
 end
 
-ISWorldMap = { onMouseUp = function() end, render = function() end,
-               onJoypadDown = function() end }
+-- Augmented, not replaced. This used to be a fresh table, which silently
+-- threw away the ShowWorldMap and onClose defined with the map above -- and
+-- the symptom was "attempt to call a nil value (field 'ShowWorldMap')" a
+-- thousand lines from the assignment that caused it.
+ISWorldMap = ISWorldMap or {}
+ISWorldMap.onMouseUp = function() end
+ISWorldMap.render = function() end
+ISWorldMap.onJoypadDown = function() end
 ISWorldObjectContextMenu = {
     setTest = function() return true end,
     addToolTip = function() return { description = nil } end,

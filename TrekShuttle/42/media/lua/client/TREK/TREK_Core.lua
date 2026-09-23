@@ -24,6 +24,7 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_World"
+require "TREK/TREK_Probes"
 
 TREK = TREK or {}
 local C = TREK.Config

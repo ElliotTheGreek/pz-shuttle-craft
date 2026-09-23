@@ -5,10 +5,14 @@ Build 42 map-symbol API before committing to an implementation. Confirm
 creation, transmission, save/load, and removal semantics, and avoid
 admin/debug-only calls."*
 
-This is that research. Nothing here is built. Everything below was read out of
-the installed **42.20.4** jar and its own Lua, using the three tools in the
-order `DEV_GUIDE.md` prescribes: does the method exist, may Lua call it, and
-under what condition.
+This is that research. **Sections 1-5 are the findings; section 6 is now
+built** -- the store, its bounds, the map view and two-client publication, all
+against synthetic contacts (`TREK_Probes.lua`, `TREK_MapContacts.lua`). What
+is not built is anything that *creates* a contact, which is the probe itself.
+
+Everything below was read out of the installed **42.20.4** jar and its own
+Lua, using the three tools in the order `DEV_GUIDE.md` prescribes: does the
+method exist, may Lua call it, and under what condition.
 
 ---
 
@@ -194,7 +198,12 @@ with a picture rather than in advance.
 
 ## 7. Still unverified — needs a game
 
-Nothing in this file has been run. In the order that matters:
+**There is nothing to look at in a world yet**, and that is worth saying
+plainly: contacts are created by probes, probes are step 4, so a fresh world
+today has an empty contact log and therefore an empty map. The list below is
+what to check the moment the first probe reports, not before.
+
+In the order that matters:
 
 1. **That a mod-added symbol appears at all**, and at the right square. World
    coordinates are confirmed from vanilla's own call site, not from a test.

@@ -413,7 +413,12 @@ Never inspect live squares in unloaded chunks, create orphan squares, or place t
 2. ~~**Finish the uniform.**~~ Built, bar the named ensign outfit, which is
    deferred until 1.7 proves it needs one. Icons, ship storage and replicator
    patterns are in.
-3. **Build contact persistence.** Add bounded stores, two-client publication, map markers, and tricorder display using synthetic contacts.
+3. ~~**Build contact persistence.**~~ Built 2026-09-23 against synthetic
+   contacts: the bounded store (`TREK_Probes.lua`), two-client publication,
+   map symbols rebuilt from the store when the map opens
+   (`TREK_MapContacts.lua`), and the symbol art registered the way vanilla
+   registers its own. **Nothing is visible in a world yet** -- contacts are
+   made by probes, which is step 4. `MAP_MARKERS.md`.
 4. **Build one logical probe.** Add sliced flight, atomic energy spending, restart persistence, and synthetic reports.
 5. **Connect probes to dilithium.** Solve unloaded-world contacts and guarantee a reachable opening source.
 6. **Build cold start.** Add commissioning state, system gates, emergency power, first-crystal recovery, and power-up.

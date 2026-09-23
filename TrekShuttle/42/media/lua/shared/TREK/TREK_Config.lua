@@ -975,6 +975,56 @@ C.ProbeWorkPerTick = 1
 C.MaxContacts = 64
 C.MaxResolvedContacts = 16
 
+-- What a contact can be, and what it can be doing.
+--
+-- Both are closed sets and both are **checked** when a contact is written,
+-- because a status is a string in one file compared against a string in
+-- another with nothing at runtime to notice a typo -- the same join that
+-- `special` and the `C.Loot` list names have, and the same answer: name the
+-- valid set once and refuse anything outside it.
+--
+-- `dilithium` is what the opening probe finds. `downedPersonnel` exists from
+-- the start because 1.7's rescue needs it and a type added in a hurry is a
+-- type nothing validates.
+C.ContactKinds = {
+    dilithium = true,
+    downedPersonnel = true,
+}
+
+-- ROADMAP2's common lifecycle:
+--
+--     unknown -> reported -> investigated -> recovered / completed
+--                                        -> expired / invalid
+--
+-- `reported` is what a probe leaves. `investigated` is the tricorder having
+-- narrowed it. The rest are ends.
+C.ContactStatuses = {
+    reported = true,
+    investigated = true,
+    recovered = true,
+    completed = true,
+    expired = true,
+    invalid = true,
+}
+
+-- Which of those are done with. Everything else is live and is never pruned:
+-- the store drops old *resolved* records first and only falls back to the
+-- oldest record of any kind when a save has somehow filled with live ones.
+C.ContactResolved = {
+    recovered = true,
+    completed = true,
+    expired = true,
+    invalid = true,
+}
+
+-- The map symbol a contact is drawn with, registered in
+-- media/lua/shared/Definitions/TrekMapSymbols.lua the way vanilla registers
+-- its own. A symbol id that nothing registered draws nothing at all.
+C.ContactSymbols = {
+    dilithium = "TrekContactDilithium",
+    downedPersonnel = "TrekContactPersonnel",
+}
+
 -- Never replicated, whatever the sandbox says, and the list exists from day
 -- one because adding it later means adding it in a hurry.
 --

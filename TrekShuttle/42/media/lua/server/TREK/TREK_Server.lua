@@ -30,6 +30,7 @@ require "TREK/TREK_World"
 require "TREK/TREK_Vehicle"
 require "TREK/TREK_Medical"
 require "TREK/TREK_Replicator"
+require "TREK/TREK_Probes"
 require "TREK/TREK_EMH"
 require "TREK/TREK_Build"
 

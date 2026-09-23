@@ -77,6 +77,15 @@ def modules(folder):
     return sorted("TREK/" + f[:-4] for f in os.listdir(base) if f.endswith(".lua"))
 
 
+def definitions():
+    """The mod's shared/Definitions files, which are plain registration Lua."""
+    base = os.path.join(LUA, "shared", "Definitions")
+    if not os.path.isdir(base):
+        return []
+    return sorted("Definitions/" + f[:-4]
+                  for f in os.listdir(base) if f.endswith(".lua"))
+
+
 class Runtime:
     def __init__(self, net, role, name):
         self.net, self.role, self.name = net, role, name
@@ -98,6 +107,14 @@ class Runtime:
         self.lua.execute(APPLY)
 
     def load(self):
+        # The game loads every .lua under media/lua, so the simulation has to
+        # as well. shared/Definitions is not a TREK/ folder and was missed:
+        # that is where the world-map symbols register themselves, and a
+        # symbol id nothing registered draws nothing at all -- so leaving it
+        # out would have made the map tests pass against symbols the game
+        # would never have had.
+        for m in definitions():
+            self.lua.execute(f'require "{m}"')
         # The game loads shared, then client, then server, in every process.
         for folder in ("shared", "client", "server"):
             for m in modules(folder):
@@ -5077,9 +5094,285 @@ def emh_multiplayer():
           "stranger is turned away")
 
 
+def contacts():
+    """The contact store: what it accepts, what it refuses, and what it drops.
+
+    This is ROADMAP2 step 3 built against **synthetic** contacts, which is the
+    roadmap's own instruction: the store, its bounds and its map view can all
+    be proven before a probe exists to fill it, and every one of them is a
+    thing that would otherwise only be found once probes were being debugged
+    at the same time.
+    """
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+
+    def add(kind, x, y, approximate=False):
+        return rt.eval(
+            '(function() '
+            'local c = TREK.Probes.addContact("%s", %d, %d, 0, "probe:1", %s) '
+            'return c and c.id or nil end)()'
+            % (kind, x, y, "true" if approximate else "false"))
+
+    def count():
+        return int(rt.eval("#TREK.Probes.contacts()"))
+
+    def live():
+        return int(rt.eval("#TREK.Probes.unresolved()"))
+
+    # --- what it accepts ---------------------------------------------------
+    first = add("dilithium", 4100, 9200)
+    check(isinstance(first, str) and first.startswith("dilithium:"),
+          f"contacts: addContact returned {first!r}, not a dilithium id")
+    add("downedPersonnel", 4200, 9300)
+    check(count() == 2, f"contacts: the store holds {count()} of 2 contacts")
+    check(live() == 2, f"contacts: {live()} of 2 contacts are live")
+
+    # The id has to be stable and findable: everything downstream -- the
+    # console, the map focus, a mission -- refers to a contact by it.
+    found = rt.eval(
+        '(function() local c = TREK.Probes.byId("%s") '
+        'return c and (c.x .. "," .. c.y) or "missing" end)()' % first)
+    check(found == "4100,9200",
+          f"contacts: byId({first!r}) came back {found}, not its coordinates")
+
+    # --- what it refuses ---------------------------------------------------
+    # A kind nothing declares would be stored, transmitted, drawn with a nil
+    # symbol and matched by nothing. It is refused, and loudly.
+    bad = add("wormhole", 1, 1)
+    check(bad is None, "contacts: a contact of an undeclared kind was accepted")
+    check(count() == 2,
+          f"contacts: the refused contact was stored anyway ({count()} rows)")
+    check(any("unknown kind" in w for w in rt.warnings()),
+          "contacts: an undeclared kind was refused without saying so")
+    rt.run("SIM.log = {}")
+
+    bad_status = rt.eval(f'TREK.Probes.setStatus("{first}", "pending")')
+    check(bad_status is False,
+          "contacts: a status this mod does not declare was accepted -- it "
+          "would read as neither live nor resolved and never be pruned")
+    check(any("not one this mod declares" in w for w in rt.warnings()),
+          "contacts: a bad status was refused silently")
+    rt.run("SIM.log = {}")
+
+    # --- the lifecycle -----------------------------------------------------
+    check(rt.eval(f'TREK.Probes.setStatus("{first}", "recovered")') is True,
+          "contacts: a legitimate status change was refused")
+    check(live() == 1,
+          f"contacts: {live()} live after one was recovered, expected 1")
+    check(count() == 2,
+          "contacts: recovering a contact deleted it; it should stay as history")
+
+    # --- the bounds --------------------------------------------------------
+    # Two different bounds, and the roadmap asks for both: resolved history is
+    # capped whatever the total is, and the total is capped whatever the
+    # statuses are. A store published to every client cannot grow for ever.
+    caps = rt.eval("TREK.Config.MaxResolvedContacts"), rt.eval("TREK.Config.MaxContacts")
+    max_resolved, max_total = int(caps[0]), int(caps[1])
+    check(max_resolved >= 1 and max_total > max_resolved,
+          f"contacts: the caps are {max_resolved}/{max_total}, which cannot "
+          f"exercise the two-bound rule")
+
+    rt.run("""
+        local P = TREK.Probes
+        for i = 1, TREK.Config.MaxResolvedContacts + 6 do
+            local c = P.addContact("dilithium", 100 + i, 200 + i, 0, "probe:x", false)
+            P.setStatus(c.id, "recovered")
+        end
+    """)
+    resolved = int(rt.eval("""(function()
+        local n = 0
+        for _, c in ipairs(TREK.Probes.contacts()) do
+            if TREK.Probes.isResolved(c.status) then n = n + 1 end
+        end
+        return n
+    end)()"""))
+    check(resolved <= max_resolved,
+          f"contacts: {resolved} resolved records kept, cap is {max_resolved}")
+
+    # Live contacts are never traded away for resolved ones.
+    rt.run("""
+        local P = TREK.Probes
+        for i = 1, TREK.Config.MaxContacts do
+            P.addContact("downedPersonnel", 500 + i, 600 + i, 0, "probe:y", true)
+        end
+    """)
+    total = count()
+    check(total <= max_total,
+          f"contacts: the store holds {total}, over the {max_total} cap")
+    check(live() > 0, "contacts: the cap pruned every live contact away")
+
+    for w in rt.warnings():
+        fail(f"contacts: {w}")
+
+    print(f"contacts: kinds and statuses are both checked against the sets "
+          f"this mod declares, a recovered contact stays as history, and the "
+          f"store holds at {total} with the resolved history capped at "
+          f"{resolved}")
+
+
+def contact_map():
+    """The map view: one symbol per live contact, and ours taken off again.
+
+    Nothing here relies on the engine remembering anything. The contacts are
+    the mod's own store and the symbols are rebuilt from it when the map
+    opens, because the half of the engine's symbol system that makes a symbol
+    shared and persistent is not reachable from Lua at all (MAP_MARKERS.md).
+    """
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+
+    # The symbols must have registered from the mod's own
+    # shared/Definitions/TrekMapSymbols.lua, which the runtime loads the way
+    # the game does. Without that every addTexture below is refused.
+    registered = int(rt.eval("MapSymbolDefinitions.getInstance():getSymbolCount()"))
+    check(registered >= 2,
+          f"contact map: {registered} map symbols registered; "
+          f"shared/Definitions/TrekMapSymbols.lua did not load")
+
+    rt.run("""
+        local P = TREK.Probes
+        P.addContact("dilithium", 4100, 9200, 0, "probe:1", true)
+        P.addContact("downedPersonnel", 4300, 9400, 0, "probe:1", false)
+        local done = P.addContact("dilithium", 4500, 9600, 0, "probe:1", false)
+        P.setStatus(done.id, "recovered")
+    """)
+
+    rt.run("ISWorldMap.ShowWorldMap(0, 4100, 9200)")
+    drawn = int(rt.eval("TREK.MapContacts.count()"))
+    check(drawn == 2,
+          f"contact map: {drawn} symbols drawn for 2 live contacts (the "
+          f"recovered one is history and must not be on the map)")
+
+    placed = rt.eval("""(function()
+        local out = {}
+        for _, s in ipairs(SIM.mapSymbols()) do
+            table.insert(out, s.id .. "@" .. s.x .. "," .. s.y)
+        end
+        table.sort(out)
+        return table.concat(out, " ")
+    end)()""")
+    check("TrekContactDilithium@4100,9200" in str(placed),
+          f"contact map: the dilithium contact is not on the map at its own "
+          f"world square ({placed})")
+    check("TrekContactPersonnel@4300,9400" in str(placed),
+          f"contact map: the personnel contact is misplaced ({placed})")
+    check("4500" not in str(placed),
+          f"contact map: a recovered contact was drawn ({placed})")
+
+    # Anchored and opaque. A symbol whose colour was never set can draw at
+    # alpha 0, and vanilla sets it after every addTexture.
+    styled = rt.eval("""(function()
+        for _, s in ipairs(SIM.mapSymbols()) do
+            if s.ax ~= 0.5 or s.ay ~= 0.5 or s.a ~= 1 then return false end
+        end
+        return true
+    end)()""")
+    check(styled is True,
+          "contact map: a symbol was left unanchored or transparent")
+
+    # A report arriving while the map is open redraws rather than doubling up.
+    rt.run("""
+        TREK.Probes.addContact("dilithium", 4700, 9800, 0, "probe:2", true)
+        TREK.Probes.publish()
+    """)
+    after = int(rt.eval("#SIM.mapSymbols()"))
+    check(after == 3,
+          f"contact map: {after} symbols after a third contact arrived while "
+          f"the map was open, expected 3 -- a redraw that adds without "
+          f"removing doubles every symbol")
+
+    # Closing takes ours off. If world-map symbols do persist in single
+    # player -- which could not be settled outside a game -- this is what
+    # stops the next open showing two of everything.
+    rt.run("ISWorldMap:onClose()")
+    check(int(rt.eval("TREK.MapContacts.count()")) == 0,
+          "contact map: closing the map left the mod's symbols behind")
+
+    rt.run("ISWorldMap.ShowWorldMap(0, 4100, 9200)")
+    reopened = int(rt.eval("#SIM.mapSymbols()"))
+    check(reopened == 3,
+          f"contact map: {reopened} symbols on reopening, expected 3")
+
+    for w in rt.warnings():
+        fail(f"contact map: {w}")
+
+    print("contact map: live contacts are drawn at their own world squares, "
+          "a recovered one is not, a report arriving mid-look redraws without "
+          "doubling, and closing the map takes the mod's symbols off again")
+
+
+def contacts_multiplayer():
+    """Two clients see one contact log, and neither of them may write it."""
+    net = Net("mp", clients=("owner", "crew"))
+    srv = net.server
+    owner, crew = net.clients["owner"], net.clients["crew"]
+    for rt in net.all():
+        rt.run("SandboxVars.TrekShuttle.Access = 2")
+    srv.run("SIM.player('owner', 2000.5, 2000.5, 0); "
+            "SIM.player('crew', 2000.5, 2000.5, 0)")
+    owner.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    crew.run("SIM.player('crew', 2000.5, 2000.5, 0)")
+    net.start()
+
+    def rows(rt):
+        return int(rt.eval("#TREK.Probes.contacts()"))
+
+    # The authority writes, then publishes. Publishing is separate on purpose:
+    # a pass that resolves several contacts should transmit once.
+    srv.run("""
+        local P = TREK.Probes
+        P.addContact("dilithium", 4100, 9200, 0, "probe:1", true)
+        P.addContact("downedPersonnel", 4300, 9400, 0, "probe:1", false)
+        P.publish()
+    """)
+    net.pump(20)
+
+    for name, rt in (("owner", owner), ("crew", crew)):
+        check(rows(rt) == 2,
+              f"contacts mp: the {name} client holds {rows(rt)} of 2 contacts")
+
+    # And a change reaches both, rather than only the machine that asked.
+    first = srv.eval("TREK.Probes.contacts()[1].id")
+    srv.run(f'TREK.Probes.setStatus("{first}", "recovered"); TREK.Probes.publish()')
+    net.pump(20)
+    for name, rt in (("owner", owner), ("crew", crew)):
+        n = int(rt.eval("#TREK.Probes.unresolved()"))
+        check(n == 1,
+              f"contacts mp: the {name} client sees {n} live contacts after "
+              f"one was recovered on the server, expected 1")
+
+    # A client is not an author. TREK_Probes refuses on a client the way
+    # Ship.commit does, because a contact log every machine can write is a
+    # contact log with no single writer.
+    before = rows(owner)
+    owner.run("""
+        TREK.Probes.addContact("dilithium", 1, 1, 0, "forged", false)
+        TREK.Probes.setStatus("anything", "completed")
+        TREK.Probes.publish()
+    """)
+    check(rows(owner) == before,
+          f"contacts mp: a client wrote its own contact ({before} -> "
+          f"{rows(owner)}); the store has one writer")
+    check(any("client tried to publish" in w for w in owner.warnings()),
+          "contacts mp: a client publishing was ignored without saying so")
+    owner.run("SIM.log = {}")
+
+    for name, rt in (("server", srv), ("owner", owner), ("crew", crew)):
+        for w in rt.warnings():
+            fail(f"contacts mp ({name}): {w}")
+
+    print("contacts multiplayer: the authority writes and publishes once, "
+          "both crew hold the same log, a status change reaches both, and a "
+          "client that tries to write one is refused and says so")
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_endings,
             torpedoes, medical, medical_multiplayer, replicator,
-            replicator_multiplayer, emh, emh_multiplayer, multiplayer)
+            replicator_multiplayer, emh, emh_multiplayer, contacts,
+            contact_map, contacts_multiplayer, multiplayer)
 
 
 def main():
