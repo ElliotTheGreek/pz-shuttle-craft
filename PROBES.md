@@ -65,7 +65,7 @@ a probe in flight nowhere to show progress.
 | `C.ContactPlaceRadius` | 6 | how far the ship will look for ground to put it on |
 | `C.ProbeFlightTicks` | 60 | advanced once a **game minute**, so one game hour |
 | `C.ProbeWorkPerTick` | 1 | |
-| `C.ProbeMinDistance` / `Max` | 120 / 450 | squares -- a few blocks, not a quarter of the map |
+| `C.ProbeMinDistance` / `Max` | 80 / 260 | squares -- two to eight town blocks |
 | `C.ProbeBearingTries` | 24 | bearings tried before giving up near a map edge |
 | `C.ProbeFindChance` | 0.65 | an empty report is a real outcome |
 | `C.ProbeReportSpread` | 60 | tiles of uncertainty in a long-range fix |
@@ -73,6 +73,18 @@ a probe in flight nowhere to show progress.
 The flight is advanced per **game minute and not per server tick**. At sixty
 ticks a second a three-hundred-tick flight is five seconds, which is not a
 journey across a great map distance, it is a loading pause.
+
+**A probe launches from the crew, not from the ship's record.** `s.x, s.y` is
+where the shuttle was last *set down*, and it is `0, 0` in a world where she
+has never been called down -- so the first probe fired in a fresh save
+reported a contact at 298,351, the far corner of the map, while the crew stood
+in Muldraugh at 10932,10031. `Ship.worldOrigin(player)` answers the question
+that was meant, in three steps: the player's own position when they are
+outside; their **return point** when they are aboard, because the cabin sits
+in its own cell tens of thousands of squares from Kentucky and a player
+standing in it has no useful position of their own; and the ship's position
+only if she is actually landed. Nil when there is no answer at all, and the
+launch refuses rather than firing from the origin.
 
 **The range was 1200-2400 and it was wrong.** A quarter of the map in one
 hop: the first contact anybody got in a real game was placed far north of the

@@ -5555,11 +5555,16 @@ def probes():
         TREK.Probes.store().contacts = {}
         local s = TREK.Util.state()
         s.probeEverFound = nil
-        -- In a **corner** of the box, not the middle. With the ship centred
-        -- and a 450-square reach inside a 2000-square world, every bearing
-        -- lands in bounds by accident and the check under test never has to
-        -- do anything -- which is exactly how a mutation of it survived.
+        -- In a **corner** of the box, not the middle: with the origin
+        -- centred, every bearing lands in bounds by accident and the check
+        -- under test never has to do anything -- which is exactly how a
+        -- mutation of it survived, twice.
+        --
+        -- And it is the **return point** that has to move, not s.x/s.y. The
+        -- probe launches from where the crew are, which for a player standing
+        -- in the cabin is where they would beam down to.
         s.x, s.y = 1080, 1080
+        TREK.Ship.setReturnPoint(SIM.players[1], 1080, 1080, 0)
     """)
     reach = int(rt.eval("TREK.Config.ProbeMaxDistance"))
     check(reach <= 600,
@@ -5627,6 +5632,62 @@ def probes():
           f"probes: a contact outside the world reads {stale!r}; an old save's "
           f"unreachable marks have to retire themselves")
     rt.run("SIM.worldBounds = { x1 = 0, y1 = 0, x2 = 15000, y2 = 15000 }")
+
+    # --- the probe launches from the CREW, not the ship's record -----------
+    # The real bug, exactly as it happened: a new world where the shuttle has
+    # never been called down leaves s.x, s.y at 0, so a probe fired from
+    # Muldraugh reported a contact at 298,351 -- the far corner of the map --
+    # while the crew stood at 10932,10031. The ship's record and the crew's
+    # position are deliberately far apart here so that nothing can pass by
+    # having them agree.
+    HOME_X, HOME_Y = 10932, 10031
+    rt.run(f"""
+        local s = TREK.Util.state()
+        s.landed, s.x, s.y = false, 0, 0
+        s.probeEverFound = nil
+        TREK.Ship.setReturnPoint(SIM.players[1], {HOME_X}, {HOME_Y}, 0)
+        TREK.Probes.store().contacts = {{}}
+        TREK.Probes.store().active = nil
+    """)
+    rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(8)
+    for _ in range(ticks + 2):
+        rt.run("TREK.Server.serviceProbe()")
+    where = rt.eval("""(function()
+        local c = TREK.Probes.contacts()[1]
+        return c and (c.x .. "," .. c.y) or "none"
+    end)()""")
+    gap = rt.eval(f"""(function()
+        local c = TREK.Probes.contacts()[1]
+        if not c then return -1 end
+        return math.floor(math.sqrt((c.x - {HOME_X})^2 + (c.y - {HOME_Y})^2))
+    end)()""")
+    reachable = int(rt.eval("TREK.Config.ProbeMaxDistance"))                 + int(rt.eval("TREK.Config.ProbeReportSpread"))
+    check(gap is not None and 0 <= int(gap) <= reachable,
+          f"probes: the contact came back at {where}, {gap} squares from the "
+          f"crew at {HOME_X},{HOME_Y} -- a probe launches from where they are, "
+          f"not from the ship's record of where she last landed")
+
+    # A ship with no anchor anywhere -- never landed, and a crew who have
+    # never beamed -- has no point to launch from, and says so rather than
+    # firing from 0,0.
+    rt.run("""
+        local s = TREK.Util.state()
+        s.landed, s.x, s.y = false, 0, 0
+        local pd = TREK.Ship.playerData(SIM.players[1])
+        pd.returnX, pd.returnY, pd.returnZ = nil, nil, nil
+        s.returnX, s.returnY, s.returnZ = nil, nil, nil
+        TREK.Probes.store().active = nil
+    """)
+    rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(8)
+    check(any("IGUI_TREK_ProbeNoFix" in n for n in rt.notes()),
+          "probes: a launch with no position fix anywhere was not refused; it "
+          "would fire from 0,0 and report the corner of the map")
+    rt.run("SIM.log = {}")
+    rt.run(f"TREK.Ship.setReturnPoint({P}, {HOME_X}, {HOME_Y}, 0)")
 
     # --- the refusals ------------------------------------------------------
     rt.run(f"{P}.x, {P}.y, {P}.z = 3000.5, 3000.5, 0")

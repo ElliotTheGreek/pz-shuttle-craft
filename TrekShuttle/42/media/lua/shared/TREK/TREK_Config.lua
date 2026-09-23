@@ -1010,10 +1010,13 @@ C.ProbeFlightTicks = 60
 -- the ensign, that "about a mile" has to be tuned by actual travel time
 -- rather than converted literally.
 --
--- A few blocks: far enough that going is a trip and not a stroll, close
--- enough that the contact is somewhere you might plausibly already have been.
-C.ProbeMinDistance = 120
-C.ProbeMaxDistance = 450
+-- A few blocks at the **most**, measured from where the crew actually are
+-- rather than from the ship's own record of where she last landed. A town
+-- block is twenty or thirty squares, so this is two to eight of them: far
+-- enough that going is a trip, close enough that you can see where you are
+-- going before you set off.
+C.ProbeMinDistance = 80
+C.ProbeMaxDistance = 260
 
 -- How many bearings to try before giving up on finding one that lands inside
 -- the world. Only matters near an edge of the map, where most of the compass

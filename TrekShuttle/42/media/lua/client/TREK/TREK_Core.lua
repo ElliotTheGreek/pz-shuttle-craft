@@ -120,6 +120,7 @@ local DENIALS = {
     probeNone         = "IGUI_TREK_ProbeNone",
     probeRackFull     = "IGUI_TREK_ProbeRackFull",
     probeNoRoom       = "IGUI_TREK_ProbeNoRoom",
+    probeNoFix        = "IGUI_TREK_ProbeNoFix",
     -- probeNoPower carries numbers and is handled below, like repNoCrystal.
     -- The Doctor. Every one of these is a line the server can send, and
     -- tests/test_multiplayer.py's static pass fails if a deny() literal in

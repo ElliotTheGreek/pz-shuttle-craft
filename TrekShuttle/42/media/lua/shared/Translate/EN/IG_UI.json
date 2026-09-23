@@ -248,5 +248,6 @@
     "IGUI_TREK_ProbeEmpty": "Probe reports nothing on that bearing.",
     "IGUI_TREK_ProbeLastFound": "Last report: contact",
     "IGUI_TREK_ProbeLastEmpty": "Last report: nothing found",
-    "IGUI_TREK_ProbeNoRoom": "No bearing from here reaches anywhere worth scanning."
+    "IGUI_TREK_ProbeNoRoom": "No bearing from here reaches anywhere worth scanning.",
+    "IGUI_TREK_ProbeNoFix": "The ship has no position fix. Beam down once, or set her down, first."
 }

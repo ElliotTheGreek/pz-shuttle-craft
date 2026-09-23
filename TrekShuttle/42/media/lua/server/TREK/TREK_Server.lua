@@ -1996,7 +1996,22 @@ Net.onServer("launchProbe", function(player, args)
     end
     s.probes = (s.probes or 0) - 1
 
-    local ox, oy = s.x or 0, s.y or 0
+    -- **From where the crew actually are**, not from the ship's own record.
+    -- `s.x, s.y` is where the shuttle was last set down, and it is 0,0 in a
+    -- world where she has never been called down -- which put the first probe
+    -- anybody fired in the far corner of the map while the crew stood in
+    -- Muldraugh. Ship.worldOrigin answers the question that was meant: where
+    -- is this player in the real world, or where would they be if they beamed
+    -- down.
+    local ox, oy = Ship.worldOrigin(player)
+    if not ox then
+        s.probes = (s.probes or 0) + 1
+        Ship.commit()
+        deny(player, "probeNoFix")
+        U.log("WARN a probe was launched with no position fix for %s",
+              Ship.usernameOf(player))
+        return
+    end
 
     -- **Pick a bearing that actually lands somewhere.** A straight line from a
     -- ship parked near the edge of the map spends much of the compass
