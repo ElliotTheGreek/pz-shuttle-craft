@@ -60,11 +60,30 @@ def read_png_rgba(path):
             pixels[target:target + 4] = line[source:source + 3] + b"\xff"
     return width, height, pixels
 
+def mesh_start(src):
+    """Where the geometry begins, which is not where "Mesh" first appears.
+
+    The mod's own generated meshes are written bare, so `src.index("Mesh ")`
+    found the geometry. Every mesh the *game* ships carries the full DirectX
+    template header first, and its line 59 is `template Mesh {` -- a
+    declaration of the format with no vertices in it. Parsing that gives a
+    mesh of nothing and an error that blames the file.
+
+    This is the same shape as the vertex-count check below: a parser that
+    quietly reads a different model from the one on disk is worse than no
+    parser at all, so skip the templates rather than trusting the first hit.
+    """
+    for match in re.finditer(r"\bMesh\b", src):
+        if src[:match.start()].rstrip().endswith("template"):
+            continue
+        return match.start()
+    raise ValueError("no Mesh block outside the template header")
+
 def parse_x(path):
     src = open(path).read()
-    src = src[src.index("Mesh "):]
+    src = src[mesh_start(src):]
     nums = lambda s: [float(x) for x in re.findall(r"-?\d+\.\d+", s)]
-    mv = re.search(r"Mesh\s+\w+\s*\{\s*(\d+);(.*?);;\s*(\d+);(.*?);;\s*MeshNormals", src, re.S)
+    mv = re.search(r"Mesh\s+\w*\s*\{\s*(\d+);(.*?);;\s*(\d+);(.*?);;\s*MeshNormals", src, re.S)
     nv = int(mv.group(1))
     # A .x list is `a;b;c;,` per entry and `a;b;c;;` on the last one, so the
     # non-greedy match above stops *inside* that final pair and leaves the
@@ -76,7 +95,10 @@ def parse_x(path):
     verts = [tuple(float(c) for c in v) for v in vs][:nv]
     fs = re.findall(r"3;(\d+),(\d+),(\d+);", mv.group(4) + ";")
     faces = [tuple(int(c) for c in f) for f in fs]
-    mt = re.search(r"MeshTextureCoords\s*\{\s*(\d+);(.*?);;\s*\}", src, re.S)
+    # The game names this block (`MeshTextureCoords c1 {`) and the mod's own
+    # generator leaves it bare; a .x block may always carry a name, so the
+    # optional one here is the rule rather than a special case for vanilla.
+    mt = re.search(r"MeshTextureCoords\s*\w*\s*\{\s*(\d+);(.*?);;\s*\}", src, re.S)
     uvs = [(float(a), float(b)) for a, b in
            re.findall(r"(-?\d+\.\d+);(-?\d+\.\d+);", mt.group(2) + ";")][:nv]
     if len(verts) != nv:

@@ -1988,6 +1988,8 @@ Net.onServer("debug", function(player, args)
         S.replicatorReport()
     elseif what == "emh" then
         S.emhReport()
+    elseif what == "uniform" then
+        S.uniformReport()
     elseif what == "charges" then
         local c = chargeOf(Ship.usernameOf(player))
         U.log("transporter: limited=%s, %d charge(s) for %s",
@@ -2126,6 +2128,76 @@ function S.replicatorReport()
               .. "if it is zero")
     end
     return standing == 1
+end
+
+--- One line per uniform, for TREK_Uniform(). **This is the check that the
+--- static tests cannot make.**
+---
+--- tests/test_assets.py proves the item, the clothing XML, the GUID row, the
+--- mesh and the texture all exist and agree on disk. None of that proves the
+--- *engine* agreed: `OutfitManager.getClothingItem(guid)` resolves through
+--- the merged table, and if this mod's fileGuidTable.xml did not merge -- a
+--- path the engine reads with a catch that only reaches ExceptionLogger --
+--- every one of those files is perfect and every uniform draws nothing.
+---
+--- So this asks the engine and reads the answer back, which is the only thing
+--- that has ever caught this shape of bug in this project: an unopenable
+--- locker, a tap with no water, a weapon one module away from its model. A
+--- uniform whose ClothingItem is nil here is present, drawn and inert.
+function S.uniformReport()
+    local resolved, missing = 0, 0
+    for _, id in ipairs(C.UniformIssue or {}) do
+        local item = U.try("instanceItem:" .. id, function()
+            return instanceItem(id)
+        end)
+        if not item then
+            U.log("WARN uniform %s: instanceItem returned nothing -- the item "
+                  .. "script did not load", id)
+            missing = missing + 1
+        else
+            -- getClothingItem() is a method on an object the engine handed
+            -- us, so it is reachable from Lua; it returns null when the GUID
+            -- is not in the merged table.
+            local cloth = U.try("getClothingItem:" .. id, function()
+                return item:getClothingItem()
+            end)
+            if not cloth then
+                U.log("WARN uniform %s: ClothingItem is nil. The GUID is not "
+                      .. "in the merged table, so this garment equips, weighs "
+                      .. "and insulates and draws NOTHING. Check that "
+                      .. "media/fileGuidTable.xml shipped.", id)
+                missing = missing + 1
+            else
+                local male = U.try("maleModel", function()
+                    return cloth:getMaleModel()
+                end)
+                local female = U.try("femaleModel", function()
+                    return cloth:getFemaleModel()
+                end)
+                local texes = U.try("textureChoices", function()
+                    local list = cloth:getTextureChoices()
+                    if not list or list:size() == 0 then return nil end
+                    return tostring(list:get(0))
+                end)
+                U.log("uniform %s: male=%s female=%s texture=%s",
+                      id, tostring(male), tostring(female), tostring(texes))
+                if not male or tostring(male) == "" then
+                    U.log("WARN uniform %s: resolved with no male model", id)
+                end
+                if not female or tostring(female) == "" then
+                    U.log("WARN uniform %s: resolved with no female model -- "
+                          .. "it would be invisible on a female character", id)
+                end
+                if not texes then
+                    U.log("WARN uniform %s: resolved with no texture", id)
+                end
+                resolved = resolved + 1
+            end
+        end
+    end
+    U.log("uniforms: %d of %d resolved through the GUID table",
+          resolved, resolved + missing)
+    return missing == 0
 end
 
 --- One line per thing that can be wrong with the Doctor, for TREK_EMH().

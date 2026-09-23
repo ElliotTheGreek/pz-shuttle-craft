@@ -86,6 +86,17 @@ critical = [
     Path("42/media/textures/TREK_EMH.png"),
     Path("42/media/ui/TREK_EmhPortrait.png"),
     Path("42/media/sound/TREK_EmhAppear.wav"),
+    # The wardrobe. The GUID table is the one file here whose absence is
+    # completely silent: without it every uniform still equips, still weighs
+    # something and draws nothing at all, because getClothingItem returns null
+    # for an id the merged table does not know. A deploy that dropped it would
+    # look exactly like a deploy that worked.
+    Path("42/media/fileGuidTable.xml"),
+    Path("42/media/clothing/clothingItems/TrekUniformDutyCommand.xml"),
+    Path("42/media/clothing/clothingItems/TrekUniformDressCommand.xml"),
+    Path("42/media/textures/clothes/trek/duty_command.png"),
+    Path("42/media/textures/clothes/trek/dress_command.png"),
+    Path("42/media/textures/Item_TREK_DutyCommand.png"),
 ]
 for relative in critical:
     source_hash = digest(SOURCE / relative)

@@ -371,6 +371,14 @@ def loot_list(rt, name):
     return [x for x in str(packed).split("\n") if x]
 
 
+def uniform_issue(rt):
+    """C.UniformIssue, as Python strings."""
+    packed = rt.eval("""(function()
+        return table.concat(TREK.Config.UniformIssue, "\\n")
+    end)()""")
+    return [x for x in str(packed).split("\n") if x]
+
+
 def hull_at(rt, x, y, z):
     """True when the ship stands here: its vehicle, or a hull from before it."""
     return rt.eval(f"""(function()
@@ -444,6 +452,35 @@ def single_player():
                   f"(C.Loot.{name})")
     phaser = str(rt.eval("TREK.Config.PhaserItem"))
     check(phaser in stores, f"single player: no {phaser} in the armoury")
+
+    # The wardrobe. Every uniform is a *guarantee* (`special = "uniforms"`),
+    # not a roll, so this is a check on the rule: none of the six is in any
+    # C.Loot list, and the only thing that can put one in the armoury is
+    # SPECIALS.uniforms. U.stockEach reads the locker back and logs a WARN for
+    # anything short, and this suite already fails on any WARN -- so a locker
+    # that ran out of room fails twice over rather than silently issuing five.
+    # TREK_Uniform()'s report, run for real. It is the only diagnostic that
+    # can tell a uniform whose GUID resolved from one whose did not, so a
+    # throw inside it would leave the player with no way to tell those apart
+    # at all -- and it walks engine calls (getClothingItem, getMaleModel,
+    # getTextureChoices) that nothing else in the mod touches.
+    ok = rt.eval("TREK.Server.uniformReport()")
+    check(ok is True,
+          "single player: S.uniformReport() did not resolve every uniform")
+    nonclothing = rt.eval(
+        'instanceItem(TREK.Config.PhaserItem):getClothingItem() == nil')
+    check(nonclothing is True,
+          "the simulation hands a ClothingItem back for a phaser, so the "
+          "report would call anything at all a working garment")
+
+    issue = uniform_issue(rt)
+    check(len(issue) == 6,
+          f"single player: C.UniformIssue holds {len(issue)} uniforms, not 6 "
+          f"-- this check would pass against an empty list")
+    for item_id in issue:
+        check(item_id in stores,
+              f"single player: the ship sails without {item_id} "
+              f"(special = \"uniforms\" on the armoury)")
     # Starfleet issue only. Five of the cabin's containers are the player's own
     # shelves and start empty, so at build time everything aboard is ours; a
     # vanilla id in here means a ship list grew one back.

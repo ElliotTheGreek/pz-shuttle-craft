@@ -2,7 +2,7 @@
 
 Future work after `ROADMAP.md`. The first roadmap built the shuttle and its systems. This roadmap turns them into a progression and mission loop.
 
-This is a design document only. Nothing below is implemented yet. The rules in `DEV_GUIDE.md` and `MULTIPLAYER.md` remain binding: the server owns ship power, probes, missions, rewards, and world objects; clients request actions and display authoritative results.
+Section 1.4 is built (see `UNIFORMS.md`); 1.5 to 1.7 are design only. The rules in `DEV_GUIDE.md` and `MULTIPLAYER.md` remain binding: the server owns ship power, probes, missions, rewards, and world objects; clients request actions and display authoritative results.
 
 ---
 
@@ -21,7 +21,38 @@ The dependency order is deliberate: uniforms before the ensign; contacts before 
 
 ---
 
-# 1.4 — The first wardrobe
+# 1.4 — The first wardrobe  **[BUILT 2026-09-23, not yet played]**
+
+> **Built.** Six garments on two vanilla rigs: a one-piece duty uniform and a
+> long dress uniform, in command, operations and sciences. `UNIFORMS.md` is the
+> working guide; what follows is the design it came from, kept because the
+> reasoning still holds.
+>
+> **What the implementation settled**, against the installed 42.20.4 rather
+> than the wiki:
+>
+> - *Custom uniform mesh versus custom texture on vanilla geometry* — a
+>   **texture**. 597 of the game's 1,795 clothing items have no mesh at all and
+>   the rest share a small pool of rigs; 7 ride `bob_boilersuit`. No rigging
+>   was needed and none was done.
+> - *Separate division items versus texture choices* — **separate items**, one
+>   256×256 texture each, generated from one colour table.
+> - The tunic-and-trousers cut gave way to a one-piece, and the skirted dress
+>   is the **judge's robe rig** (`bob_judegsrobe` / `kate_judegsrobe`) — the
+>   only skirted geometry in the game with both a male and a female model.
+> - The **skant** (tunic + `bob_miniskirt`) is reachable and deliberately not
+>   built: its tunic would be a *body* texture, which is a second pipeline.
+>   See `UNIFORMS.md` section 7.
+> - **Named outfits (`clothing.xml`) were not built.** They exist to dress
+>   zombies and mannequins, and 1.7's ensign is a static world model rather
+>   than a character, so nothing needs one yet.
+> - The uniform **insulates** (0.65 duty, 0.45 dress) and carries no armour
+>   stat; vanilla's `Boilersuit` has `ScratchDefense = 10` and it is not
+>   copied. A test fails any mod garment that sets one.
+>
+> **The one thing to check first in game** is `TREK_Uniform()`: a garment whose
+> GUID row did not merge equips, weighs, insulates and draws nothing at all,
+> with nothing in the log.
 
 Add a classic Star Trek-style uniform as the mod’s first custom outfit.
 
@@ -355,8 +386,12 @@ Never inspect live squares in unloaded chunks, create orphan squares, or place t
 
 # Suggested implementation order
 
-1. **Prove one custom clothing item.** Inspect installed files, build a minimal uniform top, and verify both bodies, animations, save/load, and multiplayer.
-2. **Finish the uniform.** Add icons, storage, replicator patterns, division variants, and the named ensign outfit.
+1. ~~**Prove one custom clothing item.**~~ Built. The files, the static checks
+   and the renders are done; both bodies, animations, save/load and
+   multiplayer still need a real world.
+2. ~~**Finish the uniform.**~~ Built, bar the named ensign outfit, which is
+   deferred until 1.7 proves it needs one. Icons, ship storage and replicator
+   patterns are in.
 3. **Build contact persistence.** Add bounded stores, two-client publication, map markers, and tricorder display using synthetic contacts.
 4. **Build one logical probe.** Add sliced flight, atomic energy spending, restart persistence, and synthetic reports.
 5. **Connect probes to dilithium.** Solve unloaded-world contacts and guarantee a reachable opening source.

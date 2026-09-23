@@ -551,6 +551,11 @@ local SPECIALS = {
     medkit  = { items = { C.HyposprayItem, C.DermalRegenItem,
                           C.MedTricorderItem, C.TricorderItem },
                 copies = function() return 1 end },
+    -- The ship's issue: one of each uniform, in the same locker as the
+    -- sidearms and the blades. One copy each -- a crew of four sharing one
+    -- shuttle does not need a second command tunic, and the replicator makes
+    -- any of them for nothing but energy.
+    uniforms = { items = C.UniformIssue, copies = function() return 1 end },
 }
 
 --- Stocks one authored container. Returns true when something went in.
@@ -561,22 +566,31 @@ local SPECIALS = {
 local function stockAuthored(obj, entry)
     local added = 0
 
-    local special = entry.special and SPECIALS[entry.special]
-    if entry.special and not special then
-        U.warnOnce("special:" .. tostring(entry.special),
-                   "no special stock rule named " .. tostring(entry.special))
-    elseif special then
-        local copies = special.copies()
-        local present = U.stockEach(obj, special.items, copies)
-        for _, id in ipairs(special.items) do
-            local count = present[id] or 0
-            added = added + count
-            -- Short, not merely absent: a container at capacity drops what it
-            -- is handed without raising anything, so two phasers in a locker
-            -- meant to hold four looks exactly like four until it is counted.
-            if count < copies then
-                U.log("WARN %s locker holds %d of %d %s",
-                      tostring(entry.special), count, copies, id)
+    -- `special` is one rule name or a list of them. A container can carry
+    -- more than one guarantee -- the armoury owes the crew four phasers *and*
+    -- a uniform of each division -- and folding those into a single rule
+    -- would mean one `copies` count for both, which is wrong for either.
+    local names = entry.special
+    if type(names) == "string" then names = { names } end
+    for _, name in ipairs(names or {}) do
+        local special = SPECIALS[name]
+        if not special then
+            U.warnOnce("special:" .. tostring(name),
+                       "no special stock rule named " .. tostring(name))
+        else
+            local copies = special.copies()
+            local present = U.stockEach(obj, special.items, copies)
+            for _, id in ipairs(special.items) do
+                local count = present[id] or 0
+                added = added + count
+                -- Short, not merely absent: a container at capacity drops
+                -- what it is handed without raising anything, so two phasers
+                -- in a locker meant to hold four looks exactly like four
+                -- until it is counted.
+                if count < copies then
+                    U.log("WARN %s locker holds %d of %d %s",
+                          tostring(name), count, copies, id)
+                end
             end
         end
     end

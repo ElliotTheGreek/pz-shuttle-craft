@@ -128,6 +128,24 @@ function instanceItem(id)
                  getFullType = function(self) return self.fullType end,
                  getModData = function(self) return self.modData end }
 
+    -- The clothing half. `getClothingItem()` is how the mod asks the engine
+    -- whether a garment's GUID actually resolved, and the honest answer for
+    -- anything that is not clothing is **nil** -- which is exactly the value
+    -- a uniform gets when its fileGuidTable row is missing. A stub that
+    -- returned a table for everything would make S.uniformReport() report
+    -- success for a shirt, a hammer and a uniform alike, which is the shape
+    -- of "the simulation has to be as unkind as the engine".
+    function it:getClothingItem()
+        local entry = SIM.clothing and SIM.clothing[self.fullType]
+        if not entry then return nil end
+        return {
+            getMaleModel = function() return entry.male end,
+            getFemaleModel = function() return entry.female end,
+            hasModel = function() return entry.male ~= nil end,
+            getTextureChoices = function() return jlist({ entry.texture }) end,
+        }
+    end
+
     function it:getWorldZRotation() return self.worldZRotation end
     function it:setWorldZRotation(v) self.worldZRotation = v end
     function it:getWorldYRotation() return self.worldYRotation end
@@ -230,13 +248,50 @@ scriptItem("Moveables.Moveable_fridge", { name = "Fridge", category = "Furniture
 --- changed nothing at all until the crystal was added here, and the Doctor is
 --- the same bug waiting to happen: a player who could replicate one would
 --- stand a second EMH in the galley.
+--- The six uniforms are here for the same reason the crystal is: the armoury
+--- guarantees one of each (`special = "uniforms"`), and a guarantee checked
+--- against a catalogue that has never heard of the item passes whatever the
+--- locker actually ends up holding.
 for _, id in ipairs({ "TrekShuttle.TrekPhaser", "TrekShuttle.TrekHypospray",
                       "TrekShuttle.TrekBatleth", "TrekShuttle.TrekRationPack",
                       "TrekShuttle.TrekDermalRegen", "TrekShuttle.TrekTricorder",
                       "TrekShuttle.TrekMedTricorder", "TrekShuttle.TrekTorpedo",
                       "TrekShuttle.TrekShuttleHull", "TrekShuttle.TrekHelmConsole",
-                      "TrekShuttle.TrekDilithium", "TrekShuttle.TrekEMH" }) do
+                      "TrekShuttle.TrekDilithium", "TrekShuttle.TrekEMH",
+                      "TrekShuttle.TrekUniformDutyCommand",
+                      "TrekShuttle.TrekUniformDutyOperations",
+                      "TrekShuttle.TrekUniformDutyScience",
+                      "TrekShuttle.TrekUniformDressCommand",
+                      "TrekShuttle.TrekUniformDressOperations",
+                      "TrekShuttle.TrekUniformDressScience" }) do
     scriptItem(id, { name = bareType(id), category = "Starfleet", weight = 0.6 })
+end
+
+--- Which items the engine would hand back a ClothingItem for.
+---
+--- Only the six uniforms, and deliberately nothing else: a phaser asked the
+--- same question answers nil in the engine and has to answer nil here, or
+--- S.uniformReport() would report a hammer as a working garment.
+---
+--- These mirror what tools/gen_uniform.py writes into the clothing XMLs;
+--- tests/test_assets.py is what holds the files on disk to the same shape.
+--- What this cannot prove is that the mod's fileGuidTable.xml *merged* in a
+--- real game -- the engine reads it inside a catch that only reaches
+--- ExceptionLogger -- which is the whole reason TREK_Uniform() exists.
+SIM.clothing = {}
+for _, row in ipairs({
+        { "TrekUniformDutyCommand",     "bob_boilersuit", "kate_boilersuit", "duty_command" },
+        { "TrekUniformDutyOperations",  "bob_boilersuit", "kate_boilersuit", "duty_operations" },
+        { "TrekUniformDutyScience",     "bob_boilersuit", "kate_boilersuit", "duty_science" },
+        { "TrekUniformDressCommand",    "bob_judegsrobe", "kate_judegsrobe", "dress_command" },
+        { "TrekUniformDressOperations", "bob_judegsrobe", "kate_judegsrobe", "dress_operations" },
+        { "TrekUniformDressScience",    "bob_judegsrobe", "kate_judegsrobe", "dress_science" },
+    }) do
+    SIM.clothing["TrekShuttle." .. row[1]] = {
+        male = "skinned\\clothes\\" .. row[2],
+        female = "skinned\\clothes\\" .. row[3],
+        texture = "clothes\\trek\\" .. row[4],
+    }
 end
 
 function getAllItems() return jlist(SIM.items) end

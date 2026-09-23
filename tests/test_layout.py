@@ -64,12 +64,23 @@ print(f"cabin {W + 1} x {L_LEN + 1}, nose cut {int(C.NoseCut)}, "
 print()
 
 # --- the authored interior ---------------------------------------------
+# `special` is one rule name or a list of them: a container can owe more than
+# one guarantee, and the armoury owes four phasers and a uniform of each
+# division, which are two different counts. Normalised to a list here so every
+# check below reads the same shape whichever the layout used.
+def specials_of(e):
+    if e.special is None:
+        return []
+    if isinstance(e.special, str):
+        return [e.special]
+    return [v for _, v in sorted(dict(e.special).items())]
+
 entries = []
 for e in rows(L.tiles):
     entries.append({
         "x": int(e.x), "y": int(e.y), "sprite": e.sprite,
         "tag": e.tag or "?", "container": e.container is True,
-        "loot": e.loot, "special": e.special, "cap": e.cap,
+        "loot": e.loot, "special": specials_of(e), "cap": e.cap,
         "device": e.device,
     })
 
@@ -88,7 +99,7 @@ for e in entries:
 
     # `container` in the tileset is the container type ("locker", "counter").
     holds = bool(props.get("container"))
-    wants = e["container"] or e["loot"] is not None or e["special"] is not None
+    wants = e["container"] or e["loot"] is not None or bool(e["special"])
     if wants and not holds:
         failures.append(f"{where} is stocked but {e['sprite']} is not a "
                         f"container in the tileset -- it can never be opened")
@@ -103,7 +114,7 @@ for e in entries:
         failures.append(f"{where}: no C.Loot.{e['loot']}")
 
 containers = [e for e in entries if e["container"]]
-phasers = [e for e in entries if e["special"] == "phasers"]
+phasers = [e for e in entries if "phasers" in e["special"]]
 if len(phasers) != 1:
     failures.append(f"{len(phasers)} phaser lockers in the layout; expected 1")
 else:
@@ -269,7 +280,7 @@ src = open(BUILD, encoding="utf-8").read()
 rules = set(re.findall(r"^\s{4}(\w+)\s*=\s*\{ items =", src, re.M))
 if not rules:
     failures.append("no SPECIALS table found in TREK_Build.lua")
-authored = {e["special"] for e in entries if e["special"] is not None}
+authored = {n for e in entries for n in e["special"]}
 for name in sorted(authored - rules):
     failures.append(f"the layout marks a container special = {name!r}, and "
                     f"TREK_Build.lua has no stock rule of that name")
@@ -360,7 +371,7 @@ print("   * lamp      . open deck")
 print(f"\n{len(entries)} authored fittings, {len(containers)} containers:")
 for e in containers:
     if e["special"]:
-        what = e["special"] + " + " + (e["loot"] or "-")
+        what = " + ".join(e["special"]) + " + " + (e["loot"] or "-")
     elif e["loot"]:
         what = e["loot"]
     else:

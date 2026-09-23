@@ -1311,4 +1311,148 @@ module TrekShuttle
         WorldStaticModel = WalkieTalkieTactical,
         Tooltip = Tooltip_TREK_Tricorder,
     }
+
+    /*  The Starfleet wardrobe.
+
+        Six garments on two vanilla rigs and not one line of rigging. Every
+        item here is `ClothingItem = <name>`, which the engine resolves
+        through media/fileGuidTable.xml to media/clothing/clothingItems/
+        <name>.xml, which names a mesh the game already ships and a 256x256
+        texture this mod generates. tools/gen_uniform.py writes the texture,
+        the icon, the XML and the GUID row together, because the GUID is the
+        one join that fails **silently**: OutfitManager.getClothingItem calls
+        getFilePathFromGuid first and returns null when the table does not
+        know the id, and a uniform with no ClothingItem behind it equips,
+        weighs, insulates, gets dirty and draws nothing at all.
+
+        The duty uniform is a one-piece on the boilersuit rig; the dress
+        uniform is the long formal robe on the judge's-robe rig, which is the
+        only skirted geometry in the game carrying both a male and a female
+        model. Both rigs are bind-posed, both are shared by several vanilla
+        garments already, and both come with their masks, their ground model
+        and their blood locations solved.
+
+        Insulation is real -- it is Starfleet issue, and a sealed one-piece
+        genuinely is warm -- but it is deliberately *not* armour. Vanilla's
+        Boilersuit carries ScratchDefense = 10 and that is not copied here:
+        ROADMAP2 1.4 says no armour-like protection, and a stat that rides
+        along because the block it was copied from had it is exactly the
+        "better than intended" item DEV_GUIDE warns about.
+
+        Nor is the boilersuit's RunSpeedModifier = 0.9 copied to the duty
+        uniform. That number is there because coveralls are bulky work kit; a
+        tailored uniform is not, and removing an unearned penalty is not a
+        bonus. The dress robe keeps it, because a floor-length robe really
+        does slow you down.  */
+
+    item TrekUniformDutyCommand
+    {
+        DisplayCategory = Clothing,
+        ItemType = base:clothing,
+        DisplayName = Starfleet Uniform (Command),
+        Icon = TREK_DutyCommand,
+        BodyLocation = base:boilersuit,
+        ClothingItem = TrekUniformDutyCommand,
+        BloodLocation = Trousers;Jumper,
+        FabricType = Cotton,
+        Insulation = 0.65,
+        WindResistance = 0.45,
+        Weight = 1.2,
+        WorldStaticModel = BoilerSuit_Ground,
+        Tags = base:ripclothingcotton,
+        Tooltip = Tooltip_TREK_UniformDuty,
+    }
+
+    item TrekUniformDutyOperations
+    {
+        DisplayCategory = Clothing,
+        ItemType = base:clothing,
+        DisplayName = Starfleet Uniform (Operations),
+        Icon = TREK_DutyOperations,
+        BodyLocation = base:boilersuit,
+        ClothingItem = TrekUniformDutyOperations,
+        BloodLocation = Trousers;Jumper,
+        FabricType = Cotton,
+        Insulation = 0.65,
+        WindResistance = 0.45,
+        Weight = 1.2,
+        WorldStaticModel = BoilerSuit_Ground,
+        Tags = base:ripclothingcotton,
+        Tooltip = Tooltip_TREK_UniformDuty,
+    }
+
+    item TrekUniformDutyScience
+    {
+        DisplayCategory = Clothing,
+        ItemType = base:clothing,
+        DisplayName = Starfleet Uniform (Sciences),
+        Icon = TREK_DutyScience,
+        BodyLocation = base:boilersuit,
+        ClothingItem = TrekUniformDutyScience,
+        BloodLocation = Trousers;Jumper,
+        FabricType = Cotton,
+        Insulation = 0.65,
+        WindResistance = 0.45,
+        Weight = 1.2,
+        WorldStaticModel = BoilerSuit_Ground,
+        Tags = base:ripclothingcotton,
+        Tooltip = Tooltip_TREK_UniformDuty,
+    }
+
+    item TrekUniformDressCommand
+    {
+        DisplayCategory = Clothing,
+        ItemType = base:clothing,
+        DisplayName = Starfleet Dress Uniform (Command),
+        Icon = TREK_DressCommand,
+        BodyLocation = base:fullsuit,
+        ClothingItem = TrekUniformDressCommand,
+        BloodLocation = Trousers;Shirt,
+        FabricType = Cotton,
+        Insulation = 0.45,
+        WindResistance = 0.30,
+        RunSpeedModifier = 0.9,
+        Weight = 1.6,
+        WorldStaticModel = Dress_Long_Ground,
+        Tags = base:ripclothingcotton,
+        Tooltip = Tooltip_TREK_UniformDress,
+    }
+
+    item TrekUniformDressOperations
+    {
+        DisplayCategory = Clothing,
+        ItemType = base:clothing,
+        DisplayName = Starfleet Dress Uniform (Operations),
+        Icon = TREK_DressOperations,
+        BodyLocation = base:fullsuit,
+        ClothingItem = TrekUniformDressOperations,
+        BloodLocation = Trousers;Shirt,
+        FabricType = Cotton,
+        Insulation = 0.45,
+        WindResistance = 0.30,
+        RunSpeedModifier = 0.9,
+        Weight = 1.6,
+        WorldStaticModel = Dress_Long_Ground,
+        Tags = base:ripclothingcotton,
+        Tooltip = Tooltip_TREK_UniformDress,
+    }
+
+    item TrekUniformDressScience
+    {
+        DisplayCategory = Clothing,
+        ItemType = base:clothing,
+        DisplayName = Starfleet Dress Uniform (Sciences),
+        Icon = TREK_DressScience,
+        BodyLocation = base:fullsuit,
+        ClothingItem = TrekUniformDressScience,
+        BloodLocation = Trousers;Shirt,
+        FabricType = Cotton,
+        Insulation = 0.45,
+        WindResistance = 0.30,
+        RunSpeedModifier = 0.9,
+        Weight = 1.6,
+        WorldStaticModel = Dress_Long_Ground,
+        Tags = base:ripclothingcotton,
+        Tooltip = Tooltip_TREK_UniformDress,
+    }
 }

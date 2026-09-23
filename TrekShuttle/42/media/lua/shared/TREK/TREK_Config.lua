@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 23
+C.BuildRev = 24
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -1206,6 +1206,42 @@ C.Loot.food = {
 C.Loot.weapons = {
     "TrekShuttle.TrekBatleth", "TrekShuttle.TrekMekleth",
     "TrekShuttle.TrekLirpa", "TrekShuttle.TrekUshaanTor",
+}
+
+---------------------------------------------------------------------------
+-- The wardrobe
+---------------------------------------------------------------------------
+--- The uniforms the ship is issued with: one duty uniform of each division
+--- and one dress uniform of each.
+---
+--- Guaranteed rather than rolled (`special = "uniforms"` on the armoury
+--- locker), because "a small issued set in ship storage" is the whole point
+--- and a fill that happened to miss a division looks exactly like one that
+--- did not. U.stockEach reads the locker back and says what did not land.
+---
+--- They are in the **armoury** and not a wardrobe of their own because the
+--- cabin has three Starfleet lockers and none of them is a slop chest: the
+--- locker at 3,0 is where the crew's issue lives, which is sidearms, blades
+--- and what they wear. A fourth locker is a change to the authored interior
+--- (design/buildinged/TrekShuttle_Interior.tbx) rather than to this file --
+--- see DEV_GUIDE, "The interior is authored in BuildingEd, not in the code".
+---
+--- Six uniforms is 8.4 of the locker's 40 units, on top of 2.4 of phasers
+--- and 15.0 of blades: 25.8 of 40, so nothing is dropped for want of room.
+--- That sum is the reason this is a short list and not every variant.
+---
+--- **New loot never reaches an existing save** (DEV_GUIDE, "Never restock an
+--- existing container"), so these arrive in new worlds only. Existing saves
+--- get them through the replicator instead: R.seedDefaults() learns every id
+--- this mod declares on each authority start, so the patterns need no
+--- migration at all.
+C.UniformIssue = {
+    "TrekShuttle.TrekUniformDutyCommand",
+    "TrekShuttle.TrekUniformDutyOperations",
+    "TrekShuttle.TrekUniformDutyScience",
+    "TrekShuttle.TrekUniformDressCommand",
+    "TrekShuttle.TrekUniformDressOperations",
+    "TrekShuttle.TrekUniformDressScience",
 }
 
 return C

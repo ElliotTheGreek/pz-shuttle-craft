@@ -1466,6 +1466,136 @@ face used it and the previewer threw. It now puts the separator back and
 declares** -- because a previewer that quietly reads a different model from
 the one on disk is worse than no previewer at all.
 
+### A garment is reached by GUID, and an unknown GUID is null
+
+**New in this mod, and it is the seventh face of "present, drawn and inert".**
+A clothing item's `ClothingItem = X` does not resolve by name. The engine
+looks `X` up as a **GUID**:
+
+```
+OutfitManager.getClothingItem(String)
+   0  ZomboidFileSystem.getFilePathFromGuid(guid)
+   9  ifnonnull -> 14
+  12  aconst_null ; areturn      <-- unknown guid: null, and no more
+```
+
+and the table it consults is merged from every active mod by
+`ZomboidFileSystem.loadFileGuidTable`, which reads each mod's file **inside a
+catch that only reaches `ExceptionLogger`**. So a uniform whose GUID row is
+missing, misspelt, or in a table that failed to parse still equips, still
+weighs what it says, still insulates, still gets dirty and **draws nothing at
+all**, with nothing in the log.
+
+Every static check in this repository can pass on that: the item exists, the
+XML exists, the mesh and the texture are on disk, the translations resolve.
+They prove the files agree *with each other*, not that the engine found them.
+
+- **The mod ships its own table**, at `TrekShuttle/42/media/fileGuidTable.xml`.
+  `loadFileGuidTable` walks `getModIDs()` and merges from the mod's common dir
+  *and* its version dir (bci 265-310), so that path is supported rather than a
+  trick.
+- **`FileGuidTable.mergeFrom` is a plain `ArrayList.addAll`** with no
+  de-duplication at all. A GUID or a path that collides with one of vanilla's
+  1,795 is resolved by whichever row is found first, which is not a thing to
+  leave to chance. `tests/test_assets.py` checks both directions.
+- **Generate the row with the thing it points at.** `tools/gen_uniform.py`
+  writes the texture, the clothing XML and the GUID row in one loop, because a
+  join that fails silently is the last join anybody should be hand-editing.
+- **And read it back in game.** `TREK_Uniform()` asks the engine for each
+  garment's `ClothingItem` and logs the model and texture it came back with.
+  That is the same answer `B.stockReport()` gave for the empty lockers, and
+  it is the only kind of check that has ever caught this shape.
+
+### Ask the asset which way round it is; do not derive it
+
+**New in this mod, and one render caught it.** The combadge goes on the
+wearer's left breast. Which side that is was worked out from the geometry --
+the rigs are Y-up and face -Z, so `left = up x forward = Y x (-Z) = -X` -- and
+the first render had it on the wrong breast.
+
+The rigs carry a **named skeleton**, and it answers the question outright:
+
+```
+Bip01_L_UpperArm   mean x = +0.128      Bip01_R_UpperArm   mean x = -0.128
+Bip01_L_Hand       mean x = +0.369      Bip01_R_Hand       mean x = -0.369
+```
+
+The wearer's left is **+X**. No handedness convention, no cross product, no
+argument: the file says so, in the bone names, and reading the skin weights
+took four lines.
+
+The general shape, and it is the same one as *The bytecode is the
+documentation* a level up: **when an asset encodes the answer, read the asset.**
+A mesh's bone names, a tile's properties, a script's own module -- all of them
+are facts on disk, and all of them beat a derivation that is right only if
+every assumption under it happens to hold. The derivation above was wrong for
+reasons that are still not interesting.
+
+And the corollary about how it was found: a badge on the wrong breast is
+invisible in the source, invisible in a texture, and obvious in one picture.
+**Render it and look**, for the fourth time in this file.
+
+### One texture on two bodies has to mean the same thing on both
+
+**New in this mod.** A clothing item names one `textureChoices` path and *two*
+models, male and female. The sheet is shared, so a texel's meaning has to be
+the same on both rigs -- and if it is not, the garment is right on one body and
+scrambled on the other. Which is a character the author may simply never have
+made.
+
+`tools/gen_uniform.py` therefore builds its region map from **both** rigs and
+fails when they disagree. The first version of that guard measured the raw
+distance between the two rigs' positions at each shared texel and failed the
+boilersuit at 0.077 -- which turned out to be the collar sitting five
+centimetres off-centre on Bob and centred on Kate. Two bodies of different
+shape sharing one layout, which is exactly what vanilla ships.
+
+The guard was measuring millimetres when the question is **which panel**. It
+counts texels that land in a different *region* on the two rigs now: the duty
+rigs differ at 0.97% (seams), the dress rigs at 0.00%. Same lesson as *A guard
+is only as good as the goal it was written from*, arrived at from the other
+end -- the guard was accurate about the geometry and wrong about the goal.
+
+Two smaller things from the same pass, both of which produce a plausible file:
+
+- **An auto-packed atlas needs its islands bled outward.** Everything between
+  them is transparent, the sampler does not respect island boundaries, and
+  filtering along an edge therefore mixes the garment with nothing -- a dark
+  fringe down every seam, on the sleeve heads and the collar, which is where a
+  person looks. Vanilla's own clothing textures are padded; ours dilates four
+  passes.
+- **Normalise borrowed detail to its own mean.** The uniform reuses the
+  vanilla texture's luminance so the rig's painted folds survive. Centring
+  that on mid grey works for the boilersuit and does nothing for the judge's
+  robe, which is black: every texel pins to the bottom of the clamp and the
+  skirt comes out a flat slab.
+
+### A mutation that does not apply proves nothing
+
+**New in this mod, and it cost a wrong conclusion for about a minute.** The
+mutation harness edits a source file, runs the checks, and restores the file.
+One mutation reported **MISSED** -- a uniform with no female model sailing
+past a check written specifically to catch it -- and the check was fine. The
+search text in the harness had a backslash wrong, matched nothing, and the
+suite passed against **unmutated code**.
+
+A mutation that does not apply looks exactly like a check that does not work,
+and it points at the wrong thing: the instinct is to go and fix the check.
+
+- **Assert the file actually changed.** `assert new != orig` before writing is
+  one line and it converts a silent false negative into a loud one.
+- It is the same rule as *A check against an empty set is not a passing check*,
+  one level up: the mutation harness is itself a check, and a check that had
+  nothing to check is not a check.
+
+And the other half, which this file already warns about and which bit again:
+**restoring a file in text mode rewrites its line endings.** Two files came
+back byte-different after a clean run, which looks like corruption and was not
+-- earlier edits had put LF lines into CRLF files and the restore normalised
+them. Compare the *content* before believing the hash, and keep the whole-file
+comparison anyway, because the one time it means corruption is the time it
+matters.
+
 ### A drink is a fluid, and a modded fluid is a string
 
 A build 42 drink is a `fluid` block plus a vessel item with a
@@ -1683,6 +1813,7 @@ python tools/gen_replicator.py TrekShuttle/42     # the machine, its sound, its 
 python tools/gen_dilithium.py TrekShuttle/42      # the crystal's icon
 python tools/gen_warpcore.py TrekShuttle/42       # the warp core and its renders
 python tools/gen_emh.py     TrekShuttle/42       # the Doctor: mesh, texture, portrait, chime
+python tools/gen_uniform.py TrekShuttle/42        # the six uniforms: textures, icons, clothing XML, GUID table
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
@@ -1783,6 +1914,11 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A cure lands and the infection comes straight back** | Only one of the two levels was cleared. `BodyDamage.isInfected` is a one-way latch re-derived from the parts, so both have to go in one pass -- and a test that does not tick the body afterwards cannot tell. |
 | **A cured limb is infected and bleeding** | One-argument `SetBitten(false)`. It clears the bite and then infects the limb regardless, and vanilla's admin health cheat calls it that way twice. |
 | **The Doctor will not come up at all** | The reserve is empty and there are no spares. He runs on the same dilithium as the replicator, which four comments in this repository promised before he existed. |
+| **A uniform equips, weighs something and the character is naked** | Its `ClothingItem` resolved to null: the GUID is not in the merged table, or the mod's `fileGuidTable.xml` did not ship. Nothing is logged. `TREK_Uniform()` says which. |
+| **A uniform looks right on one character and scrambled on another** | Male and female share one texture and the two rigs disagree about what a texel means. `tools/gen_uniform.py` fails above 2%; if it passed, the thresholds moved. |
+| **A dark fringe down every seam of a garment** | The texture's UV islands are not padded, so filtering along an edge mixes the garment with the transparent gutter. `dilate()` in the generator. |
+| **A combadge, pocket or patch is on the wrong side** | Handedness was derived rather than read. The rigs' own skeleton says it: `Bip01_L_*` bones sit at **positive** x. |
+| **A mutation reports MISSED and the check looks correct** | The mutation's search text may never have matched, so the suite ran against unmutated code. Assert the file changed. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
 ---
@@ -1794,7 +1930,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | Check | Catches |
 |---|---|
 | `tools/luacheck.py` | Lua syntax, via a real Lua VM |
-| `tests/test_assets.py` | sprites, items, meshes, textures, icons, sounds (both ways: a clip file that is missing, and a `playSound` the scripts never declared), the phaser's borrowed vanilla references, every translation key, and every sandbox option's name, tooltip and value names |
+| `tests/test_assets.py` | sprites, items, meshes, textures, icons, sounds (both ways: a clip file that is missing, and a `playSound` the scripts never declared), the phaser's borrowed vanilla references, every translation key, every sandbox option's name, tooltip and value names, and **the whole clothing chain**: an item whose XML is missing, an XML with no GUID row, a GUID disagreeing with the table or colliding with one of vanilla's 1,795, a row for a file that is not there, a model or texture not on disk, a garment with a model for one sex and not the other, a body location the game does not declare, and an armour stat on a uniform |
 | `tests/test_stock.py` | items that cannot be created at all; loot that does not spread across its list; containers that do not reach `C.FillFraction` |
 | `tests/test_multiplayer.py` | the real code as single player and as a server with two clients: cabin build and stock reaching every client, ownership and crew, transporter charges, landing round trips, ghosts, shields pushing only local zombies, the torpedoes, the medical set (including that a dose leaves a bite and the infection alone), the replicator (the catalogue's filter, patterns, the reserve, a counted tray and all three sandbox values), the EMH (the menu, one Doctor standing square, a treatment that leaves the bite, a cure that clears both levels and the moodle for a crystal and twelve hours, consent raised on the patient's screen and nowhere else), a client editing the world or ship state, commands without handlers, missing file guards, role-gated setters, every `deny()` reason having words behind it, any logged `WARN` |
 | `tests/test_helm.py` | the mod's panels -- the helm console, the tricorder's contact plot, the replicator and the EMH's dialogue -- for throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
@@ -1847,6 +1983,7 @@ single player, `server-console.txt` on a server).
 | `TREK_Ghosts()` | Sweep hulls waiting to be cleared, and strays near you |
 | `TREK_Charges()` | Log whether beams are rationed on this server and your charges |
 | `TREK_Replicator()` | The sandbox mode, the reserve, the ship's spare crystals, how many patterns the ship holds, and the catalogue's size |
+| `TREK_Uniform()` | Whether each uniform's `ClothingItem` resolved through the GUID table, and the male model, female model and texture it came back with. **The first thing to run the first time the wardrobe is carried into a world** -- a garment whose GUID is missing wears perfectly and draws nothing |
 
 ### On a dedicated server
 
@@ -1903,7 +2040,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.3.0**, build revision **22**.
+Version **1.3.0**, build revision **24**.
 
 **1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-9):
 server-owned ship and cabin, request protocol, transporter charges, shields per
@@ -2084,6 +2221,35 @@ ASCII; a check that runs after a self-healing pass checks the healing; and the
 simulation has to be as unkind as the engine, which has now cost seven holes
 rather than three.
 
+**The 2026-09-23 wardrobe** is `ROADMAP2.md` 1.4, and the roadmap's biggest
+open question turned out not to exist. Of the 1,795 clothing items build 42
+ships, 597 have no mesh at all and the rest share a small pool of rigs -- 7
+ride `bob_boilersuit` -- so **a uniform is a 256x256 texture and not a rigging
+job**. Six garments: a one-piece duty uniform on the boilersuit rig and a long
+dress uniform on the judge's robe, which is the only skirted geometry in the
+game carrying both a male and a female model. Three divisions each, both
+bodies, the masks and ground models and blood locations all inherited from the
+vanilla garment that already wears that geometry. Revision 24. `UNIFORMS.md`
+is the working guide.
+
+`tools/gen_uniform.py` writes the textures, the icons, the clothing XML and
+the GUID table from one list, and the textures are painted from each rig's own
+UVs in **world position** -- the EMH's lesson, applied before it could bite
+again. Four new sections of this file came out of it: a garment is reached by
+GUID and an unknown GUID is null; ask the asset which way round it is rather
+than deriving it; one texture on two bodies has to mean the same thing on
+both; and a mutation that does not apply proves nothing.
+
+Sixteen mutations were run one at a time and all sixteen were caught -- but
+only after the harness learned to assert that its own edit had applied, which
+is how the one apparent MISS turned out to be a backslash in the harness
+rather than a hole in a check.
+
+**None of it has been seen in a game**, and the part that most needs one is
+the first: `TREK_Uniform()` in a fresh world, to prove the mod's
+`fileGuidTable.xml` actually merged. Every file can be perfect and every
+uniform still draw nothing, with nothing in the log.
+
 **Next up** is `ROADMAP.md`'s step 7: publishing. Everything on the roadmap is
 built; what is left is playing it. Four systems have never been in a game at
 all, and the two-player session has been pinned for long enough that it is now
@@ -2123,6 +2289,9 @@ TrekShuttle/42/media/lua/client/TREK/TREK_WarpCore.lua         the warp core's m
 TrekShuttle/42/media/lua/client/TREK/TREK_MedKit.lua           the medical set: menus, panels, the sweep
 TrekShuttle/42/media/lua/client/TREK/TREK_EMHUI.lua            the Doctor: his menu, his panel, his light, consent
 TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua             right-click menus, crew
+TrekShuttle/42/media/clothing/clothingItems/*.xml              the six uniforms: vanilla rigs, our textures (generated)
+TrekShuttle/42/media/fileGuidTable.xml                         the GUID each garment is reached by (generated)
+TrekShuttle/42/media/textures/clothes/trek/*.png               the uniform textures (generated)
 tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network
 ```
 

@@ -76,6 +76,222 @@ for icon in sorted(mod_icons):
                         f"expected media/textures/Item_{icon}.png")
 
 
+# --- the wardrobe ------------------------------------------------------
+# A clothing item is a chain of five joins and **every one of them fails
+# without a word**:
+#
+#   item script  ClothingItem = X
+#     -> media/clothing/clothingItems/X.xml        (missing: no visual)
+#     -> a GUID row in media/fileGuidTable.xml     (missing: no visual)
+#     -> m_MaleModel / m_FemaleModel                (missing: no visual)
+#     -> textureChoices                             (missing: no visual)
+#
+# The middle one is the nastiest and is the reason this section exists.
+# `OutfitManager.getClothingItem(guid)` calls `getFilePathFromGuid` and
+# **returns null at bci 12** when the merged table does not know the id, and
+# `ZomboidFileSystem.loadFileGuidTable` wraps each mod's table in a catch that
+# only reaches ExceptionLogger. So a uniform whose GUID row is missing or
+# malformed still equips, still weighs something, still insulates, still gets
+# dirty -- and draws nothing at all. That is the same shape as the unopenable
+# locker, the tap with no water and the weapon model one module away: present,
+# drawn and inert. See DEV_GUIDE, "The jar is not the API".
+CLOTHING_DIR = os.path.join(MOD, "media", "clothing", "clothingItems")
+GUID_TABLE = os.path.join(MOD, "media", "fileGuidTable.xml")
+
+mod_clothing = set(re.findall(r"^\s*ClothingItem\s*=\s*([A-Za-z0-9_]+)\s*,",
+                              script, re.M))
+
+# Everything the installed game ships, so a mod path or GUID cannot collide
+# with one. `FileGuidTable.mergeFrom` is a plain ArrayList.addAll with no
+# de-duplication at all, so a clash is resolved by whichever row is found
+# first -- which is not a thing to leave to chance.
+vanilla_guid_text = ""
+_vg = os.path.join(PZ, "fileGuidTable.xml")
+if os.path.isfile(_vg):
+    vanilla_guid_text = open(_vg, encoding="utf-8", errors="replace").read()
+vanilla_guids = {g.lower() for g in
+                 re.findall(r"<guid>([^<]+)</guid>", vanilla_guid_text)}
+vanilla_guid_paths = {p.strip().lower().replace("\\", "/") for p in
+                      re.findall(r"<path>([^<]+)</path>", vanilla_guid_text)}
+
+# Every mesh and texture the game ships, by lowercased extensionless relative
+# path, because a clothing XML names them with backslashes, in any case, and
+# without an extension.
+def _index(root, exts):
+    found = set()
+    if not os.path.isdir(root):
+        return found
+    for dp, _, fns in os.walk(root):
+        rel = os.path.relpath(dp, root).replace("\\", "/").lower()
+        rel = "" if rel == "." else rel + "/"
+        for fn in fns:
+            stem, ext = os.path.splitext(fn)
+            if ext.lower() in exts:
+                found.add(rel + stem.lower())
+    return found
+
+meshes_available = (_index(os.path.join(PZ, "models_X"), {".x", ".fbx"})
+                    | _index(os.path.join(MOD, "media", "models_X"), {".x", ".fbx"}))
+textures_available = (_index(os.path.join(PZ, "textures"), {".png"})
+                      | _index(os.path.join(MOD, "media", "textures"), {".png"}))
+
+# Both sides of every lookup below get a floor, because a pattern that has
+# stopped matching makes an empty set and *everything* is missing from an
+# empty set -- which is how the dilithium loot check first ran.
+if mod_clothing:
+    if len(vanilla_guids) < 1000:
+        failures.append(f"only {len(vanilla_guids)} GUIDs were read out of the "
+                        f"game's fileGuidTable.xml; the pattern has stopped "
+                        f"matching, so the collision check proves nothing")
+    if len(meshes_available) < 500:
+        failures.append(f"only {len(meshes_available)} meshes were indexed out "
+                        f"of models_X; the clothing model check proves nothing")
+    if len(textures_available) < 500:
+        failures.append(f"only {len(textures_available)} textures were indexed; "
+                        f"the clothing texture check proves nothing")
+
+guid_text = ""
+if os.path.isfile(GUID_TABLE):
+    guid_text = open(GUID_TABLE, encoding="utf-8", errors="replace").read()
+elif mod_clothing:
+    failures.append("the mod declares clothing but has no "
+                    "media/fileGuidTable.xml; every garment would resolve to "
+                    "null and draw nothing (python tools/gen_uniform.py)")
+
+guid_rows = re.findall(r"<files>\s*<path>([^<]+)</path>\s*<guid>([^<]+)</guid>",
+                       guid_text, re.S)
+guid_by_path = {p.strip().replace("\\", "/"): g.strip() for p, g in guid_rows}
+if guid_text and len(guid_rows) != guid_text.count("<files>"):
+    failures.append(f"media/fileGuidTable.xml has {guid_text.count('<files>')} "
+                    f"<files> blocks but only {len(guid_rows)} parsed as a "
+                    f"path/guid pair; the table is malformed and the engine "
+                    f"swallows the exception")
+
+seen_guids = {}
+for name in sorted(mod_clothing):
+    xml_path = os.path.join(CLOTHING_DIR, name + ".xml")
+    if not os.path.isfile(xml_path):
+        failures.append(f"ClothingItem = {name} has no "
+                        f"media/clothing/clothingItems/{name}.xml, so the "
+                        f"garment equips and draws nothing")
+        continue
+    body = open(xml_path, encoding="utf-8-sig", errors="replace").read()
+
+    guid = re.search(r"<m_GUID>([^<]+)</m_GUID>", body)
+    if not guid:
+        failures.append(f"{name}.xml has no m_GUID")
+        continue
+    guid = guid.group(1).strip()
+
+    rel = f"media/clothing/clothingItems/{name}.xml"
+    if rel not in guid_by_path:
+        failures.append(f"media/fileGuidTable.xml has no row for {rel}. "
+                        f"getClothingItem returns null for an id the table "
+                        f"does not know, and the garment draws nothing with "
+                        f"no warning anywhere")
+    elif guid_by_path[rel].lower() != guid.lower():
+        failures.append(f"{name}.xml declares GUID {guid} and the table says "
+                        f"{guid_by_path[rel]}; they must match exactly")
+
+    if guid.lower() in vanilla_guids:
+        failures.append(f"{name}.xml uses GUID {guid}, which the game already "
+                        f"ships. mergeFrom does not de-duplicate, so one of "
+                        f"the two garments would resolve to the other")
+    if guid.lower() in seen_guids:
+        failures.append(f"{name}.xml and {seen_guids[guid.lower()]}.xml share "
+                        f"GUID {guid}")
+    seen_guids[guid.lower()] = name
+    if rel.lower() in vanilla_guid_paths:
+        failures.append(f"{rel} is also a path in the game's own GUID table")
+
+    # A garment needs BOTH bodies, or it is invisible on one of them -- and
+    # that is a character the author may simply never have made.
+    male = re.search(r"<m_MaleModel>([^<]*)</m_MaleModel>", body)
+    female = re.search(r"<m_FemaleModel>([^<]*)</m_FemaleModel>", body)
+    male = (male.group(1) if male else "").strip()
+    female = (female.group(1) if female else "").strip()
+    textures = re.findall(r"<textureChoices>([^<]+)</textureChoices>", body)
+    base_tex = re.findall(r"<m_BaseTextures>([^<]+)</m_BaseTextures>", body)
+
+    if bool(male) != bool(female):
+        failures.append(f"{name}.xml names a model for one sex and not the "
+                        f"other; it would draw on one body and vanish on the "
+                        f"other")
+    if not male and not textures and not base_tex:
+        failures.append(f"{name}.xml names neither a model nor a texture")
+
+    def _norm(ref):
+        ref = ref.strip().lower().replace("\\", "/")
+        for prefix in ("media/models_x/", "media/textures/", "x:"):
+            if ref.startswith(prefix):
+                ref = ref[len(prefix):]
+        return os.path.splitext(ref)[0]
+
+    for ref in (m for m in (male, female) if m):
+        if _norm(ref) not in meshes_available:
+            failures.append(f"{name}.xml names model {ref}, which is not in "
+                            f"models_X; the garment draws nothing")
+    for ref in textures + base_tex:
+        if _norm(ref) not in textures_available:
+            failures.append(f"{name}.xml names texture {ref}, which is not on "
+                            f"disk; the garment draws untextured")
+    for folder in re.findall(r"<m_(?:Underlay)?MasksFolder>([^<]+)</m_(?:Underlay)?MasksFolder>",
+                             body):
+        rel_folder = folder.strip().replace("\\", "/")
+        for root in (PZ, os.path.join(MOD, "media")):
+            candidate = os.path.join(root, *rel_folder.split("/")[1:]) \
+                if rel_folder.startswith("media/") else os.path.join(root, rel_folder)
+            if os.path.isdir(candidate):
+                break
+        else:
+            failures.append(f"{name}.xml names masks folder {folder}, which "
+                            f"is not a directory")
+
+# A GUID row for a file that is not there is the mirror of the above, and just
+# as quiet.
+for rel in sorted(guid_by_path):
+    if not os.path.isfile(os.path.join(MOD, *rel.split("/"))):
+        failures.append(f"media/fileGuidTable.xml has a row for {rel}, which "
+                        f"does not exist")
+
+# Every mod clothing item must sit in a body location the game declares, or it
+# can never be equipped at all.
+BODY_LOC = os.path.join(PZ, "lua", "shared", "NPCs", "BodyLocations.lua")
+if os.path.isfile(BODY_LOC):
+    loc_src = open(BODY_LOC, encoding="utf-8", errors="replace").read()
+    known_locs = {m.lower() for m in
+                  re.findall(r"ItemBodyLocation\.([A-Z_0-9]+)", loc_src)}
+    if len(known_locs) < 20:
+        failures.append("BodyLocations.lua parsed fewer than 20 locations; "
+                        "the check proves nothing")
+    else:
+        for loc in re.findall(r"^\s*BodyLocation\s*=\s*base:([A-Za-z0-9_]+)\s*,",
+                              script, re.M):
+            if loc.lower().replace("_", "") not in {k.replace("_", "")
+                                                    for k in known_locs}:
+                failures.append(f"BodyLocation = base:{loc} is not a location "
+                                f"the game declares; the garment cannot be "
+                                f"worn")
+
+# ROADMAP2 1.4: "no arbitrary stat bonus or armour-like protection". Vanilla's
+# Boilersuit -- the block the duty uniform was copied from -- carries
+# ScratchDefense = 10, and a defence stat that rides along because it was in
+# the source block is exactly the "better than intended" item DEV_GUIDE warns
+# about in "A convenience method is a bundle of writes somebody else chose".
+# Insulation is not armour and is deliberately allowed.
+_cl_chunks = re.split(r"^\s*item\s+([A-Za-z0-9_]+)\s*$", script, flags=re.M)
+for _name, _body in zip(_cl_chunks[1::2], _cl_chunks[2::2]):
+    if not re.search(r"^\s*ClothingItem\s*=", _body, re.M):
+        continue
+    for stat in ("ScratchDefense", "BiteDefense", "BulletDefense",
+                 "NeckProtectionModifier"):
+        if re.search(rf"^\s*{stat}\s*=", _body, re.M):
+            failures.append(
+                f"{_name} sets {stat}. ROADMAP2 1.4 says the uniform carries "
+                f"no armour-like protection; vanilla's Boilersuit has "
+                f"ScratchDefense = 10 and it must not be copied across.")
+
+
 # --- the mod's own sounds ----------------------------------------------
 # `playSoundLocal("TREK_HypoHiss")` on a name no script declares, or a script
 # naming a .wav that is not on disk, both do exactly nothing and say exactly

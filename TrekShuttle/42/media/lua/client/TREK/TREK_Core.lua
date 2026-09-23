@@ -611,6 +611,11 @@ function TREK_Ghosts()  return debugCommand("ghosts") end
 -- any cure that is running -- and whether he is actually standing there, as
 -- against what the ship believes.
 function TREK_EMH()     return debugCommand("emh") end
+--- Whether each uniform's ClothingItem actually resolved through the GUID
+--- table. The static tests prove the files agree with each other; only this
+--- proves the *engine* found them, and a uniform that did not resolve wears
+--- perfectly and draws nothing.
+function TREK_Uniform() return debugCommand("uniform") end
 function TREK_Charges() return debugCommand("charges") end
 
 --- TREK_Room(): whether the shuttle could set down where you are standing,
