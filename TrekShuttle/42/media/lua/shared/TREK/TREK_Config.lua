@@ -25,7 +25,27 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 24
+C.BuildRev = 26
+
+---------------------------------------------------------------------------
+-- The tape shelf
+---------------------------------------------------------------------------
+--- The tapes on the shelf beside the television, and the item they all are.
+---
+--- One item type carries every tape: a tape's name in the inventory comes
+--- from its MediaData rather than from the item script, so seventeen stories
+--- do not mean seventeen item scripts. `TrekTape`'s own DisplayName is "Blank
+--- Tape", which is what a tape with no recording attached reads as -- and a
+--- shelf of blank tapes is exactly the failure this system can produce
+--- silently, so it is worth being able to see.
+---
+--- Which tapes the ship is issued with is **not** here. It is `TREK_TapeIds`
+--- in TREK_Tapes.lua, which the generator writes beside the tapes themselves,
+--- because a second list in a second file is a list that goes stale. See
+--- LORE.md and tools/gen_tapes.py.
+C.TapeItem     = "TrekShuttle.TrekTape"
+C.TapeType     = "TrekTape"
+C.TapeCategory = "Trek-VHS"
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false

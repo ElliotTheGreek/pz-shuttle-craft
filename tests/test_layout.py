@@ -277,7 +277,10 @@ for name, (own, squares, named) in menus.items():
 # list and never says a word, which is how the sick-bay locker would quietly
 # stop carrying a tricorder.
 src = open(BUILD, encoding="utf-8").read()
-rules = set(re.findall(r"^\s{4}(\w+)\s*=\s*\{ items =", src, re.M))
+# A rule is either `{ items = ... }` or `{ stock = <function> }` -- the
+# tape shelf owns its own pass, because every tape is one item type and
+# "one of each type landed" is not the guarantee it needs.
+rules = set(re.findall(r"^\s{4}(\w+)\s*=\s*\{ (?:items|stock) =", src, re.M))
 if not rules:
     failures.append("no SPECIALS table found in TREK_Build.lua")
 authored = {n for e in entries for n in e["special"]}
@@ -328,7 +331,8 @@ for lx, ly in lamps:
 GLYPH = {"console": "T", "tvConsole": "t", "television": "V", "chair": "h",
          "fridge": "F", "oven": "o", "counter": "c", "sink": "w",
          "microwave": "m", "armoury": "A", "dilithium": "D",
-         "provisions": "p", "medical": "M", "emhPanel": "E", "biobed": "B"}
+         "provisions": "p", "medical": "M", "emhPanel": "E", "biobed": "B",
+         "tapes": "L"}
 grid = {}
 for e in entries:
     grid.setdefault((e["x"], e["y"]), []).append(e["tag"])
@@ -364,7 +368,7 @@ print("\n   @ transporter pad   T monitor wall   V television")
 print("   t tv console   h crew seat   F fridge   o oven   c counter")
 print("   w sink   m microwave   R the replicator (a world model)")
 print("   A armoury   p rations   M sick bay   E EMH panel   B biobed")
-print("   D the warp core (a world model)")
+print("   D the warp core (a world model)   L the tape shelf")
 print("   H where the EMH stands when he is projected (kept clear)")
 print("   * lamp      . open deck")
 

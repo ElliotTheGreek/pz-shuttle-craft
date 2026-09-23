@@ -308,6 +308,12 @@ class Net:
     def start(self):
         for rt in self.all():
             rt.load()
+        # The engine registers recorded media before anything asks for a
+        # tape's recording, and it does it in every process. Doing it here
+        # rather than inside a tape test is deliberate: the tape shelf is
+        # stocked during the cabin build, which every suite in this file runs.
+        for rt in self.all():
+            rt.run("SIM.initRecordedMedia()")
         for rt in self.all():
             rt.fire("OnInitGlobalModData", False)
         self.pump(2)
@@ -1620,11 +1626,11 @@ def refit():
     # would delete the cabin's own lockers and their stock -- silently, and
     # only in somebody's existing save.
     containers, stocked, _, wanted = cabin_objects(rt)
-    # Eight: the galley's five and the three stocked lockers. Neither of the
-    # ship's two machines is among them -- the replicator stood on a counter
-    # once and the warp core was a tool cabinet, and both of those were
-    # fixtures leaning on other fixtures.
-    check(containers == 8 and stocked == wanted,
+    # Nine: the galley's five, the three stocked lockers and the tape shelf.
+    # Neither of the ship's two machines is among them -- the replicator stood
+    # on a counter once and the warp core was a tool cabinet, and both of those
+    # were fixtures leaning on other fixtures.
+    check(containers == 9 and stocked == wanted,
           f"refit: the sweep ate the new cabin -- {containers} containers "
           f"left, {stocked} of {wanted} still stocked")
 
@@ -5710,11 +5716,109 @@ def contact_reveal():
           "player's own map, once per contact")
 
 
+def tapes():
+    """The tape shelf: a row of cassettes that each carry their own recording.
+
+    The one failure this exists for is a **blank tape**. Every tape in the
+    shelf is the same item type, so a shelf of the right size, drawn, openable
+    and full of cassettes is indistinguishable from a working one until each
+    tape is asked what recording it is carrying -- and a tape with none goes
+    into the television and does nothing, with nothing in any log. That is the
+    same shape as the empty lockers and the uniform whose GUID never resolved,
+    and it gets the same answer: read the result back off the object.
+    """
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    rt.run("TREK.Transport.beamUp(SIM.players[1])")
+    net.pump(180)
+    if died(rt, "tapes, beaming up"):
+        return
+
+    listed = str(rt.eval('table.concat(TREK_TapeIds or {}, ",")'))
+    ids = [i for i in listed.split(",") if i]
+    check(len(ids) > 0, "tapes: TREK_Tapes.lua registered no tape ids at all")
+
+    # Every id in the shelf's list is a recording the engine actually holds.
+    # An id in one file and not the other is a blank tape, and the generator
+    # writes both -- so this is the check that the generator was run.
+    for tape_id in ids:
+        known = rt.eval('SIM.recordedMedia():getMediaData("%s") ~= nil' % tape_id)
+        check(known is True,
+              f"tapes: nothing is registered as {tape_id}, so its tape is blank")
+
+    # The shelf, found by its tag rather than by its coordinates, because the
+    # square is the layout's business and this is not the test that owns it.
+    held = rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        for ox = 0, C.CabinW do for oy = 0, C.CabinL do
+            local x, y = U.at(ox, oy)
+            local sq = SIM.rawSquare(x, y, C.CabinZ)
+            for _, o in ipairs(sq.objects) do
+                if o.modData and o.modData.TREK == "tapes" and o.container then
+                    local blank, titles = 0, {}
+                    for _, it in ipairs(o.container.items) do
+                        if it:getFullType() == C.TapeItem then
+                            local d = it:getMediaData()
+                            if d then table.insert(titles, d:getId())
+                            else blank = blank + 1 end
+                        end
+                    end
+                    return #titles, blank, table.concat(titles, ",")
+                end
+            end
+        end end
+        return -1, -1, ""
+    end)()""")
+    labelled, blank, titles = int(held[0]), int(held[1]), str(held[2])
+
+    check(labelled >= 0, "tapes: no container tagged 'tapes' in the cabin at all")
+    check(labelled == len(ids),
+          f"tapes: the shelf holds {labelled} labelled tapes and the ship "
+          f"carries {len(ids)} recordings")
+    check(blank == 0, f"tapes: {blank} blank tape(s) in the shelf")
+    for tape_id in ids:
+        check(tape_id in titles,
+              f"tapes: no tape in the shelf is carrying {tape_id}")
+
+    # A second build must not re-label the tapes the crew is already watching,
+    # and must not hand out a second set. The pass runs on every arrival, so
+    # "it is safe to run twice" is not a nicety.
+    rt.run("TREK.Build.buildCabin()")
+    again = rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        for ox = 0, C.CabinW do for oy = 0, C.CabinL do
+            local x, y = U.at(ox, oy)
+            local sq = SIM.rawSquare(x, y, C.CabinZ)
+            for _, o in ipairs(sq.objects) do
+                if o.modData and o.modData.TREK == "tapes" and o.container then
+                    local n = 0
+                    for _, it in ipairs(o.container.items) do
+                        if it:getFullType() == C.TapeItem then n = n + 1 end
+                    end
+                    return n
+                end
+            end
+        end end
+        return -1
+    end)()""")
+    check(int(again) == len(ids),
+          f"tapes: a second build left {int(again)} tapes in a shelf that "
+          f"should hold {len(ids)}")
+
+    for w in rt.warnings():
+        fail(f"tapes: {w}")
+
+    print("tapes: the shelf is stocked, every tape carries its own registered "
+          "recording, none is blank, and building twice neither re-labels them "
+          "nor hands out a second set")
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_endings,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, contact_world,
-            contact_reveal, multiplayer)
+            contact_reveal, tapes, multiplayer)
 
 
 def main():

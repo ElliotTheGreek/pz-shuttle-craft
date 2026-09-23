@@ -68,13 +68,131 @@ for block in re.finditer(r"model\s+\w+\s*\{(.*?)\}", script, re.S):
 
 # Every icon a mod item names has to exist as a file. A missing one shows as a
 # blank square in the inventory and reports nothing anywhere.
+# An icon may also be *borrowed* from vanilla, the way the phaser borrows
+# vanilla models -- which cannot be checked against the filesystem, because
+# vanilla's item icons live inside media/texturepacks/*.pack and are not loose
+# files. What is checkable is the name: a borrowed icon has to be one a vanilla
+# item script actually declares. A typo'd borrow draws a blank square and
+# reports nothing, exactly like a missing file.
+VANILLA_ICONS = set()
+for dp, _, fns in os.walk(os.path.join(PZ, "scripts")):
+    for fn in fns:
+        if fn.endswith(".txt"):
+            VANILLA_ICONS |= set(re.findall(
+                r"^\s*Icon\s*=\s*([A-Za-z0-9_]+)\s*,",
+                open(os.path.join(dp, fn), encoding="utf-8", errors="replace").read(),
+                re.M))
+# Both sides of a lookup need a floor: an empty vanilla set would make every
+# borrow "valid" for as long as the path stayed wrong.
+if len(VANILLA_ICONS) < 200:
+    failures.append(f"only {len(VANILLA_ICONS)} vanilla icon names were read out "
+                    f"of the game's scripts, so the borrowed-icon check is not "
+                    f"checking anything")
+    VANILLA_ICONS = set()
+
 for icon in sorted(mod_icons):
     candidates = [os.path.join(MOD, "media", "textures", f"Item_{icon}.png"),
                   os.path.join(MOD, "media", "ui", f"{icon}.png")]
+    if icon in VANILLA_ICONS:
+        continue
     if not any(os.path.exists(p) for p in candidates):
-        failures.append(f"trekshuttle.txt: Icon = {icon} has no texture; "
-                        f"expected media/textures/Item_{icon}.png")
+        failures.append(f"trekshuttle.txt: Icon = {icon} is neither the mod's own "
+                        f"nor an icon any vanilla item declares; expected "
+                        f"media/textures/Item_{icon}.png")
 
+
+
+# --- the tape shelf ----------------------------------------------------
+# A tape is two generated files that have to agree: the RecMedia table names
+# translation keys and Recorded_Media.json holds the text. Both come out of
+# tools/gen_tapes.py, so what this really checks is that the generator was run
+# after the last edit -- and each failure below is a thing the player sees or
+# silently does not get.
+TAPES_LUA = os.path.join(MOD, "media", "lua", "shared", "TREK", "TREK_Tapes.lua")
+TAPES_JSON = os.path.join(MOD, "media", "lua", "shared", "Translate", "EN",
+                          "Recorded_Media.json")
+if not os.path.isfile(TAPES_LUA):
+    failures.append("TREK_Tapes.lua is missing; run tools/gen_tapes.py")
+elif not os.path.isfile(TAPES_JSON):
+    failures.append("Translate/EN/Recorded_Media.json is missing; run "
+                    "tools/gen_tapes.py")
+else:
+    tapes_src = open(TAPES_LUA, encoding="utf-8").read()
+    tape_text = json.load(open(TAPES_JSON, encoding="utf-8"))
+    used = re.findall(r'"(RM_[A-Za-z0-9_]+)"', tapes_src)
+
+    # Both sides need a floor, or an empty read makes everything agree.
+    if len(used) < 10 or len(tape_text) < 10:
+        failures.append(f"only {len(used)} tape keys and {len(tape_text)} strings "
+                        f"were read, so the tape checks are not checking anything")
+    else:
+        # A key with no text prints itself on screen, in the subtitle, at size.
+        for key in sorted(set(used)):
+            if key not in tape_text:
+                failures.append(f"tape key {key} has no text in "
+                                f"Recorded_Media.json, so the key itself is what "
+                                f"the player reads")
+        for key in sorted(tape_text):
+            if key not in used:
+                failures.append(f"Recorded_Media.json has {key} and no tape uses "
+                                f"it")
+
+        # A line's identity for "has this player heard it" is its key, so two
+        # lines sharing one make the second **inert** -- its codes never fire
+        # again for that character. The generator derives keys so this cannot
+        # happen; the check is here because the consequence is invisible.
+        line_keys = re.findall(r'\{ text = "(RM_[A-Za-z0-9_]+)"', tapes_src)
+        dupes = sorted({k for k in line_keys if line_keys.count(k) > 1})
+        for key in dupes:
+            failures.append(f"two tape lines share the key {key}; the second one "
+                            f"is silently inert once the first has been heard")
+
+        # Every code has to parse the way ISRadioInteractions parses it: a
+        # three-letter name it knows, an operator, a number, and a token longer
+        # than four characters. A typo is ignored by the engine in silence.
+        INTERACT = os.path.join(PZ, "lua", "shared", "RadioCom",
+                                "ISRadioInteractions.lua")
+        known = set()
+        if os.path.isfile(INTERACT):
+            known = set(re.findall(r"^Interactions\.(\w{3})\s*=", 
+                                   open(INTERACT, encoding="utf-8").read(), re.M))
+        if len(known) < 20:
+            failures.append(f"only {len(known)} line-effect codes were read out of "
+                            f"the game's ISRadioInteractions.lua, so the code "
+                            f"check is not checking anything")
+        else:
+            known.add("RCP")
+            for codes in re.findall(r'codes = "([^"]*)"', tapes_src):
+                for token in codes.split(","):
+                    if len(token) <= 4:
+                        failures.append(f"tape line code {token!r} is four "
+                                        f"characters or fewer, and the engine "
+                                        f"only parses longer tokens")
+                        continue
+                    name, op = token[:3], token[3]
+                    if name not in known:
+                        failures.append(f"tape line code {token!r} names {name}, "
+                                        f"which ISRadioInteractions does not know")
+                    elif op not in "+-=":
+                        failures.append(f"tape line code {token!r} has no +, - or "
+                                        f"= where the operator belongs")
+                    elif name != "RCP":
+                        try:
+                            float(token[4:])
+                        except ValueError:
+                            failures.append(f"tape line code {token!r} has no "
+                                            f"number after the operator")
+
+        # A line's time on screen is proportional to its length
+        # (DeviceData.updateMediaPlaying: length / 10 * 60, clamped), so a
+        # paragraph is one subtitle that sits there for a very long time.
+        long_lines = [(k, v) for k, v in tape_text.items()
+                      if re.search(r"_\d\d$", k) and len(v) > 75]
+        for key, value in sorted(long_lines):
+            failures.append(f"tape line {key} is {len(value)} characters; it will "
+                            f"sit on screen far too long ({value[:40]}...)")
+
+    print(f"  tapes: {len(set(used))} keys, {len(tape_text)} strings")
 
 # --- the wardrobe ------------------------------------------------------
 # A clothing item is a chain of five joins and **every one of them fails

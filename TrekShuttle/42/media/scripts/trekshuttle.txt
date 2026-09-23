@@ -221,6 +221,39 @@ module TrekShuttle
         Tooltip = Tooltip_TREK_Dilithium,
     }
 
+    /*  A tape off the shelf beside the television.
+
+        MediaCategory is the whole of it. RecordedMedia.getMediaTypeForCategory
+        is four instructions long -- "cds" is media type 0 and every other
+        string is type 1, the tape type -- so a category of our own is accepted
+        by the cabin's television (Base.TvWideScreen, AcceptMediaType = 1)
+        without touching vanilla's own VHS pools.
+
+        One item type carries every tape in the shelf, because the *name* a
+        tape shows in the inventory comes from its MediaData
+        (getTranslatedItemDisplayName) and not from this script. So the shelf
+        reads as a row of labelled tapes and there is one item to maintain.
+        DisplayName is the fallback for a tape with no recording on it, which
+        is a bug, and it says so.
+
+        The icon and models are vanilla's, and that is the fiction rather than
+        a shortcut: the pilot picked up a period television as a surface
+        artifact, worked out what else it would play, and dubbed her
+        collection onto tapes from the same planet. These are 1990s cassettes.
+        tests/test_assets.py checks every borrowed vanilla name.  */
+    item TrekTape
+    {
+        DisplayCategory = Entertainment,
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Blank Tape,
+        Icon = Cassette3,
+        Weight = 0.5,
+        MediaCategory = Trek-VHS,
+        WorldStaticModel = VHSBox3,
+        Tooltip = Tooltip_TREK_Tape,
+    }
+
     sound TREK_PhaserPulse
     {
         category = Weapon,

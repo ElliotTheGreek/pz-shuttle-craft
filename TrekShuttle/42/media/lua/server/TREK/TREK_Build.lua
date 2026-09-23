@@ -546,7 +546,111 @@ end
 --- U.stockEach is the one that reads the container back and says what did not
 --- land, which is the whole reason these are listed rather than left to the
 --- fill: a guarantee that is not checked is not a guarantee.
+--- The shelf beside the television: one tape per story the ship carries.
+---
+--- This one cannot go through U.stockEach, and the reason is worth stating
+--- because it is not obvious: stockEach proves a guarantee landed by counting
+--- `getFullType()`, and **every tape is the same item type**. Four tapes and
+--- forty tapes are indistinguishable by that measure, so the guarantee it
+--- offers is no guarantee at all here. What has to be counted is the
+--- *recording* on each one.
+---
+--- So the pass is: add one tape per id, then walk the container and give each
+--- blank tape the next recording. Assigning only to blank tapes is what makes
+--- it safe to run twice -- a rebuild does not re-label tapes the crew has
+--- already been watching, and a tape somebody carried off does not shuffle the
+--- rest along.
+---
+--- And it reads the result back, because a tape with no MediaData is the
+--- seventh face of *present, drawn and inert* in DEV_GUIDE: it sits in the
+--- shelf, it goes into the television, and nothing happens, with nothing in
+--- the log. The line that proves it worked is the point of the whole function.
+local function stockTapes(obj)
+    local ids = TREK_TapeIds
+    if type(ids) ~= "table" or #ids == 0 then
+        U.warnOnce("tapes:none", "no TREK_TapeIds -- TREK_Tapes.lua did not load")
+        return 0
+    end
+
+    local container = U.containerOf(obj)
+    if not container then return 0 end
+
+    local present = U.stockEach(obj, { C.TapeItem }, #ids)
+    local held = present[C.TapeItem] or 0
+    if held < #ids then
+        U.log("WARN tape shelf holds %d of %d tapes", held, #ids)
+    end
+
+    -- getZomboidRadio() has vanilla call sites in server/radio/, which is the
+    -- evidence that the authority may ask it at all; if it ever answers
+    -- nothing the tapes stay blank and say so rather than throwing.
+    local media = U.try("recordedMedia", function()
+        return getZomboidRadio():getRecordedMedia()
+    end)
+    if not media then
+        U.warnOnce("tapes:registry",
+                   "no RecordedMedia on the authority; tapes left blank")
+        return held
+    end
+
+    local next_id = 1
+    U.try("labelTapes", function()
+        local items = container:getItems()
+        if not items then return end
+        for i = 0, items:size() - 1 do
+            local it = items:get(i)
+            if it and it:getFullType() == C.TapeItem and next_id <= #ids then
+                local blank = true
+                pcall(function() blank = it:getMediaData() == nil end)
+                if blank then
+                    local id = ids[next_id]
+                    local data = nil
+                    pcall(function() data = media:getMediaData(id) end)
+                    if data then
+                        pcall(function() it:setRecordedMediaData(data) end)
+                    else
+                        U.log("WARN no recording registered as %s", tostring(id))
+                    end
+                    next_id = next_id + 1
+                end
+            end
+        end
+    end)
+
+    -- Read it back off the items themselves. Every way this fails leaves a
+    -- plausible tape, so the only answer that cannot lie is asking each one
+    -- what recording it is carrying.
+    U.try("tapeReport", function()
+        local items = container:getItems()
+        if not items then return end
+        local labelled, blanks = 0, 0
+        for i = 0, items:size() - 1 do
+            local it = items:get(i)
+            if it and it:getFullType() == C.TapeItem then
+                local title = nil
+                pcall(function()
+                    local d = it:getMediaData()
+                    if d then title = d:getTitleEN() or d:getId() end
+                end)
+                if title then
+                    labelled = labelled + 1
+                    U.log("tape: %s", tostring(title))
+                else
+                    blanks = blanks + 1
+                end
+            end
+        end
+        U.log("tape shelf: %d labelled, %d blank", labelled, blanks)
+        if blanks > 0 then
+            U.log("WARN %d blank tape(s) in the shelf", blanks)
+        end
+    end)
+
+    return held
+end
+
 local SPECIALS = {
+    tapes   = { stock = stockTapes },
     phasers = { items = { C.PhaserItem }, copies = function() return C.PhaserCount end },
     medkit  = { items = { C.HyposprayItem, C.DermalRegenItem,
                           C.MedTricorderItem, C.TricorderItem },
@@ -577,6 +681,10 @@ local function stockAuthored(obj, entry)
         if not special then
             U.warnOnce("special:" .. tostring(name),
                        "no special stock rule named " .. tostring(name))
+        elseif special.stock then
+            -- A rule that owns its own pass, because what it has to guarantee
+            -- is not "one of each item type" -- see stockTapes.
+            added = added + (special.stock(obj) or 0)
         else
             local copies = special.copies()
             local present = U.stockEach(obj, special.items, copies)

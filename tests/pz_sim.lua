@@ -103,6 +103,95 @@ Events = setmetatable({}, { __index = function(self, name)
     return ev
 end })
 
+---------------------------------------------------------------------------
+-- The radio, and the recorded media on it
+---------------------------------------------------------------------------
+-- getZomboidRadio():getRecordedMedia() is how anything reaches a tape's
+-- recording. It is stubbed here rather than left nil because the authority
+-- asks it while stocking the tape shelf, and vanilla has server-side call
+-- sites for it (server/radio/ISDynamicRadio.lua) which is the evidence that
+-- it may.
+--
+-- Two things this models on purpose:
+--
+--  * **getMediaData answers nil for an id nobody registered.** That is the
+--    engine's answer and it is the one that matters: a tape pointed at a
+--    recording that was never registered is a blank tape, and a stub that
+--    invented one would hide the whole class of fault.
+--  * **register refuses a duplicate id, loudly.** The real sequence is that
+--    vanilla's ISRecordedMedia walks RecMedia *and then* the engine fires
+--    OnInitRecordedMedia, so anything of ours listening to that event runs
+--    second and can register the same id twice. SIM.initRecordedMedia does
+--    both halves in that order, so a handler without a guard fails here
+--    instead of in somebody's save.
+local RecordedMediaSim = { data = {} }
+
+function RecordedMediaSim:getMediaData(id) return self.data[id] end
+
+function RecordedMediaSim:getCategories()
+    local seen, out = {}, {}
+    for _, d in pairs(self.data) do
+        if not seen[d.category] then
+            seen[d.category] = true
+            table.insert(out, d.category)
+        end
+    end
+    return jlist(out)
+end
+
+function RecordedMediaSim:register(category, id, display, spawning)
+    if self.data[id] then
+        error("recorded media registered twice: " .. tostring(id), 0)
+    end
+    local d = {
+        id = id, category = category, display = display,
+        spawning = spawning or 0, lines = {},
+        title = nil, subtitle = nil, author = nil, extra = nil,
+    }
+    function d:getId() return self.id end
+    function d:getCategory() return self.category end
+    function d:getTitleEN() return self.title end
+    function d:getLineCount() return #self.lines end
+    function d:setTitle(v) self.title = v end
+    function d:setSubtitle(v) self.subtitle = v end
+    function d:setAuthor(v) self.author = v end
+    function d:setExtra(v) self.extra = v end
+    function d:addLine(text, r, g, b, codes)
+        table.insert(self.lines, { text = text, r = r, g = g, b = b, codes = codes })
+    end
+    self.data[id] = d
+    return d
+end
+
+function getZomboidRadio()
+    return { getRecordedMedia = function() return RecordedMediaSim end }
+end
+
+--- The engine's own order: vanilla's registration walk, then the event.
+function SIM.initRecordedMedia()
+    local table_ = rawget(_G, "RecMedia")
+    if type(table_) == "table" then
+        local ids = {}
+        for k in pairs(table_) do table.insert(ids, k) end
+        table.sort(ids)
+        for _, id in ipairs(ids) do
+            local v = table_[id]
+            local d = RecordedMediaSim:register(v.category, id,
+                                                v.itemDisplayName, v.spawning or 0)
+            d:setTitle(v.title)
+            d:setSubtitle(v.subtitle)
+            d:setAuthor(v.author)
+            d:setExtra(v.extra)
+            for _, j in ipairs(v.lines or {}) do
+                d:addLine(j.text, j.r, j.g, j.b, j.codes)
+            end
+        end
+    end
+    SIM.fire("OnInitRecordedMedia", RecordedMediaSim)
+end
+
+function SIM.recordedMedia() return RecordedMediaSim end
+
 function SIM.fire(name, ...)
     local ev = rawget(Events, name)
     if not ev then return end
@@ -145,6 +234,17 @@ function instanceItem(id)
             getTextureChoices = function() return jlist({ entry.texture }) end,
         }
     end
+
+    -- The recorded-media half. A fresh tape carries **no recording** -- the
+    -- engine's index is -1 until something sets it -- and that is the whole
+    -- failure this has to be able to express: a blank tape sits in the shelf,
+    -- goes into the television and does nothing, with nothing in any log. A
+    -- stub that answered a table here would make the tape shelf untestable in
+    -- exactly the direction that matters.
+    function it:getMediaData() return self.mediaData end
+    function it:setRecordedMediaData(data) self.mediaData = data end
+    function it:setRecordedMediaIndexInteger(n) self.mediaIndex = n end
+    function it:isRecordedMedia() return self.mediaData ~= nil end
 
     function it:getWorldZRotation() return self.worldZRotation end
     function it:setWorldZRotation(v) self.worldZRotation = v end
@@ -446,6 +546,12 @@ function ObjectMT:createContainersFromSpriteProperties()
        or self.spriteName:find("refrigeration") or self.spriteName:find("cooking")
        or self.spriteName:find("medical") or self.spriteName:find("shelving")
        or self.spriteName:find("military") or self.spriteName:find("machinery")
+       -- The tape rack: location_shop_generic_01_1, a video-shop display.
+       -- Nothing in its name resembles any of the words above, which is the
+       -- dilithium chamber's fault exactly -- the rack would have been placed
+       -- and never stocked, and every tape check would have failed against a
+       -- feature that worked.
+       or self.spriteName:find("shop_generic")
        or self.spriteName:find("CONTAINER") then
         self.container = SIM.container(40)
         self.container.parentObject = self

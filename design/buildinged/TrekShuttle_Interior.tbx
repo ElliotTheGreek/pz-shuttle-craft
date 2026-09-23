@@ -830,9 +830,17 @@
    <tile x="0" y="0" name="industry_01_015" />
   </entry>
  </furniture>
+ <furniture>
+  <entry orient="N">
+   <tile x="0" y="0" name="location_shop_generic_01_001" />
+  </entry>
+  <entry orient="W">
+   <tile x="0" y="0" name="location_shop_generic_01_000" />
+  </entry>
+ </furniture>
  <user_tiles />
  <used_tiles>1 2 3 4 11 12 10 13 14 15 17 16 18 19 20 22 23 24 25 27 26 29 28 30 31 32 33 34 36 35 7 8 9 6 5 21</used_tiles>
- <used_furniture>14 15 16 6 17 18 19 7 0 20 21 22 3 23 24 25 26 12 1 27 28 29 30 2 4 5 31 8 9 10 11 13 32</used_furniture>
+ <used_furniture>14 15 16 6 17 18 19 7 0 20 21 22 3 23 24 25 26 12 1 27 28 29 30 2 4 5 31 8 9 10 11 13 32 33</used_furniture>
  <room Name="Shuttle Interior" InternalName="livingroom" Color="72 132 160" InteriorWall="21" InteriorWallTrim="0" Floor="5" GrimeFloor="0" GrimeWall="0" />
  <floor>
   <rooms>
@@ -848,7 +856,7 @@
 </rooms>
  <object type="furniture" FurnitureTiles="1" orient="N" x="0" y="0" />
   <object type="furniture" FurnitureTiles="1" orient="N" x="1" y="0" />
-  <object type="furniture" FurnitureTiles="1" orient="N" x="2" y="0" />
+  <object type="furniture" FurnitureTiles="33" orient="N" x="2" y="0" />
   <object type="furniture" FurnitureTiles="1" orient="N" x="3" y="0" />
   <object type="furniture" FurnitureTiles="2" orient="N" x="1" y="0" />
   <object type="furniture" FurnitureTiles="3" orient="N" x="1" y="0" />

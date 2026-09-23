@@ -35,18 +35,51 @@ This is the cheapest large feature left in the project by a wide margin, and it
 is the only one that adds nothing the player has to learn: they already know
 what a television and a videotape are.
 
-### The framing
+---
 
-A Starfleet shuttle has no VHS deck and the ship's library is not on tape. The
-conceit — and it wants stating once, in the first tape, and then never
-explained again — is that the cabin's **only** display is a twentieth-century
-television, so the computer dubs what it is asked for onto the only medium that
-screen will accept. Hence the tracking lines, hence the shelf, hence the
-handwritten labels on the ones that were not dubbed by anybody.
+## 1a. The canon
 
-That framing does three useful things: it explains the medium, it explains why
-the tapes are *in the room* rather than in a menu, and it lets the shelf hold
-genuine 1993 Earth tapes alongside Starfleet ones without a seam.
+Settled 2026-09-23 and binding on everything below. Four facts, and each one
+pays for something the mod could not previously explain.
+
+**The era is two generations on.** The mod is set roughly **forty to sixty
+years after** TNG, Deep Space Nine and Voyager. Every Starfleet tape in the
+shelf is therefore a fifty-odd-year-old recording of people who are history to
+the pilot who collected them, and nobody aboard is contemporary with anybody on
+the tapes. This is what makes the shelf an *archive* rather than a diary, and
+it is why a talent night from stardate 44390.7 is a fifty-eight-year-old
+curiosity rather than last month's party.
+
+**The pilot is a historian by temperament.** She is a Starfleet officer on an
+observation posting, and privately a buff — Starfleet history, and family
+histories above all. That is the entire reason the shelf exists: the tapes are
+*her collection*, not the ship's library, and it is why the bow of a shuttle
+has a row of somebody's favourite recordings in it.
+
+**The television is an anthropological artifact, and that is why it is aboard.**
+This is the piece the mod has never accounted for: a Starfleet shuttle does not
+ship with a 1993 television. She acquired the set and its tape deck *as
+specimens* — the world she was sent to observe is so implausibly close to
+Earth's own 1990s that the hardware is itself the finding — logged them as
+surface artifacts, and then worked out what else the machine would play. The
+collection followed the machine. So the tapes are genuine period cassettes with
+her handwriting on them, which is also why the item borrows vanilla's cassette
+icon and VHS box model rather than having art of its own.
+
+**Tuvix has descendants, and one of them knew the pilot.** The line is on the
+Voyager side: a lower-decks Betazoid crewman and Tuvix, in the eighteen days he
+existed; their daughter, three ways split between Talaxian, Vulcan and Betazoid,
+who was never in Starfleet; and *her* child, who was — and who was a friend of
+the pilot's. That friendship is why a family-history assignment made by somebody
+else's grandchild is sitting on this shuttle's shelf at all, and it is the hook
+that ties the first tape to the last one.
+
+### What the framing buys
+
+It explains the medium, it explains why the tapes are *in the room* rather than
+in a menu, it lets the shelf hold genuine 1993 Earth tapes alongside Starfleet
+ones without a seam — and it gives the collection an owner, which is the thing
+that turns a list of stories into somebody's shelf.
 
 ---
 
@@ -233,44 +266,70 @@ The bow row is `y = 0`. The deck plan today:
   5 R.@B
 ```
 
-**The shelf goes at 2,0, as a wall object, and costs no deck square.**
-`furniture_shelving_01_28` out of `tools/_catalog/tiles.json`:
+**The rack goes at 2,0: `location_shop_generic_01_1`, a video-shop display.**
+Chosen for the silhouette — the brief was that it should look like the thing a
+rental shop keeps tapes in — and out of `tools/_catalog/tiles.json`:
 
 ```
-ContainerCapacity 30    container metal_shelves    MoveType WallObject
-Facing S    attachedN    ContainerPosition High    CustomName Shelves
-(no `solid`, no `solidtrans`)
+ContainerCapacity 20    container shelves    CustomName Shelves
+GroupName "Comics Shop"    Facing S    solidtrans
 ```
 
-That is the sprite `DEV_GUIDE.md` already lists under *Half the tileset does
-not block its square*, and `Facing S` / `attachedN` is the same orientation the
-four monitor banks on that row already use — it hangs on the bow bulkhead.
+Rows of things stood face-out, and `Facing S` is the way the bow bulkhead's
+monitor banks and the television already face, so it sits against the forward
+wall rather than at an angle to it.
 
-Two things this choice is deliberately avoiding:
+**It is the only sprite in the game that reads as a media rack in one square.**
+Everything else is two tiles: both Rental groups
+(`location_entertainment_theatre_01_120..135`, the actual video-store racks) and
+both magazine shelves carry `SpriteGridPos` pairs, and the bow row has no two
+adjacent free squares — 1,0 is the television and 3,0 is the armoury. The
+Fossoil magazine shelf is the near miss and is worth remembering: two tiles, but
+**non-blocking**, and from the same tileset as the cabin's own walls.
 
-- **It must not be a floor-standing container at 2,0.** 2,0 is the only square
-  a player can stand on to open the **armoury** at 3,0 (3,1 and 3,2 are the
-  other two lockers). Block it and the ship's sidearms, blades and uniforms are
-  reachable only diagonally — the sort of quiet degradation that would be
-  blamed on something else a month later.
-- **It must not be the television's own table.** `furniture_tables_low_01_3` is
-  `solidtrans` and carries **no** `container` property, so the obvious "shelf
-  under the telly" is not a container at all. That is *A comment is not a
-  container: check what the sprite actually is*, avoided by looking it up
-  first.
+**It blocks its square, and that costs one thing.** 2,0 was the only square a
+player could stand on to open the **armoury** at 3,0, because 3,1 and 3,2 are
+the other two lockers. The armoury is now reached **diagonally from 2,1**.
+Vanilla kitchens are full of corner cabinets opened exactly that way, so this is
+expected to be fine — but the engine's reach rule is not in Lua and has not been
+read, so it is an **in-game check and not a proven fact**. The rack itself is
+reached straight on from 2,1, which is the access that matters most, and the
+swap back to a wall shelf is one sprite name if the armoury turns out awkward.
 
-**Open, and it needs a render or a look in game:** 2,0 already carries a
-`security_01_4` monitor bank, which is also a `WallObject` on the same edge.
-Either they layer acceptably — 1,0 already stacks a monitor bank, a table and a
-television — or the monitor bank at 2,0 comes out and the bow wall becomes
-three screens and a shelf. **Recommendation: take the monitor bank out.** Two
-wall-mounted objects on one edge is the kind of thing that looks like a bug
-even when it is not, and three screens still read as a bulkhead of screens.
+The monitor bank at 2,0 came back with the rack: it takes the floor, so there is
+no longer a free deck square there to hang screens over.
 
-This is a change to `design/buildinged/TrekShuttle_Interior.tbx` **and** to
-`TREK_InteriorLayout.lua`, in that order, per *The interior is authored in
-BuildingEd, not in the code* — and `python tools/import_tbx_layout.py` then
-`python tests/test_layout.py`, and look at the plan.
+One thing this deliberately avoided: **the television's own table.**
+`furniture_tables_low_01_3` is `solidtrans` and carries **no** `container`
+property, so the obvious "shelf under the telly" is not a container at all. That
+is *A comment is not a container: check what the sprite actually is*, avoided by
+looking it up first.
+
+**Decided and built: the monitor bank at 2,0 came out.** Two wall-mounted
+objects on one edge of one square is the kind of thing that looks like a bug
+even when it is not, and three screens still read as a bulkhead of screens. The
+bow row is now `T V L A` — monitor wall, television, tape shelf, armoury.
+
+**The `.tbx` was edited by script, not in BuildingEd**, and that is a deviation
+from *The interior is authored in BuildingEd, not in the code* worth recording
+honestly. It is plain XML: a `<furniture>` block holding the rack's two
+facings (appended, so its document index is 33, which is what
+`<object FurnitureTiles="33">` means — `tools/import_tbx_layout.py` builds its
+table from `root.findall("furniture")` in document order), `33` added to
+`<used_furniture>` to keep that list a permutation of the block indices, and the
+object at 2,0 repointed from block 1 to block 33. `orient` names the wall the
+object stands against, so the set's two facings map to `N` (`_001`, facing south
+off a north wall) and `W` (`_000`, facing east off a west wall) — the same
+convention the bow's monitor banks already use.
+
+`tools/import_tbx_layout.py` reads it back as `2,0 location_shop_generic_01_1
+container=shelves` and `tests/test_layout.py`'s drift check passes both
+ways, which is the evidence the edit was well formed. The old file is kept at
+`TrekShuttle_Interior.tbx.pre-tapeshelf.bak`.
+
+**One thing to do that a script cannot:** open the `.tbx` in BuildingEd once and
+confirm it still loads and draws. Nothing here proves the editor is as tolerant
+of a hand-written furniture block as the importer is.
 
 ### It reaches existing saves, unlike every other locker
 
@@ -368,35 +427,77 @@ un-namespaced id costs.
 
 **1. `TREK_Tuvix` — *Dear Grandpa Tuvix***
 
-The reference tape, and the one whose writing sets the standard for the rest.
+**A school assignment, and cheerful the whole way through.** This is the tape
+the shelf is named for and the tone is the opposite of what the subject
+invites: there is no anger in it, no grief, and nothing rehearsed. It is a
+bright, slightly over-prepared kid delivering a genealogy project they got
+genuinely interested in.
 
-A young man on Rigel IV, some decades on, has worked out what he is descended
-from and has made a tape for somebody who existed for eighteen days and cannot
-receive it. The theory he has assembled, patiently, out of crew manifests and
-two family rumours: in those eighteen days Tuvix was loved — easily,
-uncomplicatedly, by a lot of people who had been a long way from home for a
-long time — and there are descendants of at least two ensigns and one visiting
-Ktarian botanist who can taste things nobody else can taste and who all have
-the same laugh.
+The shape, in their own order:
 
-He has read the Voyager logs. He knows what was done and who signed it. He is
-not angry, and he has clearly rehearsed not being angry, which is worse. He
-spends four lines on his mother's hands. He asks two questions that have no
-answer and apologises for asking them.
+1. It is an assignment. They say so in the first ten seconds, the way you do.
+2. The research turned out to be the fun part, and they want to show their
+   working.
+3. Tracing the maternal line back, they hit somebody **fully unique** — a
+   person with no species and no precedent — and that is the moment the
+   assignment stopped being homework. So the subject is Tuvix.
+4. Their maternal grandmother was a **lower-decks Betazoid crewman aboard
+   Voyager**, and she and Tuvix were together in the eighteen days he had.
+5. Their mother is therefore three ways split — Talaxian, Vulcan, Betazoid —
+   and came out supremely charismatic, deeply empathetic, and telepathically
+   strong enough that the kid mentions it the way you mention a parent being
+   tall. She never joined Starfleet.
+6. The kid did. And — "it is a small galaxy" — they are now with one of
+   **Tuvok's** descendants, which they find delightful and deliver as the
+   punchline of the whole project.
 
-Codes: `BOR-1` throughout; `UHP+1` twice in the last third; one `MOR+1` on the
-final line, which is him saying he thinks he would have liked him.
+What makes it land is that none of it is presented as tragedy. The kid is
+pleased. The sadness is entirely the viewer's, arriving about four lines after
+the kid has moved on, and it costs the writing nothing to produce.
 
-**2. `TREK_TalentNight` — *Enterprise Talent Night, Stardate 44390.7***
+Codes: `BOR-1` throughout, `UHP-1` on the punchline. **No `UHP+1` anywhere** —
+that was the earlier draft's idea and the assignment framing replaces it.
 
-Somebody left the camera running on a tripod at the back of Ten Forward. An
-android recites eighteen stanzas to his cat and the applause gets more sincere
-as it goes. A Klingon declines to sing, is made to sing, and is extremely good.
-A lieutenant does impressions of the senior staff and gets to the captain
-before noticing where the captain is sitting.
+The Starfleet half of point 6 is the tie to the rest of the shelf: this kid was
+a friend of the pilot's, which is how the tape got aboard.
 
-The warmest thing in the shelf and the right first watch. `BOR-1`, `STS-0.2`,
-`MOR+1`.
+*One deliberate change from the brief, and it is overrulable in one word: the
+Betazoid gift written here is* telepathy *rather than telekinesis, because the
+Betazoid line is what the kid is explaining and empathy is the trait they are
+proud of. Say the word and it goes back.*
+
+**2. `TREK_TalentNight` — *Ten Forward Talent Night, stardate 44390.7*  [BUILT 2026-09-23]**
+
+Somebody put a recorder on a table at the back of Ten Forward and forgot it.
+Riker plays the trombone for nine minutes and is genuinely good for all of them;
+the bar quietly starts serving again around minute seven. Data announces
+eighteen stanzas to his cat and is not joking, and by stanza eighteen the room
+is applauding and means it. Crusher taps on an unsprung deck and does not care.
+Worf has declined to participate, is entered anyway, is extraordinary, and
+declines to participate. An ensign does impressions of the senior staff, starts
+on the captain, and finds out where the captain is sitting. Barclay is on the
+list and not in the room. Then everybody leaves, nobody switches the camera off,
+and two people stack chairs and argue about the trombone.
+
+Forty-three lines, longest 57 characters. `BOR-1` throughout, `STS-0.2` twice,
+`UHP-1` on the Worf silence and on the last line. **Not `MOR`** — see the note
+in `tools/gen_tapes.py`: morale exists in `ISRadioInteractions` and no vanilla
+recorded line uses it, so its sign is unproven and warmth is `UHP-1` instead.
+
+Three things the writing settled, worth carrying to the rest of the shelf:
+
+- **Riker plays the trombone, not the trumpet.** Rather than quietly correct
+  the brief, the MC announces the trumpet, a voice off camera says "Trombone,"
+  and the MC tries again. The joke is better than the fix and the fact ends up
+  right, which is the shape to reach for whenever canon and a good line
+  disagree.
+- **Write around the quotable lines, not through them.** Data's poem is famous
+  enough that transcribing it would be both a copyright question and a worse
+  scene. What is on the tape is the *room's* reaction, stanza by stanza, which
+  is funnier and is ours.
+- **The camera is a character.** Half the tape is `note` lines — what the lens
+  sees and nobody says — and that voice carries the comedy and the ending
+  without anybody having to narrate. Every tape in the shelf can use it.
 
 **3. `TREK_Meditation` — *Vulcan Guided Meditation for the Recently Bereaved (adepts' edition, abridged)***
 
@@ -526,14 +627,33 @@ shelf is worth doing before 1.6 rather than after.
 **15. `TREK_FinalLog` — *SHUTTLECRAFT LOG, FINAL ENTRY — dubbed for playback***
 
 **On the shelf from the start**, because a dead ship with one working screen is
-precisely the situation this tape is about. The pilot explains, calmly and then
-less calmly, what she did to get here and what it cost: a hull with no charge,
-a crystal she could not keep, and a decision about where to set down. It ends
-with the instruction the player is about to follow.
+precisely the situation this tape is about. It is the mod's premise, in the
+voice of the person it happened to, and it is the whole of 1.6's cold start
+delivered as a person rather than a tutorial pop-up.
 
-This is 1.6's cold start, delivered as a person rather than a tutorial pop-up.
-`BOR-1` only — **no XP**, because charging a tutorial in experience points
-cheapens the tutorial and the tape.
+What she says, in order:
+
+1. **What she was doing here.** An observation posting: a pre-broadcast world so
+   close to Earth's own twentieth century that the resemblance was the report.
+   Watching from orbit, from a distance, the way this has always been done.
+2. **The tapes.** She collected the television as an artifact and the tapes as
+   an indulgence, and she is aware that this is not what the equipment was for.
+3. **What happened.** Something else came. The aliens that attacked the world
+   below destroyed the ship she came in, and she does not know much more about
+   them than that.
+4. **Where that leaves her.** The mothership is gone. Starfleet has no record
+   that anyone was ever assigned here, so nobody is looking, and any rescue is
+   years away at the very best.
+5. **What is left.** This shuttle, and a dilithium reserve with a floor she can
+   see coming.
+6. **The question the whole game is built on**, and she asks it out loud like
+   somebody who has just thought of it: *this world is a twin of Earth. Would
+   there be dilithium down there?*
+
+She does not answer it. The player does.
+
+`BOR-1` only — **no XP**. Charging a tutorial in experience points cheapens the
+tutorial and the tape, and this one is doing enough work already.
 
 **16. `TREK_EarlierLog` — *SHUTTLECRAFT LOG, THE ENTRY BEFORE THE LAST***
 
@@ -645,11 +765,12 @@ Extend what exists; do not add in-game checks (`DEV_GUIDE.md`, *Testing*).
 - the shelf is built and stocked, reaching both clients with its contents;
 - **every tape in it has media data**, read back off the item — the
   `B.stockReport` shape, and the check that catches a blank tape;
-- `tests/pz_sim.lua` needs `furniture_shelving_01_28` in its list of
-  container-bearing sprite substrings, or the shelf is scenery in every test
-  and eight checks fail on a feature that works (*The simulation has to be as
-  unkind as the engine*, fault 4 — this is the same fault, and it is now
-  predictable enough to get right the first time);
+- `tests/pz_sim.lua` needs the rack's sprite in its list of container-bearing
+  sprite substrings (`shop_generic`), or the rack is scenery in every test and
+  every tape check fails on a feature that works (*The simulation has to be as
+  unkind as the engine*, fault 4). **This bit on the swap**: nothing in
+  `location_shop_generic_01_1` resembles any word already in that list, and
+  removing the substring again is a mutation the tapes suite catches;
 - and the simulation needs `RecordedMedia`, `register`, `addLine` and
   `setRecordedMediaData` stubbed **the way they really behave**: `register`
   returning something with `addLine`, and `getMediaData(id)` answering nil for
@@ -720,10 +841,26 @@ Not provable at the desk, in the order worth checking:
 
 ## 10. Order of work
 
-1. **One tape, end to end.** `TREK_TalentNight` — twenty lines, one category,
-   one item, the shelf, the stock pass with its read-back, and the four static
-   checks. This is the proof of the whole pipeline and it is small enough to
-   carry into a game the same day.
+1. ~~**One tape, end to end.**~~ **Built 2026-09-23.** `TREK_TalentNight`, the
+   `Trek-VHS` category, the `TrekTape` item, the rack at 2,0, the stock pass
+   with its read-back, and the checks. `tools/gen_tapes.py` is the source of
+   truth for every tape and writes both files that have to agree, so the
+   duplicate-key trap in section 2 is **designed out rather than tested for**:
+   a line's key is derived from its tape id and index and a collision is not
+   expressible.
+
+   Four mutations were run one at a time and all four were caught: dropping the
+   `setRecordedMediaData` call (a shelf of blank tapes), a tape id naming a
+   recording nobody registered, a malformed effect code, and a container count
+   that no longer matches the layout. Two gaps in the harness came out of it,
+   both the shape `DEV_GUIDE.md` keeps meeting — `tests/pz_sim.lua` had no
+   radio at all, and its item stub could not express a tape with no recording
+   on it, which is the one failure that matters here.
+
+   **Still unproven, and it is the whole of section 8:** none of this has been
+   in a game. The count checks in the tapes suite are also thin while there is
+   only one tape — `labelled == len(ids)` cannot tell much about a list of one
+   — so they get sharper with the second tape rather than needing rework.
 2. **The shelf and the item settled** — the `.tbx` change, the icon vetted
    against the set, the plan looked at.
 3. **Tier 1**, written. The writing is the work; the machinery is done after
