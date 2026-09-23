@@ -137,6 +137,16 @@ class Runtime:
         return [log[i] for i in range(1, len(log) + 1)
                 if "WARN" in str(log[i]) or "SIM DEATH" in str(log[i])]
 
+    def logLines(self):
+        """Everything the mod logged, not only the warnings.
+
+        An honest empty probe report is not a warning -- it is a normal
+        outcome -- but it still has to be distinguishable from a probe that is
+        simply still out, so the test reads the log for it.
+        """
+        log = self.lua.globals().SIM.log
+        return [str(log[i]) for i in range(1, len(log) + 1)]
+
     def notes(self, who=None):
         n = self.lua.globals().SIM.notes
         out = [n[i] for i in range(1, len(n) + 1)]
@@ -5369,10 +5379,199 @@ def contacts_multiplayer():
           "both crew hold the same log, a status change reaches both, and a "
           "client that tries to write one is refused and says so")
 
+def aboard_menu(rt):
+    """Right-clicks aboard and returns what the ship's menu offered.
+
+    The way a player actually reaches the sensors. Driving the server handler
+    instead would pass against a build whose menu option was never added --
+    which is how the torpedoes shipped broken.
+    """
+    rt.run("""
+        aboardCtx = SIM.contextMenu()
+        SIM.fire("OnPreFillWorldObjectContextMenu", 0, aboardCtx, {}, false)
+    """)
+    return str(rt.eval("aboardCtx:deepLabels()"))
+
+
+def probes():
+    """Launching one probe: the transaction, the flight, and the report.
+
+    ROADMAP2 step 4. The probe is a **logical job** -- no world object crosses
+    two thousand unloaded squares -- so everything here is persistence and
+    state transitions, which is exactly what can be proven without a game.
+    """
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "probes, beaming up"):
+        return
+
+    cost = int(rt.eval("TREK.Config.ProbeCost"))
+    before = int(rt.eval("math.floor(TREK.Power.reserve())"))
+
+    # --- the launch is one transaction ------------------------------------
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(10)
+    after = int(rt.eval("math.floor(TREK.Power.reserve())"))
+    check(after == before - cost,
+          f"probes: the reserve went {before} -> {after}, expected a single "
+          f"{cost}-unit deduction")
+    check(rt.eval("TREK.Probes.active() ~= nil") is True,
+          "probes: nothing is in flight after a launch")
+
+    # Racing launches make one probe and one deduction. ROADMAP2 asks for it
+    # by name, and it falls out of the whole thing being one handler.
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(10)
+    check(int(rt.eval("math.floor(TREK.Power.reserve())")) == after,
+          "probes: a second launch while one was in flight took more power")
+    check(any("IGUI_TREK_ProbeActive" in n for n in rt.notes()),
+          "probes: a second launch was refused without saying why")
+
+    # --- the flight is persisted ------------------------------------------
+    progress = int(rt.eval("TREK.Probes.active().progress"))
+    rt.run("TREK.Server.serviceProbe()")
+    check(int(rt.eval("TREK.Probes.active().progress")) > progress,
+          "probes: a service tick did not advance the flight")
+    stored = rt.eval("SIM.globalData[TREK.Config.ContactKey].active.progress")
+    check(stored is not None and int(stored) > 0,
+          "probes: the flight's progress is not in the store, so a server "
+          "restart mid-flight would lose the probe and the power that bought it")
+
+    # --- and it reports ----------------------------------------------------
+    # The find roll is forced, so this exercises the reporting path rather
+    # than waiting to get lucky.
+    rt.run("SIM.randQueue = { 0, 30, 30 }")   # roll 0 = a find, then scatter
+    ticks = int(rt.eval("TREK.Config.ProbeFlightTicks"))
+    for _ in range(ticks + 2):
+        rt.run("TREK.Server.serviceProbe()")
+    check(rt.eval("TREK.Probes.active() == nil") is True,
+          "probes: the probe never arrived")
+    found = int(rt.eval("#TREK.Probes.contacts()"))
+    check(found == 1,
+          f"probes: {found} contacts after a probe that was made to find one")
+    kind = rt.eval("TREK.Probes.contacts()[1].kind")
+    check(str(kind) == "dilithium",
+          f"probes: the report was a {kind!r}, not a dilithium trace")
+    approx = rt.eval("TREK.Probes.contacts()[1].approximate")
+    check(approx is True,
+          "probes: a long-range fix was reported as exact; the spread is what "
+          "the tricorder is for")
+
+    # --- an empty report is a real outcome ---------------------------------
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(10)
+    rt.run("SIM.randQueue = { 99 }")          # roll 99 = a miss
+    for _ in range(ticks + 2):
+        rt.run("TREK.Server.serviceProbe()")
+    check(int(rt.eval("#TREK.Probes.contacts()")) == found,
+          "probes: a probe that found nothing added a contact anyway")
+    check(any("returned nothing" in str(l) for l in rt.logLines()),
+          "probes: an empty report said nothing at all -- it must be "
+          "distinguishable from a probe that is still out")
+
+    # --- the refusals ------------------------------------------------------
+    rt.run(f"{P}.x, {P}.y, {P}.z = 3000.5, 3000.5, 0")   # off the ship
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(10)
+    check(any("IGUI_TREK_ProbeAboard" in n for n in rt.notes()),
+          "probes: a launch from outside the ship was not refused")
+
+    rt.run("""
+        local U = TREK.Util
+        local x, y = U.at(1, 2)
+        SIM.players[1].x, SIM.players[1].y = x + 0.5, y + 0.5
+        SIM.players[1].z, SIM.players[1].lastZ = TREK.Config.CabinZ, TREK.Config.CabinZ
+        -- Empty reserve AND no spares: afford() burns a crystal when the
+        -- reserve is short, so leaving one in the chamber would fund the
+        -- launch and this refusal could never fire.
+        U.state().power = 1
+        U.state().crystals = 0
+    """)
+    rt.run("SIM.globalData[TREK.Config.ContactKey].active = nil")
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(10)
+    check(any("IGUI_TREK_ProbeNoPower" in n for n in rt.notes()),
+          "probes: a launch with an empty reserve was not refused with a "
+          "reason a player can act on")
+
+    for w in rt.warnings():
+        fail(f"probes: {w}")
+
+    print("probes: a launch spends once and makes one job, racing launches "
+          "make neither, the flight is persisted and advances, a find is "
+          "reported as an approximate fix and an empty result says so, and "
+          "launching from outside the ship or on an empty reserve is refused")
+
+
+def probe_menu():
+    """The sensors submenu: the cost on the option, and why it is greyed."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "probe menu, beaming up"):
+        return
+
+    cost = int(rt.eval("TREK.Config.ProbeCost"))
+    labels = aboard_menu(rt)
+    check("IGUI_TREK_Sensors" in labels,
+          f"probe menu: the ship's menu has no sensors entry ({labels})")
+    check(str(cost) in labels,
+          f"probe menu: the launch option does not carry its cost -- a "
+          f"player cannot plan around a button with no number ({labels})")
+    check("IGUI_TREK_NoContacts" in labels,
+          f"probe menu: a ship with no contacts does not say so ({labels})")
+
+    # With a probe up, launching is greyed and the flight is on the menu.
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(10)
+    labels = aboard_menu(rt)
+    check("IGUI_TREK_ProbeFlight" in labels,
+          f"probe menu: a probe in flight is not shown ({labels})")
+    greyed = rt.eval("""(function()
+        for _, o in ipairs(aboardCtx:all()) do
+            if o.name and string.find(o.name, "ProbeLaunch", 1, true) then
+                return o.notAvailable == true
+            end
+        end
+        return "no launch option"
+    end)()""")
+    check(greyed is True,
+          f"probe menu: launching is not greyed while a probe is up ({greyed})")
+
+    # And a contact appears as a contact rather than a raw key.
+    rt.run("""
+        TREK.Probes.addContact("dilithium", 2400, 2400, 0, "probe:1", true)
+        TREK.Probes.publish()
+    """)
+    labels = aboard_menu(rt)
+    check("IGUI_TREK_Contact_dilithium" in labels,
+          f"probe menu: the contact is not listed ({labels})")
+    check("IGUI_TREK_NoContacts" not in labels,
+          f"probe menu: the ship still says it has no contacts ({labels})")
+
+    for w in rt.warnings():
+        fail(f"probe menu: {w}")
+
+    print("probe menu: the sensors submenu carries the launch cost on its own "
+          "option, greys it with a reason while a probe is up, shows the "
+          "flight's progress, and lists each contact by kind and bearing")
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_endings,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
-            contact_map, contacts_multiplayer, multiplayer)
+            contact_map, contacts_multiplayer, probes, probe_menu,
+            multiplayer)
 
 
 def main():

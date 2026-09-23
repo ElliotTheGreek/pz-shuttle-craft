@@ -228,13 +228,12 @@ In the order that matters:
 or `WorldMapServer`. Contacts are the mod's own data. Map symbols and world
 markers are presentation, rebuilt from it.
 
-**Also settled, by the author, 2026-09-23:** probes get a **separate console**
-rather than a page on the helm. That means a new fitting in the interior,
-which is a change to `design/buildinged/TrekShuttle_Interior.tbx` in
-BuildingEd — geometry belongs to the `.tbx`, not to the Lua (`DEV_GUIDE.md`,
-*The interior is authored in BuildingEd*). The cabin is 4x6 with twenty-four
-deck squares and no free wall on the port side, so **where it goes is the open
-question**, and it is a layout question rather than a code one.
+**Also settled, by the author, 2026-09-23:** probes get their own console
+rather than a page on the helm -- and then, the same day, that the console is
+a **right-click submenu** rather than a fitting. A fitting would have cost one
+of twenty-four deck squares and a BuildingEd change; *Shuttlecraft ->
+Long-range sensors* costs neither and reaches the player in the same two
+clicks the helm does. Built: see `PROBES.md`.
 
 **Not settled:** how a corridor or a search circle should read on the map. See
 §6, *Uncertainty, honestly* — that one wants a render and a look.

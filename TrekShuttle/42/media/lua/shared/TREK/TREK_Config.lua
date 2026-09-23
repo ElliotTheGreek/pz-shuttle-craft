@@ -960,12 +960,30 @@ C.ContactKey = "TREK_Contacts_v1"
 -- enough to remain a decision after the cold start.
 C.ProbeCost = 250
 
--- Logical flight, in server ticks. The probe is not a world object crossing
--- unloaded chunks: its bearing, distance and progress are persisted here and
--- the client only presents the report.
-C.ProbeFlightTicks = 300
+-- Logical flight. The probe is not a world object crossing unloaded chunks:
+-- its bearing, distance and progress are persisted and the client only
+-- presents the report.
+--
+-- Advanced **once per game minute**, not per server tick. At sixty ticks a
+-- second a three-hundred-tick flight is five seconds, which is not a journey
+-- across a great map distance, it is a loading pause. One unit a game minute
+-- makes this an hour of game time -- long enough that a launch is something
+-- you do and then get on with, short enough to sit through while testing.
+C.ProbeFlightTicks = 60
 C.ProbeMinDistance = 1200
 C.ProbeMaxDistance = 2400
+
+-- How often a probe finds anything. ROADMAP2: "Random probes may find
+-- nothing" -- an honest empty report is a valid outcome and the interface has
+-- to be able to say so. The opening guarantee that 1.6 needs is a separate
+-- mechanism and is deliberately not this number.
+C.ProbeFindChance = 0.65
+
+-- How far a long-range fix can be out, in tiles. A probe reports a region and
+-- the tricorder resolves the rest; a contact that named the exact cupboard
+-- from two thousand tiles away would make the tricorder pointless and the
+-- search trivial.
+C.ProbeReportSpread = 60
 
 -- Work per authority tick and the bounded shared history. The first probe
 -- implementation resolves one logical route rather than touching distant
@@ -1023,6 +1041,21 @@ C.ContactResolved = {
 C.ContactSymbols = {
     dilithium = "TrekContactDilithium",
     downedPersonnel = "TrekContactPersonnel",
+}
+
+-- What each kind is called in the sensor menu.
+--
+-- Spelled out rather than built by pasting the kind onto a prefix. A
+-- constructed translation key resolves to nothing when it is wrong and
+-- getText hands the key straight back, so a kind added later would appear in
+-- the menu as its own raw key and nothing would have said so. Written out,
+-- every one of them is a literal that tests/test_assets.py checks against
+-- IG_UI.json like any other -- which is also why this comment does not spell
+-- the prefix out: that check reads whole files, and a key quoted in prose
+-- would be a key it goes looking for.
+C.ContactLabels = {
+    dilithium = "IGUI_TREK_Contact_dilithium",
+    downedPersonnel = "IGUI_TREK_Contact_downedPersonnel",
 }
 
 -- Never replicated, whatever the sandbox says, and the list exists from day

@@ -330,6 +330,23 @@ for kind, symbol_id in sorted(contact_symbols.items()):
     elif not os.path.isfile(os.path.join(MOD, *registered[symbol_id].split("/"))):
         failures.append(f"map symbol {symbol_id!r} is registered as "
                         f"{registered[symbol_id]}, which is not on disk")
+_lab = re.search(r"C\.ContactLabels\s*=\s*\{(.*?)\}", cfg_src, re.S)
+contact_labels = dict(re.findall(r"(\w+)\s*=\s*\"([\w]+)\"",
+                                 _lab.group(1))) if _lab else {}
+_kinds = re.search(r"C\.ContactKinds\s*=\s*\{(.*?)\}", cfg_src, re.S)
+kinds = set(re.findall(r"(\w+)\s*=\s*true", _kinds.group(1))) if _kinds else set()
+if len(kinds) < 2:
+    failures.append(f"only {len(kinds)} contact kinds parsed; the pattern has "
+                    f"stopped matching")
+for kind in sorted(kinds):
+    if kind not in contact_symbols:
+        failures.append(f"contact kind {kind!r} has no entry in "
+                        f"C.ContactSymbols, so it would draw nothing on the map")
+    if kind not in contact_labels:
+        failures.append(f"contact kind {kind!r} has no entry in "
+                        f"C.ContactLabels, so the sensor menu would show it "
+                        f"as a raw translation key")
+
 for symbol_id in sorted(registered):
     if symbol_id not in contact_symbols.values():
         failures.append(f"TrekMapSymbols.lua registers {symbol_id!r} and no "

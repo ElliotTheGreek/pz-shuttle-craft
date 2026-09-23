@@ -43,6 +43,7 @@ local W = TREK.World
 local V = TREK.Vehicle
 local B = TREK.Build
 local Rep = TREK.Replicator
+local Probes = TREK.Probes
 
 local S = {}
 TREK.Server = S
@@ -1959,6 +1960,129 @@ function S.serviceCures()
     return done
 end
 
+---------------------------------------------------------------------------
+-- Long-range probes
+---------------------------------------------------------------------------
+-- A launch is **one authority-side transaction**: validate, spend, and create
+-- the job, with nothing in between that a second request could interleave
+-- with. Two crew hitting the menu together therefore produce one probe and
+-- one deduction, which is what ROADMAP2 asks for -- "Racing launch requests
+-- create one job and one deduction" -- and it comes out of doing the whole
+-- thing in one handler rather than out of any locking.
+--
+-- The **server chooses the bearing**. It is not a client's to pick: a client
+-- that could name the direction could name the one with the crystal in it.
+Net.onServer("launchProbe", function(player, args)
+    if not mayUse(player) then return end
+
+    -- Aboard, because the probe is fabricated and launched by the ship. This
+    -- is checked against the *server's* copy of where the player is.
+    if not U.isAboard(player:getX(), player:getY(), player:getZ()) then
+        deny(player, "probeAboard")
+        return
+    end
+    if Probes.active() then
+        deny(player, "probeActive")
+        return
+    end
+
+    local cost = C.ProbeCost
+    if not TREK.Power.afford(cost) then
+        deny(player, "probeNoPower",
+             { need = cost, have = math.floor(TREK.Power.reserve()) })
+        return
+    end
+    if not TREK.Power.spend(cost) then
+        deny(player, "probeNoPower",
+             { need = cost, have = math.floor(TREK.Power.reserve()) })
+        return
+    end
+
+    local s = U.state()
+    local bearing = (U.try("probeBearing", function()
+        return ZombRand(3600) / 3600.0
+    end) or 0) * math.pi * 2
+    local span = C.ProbeMaxDistance - C.ProbeMinDistance
+    local distance = C.ProbeMinDistance + (U.try("probeRange", function()
+        return ZombRand(span + 1)
+    end) or math.floor(span / 2))
+
+    local probe = Probes.begin(s.x or 0, s.y or 0, bearing, distance,
+                               C.ProbeFlightTicks)
+    if not probe then
+        -- Nothing took the power. begin() only refuses when a probe is
+        -- already up, and that was checked above, so reaching here means the
+        -- two disagree -- give the power back rather than quietly charging
+        -- for nothing, and **say so**.
+        --
+        -- The WARN is the point. Without it this branch is invisible: it
+        -- refunds, refuses with the same reason the guard above would have
+        -- given, and is indistinguishable from the guard working. A test
+        -- cannot tell the two apart and neither could anybody reading a log.
+        U.log("WARN probe launch got past the active check and begin() still "
+              .. "refused; %d units refunded", cost)
+        s.power = math.min(C.PowerMax, TREK.Power.reserve() + cost)
+        Ship.commit()
+        deny(player, "probeActive")
+        return
+    end
+
+    Ship.commit()       -- the reserve changed
+    Probes.publish()    -- and so did the probe log
+    U.log("probe %s away on bearing %.2f for %d tiles, %d units spent",
+          probe.id, bearing, distance, cost)
+end)
+
+--- Advances the probe and reports what it found. Authority only.
+---
+--- Runs on the game-minute tick rather than per server tick, because a
+--- three-hundred-tick flight at sixty ticks a second is five seconds and this
+--- is meant to be a journey. It is also the tick every setup is certain to
+--- run, so a probe cannot be stranded by a client disconnecting -- ROADMAP2:
+--- "A probe continues if its launching player disconnects."
+function S.serviceProbe()
+    if not Probes.active() then return end
+    local done = Probes.advance(C.ProbeWorkPerTick)
+    if not done then
+        -- Progress is persisted, so a server restart mid-flight resumes
+        -- rather than losing the probe and the power that bought it.
+        Probes.publish()
+        return
+    end
+
+    local found = (U.try("probeRoll", function()
+        return ZombRand(100)
+    end) or 0) < math.floor(C.ProbeFindChance * 100)
+
+    if found then
+        -- A long-range fix is a region, not a square. The spread is what the
+        -- tricorder is for, and a probe that named the exact spot would make
+        -- the whole close-range half of the design pointless.
+        local function scatter()
+            return (U.try("probeScatter", function()
+                return ZombRand(C.ProbeReportSpread * 2 + 1)
+            end) or C.ProbeReportSpread) - C.ProbeReportSpread
+        end
+        local contact = Probes.addContact("dilithium",
+                                          done.x + scatter(), done.y + scatter(),
+                                          0, done.id, true)
+        if contact then
+            U.log("probe %s reports %s at %d,%d", done.id, contact.kind,
+                  contact.x, contact.y)
+        end
+    else
+        -- An honest empty result is a real outcome and has to be reported as
+        -- one. What must never look like this is an engine failure, which is
+        -- why every call above goes through U.try and logs a WARN of its own.
+        U.log("probe %s returned nothing", done.id)
+    end
+
+    local s = U.state()
+    s.probeReport = { id = done.id, found = found, at = getTimestampMs() }
+    Ship.commit()
+    Probes.publish()
+end
+
 --- Design and diagnostic tools behind the debug console. Single player, or a
 --- server admin.
 Net.onServer("debug", function(player, args)
@@ -2027,6 +2151,10 @@ Events.EveryOneMinute.Add(function()
     -- cabin-loaded branch on purpose: a patient who has left the ship has to
     -- lose their treatment whether or not anybody is aboard to see it.
     U.try("serviceCures", S.serviceCures)
+    -- Outside the cabin-loaded branch on purpose, like the cures: a probe is
+    -- a logical job with no world object behind it, and it must keep flying
+    -- whether or not anybody is aboard to watch it.
+    U.try("serviceProbe", S.serviceProbe)
     if B.cabinCurrent() and B.cabinLoaded() then
         -- Nobody can drain the tap faster than a game minute refills it.
         U.try("refillWater", B.refillWater)

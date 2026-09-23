@@ -124,12 +124,11 @@ Verify both body types; ordinary movement, combat, sitting, and vehicle poses; d
 
 # 1.5 — Long-range probes
 
-> **Decided 2026-09-23:** probes get a **separate console**, not a page on the
-> helm. That is a new fitting in the authored interior, so it is a change to
-> `design/buildinged/TrekShuttle_Interior.tbx` in BuildingEd rather than to
-> the Lua — and with twenty-four deck squares already spoken for, *where it
-> goes* is the open question.
->
+> **Decided 2026-09-23, then revised the same day:** probes get their own
+> console, and the console is a **right-click submenu** rather than a fitting.
+> A new fitting would have cost a square in a twenty-four square cabin and a
+> BuildingEd change; *Shuttlecraft -> Long-range sensors* costs neither and
+> reaches the player in the same two clicks the helm does.
 > **Researched 2026-09-23: `MAP_MARKERS.md`.** The map-symbol API is
 > Lua-exposed, takes world coordinates and has ordinary-player call sites —
 > but the half that makes a symbol *shared and persistent*
@@ -419,7 +418,9 @@ Never inspect live squares in unloaded chunks, create orphan squares, or place t
    (`TREK_MapContacts.lua`), and the symbol art registered the way vanilla
    registers its own. **Nothing is visible in a world yet** -- contacts are
    made by probes, which is step 4. `MAP_MARKERS.md`.
-4. **Build one logical probe.** Add sliced flight, atomic energy spending, restart persistence, and synthetic reports.
+4. ~~**Build one logical probe.**~~ Built 2026-09-23: sliced flight advanced
+   on the game-minute tick, one atomic launch transaction, progress
+   persisted across a restart, and synthetic reports. `PROBES.md`.
 5. **Connect probes to dilithium.** Solve unloaded-world contacts and guarantee a reachable opening source.
 6. **Build cold start.** Add commissioning state, system gates, emergency power, first-crystal recovery, and power-up.
 7. **Build the ensign mission.** Add offer UI, deferred target placement, tricorder contact, right-click rescue, atomic reward, and cleanup.

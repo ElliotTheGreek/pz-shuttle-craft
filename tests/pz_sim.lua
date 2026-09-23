@@ -1872,6 +1872,33 @@ local globalData = {}
 -- ids come from the mod's own shared/Definitions/TrekMapSymbols.lua, which
 -- the runtime now loads for real rather than being listed here a second time.
 
+---------------------------------------------------------------------------
+-- Randomness
+---------------------------------------------------------------------------
+-- The engine's own global, used in 424 places in vanilla's Lua. Deterministic
+-- here on purpose: a probe whose bearing and whose find/miss roll were real
+-- randomness would make the probe tests flap, and a flapping test is one
+-- nobody reads. SIM.randQueue lets a test say what the next rolls are, which
+-- is how "this probe finds something" and "this one comes back empty" are
+-- both exercised rather than waited for.
+SIM.randQueue = {}
+local randState = 20260923
+
+function ZombRand(a, b)
+    local lo, hi
+    if b == nil then lo, hi = 0, a else lo, hi = a, b end
+    if #SIM.randQueue > 0 then
+        local v = table.remove(SIM.randQueue, 1)
+        if v < lo then v = lo end
+        if hi > lo and v >= hi then v = hi - 1 end
+        return v
+    end
+    randState = (randState * 1103515245 + 12345) % 2147483648
+    local span = hi - lo
+    if span <= 0 then return lo end
+    return lo + (randState % span)
+end
+
 MapSymbolDefinitions = {}
 local symbolRegistry = {}
 
@@ -2374,7 +2401,16 @@ function SIM.contextMenu()
         table.insert(self.options, option)
         return option
     end
-    function m:addSubMenu() end
+    -- Attach the submenu to the option it hangs off.
+    --
+    -- This used to be a no-op, which made **every option in every submenu
+    -- invisible to the tests**: a submenu could have been empty, or full of
+    -- raw translation keys, and labels() would have shown the same thing
+    -- either way. The ship's own menu is two levels deep and the sensors are
+    -- entirely in the second one.
+    function m:addSubMenu(option, sub)
+        if option then option.sub = sub end
+    end
     function m:getIsVisible() return true end
     --- The option with this label, or nil.
     function m:find(text)
@@ -2395,6 +2431,34 @@ function SIM.contextMenu()
         local out = {}
         for _, o in ipairs(self.options) do table.insert(out, o.name) end
         return table.concat(out, "|")
+    end
+    --- Every option on this menu and on every submenu under it, flattened.
+    function m:all()
+        local out = {}
+        local function walk(menu)
+            for _, o in ipairs(menu.options) do
+                table.insert(out, o)
+                if o.sub then walk(o.sub) end
+            end
+        end
+        walk(self)
+        return out
+    end
+    --- The same, as labels, for a membership check.
+    function m:deepLabels()
+        local out = {}
+        for _, o in ipairs(self:all()) do table.insert(out, o.name) end
+        return table.concat(out, "|")
+    end
+    --- Clicks an option anywhere in the tree, including a submenu.
+    function m:deepClick(text)
+        for _, o in ipairs(self:all()) do
+            if o.name == text and o.fn then
+                o.fn(o.target, unpack(o.args))
+                return true
+            end
+        end
+        return false
     end
     return m
 end

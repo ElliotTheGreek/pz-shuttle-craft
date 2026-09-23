@@ -1795,6 +1795,15 @@ script is the fallback the game shows when the lookup misses.
 Kahlua, where `unpack` is a global. `tools/luacheck.py` and the tests use Lua
 5.5 and stub it back. Do not write `table.unpack` in mod code.
 
+**And the difference cuts both ways.** `math.atan2` exists in Kahlua and was
+removed in Lua 5.3, so a bearing written with it works in the game and throws
+in the tests. That is the lucky direction -- the harness is stricter than the
+engine, so it fails loudly at the desk rather than quietly in somebody's save
+-- but the reverse is the same trap as `unpack`, and there is no check that
+catches it in general. Where a one-line alternative exists, prefer the one
+that is true in both: the sensor menu compares two ratios against
+tan(22.5 degrees) and needs no trigonometry at all.
+
 ### Write Lua with the Write tool, not shell heredocs
 
 This shell mangles quoted heredocs: an apostrophe in a comment or a `\n` in a
@@ -1906,6 +1915,8 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A container in the cabin is empty and that is fine** | Five of them are the player's shelves. Only entries with `loot` or `special` are stocked; `wantsStock` is why they do not each log a WARN. |
 | **A right-click offers nothing for a mod item** | Build 42 has no script hook for "using" an arbitrary item; it has to be an `OnFillInventoryObjectContextMenu` option. And an entry in that event's `items` is either an `InventoryItem` **or** a stack table with its own `items` list — code that handles one shape silently does nothing for the other. |
 | **A panel is fine with a mouse and dead on the Steam Deck** | It is not an `ISPanelJoypad`, or its buttons were never registered with `insertNewLineOfButtons`. Note that vanilla's `ISHealthPanel` *is* one already. |
+| **A menu option works and its submenu is empty** | Nothing tests what is inside a submenu unless the harness models one. `pz_sim`'s `addSubMenu` was a no-op, so every option one level down was invisible; `deepLabels()` and `all()` are what see them. |
+| **A bearing or an angle throws only in the tests** | `math.atan2` is Kahlua-only. See *The game runs Lua 5.1*. |
 | **A feature is reported broken and every test passes** | Suspect the tests. See *A guard is only as good as the goal it was written from* — a test, a comment and a constant all agreeing with each other is not corroboration if they came from one misreading. |
 | **The replicator's menu option never appears** | It is keyed to `C.ReplicatorSpot` (0,5) and its neighbours, so the right-click resolved to a different square -- which is what a model drawn above its own square does every time. `TREK_Replicator()` reports what is standing there. |
 | **The replicator refuses everything, with no crystal aboard** | Working as designed: the reserve is one dilithium crystal and nothing refills it for free. Find one -- the tricorder plots them out to twenty tiles. `TREK_Replicator()` reports the reserve and the spares. |
@@ -2286,8 +2297,29 @@ so contacts are the mod's own bounded store and the symbols are rebuilt from
 it when the map opens and removed when it closes. `MAP_MARKERS.md` is the
 research and `tests/test_multiplayer.py` has three new sections.
 
-**Nothing of it is visible in a world yet**: contacts are made by probes,
-which is step 4.
+**The 2026-09-23 probes** are step 4, and they make the whole of step 3
+visible: right-click aboard, *Long-range sensors*, *Launch probe (250 units)*.
+One atomic authority-side transaction, a bearing the **server** picks, a
+logical job advanced on the game-minute tick with its progress persisted, and
+a report that is either an approximate dilithium fix or an honest nothing.
+`PROBES.md` is the working guide.
+
+The console is a submenu rather than a fitting: it would have cost one of
+twenty-four deck squares and a BuildingEd change, and *Shuttlecraft ->
+Long-range sensors* reaches the player in the same two clicks the helm does.
+The launch option carries its own cost, for the reason the warp core's options
+carry their spare count.
+
+Two harness gaps came out of it, and both are the shape this file keeps
+meeting: `pz_sim`'s `addSubMenu` was a **no-op**, so every option one level
+down was invisible and the whole sensors menu could have been empty; and the
+runtime never loaded `shared/Definitions`, where map symbols register, so the
+map tests would have passed against symbols the game would never have had.
+
+Ten mutations, all caught -- one only after the "impossible" refund branch in
+the launch handler was made to log a WARN. Until then it refused with the same
+reason the guard above it would have given, and nothing could tell the two
+apart.
 
 **Next up** is `ROADMAP.md`'s step 7: publishing. Everything on the roadmap is
 built; what is left is playing it. Four systems have never been in a game at
