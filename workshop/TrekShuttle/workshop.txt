@@ -1,7 +1,7 @@
 version=1
 id=3801178990
-title=Starfleet Shuttlecraft (Build 42)
-description=A Starfleet Type 6 shuttlecraft for Project Zomboid Build 42 -- single player, hosted co-op and dedicated servers.
+title=Star Trek: Starfleet Shuttlecraft (Build 42)
+description=A Star Trek Starfleet Type 6 shuttlecraft for Project Zomboid Build 42 -- single player, hosted co-op and dedicated servers.
 description=
 description=Beam up to her from anywhere in Kentucky, lay in a course at the LCARS helm, and set her down on any ground with room for her. On a server the whole crew shares one ship.
 description=

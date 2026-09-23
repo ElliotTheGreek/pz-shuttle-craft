@@ -54,9 +54,12 @@ PREVIEW_SOURCE = ROOT / "screen_shots" / "ShuttleLanded.png"
 # positive y moves it down. Zero centres it.
 PREVIEW_OFFSET = (0, 0)
 
-TITLE = "Starfleet Shuttlecraft (Build 42)"
+# The franchise name leads the title because Steam Workshop search matches
+# titles strongly and description text weakly: without it, "Star Trek"
+# does not find this item at all.
+TITLE = "Star Trek: Starfleet Shuttlecraft (Build 42)"
 DESCRIPTION = [
-    "A Starfleet Type 6 shuttlecraft for Project Zomboid Build 42 -- single player, hosted co-op and dedicated servers.",
+    "A Star Trek Starfleet Type 6 shuttlecraft for Project Zomboid Build 42 -- single player, hosted co-op and dedicated servers.",
     "",
     "Beam up to her from anywhere in Kentucky, lay in a course at the LCARS helm, and set her down on any ground with room for her. On a server the whole crew shares one ship.",
     "",
