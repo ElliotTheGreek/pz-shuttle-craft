@@ -219,6 +219,14 @@ Net.onClient("powerDown", function()
     toEveryLocal(getText("IGUI_TREK_PowerDown"), 255, 170, 90)
 end)
 
+Net.onClient("powerLow", function(args)
+    if args and args.last then
+        toEveryLocal(getText("IGUI_TREK_PowerLastCrystal"), 255, 170, 90)
+    elseif args and args.pct then
+        toEveryLocal(getText("IGUI_TREK_PowerLow", tostring(args.pct)), 255, 170, 90)
+    end
+end)
+
 Net.onClient("powerUp", function(args)
     toEveryLocal(getText(args and args.first and "IGUI_TREK_Commissioned"
                          or "IGUI_TREK_PowerUp"), 150, 220, 255)

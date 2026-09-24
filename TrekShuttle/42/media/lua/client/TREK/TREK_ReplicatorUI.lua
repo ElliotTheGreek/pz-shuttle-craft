@@ -400,7 +400,6 @@ function TREKReplicatorWindow:render()
 
     -- The reserve.
     local energy = math.floor(R.energy())
-    local frac = energy / C.PowerMax
     H.pill(self, cx, self.energyY + 3, 30, 10, P.gold, true, false)
     self:drawText(string.upper(getText("IGUI_TREK_RepEnergyHeader")), cx + 38,
                   self.energyY, P.gold[1], P.gold[2], P.gold[3], 1, UIFont.Small)
@@ -409,13 +408,7 @@ function TREKReplicatorWindow:render()
                        self.width - PAD, self.energyY,
                        P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
 
-    self:drawRect(cx, self.barY, cw, 12, 0.55, 0.02, 0.03, 0.08)
-    local fill = R.isFree() and cw or math.floor(cw * frac)
-    if fill > 0 then
-        local c = (frac > 0.25 or R.isFree()) and P.gold or P.red
-        self:drawRect(cx, self.barY, fill, 12, 0.95, c[1], c[2], c[3])
-    end
-    self:drawRectBorder(cx, self.barY, cw, 12, 0.6, P.blue[1], P.blue[2], P.blue[3])
+    H.powerBar(self, cx, self.barY, cw, 12, { free = R.isFree() })
 
     -- What the bar actually is: the crystal in the chamber, and what is left
     -- behind it. A player who cannot see the spares cannot tell "nearly out"

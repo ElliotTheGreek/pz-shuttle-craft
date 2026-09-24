@@ -97,8 +97,11 @@ def render(out, shields="up", step=3, joypad=False, panel="helm"):
         win.list.selected = 2
     """)
     if panel != "probes":
-        lua.execute(f"TREK.Util.setShields({'true' if shields == 'up' else 'false'})")
-        lua.execute(f"TREK.Util.setFlightStep({int(step)})")
+        lua.execute(f"TREK.Util.state().shields = {'true' if shields == 'up' else 'false'}")
+        # The speed step is TREK.Flight's, which this harness does not load;
+        # the helm then shows the first step. The power row gets a real
+        # reading: a crystal part burned and two spares behind it.
+        lua.execute("local s = TREK.Util.state(); s.power = TREK.Config.PowerMax * 0.6; s.crystals = 2")
     if joypad:
         lua.execute("win:onGainJoypadFocus({ player = 0, id = 0 })")
     lua.execute("draws = {}; frame(win)")

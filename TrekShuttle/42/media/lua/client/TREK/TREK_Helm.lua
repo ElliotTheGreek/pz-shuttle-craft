@@ -42,6 +42,7 @@ if isServer() then return end
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Ship"
+require "TREK/TREK_Power"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -69,10 +70,11 @@ H.P = {
 }
 local P = H.P
 
--- Taller than it was: the flight section below the shields costs a heading, a
--- button and a status line, and taking that out of the logged-position list
--- instead would leave a list too short to scroll.
-H.W, H.H = 440, 660          -- panel size
+-- Taller than it was, twice: the flight section and then the power row each
+-- cost a heading and a line, and taking either out of the logged-position
+-- list instead would leave a list too short to scroll. 714 still fits the
+-- Steam Deck's 800.
+H.W, H.H = 440, 714          -- panel size
 -- The course prompt. Sized for its text plus the "course laid in" line: the
 -- panel clips, so a line that does not fit is not wrapped, it is hidden.
 H.InfoH = 84
@@ -129,6 +131,39 @@ end
 
 local function fontHeight(font)
     return getTextManager():MeasureStringY(font, "HELM") or 14
+end
+
+---------------------------------------------------------------------------
+-- The power bar (ENERGY.md 3.4)
+---------------------------------------------------------------------------
+-- One bar, drawn the same everywhere the reserve is shown: the helm, the
+-- replicator, and the gauge in the corner of the screen. It was the
+-- replicator's own until the ship's power grew consumers of its own.
+
+--- The bar's colour for a fraction of the crystal left: gold, amber at
+--- C.PowerAmber, red at C.PowerRed.
+function H.powerColour(frac)
+    if frac <= C.PowerRed then return P.red end
+    if frac <= C.PowerAmber then return P.orange end
+    return P.gold
+end
+
+--- Draws the reserve as a bar on `el`. `opts.free` fills it (the replicator's
+--- Unrestricted mode, where the reserve does not apply). A dark ship draws an
+--- empty bar with a red border.
+function H.powerBar(el, x, y, w, h, opts)
+    opts = opts or {}
+    local Pw = TREK.Power
+    local frac = Pw and Pw.reserve() / C.PowerMax or 1
+    local dark = Pw and Pw.dark() or false
+    el:drawRect(x, y, w, h, 0.55, 0.02, 0.03, 0.08)
+    local fill = opts.free and w or math.floor(w * frac)
+    if fill > 0 and not dark then
+        local c = opts.free and P.gold or H.powerColour(frac)
+        el:drawRect(x, y, fill, h, 0.95, c[1], c[2], c[3])
+    end
+    local b = dark and P.red or P.blue
+    el:drawRectBorder(x, y, w, h, 0.6, b[1], b[2], b[3])
 end
 
 ---------------------------------------------------------------------------
@@ -201,6 +236,13 @@ function TREKHelmWindow:createChildren()
     self.closeBtn.roundLeft = false
     self.closeBtn:initialise()
     self:addChild(self.closeBtn)
+
+    -- Power: the crystal burning, and the spares behind it (ENERGY.md 3.4).
+    -- Everything else on this console costs it.
+    self.powerHeaderY = y
+    y = y + 20
+    self.powerBarY = y
+    y = y + 12 + 22
 
     -- Shields. Leave room on the right for the emblem.
     self.shieldsHeaderY = y
@@ -381,6 +423,9 @@ function TREKHelmWindow:render()
                                self.shieldsHeaderY + 6, 52, 52, 1)
     end
 
+    self:heading(self.powerHeaderY, "IGUI_TREK_PowerHeader", P.peach)
+    self:drawPower(cx, self.width - PAD)
+
     self:heading(self.shieldsHeaderY, "IGUI_TREK_ShieldsHeader", P.orange)
     self.shieldsBtn.title = getText(up and "IGUI_TREK_ShieldsUp" or "IGUI_TREK_ShieldsDown")
     self.shieldsBtn.colour = up and P.blue or P.red
@@ -419,6 +464,30 @@ function TREKHelmWindow:render()
                             self.list.y + self.list.height / 2 - 8,
                             P.dim[1] * 1.4, P.dim[2] * 1.4, P.dim[3] * 1.4, 1, UIFont.Small)
     end
+end
+
+--- The power row: the number on the heading's line, the bar under it, and
+--- the spares (or EMERGENCY POWER) under that.
+function TREKHelmWindow:drawPower(x0, x1)
+    local Pw = TREK.Power
+    local dark = Pw and Pw.dark() or false
+    local reserve = Pw and math.floor(Pw.reserve()) or C.PowerMax
+    local spares = Pw and Pw.crystals() or 0
+    local lineY = self.powerBarY + 12 + 3
+    if dark then
+        self:drawTextRight(getText("IGUI_TREK_PowerEmergency"), x1, self.powerHeaderY,
+                           P.red[1], P.red[2], P.red[3], 1, UIFont.Small)
+    else
+        self:drawTextRight(getText("IGUI_TREK_PowerLevel", tostring(reserve),
+                                   tostring(C.PowerMax)),
+                           x1, self.powerHeaderY, P.text[1], P.text[2], P.text[3], 1,
+                           UIFont.Small)
+    end
+    H.powerBar(self, x0, self.powerBarY, x1 - x0, 12)
+    local sc = spares > 0 and P.lilac or P.red
+    self:drawTextRight(spares > 0 and getText("IGUI_TREK_RepCrystals", tostring(spares))
+                                  or getText("IGUI_TREK_RepNoSpares"),
+                       x1, lineY, sc[1], sc[2], sc[3], 1, UIFont.Small)
 end
 
 function TREKHelmWindow:drawBookmark(y, item, alt)

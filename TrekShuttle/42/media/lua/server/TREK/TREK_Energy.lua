@@ -64,6 +64,41 @@ function E.powerChanged()
     return "up"
 end
 
+--- Warns the crew on the way down, once each (section 3.4): the last spare
+--- engaging, then C.PowerAmber and C.PowerRed of it.
+---
+--- **Only with no spare behind it.** With crystals aboard a low reserve is
+--- simply the next swap, and a warning about it would teach the crew to
+--- ignore the warnings. A dark ship is told by powerDown instead. The level
+--- reached is ship state, so a warning is not repeated by a second machine or
+--- after a restart, and it resets once there is power to spare again.
+function E.thresholds(sparesBefore)
+    local s = U.state()
+    if P.crystals() > 0 then
+        s.powerWarn = nil
+        return nil
+    end
+    if P.computeDark() then return nil end
+    local said = nil
+    if sparesBefore and sparesBefore > 0 then
+        Net.toAll("powerLow", { last = true })
+        said = "last"
+    end
+    local frac = P.reserve() / C.PowerMax
+    local level = 0
+    if frac <= C.PowerRed then level = 2 elseif frac <= C.PowerAmber then level = 1 end
+    if level == 0 then
+        s.powerWarn = nil
+    elseif (s.powerWarn or 0) < level then
+        s.powerWarn = level
+        local pct = math.floor((level == 2 and C.PowerRed or C.PowerAmber) * 100 + 0.5)
+        Net.toAll("powerLow", { pct = pct })
+        U.log("power: %d%% of the last crystal left", pct)
+        said = pct
+    end
+    return said
+end
+
 --- Pays `cost` for `what`, or refuses. Authority only.
 ---
 --- Returns true when paid (for `partial`, when anything was paid). Commits,
@@ -97,7 +132,9 @@ function E.energize(player, what, cost, opts)
         return false
     end
 
+    local sparesBefore = P.crystals()
     local paid = P.pay(cost, opts.partial)
+    E.thresholds(sparesBefore)
     if not opts.noCommit then Ship.commit() end
     if player and not opts.silent and paid > 0 then
         Net.toClient(player, "energized", {

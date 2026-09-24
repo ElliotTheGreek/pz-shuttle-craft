@@ -9021,6 +9021,39 @@ def energy():
           f"energy: a refusal did not say what was needed and what was left "
           f"({rt.notes()})")
 
+    # --- the warnings on the way down (3.4) ---------------------------------
+    def drain(n):
+        rt.run("SIM.notes = {}")
+        rt.run(f'TREK.Energy.energize(nil, "drain", {n}, {{ silent = true }})')
+        return rt.notes()
+
+    energy_state(rt, PM * 0.30, 0)
+    rt.run("TREK.Util.state().powerWarn = nil")
+    check(not any("PowerLow" in n for n in drain(PM * 0.02)),
+          "energy: a warning at 28% -- above the amber line")
+    notes = drain(PM * 0.04)
+    check(notes.count("IGUI_TREK_PowerLow|25") == 1,
+          f"energy: crossing 25% with no spares said {notes}")
+    check(not any("PowerLow" in n for n in drain(PM * 0.05)),
+          "energy: the 25% warning came again at 19%")
+    notes = drain(PM * 0.10)
+    check(notes.count("IGUI_TREK_PowerLow|10") == 1,
+          f"energy: crossing 10% with no spares said {notes}")
+    check(not any("PowerLow" in n for n in drain(PM * 0.01)),
+          "energy: the 10% warning came again")
+    # With a spare behind it a low reserve is the next swap, not news.
+    energy_state(rt, PM * 0.30, 1)
+    rt.run("TREK.Util.state().powerWarn = nil")
+    check(not any("PowerLow" in n for n in drain(PM * 0.25)),
+          "energy: a low reserve warned with a spare crystal aboard")
+    # The last spare engaging is said once.
+    energy_state(rt, 10, 1)
+    notes = drain(20)
+    check("IGUI_TREK_PowerLastCrystal" in notes,
+          f"energy: the last crystal engaged in silence ({notes})")
+    check(not any("PowerLastCrystal" in n for n in drain(20)),
+          "energy: the last crystal was announced twice")
+
     # --- going dark is published once ----------------------------------------
     energy_state(rt, int(C("ProbeCost")), 0)
     rt.run("TREK.Energy.powerChanged(); SIM.notes = {}")

@@ -892,7 +892,142 @@ def padd_screen():
           f"fragments; every control on the stick")
 
 
+def power_gauge():
+    """The power bar (ENERGY.md 3.4): the helm's row and the screen gauge.
+
+    Positions and colours, not presence: a bar that is drawn in the wrong
+    colour, or a gauge that shows in the street, passes any check that only
+    asks whether something was drawn.
+    """
+    texture_files["on"] = True
+    lua, missing = make_lua()
+    C = lua.globals().TREK.Config
+    PM = float(C.PowerMax)
+    gold, amber, red = (1.0, 0.8, 0.4), (1.0, 0.6, 0.4), (0.8, 0.4, 0.4)
+
+    def bar_fill(draws, y):
+        return [d for d in draws if d.kind == "rect" and d.own and abs(float(d.y) - y) < 0.5
+                and abs(float(d.extra[1]) - 0.95) < 1e-6]
+
+    def colour(d):
+        return tuple(round(float(d.extra[i]), 2) for i in (2, 3, 4))
+
+    def texts(draws):
+        return [str(d.extra) for d in draws if d.kind == "text"]
+
+    # --- the helm's row --------------------------------------------------
+    lua.execute("win = TREKHelmWindow:new(60, 80, player); win:createChildren()")
+    win = lua.globals().win
+    by = float(win.powerBarY)
+    for frac, want, name in ((0.9, gold, "gold"), (0.2, amber, "amber"), (0.05, red, "red")):
+        lua.execute(f"local s = TREK.Util.state(); s.power = {PM * frac}; s.crystals = 2")
+        draws = run_frames(lua, f"helm power {name}", 1)
+        check_bounds(lua, draws, f"helm power {name}")
+        fill = bar_fill(draws, by)
+        if len(fill) != 1:
+            failures.append(f"helm power: at {frac:.0%} the bar drew {len(fill)} fills")
+            continue
+        if colour(fill[0]) != want:
+            failures.append(f"helm power: at {frac:.0%} the bar is {colour(fill[0])}, not {name}")
+        if abs(float(fill[0].w) - int((float(win.width) - 64 - 28) * frac)) > 1:
+            failures.append(f"helm power: at {frac:.0%} the fill is {float(fill[0].w):.0f}px wide")
+        if IG["IGUI_TREK_PowerLevel"].replace("%1", str(int(PM * frac))).replace(
+                "%2", str(int(PM))) not in texts(draws):
+            failures.append(f"helm power: at {frac:.0%} the number is not on the row")
+
+    lua.execute("local s = TREK.Util.state(); s.power = 0; s.crystals = 0")
+    draws = run_frames(lua, "helm power dark", 1)
+    check_bounds(lua, draws, "helm power dark")
+    if bar_fill(draws, by):
+        failures.append("helm power: a dark ship's bar still has a fill")
+    if IG["IGUI_TREK_PowerEmergency"] not in texts(draws):
+        failures.append("helm power: a dark ship's helm does not say EMERGENCY POWER")
+    # A client told the ship is dark before it has been told the reserve reads
+    # the reserve as full (TREK_Power: a missing value is full). The flag has
+    # to win, or the bar is full gold under EMERGENCY POWER.
+    lua.execute("""
+        _G.isClient = function() return true end
+        local s = TREK.Util.state(); s.power = nil; s.dark = true
+    """)
+    draws = run_frames(lua, "helm power dark client", 1)
+    if bar_fill(draws, by):
+        failures.append("helm power: a client that knows the ship is dark but not its "
+                        "reserve draws a full bar")
+    lua.execute("""
+        _G.isClient = function() return false end
+        local s = TREK.Util.state(); s.dark = nil
+    """)
+
+    # --- the gauge ---------------------------------------------------------
+    lua.execute("""
+        require "TREK/TREK_PowerHUD"
+        _G.getSpecificPlayer = function() return player end
+        player.getVehicle = function() return nil end
+        hud = TREKPowerHUD:new()
+        win = hud
+        local s = TREK.Util.state(); s.power = TREK.Config.PowerMax * 0.6; s.crystals = 3
+    """)
+    draws = run_frames(lua, "gauge aboard", 1)
+    check_bounds(lua, draws, "gauge aboard")
+    pips = [d for d in draws if d.kind == "rect" and float(d.w) == 7 and float(d.h) == 7]
+    if len(pips) != 3:
+        failures.append(f"gauge: three spares drew {len(pips)} pips")
+    if str(int(PM * 0.6)) not in texts(draws):
+        failures.append("gauge: the reserve's number is not on the gauge")
+    if not bar_fill(draws, 22):
+        failures.append("gauge: aboard, the gauge drew no bar")
+
+    lua.execute("TREK.Util.state().crystals = 12")
+    draws = run_frames(lua, "gauge many spares", 1)
+    if "x12" not in texts(draws):
+        failures.append("gauge: twelve spares are not shown as a number")
+
+    # Dark: EMERGENCY POWER, blinking.
+    lua.execute("local s = TREK.Util.state(); s.power = 0; s.crystals = 0")
+    lua.execute("_G.getTimestampMs = function() return 1600 * 100 + 100 end")
+    on = texts(run_frames(lua, "gauge dark on", 1))
+    lua.execute("_G.getTimestampMs = function() return 1600 * 100 + 1300 end")
+    off = texts(run_frames(lua, "gauge dark off", 1))
+    if IG["IGUI_TREK_PowerEmergency"] not in on:
+        failures.append("gauge: a dark ship's gauge does not say EMERGENCY POWER")
+    if IG["IGUI_TREK_PowerEmergency"] in off:
+        failures.append("gauge: EMERGENCY POWER never blinks")
+
+    # In the street it draws nothing; in her seat it draws.
+    lua.execute("""
+        local s = TREK.Util.state(); s.power = TREK.Config.PowerMax; s.crystals = 1
+        player.getX = function() return 10500.5 end
+        player.getY = function() return 9500.5 end
+        player.getZ = function() return 0 end
+    """)
+    if run_frames(lua, "gauge outside", 1):
+        failures.append("gauge: it is drawn for a player standing in the street")
+    lua.execute("""
+        player.getVehicle = function()
+            return { getScriptName = function() return "Base.TrekShuttleCraft" end }
+        end
+    """)
+    if not run_frames(lua, "gauge seated", 1):
+        failures.append("gauge: it is not drawn for a player in her seat")
+    lua.execute("""
+        player.getVehicle = function()
+            return { getScriptName = function() return "Base.CarNormal" end }
+        end
+    """)
+    if run_frames(lua, "gauge other car", 1):
+        failures.append("gauge: it is drawn in somebody else's car")
+    if lua.eval("hud:isMouseOver()") is not False:
+        failures.append("gauge: it can take the mouse")
+
+    for key in sorted(set(missing)):
+        failures.append(f"power gauge: getText({key!r}) has no entry in IG_UI.json")
+    print("power gauge: the helm's bar is gold, amber and red at its thresholds and "
+          "empty when dark; the screen gauge shows the reserve and its spares aboard "
+          "and in her seat, blinks EMERGENCY POWER when dark, and is gone in the street")
+
+
 def main():
+    power_gauge()
     for textures in (True, False):
         texture_files["on"] = textures
         label = "art installed" if textures else "no textures"

@@ -995,6 +995,12 @@ C.DilithiumIssue = 3
 -- haveElectricity() means "a generator is running in this chunk".
 C.DevicePower = 1.0
 
+-- Where the power bar turns amber and then red, as a fraction of the crystal
+-- burning (ENERGY.md 3.4). The same two numbers are the thresholds the crew
+-- are warned at on the way down, once each, when there is no spare behind it.
+C.PowerAmber = 0.25
+C.PowerRed = 0.10
+
 ---------------------------------------------------------------------------
 -- The replicator
 ---------------------------------------------------------------------------
