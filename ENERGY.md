@@ -117,8 +117,8 @@ r,g,b)`: red is a refusal, orange a warning, blue information.
   The first player beams up from anywhere.
 - **Two hooks already wait for this guide:** `M.hearing()` in
   `TREK_Missions.lua` ("the one line cold start changes") and `S.commission()`
-  in the uncommitted comms work (`TREK_CommsServer.lua`). Today the comms work
-  treats "commissioned" as "first boarded" and sets `d.day0`.
+  in `TREK_CommsServer.lua` (committed in 1.6.0, `COMMS.md` 9). Today the
+  comms work treats "commissioned" as "first boarded" and sets `d.day0`.
 
 ---
 
@@ -183,7 +183,13 @@ refuses without a round trip; the server refuses authoritatively.
 - the warp core's *Load a crystal*;
 - the tricorders and the medical set (their own items);
 - opening lockers and containers;
-- reading the gauge.
+- reading the gauge;
+- **the PADD and the Adirondack channel** (decided 2026-09-24: a PADD has its
+  own battery and talks to orbit directly). Calls ring, hails are answered and
+  tapes are read off a PADD in a dark ship exactly as in a lit one; a missed
+  call comes back worse whatever the power was, so an outage never loses the
+  story. Tapes the channel issues are still delivered to the shelf -- a shelf
+  is not an appliance.
 
 Everything else is refused with the same "not enough power" note.
 
@@ -713,11 +719,13 @@ The first `powerUp` of a cold ship is the commissioning:
   same sound and lights;
 - `M.hearing()` becomes `s.commissioned == true`, which is the one line
   `TREK_Missions.lua` was left waiting for;
-- `S.commission()` in the comms work sets `d.day0` on `s.commissioned`, not on
-  `s.built`. **That file belongs to the other session.** The change is one
-  condition, and it is made last, after their work lands, so the two don't
-  collide. `IG_UI.json` is touched by both, so strings are added in one block
-  at the end.
+- `S.commission()` in `TREK_CommsServer.lua` sets `d.day0` on
+  `s.commissioned`, not on `s.built` -- one condition. The comms work has
+  landed (1.6.0), so there is nothing left to collide with. **The sandbox's
+  *When the Adirondack first calls* then counts from the first power-up** on
+  a cold ship: "straight away" means straight after commissioning (decided
+  2026-09-24). A commissioned start keeps first boarding as day zero, as
+  today.
 
 **Existing saves migrate as commissioned.** In `OnInitGlobalModData`, a ship
 with no `s.commissioned` field that has ever been built or landed gets
@@ -808,7 +816,7 @@ and a commit. None of it needs a game until the phase marked **play**.
 | 7 | **Cold start** | the option, the cold state, placement beside the first player, commissioning, the migration, the recovery probe, `M.hearing`. Then the comms hook, once the other session's work has landed. |
 | — | **Play** | A fresh cold world, walked end to end (10.5). |
 | 8 | **The galley** | V5–V8, then the hidden generator, the `IsoStove`s and the `BuildRev` bump. It stops and reports if V5–V7 fail. |
-| 9 | **Docs** | This file rewritten as a working guide. `ROADMAP2.md` 1.6 marked built. DEV_GUIDE's *Current state*, the README's known limits, `MULTIPLAYER.md`'s traffic list, `PILOTING.md` (emergency landing), `EMH.md` and `REPLICATOR.md` (their dark behaviour). Version 1.6.0. |
+| 9 | **Docs** | This file rewritten as a working guide. `ROADMAP2.md` 1.6 marked built. DEV_GUIDE's *Current state*, the README's known limits, `MULTIPLAYER.md`'s traffic list, `PILOTING.md` (emergency landing), `EMH.md` and `REPLICATOR.md` (their dark behaviour). **Version 1.7.0** -- 1.6.0 is the PADD and the channel. |
 
 ### Verify first
 
@@ -825,6 +833,11 @@ and a commit. None of it needs a game until the phase marked **play**.
 - **V4.** Crash damage (5.2): which machine applies it, what front and rear
   health are, and whether a server-side `setCondition` sticks.
 - **V5–V8.** The galley (section 9), done at the start of phase 8, not now.
+
+**Already true, and worth knowing before phase 7:** holo-fragment clue sites
+only appear after first contact (`S.clueFor` waits on the channel's `met`
+flag), and first contact waits on day zero -- so on a cold ship the two opening
+probes can only ever find dilithium. Nothing needs adding for that.
 
 ### Sim holes to expect
 
