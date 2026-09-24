@@ -9001,7 +9001,7 @@ def energy():
     net.pump(2)
     check(int(rt.eval("TREK.Power.reserve()")) == PM - int(C("ProbeCost")),
           f"energy: a probe left the reserve at {rt.eval('TREK.Power.reserve()')}")
-    check(any(n == f"IGUI_TREK_Energizing|{int(C('ProbeCost'))}" for n in rt.notes()),
+    check(any(n == f"IGUI_TREK_PowerUsed|{int(C('ProbeCost'))}" for n in rt.notes()),
           f"energy: a paid charge said nothing about what it cost ({rt.notes()})")
 
     # --- the remainder carries over (V1) -------------------------------------
@@ -9108,7 +9108,7 @@ def energy():
     rt.run("SIM.notes = {}")
     ok = rt.eval('TREK.Energy.energize(SIM.players[1], "beam", 25)')
     check(ok is False, "energy: a dark ship paid for a beam")
-    check(any(n == "IGUI_TREK_NoPower|25|0" for n in rt.notes()),
+    check(any(n == "IGUI_TREK_NoPowerFor|25|0" for n in rt.notes()),
           f"energy: a dark refusal said {rt.notes()}")
 
     # --- a crystal loaded into a dark ship burns at once ---------------------
@@ -9173,12 +9173,12 @@ def energy_movement():
     rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
     # Read before anything is delivered: only the client's own pre-check can
     # have said this yet, and that is what saves the round trip.
-    check(any(n == f"IGUI_TREK_NoPower|{C('LandCost')}|100" for n in rt.notes()),
+    check(any(n == f"IGUI_TREK_NoPowerFor|{C('LandCost')}|100" for n in rt.notes()),
           f"energy movement: the call-down menu asked the server before looking "
           f"at the reserve ({rt.notes()})")
     net.pump(40)
     check(ship(rt, "landed") is not True, "energy movement: she came down on 100 units")
-    check(any(n == f"IGUI_TREK_NoPower|{C('LandCost')}|100" for n in rt.notes()),
+    check(any(n == f"IGUI_TREK_NoPowerFor|{C('LandCost')}|100" for n in rt.notes()),
           f"energy movement: calling her down short said {rt.notes()}")
     # The server refuses too, whatever the client thought.
     rt.run(f"TREK.Core.send({P}, 'land', {{ x = 3004, y = 3000, z = 0 }})")
@@ -9193,7 +9193,7 @@ def energy_movement():
     check(ship(rt, "landed") is True, "energy movement: she would not come down on a full crystal")
     check(reserve() == PM - C("LandCost"),
           f"energy movement: landing left {reserve()}, not {PM - C('LandCost')}")
-    check(f"IGUI_TREK_Energizing|{C('LandCost')}" in rt.notes(),
+    check(f"IGUI_TREK_PowerUsed|{C('LandCost')}" in rt.notes(),
           f"energy movement: the landing did not say what it cost ({rt.notes()})")
 
     # --- her own parts: a full battery and a full tank while powered --------
@@ -9213,7 +9213,7 @@ def energy_movement():
     check(before - reserve() == C("EngineStartCost"),
           f"energy movement: starting her cost {before - reserve()}, "
           f"not {C('EngineStartCost')}")
-    check(f"IGUI_TREK_Energizing|{C('EngineStartCost')}" in rt.notes(),
+    check(f"IGUI_TREK_PowerUsed|{C('EngineStartCost')}" in rt.notes(),
           f"energy movement: the start did not tell the driver ({rt.notes()})")
     rt.run("TREK.Server.serviceVehicle(); TREK.Server.serviceVehicle()")
     check(before - reserve() == C("EngineStartCost"),
@@ -9258,7 +9258,7 @@ def energy_movement():
     rt.run("SIM.notes = {}")
     rt.run(f"TREK.Core.send({P}, 'takeoff', {{}})")
     net.pump(2)
-    check(any(n.startswith("IGUI_TREK_NoPower|") for n in rt.notes()),
+    check(any(n.startswith("IGUI_TREK_NoPowerFor|") for n in rt.notes()),
           f"energy movement: a take-off it could not pay for said {rt.notes()}")
     energy_state(rt, PM, 0)
     rt.run(f"TREK.Core.send({P}, 'airborne', {{ level = TREK.Config.flightLevel() }})")
@@ -9292,7 +9292,7 @@ def energy_movement():
     rt.run(f"TREK.Menu.onRecall(nil, {P})")
     net.pump(2)
     check(ship(rt, "landed") is True, "energy movement: a dark ship was recalled")
-    check(any(n.startswith("IGUI_TREK_NoPower|") for n in rt.notes()),
+    check(any(n.startswith("IGUI_TREK_NoPowerFor|") for n in rt.notes()),
           f"energy movement: a dark recall said {rt.notes()}")
 
     # --- power back: she starts again ---------------------------------------

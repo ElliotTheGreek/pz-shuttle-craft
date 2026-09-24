@@ -215,7 +215,7 @@ Net.onClient("landingRefused", function(args)
     -- the rest of the timeout would only delay the beam home.
     if job and args.why == "noPower" then
         T.pending = nil
-        TREK.Transport.recoverAboard(job.player, getText("IGUI_TREK_NoPower",
+        TREK.Transport.recoverAboard(job.player, getText("IGUI_TREK_NoPowerFor",
             tostring(args.need or "?"), tostring(args.have or "?")))
         return
     end
@@ -228,7 +228,7 @@ Net.onClient("landingRefused", function(args)
     end
     if args.why == "unloaded" or args.why == "far" then return end
     if args.why == "noPower" then
-        U.note(Core.lastAsker or U.player(0), getText("IGUI_TREK_NoPower",
+        U.note(Core.lastAsker or U.player(0), getText("IGUI_TREK_NoPowerFor",
                tostring(args.need or "?"), tostring(args.have or "?")), 255, 170, 90)
         return
     end

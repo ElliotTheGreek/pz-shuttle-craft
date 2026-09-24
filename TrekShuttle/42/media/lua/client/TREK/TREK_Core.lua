@@ -164,15 +164,20 @@ local DENIALS = {
 -- The refusals the ledger sends (TREK_Energy.lua). Each carries `need` and
 -- `have`, and each text takes them as %1 and %2. `noPower` is the general
 -- one; the other three had their own words before the ledger existed and
--- keep them. Without numbers (the EMH panel's own gate sends emhNoPower
+-- keep them. "Energizing" is the transporter's word and nobody else's, so a
+-- beam's refusal has its own text (TRANSPORT_KINDS below). Without numbers (the EMH panel's own gate sends emhNoPower
 -- bare) the plain sentence in DENIALS is used instead.
 local POWER_DENIALS = {
-    noPower       = "IGUI_TREK_NoPower",
+    noPower       = "IGUI_TREK_NoPowerFor",
     repNoCrystal  = "IGUI_TREK_RepNoCrystal",
     emhNoPower    = "IGUI_TREK_EmhNoPowerCost",
     probeNoPower  = "IGUI_TREK_ProbeNoPower",
 }
 Core.POWER_DENIALS = POWER_DENIALS
+
+-- The moves that are the transporter, whose refusal reads "Energizing...
+-- failed". Everything else that costs power just says it is short.
+local TRANSPORT_KINDS = { beamUp = true, beamDown = true }
 
 Net.onClient("denied", function(args)
     -- A refused move is no longer waiting.
@@ -188,7 +193,9 @@ Net.onClient("denied", function(args)
         -- refusal a player cannot plan around, and this is the one that sends
         -- them off across the map looking for a crystal. Every refusal the
         -- ledger sends carries them (ENERGY.md 3.1).
-        U.note(player, getText(POWER_DENIALS[args.why], tostring(args.need or "?"),
+        local key = POWER_DENIALS[args.why]
+        if args.why == "noPower" and TRANSPORT_KINDS[args.what] then key = "IGUI_TREK_NoPower" end
+        U.note(player, getText(key, tostring(args.need or "?"),
                                tostring(args.have or "?")), 255, 170, 90)
     elseif args.why == "commsHeld" then
         -- Whose channel it is, because "somebody else is speaking" with no
@@ -205,10 +212,11 @@ end)
 -- The ship's power, as this client hears about it (ENERGY.md 3.1, 3.3)
 ---------------------------------------------------------------------------
 -- What a charge cost, to the player who asked for it. The continuous drains
--- are silent and report through the gauge instead.
+-- are silent and report through the gauge instead. Not "Energizing": that is
+-- the transporter's own note (TREK_Transport), and only the transporter's.
 Net.onClient("energized", function(args)
     local player = Core.lastAsker or U.player(0)
-    U.note(player, getText("IGUI_TREK_Energizing", tostring(args.cost or "?")),
+    U.note(player, getText("IGUI_TREK_PowerUsed", tostring(args.cost or "?")),
            150, 220, 255)
 end)
 

@@ -89,7 +89,7 @@ function M.onCallDown(_, player, x, y, z)
     -- Refused here first when the ship plainly cannot pay (ENERGY.md 4.1); the
     -- server checks again, and is the one that charges.
     if TREK.Power.dark() or not TREK.Power.canPay(C.LandCost) then
-        U.note(player, getText("IGUI_TREK_NoPower", tostring(C.LandCost),
+        U.note(player, getText("IGUI_TREK_NoPowerFor", tostring(C.LandCost),
                                tostring(math.floor(TREK.Power.reserve()))), 255, 170, 90)
         return
     end
