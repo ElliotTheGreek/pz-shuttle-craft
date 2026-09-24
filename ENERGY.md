@@ -818,20 +818,62 @@ and a commit. None of it needs a game until the phase marked **play**.
 | 8 | **The galley** | V5–V8, then the hidden generator, the `IsoStove`s and the `BuildRev` bump. It stops and reports if V5–V7 fail. |
 | 9 | **Docs** | This file rewritten as a working guide. `ROADMAP2.md` 1.6 marked built. DEV_GUIDE's *Current state*, the README's known limits, `MULTIPLAYER.md`'s traffic list, `PILOTING.md` (emergency landing), `EMH.md` and `REPLICATOR.md` (their dark behaviour). **Version 1.7.0** -- 1.6.0 is the PADD and the channel. |
 
-### Verify first
+### Verify first: answered 2026-09-24
 
-- **V1.** `P.afford` burns a spare *before* a cost it can cover. With many
-  small drains the reserve reaches 0 exactly, and the next half-unit burns a
-  crystal, losing nothing. Confirm with numbers that `partial` + burn never
-  loses more than one unit per crystal. DEV_GUIDE: *A branch a mutation cannot
-  break may be unreachable* — look at the numbers.
-- **V2.** Where `addLamppost` lights are drawn for a player standing in the
-  cabin, and whether `removeLamppost` on the handle takes effect in the same
-  frame (the EMH light suggests yes).
-- **V3.** Battery, tank and engine state (4.2): flat battery refuses ignition,
-  the server sees `isEngineRunning`, and the part syncs reach the driver.
-- **V4.** Crash damage (5.2): which machine applies it, what front and rear
-  health are, and whether a server-side `setCondition` sticks.
+V1 was answered from the code; V2 to V4 from the bytecode (`javadis.py`) and
+vanilla Lua. Nothing here has been seen in game yet.
+
+- **V1. The remainder was being thrown away, so it carries over now.**
+  `P.afford` burned a spare *before* a cost it could not cover, and
+  `P.burnCrystal` **sets** the reserve to full. Whatever was left in the old
+  crystal was lost, up to 149 units on a 150-unit landing and 24 on a beam.
+  That broke the one-unit rule. `P.pay` runs the old crystal to zero first
+  and takes only the shortfall from the new one, so **nothing is lost at
+  all**. The `energy()` test runs 4,000 partial drains across two swaps and
+  checks that the total taken is exactly the total asked. The one place a
+  fraction can still go is *Load a crystal* into an empty core, which burns at
+  once (3.3) and throws away less than one unit.
+- **V2. The lamps can be recoloured in place, so no remove-and-add.**
+  `IsoLightSource.setR/G/B` write the field, and every lighting update pushes
+  a changed colour to the native side (`IsoFire.update` flickers its light this
+  way). `setActive(false)` switches one off. Colour is doubled and clamped, so
+  anything at or above 0.5 renders full: white is (0.92, 0.96, 1.0) and red
+  wants about (0.5, 0.05, 0.05). Only radius and position need a fresh
+  `addLamppost`. Lampposts are **runtime only, per process**: never saved,
+  cleared every tick on a server, so nothing duplicates on reload. Two
+  cautions: `removeLamppost(x, y, z)` removes the *first* light on that square,
+  whoever owns it (always remove by handle), and a handle must never be
+  re-added. **A latent bug** in today's `lightCabin`: `LightingJNI.checkLights`
+  drops a lamppost outside every local player's loaded chunks, and the `lit`
+  flag then stops it ever being hung again. Phase 4 keeps the handles and
+  re-hangs any that `getLamppostPositions():contains(h)` says are gone.
+- **V3. A flat battery refuses ignition, and the server decides.**
+  `BaseVehicle.tryStartEngine` reads the battery item's
+  `getCurrentUsesFloat()` and fails with `engineDoStartingFailedNoPower` at 0.1
+  or below (bci 209-222), *before* the key check, so easy-use keys do not skip
+  it. It runs on the server for both routes: the context menu's timed action
+  completes there, and the keyboard sends `vehicle/startEngine`. The charge is
+  set with `part:getInventoryItem():setUsedDelta(v)` and synced with
+  `vehicle:transmitPartUsedDelta(part)` (vanilla's `VehicleUtils.chargeBattery`);
+  `transmitPartModData` does **not** carry it. Engine state is decided on the
+  server and sent to clients (`transmitEngine`), so `serviceVehicle` can watch
+  `isEngineRunning()` for the start edge. The tank is part mod data
+  (`setContainerContentAmount` then `transmitPartModData`), and an empty tank
+  refuses a start and stalls a running engine. **One correction to 4.2:** a
+  flat battery only stops a *start*. Going dark also calls
+  `vehicle:shutOff()`, vanilla's own path for an ordinary player.
+- **V4. Crash damage is applied on the server, so repair runs there.**
+  `BaseVehicle.crash` on a client only sends `vehicle/crash`, and the server's
+  handler applies `addDamageFront/Rear`. Part conditions travel server to
+  client only, and `VehicleUpdatePacket.parse` applies them with no driver
+  check, so a server `setCondition` reaches the driver and sticks.
+  `frontEndHealth` / `rearEndHealth` gate nothing. On this hull a front crash
+  damages the **Engine** (no engine door), a rear crash the **TruckBed**, and
+  zombie hits the front tyres. Repair follows vanilla's `fixPart`:
+  `setCondition(100)`, `doInventoryItemStats`, `transmitPartCondition` (and
+  `transmitPartItem` if it has an item), then `updatePartStats` once. **Not
+  `vehicle:repair()`**: it refills the tank and recharges the battery for free.
+  Crash damage also hurts the occupants, and no part repair undoes that.
 - **V5–V8.** The galley (section 9), done at the start of phase 8, not now.
 
 **Already true, and worth knowing before phase 7:** holo-fragment clue sites

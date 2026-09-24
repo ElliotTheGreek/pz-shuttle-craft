@@ -33,6 +33,7 @@ require "TREK/TREK_Replicator"
 require "TREK/TREK_Probes"
 require "TREK/TREK_EMH"
 require "TREK/TREK_Build"
+require "TREK/TREK_Energy"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -1505,8 +1506,12 @@ Net.onServer("replicate", function(player, args)
     -- units and the dearest thing in the game is fifteen hundred, so if a
     -- spare exists the swap always covers the cost. The only real failure is
     -- having none.
+    --
+    -- Checked before and paid after, because what is charged is what really
+    -- landed in the player's hands. Silent: the `replicated` note below says
+    -- what it cost, and a halo note holds one line, so a second would hide it.
     local cost = Rep.cost(row, count)
-    if not TREK.Power.afford(cost) then
+    if not TREK.Power.canPay(cost) then
         deny(player, "repNoCrystal",
              { need = cost, have = math.floor(TREK.Power.reserve()) })
         return
@@ -1515,7 +1520,8 @@ Net.onServer("replicate", function(player, args)
     local made = materialise(player, row.id, count)
     local spent = Rep.cost(row, made)
     s.repAt = now
-    if spent > 0 then TREK.Power.spend(spent) end
+    TREK.Energy.energize(player, "replicate", spent,
+                         { silent = true, noCommit = true })
     Ship.commit()
 
     Net.toClient(player, "replicated", {
@@ -1599,7 +1605,19 @@ Net.onServer("loadCrystal", function(player)
     end
 
     TREK.Power.addCrystals(1)
+    -- **A dark ship burns it at once** (ENERGY.md 3.3). A spare is normally
+    -- burned lazily, by the next charge that needs it -- but a dark ship has
+    -- to come back on the moment the crystal goes in, because that is the
+    -- payoff the cold start is built around.
+    --
+    -- Keyed on the core being empty rather than on `s.dark`: an empty core
+    -- with this crystal as its only spare *is* the dark ship, and one with
+    -- other spares loses nothing by burning now (less than a unit, V1).
+    if TREK.Power.reserve() < 1 then
+        TREK.Power.burnCrystal()
+    end
     Ship.commit()
+    TREK.Energy.powerChanged()
     Net.toClient(player, "crystalLoaded",
                  { crystals = TREK.Power.crystals() })
     U.log("core: %s loaded a crystal; %d spare(s) aboard",
@@ -1753,15 +1771,14 @@ local function patientFor(player, args)
 end
 
 --- Spends the treatment's power. Returns true when the ship could pay.
+--- Silent when it pays: `emhTreated` is the note, and it says what he did.
 local function spendTreatment(player)
-    local cost = EMH.treatCost()
-    if not TREK.Power.afford(cost) then
-        deny(player, "emhNoPower")
-        return false
+    if TREK.Power.canPay(EMH.treatCost()) then
+        return TREK.Energy.energize(player, "emhTreat", EMH.treatCost(),
+                                    { silent = true })
     end
-    TREK.Power.spend(cost)
-    Ship.commit()
-    return true
+    return TREK.Energy.energize(player, "emhTreat", EMH.treatCost(),
+                                { why = "emhNoPower" })
 end
 
 --- Treats a body. **Supplies are infinite; power is not.**
@@ -2239,12 +2256,10 @@ Net.onServer("buildProbe", function(player, args)
         return
     end
 
-    local cost = C.ProbeCost
-    -- afford() burns a spare crystal when the reserve is short, which is the
-    -- whole reason a crystal is worth carrying; spend() then takes the units.
-    if not TREK.Power.afford(cost) or not TREK.Power.spend(cost) then
-        deny(player, "probeNoPower",
-             { need = cost, have = math.floor(TREK.Power.reserve()) })
+    -- The ledger burns a spare crystal when the reserve is short, which is
+    -- the whole reason a crystal is worth carrying.
+    if not TREK.Energy.energize(player, "probe", C.ProbeCost,
+                                { why = "probeNoPower", noCommit = true }) then
         return
     end
 

@@ -121,7 +121,6 @@ local DENIALS = {
     probeRackFull     = "IGUI_TREK_ProbeRackFull",
     probeNoRoom       = "IGUI_TREK_ProbeNoRoom",
     probeNoFix        = "IGUI_TREK_ProbeNoFix",
-    -- probeNoPower carries numbers and is handled below, like repNoCrystal.
     -- The Doctor. Every one of these is a line the server can send, and
     -- tests/test_multiplayer.py's static pass fails if a deny() literal in
     -- server/ has no entry here: a refusal that arrives and says nothing is
@@ -150,7 +149,24 @@ local DENIALS = {
     commsGone         = "IGUI_TREK_CommsGone",
     commsStale        = "IGUI_TREK_CommsStale",
     commsBusy         = "IGUI_TREK_CommsBusy",
+    -- The ledger's own refusals carry numbers and are shown from
+    -- POWER_DENIALS below; these are the words if one ever arrives bare.
+    noPower           = "IGUI_TREK_NoPowerBare",
+    repNoCrystal      = "IGUI_TREK_NoPowerBare",
 }
+
+-- The refusals the ledger sends (TREK_Energy.lua). Each carries `need` and
+-- `have`, and each text takes them as %1 and %2. `noPower` is the general
+-- one; the other three had their own words before the ledger existed and
+-- keep them. Without numbers (the EMH panel's own gate sends emhNoPower
+-- bare) the plain sentence in DENIALS is used instead.
+local POWER_DENIALS = {
+    noPower       = "IGUI_TREK_NoPower",
+    repNoCrystal  = "IGUI_TREK_RepNoCrystal",
+    emhNoPower    = "IGUI_TREK_EmhNoPowerCost",
+    probeNoPower  = "IGUI_TREK_ProbeNoPower",
+}
+Core.POWER_DENIALS = POWER_DENIALS
 
 Net.onClient("denied", function(args)
     -- A refused move is no longer waiting.
@@ -161,11 +177,12 @@ Net.onClient("denied", function(args)
     if args.why == "recharging" then
         U.note(player, getText("IGUI_TREK_Recharging", tostring(args.secs or "?")),
                255, 170, 90)
-    elseif args.why == "repNoCrystal" then
+    elseif POWER_DENIALS[args.why] and args.need ~= nil then
         -- The numbers are the answer here: "no power" without them is a
         -- refusal a player cannot plan around, and this is the one that sends
-        -- them off across the map looking for a crystal.
-        U.note(player, getText("IGUI_TREK_RepNoCrystal", tostring(args.need or "?"),
+        -- them off across the map looking for a crystal. Every refusal the
+        -- ledger sends carries them (ENERGY.md 3.1).
+        U.note(player, getText(POWER_DENIALS[args.why], tostring(args.need or "?"),
                                tostring(args.have or "?")), 255, 170, 90)
     elseif args.why == "commsHeld" then
         -- Whose channel it is, because "somebody else is speaking" with no
@@ -176,6 +193,35 @@ Net.onClient("denied", function(args)
     elseif DENIALS[args.why] then
         U.note(player, getText(DENIALS[args.why]), 255, 90, 90)
     end
+end)
+
+---------------------------------------------------------------------------
+-- The ship's power, as this client hears about it (ENERGY.md 3.1, 3.3)
+---------------------------------------------------------------------------
+-- What a charge cost, to the player who asked for it. The continuous drains
+-- are silent and report through the gauge instead.
+Net.onClient("energized", function(args)
+    local player = Core.lastAsker or U.player(0)
+    U.note(player, getText("IGUI_TREK_Energizing", tostring(args.cost or "?")),
+           150, 220, 255)
+end)
+
+--- Every player on this machine hears the ship go dark or come back: it is
+--- their ship whether or not they are aboard. Split-screen has four slots.
+local function toEveryLocal(text, r, g, b)
+    for i = 0, 3 do
+        local p = U.player(i)
+        if p then U.note(p, text, r, g, b) end
+    end
+end
+
+Net.onClient("powerDown", function()
+    toEveryLocal(getText("IGUI_TREK_PowerDown"), 255, 170, 90)
+end)
+
+Net.onClient("powerUp", function(args)
+    toEveryLocal(getText(args and args.first and "IGUI_TREK_Commissioned"
+                         or "IGUI_TREK_PowerUp"), 150, 220, 255)
 end)
 
 ---------------------------------------------------------------------------

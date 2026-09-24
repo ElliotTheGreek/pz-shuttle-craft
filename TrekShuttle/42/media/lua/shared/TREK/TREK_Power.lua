@@ -332,4 +332,84 @@ function P.spend(n)
     return true
 end
 
+---------------------------------------------------------------------------
+-- Everything aboard runs on it (ENERGY.md section 3)
+---------------------------------------------------------------------------
+-- Every charge in the ship goes through P.pay, and every one of those through
+-- TREK.Energy.energize on the server, so nothing can charge twice, forget to
+-- commit, or refuse in its own words.
+
+--- The most one charge can take: what is left, plus one fresh crystal if
+--- there is a spare to burn. A charge never burns two.
+function P.available()
+    local more = P.crystals() > 0 and C.PowerMax or 0
+    return P.reserve() + more
+end
+
+--- True when the ship could pay `cost` now.
+function P.canPay(cost)
+    cost = cost or 0
+    if cost <= 0 then return true end
+    return cost <= P.available()
+end
+
+--- Pays `cost`, burning a spare if the reserve runs out part-way. Authority
+--- only; the caller commits. Returns what was actually paid.
+---
+--- **The remainder carries over (ENERGY.md V1).** P.afford swaps a crystal
+--- in *before* a cost it cannot cover, and a burn sets the reserve to full,
+--- so whatever was left in the old crystal was thrown away: up to 149 units
+--- on a 150-unit landing. Here the old crystal is run to zero first and only
+--- the shortfall comes out of the new one, so nothing is ever lost.
+---
+--- `partial` pays what there is when the whole cost cannot be met, and the
+--- ship goes dark. That is for the continuous drains (a shield that has half
+--- a push left still pushes). Without it a charge the ship cannot cover pays
+--- nothing at all.
+function P.pay(cost, partial)
+    if isClient() then return 0 end
+    if type(cost) ~= "number" or cost ~= cost or cost <= 0 then return 0 end
+    if not partial and not P.canPay(cost) then return 0 end
+
+    local s = U.state()
+    local have = P.reserve()
+    if cost <= have then
+        s.power = have - cost
+        return cost
+    end
+    -- Run the old crystal dry, then burn a fresh one for the rest.
+    s.power = 0
+    local paid = have
+    if P.burnCrystal() then
+        local rest = math.min(cost - paid, P.reserve())
+        s.power = P.reserve() - rest
+        paid = paid + rest
+    end
+    return paid
+end
+
+--- True when the ship's own numbers say it has no power at all: less than one
+--- unit left and no spare to burn.
+function P.computeDark()
+    return P.reserve() < 1 and P.crystals() == 0
+end
+
+--- True when the ship is dark.
+---
+--- **The authority asks the numbers and a client asks the flag.** A client's
+--- copy with no `power` in it yet reads the reserve as full (P.reserve), so
+--- its arithmetic would say "lit" about a ship that is dark; the published
+--- `s.dark` is unambiguous. The authority's numbers are always current, even
+--- in the moment between a spend and the S.powerChanged that publishes it.
+---
+--- ROADMAP2 says *never infer a campaign from a low reserve*: this is the
+--- ship's power, and nothing about the story reads it.
+function P.dark()
+    if isClient() then
+        local d = U.state().dark
+        if d ~= nil then return d == true end
+    end
+    return P.computeDark()
+end
+
 return P

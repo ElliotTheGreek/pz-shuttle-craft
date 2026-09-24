@@ -4383,9 +4383,12 @@ def replicator():
     check(crystals_aboard(rt) == spares - 1,
           f"replicator: it made something on an empty reserve without taking "
           f"a crystal ({crystals_aboard(rt)} left of {spares})")
-    check(rep_energy(rt) == C("PowerMax") - 24,
+    # The 10 units left in the old crystal pay first and only the rest comes
+    # out of the new one (ENERGY.md V1): a burn used to throw them away.
+    check(rep_energy(rt) == C("PowerMax") - (24 - 10),
           f"replicator: after loading a crystal the reserve is "
-          f"{rep_energy(rt)}, not a full {C('PowerMax')} less the hammer")
+          f"{rep_energy(rt)}, not a full {C('PowerMax')} less the part of the "
+          f"hammer the old crystal could not pay")
 
     # A reserve above the maximum reads as the maximum. Tuning DilithiumCharge
     # down in a later revision would otherwise leave every existing save with
@@ -8926,12 +8929,226 @@ def comms_story():
           "Gold and the last call -- and nothing after")
 
 
+def energy_state(rt, power, crystals):
+    rt.run(f"local s = TREK.Util.state(); s.power = {power}; s.crystals = {crystals}")
+
+
+def energy():
+    """The ledger (ENERGY.md section 3): one function pays for everything.
+
+    What is worth having in here, and each is a way the power system could be
+    wrong while every consumer looked fine:
+
+      * **the remainder carries over** (V1). A burn used to set the reserve to
+        full, throwing away whatever was left in the old crystal -- up to 149
+        units on a landing. Many small drains must add up to exactly what was
+        asked, crystal swaps and all;
+      * **a refusal carries its numbers**, because "no power" alone is a
+        refusal nobody can plan around;
+      * **dark is published once**, on the change, and a save from before it
+        gets its flag silently rather than being told it lost power;
+      * **a crystal loaded into a dark ship burns at once** -- the payoff the
+        cold start is built around.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('engineer', 1000.5, 1000.5, 0)")
+    net.start()
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    PM = int(C("PowerMax"))
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "energy, beaming up"):
+        return
+
+    # --- a save from before the ledger is told nothing -----------------------
+    rt.run("TREK.Util.state().dark = nil; SIM.notes = {}")
+    rt.fire("EveryOneMinute")
+    check(rt.eval("TREK.Util.state().dark") is False,
+          f"energy: a lit ship's flag reads {rt.eval('TREK.Util.state().dark')!r} "
+          f"after a minute, not false")
+    check(not any("IGUI_TREK_Power" in n for n in rt.notes()),
+          f"energy: an old save was told about a power change nobody made "
+          f"({rt.notes()})")
+
+    # --- a charge is paid, and says so ---------------------------------------
+    energy_state(rt, PM, 0)
+    rt.run("SIM.notes = {}")
+    rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+    net.pump(2)
+    check(int(rt.eval("TREK.Power.reserve()")) == PM - int(C("ProbeCost")),
+          f"energy: a probe left the reserve at {rt.eval('TREK.Power.reserve()')}")
+    check(any(n == f"IGUI_TREK_Energizing|{int(C('ProbeCost'))}" for n in rt.notes()),
+          f"energy: a paid charge said nothing about what it cost ({rt.notes()})")
+
+    # --- the remainder carries over (V1) -------------------------------------
+    energy_state(rt, 100, 1)
+    rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+    net.pump(2)
+    left = float(rt.eval("TREK.Power.reserve()"))
+    check(left == PM - (int(C("ProbeCost")) - 100),
+          f"energy: 100 units and a spare paid for a 250-unit probe and left "
+          f"{left}; the old crystal's 100 were thrown away")
+    check(crystals_aboard(rt) == 0, "energy: the spare was not burned")
+
+    # Many small drains, partial, across two crystal swaps: nothing lost.
+    energy_state(rt, 7.25, 2)
+    asked = rt.eval("""(function()
+        local E, total = TREK.Energy, 0
+        for i = 1, 4000 do
+            local cost = (i % 7) * 0.75 + 0.5
+            E.energize(nil, "drain", cost, { partial = true, silent = true,
+                                              noCommit = true })
+            total = total + cost
+        end
+        return total
+    end)()""")
+    have = 7.25 + 2 * PM
+    left = float(rt.eval("TREK.Power.reserve()"))
+    check(abs((have - left) - asked) < 1e-6 or left == 0,
+          f"energy: {asked} units of small drains took {have - left} out of "
+          f"the ship; a crystal swap lost the difference")
+
+    # --- a refusal carries its numbers ---------------------------------------
+    energy_state(rt, 100, 0)
+    rt.run("SIM.notes = {}")
+    rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+    net.pump(2)
+    check(int(rt.eval("TREK.Power.reserve()")) == 100,
+          "energy: a refused charge still took something")
+    check(any(n == f"IGUI_TREK_ProbeNoPower|{int(C('ProbeCost'))}|100" for n in rt.notes()),
+          f"energy: a refusal did not say what was needed and what was left "
+          f"({rt.notes()})")
+
+    # --- going dark is published once ----------------------------------------
+    energy_state(rt, int(C("ProbeCost")), 0)
+    rt.run("TREK.Energy.powerChanged(); SIM.notes = {}")
+    rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+    net.pump(2)
+    check(rt.eval("TREK.Util.state().dark") is True,
+          "energy: spending the last unit left the ship lit")
+    check(rt.eval("TREK.Power.dark()") is True, "energy: P.dark() disagrees with the flag")
+    downs = [n for n in rt.notes() if n == "IGUI_TREK_PowerDown"]
+    check(len(downs) == 1, f"energy: going dark said so {len(downs)} time(s) ({rt.notes()})")
+    rt.run("SIM.notes = {}")
+    rt.fire("EveryOneMinute")
+    check(not any("IGUI_TREK_Power" in n for n in rt.notes()),
+          "energy: a dark ship said it went dark again a minute later")
+
+    # An empty reserve with a spare in the core is not dark: the next charge
+    # burns the spare. A charge that exactly empties the reserve leaves the
+    # ship in this state, and calling it dark would black out a ship with a
+    # crystal aboard.
+    energy_state(rt, 0, 1)
+    rt.run("TREK.Energy.powerChanged(); SIM.notes = {}")
+    check(rt.eval("TREK.Power.dark()") is False,
+          "energy: an empty reserve with a spare aboard reads as dark")
+    check(rt.eval("TREK.Util.state().dark") is False,
+          "energy: an empty reserve with a spare aboard was published dark")
+    energy_state(rt, 0, 0)
+    rt.run("TREK.Energy.powerChanged(); SIM.notes = {}")
+
+    # A dark ship refuses what costs power, and the refusal is the general one.
+    rt.run("SIM.notes = {}")
+    ok = rt.eval('TREK.Energy.energize(SIM.players[1], "beam", 25)')
+    check(ok is False, "energy: a dark ship paid for a beam")
+    check(any(n == "IGUI_TREK_NoPower|25|0" for n in rt.notes()),
+          f"energy: a dark refusal said {rt.notes()}")
+
+    # --- a crystal loaded into a dark ship burns at once ---------------------
+    stand_at(rt, net, int(C("DilithiumSpot").x) + 1, int(C("DilithiumSpot").y))
+    rt.run(f'{P}.inventory:AddItem(instanceItem("{C("DilithiumItem")}"))')
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'loadCrystal', {{}})")
+    net.pump(4)
+    check(int(rt.eval("TREK.Power.reserve()")) == PM,
+          f"energy: a crystal loaded into a dark ship left the reserve at "
+          f"{rt.eval('TREK.Power.reserve()')} -- it went in as a spare")
+    check(crystals_aboard(rt) == 0, "energy: the crystal was burned and kept")
+    check(rt.eval("TREK.Util.state().dark") is False,
+          "energy: a crystal went in and the ship stayed dark")
+    check(any(n == "IGUI_TREK_PowerUp" for n in rt.notes()),
+          f"energy: power coming back said nothing ({rt.notes()})")
+
+    # A lit ship with its reserve up keeps a loaded crystal as a spare.
+    rt.run(f'{P}.inventory:AddItem(instanceItem("{C("DilithiumItem")}"))')
+    rt.run(f"TREK.Core.send({P}, 'loadCrystal', {{}})")
+    net.pump(4)
+    check(crystals_aboard(rt) == 1 and int(rt.eval("TREK.Power.reserve()")) == PM,
+          "energy: a crystal loaded into a lit ship was burned rather than kept")
+
+    for w in rt.warnings():
+        fail(f"energy: {w}")
+    print("energy: one ledger, a charge that says what it cost, a refusal with "
+          "its numbers, a remainder that carries over through thousands of "
+          "drains, dark published once, and a crystal that brings her back")
+
+
+def energy_multiplayer():
+    """Two clients: the flag reaches both, and a race pays once."""
+    net = Net("mp", clients=("kirk", "spock"))
+    srv = net.server
+    kirk, spock = net.clients["kirk"], net.clients["spock"]
+    srv.run("SIM.player('kirk', 2000.5, 2000.5, 0); SIM.player('spock', 2000.5, 2000.5, 0)")
+    kirk.run("SIM.player('kirk', 2000.5, 2000.5, 0)")
+    spock.run("SIM.player('spock', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    for c in (kirk, spock):
+        c.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(kirk, "energy mp") or died(spock, "energy mp"):
+        return
+    cost = int(srv.eval("TREK.Config.ProbeCost"))
+
+    # Reserve for exactly one probe: the two race, one pays, one is refused.
+    energy_state(srv, cost + 10, 0)
+    srv.run("TREK.Energy.powerChanged(); TREK.Ship.commit()")
+    net.pump(2)
+    for c in (kirk, spock):
+        c.run("SIM.notes = {}")
+        c.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+    net.pump(4)
+    check(int(srv.eval("TREK.Util.state().probes or 0")) == 1,
+          f"energy mp: two racing fabrications made "
+          f"{srv.eval('TREK.Util.state().probes')} probes from one probe's power")
+    check(int(srv.eval("TREK.Power.reserve()")) == 10,
+          f"energy mp: the race left {srv.eval('TREK.Power.reserve()')} units")
+    refused = [c for c in (kirk, spock)
+               if any(n.startswith("IGUI_TREK_ProbeNoPower|") for n in c.notes())]
+    check(len(refused) == 1, "energy mp: the loser of the race was not told why")
+
+    # Going dark reaches both clients as a flag and a note.
+    energy_state(srv, 5, 0)
+    for c in (kirk, spock):
+        c.run("SIM.notes = {}")
+    srv.run('TREK.Energy.energize(nil, "drain", 5, { silent = true })')
+    net.pump(2)
+    for name, c in (("kirk", kirk), ("spock", spock)):
+        check(c.eval("TREK.Power.dark()") is True,
+              f"energy mp: {name}'s copy of the ship is not dark")
+        check("IGUI_TREK_PowerDown" in c.notes(),
+              f"energy mp: {name} was not told the power went ({c.notes()})")
+    # A client's missing reserve reads as full, and the flag still wins.
+    kirk.run("TREK.Util.state().power = nil")
+    check(kirk.eval("TREK.Power.dark()") is True,
+          "energy mp: a client with no reserve in its copy read a dark ship as lit")
+
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"energy mp: {w}")
+    print("energy mp: a race pays once and tells the loser why, and dark "
+          "reaches both machines as a flag and a note")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
-            contact_map, contacts_multiplayer, probes, contact_world,
+            contact_map, contacts_multiplayer, probes, energy,
+            energy_multiplayer, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
