@@ -367,6 +367,36 @@ local STEP_OUT_OFFSET = 4
 
 --- Puts the player back down beside the ship.
 ---
+--- Rebuilds this client's inventory and loot panels from where the player
+--- now is. Vanilla's own call (ISInventoryPage.lua:1330), used by vanilla
+--- after anything that changes what a player can reach.
+function Core.refreshInventoryUI()
+    U.try("inventoryDirty", function() ISInventoryPage.dirtyUI() end)
+end
+
+--- Takes a player out of their seat **the way vanilla's exit does**, for the
+--- moves that cannot wait for vanilla's exit action: a beam, a trip aft.
+---
+--- Three steps and the last is the one that was missing. `vehicle:exit` is
+--- what ISExitVehicle:perform calls; `OnExitVehicle` is what it fires next
+--- (the dashboard listens for it). And the loot panel has to be rebuilt
+--- **now, while the shuttle is still loaded**: it was left showing the seat's
+--- container, the move into the cabin unloaded the shuttle's chunk, and on the
+--- first frame aboard vanilla's panel drew its title by asking that seat
+--- `isOccupiedVehicleSeat()` -- whose vehicle was gone. One NullPointerException
+--- in every session that went from a seat into the cabin, in every log from
+--- 2026-09-23 on (ENSIGN.md's play-test found it; DEV_GUIDE failure
+--- signatures).
+function Core.leaveSeat(player)
+    if not player then return false end
+    local vehicle = U.try("playerVehicle", function() return player:getVehicle() end)
+    if not vehicle then return false end
+    U.try("vehicleExit", function() vehicle:exit(player) end)
+    U.try("exitEvent", function() triggerEvent("OnExitVehicle", player) end)
+    Core.refreshInventoryUI()
+    return true
+end
+
 --- Two steps, for the same reason a beam-down has two: the ground by the ship
 --- is not loaded while the player is in the cabin, so a clear square cannot be
 --- found until they are standing near it. They arrive a few squares off the

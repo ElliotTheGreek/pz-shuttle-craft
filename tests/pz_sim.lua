@@ -2988,7 +2988,21 @@ function getPlayerLoot(i)
     return page
 end
 SIM.floorContainer = { isVehiclePart = function() return false end }
-ISInventoryPage = { GetFloorContainer = function() return SIM.floorContainer end }
+-- dirtyUI is vanilla's rebuild of the inventory and loot panels. Counted, so
+-- a test can say whether a move out of a seat rebuilt them while the shuttle
+-- was still there -- the missing step behind one NullPointerException in
+-- every session that went from a seat into the cabin.
+SIM.inventoryRefreshes = 0
+ISInventoryPage = { GetFloorContainer = function() return SIM.floorContainer end,
+                    dirtyUI = function() SIM.inventoryRefreshes = SIM.inventoryRefreshes + 1 end }
+
+--- Vanilla fires its own events from Lua with triggerEvent; ISExitVehicle
+--- fires OnExitVehicle this way. Recorded, and passed on to any handler.
+SIM.triggered = {}
+function triggerEvent(name, ...)
+    table.insert(SIM.triggered, name)
+    SIM.fire(name, ...)
+end
 
 -- The radial menu, modelled as the toggle it really is.
 --

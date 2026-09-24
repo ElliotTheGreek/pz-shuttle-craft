@@ -744,10 +744,18 @@ crystal. The log said why in two lines:
 ```
 
 The register asked `U.isInteriorPlayer` -- the cabin -- and the pilot's seat
-is not in the cabin. The patient then treated themselves eight times, each
-treatment putting right the one thing the untouched infection kept damaging,
-which read from the chair as *the Doctor heals me and the bite comes back*.
-Treatment never touches a bite, by design; the cure had simply been lost.
+is not in the cabin.
+
+The same session holds the other half of the report, *the Doctor keeps
+healing me and the bite comes back*, and it happened **before** the cockpit,
+standing next to him: eight treatments a second or two apart during the
+running cure, each putting right exactly one thing. A cure takes twelve game
+hours, and until it lands the bite and the infection stay -- by design -- and
+the bite keeps reopening its own wound. Each treatment patched that and the
+bite undid it, and nothing on the panel said a cure was on its way. So the
+panel now does: *Cure running: N hours to go -- stay aboard*, under the
+infection line, whenever the register has the patient
+(`IGUI_TREK_EmhCureRunning`, drawn in `tests/test_helm.py`).
 
 `EMH.aboardForCure` is the cabin **or a seat in the shuttle**, and the first
 check off the ship now starts a two-minute grace rather than ending the cure:

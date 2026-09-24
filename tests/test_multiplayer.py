@@ -7456,8 +7456,73 @@ def padd_multiplayer():
           "else")
 
 
+
+def seat_exit():
+    """Leaving a seat for the cabin leaves it the way vanilla's exit does.
+
+    Every session log from 2026-09-23 on has one NullPointerException in
+    vanilla's loot panel on the first frame aboard after leaving the shuttle's
+    seat: the panel was still showing the seat's container, the move into the
+    cabin unloaded the shuttle, and the panel asked a seat whose vehicle was
+    gone. Vanilla's ISExitVehicle fires OnExitVehicle and the panel is rebuilt
+    while the vehicle still exists; the mod's own exits did neither.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    seat(rt)
+
+    # --- beaming up from the pilot's seat --------------------------------
+    rt.run("SIM.inventoryRefreshes = 0; SIM.triggered = {}")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(200)
+    check(rt.eval(f"{P}.vehicle") is None,
+          "seat exit: beaming up left the pilot in the seat")
+    check(int(rt.eval("SIM.inventoryRefreshes")) >= 1,
+          "seat exit: beaming up out of a seat did not rebuild the loot "
+          "panel, which is still showing the seat when the shuttle unloads")
+    check("OnExitVehicle" in [str(x) for x in rt.eval("SIM.triggered").values()],
+          "seat exit: beaming up out of a seat never fired OnExitVehicle, "
+          "which vanilla's own exit does")
+
+    # --- aft to the cabin in flight -----------------------------------------
+    rt.run(f"""
+        local p = {P}
+        p.x, p.y, p.z, p.lastZ = 3004.5, 3006.5, 0, 0
+        p.streamX, p.streamY = p.x, p.y
+    """)
+    net.pump(40)
+    seat(rt)
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+    if ship(rt, "flying") is not True:
+        fail("seat exit: she never got up, so the trip aft cannot be tested")
+        return
+    rt.run("SIM.inventoryRefreshes = 0; SIM.triggered = {}")
+    rt.run(f"TREK.VehicleMenu.onBoardFromSeat({P})")
+    net.pump(10)
+    check(rt.eval(f"{P}.vehicle") is None,
+          "seat exit: going aft in flight left the pilot in the seat")
+    check(int(rt.eval("SIM.inventoryRefreshes")) >= 1,
+          "seat exit: going aft in flight did not rebuild the loot panel -- "
+          "exactly the move in the 2026-09-23 log")
+    check("OnExitVehicle" in [str(x) for x in rt.eval("SIM.triggered").values()],
+          "seat exit: going aft in flight never fired OnExitVehicle")
+
+    for w in rt.warnings():
+        fail(f"seat exit: {w}")
+    print("seat exit: beaming up and going aft both leave the seat the way "
+          "vanilla does -- OnExitVehicle, and the loot panel rebuilt while "
+          "the shuttle is still loaded")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_alone,
-            flight_endings,
+            flight_endings, seat_exit,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, contact_world,

@@ -2187,6 +2187,8 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **No distress call ever comes** | The ship is not hearing: nobody has boarded since the cabin was built, or there is no dilithium in the core or the reserve. The first call is due an hour of game time after it first hears; the log says `distress: the ship is listening`. See `ENSIGN.md`. |
 | **"No transporter lock" on a downed ensign you can see** | The server looked at their square and the figure was not there. The next pass puts a missing figure back. |
 | **A probe or a distress call on a server says there is no position fix** | The server has no return point for a player standing in the cabin. The `move` handler writes one before every beam up; a player who has not beamed since the fix will have one after their next. See *Player mod data a client writes is not the server's*. |
+| **`ItemContainer.isOccupiedVehicleSeat` NullPointerException, once, on arriving aboard** | Somebody left the shuttle's seat for the cabin without the loot panel being rebuilt: it still showed the seat's container, the move unloaded the shuttle, and vanilla asked a seat whose vehicle was gone. Every seat exit goes through `Core.leaveSeat`, which does what `ISExitVehicle` does -- `vehicle:exit`, `OnExitVehicle`, `ISInventoryPage.dirtyUI()` -- while she is still loaded. `seat_exit()` tests both routes. |
+| **A cure is lost although the patient never left** | They went forward to the cockpit. The seats are aboard (`EMH.aboardForCure`), and leaving starts a two-minute grace rather than ending it. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
 ---

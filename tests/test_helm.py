@@ -1196,6 +1196,21 @@ def main():
     if any(IG["IGUI_TREK_EmhClean"].upper() in t for t in texts):
         failures.append("emh: the panel reports an infected patient as clean")
 
+    # --- a cure running -------------------------------------------------------
+    # The bite and the infection stay for the twelve hours a cure takes, so a
+    # panel that says only "infected" through all of it reads as a cure that
+    # failed. It has to say that one is running, and how long is left.
+    lua.execute("""
+        TREK.EMH.cures()[player:getUsername()] = TREK.EMH.worldHours() + 9
+    """)
+    draws = run_frames(lua, "emh, a cure running")
+    check_bounds(lua, draws, "emh, a cure running")
+    running = IG["IGUI_TREK_EmhCureRunning"].split("%1")[0].upper()
+    if not any(running in str(d.extra) for d in draws if d.kind == "text"):
+        failures.append("emh: a cure is running and the panel does not say "
+                        "so, or how long it has left")
+    lua.execute("TREK.EMH.cures()[player:getUsername()] = nil")
+
     # --- a long name, and an empty core --------------------------------------
     # Two states that only a render shows: a username longer than its button,
     # and a ship with nothing to cure anybody with.
