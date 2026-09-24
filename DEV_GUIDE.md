@@ -25,9 +25,10 @@ python tests/test_stock.py
 python tests/test_layout.py
 python tests/test_helm.py
 python tests/test_multiplayer.py
+python tests/test_comms.py
 ```
 
-If all seven succeed you have a working setup. `test_layout.py` prints the cabin
+If all eight succeed you have a working setup. `test_layout.py` prints the cabin
 floor plan with every fitting on it — the fastest way to see the shape of the
 thing.
 
@@ -52,7 +53,7 @@ changing anything that touches the world or the ship's state.
 ```sh
 # 1. edit, then always:
 python tools/luacheck.py TrekShuttle/42/media/lua
-python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py && python tests/test_helm.py && python tests/test_multiplayer.py
+python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py && python tests/test_helm.py && python tests/test_multiplayer.py && python tests/test_comms.py
 
 # 2. install
 python tools/deploy_windows.py

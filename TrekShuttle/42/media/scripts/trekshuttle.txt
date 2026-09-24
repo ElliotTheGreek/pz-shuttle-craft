@@ -1682,4 +1682,87 @@ module TrekShuttle
             rotate = -11.7984 87.0744 -81.8605,
         }
     }
+
+    /*  The six holo fragments (LORE.md 1c, COMMS.md 6.3). One mesh and texture
+        from tools/gen_fragment.py, six icons with their numbers on them.
+        Losable like anything carried, which is the point: a fragment is
+        permanent only once Shepard has put it on tape.  */
+    item TrekFragment1
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 1,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment1,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    item TrekFragment2
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 2,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment2,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    item TrekFragment3
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 3,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment3,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    item TrekFragment4
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 4,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment4,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    item TrekFragment5
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 5,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment5,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    item TrekFragment6
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 6,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment6,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    model TrekFragmentModel
+    {
+        mesh = TREK_Fragment,
+        texture = TREK_Fragment,
+        scale = 1.0,
+    }
 }

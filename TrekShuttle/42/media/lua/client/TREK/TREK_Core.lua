@@ -144,6 +144,12 @@ local DENIALS = {
     ensignSafe        = "IGUI_TREK_EnsignSafe",
     ensignMissing     = "IGUI_TREK_EnsignMissing",
     ensignFar         = "IGUI_TREK_EnsignTooFar",
+    -- The Adirondack channel (COMMS.md). commsHeld carries a name and is
+    -- handled below.
+    commsNoPadd       = "IGUI_TREK_CommsNoPadd",
+    commsGone         = "IGUI_TREK_CommsGone",
+    commsStale        = "IGUI_TREK_CommsStale",
+    commsBusy         = "IGUI_TREK_CommsBusy",
 }
 
 Net.onClient("denied", function(args)
@@ -161,6 +167,12 @@ Net.onClient("denied", function(args)
         -- them off across the map looking for a crystal.
         U.note(player, getText("IGUI_TREK_RepNoCrystal", tostring(args.need or "?"),
                                tostring(args.have or "?")), 255, 170, 90)
+    elseif args.why == "commsHeld" then
+        -- Whose channel it is, because "somebody else is speaking" with no
+        -- name is thirty seconds of wondering why the buttons are dead
+        -- (COMMS.md 2).
+        U.note(player, getText("IGUI_TREK_CommsHeld", tostring(args.by or "?")),
+               255, 170, 90)
     elseif DENIALS[args.why] then
         U.note(player, getText(DENIALS[args.why]), 255, 90, 90)
     end

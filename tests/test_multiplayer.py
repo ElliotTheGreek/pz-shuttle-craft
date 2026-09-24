@@ -8162,6 +8162,541 @@ def ground_cockpit():
           "option is not offered while she is overhead")
 
 
+
+# ---------------------------------------------------------------------------
+# The Adirondack channel (COMMS.md, PADD.md 12)
+# ---------------------------------------------------------------------------
+def comms_state(rt, expr):
+    """A field of the live channel as this runtime holds it."""
+    return rt.eval(f"(function() local c = TREK.Comms.call(); return {expr} end)()")
+
+
+def comms_send(rt, player, cmd, args="{}"):
+    rt.run(f'TREK.Net.send({player}, "{cmd}", {args})')
+
+
+def comms_choose(rt, net, player, option, node=None):
+    """Chooses an option on the live call, as this runtime's player."""
+    node_expr = f'"{node}"' if node else "TREK.Comms.call().node"
+    rt.run(f"""
+        local c = TREK.Comms.call()
+        TREK.Net.send({player}, "commsChoose",
+                      {{ id = c.id, node = {node_expr}, option = {option} }})
+    """)
+    net.pump(2)
+
+
+def comms_avail(rt):
+    return [int(x) for x in str(rt.eval(
+        "table.concat(TREK.Comms.call() and TREK.Comms.call().avail or {}, ',')"
+    )).split(",") if x]
+
+
+def ring_first(rt, net):
+    """Puts day zero a week back and lets the scheduler ring."""
+    rt.run("TREK.Comms.store().day0 = SIM.worldAgeHours - 24 * 7")
+    rt.run("TREK.CommsServer.service()")
+    net.pump(2)
+
+
+def comms():
+    """The channel in single player: day zero, the first ring, the holder's
+    options, a refusal of anything else, silence, the whole of 6.1, the
+    history as a render, a missed repeatable, and the quiet path."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "comms, beaming up"):
+        return
+    give(rt, "owner", "TrekShuttle.TrekPADD", 8301)
+
+    # --- day zero is the first boarding -----------------------------------
+    rt.run("TREK.CommsServer.service()")
+    check(rt.eval("TREK.Comms.store().day0 ~= nil") is True,
+          "comms: the cabin is built and day zero was never set")
+    check(rt.eval("TREK.Comms.store().flags.commissioned") is True,
+          "comms: day zero is set and the commissioned flag is not")
+    rt.run("TREK.CommsServer.service()")
+    check(rt.eval("TREK.Comms.call()") is None,
+          "comms: a call rang on day zero; the first contact waits a week")
+
+    # --- a week on, she rings ---------------------------------------------
+    ring_first(rt, net)
+    check(comms_state(rt, "c and c.state") == "ringing"
+          and comms_state(rt, "c.thread") == "FIRST",
+          "comms: a week after day zero, first contact did not ring")
+    check(any("IGUI_TREK_CommsRingNote" in n for n in rt.notes()),
+          "comms: a call rang and nobody was told")
+
+    rt.run(f'TREK.Net.send({P}, "commsAnswer", {{ id = TREK.Comms.call().id }})')
+    net.pump(2)
+    check(comms_state(rt, "c.state") == "live"
+          and comms_state(rt, "c.node") == "FIRST_01"
+          and comms_state(rt, "c.holder") == "owner",
+          "comms: answering did not make the owner the holder at the first node")
+    check(comms_avail(rt) == [1, 2, 3],
+          f"comms: the first node offers {comms_avail(rt)}, not all three")
+
+    # --- anything but an offered option on the live node is refused --------
+    comms_choose(rt, net, P, 1, node="FIRST_02")
+    check(comms_state(rt, "c.node") == "FIRST_01"
+          and any("IGUI_TREK_CommsStale" in n for n in rt.notes()),
+          "comms: an answer naming a node that is not live moved the call")
+    comms_choose(rt, net, P, 9)
+    check(comms_state(rt, "c.node") == "FIRST_01",
+          "comms: an option the node does not have moved the call")
+
+    # --- silence is an answer ---------------------------------------------
+    # The node's own clock, counted in seconds of play a tick at a time.
+    # Set a hair short and let the ticks carry it over, so the accumulation
+    # is what is tested and not a number written straight in.
+    rt.run("TREK.CommsServer.onNode = 59.9")
+    net.pump(20)
+    check(comms_state(rt, "c.node") == "FIRST_01S",
+          f"comms: the first node timed out to {comms_state(rt, 'c.node')}, "
+          f"not its silence branch")
+    check(comms_state(rt, "c.steps[1].o") == 0,
+          "comms: the silence was not recorded as an answer")
+
+    # --- the rest of 6.1 --------------------------------------------------
+    for step in ("FIRST_02", "FIRST_03"):
+        comms_choose(rt, net, P, 1)
+        check(comms_state(rt, "c.node") == step,
+              f"comms: the call is at {comms_state(rt, 'c.node')}, not {step}")
+    comms_choose(rt, net, P, 3)      # "My name's %1."
+    check(rt.eval("TREK.Comms.store().flags.named") is True,
+          "comms: giving a name did not set the flag the later threads read")
+    for _ in range(3):
+        comms_choose(rt, net, P, 1)
+    check(comms_state(rt, "c.node") == "FIRST_07",
+          f"comms: the call is at {comms_state(rt, 'c.node')}, not FIRST_07")
+    # "I have. All six logs." is only for a holder who has seen all of the
+    # sixth -- asked of the server's copy of this player, never a client's.
+    check(comms_avail(rt) == [2, 3],
+          f"comms: a holder who never watched log six is offered {comms_avail(rt)}")
+    comms_choose(rt, net, P, 2)
+    check(rt.eval("TREK.Comms.call()") is None,
+          "comms: the call did not end at the last node")
+    check(rt.eval("TREK.Comms.store().flags.met") is True,
+          "comms: first contact ended without setting met")
+    check(rt.eval("TREK.Comms.store().fired.FIRST") == 1,
+          "comms: first contact is not recorded as fired")
+
+    # --- the history is a render --------------------------------------------
+    rows = int(rt.eval("#TREK.Comms.log().rows"))
+    check(rows == 1, f"comms: {rows} rows in the history after one call")
+    text = str(rt.eval("""(function()
+        local row = TREK.Comms.log().rows[1]
+        local out = {}
+        for _, l in ipairs(TREK.Comms.render(row.s, row.a1, row.a2)) do
+            table.insert(out, l.text)
+        end
+        return table.concat(out, "\\n")
+    end)()"""))
+    check("IGUI_TREK_CommsSilence" in text,
+          "comms: the history does not show the silence")
+    check("Print_Text_TREK_COMM_FIRST_03_O3|owner" in text,
+          "comms: the history does not render the holder's own words with "
+          "their name in them")
+    check(rt.eval("""(function()
+        local row = TREK.Comms.log().rows[1]
+        for _, s in ipairs(row.s) do
+            for k, v in pairs(s) do
+                if type(v) == "string" and v:find(" ") then return true end
+            end
+        end
+        return false
+    end)()""") is False,
+          "comms: the history stores text; it must store node ids and numbers")
+
+    # A line that waited on log six is offered once the player has seen it.
+    rt.run("""
+        local rm = getZomboidRadio():getRecordedMedia()
+        local d = rm:getMediaData("TREK_LogSix")
+        for _, ln in ipairs(d.lines) do SIM.players[1]:addKnownMediaLine(ln.text) end
+    """)
+    check(rt.eval('TREK.Comms.check("watched:TREK_LogSix", SIM.players[1])') is True,
+          "comms: a player who heard every line of log six is not 'watched'")
+
+    # --- a repeatable, missed ---------------------------------------------
+    rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 40")
+    rt.run('TREK.CommsServer.event("rescued", "Ensign Tal")')
+    rt.run("TREK.CommsServer.service()")
+    net.pump(2)
+    check(comms_state(rt, "c and c.thread") == "THANKS",
+          "comms: a rescue did not bring a thank-you call")
+    check(comms_state(rt, "c.a2") == "Ensign Tal",
+          "comms: the thank-you call does not carry the ensign's name")
+    rt.run(f"SIM.worldAgeHours = SIM.worldAgeHours + {6 + 1}")
+    rt.run("TREK.CommsServer.service()")
+    net.pump(2)
+    check(rt.eval("TREK.Comms.call()") is None,
+          "comms: a call nobody answered is still ringing after its window")
+    check(rt.eval("TREK.Comms.store().flags.thanksDue") is None,
+          "comms: a missed thank-you kept its flag, so it would ring for ever")
+    check(str(rt.eval("TREK.Comms.log().rows[#TREK.Comms.log().rows].out")) == "missed",
+          "comms: a missed call is not in the history as missed")
+    check(any("IGUI_TREK_CommsMissedNote" in n for n in rt.notes()),
+          "comms: a missed call was missed in silence")
+
+    # --- hailing, and the quiet path ----------------------------------------
+    rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 30")
+    comms_send(rt, P, "commsHail")
+    net.pump(2)
+    check(comms_state(rt, "c and c.thread") == "QUIET",
+          "comms: a hail after first contact went unanswered")
+    comms_choose(rt, net, P, 2)      # "Nothing. Wrong button."
+    check(rt.eval("TREK.Comms.call()") is None, "comms: 'wrong button' did not end the call")
+    before = len([n for n in rt.notes() if "IGUI_TREK_CommsNoAnswerNote" in n])
+    comms_send(rt, P, "commsHail")
+    net.pump(2)
+    after = len([n for n in rt.notes() if "IGUI_TREK_CommsNoAnswerNote" in n])
+    check(rt.eval("TREK.Comms.call()") is None and after == before + 1,
+          "comms: a second hail inside the day was answered; mostly nobody does")
+    rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 25")
+    comms_send(rt, P, "commsHail")
+    net.pump(2)
+    check(comms_state(rt, "c and c.thread") == "QUIET",
+          "comms: saying 'wrong button' once lost the quiet path for good")
+    comms_choose(rt, net, P, 1)
+    comms_choose(rt, net, P, 1)
+    check(rt.eval("TREK.Comms.store().flags.quiet") is True,
+          "comms: telling her to stop calling did not stop her")
+    rt.run('TREK.CommsServer.event("rescued", "Ensign Vorr")')
+    rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 100; TREK.CommsServer.service()")
+    check(rt.eval("TREK.Comms.call()") is None,
+          "comms: she called after being asked not to")
+    rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 3")
+    comms_send(rt, P, "commsHail")
+    net.pump(2)
+    check(comms_state(rt, "c and c.thread") == "RESUME",
+          "comms: hailing a quiet channel did not reach her")
+    comms_choose(rt, net, P, 1)
+    check(rt.eval("TREK.Comms.store().flags.quiet") is None,
+          "comms: asking her to call again left the channel quiet")
+
+    for w in rt.warnings():
+        fail(f"comms: {w}")
+    print("comms: day zero is the first boarding and nothing rings before "
+          "day seven; the holder is offered what the server allows and "
+          "nothing else moves the call; silence is a recorded answer; 6.1 "
+          "runs to its end; the history is ids and renders with the holder's "
+          "name; a missed repeatable lets go of its flag; she picks up a "
+          "hail about once a day; and the quiet path goes both ways")
+
+
+def comms_missed():
+    """A missed story call comes back worse, rather than again."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "comms missed, beaming up"):
+        return
+    give(rt, "owner", "TrekShuttle.TrekPADD", 8311)
+    # "Straight away": the sandbox option is how a player reaches the channel
+    # in a fresh world, so it is how this test reaches it too.
+    rt.run("SandboxVars.TrekShuttle = SandboxVars.TrekShuttle or {}; "
+           "SandboxVars.TrekShuttle.CommsFirstDay = 1")
+    rt.run("TREK.CommsServer.service()")
+    net.pump(2)
+    check(comms_state(rt, "c and c.thread") == "FIRST",
+          "comms missed: with the first call set to 'straight away' nothing rang "
+          "on day zero")
+    rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 7; TREK.CommsServer.service()")
+    check(rt.eval("TREK.Comms.store().misses.FIRST") == 1,
+          "comms missed: an unanswered first contact is not counted missed")
+    check(rt.eval("(TREK.Comms.store().fired.FIRST or 0) == 0") is True,
+          "comms missed: a missed story call is marked fired and is gone for good")
+    rt.run("TREK.CommsServer.service()")
+    check(rt.eval("TREK.Comms.call()") is None,
+          "comms missed: a missed call rang again at once")
+    rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 21; TREK.CommsServer.service()")
+    net.pump(2)
+    check(comms_state(rt, "c and c.thread") == "FIRST",
+          "comms missed: a missed first contact never rang again")
+    rt.run(f'TREK.Net.send({P}, "commsAnswer", {{ id = TREK.Comms.call().id }})')
+    net.pump(2)
+    check(comms_state(rt, "c.node") == "FIRST_01M",
+          f"comms missed: the second ring opened on {comms_state(rt, 'c.node')}, "
+          f"not the worse node for one miss")
+    for w in rt.warnings():
+        fail(f"comms missed: {w}")
+    print("comms missed: an unanswered story call is counted, waits, rings "
+          "again, and opens on the node for having been missed")
+
+
+def comms_multiplayer():
+    """One channel for the ship: both crew hear it, the first answer holds
+    it, the second is told whose it is, a stranger without a PADD cannot
+    take it, and a holder who goes lets somebody else pick it up."""
+    net = Net("mp", clients=("owner", "crew", "drifter"))
+    srv = net.server
+    owner, crew, drifter = (net.clients[n] for n in ("owner", "crew", "drifter"))
+    srv.run("SIM.player('owner', 2000.5, 2000.5, 0); "
+            "SIM.player('crew', 2003.5, 2000.5, 0); "
+            "SIM.player('drifter', 2006.5, 2000.5, 0)")
+    owner.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    crew.run("SIM.player('crew', 2003.5, 2000.5, 0)")
+    drifter.run("SIM.player('drifter', 2006.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    for rt in (srv, owner):
+        give(rt, "owner", "TrekShuttle.TrekPADD", 8401)
+    for rt in (srv, crew):
+        give(rt, "crew", "TrekShuttle.TrekPADD", 8402)
+    srv.run("TREK.Util.state().built = true")
+    srv.run("TREK.CommsServer.service()")
+    ring_first(srv, net)
+
+    for name, rt in (("owner", owner), ("crew", crew)):
+        check(comms_state(rt, "c and c.state") == "ringing",
+              f"comms mp: the {name}'s PADD does not show the ring")
+        check(any("IGUI_TREK_CommsRingNote" in n for n in rt.notes()),
+              f"comms mp: the {name} was not told of the ring")
+
+    # Two answers in one tick: the first to the server holds it.
+    owner.run(f'TREK.Net.send({P}, "commsAnswer", {{ id = TREK.Comms.call().id }})')
+    crew.run(f'TREK.Net.send({P}, "commsAnswer", {{ id = TREK.Comms.call().id }})')
+    net.pump(2)
+    check(comms_state(srv, "c.holder") == "owner",
+          f"comms mp: the holder is {comms_state(srv, 'c.holder')}, not the "
+          f"first to answer")
+    check(any("IGUI_TREK_CommsHeld|owner" in n for n in crew.notes()),
+          "comms mp: the second to answer was not told whose channel it is")
+    check(comms_state(crew, "c.holder") == "owner"
+          and comms_state(crew, "c.node") == "FIRST_01",
+          "comms mp: the crew's PADD does not show the owner's live call")
+
+    drifter.run(f'TREK.Net.send({P}, "commsAnswer", {{ id = "x" }})')
+    net.pump(2)
+    check(any("IGUI_TREK_CommsNoPadd" in n for n in drifter.notes()),
+          "comms mp: a player with no PADD was not told why they cannot answer")
+
+    crew.run(f"""TREK.Net.send({P}, "commsChoose",
+        {{ id = TREK.Comms.call().id, node = "FIRST_01", option = 1 }})""")
+    net.pump(2)
+    check(comms_state(srv, "c.node") == "FIRST_01",
+          "comms mp: somebody who is not the holder moved the call")
+
+    comms_choose(owner, net, P, 2)
+    check(comms_state(crew, "c.node") == "FIRST_02R",
+          "comms mp: the crew's PADD did not follow the owner's choice")
+
+    # A client is not an author.
+    owner.run("TREK.Comms.store().flags.forged = true")
+    check(srv.eval("TREK.Comms.store().flags.forged") is None,
+          "comms mp: a client's own copy of the channel reached the server")
+
+    # --- the holder goes; the call stands, and somebody else takes it -----
+    srv.run("""
+        for i, p in ipairs(SIM.players) do
+            if p.name == "owner" then table.remove(SIM.players, i) break end
+        end
+    """)
+    net.pump(90)
+    check(comms_state(srv, "c.holder") is None,
+          "comms mp: the holder left and still holds the channel")
+    check(any("IGUI_TREK_CommsReleasedNote" in n for n in crew.notes()),
+          "comms mp: the crew were not told the channel is free")
+    crew.run(f'TREK.Net.send({P}, "commsAnswer", {{ id = TREK.Comms.call().id }})')
+    net.pump(2)
+    check(comms_state(srv, "c.holder") == "crew"
+          and comms_state(srv, "c.node") == "FIRST_02R",
+          "comms mp: picking up a dropped call did not keep its node")
+
+    # An idle holder lets go too.
+    srv.run(f"TREK.CommsServer.idle = TREK.Config.CommsIdleSeconds")
+    net.pump(2)
+    check(comms_state(srv, "c.holder") is None,
+          "comms mp: a holder who never chose held the channel for ever")
+    crew.run(f'TREK.Net.send({P}, "commsAnswer", {{ id = TREK.Comms.call().id }})')
+    net.pump(2)
+
+    # To the end, and the history reaches every PADD.
+    for opt in (1, 1, 4, 1, 1, 1, 3):
+        comms_choose(crew, net, P, opt)
+    check(srv.eval("TREK.Comms.call()") is None,
+          f"comms mp: the call did not end ({comms_state(srv, 'c and c.node')})")
+    for name, rt in (("crew", crew), ("drifter", drifter)):
+        check(int(rt.eval("#TREK.Comms.log().rows")) == 1,
+              f"comms mp: the {name}'s copy of the history has "
+              f"{rt.eval('#TREK.Comms.log().rows')} rows, not 1")
+        check(rt.eval("TREK.Comms.call()") is None,
+              f"comms mp: the {name}'s PADD still shows a call that ended")
+
+    for name, rt in (("owner", owner), ("crew", crew), ("drifter", drifter)):
+        check(int(rt.eval("SIM.clientWorldEdit or 0")) == 0,
+              f"comms mp: the {name}'s client edited the world")
+    for name, rt in (("server", srv), ("owner", owner), ("crew", crew),
+                     ("drifter", drifter)):
+        for w in rt.warnings():
+            if name != "owner" or "commsOnClient" not in str(w):
+                fail(f"comms mp ({name}): {w}")
+    print("comms multiplayer: every PADD hears one ring; the first answer "
+          "holds the channel and the second is told whose it is; no PADD, no "
+          "answer; only the holder moves the call and every PADD follows it; "
+          "a holder who leaves or idles lets go and the call keeps its place; "
+          "and the history reaches everybody")
+
+
+def transcripts():
+    """Any tape can be transcribed, and reading it off the PADD does what
+    watching it does, once, line by line -- whichever you do first."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "transcripts, beaming up"):
+        return
+    give(rt, "owner", "TrekShuttle.TrekPADD", 8501)
+
+    # A tape of our own, in the player's pockets, carrying its recording.
+    def tape(item_id, rec):
+        rt.run(f"""
+            local it = instanceItem(TREK.Config.TapeItem)
+            it.id = {item_id}
+            it:setRecordedMediaData(getZomboidRadio():getRecordedMedia():getMediaData("{rec}"))
+            SIM.players[1].inventory:AddItem(it)
+        """)
+    tape(8601, "TREK_TalentNight")
+    tape(8602, "TREK_Tuvix")
+
+    labels = padd_menu(rt, [8601])
+    check("IGUI_TREK_PaddTranscribe" in labels,
+          f"transcripts: a tape offers no Transcribe with a PADD on you: {labels!r}")
+    padd_click(rt, "IGUI_TREK_PaddTranscribe")
+    tapes = str(rt.eval("table.concat(TREK.Padd.tapes(SIM.findItem(8501)), ',')"))
+    check(tapes == "TREK_TalentNight",
+          f"transcripts: an unwatched tape was not transcribed ({tapes!r}); any "
+          f"tape may be")
+    check(rt.eval("SIM.findItem(8601) ~= nil") is True,
+          "transcripts: transcribing took the tape")
+    padd_menu(rt, [8601])
+    check(option_greyed(rt, "IGUI_TREK_PaddTranscribe") is True,
+          "transcripts: a tape already on the PADD is offered again")
+
+    lines = int(rt.eval('#RecMedia["TREK_TalentNight"].lines'))
+    rt.run("""
+        ISTimedActionQueue.add(TREKReadTape:new(SIM.players[1], SIM.findItem(8501),
+                                                "TREK_TalentNight"))
+        SIM.runActions()
+    """)
+    bor = int(rt.eval("""(function()
+        local n = 0
+        for _, e in ipairs(SIM.mediaEffects) do if e.code == "BOR" then n = n + 1 end end
+        return n
+    end)()"""))
+    check(bor == lines,
+          f"transcripts: reading a {lines}-line tape relieved boredom on {bor} "
+          f"lines; the television does it on every one")
+    known = rt.eval("""SIM.players[1]:isKnownMediaLine("RM_TREK_TalentNight_01")""")
+    check(known is True,
+          "transcripts: a line read off the PADD is not remembered as heard")
+
+    before = int(rt.eval("#SIM.mediaEffects"))
+    rt.run("""
+        ISTimedActionQueue.add(TREKReadTape:new(SIM.players[1], SIM.findItem(8501),
+                                                "TREK_TalentNight"))
+        SIM.runActions()
+    """)
+    check(int(rt.eval("#SIM.mediaEffects")) == before,
+          "transcripts: reading a transcript twice paid twice")
+
+    # Watched first, then read: the television already paid.
+    rt.run("""
+        local d = getZomboidRadio():getRecordedMedia():getMediaData("TREK_Tuvix")
+        for _, ln in ipairs(d.lines) do SIM.players[1]:addKnownMediaLine(ln.text) end
+    """)
+    padd_menu(rt, [8602])
+    padd_click(rt, "IGUI_TREK_PaddTranscribe")
+    before = int(rt.eval("#SIM.mediaEffects"))
+    rt.run("""
+        ISTimedActionQueue.add(TREKReadTape:new(SIM.players[1], SIM.findItem(8501),
+                                                "TREK_Tuvix"))
+        SIM.runActions()
+    """)
+    check(int(rt.eval("#SIM.mediaEffects")) == before,
+          "transcripts: a tape already watched paid again when read")
+
+    # A transcript is an id, and renders from the registered recording.
+    check(rt.eval('#TREK.Padd.tapeLines("TREK_Tuvix")') ==
+          rt.eval('#RecMedia["TREK_Tuvix"].lines'),
+          "transcripts: a transcript does not render every line of its tape")
+
+    # Copying carries transcripts; erasing takes them.
+    give(rt, "owner", "TrekShuttle.TrekPADD", 8502)
+    padd_menu(rt, [8501])
+    padd_click(rt, "IGUI_TREK_PaddCopyTo")
+    check(int(rt.eval("#TREK.Padd.tapes(SIM.findItem(8502))")) == 2,
+          "transcripts: copying a PADD left its transcripts behind")
+    padd_menu(rt, [8502])
+    padd_click(rt, "IGUI_TREK_PaddEraseConfirm")
+    check(int(rt.eval("#TREK.Padd.tapes(SIM.findItem(8502))")) == 0,
+          "transcripts: erasing a PADD kept its transcripts")
+
+    for w in rt.warnings():
+        fail(f"transcripts: {w}")
+    print("transcripts: any tape transcribes and stays a tape; reading it "
+          "pays every line once through vanilla's own interpreter, paced "
+          "past the debounce; a second read and a tape already watched pay "
+          "nothing; the text renders from the recording; copies carry "
+          "transcripts and an erase takes them")
+
+
+def transcripts_multiplayer():
+    """A transcript is written on the server and reaches its owner; reading
+    it pays on the server's copy of the player, as the television does."""
+    net = Net("mp", clients=("owner",))
+    srv, owner = net.server, net.clients["owner"]
+    srv.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    owner.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    for rt in (srv, owner):
+        give(rt, "owner", "TrekShuttle.TrekPADD", 8701)
+        rt.run("""
+            local it = instanceItem(TREK.Config.TapeItem)
+            it.id = 8702
+            it:setRecordedMediaData(getZomboidRadio():getRecordedMedia():getMediaData("TREK_Tuvix"))
+            SIM.players[1].inventory:AddItem(it)
+        """)
+    net.pump(2)
+    padd_menu(owner, [8702])
+    padd_click(owner, "IGUI_TREK_PaddTranscribe")
+    net.pump(4)
+    check(int(srv.eval("#TREK.Padd.tapes(SIM.findItem(8701))")) == 1,
+          "transcripts mp: the server's PADD holds no transcript")
+    check(int(owner.eval("#TREK.Padd.tapes(SIM.findItem(8701))")) == 1,
+          "transcripts mp: the transcript never reached the owner's machine")
+    owner.run("""
+        ISTimedActionQueue.add(TREKReadTape:new(SIM.players[1], SIM.findItem(8701),
+                                                "TREK_Tuvix"))
+        SIM.runActions()
+    """)
+    net.pump(4)
+    check(int(srv.eval("#SIM.mediaEffects")) > 0,
+          "transcripts mp: reading paid nothing on the server")
+    check(int(owner.eval("#SIM.mediaEffects")) == 0,
+          "transcripts mp: the client applied the tape's effects itself")
+    for name, rt in (("server", srv), ("owner", owner)):
+        for w in rt.warnings():
+            fail(f"transcripts mp ({name}): {w}")
+    print("transcripts multiplayer: the server writes the transcript and the "
+          "owner's PADD gets it; reading pays on the server and never on the "
+          "client")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -8169,7 +8704,9 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
-            ensign_multiplayer, padd, padd_multiplayer, tapes, multiplayer)
+            ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
+            comms_missed, comms_multiplayer, transcripts,
+            transcripts_multiplayer, multiplayer)
 
 
 def main():
@@ -8178,8 +8715,13 @@ def main():
     # both None when the ship never got off the ground. Everything already
     # found is printed either way, because a traceback on top of a silent list
     # of failures is how a real regression gets read as a broken harness.
+    # TREK_ONLY=comms,transcripts runs just those sections: a development
+    # convenience, never how the suite is judged.
+    only = [x for x in os.environ.get("TREK_ONLY", "").split(",") if x]
     try:
         for section in SECTIONS:
+            if only and section.__name__ not in only:
+                continue
             section()
     finally:
         if failures:

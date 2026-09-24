@@ -38,5 +38,11 @@
     "TrekShuttle.TrekEnsignFCommand": "Downed Starfleet Ensign",
     "TrekShuttle.TrekEnsignFOperations": "Downed Starfleet Ensign",
     "TrekShuttle.TrekEnsignFScience": "Downed Starfleet Ensign",
-    "TrekShuttle.TrekPADD": "PADD"
+    "TrekShuttle.TrekPADD": "PADD",
+    "TrekShuttle.TrekFragment1": "Holo Fragment 1",
+    "TrekShuttle.TrekFragment2": "Holo Fragment 2",
+    "TrekShuttle.TrekFragment3": "Holo Fragment 3",
+    "TrekShuttle.TrekFragment4": "Holo Fragment 4",
+    "TrekShuttle.TrekFragment5": "Holo Fragment 5",
+    "TrekShuttle.TrekFragment6": "Holo Fragment 6"
 }

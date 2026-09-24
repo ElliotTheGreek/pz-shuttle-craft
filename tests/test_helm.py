@@ -36,6 +36,15 @@ LUA = os.path.join(MOD, "media", "lua").replace(os.sep, "/")
 UI = os.path.join(MOD, "media", "ui")
 IG = json.load(open(os.path.join(MOD, "media", "lua", "shared", "Translate",
                                  "EN", "IG_UI.json"), encoding="utf-8"))
+# Everything a panel can getText: the PADD's screen draws the channel's lines
+# (Print_Text, tools/gen_comms.py) and tapes' (Recorded_Media) as well as its
+# own labels, and a harness that only knew IG_UI would call every one of them
+# missing.
+TEXT = dict(IG)
+for _cat in ("Print_Text", "Recorded_Media"):
+    _path = os.path.join(MOD, "media", "lua", "shared", "Translate", "EN", _cat + ".json")
+    if os.path.isfile(_path):
+        TEXT.update(json.load(open(_path, encoding="utf-8")))
 
 # Average glyph widths for PZ's UI fonts at 1x. Deliberately a little generous:
 # a label that only fits under an optimistic estimate will not fit in game.
@@ -52,10 +61,10 @@ def make_lua():
     missing_keys = []
 
     def get_text(key, *args):
-        if key not in IG:
+        if key not in TEXT:
             missing_keys.append(key)
             return key
-        text = IG[key]
+        text = TEXT[key]
         for i, a in enumerate(args, 1):
             text = text.replace(f"%{i}", str(a))
         return text
@@ -535,6 +544,345 @@ def check_bounds(lua, draws, label):
                 if v is not None and not (0 <= float(v) <= 1.0001):
                     failures.append(f"{label}: {d.kind} colour/alpha {v} is outside 0..1")
                     break
+
+
+
+def padd_screen():
+    """The PADD's screen: every state of the channel, the history, the
+    library, at the Deck's size, with a controller.
+
+    The states are the point. The channel alone is idle, ringing, held by
+    you, held by somebody else, or open with nobody on it, and each has its
+    own control, its own status line and its own reason to draw something
+    that runs out of its box.
+    """
+    texture_files["on"] = True
+    lua, missing = make_lua()
+    lua.execute(r"""
+        package.loaded["TimedActions/ISBaseTimedAction"] = true
+        ISBaseTimedAction = ISBaseTimedAction or {}
+        ISBaseTimedAction.__index = ISBaseTimedAction
+        function ISBaseTimedAction:derive(name)
+            local cls = setmetatable({}, self); cls.__index = cls; cls.Type = name
+            return cls
+        end
+        require "TREK/TREK_Tapes"
+        require "TREK/TREK_PaddScreen"
+
+        -- A PADD, in this player's pockets, with two books and a tape on it.
+        padd = { md = {}, id = 7001 }
+        function padd:getFullType() return TREK.Config.PaddItem end
+        function padd:getModData() return self.md end
+        function padd:getID() return self.id end
+        padd.md[TREK.Config.PaddLibraryKey] = {
+            { type = "Base.BookCarpentry1", name = "Carpentry for Beginners",
+              kind = "skill", skill = "Carpentry", level = 1, maxLevel = 2,
+              pages = 220 },
+            { type = "Base.Book", name = "An Extraordinarily Long Novel Title That Will Not Fit In The List",
+              kind = "literature", pages = 0, md = { literatureTitle = "Long" } },
+        }
+        padd.md[TREK.Config.PaddTapesKey] = { "TREK_TalentNight" }
+        carried = { padd }
+        player.getInventory = function()
+            return { getAllTypeRecurse = function()
+                return { size = function() return #carried end,
+                         get = function(_, i) return carried[i + 1] end }
+            end, containsID = function() return true end, contains = function() return true end }
+        end
+        player.getAlreadyReadPages = function() return 0 end
+        player.isLiteratureRead = function() return false end
+        player.hasTrait = function() return false end
+        player.getPerkLevel = function() return 0 end
+        _G.SkillBook = { Carpentry = { perk = { getName = function() return "Carpentry" end } } }
+
+        sent = {}
+        TREK.Net.send = function(p, cmd, args)
+            table.insert(sent, { cmd = cmd, args = args }); return true
+        end
+        reads = {}
+        TREK.PaddUI = {
+            onRead = function(p, pl, key) table.insert(reads, "book:" .. key) end,
+            onReadTape = function(p, pl, id) table.insert(reads, "tape:" .. id) end,
+        }
+        clock = 1000000
+        _G.getTimestampMs = function() return clock end
+    """)
+    lua.execute("win = TREKPaddScreen:new(0, 0, player, padd); win:createChildren()")
+    win = lua.globals().win
+    g = lua.globals()
+    W, H = float(win.width), float(win.height)
+    if W > 1240 or H > 760:
+        failures.append(f"padd screen: {W:.0f}x{H:.0f} does not fit a Steam Deck's "
+                        f"1280x800 with room round it")
+
+    texts = lambda d: [str(x.extra) for x in d if x.kind == "text"]
+
+    def state(label):
+        d = run_frames(lua, f"padd screen, {label}")
+        check_bounds(lua, d, f"padd screen, {label}")
+        return d
+
+    # --- the channel, idle, never called -----------------------------------
+    d = state("channel, never called")
+    if not win.actionBtn.visible or win.actionBtn.title != TEXT["IGUI_TREK_CommsHail"]:
+        failures.append("padd screen: an idle channel offers no Hail")
+    if any(b.visible for b in (win.optBtns[i] for i in range(1, 5))):
+        failures.append("padd screen: an idle channel shows option buttons")
+    if TEXT["IGUI_TREK_CommsNothing"] not in texts(d):
+        failures.append("padd screen: a PADD that has never been called is an "
+                        "empty box; it has to say so (PADD.md 12.7)")
+    lua.execute("win.actionBtn:click()")
+    if str(lua.eval("sent[#sent] and sent[#sent].cmd")) != "commsHail":
+        failures.append("padd screen: Hail does not hail")
+
+    # --- ringing -----------------------------------------------------------
+    lua.execute("""
+        local d = TREK.Comms.store()
+        d.call = { id = "call:1", thread = "FIRST", state = "ringing", steps = {} }
+    """)
+    d = state("channel, ringing")
+    if win.actionBtn.title != TEXT["IGUI_TREK_CommsAnswer"]:
+        failures.append(f"padd screen: a ringing call offers {win.actionBtn.title!r}, "
+                        f"not Answer")
+    lua.execute("win.actionBtn:click()")
+    if str(lua.eval("sent[#sent].cmd")) != "commsAnswer" \
+            or str(lua.eval("sent[#sent].args.id")) != "call:1":
+        failures.append("padd screen: Answer does not answer this call by its id")
+
+    # --- held by this player, on a timed node, every option offered ---------
+    lua.execute("""
+        local d = TREK.Comms.store()
+        d.call = { id = "call:1", thread = "FIRST", state = "live",
+                   holder = player:getUsername(), holderName = "Doc",
+                   node = "FIRST_03", nodeSerial = 4, timeout = 60,
+                   avail = { 1, 2, 3, 4 }, a1 = "Doc",
+                   steps = { { n = "FIRST_01", o = 0 }, { n = "FIRST_01S", o = 1 },
+                             { n = "FIRST_02", o = 3 }, { n = "FIRST_03" } } }
+    """)
+    d = state("channel, holding a timed node")
+    shown = [win.optBtns[i] for i in range(1, 5) if win.optBtns[i].visible]
+    if len(shown) != 4:
+        failures.append(f"padd screen: the holder is offered {len(shown)} of 4 options")
+    if win.actionBtn.visible:
+        failures.append("padd screen: the holder is shown Answer as well as the options")
+    clock_prefix = TEXT["IGUI_TREK_CommsClock"].split("%1")[0]
+    if not any(t.startswith(clock_prefix) for t in texts(d)):
+        failures.append("padd screen: a timed node's clock is not on screen "
+                        "(PADD.md 12.5)")
+    if not any(TEXT["Print_Text_TREK_COMM_FIRST_02_L1"] in t for t in texts(d)) and \
+       not any(t and t in TEXT["Print_Text_TREK_COMM_FIRST_02_L1"] for t in texts(d)):
+        failures.append("padd screen: the live transcript does not show what "
+                        "Shepard said")
+    lua.execute("win.optBtns[3]:click()")
+    if int(lua.eval("sent[#sent].args.option")) != 3 \
+            or str(lua.eval("sent[#sent].args.node")) != "FIRST_03":
+        failures.append("padd screen: an option button does not send its own "
+                        "option on the live node")
+    lua.execute("clock = clock + 61000")
+    d = state("channel, the clock run out")
+    if not any(t == clock_prefix + "0s" or t.startswith(clock_prefix + "0")
+               for t in texts(d)):
+        failures.append("padd screen: the clock does not count down to nothing")
+
+    # Only what the server offered: a holder with one option sees one button.
+    lua.execute("TREK.Comms.store().call.avail = { 2 }")
+    state("channel, one option")
+    shown = [i for i in range(1, 5) if win.optBtns[i].visible]
+    if shown != [1] or int(lua.eval("win.optBtns[1].option")) != 2:
+        failures.append("padd screen: the options shown are not the ones the "
+                        "server offered")
+    # The first button is option 2 here -- the one place a slot and an option
+    # differ, so the only click that can tell which one is sent.
+    lua.execute("win.optBtns[1]:click()")
+    if int(lua.eval("sent[#sent].args.option")) != 2:
+        failures.append("padd screen: a button sends its position on screen, "
+                        "not the option the server offered there")
+
+    # --- somebody else holds it --------------------------------------------
+    lua.execute("""
+        local c = TREK.Comms.store().call
+        c.holder, c.holderName, c.avail = "somebody", "Ensign Maren Very-Long-Surname", { 1, 2 }
+    """)
+    d = state("channel, somebody else speaking")
+    if any(win.optBtns[i].visible for i in range(1, 5)) or win.actionBtn.visible:
+        failures.append("padd screen: a player who does not hold the call can press something")
+    if not any("Ensign Maren" in t for t in texts(d)):
+        failures.append("padd screen: nobody is told who is speaking (COMMS.md 2)")
+
+    # --- open, nobody on it --------------------------------------------------
+    lua.execute("TREK.Comms.store().call.holder = nil")
+    state("channel, open")
+    if win.actionBtn.title != TEXT["IGUI_TREK_CommsTake"]:
+        failures.append("padd screen: a dropped call cannot be taken up")
+
+    # --- a long transcript scrolls, and follows the newest line ---------------
+    lua.execute("""
+        local c = TREK.Comms.store().call
+        c.holder = player:getUsername()
+        c.steps = {}
+        for _, n in ipairs({ "FIRST_01", "FIRST_02R", "FIRST_02", "FIRST_03",
+                             "FIRST_04N", "FIRST_05", "FIRST_06U", "FIRST_06",
+                             "FIRST_06Q", "FIRST_07" }) do
+            table.insert(c.steps, { n = n, o = 1 })
+        end
+        c.steps[#c.steps].o = nil
+        c.node, c.avail, c.timeout = "FIRST_07", { 2, 3 }, nil
+        c.nodeSerial = 9
+    """)
+    state("channel, a long call")
+    if int(lua.eval("win:maxScroll()")) <= 0:
+        failures.append("padd screen: a ten-node call fits without scrolling -- "
+                        "the box is not being measured")
+    if int(lua.eval("win.scroll")) != int(lua.eval("win:maxScroll()")):
+        failures.append("padd screen: a live call does not follow its newest line")
+    lua.execute("win.upBtn:click()")
+    after_up = int(lua.eval("win.scroll"))
+    state("channel, scrolled up")
+    if after_up >= int(lua.eval("win:maxScroll()")) or int(lua.eval("win.scroll")) != after_up:
+        failures.append("padd screen: scrolling up is undone by the next frame")
+
+    # --- the history ------------------------------------------------------------
+    lua.execute("""
+        local d = TREK.Comms.store()
+        d.call = nil
+        local log = TREK.Comms.log()
+        log.rows = {
+            { id = "call:1", t = "FIRST", d = 7, h = "Doc", out = "done", a1 = "Doc",
+              s = { { n = "FIRST_01", o = 1 }, { n = "FIRST_02", o = 1 },
+                    { n = "FIRST_03", o = 3 }, { n = "FIRST_04X", o = 1 },
+                    { n = "FIRST_05", o = 1 }, { n = "FIRST_06", o = 1 },
+                    { n = "FIRST_07", o = 2 }, { n = "FIRST_08" } } },
+            { id = "call:2", t = "THANKS", d = 9, out = "missed", s = {} },
+        }
+    """)
+    d = state("channel, idle after calls")
+    last = TEXT["IGUI_TREK_CommsLast"].split("%1")[0]
+    if not any(t.startswith(last) for t in texts(d)):
+        failures.append("padd screen: an idle channel does not show the last contact")
+    lua.execute("win:onJoypadDown(Joypad.RBumper, jd or { player = 0 })")
+    if str(lua.eval("win.tab")) != "history":
+        failures.append("padd screen: RB does not move to the history")
+    d = state("history")
+    if int(lua.eval("#win.list.items")) != 2:
+        failures.append("padd screen: the history lists "
+                        f"{lua.eval('#win.list.items')} calls, not 2")
+    if str(lua.eval("win.list.items[1].item.row.id")) != "call:2":
+        failures.append("padd screen: the history is not newest first")
+    lua.execute("win:onJoypadDown(Joypad.XButton, { player = 0 })")
+    d = state("history, the first call")
+    if int(lua.eval("win.list.selected")) != 2:
+        failures.append("padd screen: X does not step the history")
+    if not any(TEXT["Print_Text_TREK_COMM_FIRST_03_O3"].split("%1")[0][:10] in t
+               for t in texts(d)):
+        failures.append("padd screen: a call from the history does not replay "
+                        "what the holder said")
+
+    # --- the library --------------------------------------------------------------
+    lua.execute("win:onJoypadDown(Joypad.RBumper, { player = 0 })")
+    d = state("library")
+    rows = int(lua.eval("#win.list.items"))
+    if rows != 3:
+        failures.append(f"padd screen: the library lists {rows} rows for two "
+                        f"books and a transcript")
+    lua.execute("""
+        draws = {}
+        local y = 0
+        for _, row in ipairs(win.list.items) do
+            y = TREKPaddScreen.drawRow(win.list, y, row, false)
+        end
+    """)
+    dd = lua.globals().draws
+    check_bounds(lua, [dd[i] for i in range(1, len(dd) + 1)], "padd screen, library rows")
+    # The transcript reads, and the Read button reads the tape.
+    lua.execute("""
+        for i, row in ipairs(win.list.items) do
+            if row.item.kind == "tape" then win.list.selected = i end
+        end
+    """)
+    d = state("library, a transcript")
+    if not any("TALENT" in t.upper() for t in texts(d)):
+        failures.append("padd screen: a transcript's title is not shown")
+    if not win.readBtn.enable:
+        failures.append("padd screen: a transcript cannot be read from the screen")
+    lua.execute("win.readBtn:click()")
+    if str(lua.eval("reads[#reads]")) != "tape:TREK_TalentNight":
+        failures.append("padd screen: Read on a transcript does not read the tape")
+    lua.execute("""
+        win = TREKPaddScreen:new(0, 0, player, padd); win:createChildren()
+        win:setTab("library")
+        for i, row in ipairs(win.list.items) do
+            if row.item.kind == "book" and row.item.entry.kind == "skill" then
+                win.list.selected = i
+            end
+        end
+    """)
+    state("library, a book")
+    lua.execute("win.readBtn:click()")
+    if not str(lua.eval("reads[#reads]")).startswith("book:Base.BookCarpentry1"):
+        failures.append("padd screen: Read on a book does not read it")
+
+    # The fragments appear once the channel has mentioned them, gaps and all.
+    lua.execute("""
+        win = TREKPaddScreen:new(0, 0, player, padd); win:createChildren()
+        TREK.Comms.store().flags.clueSeen = true
+        TREK.Comms.store().converted = { [2] = true }
+        win:setTab("library")
+    """)
+    state("library, the fragments")
+    if int(lua.eval("#win.list.items")) != 9:
+        failures.append("padd screen: the six fragments are not all listed, in "
+                        "order, once the channel has mentioned them")
+
+    # --- a controller ------------------------------------------------------------
+    lua.execute('''
+        reachable = {}
+        for _, row in ipairs(win.joypadButtonsY) do
+            for _, b in ipairs(row) do reachable[b] = true end
+        end
+        unreachable = {}
+        for _, c in ipairs(win.children) do
+            if c.onclick and not reachable[c] and c ~= win.ISButtonB then
+                table.insert(unreachable, c.title or "?")
+            end
+        end
+    ''')
+    un = lua.globals().unreachable
+    for i in range(1, len(un) + 1):
+        failures.append(f"padd screen: button {un[i]!r} cannot be reached with a controller")
+    lua.execute("jd = { player = 0, id = 0 }; win:onGainJoypadFocus(jd)")
+    d = run_frames(lua, "padd screen, controller", 1)
+    if TEXT["IGUI_TREK_PaddJoypadHint"].upper() not in texts(d):
+        failures.append("padd screen: no button prompts for a controller")
+    lua.execute("win:onJoypadDown(Joypad.LBumper, jd)")
+    if str(lua.eval("win.tab")) != "history":
+        failures.append("padd screen: LB does not go back a view")
+    lua.execute("focusLog = {}; win:onJoypadDown(Joypad.BButton, jd)")
+    if not win.removed:
+        failures.append("padd screen: B does not close it")
+    if len(lua.globals().focusLog) != 1:
+        failures.append("padd screen: closing with a controller left the stick "
+                        "on a panel that has gone")
+
+    # --- a PADD that is no longer carried closes the screen --------------------
+    lua.execute("""
+        win = TREKPaddScreen:new(0, 0, player, padd); win:createChildren()
+        carried = {}
+        win:prerender()
+    """)
+    # The Lua global, not the Python name: that one is still the window B
+    # closed above, and it would pass for the wrong reason.
+    win = lua.globals().win
+    if not win.removed:
+        failures.append("padd screen: the PADD was dropped and its screen stayed open")
+
+    for key in sorted(set(missing)):
+        failures.append(f"padd screen: getText({key!r}) has no text in any "
+                        f"translation file")
+    print(f"padd screen: {W:.0f}x{H:.0f}; the channel idle, ringing, held on a "
+          f"timed node with its clock, held by somebody else by name, and open; "
+          f"a long call follows its newest line and scrolls; the history newest "
+          f"first and replayed; the library with books, a transcript and the "
+          f"fragments; every control on the stick")
 
 
 def main():
@@ -1397,6 +1745,8 @@ def main():
     print("probes: the sensor console draws an empty rack, a probe in flight "
           "with its bar, and a list of contacts at a bearing, greying each "
           "control for its own reason and leaving all of them on the stick")
+
+    padd_screen()
 
     # --- the textures the console loads exist -----------------------------
     src = open(os.path.join(MOD, "media", "lua", "client", "TREK", "TREK_Helm.lua"),

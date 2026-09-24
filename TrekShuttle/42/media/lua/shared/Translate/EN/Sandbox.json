@@ -28,5 +28,12 @@
     "Sandbox_TrekShuttle.FlightHeight_option3": "4 storeys",
     "Sandbox_TrekShuttle.FlightHeight_option4": "5 storeys",
     "Sandbox_TrekShuttle.FlightHeight_option5": "6 storeys",
-    "Sandbox_TrekShuttle.FlightHeight_option6": "8 storeys"
+    "Sandbox_TrekShuttle.FlightHeight_option6": "8 storeys",
+    "Sandbox_TrekShuttle.CommsFirstDay": "When the Adirondack first calls",
+    "Sandbox_TrekShuttle.CommsFirstDay_tooltip": "How long after the shuttle is first boarded before Lt. Shepard calls a PADD for the first time. Everything the channel does after that keeps its own spacing from the first call. A week gives a crew time to find the tapes first; straight away is for a server that wants the story from the start.",
+    "Sandbox_TrekShuttle.CommsFirstDay_option1": "Straight away",
+    "Sandbox_TrekShuttle.CommsFirstDay_option2": "After a day",
+    "Sandbox_TrekShuttle.CommsFirstDay_option3": "After three days",
+    "Sandbox_TrekShuttle.CommsFirstDay_option4": "After a week",
+    "Sandbox_TrekShuttle.CommsFirstDay_option5": "After two weeks"
 }

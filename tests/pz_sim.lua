@@ -3385,6 +3385,11 @@ function SIM.runActions()
         if action:isValid() then
             action:start()
             if SIM_ROLE == "client" then
+                -- The client runs its own copy's update() as the bar fills,
+                -- while the server runs the one that counts. It did not use
+                -- to here, which let an update() with no `isClient()` guard
+                -- apply a tape's effects on the client and pass.
+                SIM.stepAction(action)
                 local names = paramNames(getmetatable(action))
                 local args = {}
                 for i, name in ipairs(names) do args[i] = encode(action[name]) end
@@ -3394,8 +3399,7 @@ function SIM.runActions()
                 py_client_action(action.character.name, action.Type, args,
                                  SIM.nextToken)
             else
-                action:setJobDelta(1.0)
-                action:update()
+                SIM.stepAction(action)
                 action:perform()
                 action:complete()
                 table.insert(SIM.actionsDone, action.Type)
@@ -3403,6 +3407,24 @@ function SIM.runActions()
         else
             table.insert(SIM.actionsDone, action.Type .. ":invalid")
         end
+    end
+end
+
+--- Runs an action through its duration, a tick at a time, the way the
+--- engine does: update() with the job delta rising to 1.
+---
+--- It was one update() at delta 1.0, which collapses the whole action into
+--- a single tick -- kind, because the one piece of per-tick state an action
+--- can depend on is the radio's thirty-tick debounce per code, and a read
+--- that applied every line of a tape in its last tick would pass here and
+--- give a fraction of the tape in the game. Only the debounce is ticked
+--- between steps, not the world, so a long book stays cheap to simulate.
+function SIM.stepAction(action)
+    local n = math.max(1, math.floor(tonumber(action.maxTime) or 1))
+    for t = 1, n do
+        action:setJobDelta(t / n)
+        action:update()
+        SIM.radioTick()
     end
 end
 
@@ -3421,8 +3443,7 @@ function SIM.serverAction(typeName, args, count)
         return false
     end
     action:start()
-    action:setJobDelta(1.0)
-    action:update()
+    SIM.stepAction(action)
     action:complete()
     table.insert(SIM.actionsDone, typeName)
     return true
@@ -3500,3 +3521,73 @@ function syncItemModData(player, item)
     py_replicate("itemModData", { x = 0, y = 0, z = 0, who = player.name,
                                   id = item.id, modData = item.modData })
 end
+
+---------------------------------------------------------------------------
+-- What a player has heard, and what hearing it does (LORE.md 2, PADD.md 12.3)
+---------------------------------------------------------------------------
+-- IsoGameCharacter keeps a plain HashSet of line guids -- a line's guid is its
+-- translation key (MediaLineData.getTextGuid) -- and saves it with the player.
+-- Nothing syncs it: in multiplayer the server's copy of a player learns a
+-- world television's lines, because the server walks the tape.
+function PlayerMT:isKnownMediaLine(guid)
+    return self.knownLines ~= nil and self.knownLines[guid] == true
+end
+function PlayerMT:addKnownMediaLine(guid)
+    if guid == nil or guid == "" then return end
+    self.knownLines = self.knownLines or {}
+    self.knownLines[guid] = true
+end
+
+--- RecordedMedia.hasListenedToAll: every line known, and at least one line.
+function RecordedMediaSim:hasListenedToAll(player, data)
+    if not player or not data or #data.lines == 0 then return false end
+    for _, ln in ipairs(data.lines) do
+        if not player:isKnownMediaLine(ln.text) then return false end
+    end
+    return true
+end
+
+-- Vanilla's interpreter (shared/RadioCom/ISRadioInteractions.lua), as unkind
+-- as the real one on the two points that decide how a reader must call it:
+--
+--   * a line already known does nothing at all, and is learned before any
+--     code is applied;
+--   * **each code is debounced for thirty ticks per player**. Applying a
+--     whole tape in one tick fires the first BOR and swallows every other --
+--     so a stub without the debounce would pass a read that, in the game,
+--     quietly gave a fraction of what the tape does.
+SIM.mediaEffects = {}
+local radioCooldowns = {}
+ISRadioInteractions = {}
+local radioInstance = nil
+function ISRadioInteractions:getInstance()
+    if radioInstance then return radioInstance end
+    radioInstance = {}
+    function radioInstance.checkPlayer(player, guid, codes, x, y, z, line)
+        if player.asleep then return end
+        if guid ~= nil and guid ~= "" then
+            if player:isKnownMediaLine(guid) then return end
+            player:addKnownMediaLine(guid)
+        end
+        if codes == nil or #codes == 0 then return end
+        radioCooldowns[player.name] = radioCooldowns[player.name] or {}
+        local cd = radioCooldowns[player.name]
+        for token in codes:gmatch("[^,]+") do
+            if #token > 4 then
+                local code = token:sub(1, 3)
+                if not cd[code] or cd[code] <= 0 then
+                    table.insert(SIM.mediaEffects, { who = player.name, code = code,
+                                                     token = token, line = guid })
+                    cd[code] = 30
+                end
+            end
+        end
+    end
+    return radioInstance
+end
+function SIM.radioTick()
+    for _, cd in pairs(radioCooldowns) do
+        for code, v in pairs(cd) do if v > 0 then cd[code] = v - 1 end end
+    end
+end
+Events.OnTick.Add(SIM.radioTick)

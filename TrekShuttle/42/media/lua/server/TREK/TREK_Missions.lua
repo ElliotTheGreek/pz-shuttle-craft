@@ -457,6 +457,8 @@ local function lose(contact, now)
     U.log("ensign %s: %s's life signs have stopped", contact.id,
           tostring(contact.name))
     Net.toAll("ensignLost", { name = contact.name, why = "time" })
+    -- Shepard says the name out loud (COMMS.md 6.2).
+    if TREK.CommsServer then TREK.CommsServer.event("lost", contact.name) end
 end
 
 --- Places, beacons, times out and tidies up. Authority only, every game
@@ -595,6 +597,8 @@ Net.onServer("rescueEnsign", function(player, args)
           tostring(who), tostring(contact.name), contact.id, learned)
     Net.toAll("ensignRescued", { name = contact.name, by = who,
                                  learned = learned })
+    -- The channel knows who came up, by name (COMMS.md 6.2).
+    if TREK.CommsServer then TREK.CommsServer.event("rescued", contact.name) end
 end)
 
 ---------------------------------------------------------------------------
