@@ -1,8 +1,8 @@
 # Energy — everything aboard runs on the crystal
 
-**Status: being built, phase by phase (section 12). Phases 0 to 5 are done
+**Status: being built, phase by phase (section 12). Phases 0 to 6 are done
 (2026-09-24): the verify-first answers, the ledger, the gauge, movement,
-the dark cabin and the shields. None of it has been seen in game yet.** The design questions
+the dark cabin, the shields and the emergency landing. None of it has been seen in game yet.** The design questions
 were settled with the author on 2026-09-24 (section 13). When it is built
 it becomes the working guide for the ship's power, in the shape
 `REPLICATOR.md` and `PILOTING.md` use.
@@ -514,7 +514,22 @@ already does for an empty ship, but downwards:
   `S.land`'s own path. That is a clean spawn, `repair()` included, so there
   is no damage.
 - If nothing is clear, she holds and the search retries every pass. If her
-  ground isn't loaded, nobody is near her, and she waits for them.
+  ground isn't loaded and nobody is aboard, she waits for somebody to come.
+- **If her ground isn't loaded and the crew are in the cabin, she does not
+  wait** (found while building phase 6, 2026-09-24). The hatch is shut in
+  flight and a dark ship does not beam, so "waiting for somebody to come
+  near" would seal the crew in her for ever. The server does what 7.3 does:
+  the first crew member aboard is taken down, to the ground *beneath her*,
+  and the landing search runs from there. The landing handler takes her out
+  of flight first, because `S.land` refuses a hovering ship with crew aboard,
+  which is exactly this ship when two are aft. `energy_emergency_mp()` is the
+  two-crew case.
+- **The pilot's own "set her down" never looked at the ground** (also found
+  here). `W.roomToLand` skips the squares under the ship's own hull, and a
+  flying ship's recorded position follows her, so under a hovering ship the
+  whole footprint was skipped and the answer was always "clear", over a roof
+  or a car. It now skips the hull's squares only while she is standing on
+  them. That fixes the ordinary landing as well as the emergency one.
 
 **7.3 In orbit, with crew in the cabin.** A ship overhead can only go dark by
 spending from the cabin (the replicator, the Doctor, a probe fabricated). With

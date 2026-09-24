@@ -706,7 +706,15 @@ function S.serviceVehicle()
             s.pilotGrace = nil
         else
             s.pilotGrace = (s.pilotGrace or 0) + 1
-            if s.pilotGrace >= C.FlightPilotGrace then
+            -- **A dark ship cannot go back up** (ENERGY.md 7.2). She comes
+            -- down where there is room instead, which S.serviceEmergency does
+            -- once her ground is loaded; until somebody is near her she waits.
+            if s.pilotGrace >= C.FlightPilotGrace and TREK.Power.dark() then
+                if s.emergency ~= true then
+                    s.emergency = true
+                    Ship.commit()
+                end
+            elseif s.pilotGrace >= C.FlightPilotGrace then
                 -- Going back up is a recall, and costs one (ENERGY.md 3.5).
                 -- Partial and silent: nobody asked for it, and a ship too low
                 -- to pay still must not hang in the sky for ever. What a
@@ -724,6 +732,7 @@ function S.serviceVehicle()
         S.powerVehicle(found)
         S.engineEdge(found)
         S.shieldRepair(found)
+        if S.serviceEmergency(found) then return end
         local x = math.floor(found:getX())
         local y = math.floor(found:getY())
         local changed = false
@@ -764,6 +773,11 @@ function S.serviceVehicle()
 
         if changed then Ship.commit() end
         return
+    end
+
+    if s.flying and s.emergency == true then
+        -- Her vehicle is not loaded, so nobody is near her: she waits for them.
+        S.serviceEmergency(nil)
     end
 
     -- A ship in the air is not a ship that has gone missing. The vehicle can
@@ -950,6 +964,9 @@ Net.onServer("move", function(player, args)
     -- ship's power. `kind` in the denial drops the client's waiting move.
     local energy = rule.energy and C[rule.energy] or 0
     local need = math.max(energy, rule.check and C[rule.check] or 0)
+    -- The emergency descent from orbit is free (ENERGY.md 7.3): the ship takes
+    -- herself down with the crew, and the only thing she has is no power.
+    if kind == "descend" and U.state().emergency ~= nil then need = 0 end
     if need > 0 and not TREK.Power.canPay(need) then
         TREK.Energy.energize(player, kind, need, { kind = kind })
         return
@@ -1018,18 +1035,40 @@ Net.onServer("land", function(player, args)
     -- refused costs nothing. A refusal for power goes as a landingRefused
     -- rather than a denial, because a take-her-down has already beamed the
     -- player to the site, and that reply is what beams them home.
-    if not TREK.Power.canPay(C.LandCost) then
+    --
+    -- An emergency landing (ENERGY.md 7.2, 7.3) is free. A dark ship still in
+    -- the air is taken out of flight first -- S.land refuses a hovering ship
+    -- with crew aboard, which is exactly this ship -- but only once the site
+    -- is known to be clear, so a refusal never drops her where she hangs.
+    local s = U.state()
+    local emergency = s.emergency ~= nil
+    if not emergency and not TREK.Power.canPay(C.LandCost) then
         Net.toClient(player, "landingRefused", {
             why = "noPower", x = x, y = y, z = z,
             need = C.LandCost, have = math.floor(TREK.Power.reserve()),
         })
         return
     end
+    if emergency and s.flying then
+        local clear, cwhy, cblocked = W.roomToLand(x, y, z, W.exemptFor(player))
+        if not clear then
+            Net.toClient(player, "landingRefused",
+                         { why = cwhy, blocked = cblocked, x = x, y = y, z = z })
+            return
+        end
+        S.endFlight("emergency landing")
+    end
 
     local ok, why, blocked = S.land(x, y, z, player)
     if ok then
         claim(player)
-        TREK.Energy.energize(player, "land", C.LandCost)
+        if emergency then
+            U.state().emergency = nil
+            Ship.commit()
+            U.log("power: the emergency landing is down at %d,%d,%d", x, y, z)
+        else
+            TREK.Energy.energize(player, "land", C.LandCost)
+        end
         Net.toClient(player, "landed", { x = x, y = y, z = z })
     else
         Net.toClient(player, "landingRefused",
@@ -1180,6 +1219,9 @@ Net.onServer("touchdown", function(player, args)
     s.level = nil
     s.pilotGrace = nil
     s.skyAt = nil
+    -- An emergency landing ends here (ENERGY.md 7.4): she is an ordinary dark
+    -- ship on the ground, and the next vehicle pass flattens her battery.
+    s.emergency = nil
     s.landed = true
     s.everLanded = true
     s.x, s.y, s.z = x, y, z
@@ -2885,6 +2927,173 @@ Net.onServer("debug", function(player, args)
 end)
 
 ---------------------------------------------------------------------------
+-- The emergency landing (ENERGY.md section 7)
+---------------------------------------------------------------------------
+-- The author's rule: "with no power the fallback is no beaming, but as soon
+-- as there is room to land, it lands with no damage." Ground is only loaded
+-- around a player, and the server builds only where one is standing, so an
+-- emergency landing happens where the crew are. Each case follows from that.
+--
+-- `s.emergency` is published: `true` for a dark ship in the air (7.1, 7.2),
+-- "descend" for a dark ship overhead with crew in her cabin (7.3). It clears
+-- at touchdown, or when the power comes back.
+
+-- The server's own search for somewhere to put her down (7.2), resumed each
+-- vehicle pass. Server-local: a restart simply searches again.
+local emergencySearch = nil
+-- When the crew were last asked to take her down from orbit (7.3).
+local descendAskedAt = nil
+
+--- The first living player standing in the cabin, or nil.
+local function firstAboard()
+    for _, p in ipairs(U.players()) do
+        if U.isInteriorPlayer(p) and alive(p) then return p end
+    end
+    return nil
+end
+
+--- Takes her down with the first of the crew aboard (ENERGY.md 7.3). It is
+--- the helm's own take-her-down (T.descend) run on their machine, free, and a
+--- *landing* in the story as in the code -- not a transporter beam. Approved
+--- by the author, 2026-09-24: it is the one place the ship moves the crew
+--- without being asked, and the only way the engine lets her land where
+--- nobody is standing.
+---
+--- **In orbit** it goes to where that crewman beamed up from. **Hovering**,
+--- with nobody at her controls and nobody near her, it goes to the ground
+--- beneath her: her ground is not loaded, so the server cannot search it
+--- (7.2), the hatch is shut in flight and a dark ship does not beam, so
+--- without this her crew would be sealed in a ship that waited for ever for
+--- somebody to come near. The crew arrive standing beside her.
+---
+--- Asked at most once every C.EmergencyDescendRetryMs, unless `now`: the
+--- crewman's machine may be busy, or the landing may have found no room and
+--- beamed them back aboard.
+function S.emergencyDescend(now)
+    local s = U.state()
+    if not TREK.Power.dark() then return false end
+    local airborne = s.flying == true
+    if s.landed and not airborne then return false end
+    local p = firstAboard()
+    if not p then return false end
+    local clock = getTimestampMs()
+    if not now and descendAskedAt and clock - descendAskedAt < C.EmergencyDescendRetryMs then
+        return false
+    end
+    if not airborne and s.emergency ~= "descend" then
+        s.emergency = "descend"
+        Ship.commit()
+    end
+    descendAskedAt = clock
+    local args = {}
+    if airborne then args = { x = s.x, y = s.y, z = s.z or 0 } end
+    Net.toClient(p, "emergencyDescend", args)
+    U.log("power: asking %s's machine to take her down %s", Ship.usernameOf(p),
+          airborne and "from the air, beneath her" or "from orbit")
+    return true
+end
+
+--- The moment the ship goes dark: which emergency, if any, this is.
+function S.beginEmergency()
+    local s = U.state()
+    emergencySearch = nil
+    if s.flying then
+        s.emergency = true
+        Ship.commit()
+        Net.toAll("emergency", {})
+        U.log("power: dark in the air -- emergency landing")
+        return "hover"
+    end
+    if not s.landed and firstAboard() then
+        Net.toAll("emergency", {})
+        S.emergencyDescend(true)
+        return "descend"
+    end
+    return nil
+end
+
+TREK.Energy.onPowerDown(function() S.beginEmergency() end)
+TREK.Energy.onPowerUp(function()
+    local s = U.state()
+    emergencySearch = nil
+    if s.emergency ~= nil then
+        s.emergency = nil
+        Ship.commit()
+        U.log("power: back before she was down -- the emergency is over")
+    end
+end)
+
+--- Every vehicle pass during an emergency in the air. Returns true when it
+--- set her down (and the rest of the pass should stop).
+---
+--- 7.1, **a pilot in the seat**: nothing here. Their machine owns her
+--- physics, keeps her engine alive at a crawl and asks for the ordinary
+--- touchdown the moment the footprint below is clear.
+---
+--- 7.2, **nobody in the seat**: the server searches round her for a clear
+--- footprint, sliced and only while her ground is loaded, and sets her down
+--- there through S.land -- a clean spawn, so no damage. Nothing clear, and it
+--- keeps looking. Her ground not loaded means nobody is near her: with crew in
+--- the cabin, one of them takes her down beneath her (S.emergencyDescend);
+--- with nobody aboard at all, she waits for somebody to come.
+function S.serviceEmergency(vehicle)
+    local s = U.state()
+    if s.emergency ~= true or not s.flying then return false end
+    if vehicle and U.try("emergencyDriver", function() return vehicle:getDriver() end) then
+        emergencySearch = nil
+        return false
+    end
+    local x, y = s.x, s.y
+    if vehicle then
+        x = math.floor(vehicle:getX())
+        y = math.floor(vehicle:getY())
+    end
+    if not x or not U.chunkLoaded(x, y, 0) then
+        S.emergencyDescend()
+        return false
+    end
+
+    if not emergencySearch or emergencySearch.x ~= x or emergencySearch.y ~= y then
+        emergencySearch = { x = x, y = y, z = 0, cursor = 0 }
+    end
+    local sq = W.searchSlice(emergencySearch)
+    if not sq then return false end
+
+    local tx, ty = sq:getX(), sq:getY()
+    emergencySearch = nil
+    s.emergency = nil
+    S.endFlight("emergency landing")
+    local ok, why = S.land(tx, ty, 0, nil)
+    if not ok then
+        -- The ground changed between the search and the landing. She is out
+        -- of the air now and the next pass looks again from wherever she is.
+        s.emergency = true
+        Ship.commit()
+        U.log("WARN power: the emergency landing at %d,%d was refused (%s)",
+              tx, ty, tostring(why))
+        return false
+    end
+    Net.toAll("emergencyLanded", { x = tx, y = ty, z = 0 })
+    U.log("power: emergency landing at %d,%d with nobody at the controls", tx, ty)
+    return true
+end
+
+--- Once a game minute: a dark ship still in orbit with crew aboard, whose
+--- descent has not happened, is asked again. The flag is cleared once she is
+--- down or the power is back.
+function S.serviceEmergencyDescend()
+    local s = U.state()
+    if s.landed or not TREK.Power.dark() then
+        if s.emergency == "descend" then
+            s.emergency = nil
+            Ship.commit()
+        end
+        return false
+    end
+    return S.emergencyDescend()
+end
+
+---------------------------------------------------------------------------
 -- Timers
 ---------------------------------------------------------------------------
 -- Every tick while anyone is waiting: they are standing over nothing until the
@@ -2920,6 +3129,7 @@ Events.EveryOneMinute.Add(function()
     -- Contacts become crystals only when somebody goes and looks, so this
     -- runs wherever the players are rather than only near the ship.
     U.try("serviceContacts", S.serviceContacts)
+    U.try("emergencyDescend", S.serviceEmergencyDescend)
     if B.cabinCurrent() and B.cabinLoaded() then
         -- Nobody can drain the tap faster than a game minute refills it.
         U.try("refillWater", B.refillWater)

@@ -1036,6 +1036,13 @@ C.OdometerMaxJump = 60
 -- clear of the field and has to walk back in, so each is pushed two or three
 -- times in a window at most: a hundred covers forty or so at the hull. A
 -- bigger horde than that is undercharged, which is the right way round.
+-- The emergency landing (ENERGY.md section 7). The top speed a dark ship is
+-- held to while her pilot looks for somewhere to set her down: a glide, not a
+-- flight. And how long the server waits before asking the crew again to take
+-- a dark ship down from orbit.
+C.EmergencyGlideSpeed = 12
+C.EmergencyDescendRetryMs = 60000
+
 C.ShieldReportSecs = 5
 C.ShieldReportMax = 100
 

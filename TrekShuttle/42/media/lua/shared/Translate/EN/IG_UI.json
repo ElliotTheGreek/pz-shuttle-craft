@@ -176,6 +176,8 @@
     "IGUI_TREK_PowerEmergency": "EMERGENCY POWER",
     "IGUI_TREK_PowerLow": "Power at %1 percent, and no spare crystals aboard",
     "IGUI_TREK_PowerLastCrystal": "The last dilithium crystal is burning",
+    "IGUI_TREK_EmergencyLanding": "Main power lost. Emergency landing",
+    "IGUI_TREK_EmergencyLanded": "Emergency landing complete. The shuttle is down, without power",
     "IGUI_TREK_PowerDown": "Main power lost. Emergency lighting only",
     "IGUI_TREK_PowerUp": "Main power online",
     "IGUI_TREK_Commissioned": "The shuttle is commissioned. Main power online",

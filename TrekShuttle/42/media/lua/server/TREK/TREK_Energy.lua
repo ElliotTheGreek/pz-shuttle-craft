@@ -40,6 +40,8 @@ TREK.Energy = E
 -- flag is published.
 E.downListeners = {}
 function E.onPowerDown(fn) table.insert(E.downListeners, fn) end
+E.upListeners = {}
+function E.onPowerUp(fn) table.insert(E.upListeners, fn) end
 
 --- Publishes a change between lit and dark, once. Returns "down", "up" or nil.
 ---
@@ -68,6 +70,7 @@ function E.powerChanged()
     U.log("power: main power online -- %d units, %d spare(s)",
           math.floor(P.reserve()), P.crystals())
     Net.toAll("powerUp", {})
+    for _, fn in ipairs(E.upListeners) do U.try("powerUpListener", fn) end
     return "up"
 end
 

@@ -234,6 +234,35 @@ Net.onClient("powerDown", function()
     toEveryLocal(getText("IGUI_TREK_PowerDown"), 255, 170, 90, "TREK_PowerDown")
 end)
 
+-- The emergency landing (ENERGY.md section 7).
+Net.onClient("emergency", function()
+    toEveryLocal(getText("IGUI_TREK_EmergencyLanding"), 255, 170, 90)
+end)
+
+Net.onClient("emergencyLanded", function()
+    toEveryLocal(getText("IGUI_TREK_EmergencyLanded"), 255, 170, 90)
+end)
+
+--- 7.3: the server asks this machine to take her down, with this player --
+--- the helm's own take-her-down, free. From orbit, to where they beamed up
+--- from; from the air, to the ground beneath her, which the server names. A
+--- busy machine says nothing and is asked again in a minute.
+Net.onClient("emergencyDescend", function(args)
+    local player = U.player(0)
+    if not player or not TREK.Travel then return end
+    if TREK.Travel.pending or Core.moveWaiting() or TREK.Transport and TREK.Transport.pending then
+        return
+    end
+    local x, y, z = args and args.x, args and args.y, args and args.z
+    if not x then x, y, z = Ship.returnPoint(player) end
+    if not x then
+        U.log("WARN emergency: no return point to take her down to")
+        return
+    end
+    U.note(player, getText("IGUI_TREK_EmergencyLanding"), 255, 170, 90)
+    TREK.Travel.descend(player, { x = math.floor(x), y = math.floor(y), z = math.floor(z or 0) })
+end)
+
 Net.onClient("powerLow", function(args)
     if args and args.last then
         toEveryLocal(getText("IGUI_TREK_PowerLastCrystal"), 255, 170, 90)

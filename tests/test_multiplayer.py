@@ -8964,6 +8964,12 @@ def energy():
     net.start()
     C = lambda n: rt.eval(f"TREK.Config.{n}")
     PM = int(C("PowerMax"))
+    # She is called down first. A dark ship *overhead* with crew aboard takes
+    # herself down (ENERGY.md 7.3, energy_emergency below), which is not what
+    # this section is about.
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 1004, 1000, 0)")
+    net.pump(40)
+    check(ship(rt, "landed") is True, "energy: she would not come down to start with")
     rt.run(f"TREK.Transport.beamUp({P})")
     net.pump(180)
     if died(rt, "energy, beaming up"):
@@ -9369,6 +9375,12 @@ def energy_cabin():
     net.start()
     C = lambda n: rt.eval(f"TREK.Config.{n}")
     PM = int(C("PowerMax"))
+    # She is called down first. A dark ship *overhead* with crew aboard takes
+    # herself down (ENERGY.md 7.3, energy_emergency below), which is not what
+    # this section is about.
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 1004, 1000, 0)")
+    net.pump(40)
+    check(ship(rt, "landed") is True, "energy cabin: she would not come down to start with")
     rt.run(f"TREK.Transport.beamUp({P})")
     net.pump(180)
     if died(rt, "energy cabin, beaming up"):
@@ -9687,6 +9699,260 @@ def energy_shields():
           "only what was paid for when short, and nothing at all in the dark")
 
 
+def energy_emergency():
+    """The emergency landing (ENERGY.md section 7), the author's rule: "with
+    no power the fallback is no beaming, but as soon as there is room to land,
+    it lands with no damage."
+
+    Every case the guide names, and one it did not: a pilot at the controls
+    (over blocked ground, then clear); the crew in the cabin with nobody near
+    her, which would have sealed them in a ship waiting for ever; nobody aboard
+    at all, waiting until somebody comes; a dark ship in orbit; and the power
+    coming back before she is down.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    PM = int(C("PowerMax"))
+
+    def whole():
+        return rt.eval("""(function()
+            local v = TREK.Vehicle.ship()
+            if not v then return false end
+            for _, p in ipairs(v:partList()) do
+                if (p.condition or 100) ~= 100 then return false end
+            end
+            return true
+        end)()""")
+
+    def lit():
+        energy_state(rt, PM, 0)
+        rt.run("TREK.Energy.powerChanged()")
+
+    def go_dark():
+        rt.run("SIM.notes = {}")
+        energy_state(rt, 0, 0)
+        rt.run("TREK.Energy.powerChanged()")
+
+    def fly(label):
+        seat(rt)
+        rt.run(f"TREK.Flight.takeOff({P})")
+        net.pump(400)
+        ok = ship(rt, "flying") is True
+        check(ok, f"energy emergency: she would not take off ({label})")
+        return ok
+
+    lit()
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    if not fly("7.1"):
+        return
+
+    # --- 7.1: a pilot at the controls, over blocked ground --------------------
+    rt.run("""
+        local v = TREK.Vehicle.ship()
+        local cx, cy = math.floor(v.x), math.floor(v.y)
+        for x = cx - 6, cx + 6 do for y = cy - 6, cy + 6 do
+            SIM.rawSquare(x, y, 0).solid = true
+        end end
+    """)
+    go_dark()
+    check(ship(rt, "emergency") is True, "energy emergency: dark in the air, no emergency")
+    check("IGUI_TREK_EmergencyLanding" in rt.notes(),
+          f"energy emergency: the crew were not told ({rt.notes()})")
+    glide = min(rt.eval("TREK.Config.FlightSpeedSteps[TREK.Flight.speedStep()]"),
+                C("EmergencyGlideSpeed"))
+    check(rt.eval("TREK.Flight.speed()") == glide,
+          f"energy emergency: her top speed is {rt.eval('TREK.Flight.speed()')}, not a glide")
+    rt.run("TREK.Server.serviceVehicle()")
+    check(float(rt.eval("TREK.Vehicle.ship().battery.charge")) == 1.0
+          and float(rt.eval("TREK.Vehicle.ship().tank.amount")) > 0,
+          "energy emergency: her battery or tank went flat in the air -- the engine "
+          "has to stay alive until she is down")
+    net.pump(400)
+    check(ship(rt, "flying") is True,
+          "energy emergency: she came down onto blocked ground")
+    # And the pilot is not nagged: the machine looks at the ground itself and
+    # asks only over clear ground, rather than being refused every few seconds.
+    check(not any("IGUI_TREK_NoRoom" in n for n in rt.notes()),
+          f"energy emergency: the pilot was told there was no room while gliding "
+          f"over blocked ground ({rt.notes()})")
+
+    # The pilot steers her over clear ground; she sets down by herself.
+    rt.run("local v = TREK.Vehicle.ship(); v.x = v.x + 24")
+    net.pump(700)
+    check(ship(rt, "flying") is not True and ship(rt, "landed") is True,
+          "energy emergency: over clear ground with a pilot she never came down")
+    check(ship(rt, "emergency") is None, "energy emergency: the flag outlived the landing")
+    check(whole(), "energy emergency: the emergency landing damaged her")
+    rt.run("TREK.Server.serviceVehicle()")
+    check(float(rt.eval("TREK.Vehicle.ship().battery.charge")) == 0,
+          "energy emergency: down and dark, and her battery is still charged")
+    check(float(rt.eval("TREK.Power.reserve()")) == 0,
+          "energy emergency: the emergency landing was charged for")
+
+    # --- 7.2: crew in the cabin, nobody near her ------------------------------
+    lit()
+    if not fly("7.2 cabin"):
+        return
+    rt.run(f"TREK.Core.leaveSeat({P})")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(200)
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is True,
+          "energy emergency: the pilot could not go aft to set this up")
+    check(rt.eval("TREK.Vehicle.ship()") is None,
+          "energy emergency: her ground is loaded with the crew aft -- this case "
+          "is not being tested")
+    hx, hy = ship(rt, "x"), ship(rt, "y")
+    go_dark()
+    net.pump(900)
+    check(ship(rt, "flying") is not True and ship(rt, "landed") is True,
+          "energy emergency: dark with the crew aft and nobody near her, she never "
+          "came down -- they are sealed in")
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is False,
+          "energy emergency: nobody was taken down with her")
+    near = rt.eval(f"(function() local p = {P} return math.abs(p.x - {hx}) + math.abs(p.y - {hy}) end)()")
+    check(near < 40, f"energy emergency: the crewman came down {near} tiles from her")
+    check(whole(), "energy emergency: the landing beneath her damaged her")
+    check(float(rt.eval("TREK.Power.reserve()")) == 0,
+          "energy emergency: taking her down was charged for")
+
+    # --- 7.2: nobody aboard; she waits until somebody comes -------------------
+    lit()
+    if not fly("7.2 nobody"):
+        return
+    rt.run(f"TREK.Core.leaveSeat({P})")
+    hx, hy = ship(rt, "x"), ship(rt, "y")
+    rt.run(f"local p = {P}; p.x, p.y, p.z, p.lastZ = p.x + 600, p.y, 0, 0")
+    net.pump(60)
+    go_dark()
+    for _ in range(int(C("FlightPilotGrace")) + 3):
+        net.pump(61)
+    check(ship(rt, "flying") is True and ship(rt, "landed") is True,
+          "energy emergency: a dark ship with nobody aboard went back up, or came "
+          "down where nobody was standing")
+    rt.run(f"local p = {P}; p.x, p.y = {hx} + 10.5, {hy} + 0.5")
+    net.pump(400)
+    check(ship(rt, "flying") is not True and ship(rt, "landed") is True,
+          "energy emergency: somebody came near a dark hovering ship and she never "
+          "came down")
+    check(whole(), "energy emergency: the landing with nobody aboard damaged her")
+
+    # --- 7.3: dark in orbit with the crew aboard ------------------------------
+    lit()
+    rt.run(f"TREK.Menu.onRecall(nil, {P})")
+    net.pump(4)
+    check(ship(rt, "landed") is False, "energy emergency: she would not go up for 7.3")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(200)
+    rx, ry, _ = rt.eval(f"TREK.Ship.returnPoint({P})")
+    go_dark()
+    check(ship(rt, "emergency") == "descend",
+          f"energy emergency: dark in orbit with crew aboard, emergency is "
+          f"{ship(rt, 'emergency')!r}")
+    net.pump(700)
+    check(ship(rt, "landed") is True, "energy emergency: a dark ship in orbit never came down")
+    check(ship(rt, "emergency") is None, "energy emergency: the descent's flag outlived it")
+    near = rt.eval(f"(function() local p = {P} return math.abs(p.x - {rx}) + math.abs(p.y - {ry}) end)()")
+    check(near < 40, f"energy emergency: the descent landed {near} tiles from the "
+                     f"crewman's return point")
+    check(float(rt.eval("TREK.Power.reserve()")) == 0,
+          "energy emergency: the descent from orbit was charged for")
+
+    # --- the power back before she is down: the emergency is over -------------
+    lit()
+    if not fly("power back"):
+        return
+    go_dark()
+    check(ship(rt, "emergency") is True, "energy emergency: no emergency to cancel")
+    rt.run("SIM.rawSquare(0, 0, 0)")   # nothing: the ground under her stays as it is
+    lit()
+    check(ship(rt, "emergency") is None,
+          "energy emergency: the power came back and the emergency carried on")
+    check(ship(rt, "flying") is True, "energy emergency: power back and she came down anyway")
+
+    for w in rt.warnings():
+        fail(f"energy emergency: {w}")
+    print("energy emergency: a pilot glides her over blocked ground and sets her "
+          "down unharmed on clear; the crew aft over unloaded ground are taken down "
+          "beneath her; with nobody aboard she waits until somebody comes; dark in "
+          "orbit she takes the crew down; none of it charged; and power back ends it")
+
+
+def energy_emergency_mp():
+    """Two crew aft in the cabin of a dark hovering ship, nobody near her
+    (ENERGY.md 7.2): the first is taken down beneath her and she lands with
+    the other still aboard -- who then walks out through the hatch, which is a
+    door and needs no power."""
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    srv.run("SIM.player('alice', 3000.5, 3000.5, 0); SIM.player('bob', 3002.5, 3006.5, 0)")
+    A.run("SIM.player('alice', 3000.5, 3000.5, 0)")
+    B.run("SIM.player('bob', 3002.5, 3006.5, 0)")
+    net.start()
+    net.pump(5)
+    P = "SIM.players[1]"
+    A.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(60)
+    check(ship(srv, "landed") is True, "emergency mp: she would not land to start with")
+    for rt in (srv, A):
+        rt.run("""
+            local v = TREK.Vehicle.ship()
+            for _, p in ipairs(SIM.players) do
+                if p.name == 'alice' and v then v.seats[0] = p p.vehicle = v end
+            end
+        """)
+    A.run(f"TREK.Flight.takeOff({P})")
+    net.pump(460)
+    if not check(ship(srv, "flying") is True, "emergency mp: she never got up"):
+        return
+
+    # Both aft, and nobody at the controls on any machine.
+    for rt in (srv, A):
+        rt.run("""
+            local v = TREK.Vehicle.ship()
+            if v then v.seats[0] = nil end
+            for _, p in ipairs(SIM.players) do p.vehicle = nil end
+        """)
+    for c in (A, B):
+        c.run(f"TREK.Transport.beamUp({P})")
+    net.pump(240)
+    aft = [n for n, c in (("alice", A), ("bob", B))
+           if c.eval(f"TREK.Util.isInteriorPlayer({P})") is True]
+    if not check(len(aft) == 2, f"emergency mp: only {aft} made it aft"):
+        return
+    check(srv.eval("TREK.Vehicle.ship()") is None,
+          "emergency mp: her ground is loaded with both crew aft -- not this case")
+
+    energy_state(srv, 0, 0)
+    srv.run("TREK.Energy.powerChanged()")
+    net.pump(900)
+    check(ship(srv, "flying") is not True and ship(srv, "landed") is True,
+          "emergency mp: with a crewman still aboard she never came down -- the "
+          "landing refused a hovering ship with crew in her")
+    down = [n for n, c in (("alice", A), ("bob", B))
+            if c.eval(f"TREK.Util.isInteriorPlayer({P})") is False]
+    check(len(down) == 1, f"emergency mp: {down or 'nobody'} came down with her")
+
+    # The one still aboard walks out: the hatch is a door.
+    still = B if down == ["alice"] else A
+    still.run(f"TREK.Core.exit({P})")
+    net.pump(200)
+    check(still.eval(f"TREK.Util.isInteriorPlayer({P})") is False,
+          "emergency mp: the crewman left aboard a dark ship could not walk out")
+
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"emergency mp ({rt.name}): {w}")
+    print("emergency mp: two crew aft over unloaded ground, one taken down beneath "
+          "her and the ship landed with the other still aboard, who walks out "
+          "through the hatch with no power")
+
+
 def energy_multiplayer():
     """Two clients: the flag reaches both, and a race pays once."""
     net = Net("mp", clients=("kirk", "spock"))
@@ -9697,6 +9963,10 @@ def energy_multiplayer():
     spock.run("SIM.player('spock', 2000.5, 2000.5, 0)")
     net.start()
     P = "SIM.players[1]"
+    # Down first, so going dark aboard is not the emergency descent (7.3).
+    kirk.run(f"TREK.Menu.onCallDown(nil, {P}, 2004, 2000, 0)")
+    net.pump(40)
+    check(ship(srv, "landed") is True, "energy mp: she would not come down to start with")
     for c in (kirk, spock):
         c.run(f"TREK.Transport.beamUp({P})")
     net.pump(210)
@@ -9768,7 +10038,8 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, energy,
-            energy_movement, energy_cabin, energy_shields,
+            energy_movement, energy_cabin, energy_shields, energy_emergency,
+            energy_emergency_mp,
             energy_multiplayer, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
