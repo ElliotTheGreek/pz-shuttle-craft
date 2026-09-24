@@ -1001,6 +1001,32 @@ C.DevicePower = 1.0
 C.PowerAmber = 0.25
 C.PowerRed = 0.10
 
+-- What everything costs (ENERGY.md 3.5). **Starting values, meant to be tuned
+-- in play.** They were set so one crystal buys about three outings, the
+-- author's choice on 2026-09-24: an outing (call her down, take off, fly
+-- about 500 tiles, hover an hour, push fifty zombies, mend a scrape, four
+-- beams, the Doctor and one treatment) comes to about 1,800 units, and
+-- tests/test_multiplayer.py fails if a later tweak moves that outside
+-- 1,500..2,100. Flight is more than half of every outing, so AirCostPerTile
+-- is the lever: about 4 is one outing a crystal, about 0.6 is ten.
+C.BeamCost = 25             -- each beam, either direction, per person
+C.LandCost = 150            -- calling her down, or the helm's take-her-down
+C.RecallCost = 50           -- sending her up, by hand or when the crew leave
+C.EngineStartCost = 25      -- the engine catching, charged on the start edge
+C.TakeoffCost = 100         -- checked at take-off, spent once she is up
+C.GroundCostPerTile = 0.5   -- driving on the ground
+C.AirCostPerTile = 2        -- moving in the air
+C.HoverCostPerMinute = 1    -- holding five tonnes up, moving or not
+C.ShieldPushCost = 2        -- each zombie the shields push
+C.RepairCostPerPoint = 1    -- each condition point the shields mend
+C.EmhProjectCost = 100      -- bringing the Doctor up; putting him away is free
+
+-- The odometer ignores a move longer than this in one vehicle pass (a second
+-- of game time). A respawn, a landing move or a teleport is not a journey,
+-- and billing one would empty a crystal for nothing. The fastest she drives
+-- is well under this.
+C.OdometerMaxJump = 60
+
 ---------------------------------------------------------------------------
 -- The replicator
 ---------------------------------------------------------------------------

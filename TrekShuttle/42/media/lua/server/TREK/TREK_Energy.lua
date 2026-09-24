@@ -150,6 +150,17 @@ end
 -- gives a save from before this guide its flag on the first minute.
 Events.EveryOneMinute.Add(function()
     U.try("powerChanged", E.powerChanged)
+    U.try("hover", E.serviceHover)
 end)
+
+--- Holding five tonnes up is not free, moving or not (ENERGY.md 4.3, and the
+--- author's decision 13.3). Once a game minute while she is flying, silent
+--- and partial: the gauge is the report, and a ship that runs out in the air
+--- is section 7's case.
+function E.serviceHover()
+    if U.state().flying ~= true then return false end
+    E.energize(nil, "hover", C.HoverCostPerMinute, { partial = true, silent = true })
+    return true
+end
 
 return E

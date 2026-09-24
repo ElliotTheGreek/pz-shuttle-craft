@@ -1,8 +1,9 @@
 # Energy — everything aboard runs on the crystal
 
-**Status: implementation guide. The design questions were settled with the
-author on 2026-09-24 (section 13), and the whole guide is awaiting their
-review. Nothing in it is built.** Once approved, it is followed phase by phase (section 12), and it
+**Status: being built, phase by phase (section 12). Phases 0 to 3 are done
+(2026-09-24): the verify-first answers, the ledger, the gauge and movement.
+None of it has been seen in game yet.** The design questions were settled
+with the author on 2026-09-24 (section 13). Once approved, it is followed phase by phase (section 12), and it
 becomes the working guide for the ship's power in the shape `REPLICATOR.md`
 and `PILOTING.md` use.
 

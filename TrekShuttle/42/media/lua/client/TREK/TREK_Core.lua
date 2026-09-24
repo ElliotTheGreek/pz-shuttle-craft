@@ -77,7 +77,11 @@ Net.onClient("moveGranted", function(args)
     local job = args.token and waitingMoves[args.token]
     if not job then return end
     waitingMoves[args.token] = nil
+    -- What the move cost the ship, for the transporter's own note to show
+    -- (ENERGY.md 3.1). Set only for the length of the call.
+    Core.grantedCost = args.cost
     job.onGranted(job.player)
+    Core.grantedCost = nil
 end)
 
 --- True while a move of this kind is waiting for the server's answer.

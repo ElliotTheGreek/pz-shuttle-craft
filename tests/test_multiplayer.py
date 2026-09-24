@@ -9118,6 +9118,239 @@ def energy():
           "drains, dark published once, and a crystal that brings her back")
 
 
+def energy_movement():
+    """Movement costs power (ENERGY.md section 4), and a dark ship stays put.
+
+    The vehicle half leans on three things the simulation did not have until
+    this section needed them -- a battery the ignition reads, an engine with a
+    start edge, and a stall on an empty tank -- so the checks here are only as
+    good as those stubs, and they are written the way V3 found the engine.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    PM = int(C("PowerMax"))
+    reserve = lambda: float(rt.eval("TREK.Power.reserve()"))
+
+    # --- the outing still costs about a third of a crystal (3.5) -------------
+    outing = (C("LandCost") + C("TakeoffCost") + 500 * C("AirCostPerTile")
+              + 60 * C("HoverCostPerMinute") + 50 * C("ShieldPushCost")
+              + 100 * C("RepairCostPerPoint") + 4 * C("BeamCost")
+              + C("EmhProjectCost") + C("EmhTreatCost"))
+    check(1500 <= outing <= 2100,
+          f"energy movement: a typical outing costs {outing} units -- the author "
+          f"chose about three outings a crystal (1,500..2,100)")
+
+    # --- calling her down costs a landing, and a dark ship will not come ----
+    energy_state(rt, 100, 0)
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    # Read before anything is delivered: only the client's own pre-check can
+    # have said this yet, and that is what saves the round trip.
+    check(any(n == f"IGUI_TREK_NoPower|{C('LandCost')}|100" for n in rt.notes()),
+          f"energy movement: the call-down menu asked the server before looking "
+          f"at the reserve ({rt.notes()})")
+    net.pump(40)
+    check(ship(rt, "landed") is not True, "energy movement: she came down on 100 units")
+    check(any(n == f"IGUI_TREK_NoPower|{C('LandCost')}|100" for n in rt.notes()),
+          f"energy movement: calling her down short said {rt.notes()}")
+    # The server refuses too, whatever the client thought.
+    rt.run(f"TREK.Core.send({P}, 'land', {{ x = 3004, y = 3000, z = 0 }})")
+    net.pump(4)
+    check(ship(rt, "landed") is not True, "energy movement: the server landed her on 100 units")
+    check(reserve() == 100, "energy movement: a refused landing cost something")
+
+    energy_state(rt, PM, 0)
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    check(ship(rt, "landed") is True, "energy movement: she would not come down on a full crystal")
+    check(reserve() == PM - C("LandCost"),
+          f"energy movement: landing left {reserve()}, not {PM - C('LandCost')}")
+    check(f"IGUI_TREK_Energizing|{C('LandCost')}" in rt.notes(),
+          f"energy movement: the landing did not say what it cost ({rt.notes()})")
+
+    # --- her own parts: a full battery and a full tank while powered --------
+    rt.run("TREK.Server.serviceVehicle()")
+    check(float(rt.eval("TREK.Vehicle.ship().battery.charge")) == 1.0,
+          "energy movement: a powered ship's battery is not charged")
+    check(float(rt.eval("TREK.Vehicle.ship().tank.amount")) > 0,
+          "energy movement: a powered ship's tank is empty")
+
+    # --- starting her costs, once, on the edge ------------------------------
+    seat(rt)
+    before = reserve()
+    rt.run("SIM.notes = {}")
+    check(rt.eval("SIM.startEngine(TREK.Vehicle.ship())") == "started",
+          "energy movement: a powered ship would not start")
+    rt.run("TREK.Server.serviceVehicle()")
+    check(before - reserve() == C("EngineStartCost"),
+          f"energy movement: starting her cost {before - reserve()}, "
+          f"not {C('EngineStartCost')}")
+    check(f"IGUI_TREK_Energizing|{C('EngineStartCost')}" in rt.notes(),
+          f"energy movement: the start did not tell the driver ({rt.notes()})")
+    rt.run("TREK.Server.serviceVehicle(); TREK.Server.serviceVehicle()")
+    check(before - reserve() == C("EngineStartCost"),
+          "energy movement: a running engine was charged again on the next pass")
+
+    # --- the odometer ------------------------------------------------------
+    def drive(dx, flying=False):
+        rt.run(f"TREK.Util.state().flying = {'true' if flying else 'nil'}")
+        b = reserve()
+        rt.run(f"local v = TREK.Vehicle.ship(); v.x = v.x + {dx}")
+        rt.run("TREK.Server.serviceVehicle()")
+        return b - reserve()
+    spent = drive(10)
+    check(abs(spent - 10 * C("GroundCostPerTile")) < 1e-6,
+          f"energy movement: ten tiles on the ground cost {spent}")
+    spent = drive(10, flying=True)
+    check(abs(spent - 10 * C("AirCostPerTile")) < 1e-6,
+          f"energy movement: ten tiles in the air cost {spent}")
+    # A jump is not a journey. The limit is lowered rather than the ship sent
+    # far away: out there her ground is not loaded, the vehicle is not found,
+    # and nothing would be measured at all -- which passes for the wrong
+    # reason (it did, until a mutation said so).
+    rt.run("TREK.Config.OdometerMaxJump = 5")
+    spent = drive(10)
+    rt.run(f"TREK.Config.OdometerMaxJump = {C('OdometerMaxJump')}")
+    check(spent == 0, f"energy movement: a jump past the limit was billed as a "
+                      f"journey ({spent})")
+
+    # --- hovering costs whether or not she moves ----------------------------
+    rt.run("TREK.Util.state().flying = true")
+    b = reserve()
+    rt.fire("EveryOneMinute")
+    check(b - reserve() == C("HoverCostPerMinute"),
+          f"energy movement: a minute's hover cost {b - reserve()}")
+    rt.run("TREK.Util.state().flying = nil")
+    b = reserve()
+    rt.fire("EveryOneMinute")
+    check(b == reserve(), "energy movement: a minute on the ground was charged as a hover")
+
+    # --- take-off: checked when asked, spent when she is up -----------------
+    energy_state(rt, C("TakeoffCost") - 1, 0)
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'takeoff', {{}})")
+    net.pump(2)
+    check(any(n.startswith("IGUI_TREK_NoPower|") for n in rt.notes()),
+          f"energy movement: a take-off it could not pay for said {rt.notes()}")
+    energy_state(rt, PM, 0)
+    rt.run(f"TREK.Core.send({P}, 'airborne', {{ level = TREK.Config.flightLevel() }})")
+    net.pump(2)
+    check(ship(rt, "flying") is True, "energy movement: airborne was not recorded")
+    check(reserve() == PM - C("TakeoffCost"),
+          f"energy movement: being airborne cost {PM - reserve()}, not {C('TakeoffCost')}")
+    rt.run("TREK.Server.endFlight('test', false)")
+
+    # --- dark: the battery flat, the tank dry, the engine stopped ------------
+    energy_state(rt, 0, 0)
+    rt.run("TREK.Energy.powerChanged(); TREK.Server.serviceVehicle()")
+    v = "TREK.Vehicle.ship()"
+    check(float(rt.eval(f"{v}.battery.charge")) == 0,
+          "energy movement: a dark ship's battery still has charge")
+    check(float(rt.eval(f"{v}.tank.amount")) == 0,
+          "energy movement: a dark ship's tank still has fuel")
+    # Asked straight after the pass, before a tick: the out-of-fuel stall waits
+    # for the engine's own check, and a dark ship must not idle until then.
+    check(rt.eval(f"{v}:isEngineRunning()") is False,
+          "energy movement: a dark ship's engine is still running")
+    check(rt.eval(f"SIM.startEngine({v})") == "noPower",
+          f"energy movement: a dark ship's engine answered "
+          f"{rt.eval(f'SIM.startEngine({v})')} to the key, not noPower")
+    rt.run("TREK.Server.serviceVehicle()")
+    check(float(rt.eval(f"{v}.tank.amount")) == 0,
+          "energy movement: a dark ship was refuelled")
+
+    # A dark ship cannot be sent up, and says why.
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Menu.onRecall(nil, {P})")
+    net.pump(2)
+    check(ship(rt, "landed") is True, "energy movement: a dark ship was recalled")
+    check(any(n.startswith("IGUI_TREK_NoPower|") for n in rt.notes()),
+          f"energy movement: a dark recall said {rt.notes()}")
+
+    # --- power back: she starts again ---------------------------------------
+    energy_state(rt, PM, 0)
+    rt.run("TREK.Energy.powerChanged(); TREK.Server.serviceVehicle()")
+    check(rt.eval(f"SIM.startEngine({v})") == "started",
+          "energy movement: power came back and she still would not start")
+
+    # --- recall costs one --------------------------------------------------
+    rt.run(f"TREK.Core.leaveSeat({P})")
+    b = reserve()
+    rt.run(f"TREK.Menu.onRecall(nil, {P})")
+    net.pump(2)
+    check(ship(rt, "landed") is False, "energy movement: a powered recall did not lift her")
+    check(b - reserve() == C("RecallCost"),
+          f"energy movement: the recall cost {b - reserve()}, not {C('RecallCost')}")
+
+    # --- nobody aboard a hovering ship: she goes up, and it is a recall ------
+    rt.run(f"{P}.x, {P}.y = 3000.5, 3000.5")
+    net.pump(40)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    check(ship(rt, "landed") is True, "energy movement: she would not come down again")
+    rt.run("local s = TREK.Util.state(); s.flying = true; s.flightHold = nil")
+    b = reserve()
+    for _ in range(int(C("FlightPilotGrace")) + 1):
+        rt.run("TREK.Server.serviceVehicle()")
+    check(ship(rt, "landed") is False, "energy movement: an empty hovering ship stayed")
+    check(b - reserve() == C("RecallCost"),
+          f"energy movement: going back up by herself cost {b - reserve()}, "
+          f"not a recall's {C('RecallCost')}")
+
+    # --- beams: 25 each way, and none when dark ------------------------------
+    b = reserve()
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "energy movement, beaming up"):
+        return
+    check(b - reserve() == C("BeamCost"),
+          f"energy movement: a beam up cost {b - reserve()}, not {C('BeamCost')}")
+    check(f"IGUI_TREK_Energizing|{C('BeamCost')}" in rt.notes(),
+          f"energy movement: the beam's note did not carry its cost ({rt.notes()})")
+
+    energy_state(rt, 10, 0)
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Transport.beamDown({P})")
+    net.pump(60)
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is True,
+          "energy movement: a beam down left on 10 units")
+    check(any(n == f"IGUI_TREK_NoPower|{C('BeamCost')}|10" for n in rt.notes()),
+          f"energy movement: a beam it could not pay for said {rt.notes()}")
+    check(rt.eval("TREK.Core.moveWaiting()") is False,
+          "energy movement: the refused beam was left waiting on the client")
+    check(reserve() == 10, "energy movement: a refused beam cost something")
+
+    # Take-her-down refused for power beams nobody anywhere.
+    rt.run(f"TREK.Travel.descend({P}, {{ x = 3100, y = 3000, z = 0 }})")
+    net.pump(10)
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is True,
+          "energy movement: take-her-down moved the player on 10 units")
+    # And a landing refused for power at the site beams them home at once.
+    rt.run(f"""
+        TREK.Travel.pending = {{ x = 3100, y = 3000, z = 0, tries = 0, player = {P},
+                                 asking = true, askedAt = 0 }}
+        TREK.Net.clientHandlers.landingRefused({{ why = "noPower", need = 150, have = 10 }})
+    """)
+    check(rt.eval("TREK.Travel.pending") is None,
+          "energy movement: a landing refused for power kept searching")
+    check(rt.eval("TREK.Core.moveWaiting('recover')") is True,
+          "energy movement: a landing refused for power did not beam them home")
+
+    for w in rt.warnings():
+        fail(f"energy movement: {w}")
+    print("energy movement: an outing is a third of a crystal; landing, recall, "
+          "take-off, beams, the engine's start, the odometer and the hover all pay; "
+          "a dark ship's battery is flat, her tank dry and her engine stopped, and "
+          "nothing that costs power moves her")
+
+
 def energy_multiplayer():
     """Two clients: the flag reaches both, and a race pays once."""
     net = Net("mp", clients=("kirk", "spock"))
@@ -9168,6 +9401,24 @@ def energy_multiplayer():
     check(kirk.eval("TREK.Power.dark()") is True,
           "energy mp: a client with no reserve in its copy read a dark ship as lit")
 
+    # Two crew racing to beam down on power for one: one goes, one is told.
+    beam = int(srv.eval("TREK.Config.BeamCost"))
+    energy_state(srv, beam + 10, 0)
+    srv.run("TREK.Energy.powerChanged(); TREK.Ship.commit()")
+    net.pump(2)
+    for c in (kirk, spock):
+        c.run("SIM.notes = {}")
+        c.run(f"TREK.Transport.beamDown({P}, {{ x = 2000, y = 2010, z = 0 }})")
+    net.pump(220)
+    down = [n for n, c in (("kirk", kirk), ("spock", spock))
+            if c.eval(f"TREK.Util.isInteriorPlayer({P})") is False]
+    check(len(down) == 1, f"energy mp: power for one beam took {down or 'nobody'} down")
+    check(int(srv.eval("TREK.Power.reserve()")) == 10,
+          f"energy mp: the race left {srv.eval('TREK.Power.reserve()')} units, not 10")
+    told = [c for c in (kirk, spock)
+            if any(n == f"IGUI_TREK_NoPower|{beam}|10" for n in c.notes())]
+    check(len(told) == 1, "energy mp: the crewman left aboard was not told why")
+
     for rt in net.all():
         for w in rt.warnings():
             fail(f"energy mp: {w}")
@@ -9181,7 +9432,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, energy,
-            energy_multiplayer, contact_world,
+            energy_movement, energy_multiplayer, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,

@@ -1417,6 +1417,11 @@ end
 function SIM.vehicleGravity()
     SIM.physicsTick = (SIM.physicsTick or 0) + 1
     for _, v in ipairs(SIM.vehicles or {}) do
+        if v.engineRunning and (v.tank.amount or 0) <= 0 then
+            v.engineRunning = false   -- the out-of-fuel stall, on the tick
+        end
+    end
+    for _, v in ipairs(SIM.vehicles or {}) do
         local y = v.bulletY or 0
         if not v.removed and y > 0 then
             local level = math.floor(y / LEVEL_UNITS + 0.05)
@@ -1642,15 +1647,63 @@ end
 function VehicleMT:repair() self.repaired = true end
 function VehicleMT:cheatHotwire(h) self.hotwired = h end
 function VehicleMT:getPartById(id)
+    if id == "Battery" then
+        -- The charge lives in the part's **item**, not in part mod data
+        -- (ENERGY.md V3): `transmitPartModData` does not carry it, and
+        -- `transmitPartUsedDelta` does. A fresh vehicle's battery is flat,
+        -- as the stub's tank is empty: nothing here fills either for free.
+        self.battery = self.battery or { charge = 0 }
+        local b = self.battery
+        return {
+            getId = function() return "Battery" end,
+            getInventoryItem = function()
+                return {
+                    getCurrentUsesFloat = function() return b.charge end,
+                    setUsedDelta = function(_, n) b.charge = n end,
+                    setCurrentUsesFloat = function(_, n) b.charge = n end,
+                }
+            end,
+        }
+    end
     if id ~= "GasTank" then return nil end
     local tank = self.tank
     return {
+        getId = function() return "GasTank" end,
         getContainerCapacity = function() return tank.cap end,
         getContainerContentAmount = function() return tank.amount end,
         setContainerContentAmount = function(_, n) tank.amount = n end,
     }
 end
 function VehicleMT:transmitPartModData() end
+function VehicleMT:transmitPartUsedDelta() self.usedDeltaSent = (self.usedDeltaSent or 0) + 1 end
+
+--- The engine, the way V3 found it (ENERGY.md section 12).
+---
+--- `tryStartEngine` reads the battery item's charge and refuses at 0.1 or
+--- below, *before* the key check; `updateStarting` refuses an empty tank; a
+--- running engine with no gas stalls on its next check; and only the server
+--- decides any of it. Nothing here is kinder: a start with a flat battery or
+--- a dry tank simply does not happen, and a test has to fill both first.
+--
+-- **The stall waits for the engine's own check.** VehicleEngine.update
+-- tests the tank periodically (V3, bci 7-41), so an engine whose tank has
+-- just been emptied is still running until the next tick. That is why going
+-- dark calls shutOff as well, and why this stub stalls in SIM.vehicleGravity
+-- rather than the instant the getter is asked: a stall here would have
+-- covered for a missing shutOff.
+function VehicleMT:isEngineRunning()
+    return self.engineRunning == true
+end
+function VehicleMT:shutOff() self.engineRunning = false end
+
+--- Test helper: turn the key. Returns "started", "noPower" or "noFuel".
+function SIM.startEngine(v)
+    local charge = v.battery and v.battery.charge or 0
+    if charge <= 0.1 then return "noPower" end
+    if (v.tank.amount or 0) <= 0 then return "noFuel" end
+    v.engineRunning = true
+    return "started"
+end
 
 --- A seat container, as the loot window holds when you stand by a vehicle.
 --- Once the vehicle is gone, asking it anything throws -- which is exactly

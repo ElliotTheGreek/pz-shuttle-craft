@@ -199,11 +199,92 @@ local function prepareVehicle(vehicle, id)
     U.try("vehicleRepair", function() vehicle:repair() end)
     U.try("vehicleHotwire", function() vehicle:cheatHotwire(true, false) end)
     U.try("vehicleTag", function() vehicle:getModData().TREKShipId = id end)
-    S.refuel(vehicle)
+    -- After repair(), which fills the tank and charges the battery for
+    -- nothing (ENERGY.md V4): a dark ship has to come out of it flat.
+    S.powerVehicle(vehicle)
 end
 
---- The ship never runs dry: its tank is topped up whenever it falls below
---- half. The same call vanilla's own refuelling command makes.
+--- True while the vehicle's own parts should say the ship has power. The
+--- emergency landing keeps her engine alive with nothing charged
+--- (ENERGY.md 7.1).
+local function vehiclePowered()
+    return not TREK.Power.dark() or U.state().emergency == true
+end
+
+--- Sets the battery's charge, writing only when it changed. The charge lives
+--- in the part's item and rides transmitPartUsedDelta, not part mod data
+--- (ENERGY.md V3; vanilla's VehicleUtils.chargeBattery).
+local function chargeBattery(vehicle, level)
+    U.try("vehicleBattery", function()
+        local part = vehicle:getPartById("Battery")
+        local item = part and part:getInventoryItem()
+        if not item then return end
+        if math.abs((item:getCurrentUsesFloat() or 0) - level) < 0.01 then return end
+        item:setUsedDelta(level)
+        if isServer() then vehicle:transmitPartUsedDelta(part) end
+    end)
+end
+
+--- The ship's power, in the vehicle's own parts (ENERGY.md 4.2). The engine
+--- already obeys them, so nothing of ours is in the ignition path:
+---
+---   * powered: the battery full and the tank topped up whenever it falls
+---     below half -- the ship never runs dry;
+---   * dark: the battery flat, which vanilla refuses to start on with its own
+---     message and sound, and the tank empty, which stalls an engine that is
+---     already running. `shutOff` as well, because a flat battery only stops
+---     a *start* (V3), and the stall waits for the engine's next check.
+function S.powerVehicle(vehicle)
+    if not vehicle then return end
+    if vehiclePowered() then
+        chargeBattery(vehicle, 1.0)
+        S.refuel(vehicle)
+        return
+    end
+    chargeBattery(vehicle, 0)
+    U.try("vehicleDrain", function()
+        local tank = vehicle:getPartById("GasTank")
+        if not tank or tank:getContainerContentAmount() <= 0 then return end
+        tank:setContainerContentAmount(0)
+        if isServer() then vehicle:transmitPartModData(tank) end
+    end)
+    if U.try("vehicleRunning", function() return vehicle:isEngineRunning() end) == true then
+        U.try("vehicleShutOff", function() vehicle:shutOff() end)
+        U.log("power: the shuttle's engine is shut down -- the ship is dark")
+    end
+end
+
+-- Whether each shuttle's engine was running at the last pass, by ship id.
+-- Server-local and transient: a restart finds the engine off, which is what
+-- a world load does to it anyway.
+local engineWas = {}
+
+--- Charges the engine's start, on its false-to-true edge (ENERGY.md 4.2).
+---
+--- Watched rather than requested: the engine's state is decided on the
+--- server and sent to clients (V3), so this machine sees the start for itself
+--- and no client has to report it. Charged to the driver, with the note --
+--- starting her is a thing they did. A dark ship never gets this far: the
+--- flat battery refused the start.
+function S.engineEdge(vehicle)
+    local id = V.idOf(vehicle) or 0
+    local running = U.try("engineRunning", function()
+        return vehicle:isEngineRunning()
+    end) == true
+    local was = engineWas[id] == true
+    engineWas[id] = running
+    if running and not was then
+        local driver = U.try("engineDriver", function() return vehicle:getDriver() end)
+        TREK.Energy.energize(driver, "engine", C.EngineStartCost, { partial = true })
+        return true
+    end
+    return false
+end
+
+--- The ship never runs dry while she has power: her tank is topped up
+--- whenever it falls below half. The same call vanilla's own refuelling
+--- command makes. Only S.powerVehicle's powered branch calls it, which is
+--- what keeps a dark ship dry; a guard here as well could never fire.
 function S.refuel(vehicle)
     U.try("vehicleRefuel", function()
         local tank = vehicle:getPartById("GasTank")
@@ -560,6 +641,12 @@ function S.serviceVehicle()
         else
             s.pilotGrace = (s.pilotGrace or 0) + 1
             if s.pilotGrace >= C.FlightPilotGrace then
+                -- Going back up is a recall, and costs one (ENERGY.md 3.5).
+                -- Partial and silent: nobody asked for it, and a ship too low
+                -- to pay still must not hang in the sky for ever. What a
+                -- dark ship does instead is ENERGY.md section 7.
+                TREK.Energy.energize(nil, "recall", C.RecallCost,
+                                     { partial = true, silent = true, noCommit = true })
                 S.endFlight("nobody is aboard her", true)
                 return
             end
@@ -568,10 +655,26 @@ function S.serviceVehicle()
 
     if found then
         s.missingChecks = nil
-        S.refuel(found)
+        S.powerVehicle(found)
+        S.engineEdge(found)
         local x = math.floor(found:getX())
         local y = math.floor(found:getY())
         local changed = false
+
+        -- **The odometer** (ENERGY.md 4.3): the distance since the last pass,
+        -- billed per tile, dearer in the air. It rides the commit this pass
+        -- already makes when she has moved, so driving adds no commit of its
+        -- own. A jump is not a journey: a respawn, a landing move or a
+        -- teleport is ignored rather than billed.
+        if s.x and s.y and (x ~= s.x or y ~= s.y) then
+            local d = math.sqrt(U.dist2(x, y, s.x, s.y))
+            if d <= C.OdometerMaxJump then
+                local rate = s.flying and C.AirCostPerTile or C.GroundCostPerTile
+                TREK.Energy.energize(nil, s.flying and "fly" or "drive",
+                                     d * rate, { partial = true, silent = true,
+                                                 noCommit = true })
+            end
+        end
 
         -- s.z is the ground the ship stands on, and stays that way even when
         -- the ship is three levels above it. Letting the flying z in here is
@@ -742,13 +845,19 @@ end)
 --- A client asks to move its character a long way: a beam, the hatch, or the
 --- trip to a landing site. The client does the moving -- only it can, for an
 --- ordinary player -- and the server decides whether it may.
+--
+-- `energy` is what the move costs the ship (ENERGY.md 4.1), and `check` is
+-- what it must be able to afford without paying it here: take-her-down is
+-- checked for the landing and charged once, at the land. The hatch is a door
+-- and costs nothing, which is how a dark crew gets out; `recover` is a
+-- failure path and never charged.
 local MOVES = {
-    beamUp   = { cost = 1, access = true },
+    beamUp   = { cost = 1, access = true, energy = "BeamCost" },
     hatchIn  = { cost = 1, access = true },
-    descend  = { cost = 1, need = 2, access = true },
+    descend  = { cost = 1, need = 2, access = true, check = "LandCost" },
     -- Leaving is never refused for access: nobody is trapped aboard because
     -- the owner took them off the crew.
-    beamDown = { cost = 1 },
+    beamDown = { cost = 1, energy = "BeamCost" },
     hatchOut = { cost = 1 },
     -- The way home from a landing with no room; paid for when it was taken.
     recover  = { cost = 0 },
@@ -768,10 +877,26 @@ Net.onServer("move", function(player, args)
         return
     end
 
+    -- **Energy is checked before the transporter charge and paid after it**,
+    -- so neither refusal costs the other: a ship too short of power to beam
+    -- keeps the player's charge, and a transporter still recharging keeps the
+    -- ship's power. `kind` in the denial drops the client's waiting move.
+    local energy = rule.energy and C[rule.energy] or 0
+    local need = math.max(energy, rule.check and C[rule.check] or 0)
+    if need > 0 and not TREK.Power.canPay(need) then
+        TREK.Energy.energize(player, kind, need, { kind = kind })
+        return
+    end
+
     local ok, value = S.spendCharge(player, rule.cost, rule.need)
     if not ok then
         deny(player, "recharging", { secs = value, kind = kind })
         return
+    end
+    -- Silent: the transporter's own "energizing" note carries the cost, and a
+    -- halo note holds one line, so a second would hide it.
+    if energy > 0 then
+        TREK.Energy.energize(player, kind, energy, { silent = true })
     end
     if rule.access then claim(player) end
 
@@ -803,7 +928,8 @@ Net.onServer("move", function(player, args)
         s.flightHold = C.FlightBoardingChecks
     end
 
-    Net.toClient(player, "moveGranted", { kind = kind, token = args.token })
+    Net.toClient(player, "moveGranted", { kind = kind, token = args.token,
+                                          cost = energy > 0 and energy or nil })
 end)
 
 --- A client found room to land around itself and asks for the ship there.
@@ -821,9 +947,22 @@ Net.onServer("land", function(player, args)
         return
     end
 
+    -- Checked before and charged after (ENERGY.md 4.1): a landing that is
+    -- refused costs nothing. A refusal for power goes as a landingRefused
+    -- rather than a denial, because a take-her-down has already beamed the
+    -- player to the site, and that reply is what beams them home.
+    if not TREK.Power.canPay(C.LandCost) then
+        Net.toClient(player, "landingRefused", {
+            why = "noPower", x = x, y = y, z = z,
+            need = C.LandCost, have = math.floor(TREK.Power.reserve()),
+        })
+        return
+    end
+
     local ok, why, blocked = S.land(x, y, z, player)
     if ok then
         claim(player)
+        TREK.Energy.energize(player, "land", C.LandCost)
         Net.toClient(player, "landed", { x = x, y = y, z = z })
     else
         Net.toClient(player, "landingRefused",
@@ -833,8 +972,15 @@ end)
 
 Net.onServer("recall", function(player)
     if not mayUse(player) then return end
+    -- A dark ship cannot go up: a landed one stays landed, and says why.
+    local s = U.state()
+    if s.landed and not TREK.Power.canPay(C.RecallCost) then
+        TREK.Energy.energize(player, "recall", C.RecallCost)
+        return
+    end
     local ok, why = S.recall()
     if ok then
+        TREK.Energy.energize(player, "recall", C.RecallCost)
         Net.toClient(player, "recalled", {})
     elseif why then
         deny(player, why)
@@ -868,6 +1014,12 @@ Net.onServer("takeoff", function(player)
     local _, driving = drivenBy(player)
     if not driving then
         deny(player, "notPilot")
+        return
+    end
+    -- Checked here and spent at `airborne`, once she is really up, so a
+    -- climb that gives up costs nothing (ENERGY.md 4.4).
+    if not TREK.Power.canPay(C.TakeoffCost) then
+        TREK.Energy.energize(player, "takeoff", C.TakeoffCost)
         return
     end
     claim(player)
@@ -904,6 +1056,10 @@ Net.onServer("airborne", function(player, args)
     -- which spot they have already cleared, and this is simply overwritten by
     -- the next flight.
     s.skyAt = { x = s.x, y = s.y, level = level }
+    -- Partial: if the ship went dark between the take-off and now, she is
+    -- airborne and dark, which is ENERGY.md section 7's case, not this one's.
+    TREK.Energy.energize(player, "takeoff", C.TakeoffCost,
+                         { partial = true, noCommit = true })
     Ship.commit()
     U.log("shuttle airborne at %d,%d level %d, flown by %s",
           s.x, s.y, level, s.pilot)

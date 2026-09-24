@@ -43,7 +43,12 @@ T.spotNear = W.spotNear
 
 local function begin(player, dir, x, y, z)
     T.pending = { dir = dir, tries = 0, player = player, x = x, y = y, z = z }
-    U.note(player, getText("IGUI_TREK_Energising"))
+    -- The beam's own note carries what it cost the ship, when the server
+    -- said: this is the "Energizing (25 power)" the ledger would otherwise
+    -- send, and a halo note holds one line.
+    local cost = Core.grantedCost
+    U.note(player, cost and getText("IGUI_TREK_Energizing", tostring(math.floor(cost)))
+                        or getText("IGUI_TREK_Energising"))
 end
 
 local function busy()

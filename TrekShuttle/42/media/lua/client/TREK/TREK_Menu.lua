@@ -86,6 +86,13 @@ end
 --- where a player finds out how much room the shuttle needs, so the message
 --- carries the numbers. The server looks again before it lands.
 function M.onCallDown(_, player, x, y, z)
+    -- Refused here first when the ship plainly cannot pay (ENERGY.md 4.1); the
+    -- server checks again, and is the one that charges.
+    if TREK.Power.dark() or not TREK.Power.canPay(C.LandCost) then
+        U.note(player, getText("IGUI_TREK_NoPower", tostring(C.LandCost),
+                               tostring(math.floor(TREK.Power.reserve()))), 255, 170, 90)
+        return
+    end
     local ok, why, blocked = W.roomToLand(x, y, z, W.exemptFor(player))
     if not ok then
         U.note(player, TREK.Travel.refusalText(why, blocked), 255, 90, 90)
