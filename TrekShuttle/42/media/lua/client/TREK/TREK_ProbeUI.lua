@@ -14,7 +14,12 @@
         "away" for an hour of game time with nothing moving is a feature a
         player assumes is broken;
       * the **contacts**, with bearing and distance, because that is the
-        answer the whole system exists to produce.
+        answer the whole system exists to produce;
+      * the **distress call**, with Accept and Decline, and while a rescue is
+        on, whose it is and how long they have left (ENSIGN.md). A call is
+        answered here rather than from a pop-up because a pop-up arriving
+        mid-fight is a pop-up nobody reads, and a call that waits here for
+        half a day is one nobody misses.
 
     Everything here is a *request*. The panel reads the ship state the server
     last published, which is good enough to grey a button and never good
@@ -44,7 +49,7 @@ local Pal = H.P
 local S = {}
 TREK.ProbeUI = S
 
-local PW, PH = 420, 470
+local PW, PH = 420, 560
 local SIDE, TOPH, PAD, ROWH = 56, 26, 14, 26
 
 TREKProbeWindow = ISPanelJoypad:derive("TREKProbeWindow")
@@ -88,7 +93,21 @@ function TREKProbeWindow:createChildren()
     self.launchBtn:initialise()
     self:addChild(self.launchBtn)
 
-    self.listY = btnY + ROWH + PAD + 16
+    -- The distress call: two lines of who and where, and the answer.
+    self.callY = btnY + ROWH + PAD
+    local ansY = self.callY + 40
+    self.acceptBtn = TREKLcarsButton:new(cx, ansY, half, ROWH,
+        getText("IGUI_TREK_DistressAccept"), self, TREKProbeWindow.onAccept,
+        Pal.blue)
+    self.acceptBtn:initialise()
+    self:addChild(self.acceptBtn)
+    self.declineBtn = TREKLcarsButton:new(cx + half + gap, ansY, half, ROWH,
+        getText("IGUI_TREK_DistressDecline"), self, TREKProbeWindow.onDecline,
+        Pal.violet)
+    self.declineBtn:initialise()
+    self:addChild(self.declineBtn)
+
+    self.listY = ansY + ROWH + PAD + 16
     local listH = self.height - self.listY - PAD - ROWH - gap
     self.list = ISScrollingListBox:new(cx, self.listY, cw, listH)
     self.list:initialise()
@@ -109,6 +128,7 @@ function TREKProbeWindow:createChildren()
 
     -- Every control on the stick, in the order a thumb would reach them.
     self:insertNewLineOfButtons(self.buildBtn, self.launchBtn)
+    self:insertNewLineOfButtons(self.acceptBtn, self.declineBtn)
     self:insertNewListOfButtons({ self.list })
     self:insertNewLineOfButtons(self.showBtn)
     self:setISButtonForB(self.closeBtn)
@@ -131,6 +151,23 @@ end
 
 function TREKProbeWindow:onLaunch()
     Core.send(self.player, "launchProbe", {})
+end
+
+--- Answers the call the panel is showing. The id goes with it, so an answer
+--- to a call that faded while the panel was open is refused rather than
+--- attached to whatever call came next.
+function TREKProbeWindow:answer(accept)
+    local call = P.distress()
+    if not call then return end
+    Core.send(self.player, "distressAnswer", { id = call.id, accept = accept })
+end
+
+function TREKProbeWindow:onAccept()
+    self:answer(true)
+end
+
+function TREKProbeWindow:onDecline()
+    self:answer(false)
 end
 
 function TREKProbeWindow:onShow()
@@ -209,6 +246,10 @@ function TREKProbeWindow:prerender()
 
     self.showBtn.enable = #self.list.items > 0
 
+    local pending = P.distress() ~= nil
+    self.acceptBtn.enable = pending
+    self.declineBtn.enable = pending
+
     ISPanelJoypad.prerender(self)
 end
 
@@ -250,6 +291,8 @@ function TREKProbeWindow:render()
                       Pal.dim[1], Pal.dim[2], Pal.dim[3], 1, UIFont.Small)
     end
 
+    self:drawCall(cx)
+
     local label = #self.list.items > 0
         and getText("IGUI_TREK_ProbeContacts", tostring(#self.list.items))
         or getText("IGUI_TREK_NoContacts")
@@ -270,26 +313,50 @@ function TREKProbeWindow:render()
     end
 end
 
+--- The distress block: a call waiting, a rescue under way, or neither.
+function TREKProbeWindow:drawCall(cx)
+    local y = self.callY
+    local call = P.distress()
+    local px = U.try("probe.callX", function() return self.player:getX() end) or 0
+    local py = U.try("probe.callY", function() return self.player:getY() end) or 0
+    if call then
+        self:drawText(getText("IGUI_TREK_DistressHeader"), cx, y,
+                      Pal.red[1], Pal.red[2], Pal.red[3], 1, UIFont.Small)
+        self:drawText(getText("IGUI_TREK_DistressWho", call.name,
+                              getText(C.DivisionLabels[call.division]
+                                      or C.DivisionLabels.Command),
+                              tostring(call.distance), call.compass),
+                      cx, y + 18, Pal.text[1], Pal.text[2], Pal.text[3], 1,
+                      UIFont.Small)
+        return
+    end
+    local mission = P.mission()
+    if mission then
+        local left = math.max(0, math.floor((mission.deadline or 0)
+                                            - U.worldHours()))
+        local dist = math.floor(math.sqrt((mission.x - px) ^ 2
+                                          + (mission.y - py) ^ 2))
+        self:drawText(getText("IGUI_TREK_RescueHeader", mission.name or "?"),
+                      cx, y, Pal.gold[1], Pal.gold[2], Pal.gold[3], 1,
+                      UIFont.Small)
+        self:drawText(getText("IGUI_TREK_RescueClock", tostring(left),
+                              tostring(dist), U.compass(px, py, mission.x,
+                                                        mission.y)),
+                      cx, y + 18, Pal.text[1], Pal.text[2], Pal.text[3], 1,
+                      UIFont.Small)
+        return
+    end
+    self:drawText(getText("IGUI_TREK_DistressNone"), cx, y,
+                  Pal.dim[1], Pal.dim[2], Pal.dim[3], 1, UIFont.Small)
+end
+
 ---------------------------------------------------------------------------
 -- Bearings
 ---------------------------------------------------------------------------
--- tan(22.5 degrees): half an octant, which is all the trigonometry a compass
--- point needs. Deliberately not math.atan2 -- Kahlua has it and Lua 5.3
--- onwards does not, so it works in the game and throws in the tests.
-local OCTANT = 0.4142135
-
+-- The arithmetic moved to U.compass, because the server names a bearing in
+-- the distress call now and both ends have to agree on what "NE" means.
 function S.bearing(fromX, fromY, toX, toY)
-    local dx, dy = toX - fromX, toY - fromY
-    local ax, ay = math.abs(dx), math.abs(dy)
-    if ax <= OCTANT * ay then
-        return dy < 0 and "N" or "S"
-    elseif ay <= OCTANT * ax then
-        return dx > 0 and "E" or "W"
-    elseif dy < 0 then
-        return dx > 0 and "NE" or "NW"
-    else
-        return dx > 0 and "SE" or "SW"
-    end
+    return U.compass(fromX, fromY, toX, toY)
 end
 
 ---------------------------------------------------------------------------

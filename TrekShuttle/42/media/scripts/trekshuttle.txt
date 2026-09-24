@@ -1488,4 +1488,162 @@ module TrekShuttle
         Tags = base:ripclothingcotton,
         Tooltip = Tooltip_TREK_UniformDress,
     }
+
+    /*  The downed ensign (ENSIGN.md): six figures, one per body and division.
+
+        A Furniture item standing on the ground, the way the Doctor does, and
+        blocked from the replicator for the same reason he is. Nobody is ever
+        meant to hold one; the server puts one down when a player loads a
+        rescue's ground and takes it away when the mission ends.
+
+        The meshes are the game's own male and female bodies in the boilersuit
+        rig the duty uniform rides, posed at a frame of the game's own
+        Bob_SitGround_Pain_Stomach and baked by tools/gen_ensign.py. Nothing in
+        them is modelled by hand; the render they were judged on is
+        design/art/ensign/ensign_sheet.png.  */
+
+    item TrekEnsignMCommand
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Downed Starfleet Ensign,
+        DisplayCategory = Furniture,
+        Icon = TREK_Shuttle,
+        Weight = 90.0,
+        WorldStaticModel = TrekEnsignMCommandModel,
+        StaticModel = TrekEnsignMCommandModel,
+    }
+
+    model TrekEnsignMCommandModel
+    {
+        mesh = TREK_Ensign_M,
+        texture = TREK_Ensign_M_Command,
+        scale = 1.0,
+    }
+
+    item TrekEnsignMOperations
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Downed Starfleet Ensign,
+        DisplayCategory = Furniture,
+        Icon = TREK_Shuttle,
+        Weight = 90.0,
+        WorldStaticModel = TrekEnsignMOperationsModel,
+        StaticModel = TrekEnsignMOperationsModel,
+    }
+
+    model TrekEnsignMOperationsModel
+    {
+        mesh = TREK_Ensign_M,
+        texture = TREK_Ensign_M_Operations,
+        scale = 1.0,
+    }
+
+    item TrekEnsignMScience
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Downed Starfleet Ensign,
+        DisplayCategory = Furniture,
+        Icon = TREK_Shuttle,
+        Weight = 90.0,
+        WorldStaticModel = TrekEnsignMScienceModel,
+        StaticModel = TrekEnsignMScienceModel,
+    }
+
+    model TrekEnsignMScienceModel
+    {
+        mesh = TREK_Ensign_M,
+        texture = TREK_Ensign_M_Science,
+        scale = 1.0,
+    }
+
+    item TrekEnsignFCommand
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Downed Starfleet Ensign,
+        DisplayCategory = Furniture,
+        Icon = TREK_Shuttle,
+        Weight = 90.0,
+        WorldStaticModel = TrekEnsignFCommandModel,
+        StaticModel = TrekEnsignFCommandModel,
+    }
+
+    model TrekEnsignFCommandModel
+    {
+        mesh = TREK_Ensign_F,
+        texture = TREK_Ensign_F_Command,
+        scale = 1.0,
+    }
+
+    item TrekEnsignFOperations
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Downed Starfleet Ensign,
+        DisplayCategory = Furniture,
+        Icon = TREK_Shuttle,
+        Weight = 90.0,
+        WorldStaticModel = TrekEnsignFOperationsModel,
+        StaticModel = TrekEnsignFOperationsModel,
+    }
+
+    model TrekEnsignFOperationsModel
+    {
+        mesh = TREK_Ensign_F,
+        texture = TREK_Ensign_F_Operations,
+        scale = 1.0,
+    }
+
+    item TrekEnsignFScience
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Downed Starfleet Ensign,
+        DisplayCategory = Furniture,
+        Icon = TREK_Shuttle,
+        Weight = 90.0,
+        WorldStaticModel = TrekEnsignFScienceModel,
+        StaticModel = TrekEnsignFScienceModel,
+    }
+
+    model TrekEnsignFScienceModel
+    {
+        mesh = TREK_Ensign_F,
+        texture = TREK_Ensign_F_Science,
+        scale = 1.0,
+    }
+
+    /*  The ensign's combadge, chirping at the square the ensign sits on.
+        is3D: it comes from the ensign and fades with distance, which is how a
+        player on foot homes in on it. Played by each nearby client on its
+        own timer; the server's beacon is a separate, silent addSound.  */
+    sound TREK_CombadgeChirp
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_CombadgeChirp.wav,
+            distanceMin = 2,
+            distanceMax = 30,
+            volume = 0.8,
+        }
+    }
+
+    /*  A distress call arriving: in your ear, not in the world.  */
+    sound TREK_DistressCall
+    {
+        category = Item,
+        loop = false,
+        is3D = false,
+        clip
+        {
+            file = media/sound/TREK_DistressCall.wav,
+            volume = 0.75,
+        }
+    }
 }

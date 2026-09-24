@@ -137,6 +137,13 @@ local DENIALS = {
     emhNoOffer        = "IGUI_TREK_EmhNoOffer",
     emhOfferLapsed    = "IGUI_TREK_EmhOfferLapsed",
     emhGone           = "IGUI_TREK_EmhGone",
+    -- The downed ensign (ENSIGN.md).
+    distressAboard    = "IGUI_TREK_DistressAboard",
+    distressGone      = "IGUI_TREK_DistressGone",
+    ensignGone        = "IGUI_TREK_EnsignGone",
+    ensignSafe        = "IGUI_TREK_EnsignSafe",
+    ensignMissing     = "IGUI_TREK_EnsignMissing",
+    ensignFar         = "IGUI_TREK_EnsignTooFar",
 }
 
 Net.onClient("denied", function(args)

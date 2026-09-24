@@ -812,6 +812,35 @@ else's feature. `tools/javadis.py` lists what is in the bundle. Read it before
 reaching for the short call, especially when the difference between "does what
 I asked" and "does more than I asked" is invisible from outside.
 
+### Player mod data a client writes is not the server's
+
+**New in this mod, and it was a live multiplayer bug in probes that no test
+could see.** A player's return point -- where they beamed up from, which is
+where a player standing in the cabin *is* as far as the map is concerned -- is
+player mod data, and the client writes it, on the client's own copy of the
+player. A dedicated server has its own `IsoPlayer` for that player, and that
+write never reached it. So on a server `Ship.worldOrigin` asked about anybody
+aboard had no answer: a probe launched from the sensor console was refused for
+want of a position fix, and the downed ensign's distress call had nowhere to
+be measured from.
+
+Single player could never show it, because there the client's player and the
+server's player are one object. It surfaced only when the first two-client
+test of the ensign asked the server where the crew were.
+
+- **The fix is to write it on both sides, where each side already has the
+  answer.** The server's `move` handler runs *before* a beam up or a walk
+  through the hatch, while the player is still standing where they are
+  leaving from -- so it records the return point on the server's copy there.
+  The client's own write is untouched.
+- **Ask of every piece of player mod data: which machine wrote it, and which
+  machine reads it?** If the answers differ on a server, something is reading
+  a value that was never sent. This is *A setter's own sync may be one-sided*
+  and *Single player cannot test a fix that both ends apply* seen from the
+  data's end rather than the code's.
+- `ensign_multiplayer()` asserts the server's answer for a player aboard, and
+  launches a probe from the cabin on a server.
+
 ### A setter's own sync may be one-sided
 
 **New in this mod.** `IsoDoor.setLockedByKey(b)` does sync itself, which makes
@@ -1986,6 +2015,7 @@ python tools/gen_warpcore.py TrekShuttle/42       # the warp core and its render
 python tools/gen_emh.py     TrekShuttle/42       # the Doctor: mesh, texture, portrait, chime
 python tools/gen_uniform.py TrekShuttle/42        # the six uniforms: textures, icons, clothing XML, GUID table
 python tools/gen_map_symbols.py TrekShuttle/42    # the world-map contact glyphs and their registration
+python tools/gen_ensign.py  TrekShuttle/42        # the downed ensign: six baked figures (after gen_uniform)
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
@@ -2018,6 +2048,31 @@ And one that is structural: **one texture region cannot be right on two
 opposite faces.** It can be upright on both, or at the same physical end on
 both, never both at once. The flanks have their own regions and
 `mirror_region()` draws the second from the first.
+
+---
+
+### A pose can be baked out of the game's own files
+
+**New in this mod.** A static model cannot play an animation -- but the game
+ships its characters, its clothing rigs and its animations as text `.x`, and
+`tools/xskin.py` reads all three and applies linear-blend skinning at one
+frame. That is how the downed ensign is a vanilla body in the mod's own
+uniform, sitting exactly as `Bob_SitGround_Pain_Stomach` sits, with nothing
+modelled by hand. Three things the first bake settled, all in `ENSIGN.md`
+section 6:
+
+- **the rotation keys are stored conjugated** relative to the Direct3D
+  reading, and a wrong guess bends every joint backwards without an error --
+  so it is measured against a file whose first key is its own frame pose,
+  every run;
+- **a body's frame matrices are a walk, not the bind pose**; the bind pose is
+  only in the SkinWeights offsets;
+- **one texture per static model** means building an atlas, and every source
+  rig's UVs have to be wrapped inside their own quadrant.
+
+Render the result and look, as ever: the crew cut turned out to be a cap with
+the back of the head bare, which a hunched pose shows first, and three
+lying-down poses all read as a corpse.
 
 ---
 
@@ -2101,6 +2156,9 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A dark fringe down every seam of a garment** | The texture's UV islands are not padded, so filtering along an edge mixes the garment with the transparent gutter. `dilate()` in the generator. |
 | **A combadge, pocket or patch is on the wrong side** | Handedness was derived rather than read. The rigs' own skeleton says it: `Bip01_L_*` bones sit at **positive** x. |
 | **A mutation reports MISSED and the check looks correct** | The mutation's search text may never have matched, so the suite ran against unmutated code. Assert the file changed. |
+| **No distress call ever comes** | The ship is not hearing: nobody has boarded since the cabin was built, or there is no dilithium in the core or the reserve. The first call is due an hour of game time after it first hears; the log says `distress: the ship is listening`. See `ENSIGN.md`. |
+| **"No transporter lock" on a downed ensign you can see** | The server looked at their square and the figure was not there. The next pass puts a missing figure back. |
+| **A probe or a distress call on a server says there is no position fix** | The server has no return point for a player standing in the cabin. The `move` handler writes one before every beam up; a player who has not beamed since the fix will have one after their next. See *Player mod data a client writes is not the server's*. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
 ---
@@ -2611,8 +2669,34 @@ was missing.
 her in the air, and whether ten checks of `FlightPilotGrace` plus thirty of
 `FlightBoardingChecks` is enough room for a real beam on a real connection.
 
-**Next up** is `ROADMAP.md`'s step 7: publishing. Everything on the roadmap is
-built; what is left is playing it. Four systems have never been in a game at
+**The 2026-09-24 downed ensign** is `ROADMAP2.md` 1.7, built ahead of 1.6's
+cold start, whose only hook into it is one line (`M.hearing()`). A distress
+call once the ship has been boarded and has dilithium; Accept and Decline on
+the sensor console; a `downedPersonnel` contact with a three-day clock; a
+figure placed when a player loads its ground; the server's beacon drawing in
+the dead already there; the client's chirp; a blue cross on the tricorder;
+and a right-click rescue that pays out three patterns and a small supply
+exactly once. `ENSIGN.md` is the working guide.
+
+The figure is the answer to "can it be animated": no -- only characters play
+animations, and the characters a mod can put in the world are either not
+networked or zombies -- but the game's own files can be *baked*: the vanilla
+body, the mod's uniform, one frame of the game's own pain animation
+(*A pose can be baked out of the game's own files*, above).
+
+Its first two-client test found a live bug that had nothing to do with it: on
+a server, a player standing in the cabin had no position fix, so probes
+launched aboard would have been refused (*Player mod data a client writes is
+not the server's*). Seventeen mutations, one pass at a time, all caught --
+after one test that passed because the ground it stood on was unloaded was
+moved to ground that was not.
+
+**Not yet seen in game at all**, and it needs no fresh world. `ENSIGN.md`
+section 9 is the route and the questions.
+
+**Next up** is `ROADMAP.md`'s step 7: publishing -- or `ROADMAP2.md` 1.6, the
+cold start, if it is to ship with the ensign. Everything else on the roadmap
+is built; what is left is playing it. Four systems have never been in a game at
 all, and the two-player session has been pinned for long enough that it is now
 the largest single piece of unproven work in the project.
 
@@ -2650,6 +2734,8 @@ TrekShuttle/42/media/lua/client/TREK/TREK_WarpCore.lua         the warp core's m
 TrekShuttle/42/media/lua/client/TREK/TREK_MedKit.lua           the medical set: menus, panels, the sweep
 TrekShuttle/42/media/lua/client/TREK/TREK_EMHUI.lua            the Doctor: his menu, his panel, his light, consent
 TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua             right-click menus, crew
+TrekShuttle/42/media/lua/server/TREK/TREK_Missions.lua         distress calls and the downed ensign: the authority
+TrekShuttle/42/media/lua/client/TREK/TREK_EnsignUI.lua         the ensign's right-click menu, the chirp, the notes
 TrekShuttle/42/media/clothing/clothingItems/*.xml              the six uniforms: vanilla rigs, our textures (generated)
 TrekShuttle/42/media/fileGuidTable.xml                         the GUID each garment is reached by (generated)
 TrekShuttle/42/media/textures/clothes/trek/*.png               the uniform textures (generated)

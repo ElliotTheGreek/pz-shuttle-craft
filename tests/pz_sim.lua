@@ -363,8 +363,26 @@ for _, id in ipairs({ "TrekShuttle.TrekPhaser", "TrekShuttle.TrekHypospray",
                       "TrekShuttle.TrekUniformDutyScience",
                       "TrekShuttle.TrekUniformDressCommand",
                       "TrekShuttle.TrekUniformDressOperations",
-                      "TrekShuttle.TrekUniformDressScience" }) do
+                      "TrekShuttle.TrekUniformDressScience",
+                      -- The downed ensign's six figures: Furniture items the
+                      -- replicator must refuse, listed for the crystal's
+                      -- reason -- a blocklist checked against a catalogue
+                      -- that never offered them proves nothing.
+                      "TrekShuttle.TrekEnsignMCommand",
+                      "TrekShuttle.TrekEnsignMOperations",
+                      "TrekShuttle.TrekEnsignMScience",
+                      "TrekShuttle.TrekEnsignFCommand",
+                      "TrekShuttle.TrekEnsignFOperations",
+                      "TrekShuttle.TrekEnsignFScience" }) do
     scriptItem(id, { name = bareType(id), category = "Starfleet", weight = 0.6 })
+end
+
+-- What a rescue teaches the ship (C.RescuePatterns). Real vanilla ids, in the
+-- catalogue so R.learn() can find their rows: a reward checked against a
+-- catalogue that has never heard of the pattern would teach nothing and pass.
+for _, id in ipairs({ "Base.Antibiotics", "Base.SutureNeedle", "Base.Splint",
+                      "Base.Disinfectant", "Base.Tweezers", "Base.Pills" }) do
+    scriptItem(id, { name = bareType(id), category = "FirstAid", weight = 0.1 })
 end
 
 --- Which items the engine would hand back a ClothingItem for.
@@ -529,9 +547,28 @@ function SIM.object(sprite, class)
     return o
 end
 
+-- The tile flags a sprite carries. Only the one the mod asks about: whether
+-- a floor is water, which is how the ensign avoids sitting in a pond. A test
+-- marks a square `water = true` and its floor answers for it.
+IsoFlagType = IsoFlagType or { water = "water" }
+
 function ObjectMT:getSprite()
     local name = self.spriteName
-    return { getName = function() return name end }
+    local obj = self
+    return {
+        getName = function() return name end,
+        getProperties = function()
+            return {
+                has = function(_, flag)
+                    if flag == IsoFlagType.water then
+                        return obj.isFloor == true and obj.square ~= nil
+                               and obj.square.water == true
+                    end
+                    return false
+                end,
+            }
+        end,
+    }
 end
 function ObjectMT:getModData() return self.modData end
 function ObjectMT:getSquare() return self.square end
@@ -2017,6 +2054,27 @@ function PlayerMT:playSound(name)
 end
 function PlayerMT:playSoundLocal(name)
     table.insert(SIM.sounds, { player = self.name, name = name, local_ = true })
+end
+
+--- A sound played at a square: where it came from, and which runtime played
+--- it. The ensign's chirp is presentation and belongs to clients; a server
+--- that chirped would be a server trying to be heard by nobody.
+function SquareMT:playSound(name)
+    table.insert(SIM.sounds, { square = { x = self.x, y = self.y, z = self.z },
+                               name = name, role = SIM_ROLE })
+    return 1
+end
+
+--- The engine's zombie-attraction noise (WorldSoundManager). Recorded, with
+--- the role that made it: the beacon is the authority's, and a client making
+--- zombie noise from mod code would be a client editing the world.
+SIM.worldSounds = {}
+function addSound(source, x, y, z, radius, volume)
+    if isClient() then
+        SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1
+    end
+    table.insert(SIM.worldSounds, { x = x, y = y, z = z, radius = radius,
+                                    volume = volume, source = source })
 end
 
 function SIM.heardSound(name)

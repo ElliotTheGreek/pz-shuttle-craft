@@ -151,10 +151,66 @@ def dermal_hum(duration=0.85):
     return out
 
 
+def combadge_chirp(duration=0.24):
+    """The downed ensign's combadge (ENSIGN.md): two bright rising blips.
+
+    Short and high on purpose. It is played every few seconds at the square
+    the ensign sits on, as a thing to home in on across a street, so it has
+    to cut through and then get out of the way -- a longer or lower sound
+    repeated that often would be the thing the player remembers the mission
+    for, and not fondly.
+    """
+    out = []
+    n = int(RATE * duration)
+    phase = 0.0
+    blips = ((0.000, 0.060, 1320.0, 1760.0),
+             (0.090, 0.180, 1980.0, 2640.0))
+    for i in range(n):
+        t = i / RATE
+        freq, level = 0.0, 0.0
+        for start, end, f0, f1 in blips:
+            if start <= t < end:
+                k = (t - start) / (end - start)
+                freq = f0 + (f1 - f0) * k
+                level = min(1.0, k / 0.08) * (1.0 - k) ** 0.6
+                break
+        phase += 2 * math.pi * max(freq, 1.0) / RATE
+        tone = 0.55 * math.sin(phase) + 0.18 * math.sin(3 * phase)
+        out.append(tone * level)
+    return out
+
+
+def distress_call(duration=1.2):
+    """A distress call arriving: a two-tone warble, three times over.
+
+    Alternating tones rather than a rising sweep so it cannot be mistaken for
+    the tricorder, and a slow tremolo so it reads as a signal coming in from
+    somewhere rather than a button being pressed.
+    """
+    out = []
+    n = int(RATE * duration)
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        freq = 880.0 if int(t / 0.1) % 2 == 0 else 660.0
+        phase += 2 * math.pi * freq / RATE
+        cycle = (t % 0.4) / 0.4
+        gate = 1.0 if cycle < 0.8 else 0.0
+        env = min(1.0, t / 0.02) * min(1.0, (duration - t) / 0.15)
+        tremolo = 0.75 + 0.25 * math.sin(2 * math.pi * 7.0 * t)
+        tone = 0.5 * math.sin(phase) + 0.14 * math.sin(2 * phase)
+        out.append(tone * gate * env * tremolo)
+    return out
+
+
 if __name__ == "__main__":
     root = sys.argv[1] if len(sys.argv) > 1 else "TrekShuttle/42"
     sound = os.path.join(root, "media", "sound")
     write(os.path.join(sound, "TREK_HypoHiss.wav"), hypo_hiss())
     write(os.path.join(sound, "TREK_TricorderChirp.wav"), tricorder_chirp())
     write(os.path.join(sound, "TREK_DermalHum.wav"), dermal_hum())
+    # Not medical, but the same oscillators and the same writer: the downed
+    # ensign's two sounds (ENSIGN.md).
+    write(os.path.join(sound, "TREK_CombadgeChirp.wav"), combadge_chirp())
+    write(os.path.join(sound, "TREK_DistressCall.wav"), distress_call())
     print("medical sounds written")

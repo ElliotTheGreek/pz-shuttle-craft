@@ -759,6 +759,25 @@ Net.onServer("move", function(player, args)
     end
     if rule.access then claim(player) end
 
+    -- **Where they are leaving from, written down on this machine too.** The
+    -- return point is player mod data and the client sets it -- on the
+    -- client's own copy of the player. A dedicated server never sees that
+    -- write, so `Ship.worldOrigin` asked about a player standing in the cabin
+    -- had no answer there: a probe launched aboard was refused for want of a
+    -- position fix, and a distress call had nowhere to be measured from.
+    -- Single player never showed it, because there the two copies are one
+    -- (DEV_GUIDE: *Single player cannot test a fix that both ends apply*).
+    -- This handler runs before the move, so the player is still standing
+    -- where they are leaving from.
+    if kind == "beamUp" or kind == "hatchIn" then
+        local px = U.try("moveFromX", function() return player:getX() end)
+        local py = U.try("moveFromY", function() return player:getY() end)
+        local pz = U.try("moveFromZ", function() return player:getZ() end)
+        if px and py and pz and not U.isAboard(px, py, pz) then
+            Ship.setReturnPoint(player, px, py, pz)
+        end
+    end
+
     -- Somebody is on their way aboard a ship that is hovering with nobody in
     -- her. Hold the watchdog off while they are in transit: a beam is a second
     -- and a half, and the ground at the far end can take a good deal longer

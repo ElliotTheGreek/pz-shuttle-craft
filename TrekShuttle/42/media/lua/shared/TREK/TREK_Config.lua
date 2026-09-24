@@ -1155,6 +1155,130 @@ C.ContactLabels = {
     downedPersonnel = "IGUI_TREK_Contact_downedPersonnel",
 }
 
+---------------------------------------------------------------------------
+-- The downed ensign: distress calls and rescues (ENSIGN.md)
+---------------------------------------------------------------------------
+-- The mod's first mission, built on the contact store above: a distress call
+-- the crew can accept at the sensor console, a `downedPersonnel` contact on
+-- the map, a figure placed when a player loads its ground, and a rescue that
+-- pays out exactly once. Every number here is ENSIGN.md section 4.
+
+-- Game hours from the ship first being able to hear (a built cabin and a
+-- crystal in the core) to the first call. One hour is a few real minutes, so
+-- a fresh world meets its first ensign in the first sitting.
+C.DistressFirstHours = 1
+
+-- From one call ending -- rescued, lost, declined or lapsed -- to the next.
+C.DistressIntervalHours = 36
+
+-- How long an unanswered call waits before it fades. Ignoring a call is
+-- declining it, and costs exactly as little.
+C.DistressOfferHours = 12
+
+-- When a call could not find anywhere valid to point, how soon it tries again.
+C.DistressRetryHours = 1
+
+-- The clock, from acceptance, in game hours. Generous on purpose: it is a
+-- reason to go now rather than tomorrow, not a trap.
+C.EnsignLifeHours = 72
+
+-- How far away she comes down, in squares from the crew: a real walk, a short
+-- drive. Picked the way a probe's endpoint is, and checked against the world.
+C.EnsignMinDistance = 150
+C.EnsignMaxDistance = 450
+C.EnsignBearingTries = 24
+
+-- The long-range fix's error. The tricorder sweeps 40 squares, so a sweep
+-- taken from the middle of the circle on the map always reaches her.
+C.EnsignReportSpread = 40
+
+-- Rings searched outward from the ensign's square for somewhere to sit them.
+C.EnsignPlaceRadius = 8
+
+-- How close the rescuer has to be, by the server's copy of where they are.
+C.EnsignRescueRange = 3
+
+-- Slack for the right-click. A click resolves to the floor square under the
+-- cursor, and a figure sitting on the ground covers a little of the squares
+-- beside her own (DEV_GUIDE: *a right-click lands on the floor*).
+C.EnsignMenuMargin = 1
+
+-- The combadge beacon. `addSound` is the engine's zombie-attraction noise; a
+-- gunshot is about 50. This is the block she is in, not the town.
+C.BeaconEveryMinutes = 10
+C.BeaconRadius = 45
+C.BeaconVolume = 45
+
+-- The chirp each nearby client plays at the ensign's square, in real milliseconds, and
+-- how near "nearby" is. Presentation only: no ship state rides on it.
+C.ChirpEveryMs = 6000
+C.ChirpRange = 30
+
+-- The figures: two bodies, three divisions, one world item each. The mesh is
+-- shared per body and the texture per division (tools/gen_ensign.py).
+C.EnsignBodies = { "M", "F" }
+C.EnsignDivisions = { "Command", "Operations", "Science" }
+
+-- What each division is called. Written out, not pasted onto a prefix, for
+-- the reason C.ContactLabels is: a constructed key that is wrong resolves to
+-- itself and no check can see it.
+C.DivisionLabels = {
+    Command = "IGUI_TREK_Division_Command",
+    Operations = "IGUI_TREK_Division_Operations",
+    Science = "IGUI_TREK_Division_Science",
+}
+
+-- Written out rather than pasted together, so tests/test_assets.py can check
+-- every one against the item scripts -- the same reason C.ContactLabels is.
+C.EnsignItemIds = {
+    M = { Command = "TrekShuttle.TrekEnsignMCommand",
+          Operations = "TrekShuttle.TrekEnsignMOperations",
+          Science = "TrekShuttle.TrekEnsignMScience" },
+    F = { Command = "TrekShuttle.TrekEnsignFCommand",
+          Operations = "TrekShuttle.TrekEnsignFOperations",
+          Science = "TrekShuttle.TrekEnsignFScience" },
+}
+
+function C.ensignItem(body, division)
+    local row = C.EnsignItemIds[body]
+    return row and row[division] or nil
+end
+
+C.EnsignItems = {}
+for _, row in pairs(C.EnsignItemIds) do
+    for _, id in pairs(row) do C.EnsignItems[id] = true end
+end
+
+-- Who the ensign is. Invented names, not canon characters: a crew the player has
+-- never met is the point of a distress call.
+C.EnsignGivenNames = {
+    M = { "Tomas", "Rafael", "Idris", "Kenji", "Anatoly", "Declan", "Samir",
+          "Oluwaseun", "Mateo", "Hollis" },
+    F = { "Amara", "Ines", "Yuki", "Soraya", "Maren", "Priya", "Talia",
+          "Nadia", "Esme", "Ruth" },
+}
+C.EnsignSurnames = { "Okafor", "Vance", "Tamura", "Reyes", "Lindqvist",
+                     "Haddad", "Castellan", "Novak", "Achebe", "Moreau",
+                     "Sato", "Brennan", "Kowalczyk", "Ferreira" }
+
+-- What a rescue pays. Patterns, not a crystal: ROADMAP2 says not to hand out
+-- another crystal right after the opening one, and a pattern is for ever.
+-- Learned in this order, the first few the ship does not already know.
+C.RescuePatterns = {
+    "Base.Antibiotics", "Base.SutureNeedle", "Base.Splint",
+    "Base.Disinfectant", "Base.Tweezers", "Base.Pills",
+    "Base.WaterPurificationTablets", "Base.Screwdriver", "Base.Hammer",
+    "Base.Saw", "Base.Wrench", "Base.DuctTape", "Base.Rope",
+    "Base.HandTorch", "Base.Battery", "Base.Crowbar",
+}
+C.RescuePatternsPerRescue = 3
+
+-- And a modest supply in the rescuer's hands.
+C.RescueSupply = {
+    { "TrekShuttle.TrekRationPack", 2 },
+    { "TrekShuttle.TrekHypospray", 1 },
+}
+
 -- Never replicated, whatever the sandbox says, and the list exists from day
 -- one because adding it later means adding it in a hurry.
 --
@@ -1184,6 +1308,11 @@ C.ReplicatorBlocked = {
     ["TrekShuttle.TrekEMH"]         = true,
     ["TrekShuttle.TrekEMHStation"]  = true,
 }
+-- **The downed ensign**, all six figures. Each is a Furniture item for the
+-- same reason the Doctor is, and a replicated one would be a second ensign
+-- on the deck that no mission knows about -- one the rescue could never
+-- complete and the map would never draw.
+for id in pairs(C.EnsignItems) do C.ReplicatorBlocked[id] = true end
 
 -- Modules the catalogue skips wholesale. Vanilla's own item viewer skips
 -- Moveables (ISItemsListViewer.lua:71) and so does this: they are the

@@ -757,6 +757,37 @@ function U.note(player, text, r, g, b)
     end)
 end
 
+-- tan(22.5 degrees): half an octant, which is all the trigonometry a compass
+-- point needs. Deliberately not math.atan2 -- Kahlua has it and Lua 5.3
+-- onwards does not, so it works in the game and throws in the tests.
+local OCTANT = 0.4142135
+
+--- The compass point from one square to another: "N", "NE" ... "NW".
+---
+--- Shared because both ends say it now: the sensor console lists contacts
+--- by bearing, and the server's distress call names the direction it came
+--- from in the note it sends, before anybody has opened a console.
+function U.compass(fromX, fromY, toX, toY)
+    local dx, dy = toX - fromX, toY - fromY
+    local ax, ay = math.abs(dx), math.abs(dy)
+    if ax <= OCTANT * ay then
+        return dy < 0 and "N" or "S"
+    elseif ay <= OCTANT * ax then
+        return dx > 0 and "E" or "W"
+    elseif dy < 0 then
+        return dx > 0 and "NE" or "NW"
+    else
+        return dx > 0 and "SE" or "SW"
+    end
+end
+
+--- Game hours since the world began. The clock missions are measured on.
+function U.worldHours()
+    return U.try("worldHours", function()
+        return getGameTime():getWorldAgeHours()
+    end) or 0
+end
+
 function U.dist2(x1, y1, x2, y2)
     local dx, dy = x1 - x2, y1 - y2
     return dx * dx + dy * dy

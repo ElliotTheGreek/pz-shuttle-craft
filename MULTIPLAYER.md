@@ -163,7 +163,7 @@ So a server-side file guarded by `if isClient() then return end` runs in
 | Cabin geometry, containers, loot, water | **Server** | World objects; clients only see what the server streams |
 | Hull world item on the map | **Server** | World object |
 | A player's own position (beaming, walking in, arrival hold) | **That player's client** | Only a client may move its own character without admin rights |
-| Where a player beamed up from (their return point) | **That player**, player mod data | Per character, travels with the save |
+| Where a player beamed up from (their return point) | **That player**, player mod data -- and **also the server's copy**, written by the `move` handler before a beam up or a walk in | The client's write never reaches a dedicated server, which then could not say where a player standing in the cabin was: probes aboard were refused for want of a fix. See DEV_GUIDE, *Player mod data a client writes is not the server's* |
 | Zombie repulsion (shields) | **Each client**, for zombies it owns | Zombies are client-simulated |
 | Phaser charge | **The carrying client** | Items in a player's own inventory |
 | Helm, menus, map markers, notes | **Client** | Presentation only |
@@ -175,6 +175,9 @@ So a server-side file guarded by `if isClient() then return end` runs in
 | Consent to be treated | **The patient's client** raises it; the server mints, expires and re-validates the token | Nobody can force-heal, or force-anything, another player |
 | The crystal and the cure register | **Server**, ship state, one writer | Paid for, and it has to survive a relog |
 | The light at the EMH's square, his panel and his portrait | **Each client, for itself** | Scenery and presentation, like the cabin's lamps |
+| Distress calls, rescues, the downed ensign's figure and the clock | **Server**, in the contact store (`TREK_Contacts_v1`) beside the contacts | A mission is shared ship knowledge; the figure is a world item; the clock has to run with nobody near (ENSIGN.md) |
+| The ensign's beacon (`addSound`) | **Server** | It moves zombies, which is world state |
+| The ensign's combadge chirp | **Each client, for itself** | Presentation: what this machine hears |
 
 ### Files
 
@@ -234,6 +237,8 @@ sane numbers, player alive):
 | `emhLook {who}` | Reads that patient's body and answers `emhFindings` -- the panel cannot read a remote body itself |
 | `emhTreat {who}` / `emhCure {who}` | Treats or cures; naming somebody else mints a consent token and asks **them** |
 | `emhAccept {token}` / `emhDecline {token}` | The patient's answer, re-validated from scratch |
+| `distressAnswer {id, accept}` | Accepts or declines the pending distress call; the id must be the call that is pending, and the player aboard by the server's copy |
+| `rescueEnsign {id}` | Beams the downed ensign to safety: live, placed, within reach by the server's copy, figure present -- then one removal, one status change, one reward |
 
 Server -> client (`OnServerCommand` / direct in SP):
 
@@ -246,6 +251,8 @@ Server -> client (`OnServerCommand` / direct in SP):
 | `emhOffered {token, from, what, cost}` | To the **patient**: a yes/no |
 | `emhTreated {who, counts, total}` | What he put right |
 | `emhCureStarted {hours}` / `emhCured` / `emhCureLost` | The cure beginning, landing (clear your own flags and moodle) or being abandoned |
+| `distressCall` / `distressAccepted` / `distressDeclined` / `distressLapsed` | A call arriving (note and chime), and what became of it |
+| `ensignRescued {name, by, learned}` / `ensignLost {name, why}` | How a rescue ended |
 
 ---
 

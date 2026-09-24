@@ -27,6 +27,8 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **A dermal regenerator** | Run it over the skin and the skin closes: lacerations, scratches, deep wounds and burns, with the stitches and the dressing that were holding them together. No bandage needed, and no charge to run out of. It will not mend a broken bone, touch an infected wound, or close over a piece of glass. |
 | **A medical tricorder** | Reads a body the way a surgeon would, whether or not you have ever held a scalpel. On yourself, or — with their say-so — on a crewmate. |
 | **A tricorder** | A sensor sweep out to forty tiles, drawn as a contact plot with you at the centre, and a lock override that talks most electronic locks open. Not padlocks, and not inside somebody's safehouse. It reads dilithium too, out to twenty tiles and through the walls of whatever it is shut in — and **from a seat in the shuttle it reads the ground below you**, which is how you pick a town worth landing at. |
+| **Distress calls** | Once the ship has been boarded and has dilithium, it starts hearing them: a chime and a note -- *a Starfleet ensign is down, 320 tiles NE*. Answer at the sensor console, aboard. Declining or ignoring one costs nothing, and another comes later. |
+| **The downed ensign** | Accept and the clock starts: three game days. A mark goes on the map, the tricorder finds them within forty tiles as a blue cross, and they are sitting on the ground, doubled over, in uniform, their combadge chirping -- and drawing in the dead from the surrounding block. Right-click to **Examine** them, or to **Beam them to safety** from within three tiles: the replicator learns three new patterns and you are handed a small supply. Too late, and the signal stops. |
 | **A replicator** | A machine at the aft end of the galley that makes any item in the game — if the ship holds a pattern for it, and if the reserve covers it. Browse the catalogue by category or search it, pick one, five or ten, and it forms into your hands. |
 | **Patterns** | The ship can make what it has scanned. Stand at the replicator and scan what you are carrying: the ship reads it and hands it straight back, and from then on it can make that thing for ever. Starfleet gear — phasers, hyposprays, rations, the blades — it knows from the day it is built. |
 | **Dilithium** | The ship's power is a crystal burning in the warp core amidships, and one crystal is a thousand bandages' worth — but nothing refills it for free, and **the replicator cannot make one**. They turn up where a small, valuable, electrical thing would be: a jeweller's case, a pawn shop, an electronics store, a mechanic's shelf. The ship carries three spares, the tricorder finds more, and when the last one is gone the replicator is a cupboard. |
@@ -205,6 +207,8 @@ engine facts it rests on.
 | `tools/gen_replicator.py` | The replicator — mesh, texture and materialisation sound — and the two renders it was judged on, into `design/art/replicator/`. |
 | `tools/gen_dilithium.py` | The dilithium crystal's inventory icon, into `design/art/dilithium/`. |
 | `tools/gen_warpcore.py` | The warp core — mesh and texture — and the two renders it was judged on, into `design/art/warpcore/`. |
+| `tools/gen_ensign.py` | The downed ensign: the vanilla body and our uniform, posed in the game's own animation and baked into six static figures, with the render they were judged on in `design/art/ensign/`. |
+| `tools/xskin.py` | Reads the game's skinned `.x` characters and animations, and poses one at a given frame -- what `gen_ensign.py` is built on. |
 | `tools/gen_poster.py` | The mods-screen poster. |
 | `tools/luacheck.py` | Parses every Lua file through a real Lua VM. |
 | `tools/deploy_windows.py` | Copy the mod into the Zomboid mods folder as `TrekShuttleDev` and verify the copy. |
@@ -231,8 +235,8 @@ python tests/test_multiplayer.py                    # single player and a server
 into separate runtimes -- one for single player, then a server and two clients
 joined by a fake network that carries only plain data -- and plays the mod:
 beaming, the cabin build reaching every client, ownership and crew, transporter
-charges, landing, ghosts, shields, the torpedoes, the medical set and the
-replicator. It fails if a client ever edits the world or the ship itself.
+charges, landing, ghosts, shields, the torpedoes, the medical set, the
+replicator, and distress calls and rescues. It fails if a client ever edits the world or the ship itself.
 
 In game, load a **fresh** world with the mod enabled. From the debug console
 (the reports go to the server's log, `console.txt` in single player):
@@ -298,6 +302,16 @@ interior plus `TREK_InteriorLayout.lua`.
   `TREK_Rebuild()`, or a fresh world.
 - **Beaming down needs somewhere to stand.** It searches six tiles around the
   target and gives up rather than putting you inside a wall.
+- **The downed ensign does not move.** The game can only animate a
+  character, and the only characters a mod can put in the world are either
+  not networked or zombies. So the ensign is the game's own body in the mod's
+  uniform, baked in one frame of the game's own pain animation. The chirp,
+  the tricorder and the countdown are what say they are alive. `ENSIGN.md`
+  section 3 has the whole answer.
+- **Zombies do not kill the ensign; the clock does.** The beacon draws the
+  dead already in the neighbourhood toward them, and they stand between you
+  and the rescue -- but the figure is not a character, so nothing can attack
+  it.
 - **Nothing in the medical set cures a bite**, and the medical tricorder does
   not tell you whether you are infected. Both are deliberate: the cure is the
   Emergency Medical Hologram's, and so is the diagnosis. Walk aft to the sick

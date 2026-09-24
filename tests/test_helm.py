@@ -765,6 +765,43 @@ def main():
         failures.append("tricorder: four traces were found and the readout "
                         "does not say 4")
 
+    # --- the downed ensign on the plot (ENSIGN.md) ---------------------------
+    # A cross -- the only 11x3 bar on the plot -- right on the range limit,
+    # with every other line of the readout drawn too, because the ensign's
+    # line is the last one and the one that would push past the button.
+    lua.execute("""
+        win.result.personnel = { dx = TREK.Config.SweepRadius, dy = 0,
+                                 dist = TREK.Config.SweepRadius,
+                                 compass = "E", name = "Test" }
+    """)
+    found = run_frames(lua, "tricorder, the ensign on the range limit")
+    check_bounds(lua, found, "tricorder, the ensign on the range limit")
+    bars = [d for d in found if d.kind == "rect"
+            and abs(float(d.w) - 11) < 0.01 and abs(float(d.h) - 3) < 0.01]
+    if len(bars) != FRAMES:
+        failures.append(f"tricorder: the ensign's cross was drawn "
+                        f"{len(bars) // FRAMES} times, not once")
+    else:
+        box = next(d for d in found
+                   if d.kind == "rectborder"
+                   and abs(float(d.x) - float(win.plotX)) < 0.01
+                   and abs(float(d.y) - float(win.plotY)) < 0.01)
+        side = float(box.w)
+        east = float(win.plotX) + side / 2 + (side / 2 - 6)
+        if abs(float(bars[0].x) + 5 - east) > 1.0:
+            failures.append("tricorder: the ensign on the range limit due "
+                            "east is not drawn on the east edge of the plot")
+    if not any(str(d.extra) == IG["IGUI_TREK_SweepPersonnel"].upper()
+               for d in found if d.kind == "text"):
+        failures.append("tricorder: the ensign is in range and the readout "
+                        "does not say so")
+    lua.execute("win.result.personnel = nil")
+    plain = run_frames(lua, "tricorder, no ensign")
+    if any(str(d.extra) == IG["IGUI_TREK_SweepPersonnel"].upper()
+           for d in plain if d.kind == "text"):
+        failures.append("tricorder: a sweep with nobody in range still "
+                        "draws a Starfleet life sign line")
+
     # An empty sweep has to say so rather than drawing an empty box.
     lua.execute("""
         win.result = { contacts = {}, counts = { 0, 0, 0 }, total = 0,
@@ -1277,6 +1314,43 @@ def main():
         failures.append(f"probes: the list holds {rows} of 2 contacts")
     if not win.showBtn.enable:
         failures.append("probes: Show on map is dead with contacts on file")
+
+    # --- the distress call (ENSIGN.md) ---------------------------------------
+    # Nothing pending: both answers greyed. A call: both live, and the call
+    # drawn inside the panel. A rescue under way: greyed again, and the
+    # countdown drawn instead.
+    if win.acceptBtn.enable or win.declineBtn.enable:
+        failures.append("probes: Accept or Decline is live with no call on "
+                        "the air")
+    lua.execute("""
+        TREK.Probes.store().distress = {
+            id = "distress:9", name = "Maren Novak", division = "Operations",
+            body = "F", tx = 2400, ty = 2300, tz = 0, distance = 412,
+            compass = "NE", offeredAt = 0, lapseAt = 12 }
+    """)
+    draws = run_frames(lua, "probes, a distress call")
+    check_bounds(lua, draws, "probes, a distress call")
+    if not (win.acceptBtn.enable and win.declineBtn.enable):
+        failures.append("probes: a call is pending and it cannot be answered")
+    if not any(str(d.extra) == IG["IGUI_TREK_DistressHeader"]
+               for d in draws if d.kind == "text"):
+        failures.append("probes: a call is pending and the console does not "
+                        "say so")
+    lua.execute("""
+        TREK.Probes.store().distress = nil
+        local c = TREK.Probes.addContact("downedPersonnel", 2380, 2290, 0,
+                                         "distress:9", true)
+        c.name, c.division, c.deadline = "Maren Novak", "Operations", 72
+    """)
+    draws = run_frames(lua, "probes, a rescue under way")
+    check_bounds(lua, draws, "probes, a rescue under way")
+    if win.acceptBtn.enable:
+        failures.append("probes: Accept is live while a rescue is under way "
+                        "and no call is pending")
+    if not any(IG["IGUI_TREK_RescueHeader"].split("%1")[0] in str(d.extra)
+               for d in draws if d.kind == "text"):
+        failures.append("probes: a rescue is under way and the console does "
+                        "not show it or its clock")
 
     # Both bearings have to be real compass points rather than nil, which is
     # what math.atan2 would have produced here.

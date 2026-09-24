@@ -6199,12 +6199,788 @@ def tapes():
           "recording, none is blank, and building twice neither re-labels them "
           "nor hands out a second set")
 
+
+# ---------------------------------------------------------------------------
+# The downed ensign (ENSIGN.md)
+# ---------------------------------------------------------------------------
+def tick_missions(rt):
+    rt.run("TREK.Missions.serviceDistress(); TREK.Missions.serviceMissions()")
+
+
+def make_call(rt, net):
+    """Makes the ship make a call now, and returns its id."""
+    rt.run("""
+        local data = TREK.Probes.store()
+        data.distress = nil
+        data.nextDistressAt = SIM.worldAgeHours
+    """)
+    tick_missions(rt)
+    net.pump(4)
+    return rt.eval("TREK.Probes.distress() and TREK.Probes.distress().id")
+
+
+def accept_call(rt, net, player, tx, ty):
+    """Makes a call, accepts it, and moves the ensign to (tx, ty).
+
+    The answer is given from the transporter pad, because the server only
+    takes one from aboard; the player is walked back afterwards.
+    """
+    call = make_call(rt, net)
+    back = rt.eval(f"{{ {player}.x, {player}.y, {player}.z }}")
+    rt.run(f"""
+        local x, y, z = TREK.Util.padSpot()
+        local p = {player}
+        p.x, p.y, p.z, p.lastZ = x + 0.5, y + 0.5, z, z
+        p.streamX, p.streamY = x + 0.5, y + 0.5
+    """)
+    rt.run(f'TREK.Core.send({player}, "distressAnswer", '
+           f'{{ id = "{call}", accept = true }})')
+    net.pump(4)
+    walk_to(rt, back[1], back[2], back[3])
+    rt.run(f"""
+        local m = TREK.Probes.mission()
+        m.tx, m.ty = {tx}, {ty}
+    """)
+    return rt.eval("TREK.Probes.mission() and TREK.Probes.mission().id")
+
+
+def walk_to(rt, x, y, z=0, who=1):
+    """Moves a player *and* their streaming, so the ground there loads."""
+    rt.run(f"""
+        local p = SIM.players[{who}]
+        p.x, p.y, p.z, p.lastZ = {x}, {y}, {z}, {z}
+        p.streamX, p.streamY = {x}, {y}
+    """)
+
+
+def figures(rt, x, y, z=0):
+    """How many ensign figures are lying on a square."""
+    return int(rt.eval(f"""(function()
+        local sq = SIM.rawSquare({x}, {y}, {z})
+        local n = 0
+        for _, w in ipairs(sq.worldObjects) do
+            local it = w.item
+            if it and TREK.Config.EnsignItems[it.fullType] then n = n + 1 end
+        end
+        return n
+    end)()"""))
+
+
+def ensign_menu(rt, x, y, who=1):
+    """Right-clicks a square outside and returns what the ensign's menu offered."""
+    rt.run(f"""
+        local p = SIM.players[{who}]
+        SIM.aim.dx = {x} + 0.5 - p.x
+        SIM.aim.dy = {y} + 0.5 - p.y
+        ensignCtx = SIM.contextMenu()
+        TREK.EnsignUI.fillMenu(0, ensignCtx, {{}}, false)
+    """)
+    return str(rt.eval("ensignCtx:labels()"))
+
+
+def inventory_count(rt, full, who=1):
+    return int(rt.eval(f"""(function()
+        local n = 0
+        for _, it in ipairs(SIM.players[{who}].inventory.items) do
+            if it.fullType == "{full}" then n = n + 1 end
+        end
+        return n
+    end)()"""))
+
+
+def ensign_missions(rt):
+    """How many downedPersonnel contacts the store holds, live or not."""
+    return int(rt.eval("""(function()
+        local n = 0
+        for _, c in ipairs(TREK.Probes.contacts()) do
+            if c.kind == "downedPersonnel" then n = n + 1 end
+        end
+        return n
+    end)()"""))
+
+
+def distress():
+    """A distress call: heard, made once, answered, declined, lapsed.
+
+    ENSIGN.md section 2. The call is the half of the mission with no world
+    object at all, so everything here is about the store and the clock.
+    """
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    store = lambda field: rt.eval(f"TREK.Probes.store().{field}")
+    hours = lambda: float(rt.eval("SIM.worldAgeHours"))
+
+    # --- nobody has been aboard: the ship is not listening ------------------
+    tick_missions(rt)
+    check(store("nextDistressAt") is None,
+          "distress: a ship nobody has boarded scheduled a distress call")
+
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "distress, beaming up"):
+        return
+
+    # --- the first time it can hear, the first call is scheduled, not made ---
+    tick_missions(rt)
+    due = store("nextDistressAt")
+    check(due is not None,
+          "distress: a boarded, powered ship never scheduled its first call")
+    check(rt.eval("TREK.Probes.distress() == nil") is True,
+          "distress: a call arrived the instant the crew first boarded")
+    first = float(rt.eval("TREK.Config.DistressFirstHours"))
+    check(due is not None and abs(float(due) - hours() - first) < 1e-6,
+          f"distress: the first call is due at {due}, not {first} hours in")
+
+    rt.run("SIM.advanceHours(TREK.Config.DistressFirstHours)")
+    tick_missions(rt)
+    net.pump(4)
+    check(rt.eval("TREK.Probes.distress() ~= nil") is True,
+          "distress: no call came when it was due")
+    if rt.eval("TREK.Probes.distress() == nil") is True:
+        return
+    lo = int(rt.eval("TREK.Config.EnsignMinDistance"))
+    hi = int(rt.eval("TREK.Config.EnsignMaxDistance"))
+    # Measured from the crew: the player is aboard, so from where they would
+    # beam down -- 2000,2000 -- and not from s.x, s.y, which is 0,0 in a
+    # world where the ship has never been set down (PROBES.md).
+    gap = float(rt.eval("math.sqrt((TREK.Probes.distress().tx - 2000)^2 "
+                        "+ (TREK.Probes.distress().ty - 2000)^2)"))
+    check(lo - 2 <= gap <= hi + 2,
+          f"distress: the ensign is {gap:.0f} squares from the crew, outside "
+          f"{lo}..{hi}")
+    check(rt.eval("TREK.Util.inWorld(TREK.Probes.distress().tx, "
+                  "TREK.Probes.distress().ty)") is True,
+          "distress: the ensign is down outside the playable world")
+    check(any("IGUI_TREK_DistressNote" in n for n in rt.notes()),
+          "distress: a call came in and nobody was told")
+    check(rt.eval('SIM.heardSound("TREK_DistressCall")') is True,
+          "distress: a call came in without a sound")
+    for field in ("name", "division", "body", "compass"):
+        check(rt.eval(f"TREK.Probes.distress().{field}") is not None,
+              f"distress: the call has no {field}, so two crew could each "
+              f"imagine a different ensign")
+    item = rt.eval("TREK.Config.ensignItem(TREK.Probes.distress().body, "
+                   "TREK.Probes.distress().division)")
+    check(item is not None and rt.eval(f'TREK.Config.EnsignItems["{item}"]') is True,
+          f"distress: the call's body and division name no figure ({item})")
+
+    first_id = str(rt.eval("TREK.Probes.distress().id"))
+    tick_missions(rt)
+    check(str(rt.eval("TREK.Probes.distress().id")) == first_id,
+          "distress: a second call replaced the pending one")
+
+    # --- answering from the wrong place, or the wrong call ------------------
+    # Walked out and back with the streaming, not beamed: this is about where
+    # the server thinks the player is, and a beam is a different test.
+    aboard = (float(rt.eval(f"{P}.x")), float(rt.eval(f"{P}.y")),
+              int(rt.eval(f"{P}.z")))
+    walk_to(rt, 3000.5, 3000.5)
+    rt.run(f'TREK.Core.send({P}, "distressAnswer", {{ id = "{first_id}", accept = true }})')
+    net.pump(4)
+    check(any("IGUI_TREK_DistressAboard" in n for n in rt.notes()),
+          "distress: a call was answered from outside the ship")
+    check(rt.eval("TREK.Probes.mission() == nil") is True,
+          "distress: answering from outside made a mission anyway")
+    walk_to(rt, *aboard)
+    net.pump(4)
+
+    rt.run(f'TREK.Core.send({P}, "distressAnswer", {{ id = "distress:0", accept = true }})')
+    net.pump(4)
+    check(any("IGUI_TREK_DistressGone" in n for n in rt.notes()),
+          "distress: an answer to a call that is not pending was not refused")
+    check(rt.eval("TREK.Probes.distress() ~= nil") is True,
+          "distress: a wrong answer threw away the call that was pending")
+
+    # --- declining ------------------------------------------------------------
+    rt.run(f'TREK.Core.send({P}, "distressAnswer", {{ id = "{first_id}", accept = false }})')
+    net.pump(4)
+    check(rt.eval("TREK.Probes.distress() == nil") is True,
+          "distress: a declined call is still pending")
+    check(rt.eval("TREK.Probes.mission() == nil") is True,
+          "distress: declining made a mission")
+    check(any("IGUI_TREK_DistressDeclinedNote" in n for n in rt.notes()),
+          "distress: declining said nothing")
+    gap = float(store("nextDistressAt")) - hours()
+    want = float(rt.eval("TREK.Config.DistressIntervalHours"))
+    check(abs(gap - want) < 1e-6,
+          f"distress: the next call after a decline is {gap} hours off, not {want}")
+
+    # --- ignoring one ---------------------------------------------------------
+    rt.run("SIM.advanceHours(TREK.Config.DistressIntervalHours)")
+    tick_missions(rt)
+    check(rt.eval("TREK.Probes.distress() ~= nil") is True,
+          "distress: no call came after the interval")
+    rt.run("SIM.advanceHours(TREK.Config.DistressOfferHours)")
+    tick_missions(rt)
+    net.pump(4)
+    check(rt.eval("TREK.Probes.distress() == nil") is True,
+          "distress: an unanswered call never lapsed")
+    check(any("IGUI_TREK_DistressLapsedNote" in n for n in rt.notes()),
+          "distress: a call faded without anybody being told")
+
+    # --- accepting ------------------------------------------------------------
+    call_id = make_call(rt, net)
+    tx = int(rt.eval("TREK.Probes.distress().tx"))
+    ty = int(rt.eval("TREK.Probes.distress().ty"))
+    rt.run(f'TREK.Core.send({P}, "distressAnswer", {{ id = "{call_id}", accept = true }})')
+    # A second answer to the same call in the same instant: one mission.
+    rt.run(f'TREK.Core.send({P}, "distressAnswer", {{ id = "{call_id}", accept = true }})')
+    net.pump(4)
+    live = ensign_missions(rt)
+    check(live == 1, f"distress: two answers to one call made {live} missions")
+    if rt.eval("TREK.Probes.mission() == nil") is True:
+        fail("distress: accepting made no mission")
+        return
+    check(rt.eval("TREK.Probes.mission().approximate") is True,
+          "distress: the rescue's map fix is exact; the circle is what the "
+          "tricorder is for")
+    spread = int(rt.eval("TREK.Config.EnsignReportSpread"))
+    fx = int(rt.eval("TREK.Probes.mission().x"))
+    fy = int(rt.eval("TREK.Probes.mission().y"))
+    check(abs(fx - tx) <= spread and abs(fy - ty) <= spread,
+          f"distress: the fix {fx},{fy} is further than {spread} from where "
+          f"the ensign is ({tx},{ty})")
+    life = float(rt.eval("TREK.Config.EnsignLifeHours"))
+    left = float(rt.eval("TREK.Probes.mission().deadline")) - hours()
+    check(abs(left - life) < 1e-6,
+          f"distress: the clock starts at {left} hours, not {life}")
+    check(any("IGUI_TREK_DistressAcceptedNote" in n for n in rt.notes()),
+          "distress: accepting said nothing")
+
+    # --- no new call while a rescue is live -----------------------------------
+    rt.run("SIM.advanceHours(TREK.Config.DistressIntervalHours + 1)")
+    tick_missions(rt)
+    check(rt.eval("TREK.Probes.distress() == nil") is True,
+          "distress: a second call came in while a rescue was live")
+
+    for w in rt.warnings():
+        fail(f"distress: {w}")
+
+    # --- a ship with no dilithium hears nothing -------------------------------
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    rt.run("local s = TREK.Util.state(); s.power = 0; s.crystals = 0")
+    tick_missions(rt)
+    check(rt.eval("TREK.Probes.store().nextDistressAt") is None,
+          "distress: a ship with no dilithium at all is listening for calls")
+    for w in rt.warnings():
+        fail(f"distress (unpowered): {w}")
+
+    print("distress: the ship listens once it is boarded and powered, the "
+          "first call is scheduled rather than instant, one call at a time "
+          "measured from the crew, a wrong or out-of-place answer is refused "
+          "by name, declining and ignoring both schedule the next, and "
+          "accepting makes exactly one mission with its clock and an "
+          "approximate fix")
+
+
+def ensign_world():
+    """The ensign is put on the ground, heard, found, and beamed out -- once.
+
+    ENSIGN.md sections 2 and 3: a mission is a record until a player loads
+    the ground, then one figure on real ground; the beacon is the server's,
+    the chirp is the client's; the tricorder finds the ensign; and a rescue
+    pays out exactly once however many times it is asked for.
+    """
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "ensign world, beaming up"):
+        return
+
+    TX, TY = 2600, 2600
+    mid = accept_call(rt, net, P, TX, TY)
+    if mid is None:
+        fail("ensign world: no mission to work with")
+        return
+    m = lambda field: rt.eval(f"TREK.Probes.mission() and TREK.Probes.mission().{field}")
+
+    # --- nobody near: nothing is placed -----------------------------------------
+    tick_missions(rt)
+    check(m("placed") is None,
+          "ensign world: a figure was put down with nobody within miles")
+
+    # --- walk over: one figure, on real ground, square to the camera -----------
+    walk_to(rt, TX + 12.5, TY + 0.5)
+    tick_missions(rt)
+    check(m("placed") is True, "ensign world: standing nearby placed nothing")
+    if m("ex") is None:
+        return
+    ex, ey = int(m("ex")), int(m("ey"))
+    item = str(m("item"))
+    check(figures(rt, ex, ey) == 1,
+          f"ensign world: {figures(rt, ex, ey)} figures at {ex},{ey}, expected 1")
+    check(item == str(rt.eval("TREK.Config.ensignItem(TREK.Probes.mission().body, "
+                              "TREK.Probes.mission().division)")),
+          f"ensign world: the figure {item} is not the body and division the "
+          f"call described")
+    yaw = rt.eval(f"""(function()
+        for _, w in ipairs(SIM.rawSquare({ex}, {ey}, 0).worldObjects) do
+            if w.item and w.item.fullType == "{item}" then
+                return w.item.worldZRotation
+            end
+        end
+    end)()""")
+    check(yaw == 0,
+          f"ensign world: the figure sits at {yaw} degrees; a dropped world "
+          f"model picks its own angle unless it is straightened")
+    tick_missions(rt)
+    check(figures(rt, ex, ey) == 1,
+          "ensign world: a second pass put down a second figure")
+
+    # --- the beacon: the server's noise, on a timer -------------------------------
+    beacons = lambda: int(rt.eval("#SIM.worldSounds"))
+    check(beacons() >= 1, "ensign world: the beacon never sounded")
+    n = beacons()
+    tick_missions(rt)
+    check(beacons() == n,
+          "ensign world: the beacon fired twice in the same game minute")
+    rt.run("SIM.advanceHours((TREK.Config.BeaconEveryMinutes + 1) / 60)")
+    tick_missions(rt)
+    check(beacons() == n + 1,
+          "ensign world: the beacon did not sound again after its interval")
+    lx = int(rt.eval("SIM.worldSounds[#SIM.worldSounds].x"))
+    ly = int(rt.eval("SIM.worldSounds[#SIM.worldSounds].y"))
+    lr = int(rt.eval("SIM.worldSounds[#SIM.worldSounds].radius"))
+    check(lx == ex and ly == ey and lr == int(rt.eval("TREK.Config.BeaconRadius")),
+          "ensign world: the beacon sounded somewhere other than the "
+          "ensign's square, or at the wrong radius")
+
+    # --- the chirp: each client, at the ensign's square --------------------------
+    rt.run("SIM.sounds = {}")
+    rt.run("TREK.EnsignUI.serviceChirp()")
+    chirp = rt.eval("""(function()
+        for _, s in ipairs(SIM.sounds) do
+            if s.name == "TREK_CombadgeChirp" and s.square then
+                return s.square.x .. "," .. s.square.y
+            end
+        end
+        return false
+    end)()""")
+    check(chirp == f"{ex},{ey}",
+          f"ensign world: the chirp came from {chirp}, not from {ex},{ey}")
+    # Fifty squares: out of earshot, and **still loaded**. Two hundred would
+    # have passed on the ground simply being unloaded, which is how this check
+    # first survived a mutation that deleted the range test altogether.
+    walk_to(rt, ex + 50.5, ey + 0.5)
+    net.clock += 20000
+    check(rt.eval(f"TREK.Util.chunkLoaded({ex}, {ey}, 0)") is True,
+          "ensign world: the ground is not loaded at fifty squares, so the "
+          "chirp's range is not what is being tested")
+    check(rt.eval("TREK.EnsignUI.serviceChirp()") is False,
+          "ensign world: a chirp played for a player fifty squares away")
+
+    # --- the tricorder finds the ensign ---------------------------------------------
+    def sweep_from(x, y):
+        walk_to(rt, x, y)
+        rt.run(f"""
+            TREK.MedKit.lastSweepAt = nil
+            TREK.MedKit.lastSweep = nil
+            TREK.MedKit.startSweep({P})
+            for _ = 1, 5000 do
+                if not TREK.MedKit.serviceSweep() then break end
+            end
+        """)
+        if rt.eval("TREK.MedKit.lastSweep and TREK.MedKit.lastSweep.personnel") is None:
+            return None
+        return (int(rt.eval("TREK.MedKit.lastSweep.personnel.dist")),
+                str(rt.eval("TREK.MedKit.lastSweep.personnel.compass")))
+
+    fix = sweep_from(ex + 20.5, ey + 0.5)
+    check(fix is not None, "ensign world: a sweep twenty squares away missed her")
+    if fix is not None:
+        check(abs(fix[0] - 20) <= 1 and fix[1] == "W",
+              f"ensign world: the sweep put the ensign {fix[0]} squares "
+              f"{fix[1]}, not 20 W")
+    check(sweep_from(ex + 120.5, ey + 0.5) is None,
+          "ensign world: a sweep far out of range claimed to see the ensign")
+
+    # --- the menu --------------------------------------------------------------------
+    walk_to(rt, ex + 6.5, ey + 0.5)
+    labels = ensign_menu(rt, ex, ey)
+    check("IGUI_TREK_EnsignExamine" in labels and "IGUI_TREK_EnsignRescue" in labels,
+          f"ensign world: right-clicking the ensign offered {labels!r}")
+    greyed = rt.eval("""(function()
+        for _, o in ipairs(ensignCtx.options) do
+            if o.name:find("IGUI_TREK_EnsignRescue", 1, true) then
+                return o.notAvailable == true
+            end
+        end
+    end)()""")
+    check(greyed is True,
+          "ensign world: Beam to safety is live from six squares away")
+    beside = ensign_menu(rt, ex + 1, ey)
+    check("IGUI_TREK_EnsignRescue" in beside,
+          "ensign world: a click on the square beside the ensign found "
+          "nothing -- a figure on the ground needs the margin")
+    check(ensign_menu(rt, ex + 4, ey) == "",
+          "ensign world: a click four squares away still offered the menu")
+
+    ensign_menu(rt, ex, ey)
+    rt.run("""
+        for _, o in ipairs(ensignCtx.options) do
+            if o.name:find("IGUI_TREK_EnsignExamine", 1, true) then
+                o.fn(o.target, unpack(o.args))
+            end
+        end
+    """)
+    check(any("IGUI_TREK_EnsignExamineText" in n for n in rt.notes()),
+          "ensign world: Examine said nothing")
+
+    # --- too far to beam ---------------------------------------------------------
+    rt.run(f'TREK.Core.send({P}, "rescueEnsign", {{ id = "{mid}" }})')
+    net.pump(4)
+    check(any("IGUI_TREK_EnsignTooFar" in n for n in rt.notes()),
+          "ensign world: a rescue from six squares was not refused by name")
+    check(str(rt.eval(f'TREK.Probes.byId("{mid}").status')) != "completed",
+          "ensign world: a rescue from too far away completed")
+
+    # --- the rescue, asked for twice in one instant --------------------------------
+    walk_to(rt, ex + 1.5, ey + 0.5)
+    rations0 = inventory_count(rt, "TrekShuttle.TrekRationPack")
+    hypos0 = inventory_count(rt, "TrekShuttle.TrekHypospray")
+    patterns0 = int(rt.eval("TREK.Replicator.patternCount()"))
+    rt.run(f'TREK.Core.send({P}, "rescueEnsign", {{ id = "{mid}" }})')
+    rt.run(f'TREK.Core.send({P}, "rescueEnsign", {{ id = "{mid}" }})')
+    net.pump(6)
+    check(str(rt.eval(f'TREK.Probes.byId("{mid}").status')) == "completed",
+          "ensign world: the rescue did not complete the mission")
+    check(figures(rt, ex, ey) == 0,
+          "ensign world: the ensign was beamed out and is still sitting there")
+    learned = int(rt.eval("TREK.Replicator.patternCount()")) - patterns0
+    want = int(rt.eval("TREK.Config.RescuePatternsPerRescue"))
+    check(learned == want,
+          f"ensign world: the rescue taught {learned} patterns, not {want}")
+    check(rt.eval('TREK.Replicator.knows("Base.Antibiotics")') is True,
+          "ensign world: the first reward pattern was not learned")
+    rations = inventory_count(rt, "TrekShuttle.TrekRationPack") - rations0
+    hypos = inventory_count(rt, "TrekShuttle.TrekHypospray") - hypos0
+    check(rations == 2 and hypos == 1,
+          f"ensign world: the supply came to {rations} rations and {hypos} "
+          f"hyposprays for a rescue asked for twice; it must pay once")
+    check(any("IGUI_TREK_EnsignSafe" in n for n in rt.notes()),
+          "ensign world: the second rescue was not told the ensign was safe")
+    check(any("IGUI_TREK_EnsignRescuedNote" in n for n in rt.notes()),
+          "ensign world: nobody was told the ensign was safe")
+    gap = float(rt.eval("TREK.Probes.store().nextDistressAt")) - float(rt.eval("SIM.worldAgeHours"))
+    check(abs(gap - float(rt.eval("TREK.Config.DistressIntervalHours"))) < 1e-6,
+          "ensign world: the next call was not scheduled after the rescue")
+    check(rt.eval("TREK.Probes.mission() == nil") is True,
+          "ensign world: a completed rescue still reads as the live mission")
+
+    # And the next rescue teaches the *next* patterns, not the same three.
+    walk_to(rt, TX + 12.5, TY + 0.5)
+    mid2 = accept_call(rt, net, P, TX, TY)
+    tick_missions(rt)
+    if m("ex") is None:
+        fail("ensign world: the second rescue was never placed")
+        return
+    ex2, ey2 = int(m("ex")), int(m("ey"))
+    walk_to(rt, ex2 + 1.5, ey2 + 0.5)
+    rt.run(f'TREK.Core.send({P}, "rescueEnsign", {{ id = "{mid2}" }})')
+    net.pump(6)
+    check(rt.eval('TREK.Replicator.knows("Base.Disinfectant")') is True,
+          "ensign world: a second rescue did not move on down the reward list")
+
+    for w in rt.warnings():
+        fail(f"ensign world: {w}")
+
+    print("ensign world: placed only when the ground loads, once, facing the "
+          "camera; the beacon is the server's and keeps time; the chirp comes "
+          "from the ensign's square and only for players near it; the "
+          "tricorder gives the right bearing; the menu has a margin and greys "
+          "the beam with a reason; a rescue asked for twice pays out exactly "
+          "once and schedules the next call")
+
+
+def ensign_edges():
+    """The clock, a figure carried off, nowhere to sit, and a safehouse."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "ensign edges, beaming up"):
+        return
+    m = lambda field: rt.eval(f"TREK.Probes.mission() and TREK.Probes.mission().{field}")
+
+    # --- carried off: the figure is put back ------------------------------------
+    accept_call(rt, net, P, 2600, 2600)
+    walk_to(rt, 2612.5, 2600.5)
+    tick_missions(rt)
+    ex, ey = int(m("ex")), int(m("ey"))
+    rt.run(f"SIM.rawSquare({ex}, {ey}, 0).worldObjects = {{}}")
+    tick_missions(rt)
+    check(m("placed") is False,
+          "ensign edges: the figure vanished and the mission still thinks it "
+          "is on the ground")
+    tick_missions(rt)
+    check(m("placed") is True and figures(rt, int(m("ex")), int(m("ey"))) == 1,
+          "ensign edges: a figure that went missing was not put back")
+    rt.run("SIM.log = {}")
+
+    # --- the clock runs out while nobody is near ----------------------------------
+    ex, ey = int(m("ex")), int(m("ey"))
+    mid = str(m("id"))
+    walk_to(rt, 2000.5, 2000.5)
+    rt.run("SIM.advanceHours(TREK.Config.EnsignLifeHours + 1)")
+    check(rt.eval(f"TREK.Util.chunkLoaded({ex}, {ey}, 0)") is False,
+          "ensign edges: the ground is still loaded, so this cannot test a "
+          "clock that runs with nobody near")
+    tick_missions(rt)
+    net.pump(4)
+    check(str(rt.eval(f'TREK.Probes.byId("{mid}").status')) == "expired",
+          "ensign edges: the deadline passed with nobody near and the mission "
+          "is still live -- a clock that only runs nearby is not a clock")
+    check(any("IGUI_TREK_EnsignLostNote" in n for n in rt.notes()),
+          "ensign edges: the ensign was lost and nobody was told")
+    check(int(rt.eval("#TREK.Probes.store().ensignRemovals")) == 1,
+          "ensign edges: the figure is on unloaded ground and nothing wrote "
+          "down that it has to be taken away")
+    check(figures(rt, ex, ey) == 1,
+          "ensign edges: a figure was removed from ground that was not loaded")
+    walk_to(rt, ex + 2.5, ey + 0.5)
+    tick_missions(rt)
+    check(figures(rt, ex, ey) == 0,
+          "ensign edges: walking back did not clear the figure of a lost mission")
+    check(int(rt.eval("#TREK.Probes.store().ensignRemovals")) == 0,
+          "ensign edges: the removal was done and never struck off the list")
+    rt.run("SIM.log = {}")
+
+    # --- nowhere to sit ------------------------------------------------------------
+    walk_to(rt, 2000.5, 2000.5)
+    accept_call(rt, net, P, 3000, 3000)
+    rt.run("""
+        local r = TREK.Config.EnsignPlaceRadius
+        for dx = -r, r do for dy = -r, r do
+            SIM.rawSquare(3000 + dx, 3000 + dy, 0).solid = true
+        end end
+    """)
+    mid = str(m("id"))
+    walk_to(rt, 3000.5, 3000.5)
+    tick_missions(rt)
+    net.pump(4)
+    check(str(rt.eval(f'TREK.Probes.byId("{mid}").status')) == "invalid",
+          "ensign edges: a rescue with no ground anywhere near was not retired")
+    check(any("no ground within" in w for w in rt.warnings()),
+          "ensign edges: a rescue was retired without saying why")
+    check(any("IGUI_TREK_EnsignSignalLostNote" in n for n in rt.notes()),
+          "ensign edges: the crew were not told the signal broke up")
+    rt.run("SIM.log = {}")
+
+    # --- not in the water -----------------------------------------------------------
+    walk_to(rt, 2000.5, 2000.5)
+    accept_call(rt, net, P, 3200, 3200)
+    rt.run("""
+        for dx = -3, 3 do for dy = -3, 3 do
+            SIM.rawSquare(3200 + dx, 3200 + dy, 0).water = true
+        end end
+    """)
+    walk_to(rt, 3200.5, 3200.5)
+    tick_missions(rt)
+    wx, wy = m("ex"), m("ey")
+    check(wx is not None, "ensign edges: nothing was placed beside a pond")
+    if wx is not None:
+        check(not (3197 <= int(wx) <= 3203 and 3197 <= int(wy) <= 3203),
+              f"ensign edges: the figure was put down at {wx},{wy}, in the water")
+    rt.run(f'TREK.Probes.byId("{m("id")}").status = "completed"')
+
+    # --- not inside somebody's safehouse -----------------------------------------
+    walk_to(rt, 2000.5, 2000.5)
+    accept_call(rt, net, P, 3400, 3400)
+    rt.run("SIM.safehouse(3395, 3395, 3405, 3405, { 'someone' })")
+    walk_to(rt, 3400.5, 3400.5)
+    tick_missions(rt)
+    sx, sy = m("ex"), m("ey")
+    check(sx is not None, "ensign edges: nothing was placed near a safehouse at all")
+    if sx is not None:
+        inside = 3395 <= int(sx) <= 3405 and 3395 <= int(sy) <= 3405
+        check(not inside,
+              f"ensign edges: the figure was put down at {sx},{sy}, inside "
+              f"somebody's safehouse")
+
+    # --- a mission lost before anyone went: nothing to take away ----------------------
+    rt.run("SIM.safehouses = {}")
+    mid = str(m("id"))
+    rt.run(f'TREK.Probes.byId("{mid}").status = "completed"')
+    walk_to(rt, 2000.5, 2000.5)
+    accept_call(rt, net, P, 3800, 3800)
+    rt.run("SIM.advanceHours(TREK.Config.EnsignLifeHours + 1)")
+    tick_missions(rt)
+    check(int(rt.eval("#TREK.Probes.store().ensignRemovals")) == 0,
+          "ensign edges: a mission that was never placed queued a removal")
+
+    for w in rt.warnings():
+        fail(f"ensign edges: {w}")
+
+    print("ensign edges: a figure carried off is put back, the clock runs out "
+          "with nobody near and the figure is taken away when its ground "
+          "loads, no ground retires the rescue with a reason, a safehouse is "
+          "avoided, and a mission never placed leaves nothing to clear")
+
+
+def ensign_multiplayer():
+    """Two clients: one call, one mission, one figure, one rescue, one reward."""
+    net = Net("mp", clients=("owner", "crew"))
+    srv = net.server
+    owner, crew = net.clients["owner"], net.clients["crew"]
+    srv.run("SIM.player('owner', 2000.5, 2000.5, 0); "
+            "SIM.player('crew', 2000.5, 2000.5, 0)")
+    owner.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    crew.run("SIM.player('crew', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+
+    owner.run(f"TREK.Transport.beamUp({P})")
+    crew.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(owner, "ensign mp, beaming up") or died(crew, "ensign mp, beaming up"):
+        return
+
+    # --- the server knows where a player standing in the cabin came from ---
+    # The return point is player mod data the *client* writes, and a server
+    # never sees that write. Before the move handler recorded it on the
+    # server's own copy, a probe launched aboard on a dedicated server was
+    # refused for want of a position fix, and a distress call had nowhere to
+    # be measured from. Single player could never show it: there the two
+    # copies of the player are one.
+    fix = srv.eval("""(function()
+        for _, p in ipairs(SIM.players) do
+            if p.name == "owner" then
+                local x, y = TREK.Ship.worldOrigin(p)
+                return x and (x .. "," .. y) or false
+            end
+        end
+    end)()""")
+    check(fix == "2000,2000",
+          f"ensign mp: the server places a player standing aboard at {fix}, "
+          f"not where they beamed up from (2000,2000)")
+    owner.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+    net.pump(6)
+    owner.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(6)
+    check(srv.eval("TREK.Probes.active() ~= nil") is True,
+          "ensign mp: a probe launched aboard on a server did not fly")
+    check(not any("IGUI_TREK_ProbeNoFix" in n for n in owner.notes()),
+          "ensign mp: a probe launched aboard on a server was refused for "
+          "want of a position fix")
+    srv.run("TREK.Probes.store().active = nil; TREK.Probes.publish()")
+
+    call = make_call(srv, net)
+    net.pump(10)
+    for name, rt in (("owner", owner), ("crew", crew)):
+        check(any("IGUI_TREK_DistressNote" in n for n in rt.notes()),
+              f"ensign mp: the {name} never heard the call")
+        check(rt.eval("TREK.Probes.distress() ~= nil") is True,
+              f"ensign mp: the call never reached the {name}'s console")
+
+    # Both answer at once. One mission, and the loser is told why.
+    owner.run(f'TREK.Core.send({P}, "distressAnswer", {{ id = "{call}", accept = true }})')
+    crew.run(f'TREK.Core.send({P}, "distressAnswer", {{ id = "{call}", accept = true }})')
+    net.pump(10)
+    n = ensign_missions(srv)
+    check(n == 1, f"ensign mp: two crew accepting at once made {n} missions")
+    check(any("IGUI_TREK_DistressGone" in x for x in crew.notes() + owner.notes()),
+          "ensign mp: the second answer to one call was not refused")
+    for name, rt in (("owner", owner), ("crew", crew)):
+        check(rt.eval("TREK.Probes.mission() ~= nil") is True,
+              f"ensign mp: the {name} client never learned about the rescue")
+
+    srv.run("local m = TREK.Probes.mission(); m.tx, m.ty = 2600, 2600")
+    # The owner walks there, and the server's copy follows; both stream in.
+    walk_to(owner, 2612.5, 2600.5)
+    srv.run("""
+        for _, p in ipairs(SIM.players) do
+            if p.name == "owner" then
+                p.x, p.y, p.z, p.lastZ = 2612.5, 2600.5, 0, 0
+                p.streamX, p.streamY = 2612.5, 2600.5
+            end
+        end
+    """)
+    net.pump(10)
+    srv.run("SIM.fire('EveryOneMinute')")
+    net.pump(10)
+    if srv.eval("TREK.Probes.mission() and TREK.Probes.mission().placed") is not True:
+        fail("ensign mp: the server never placed the figure")
+        return
+    ex = int(srv.eval("TREK.Probes.mission().ex"))
+    ey = int(srv.eval("TREK.Probes.mission().ey"))
+    for name, rt in (("owner", owner), ("crew", crew)):
+        check(figures(rt, ex, ey) == 1,
+              f"ensign mp: the {name}'s machine shows {figures(rt, ex, ey)} "
+              f"figures where the ensign sits")
+        check(rt.eval("TREK.Probes.mission().ex") == ex,
+              f"ensign mp: the {name}'s store does not know where the ensign "
+              f"is, so its menu and its tricorder cannot find the figure")
+
+    # The owner's menu finds the ensign, from the owner's own store.
+    walk_to(owner, ex + 1.5, ey + 0.5)
+    srv.run(f"""
+        for _, p in ipairs(SIM.players) do
+            if p.name == "owner" then p.x, p.y = {ex + 1.5}, {ey + 0.5} end
+        end
+    """)
+    labels = ensign_menu(owner, ex, ey)
+    check("IGUI_TREK_EnsignRescue" in labels,
+          f"ensign mp: the owner's right-click on the ensign offered {labels!r}")
+
+    # The crew, still aboard and nowhere near, asks at the same moment:
+    # refused by distance, measured on the server.
+    mid = str(srv.eval("TREK.Probes.mission().id"))
+    owner.run(f'TREK.Core.send({P}, "rescueEnsign", {{ id = "{mid}" }})')
+    crew.run(f'TREK.Core.send({P}, "rescueEnsign", {{ id = "{mid}" }})')
+    net.pump(10)
+    check(str(srv.eval(f'TREK.Probes.byId("{mid}").status')) == "completed",
+          "ensign mp: the owner beside the ensign could not beam them up")
+    for name, rt in (("owner", owner), ("crew", crew)):
+        check(figures(rt, ex, ey) == 0,
+              f"ensign mp: the figure is still sitting there on the {name}'s "
+              f"machine")
+        check(any("IGUI_TREK_EnsignRescuedNote" in x for x in rt.notes()),
+              f"ensign mp: the {name} was never told the ensign is safe")
+    check(inventory_count(crew, "TrekShuttle.TrekRationPack") == 0,
+          "ensign mp: the crew member who was nowhere near got the supply")
+    check(inventory_count(owner, "TrekShuttle.TrekRationPack") >= 2,
+          "ensign mp: the rescuer's supply never reached their own machine")
+    check(int(owner.eval("TREK.Replicator.patternCount()"))
+          == int(srv.eval("TREK.Replicator.patternCount()")),
+          "ensign mp: the patterns the rescue taught never reached the client")
+
+    for name, rt in (("owner", owner), ("crew", crew)):
+        check(int(rt.eval("SIM.clientWorldEdit or 0")) == 0,
+              f"ensign mp: the {name}'s client edited the world itself")
+
+    for name, rt in (("server", srv), ("owner", owner), ("crew", crew)):
+        for w in rt.warnings():
+            fail(f"ensign mp ({name}): {w}")
+
+    print("ensign multiplayer: both crew hear one call, racing answers make "
+          "one mission, the server places one figure both machines see, the "
+          "rescuer's own menu finds it, a rescue is measured on the server, "
+          "and the figure, the news, the patterns and the supply all reach "
+          "exactly who they should")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_alone,
             flight_endings,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, contact_world,
-            contact_reveal, tapes, multiplayer)
+            contact_reveal, distress, ensign_world, ensign_edges,
+            ensign_multiplayer, tapes, multiplayer)
 
 
 def main():

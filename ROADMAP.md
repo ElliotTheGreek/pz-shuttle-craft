@@ -78,6 +78,13 @@ player before.
    Revision 15, so a world made before today will not have the items in its
    sick bay.
 
+12. **The downed ensign** (`ENSIGN.md`, section 9). Board,
+   play an hour of game time, answer the call at the sensor console, follow
+   the mark, sweep with the tricorder, and beam them up. Needs no fresh world.
+   The questions only a game can answer: does the figure read as hurt and
+   alive, is it player-sized, does the right-click land on it, and does the
+   beacon actually draw zombies.
+
 ### Needs the second machine (Steam Deck on the LAN, 192.168.39.182)
 
 *(Numbering continues from the solo list above.)*
@@ -86,25 +93,25 @@ The Deck needs `Zomboid/mods/TrekShuttle/` **copied to it by hand**:
 `TrekShuttleDev` is a local mod, `WorkshopItems=` is empty, and a server cannot
 push a non-Workshop mod to a client. Redo the copy after any code change.
 
-12. Loot one player takes disappears for the other.
-13. `TrekShuttle.Access = 2` — a stranger refused, then added to the crew.
-14. **A shuttle in the air seen from the other machine.** The wire format
+13. Loot one player takes disappears for the other.
+14. `TrekShuttle.Access = 2` — a stranger refused, then added to the crew.
+15. **A shuttle in the air seen from the other machine.** The wire format
     carries height and each client re-derives the level from its own copy of
     the plane; the simulated two-client test agrees, but the engine's half
     (`clientUpdateVehiclePos` writing `setZ(0)`, then `BaseVehicle.update()`
     recomputing) has only been reasoned about.
-15. Speed set at one helm reaching a pilot at another.
-16. **A torpedo fired by one player, seen and heard by the other**, and the
+16. Speed set at one helm reaching a pilot at another.
+17. **A torpedo fired by one player, seen and heard by the other**, and the
     fire it starts appearing on both machines. The projectile is drawn by each
     client from one `torpedoLaunched`, and the fire is synced by the engine's
     own `StartFire` packet — so this should need nothing of ours, which is
     exactly the kind of claim that wants checking.
-17. **A lock opened by one player, seen by the other**, and a medical scan
+18. **A lock opened by one player, seen by the other**, and a medical scan
     requested from one machine and accepted on the other. Neither has any
     code of ours behind the packet: the lock rides `obj:sync()` and the scan
     rides the engine's own consent events, which is exactly the kind of claim
     that wants checking.
-18. **A pattern scanned by one player, and an item made for both.** The
+19. **A pattern scanned by one player, and an item made for both.** The
     pattern set is the one thing the replicator publishes itself
     (`TREK_Patterns_v1`, transmitted only when one is learned); the tray is
     an ordinary container, so the item rides `sendAddItemToContainer`. Both

@@ -31,5 +31,11 @@
     "TrekShuttle.TrekUniformDressCommand": "Starfleet Dress Uniform (Command)",
     "TrekShuttle.TrekUniformDressOperations": "Starfleet Dress Uniform (Operations)",
     "TrekShuttle.TrekUniformDressScience": "Starfleet Dress Uniform (Sciences)",
-    "TrekShuttle.TrekTape": "Blank Tape"
+    "TrekShuttle.TrekTape": "Blank Tape",
+    "TrekShuttle.TrekEnsignMCommand": "Downed Starfleet Ensign",
+    "TrekShuttle.TrekEnsignMOperations": "Downed Starfleet Ensign",
+    "TrekShuttle.TrekEnsignMScience": "Downed Starfleet Ensign",
+    "TrekShuttle.TrekEnsignFCommand": "Downed Starfleet Ensign",
+    "TrekShuttle.TrekEnsignFOperations": "Downed Starfleet Ensign",
+    "TrekShuttle.TrekEnsignFScience": "Downed Starfleet Ensign"
 }

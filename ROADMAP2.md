@@ -2,7 +2,8 @@
 
 Future work after `ROADMAP.md`. The first roadmap built the shuttle and its systems. This roadmap turns them into a progression and mission loop.
 
-Section 1.4 is built (see `UNIFORMS.md`); 1.5 to 1.7 are design only. The rules in `DEV_GUIDE.md` and `MULTIPLAYER.md` remain binding: the server owns ship power, probes, missions, rewards, and world objects; clients request actions and display authoritative results.
+Sections 1.4, 1.5 and 1.7 are built (`UNIFORMS.md`, `PROBES.md`,
+`ENSIGN.md`); 1.6, the cold start, is design only. The rules in `DEV_GUIDE.md` and `MULTIPLAYER.md` remain binding: the server owns ship power, probes, missions, rewards, and world objects; clients request actions and display authoritative results.
 
 ---
 
@@ -306,7 +307,27 @@ During cold start, emergency reserve is restricted to probe launches and cannot 
 
 ---
 
-# 1.7 — First mission: the downed ensign
+# 1.7 — First mission: the downed ensign  **[BUILT 2026-09-24, NOT YET PLAYED]**
+
+> **Built.** `ENSIGN.md` is the working guide; what follows is the design it
+> came from. What the implementation settled:
+>
+> - *Static posed mesh versus another safe non-AI representation* -- a
+>   static mesh, **baked from the game's own body, the mod's own uniform and
+>   the game's own `Bob_SitGround_Pain_Stomach` animation** by
+>   `tools/gen_ensign.py`. `IsoSurvivor` is not networked, every Lua route to
+>   a posed `IsoZombie` is debug or admin, and `IsoDeadBody` is a corpse.
+> - *The trigger*, since cold start does not exist yet: the ship hears calls
+>   once it has been boarded and has dilithium. `M.hearing()` in
+>   `TREK_Missions.lua` is the one line 1.6 changes to "commissioned".
+> - *Failure* is a clock -- three game days from acceptance -- and not
+>   zombies: the figure is not a character and nothing can attack it. The
+>   beacon draws the dead already in the block toward the ensign, which is
+>   what stands between the crew and the rescue.
+> - *The reward*: three replicator patterns from a fixed list, in order, and
+>   two ration packs and a hypospray to the rescuer. No crystal.
+> - **Named outfits are still not needed.** A corpse on failure would need
+>   one, and is deliberately left for later (`ENSIGN.md` section 10).
 
 After commissioning, the shuttle receives an optional distress request from a Starfleet ensign roughly a mile’s journey away.
 
@@ -426,7 +447,11 @@ Never inspect live squares in unloaded chunks, create orphan squares, or place t
    crystal on the first square that will hold one, and retires the contact
    when it is taken. The opening guarantee 1.6 needs is still separate.
 6. **Build cold start.** Add commissioning state, system gates, emergency power, first-crystal recovery, and power-up.
-7. **Build the ensign mission.** Add offer UI, deferred target placement, tricorder contact, right-click rescue, atomic reward, and cleanup.
+7. ~~**Build the ensign mission.**~~ Built 2026-09-24, ahead of step 6:
+   distress calls, the offer on the sensor console, deferred placement of a
+   baked figure, the beacon and the chirp, the tricorder's cross, the
+   right-click rescue with one reward, the clock and its cleanup.
+   `ENSIGN.md`. Not yet played.
 
 ---
 
