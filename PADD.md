@@ -17,18 +17,21 @@ all of it, and what to prove before writing code.
    or on a shelf in the loot panel -- and choose **Load onto PADD**. A short
    scan, a tricorder-ish chirp, and the book is on the PADD. **The book stays
    where it was**: the PADD copies it and takes nothing.
-3. **Read from it later, anywhere.** Right-click the PADD, **Read**, and pick a
-   title from its library. Your character reads with the PADD in their hands,
-   for the time the book takes, and gets exactly what the book gives: the
-   skill multiplier, the recipes, the boredom and stress, the title ticked off.
+3. **Read from it later, anywhere, as often as you like.** Right-click the
+   PADD, **Read**, and pick a title from its library. Your character reads
+   with the PADD in their hands, **five times faster than off paper**, and
+   gets exactly what the book gives: the skill multiplier, the recipes, the
+   boredom and stress, the title ticked off. Reading never uses a book up;
+   every entry is a digital copy.
 4. **Copy it.** With two PADDs on you, **Copy library to the other PADD** --
    for a friend, or as a backup. Handing someone a PADD is handing them the
    library.
 5. **Lose it and you lose the books.** They live on the PADD, not on you. A
-   PADD dropped, left in a car or stolen by a zombie horde's worth of bad
-   luck takes its library with it. See section 9 for death.
+   PADD dropped or left in a car takes its library with it -- and **when you
+   die it stays on your body like everything else you carried**, so a new
+   character who goes back and recovers it gets every book back.
 
-The pitch in one line: **a skill-book library that weighs 0.3**, paid for by
+The pitch in one line: **an unlimited library that weighs 0.3**, paid for by
 going and finding each book once.
 
 ---
@@ -90,7 +93,9 @@ nobody can hold it.** Recommended.
   which is what `isValid()` checks, and the entry is a number.
 - **Duration** computed the way `ISReadABook:getDuration()` does it -- pages
   times the sandbox's minutes per page, the Fast/Slow Reader traits, reading
-  glasses, sitting down -- so a book takes as long off a PADD as off paper.
+  glasses, sitting down -- and then **divided by `C.PaddReadSpeed` (5)**.
+  The traits and the glasses still count; the PADD multiplies on top of
+  them.
 - **Anim and hands**: `setActionAnim(CharacterActionAnims.Read)`, and
   `setOverrideHandModels(nil, padd)` -- **the PADD is what is in their
   hands**, not a book.
@@ -136,9 +141,17 @@ padd:getModData().TREKLibrary = {
   (`GlobalObject.syncItemModData`) and has that ordinary, non-admin vanilla
   call site.
 - **A duplicate is refused**: same type and same copy data.
-- **Bounded** by `C.PaddCapacity` (proposed 40), because the table rides the
-  item every time it is synced -- *a table transmitted whole cannot hold a
-  list that grows* (DEV_GUIDE).
+- **Unlimited.** DEV_GUIDE's *a table transmitted whole cannot hold a list
+  that grows* was the reason to ask, and the answer is that it does not bite
+  here: the library is synced **only when it changes** -- a book loaded, a
+  library copied -- never on a timer, and an entry is a type, a name and at
+  most three short strings, about a hundred bytes. Five hundred books is
+  about 50 KB sent once, when the five-hundredth is loaded. Entries are kept
+  lean on purpose: nothing goes in one that can be read back off the item
+  script (pages, skill, level).
+- **The Read submenu has to cope with a big library**: grouped by kind
+  (skill books by skill, then recipes, then literature) rather than one flat
+  list of hundreds.
 - **Page progress is not in the library.** It is the character's, keyed by
   book type, exactly as vanilla keeps it. Read half of *Carpentry Vol. 1* off
   a PADD, pick up a paper copy, and you resume at the same page -- for free,
@@ -150,14 +163,14 @@ padd:getModData().TREKLibrary = {
 
 | Action | From | Needs | Does |
 |---|---|---|---|
-| **Load onto PADD** | right-click a book in the inventory or loot panel | a PADD on you; the book in your inventory or a container within reach; room in the library; not already on it | `TREKLoadPadd`, a few seconds with the chirp; server adds the entry and syncs |
+| **Load onto PADD** | right-click a book in the inventory or loot panel | a PADD on you; the book in your inventory or a container within reach; not already on it | `TREKLoadPadd`, a few seconds with the chirp; server adds the entry and syncs |
 | **Load every book here** *(phase 2)* | right-click a bookcase | the same | one action per book, queued -- a school library in one go |
 | **Read** | right-click the PADD, submenu of titles | the PADD on you | `TREKReadPadd` (section 3) |
-| **Copy library to ...** | right-click one PADD, submenu of your other PADDs | two PADDs in your inventory | `TREKCopyPadd`, time per entry; merge, no duplicates, capacity respected |
+| **Copy library to ...** | right-click one PADD, submenu of your other PADDs | two PADDs in your inventory | `TREKCopyPadd`, time per entry; merge, no duplicates |
 | **Erase** | right-click the PADD | -- | clears the library, with a confirmation |
 
 Every right-click is **shown and greyed with a reason** when it cannot run --
-no PADD, library full, already loaded -- never hidden (DEV_GUIDE: *a correct
+no PADD, already loaded -- never hidden (DEV_GUIDE: *a correct
 refusal nobody is shown is indistinguishable from a broken feature*).
 
 Every item-list menu has to handle **both shapes** vanilla hands
@@ -181,8 +194,11 @@ system.
   slim slab with an LCARS screen -- and the icon rendered from it, the
   bat'leth's route, so the two cannot drift apart. It is the right shape for
   a script to describe: a box with a picture on one face.
-- **Stock**: two in the sick bay locker's neighbour -- which locker is a
-  decision (section 9). The replicator knows the pattern from day one.
+- **Stock**: two, **issued in the armoury** beside the uniforms -- a
+  `special` rule like theirs, guaranteed rather than rolled, which reaches
+  new worlds only (*never restock an existing container*). The replicator
+  knows the pattern from day one, so an existing save makes its own; a
+  replicated PADD is blank.
 - **No battery**, like the dermal regenerator. A PADD that needed charging
   would be a second chore on top of finding the books, for nothing.
 
@@ -233,24 +249,16 @@ it is in one inventory. Sharing is copying, or handing it over.
 
 ---
 
-## 9. Decisions for the author
+## 9. Decided (2026-09-24)
 
-1. **Death.** As designed, the PADD stays on the body like everything else
-   you carried, and a new character who walks back and loots it gets the
-   library back. If "die and lose the books" should be absolute, the PADDs
-   on a dying character can be wiped on death -- one handler. Which?
-2. **Does loading consume the book?** Designed as a copy, the book stays.
-   Consuming it would make a PADD a pure weight-saver and remove the reason
-   to visit a school twice.
-3. **Capacity**: 40 titles, or unlimited, or more for a PADD made by the
-   replicator than one found?
-4. **Where the ship keeps them**: the armoury, the rations locker or the sick
-   bay -- the three Starfleet lockers -- or a fourth, which is a BuildingEd
-   change.
-5. **A skill book off a PADD reads at the paper speed.** It could be faster
-   (it is the future) or slower (small screen). Equal is the proposal.
-
----
+1. **Death**: nothing special. The PADD stays on the body like everything
+   else, and a player who recovers it gets every book back.
+2. **Loading copies**: the book stays where it was. A PADD entry is a
+   digital copy, read as often as you like and never used up.
+3. **Capacity**: unlimited (section 4 says why that is safe).
+4. **Where the ship issues PADDs**: two in the armoury, beside the uniforms.
+   (The books themselves are never "stored" anywhere but on a PADD.)
+5. **Reading speed**: **five times faster** than paper, `C.PaddReadSpeed = 5`.
 
 ## 10. Not in this feature
 
