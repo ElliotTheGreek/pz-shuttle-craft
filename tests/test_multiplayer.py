@@ -9351,6 +9351,202 @@ def energy_movement():
           "nothing that costs power moves her")
 
 
+def energy_cabin():
+    """A dark cabin (ENERGY.md sections 6 and 8): red lamps, a dead
+    television, a dry sink, an OFFLINE replicator, no Doctor -- and a cure
+    that fails, the author's decision."""
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('crew', 1000.5, 1000.5, 0)")
+    net.start()
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    PM = int(C("PowerMax"))
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "energy cabin, beaming up"):
+        return
+
+    def lamps():
+        return rt.eval("""(function()
+            local out = {}
+            for _, l in ipairs(SIM.lampList) do
+                table.insert(out, string.format("%.2f,%.2f,%s", l.r, l.g,
+                                                l.active and "on" or "off"))
+            end
+            table.sort(out)
+            return table.concat(out, ";")
+        end)()""") or ""
+
+    def update(n=1):
+        for _ in range(n):
+            rt.run("for _, p in ipairs(SIM.players) do SIM.fire('OnPlayerUpdate', p) end")
+
+    update()
+    lit = lamps()
+    n_lamps = len(C("LampSpots")) + 1
+    check(lit.count(";") + 1 == n_lamps and "off" not in lit,
+          f"energy cabin: a lit cabin hangs {lit!r}, not {n_lamps} lamps burning")
+
+    def tv_power():
+        return rt.eval("""(function()
+            local C, U = TREK.Config, TREK.Util
+            local L = require "TREK/TREK_InteriorLayout"
+            for _, e in ipairs(L.tiles) do
+                if e.device then
+                    local x, y = U.at(e.x, e.y)
+                    local o = U.findSprite(U.square(x, y, C.CabinZ, false), e.sprite)
+                    return o and o:getDeviceData():getPower() or -1
+                end
+            end
+        end)()""")
+
+    def sink():
+        return rt.eval("""(function()
+            local C, U = TREK.Config, TREK.Util
+            local L = require "TREK/TREK_InteriorLayout"
+            for _, e in ipairs(L.tiles) do
+                if e.tag == "sink" then
+                    local x, y = U.at(e.x, e.y)
+                    local o = U.findSprite(U.square(x, y, C.CabinZ, false), e.sprite)
+                    return o and o:getFluidAmount() or -1
+                end
+            end
+            return -1
+        end)()""")
+
+    rt.fire("EveryOneMinute")
+    check(float(tv_power()) > 0, "energy cabin: a lit ship's television has no power")
+    check(float(sink()) > 0, "energy cabin: a lit ship's sink is dry")
+
+    # --- a cure running when she goes dark ----------------------------------
+    station = (int(C("EmhStation").x), int(C("EmhStation").y))
+    stand_at(rt, net, station[0] - 1, station[1])
+    energy_state(rt, PM, 1)
+    rt.run(f"TREK.Core.send({P}, 'emhSummon', {{}})")
+    net.pump(4)
+    check(ship(rt, "emh") is True, "energy cabin: the Doctor would not come up")
+    check(float(rt.eval("TREK.Power.reserve()")) == PM - C("EmhProjectCost"),
+          f"energy cabin: projecting him cost {PM - float(rt.eval('TREK.Power.reserve()'))}")
+    rt.run(f'SIM.hurt({P}, "infection", 6)')
+    rt.run(f"TREK.Core.send({P}, 'emhCure', {{}})")
+    net.pump(4)
+    check(rt.eval("TREK.EMH.cureDue('crew') ~= nil") is True,
+          "energy cabin: the cure never started")
+    check(crystals_aboard(rt) == 0, "energy cabin: the cure did not take its crystal")
+
+    # --- the ship goes dark, spent by the replicator, as ENERGY.md 6 has it --
+    # Exactly one hammer's worth left, and a hammer made with it.
+    rt.run("TREK.Replicator.learn('Base.Hammer')")
+    hammer = int(rt.eval("TREK.Replicator.cost(TREK.Replicator.row('Base.Hammer'), 1)"))
+    rt.run(f"TREK.Util.state().power = {hammer}")
+    rt.run("SIM.notes = {}; SIM.sounds = {}")
+    stand_at(rt, net, 1, 5)
+    # The handler called directly, with no pump: a pump runs a player update,
+    # and that recolours the lamps whether or not the state change did.
+    rt.run(f"TREK.Net.serverHandlers.replicate({P}, {{ id = 'Base.Hammer', count = 1 }})")
+    check(rt.eval("TREK.Util.state().dark") is True,
+          f"energy cabin: the replicator spent the last {hammer} units and the ship "
+          f"is not dark ({rt.notes()})")
+    # Before any player update: the recolour rides the state change itself.
+    e = C("EmergencyLight")
+    red = f"{float(e[1]):.2f},{float(e[2]):.2f},on"
+    check(lamps().count(red) == len(C("LampSpots")),
+          f"energy cabin: the lamps waited for a player update to go red ({lamps()!r})")
+
+    check(rt.eval("TREK.EMH.cureDue('crew')") is None,
+          "energy cabin: a cure kept running in a dark ship")
+    still = (body(rt, 6, "infected"), body(rt, 6, "isBitten"),
+             rt.eval(f"{P}:getBodyDamage():isInfected()"))
+    check(still == (True, True, True),
+          f"energy cabin: the power going out cured something -- limb infected, "
+          f"bitten, body infected read {still}")
+    # And it stays failed: the twelve hours pass and nothing lands.
+    rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 13")
+    rt.fire("EveryOneMinute")
+    check(rt.eval(f"{P}:getBodyDamage():isInfected()") is True,
+          "energy cabin: the failed cure landed anyway when it fell due")
+    check(crystals_aboard(rt) == 0, "energy cabin: the failed cure's crystal came back")
+    check("IGUI_TREK_EmhCureFailedYou" in rt.notes(),
+          f"energy cabin: the patient was not told the cure failed ({rt.notes()})")
+    check(ship(rt, "emh") is None, "energy cabin: the Doctor is still projected in the dark")
+    standing, _ = doctors(rt)
+    check(standing == 0, f"energy cabin: {standing} Doctor(s) standing in a dark cabin")
+    sounds = [str(s.name) for s in rt.eval("SIM.sounds").values()]
+    check("TREK_PowerDown" in sounds, f"energy cabin: going dark was silent ({sounds})")
+
+    # --- red lamps, the pad out ---------------------------------------------
+    update()
+    dark = lamps()
+    check(dark.count(red) == len(C("LampSpots")) and dark.count("off") == 1,
+          f"energy cabin: a dark cabin's lamps are {dark!r}")
+
+    # --- the television and the sink ----------------------------------------
+    rt.fire("EveryOneMinute")
+    check(float(tv_power()) == 0, "energy cabin: a dark ship's television still has power")
+    check(float(sink()) == 0, "energy cabin: a dark ship's sink still has water")
+
+    # --- the replicator is OFFLINE, and so is he ----------------------------
+    rt.run("SIM.notes = {}")
+    stand_at(rt, net, 1, 5)
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'Base.Hammer', count = 1 }})")
+    net.pump(4)
+    check("IGUI_TREK_RepOffline" in rt.notes(),
+          f"energy cabin: the replicator in the dark said {rt.notes()}")
+    labels = replicator_menu(rt, 0, 5)
+    off = rt.eval("""(function()
+        local o = repMenu:find("IGUI_TREK_RepUse")
+        return o and o.notAvailable and o.toolTip and o.toolTip.description or "live"
+    end)()""")
+    check("IGUI_TREK_RepOffline" in str(off),
+          f"energy cabin: the replicator's menu in the dark reads {off!r} ({labels})")
+    stand_at(rt, net, station[0] - 1, station[1])
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'emhSummon', {{}})")
+    net.pump(4)
+    check(ship(rt, "emh") is None, "energy cabin: the Doctor came up in a dark ship")
+    check("IGUI_TREK_EmhNoPower" in rt.notes(),
+          f"energy cabin: summoning him in the dark said {rt.notes()}")
+
+    # --- a culled lamp is hung again ----------------------------------------
+    rt.run("SIM.cullLamps()")
+    update(61)
+    check(rt.eval("#SIM.lampList") == n_lamps,
+          f"energy cabin: the engine dropped the lamps and {rt.eval('#SIM.lampList')} "
+          f"came back, not {n_lamps}")
+
+    # --- a crystal brings it all back ---------------------------------------
+    stand_at(rt, net, int(C("DilithiumSpot").x) + 1, int(C("DilithiumSpot").y))
+    rt.run(f'{P}.inventory:AddItem(instanceItem("{C("DilithiumItem")}"))')
+    rt.run("SIM.sounds = {}")
+    rt.run(f"TREK.Core.send({P}, 'loadCrystal', {{}})")
+    net.pump(4)
+    update()
+    check(lamps() == lit, f"energy cabin: power came back and the lamps are {lamps()!r}")
+    sounds = [str(s.name) for s in rt.eval("SIM.sounds").values()]
+    check("TREK_PowerUp" in sounds, f"energy cabin: power coming back was silent ({sounds})")
+    rt.fire("EveryOneMinute")
+    check(float(tv_power()) > 0, "energy cabin: the television stayed dead with power back")
+    check(float(sink()) > 0, "energy cabin: the sink stayed dry with power back")
+
+    # With power but not enough for him, the refusal carries the numbers.
+    energy_state(rt, 50, 0)
+    stand_at(rt, net, station[0] - 1, station[1])
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'emhSummon', {{}})")
+    net.pump(4)
+    check(f"IGUI_TREK_EmhNoPowerCost|{C('EmhProjectCost')}|50" in rt.notes(),
+          f"energy cabin: 50 units for a 100-unit Doctor said {rt.notes()}")
+
+    for w in rt.warnings():
+        fail(f"energy cabin: {w}")
+    print("energy cabin: a dark ship's lamps go red and the pad out, the television "
+          "and the sink die, the replicator reads OFFLINE, the Doctor goes and his "
+          "cure fails with the patient still infected and the crystal lost; the "
+          "engine's culled lamps are hung again; and a crystal brings it all back "
+          "with its sound")
+
+
 def energy_multiplayer():
     """Two clients: the flag reaches both, and a race pays once."""
     net = Net("mp", clients=("kirk", "spock"))
@@ -9432,7 +9628,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, energy,
-            energy_movement, energy_multiplayer, contact_world,
+            energy_movement, energy_cabin, energy_multiplayer, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,

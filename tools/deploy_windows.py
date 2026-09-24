@@ -86,6 +86,11 @@ critical = [
     Path("42/media/textures/TREK_EMH.png"),
     Path("42/media/ui/TREK_EmhPortrait.png"),
     Path("42/media/sound/TREK_EmhAppear.wav"),
+    # The ship's power (ENERGY.md 8.5): the cold start's payoff is this sound.
+    Path("42/media/lua/server/TREK/TREK_Energy.lua"),
+    Path("42/media/lua/client/TREK/TREK_PowerHUD.lua"),
+    Path("42/media/sound/TREK_PowerUp.wav"),
+    Path("42/media/sound/TREK_PowerDown.wav"),
     # The wardrobe. The GUID table is the one file here whose absence is
     # completely silent: without it every uniform still equips, still weighs
     # something and draws nothing at all, because getClothingItem returns null

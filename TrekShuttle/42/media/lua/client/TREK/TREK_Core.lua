@@ -25,6 +25,7 @@ require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_World"
 require "TREK/TREK_Probes"
+require "TREK/TREK_Power"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -113,6 +114,7 @@ local DENIALS = {
     coreFull          = "IGUI_TREK_CoreFull",
     coreNoCrystal     = "IGUI_TREK_CoreNoCrystal",
     repOff            = "IGUI_TREK_RepOff",
+    repOffline        = "IGUI_TREK_RepOffline",
     repFar            = "IGUI_TREK_RepFar",
     repUnknown        = "IGUI_TREK_RepUnknown",
     repNoPattern      = "IGUI_TREK_RepNoPattern",
@@ -212,15 +214,24 @@ end)
 
 --- Every player on this machine hears the ship go dark or come back: it is
 --- their ship whether or not they are aboard. Split-screen has four slots.
-local function toEveryLocal(text, r, g, b)
+---
+--- `sound`, when given, is played only for those aboard or in her seats: it
+--- is the ship's own noise, and a player across town should not hear it.
+local function toEveryLocal(text, r, g, b, sound)
     for i = 0, 3 do
         local p = U.player(i)
-        if p then U.note(p, text, r, g, b) end
+        if p then
+            U.note(p, text, r, g, b)
+            if sound and (U.isInteriorPlayer(p) or TREK.Vehicle and TREK.Vehicle.isShuttle(
+                    U.try("soundVehicle", function() return p:getVehicle() end))) then
+                U.try("powerSound", function() p:playSoundLocal(sound) end)
+            end
+        end
     end
 end
 
 Net.onClient("powerDown", function()
-    toEveryLocal(getText("IGUI_TREK_PowerDown"), 255, 170, 90)
+    toEveryLocal(getText("IGUI_TREK_PowerDown"), 255, 170, 90, "TREK_PowerDown")
 end)
 
 Net.onClient("powerLow", function(args)
@@ -233,7 +244,7 @@ end)
 
 Net.onClient("powerUp", function(args)
     toEveryLocal(getText(args and args.first and "IGUI_TREK_Commissioned"
-                         or "IGUI_TREK_PowerUp"), 150, 220, 255)
+                         or "IGUI_TREK_PowerUp"), 150, 220, 255, "TREK_PowerUp")
 end)
 
 ---------------------------------------------------------------------------
@@ -253,35 +264,107 @@ local function padHasFloor()
     end) == true
 end
 
--- Lights are local light sources, hung once per session per client.
-local lit = false
+-- The cabin's lamps (ENERGY.md 8.1). Local light sources, one set per client
+-- and never synced -- the same class of thing as the sky plane.
+--
+-- **The handles are kept**, for two reasons. The ship's power changes their
+-- colour: white deckheads and a blue pad while she is powered, red emergency
+-- lamps and the pad dark when she is not, recoloured in place with setR/G/B
+-- and setActive, which every lighting update pushes to the native side (V2;
+-- IsoFire flickers its light the same way). And the engine drops a lamppost
+-- that is outside every local player's loaded chunks (LightingJNI
+-- .checkLights), silently: a player who walked a long way off and came back
+-- used to find the cabin dark for the rest of the session, because a `lit`
+-- flag stopped the lamps ever being hung again. The list is checked now and
+-- then, and anything missing is hung afresh -- a handle is never re-added.
+--
+-- The old setHaveElectricity loop is gone: it set nothing (DEV_GUIDE,
+-- *setHaveElectricity does not set anything*).
+local lamps = {}        -- spot key -> { light = IsoLightSource, look = "lit"|"dark" }
+local lampCheck = 0
+-- Player updates between looks at whether the engine still has our lamps.
+local LAMP_RECHECK = 60
 
+local function lampSpots()
+    local out = {}
+    for i, p in ipairs(C.LampSpots) do
+        table.insert(out, { key = "deck" .. i, ox = p[1], oy = p[2], light = C.CabinLight })
+    end
+    table.insert(out, { key = "pad", ox = C.Landing.x, oy = C.Landing.y, light = C.PadLight })
+    return out
+end
+
+--- Makes one lamp show the ship's look: its own colour when powered; the
+--- emergency red when dark, or off when it has no emergency role.
+local function showLook(spot, lamp, look)
+    local light = lamp.light
+    U.try("light.look", function()
+        if look == "dark" then
+            if spot.key == "pad" then
+                light:setActive(false)
+            else
+                local e = C.EmergencyLight
+                light:setR(e[1]); light:setG(e[2]); light:setB(e[3])
+                light:setActive(true)
+            end
+        else
+            local c = spot.light
+            light:setR(c[1]); light:setG(c[2]); light:setB(c[3])
+            light:setActive(true)
+        end
+    end)
+    lamp.look = look
+end
+
+--- Hangs, re-hangs and recolours the cabin's lamps. Cheap when nothing has
+--- changed, which is nearly always: it runs on every player update aboard.
 local function lightCabin()
-    if lit then return end
     local cell = U.cell()
     if not cell then return end
-    lit = true
-    local lamp = U.batch("light.lamppost")
-    for _, p in ipairs(C.LampSpots) do
-        local x, y = U.at(p[1], p[2])
-        lamp(function() cell:addLamppost(x, y, C.CabinZ, 0.92, 0.96, 1.0, 8) end)
-    end
-    local px, py = U.at(C.Landing.x, C.Landing.y)
-    lamp(function() cell:addLamppost(px, py, C.CabinZ, 0.70, 0.88, 1.0, 6) end)
+    local look = TREK.Power.dark() and "dark" or "lit"
 
-    -- Powered squares make the fridges and ovens work. A square flag, not
-    -- synced, so each side sets its own.
-    local power = U.batch("power.setHaveElectricity")
-    for ox = 0, C.CabinW do
-        for oy = 0, C.CabinL do
-            if C.inShape(ox, oy) then
-                local x, y = U.at(ox, oy)
-                local sq = U.square(x, y, C.CabinZ, false)
-                if sq then power(function() sq:setHaveElectricity(true) end) end
+    lampCheck = lampCheck + 1
+    if lampCheck >= LAMP_RECHECK then
+        lampCheck = 0
+        local list = U.try("light.list", function() return cell:getLamppostPositions() end)
+        if list then
+            for key, lamp in pairs(lamps) do
+                if U.try("light.contains", function() return list:contains(lamp.light) end) ~= true then
+                    lamps[key] = nil
+                    U.log("light: the %s lamp was dropped by the engine; hanging it again", key)
+                end
             end
         end
     end
+
+    local hang = U.batch("light.lamppost")
+    for _, spot in ipairs(lampSpots()) do
+        local lamp = lamps[spot.key]
+        if not lamp then
+            local x, y = U.at(spot.ox, spot.oy)
+            local c = spot.light
+            local light = hang(function()
+                return cell:addLamppost(x, y, C.CabinZ, c[1], c[2], c[3], c[4])
+            end)
+            if light then
+                lamp = { light = light, look = "lit" }
+                lamps[spot.key] = lamp
+            end
+        end
+        if lamp and lamp.look ~= look then showLook(spot, lamp, look) end
+    end
 end
+Core.lightCabin = lightCabin
+
+-- The look follows the ship: going dark, or coming back, recolours the lamps
+-- the moment the change arrives rather than on the next player update. The
+-- state, not the powerDown/powerUp note: on a client the note can arrive
+-- before the state it describes, and a recolour then would read the old flag.
+Ship.onChange(function()
+    local any = false
+    for _ in pairs(lamps) do any = true break end
+    if any then lightCabin() end
+end)
 
 ---------------------------------------------------------------------------
 -- Arrival: standing on the pad while the server builds the cabin

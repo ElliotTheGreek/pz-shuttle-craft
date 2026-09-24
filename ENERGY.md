@@ -1,11 +1,11 @@
 # Energy — everything aboard runs on the crystal
 
-**Status: being built, phase by phase (section 12). Phases 0 to 3 are done
-(2026-09-24): the verify-first answers, the ledger, the gauge and movement.
-None of it has been seen in game yet.** The design questions were settled
-with the author on 2026-09-24 (section 13). Once approved, it is followed phase by phase (section 12), and it
-becomes the working guide for the ship's power in the shape `REPLICATOR.md`
-and `PILOTING.md` use.
+**Status: being built, phase by phase (section 12). Phases 0 to 4 are done
+(2026-09-24): the verify-first answers, the ledger, the gauge, movement and
+the dark cabin. None of it has been seen in game yet.** The design questions
+were settled with the author on 2026-09-24 (section 13). When it is built
+it becomes the working guide for the ship's power, in the shape
+`REPLICATOR.md` and `PILOTING.md` use.
 
 It is also `ROADMAP2.md` 1.6, the cold start: a dark ship is just the power
 system at zero, so the cold start is the last phase of this guide rather than

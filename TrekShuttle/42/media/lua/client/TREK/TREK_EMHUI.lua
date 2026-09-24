@@ -854,6 +854,22 @@ TREK.Net.onClient("emhCured", function()
     refreshWindow()
 end)
 
+--- The ship went dark during a cure (ENERGY.md 6). Everybody hears it; the
+--- patient hears it as their own.
+TREK.Net.onClient("emhCureFailed", function(args)
+    local player = U.player(0)
+    if not player then return end
+    local mine = args and args.who == TREK.Ship.usernameOf(player)
+    if mine then
+        says("IGUI_TREK_EmhCureFailedYou")
+        U.note(player, getText("IGUI_TREK_EmhCureFailedYou"), 255, 90, 90)
+    else
+        U.note(player, getText("IGUI_TREK_EmhCureFailed", tostring(args and args.who or "?")),
+               255, 90, 90)
+    end
+    refreshWindow()
+end)
+
 TREK.Net.onClient("emhCureLost", function()
     local player = U.player(0)
     if not player then return end

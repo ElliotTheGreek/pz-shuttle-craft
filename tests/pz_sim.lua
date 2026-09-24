@@ -670,6 +670,16 @@ function ObjectMT:addFluid(_, n)
                                 sprite = self.spriteName, amount = self.fluid.amount })
     end
 end
+--- IsoObject.emptyFluid: Empty() then sync() on the server (bci 55-60),
+--- the same shape as addFluid -- it reaches every client by itself.
+function ObjectMT:emptyFluid()
+    if not self.fluid then return end
+    self.fluid.amount = 0
+    if isServer() then
+        py_replicate("fluid", { x = self.square.x, y = self.square.y, z = self.square.z,
+                                sprite = self.spriteName, amount = 0 })
+    end
+end
 function ObjectMT:hasWater() return self:getFluidAmount() > 0 end
 function ObjectMT:transmitModData()
     if isServer() then
@@ -1211,14 +1221,39 @@ end
 -- is the one part of that feature that touches the world, so it is the one
 -- part that can be left behind. A handle is returned because removeLamppost
 -- takes the light itself, not a position.
+--
+-- Each lamp is an IsoLightSource with the setters the engine gives it
+-- (ENERGY.md V2): setR/G/B and setActive change a live light in place. The
+-- cell keeps the live ones in a list, `getLamppostPositions`, and
+-- `SIM.cullLamps` does what `LightingJNI.checkLights` does to a lamp outside
+-- every local player's loaded chunks: drops it, silently. Code that hangs
+-- its lamps once and trusts them to stay is what that catches.
 SIM.lampsLive = 0
 SIM.lampSerial = 0
+SIM.lampList = {}
+local LampMT = {}
+LampMT.__index = LampMT
+function LampMT:setR(v) self.r = v end
+function LampMT:setG(v) self.g = v end
+function LampMT:setB(v) self.b = v end
+function LampMT:getR() return self.r end
+function LampMT:setActive(v) self.active = v == true end
+function LampMT:isActive() return self.active ~= false end
 function cell:addLamppost(x, y, z, r, g, b, radius)
     SIM.lamps = SIM.lamps + 1
     SIM.lampsLive = SIM.lampsLive + 1
     SIM.lampSerial = SIM.lampSerial + 1
-    return { id = SIM.lampSerial, x = x, y = y, z = z,
-             r = r, g = g, b = b, radius = radius }
+    local light = setmetatable({ id = SIM.lampSerial, x = x, y = y, z = z,
+                                 r = r, g = g, b = b, radius = radius,
+                                 active = true }, LampMT)
+    table.insert(SIM.lampList, light)
+    return light
+end
+local function dropLamp(light)
+    for i, l in ipairs(SIM.lampList) do
+        if l == light then table.remove(SIM.lampList, i) return true end
+    end
+    return false
 end
 function cell:removeLamppost(light)
     if light == nil then
@@ -1226,6 +1261,35 @@ function cell:removeLamppost(light)
               .. "addLamppost handed back, not a position)", 2)
     end
     SIM.lampsLive = SIM.lampsLive - 1
+    dropLamp(light)
+end
+function cell:getLamppostPositions()
+    return {
+        contains = function(_, light)
+            for _, l in ipairs(SIM.lampList) do
+                if l == light then return true end
+            end
+            return false
+        end,
+        size = function() return #SIM.lampList end,
+    }
+end
+--- Test helper: the engine dropping every lamp in view of nobody.
+function SIM.cullLamps()
+    local n = #SIM.lampList
+    SIM.lampList = {}
+    SIM.lampsLive = SIM.lampsLive - n
+    return n
+end
+--- Test helper: the live lamps at a square.
+function SIM.lampsAt(x, y, z)
+    local out = {}
+    for _, l in ipairs(SIM.lampList) do
+        if math.floor(l.x) == x and math.floor(l.y) == y and l.z == z then
+            table.insert(out, l)
+        end
+    end
+    return out
 end
 function getCell() return cell end
 

@@ -1027,6 +1027,18 @@ C.EmhProjectCost = 100      -- bringing the Doctor up; putting him away is free
 -- is well under this.
 C.OdometerMaxJump = 60
 
+-- The cabin's lamps: colour and radius for addLamppost. The engine doubles a
+-- lamppost's colour and clamps it (ENERGY.md V2), so anything at or above 0.5
+-- renders full -- the white is simply white. Radius and position are read
+-- once, when a lamp is hung; colour is changed in place.
+C.CabinLight = { 0.92, 0.96, 1.0, 8 }
+C.PadLight = { 0.70, 0.88, 1.0, 6 }
+-- A dark ship's deckheads (ENERGY.md 8.1): full red after the doubling, with
+-- a trace of green and blue so it reads as light rather than as a filter.
+-- They keep the deckheads' radius, because changing that means a fresh lamp,
+-- and the pad light goes out.
+C.EmergencyLight = { 0.50, 0.05, 0.04 }
+
 ---------------------------------------------------------------------------
 -- The replicator
 ---------------------------------------------------------------------------

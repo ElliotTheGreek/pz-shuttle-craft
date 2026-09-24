@@ -35,6 +35,12 @@ local P = TREK.Power
 local E = {}
 TREK.Energy = E
 
+-- What else has to happen when the ship goes dark: the Doctor goes out and a
+-- running cure fails (TREK_Server). Called once, on the change, after the
+-- flag is published.
+E.downListeners = {}
+function E.onPowerDown(fn) table.insert(E.downListeners, fn) end
+
 --- Publishes a change between lit and dark, once. Returns "down", "up" or nil.
 ---
 --- `s.dark == nil` is a ship that has never been told: a save from before
@@ -56,6 +62,7 @@ function E.powerChanged()
     if dark then
         U.log("power: main power lost -- the ship is dark")
         Net.toAll("powerDown", {})
+        for _, fn in ipairs(E.downListeners) do U.try("powerDownListener", fn) end
         return "down"
     end
     U.log("power: main power online -- %d units, %d spare(s)",

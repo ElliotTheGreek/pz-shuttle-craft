@@ -1620,6 +1620,11 @@ local function atReplicator(player)
         deny(player, "repOff")
         return false
     end
+    -- Scanning costs nothing, but the machine that scans is dark too.
+    if TREK.Power.dark() then
+        deny(player, "repOffline")
+        return false
+    end
     if not Rep.inReachOf(player) then
         deny(player, "repFar")
         return false
@@ -2013,6 +2018,11 @@ Net.onServer("emhSummon", function(player)
     if not atEMH(player) then return end
     local s = U.state()
     if s.emh ~= true then
+        -- Projecting him costs power; putting him away is free (ENERGY.md 6).
+        if not TREK.Energy.energize(player, "emhProject", C.EmhProjectCost,
+                                    { why = "emhNoPower", noCommit = true }) then
+            return
+        end
         s.emh = true
         Ship.commit()
     end
@@ -2280,6 +2290,39 @@ function S.serviceCures()
     if done > 0 or dropped > 0 then Ship.commit() end
     return done
 end
+
+--- The ship has gone dark (ENERGY.md 6). The projection needs power to exist
+--- at all, so he goes out; and a cure that is running **fails** -- the
+--- author's decision, 2026-09-24: "PZ is a fiercely realistic simulator".
+---
+--- The twelve hours aboard are the Doctor keeping the patient under
+--- treatment. With him gone the patient stays infected, the crystal that paid
+--- for it is gone with no refund, and the crew are told plainly. It has to be
+--- delivered: a cure that ends in silence reads as a bug.
+function S.failCures(why)
+    local s = U.state()
+    local changed = false
+    if s.emh ~= nil then
+        s.emh = nil
+        changed = true
+    end
+    local cures = EMH.cures()
+    local names = {}
+    for name in pairs(cures) do table.insert(names, name) end
+    for _, name in ipairs(names) do
+        cures[name] = nil
+        offShip[name] = nil
+        changed = true
+        Net.toAll("emhCureFailed", { who = name })
+        U.log("emh: %s -- the cure for %s has failed; still infected, crystal lost",
+              tostring(why), name)
+    end
+    if changed then Ship.commit() end
+    U.try("serviceEMH", B.serviceEMH)
+    return #names
+end
+
+TREK.Energy.onPowerDown(function() S.failCures("main power lost") end)
 
 ---------------------------------------------------------------------------
 -- Long-range probes

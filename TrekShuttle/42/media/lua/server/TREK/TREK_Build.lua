@@ -1350,6 +1350,19 @@ end
 function B.refillWater()
     if not U.state().built then return 0, 0 end
     local wet, dry = 0, 0
+    -- **A dark ship's pumps are off** (ENERGY.md 8.3): no pressure, so the
+    -- fixture's store is emptied rather than merely left to run down. When
+    -- the power comes back the next minute's pass fills it again.
+    -- `emptyFluid` syncs itself on a server, as addFluid does.
+    if TREK.Power.dark() then
+        eachWaterFixture(function(o)
+            if waterCapacity(o) > 0 and (U.try("waterHave", function()
+                    return o:getFluidAmount() end) or 0) > 0 then
+                U.try("drainWater", function() o:emptyFluid() end)
+            end
+        end)
+        return 0, 0
+    end
     eachWaterFixture(function(o)
         if topUp(o) then wet = wet + 1 else dry = dry + 1 end
     end)

@@ -110,9 +110,28 @@ function P.energise(obj)
     return true
 end
 
+--- Takes a device's power away: its cell to zero, and the engine then
+--- switches it off by itself and will not switch it on again, through the
+--- same battery branch that keeps it on (the header). Returns true when it
+--- has device data at all.
+function P.deenergise(obj)
+    if not obj then return false end
+    local data = U.try("getDeviceData", function() return obj:getDeviceData() end)
+    if not data then return false end
+    U.try("deenergise", function()
+        if (data:getPower() or 0) > 0 then data:setPower(0) end
+    end)
+    return true
+end
+
 --- Tops up every powered fitting in the cabin. Runs in every process, once a
 --- game minute, and only while the cabin exists and its chunks are loaded --
 --- a device in an unloaded chunk is not draining either.
+---
+--- **A dark ship powers nothing** (ENERGY.md 8.2): the cells are emptied
+--- instead, in every process for the same reason they are filled in every
+--- process, and the television goes off and stays off until the power is
+--- back. P.dark() is the published flag on a client and the numbers here.
 ---
 --- Returns the number powered and the number that answered no device data,
 --- because a television that is quietly scenery is exactly the failure this
@@ -122,12 +141,14 @@ function P.serviceDevices()
     if s.built ~= true then return 0, 0 end
 
     local live, inert = 0, 0
+    local dark = P.dark()
     for _, spot in ipairs(findDeviceSpots()) do
         local x, y = U.at(spot[1], spot[2])
         if U.chunkLoaded(x, y, C.CabinZ) then
             local obj = U.findSprite(U.square(x, y, C.CabinZ, false), spot[3])
             if obj then
-                if P.energise(obj) then live = live + 1 else inert = inert + 1 end
+                local fn = dark and P.deenergise or P.energise
+                if fn(obj) then live = live + 1 else inert = inert + 1 end
             end
         end
     end
