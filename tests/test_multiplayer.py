@@ -10252,6 +10252,138 @@ def cold_start_mp():
           "her dark, and both hear the commissioning")
 
 
+def wild_count(rt, cx, cy, r=48):
+    """Crystals lying on the ground within r squares of cx, cy."""
+    return int(rt.eval(f"""(function()
+        local n = 0
+        for x = {cx} - {r}, {cx} + {r} do
+            for y = {cy} - {r}, {cy} + {r} do
+                for _, w in ipairs(SIM.rawSquare(x, y, 0).worldObjects or {{}}) do
+                    local it = w.item
+                    if it and (it.fullType or it:getFullType()) == TREK.Config.DilithiumItem then
+                        n = n + 1
+                    end
+                end
+            end
+        end
+        return n
+    end)()"""))
+
+
+def wild_floor(rt, cx, cy, sprite, r=56):
+    rt.run(f"""
+        for x = {cx} - {r}, {cx} + {r} do
+            for y = {cy} - {r}, {cy} + {r} do
+                local sq = SIM.rawSquare(x, y, 0)
+                for _, o in ipairs(sq.objects) do
+                    if o.isFloor then o.spriteName = "{sprite}" end
+                end
+            end
+        end
+    """)
+
+
+def wild_dilithium():
+    """Dilithium in the wild (TREK_Wild.lua): on the Douwd's ground, never in
+    town, once per plot, and the same answer however often it is asked."""
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SandboxVars.TrekShuttle.WildDilithium = 1")
+    rt.run("SIM.player('walker', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    check(wild_count(rt, 3000, 3000) == 0, "wild: crystals were lying about before anybody looked")
+
+    # --- grass all round: some, not many -------------------------------------
+    rt.fire("EveryTenMinutes")
+    reach = int(C("WildScanRadius")) // int(C("WildPlot"))
+    plots = (2 * reach + 1) ** 2
+    found = wild_count(rt, 3000, 3000)
+    want = plots / int(C("WildPlentifulOneIn"))
+    check(want / 3 <= found <= want * 3,
+          f"wild: {found} crystals over {plots} plots of grass, expected about {want:.0f}")
+
+    # --- once per plot, and the same answer every time -----------------------
+    rt.fire("EveryTenMinutes")
+    check(wild_count(rt, 3000, 3000) == found,
+          f"wild: a second look put {wild_count(rt, 3000, 3000) - found} more crystals down")
+    rt.run("""
+        for x = 2950, 3050 do for y = 2950, 3050 do
+            local sq = SIM.rawSquare(x, y, 0)
+            for i = #(sq.worldObjects or {}), 1, -1 do
+                local it = sq.worldObjects[i].item
+                if it and (it.fullType or it:getFullType()) == TREK.Config.DilithiumItem then
+                    table.remove(sq.worldObjects, i)
+                end
+            end
+        end end
+    """)
+    rt.fire("EveryTenMinutes")
+    check(wild_count(rt, 3000, 3000) == 0, "wild: a crystal that was picked up grew back")
+
+    # --- never in town, never in the river -----------------------------------
+    for label, sprite, at in (("a road", "blends_street_01_0", 6000),
+                              ("water", "blends_natural_02_0", 8000)):
+        wild_floor(rt, at, at, sprite)
+        rt.run(f"local p = {P}; p.x, p.y = {at}.5, {at}.5")
+        net.pump(60)
+        # Loaded, and looked at: a count of none on ground nobody had loaded
+        # would be a check against an empty set (DEV_GUIDE).
+        check(rt.eval(f"TREK.Util.chunkLoaded({at} + 30, {at} + 30, 0)") is True,
+              f"wild: the ground around {label} never loaded, so this checks nothing")
+        visited = rt.eval("(function() local n = 0 for _ in pairs(TREK.Wild.store().visited) do n = n + 1 end return n end)()")
+        rt.fire("EveryTenMinutes")
+        check(rt.eval("(function() local n = 0 for _ in pairs(TREK.Wild.store().visited) do n = n + 1 end return n end)()") > visited,
+              f"wild: no plot on {label} was looked at")
+        check(wild_count(rt, at, at) == 0,
+              f"wild: {wild_count(rt, at, at)} crystals were put down on {label}")
+
+    # --- the sandbox ----------------------------------------------------------
+    check(rt.eval("TREK.Wild.oneIn()") == C("WildPlentifulOneIn"), "wild: Plentiful is not the default here")
+    rt.run("SandboxVars.TrekShuttle.WildDilithium = 2")
+    check(rt.eval("TREK.Wild.oneIn()") == C("WildScarceOneIn"), "wild: Scarce is not scarcer")
+    rt.run("SandboxVars.TrekShuttle.WildDilithium = nil")
+    check(rt.eval("TREK.Wild.oneIn()") == C("WildPlentifulOneIn"),
+          "wild: an absent option is not the feature as designed")
+    rt.run("SandboxVars.TrekShuttle.WildDilithium = 3")
+    rt.run(f"local p = {P}; p.x, p.y = 4000.5, 4000.5")
+    net.pump(60)
+    check(rt.eval("TREK.Util.chunkLoaded(4030, 4030, 0)") is True,
+          "wild: the ground for the None check never loaded")
+    rt.fire("EveryTenMinutes")
+    check(wild_count(rt, 4000, 4000) == 0, "wild: None still put crystals down")
+
+    for w in rt.warnings():
+        fail(f"wild: {w}")
+
+    # --- two machines: the crystals reach the client, the record does not ----
+    net = Net("mp", clients=("walker",))
+    srv, A = net.server, net.clients["walker"]
+    for r in net.all():
+        r.run("SandboxVars.TrekShuttle.WildDilithium = 1")
+    srv.run("SIM.player('walker', 3000.5, 3000.5, 0)")
+    A.run("SIM.player('walker', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    srv.fire("EveryTenMinutes")
+    net.pump(2)
+    on_server = wild_count(srv, 3000, 3000)
+    check(on_server > 0 and wild_count(A, 3000, 3000) == on_server,
+          f"wild mp: the server put down {on_server} and the client sees "
+          f"{wild_count(A, 3000, 3000)}")
+    check(A.eval(f'SIM.globalData["{C("WildKey")}"]') is None,
+          "wild mp: the plots-visited record reached a client -- it grows for "
+          "the life of the world and must stay on the server")
+    for r in net.all():
+        for w in r.warnings():
+            fail(f"wild mp ({r.name}): {w}")
+    print(f"wild: {found} crystals over {plots} plots of grass, once each and never "
+          f"again, none on a road or in the water, the sandbox's three settings, "
+          f"and on two machines the crystals reach the client while the record stays home")
+
+
 def energy_multiplayer():
     """Two clients: the flag reaches both, and a race pays once."""
     net = Net("mp", clients=("kirk", "spock"))
@@ -10339,7 +10471,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             contact_map, contacts_multiplayer, probes, energy,
             energy_movement, energy_cabin, energy_shields, energy_emergency,
             energy_emergency_mp, cold_start, cold_start_edges,
-            cold_start_mp,
+            cold_start_mp, wild_dilithium,
             energy_multiplayer, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,

@@ -409,6 +409,20 @@ body like everything else. Once Shepard has put it on tape it is shared,
 permanent, and on the shelf for everyone — which makes the conversion the thing
 the player is actually racing to, and gives the channel a reason to be urgent.
 
+### Dilithium in his ground
+
+Settled 2026-09-24, by the author, when the first cold-start play went a long
+way without finding a crystal. **The copying left dilithium in the land.** It
+lies on the wild ground of the county, in the fields and the woods, and never
+in the towns, because the towns grew on top of it afterwards and were never his
+work. That is the whole of the mechanism, and it is `server/TREK/TREK_Wild.lua`.
+
+**Nobody in the fiction knows why.** It is a fact about the county the crew can
+use and cannot explain: the crystal's own tooltip says only that they turn up in
+wild ground and never in town. It is one more discrepancy in the file, of the
+kind 1c licenses, and the fragments are where it could be answered. Nothing
+written so far answers it, and nothing has to.
+
 ### The towns grew, and that is the whole finding
 
 **Nothing after step 3 was designed.** The Douwd copied a river valley in the

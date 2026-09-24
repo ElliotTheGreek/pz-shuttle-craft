@@ -2573,7 +2573,11 @@ end
 -- scenario in the suite was written for a ship that starts with power, and
 -- the cold start has its own sections that set it to Cold themselves. The
 -- game's own reading of a *missing* value (cold) is checked there too.
-SandboxVars = { TrekShuttle = { Access = 1, TransporterLimit = 1, StartState = 2 } }
+-- WildDilithium is None for the same reason: the simulated map is grass from
+-- edge to edge, and crystals sprouting beside every older scenario would
+-- change what its tricorder sees. wild_dilithium() turns it on.
+SandboxVars = { TrekShuttle = { Access = 1, TransporterLimit = 1, StartState = 2,
+                                WildDilithium = 3 } }
 
 -- The world's map folders, void map included.
 function getLotDirectories()

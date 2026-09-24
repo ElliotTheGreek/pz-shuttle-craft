@@ -1036,6 +1036,25 @@ C.OdometerMaxJump = 60
 -- clear of the field and has to walk back in, so each is pushed two or three
 -- times in a window at most: a hundred covers forty or so at the hull. A
 -- bigger horde than that is undercharged, which is the right way round.
+-- Dilithium in the wild (server/TREK/TREK_Wild.lua), sandbox
+-- `TrekShuttle.WildDilithium`. Crystals lie on natural ground -- grass, dirt,
+-- sand, clay -- and never in town: the Douwd's copied land carries it and the
+-- towns grew on top later (LORE.md 1c). One plot in this many holds one, a
+-- plot being the engine's own 8x8 chunk. Plentiful is about one per 28x28
+-- squares of field or wood, so a crew walking the countryside with a
+-- tricorder (20 tiles) usually has one or two on the plot. Tuned for "a
+-- crystal buys about three outings" (ENERGY.md 3.5): finding one should be an
+-- afternoon's walk, not a campaign.
+C.WildKey = "TREK_Wild_v1"
+C.WildPlot = 8
+C.WildPlentiful = 1
+C.WildScarce = 2
+C.WildNone = 3
+C.WildPlentifulOneIn = 12
+C.WildScarceOneIn = 48
+-- How far around each player on foot the ground is looked at, in squares.
+C.WildScanRadius = 40
+
 -- The cold start (ENERGY.md section 10), sandbox `TrekShuttle.StartState`.
 -- Cold is the default for a new world: zero power, no spares, two probes, and
 -- the ship landed dark beside the first player. Commissioned is the ship as
