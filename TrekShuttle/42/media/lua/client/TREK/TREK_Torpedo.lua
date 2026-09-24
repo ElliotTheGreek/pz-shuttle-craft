@@ -379,21 +379,65 @@ function T.targetSquare()
     return math.floor(wx), math.floor(wy), z
 end
 
---- How the reticle should read: in range and loaded, or refusing and why.
+--- How the reticle should read: in range and loaded, or refusing and why --
+--- and the numbers behind it: { dist = tiles from her, reloadMs = left }.
 --- Worked out here rather than only server-side so the pilot is told *before*
 --- pulling the trigger, not by a denial afterwards.
-function T.aimStatus()
+---
+--- Measured from `s.x, s.y`, which is where the server measures from: the
+--- square under her centre, the one her shadow stands on. The reticle is
+--- measured against the shadow, not against the hull drawn five levels up.
+function T.aimDetail()
     local s = TREK.Ship.get()
-    if not s.flying then return "notFlying" end
+    if not s.flying then return "notFlying", {} end
     local x, y = T.targetSquare()
-    if not x then return "noTarget" end
+    if not x then return "noTarget", {} end
     local dx, dy = x - (s.x or 0), y - (s.y or 0)
     local dist = math.sqrt(dx * dx + dy * dy)
-    if dist > C.TorpedoMaxRange then return "far" end
-    if dist < C.TorpedoMinRange then return "close" end
-    if getTimestampMs() - T.lastFire < C.TorpedoCooldownMs then return "reloading" end
-    return "ok"
+    local info = { dist = dist }
+    if dist > C.TorpedoMaxRange then return "far", info end
+    if dist < C.TorpedoMinRange then return "close", info end
+    local left = C.TorpedoCooldownMs - (getTimestampMs() - T.lastFire)
+    if left > 0 then
+        info.reloadMs = left
+        return "reloading", info
+    end
+    return "ok", info
 end
+
+function T.aimStatus()
+    return (T.aimDetail())
+end
+
+--- The words under the reticle. The colour alone said *that* she would not
+--- fire and never *why* -- "red, then orange, then green" was reported as a
+--- mystery, and a refusal nobody is shown is indistinguishable from a broken
+--- weapon (DEV_GUIDE, the probes).
+function T.reticleLabel(status, info)
+    info = info or {}
+    local d = tostring(math.floor((info.dist or 0) + 0.5))
+    if status == "ok" then
+        return getText("IGUI_TREK_Reticle_ok", d)
+    elseif status == "reloading" then
+        local secs = math.ceil((info.reloadMs or 0) / 100) / 10
+        return getText("IGUI_TREK_Reticle_reloading", string.format("%.1f", secs))
+    elseif status == "far" then
+        return getText("IGUI_TREK_Reticle_far", d, tostring(C.TorpedoMaxRange))
+    elseif status == "close" then
+        return getText("IGUI_TREK_Reticle_close", d, tostring(C.TorpedoMinRange))
+    elseif status == "noTarget" then
+        return getText("IGUI_TREK_Reticle_noTarget")
+    end
+    return nil
+end
+
+-- What a pull of the trigger that does not fire says, over the pilot's head.
+local REFUSAL_NOTES = {
+    reloading = "IGUI_TREK_TorpedoReloading",
+    far       = "IGUI_TREK_TorpedoRange",
+    close     = "IGUI_TREK_TorpedoTooClose",
+    noTarget  = "IGUI_TREK_TorpedoNoTarget",
+}
 
 ---------------------------------------------------------------------------
 -- The reticle
@@ -491,14 +535,27 @@ function Overlay:render()
     if not p then return end
     local sx, sy = aimPoint(p)
     if not sx then return end
-    local status = T.aimStatus()
+    local status, info = T.aimDetail()
     local c = COLOURS[status] or COLOURS.noTarget
+    local h = 32
     U.try("torpedoReticle", function()
         local tex = getTexture(RETICLE)
         if not tex then return end
-        local w, h = tex:getWidth(), tex:getHeight()
+        local w
+        w, h = tex:getWidth(), tex:getHeight()
         self:drawTextureScaled(tex, sx - w / 2, sy - h / 2, w, h,
                                1.0, c[1], c[2], c[3])
+    end)
+    -- The reason, in the reticle's own colour, just under it -- drawn apart
+    -- from the texture, so a reticle that fails to draw still says why. A dark
+    -- copy a pixel down and right first, so it reads over a pale roof as well
+    -- as over grass: the torpedo sprite's dark skirt, for text.
+    U.try("torpedoLabel", function()
+        local label = T.reticleLabel(status, info)
+        if not label then return end
+        local ty = sy + h / 2 + 2
+        self:drawTextCentre(label, sx + 1, ty + 1, 0, 0, 0, 0.8, UIFont.Small)
+        self:drawTextCentre(label, sx, ty, c[1], c[2], c[3], 1.0, UIFont.Small)
     end)
 end
 
@@ -632,6 +689,11 @@ function T.fire()
     local status = T.aimStatus()
     if status ~= "ok" then
         U.log("torpedo not fired: %s", status)
+        -- Said to the pilot as well as the log: the reticle's label already
+        -- reads it, but a pulled trigger deserves an answer where the eye is.
+        local key = REFUSAL_NOTES[status]
+        local p = player()
+        if key and p then U.note(p, getText(key), 255, 200, 120) end
         return
     end
     local x, y, z = T.targetSquare()

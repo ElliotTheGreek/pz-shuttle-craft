@@ -56,7 +56,11 @@ function getCore() return core end
 
 -- Textures are not modelled; the tests that care assert on the *name* of an
 -- icon file existing on disk (tests/test_assets.py), not on pixels.
-function getTexture(path) return { path = path } end
+function getTexture(path)
+    return { path = path,
+             getWidth = function() return 32 end,
+             getHeight = function() return 32 end }
+end
 function getText(key, ...)
     local out = key
     for i = 1, select("#", ...) do out = out .. "|" .. tostring(select(i, ...)) end
@@ -2633,7 +2637,20 @@ local function derivable(name)
     function cls:click()
         if self.onclick then self.onclick(self.target, self) end
     end
-    function cls:addToUIManager() self.onScreen = true end
+    function cls:addToUIManager()
+        self.onScreen = true
+        SIM.uiElements = SIM.uiElements or {}
+        table.insert(SIM.uiElements, self)
+    end
+    --- Renders everything on screen once, the way a frame would, and returns
+    --- what text was drawn.
+    function SIM.renderFrame()
+        SIM.uiText = {}
+        for _, e in ipairs(SIM.uiElements or {}) do
+            if e.onScreen and e.render then e:render() end
+        end
+        return table.concat(SIM.uiText, "\n")
+    end
     function cls:removeFromUIManager() self.onScreen = false end
     function cls:setVisible(v) self.visible = v end
     function cls:addChild(c) c.parent = self; table.insert(self.children, c) end
@@ -2644,7 +2661,15 @@ local function derivable(name)
     function cls:drawRectBorder() end
     function cls:drawText() end
     function cls:drawTextRight() end
-    function cls:drawTextCentre() end
+    -- Recorded, so a test can read what an overlay says rather than only
+    -- whether it drew something.
+    -- Black text is not recorded: it is a drop shadow under the real line, and
+    -- counting it let a label whose coloured half was never drawn pass.
+    function cls:drawTextCentre(text, x, y, r, g, b)
+        if (r or 1) + (g or 1) + (b or 1) == 0 then return end
+        SIM.uiText = SIM.uiText or {}
+        table.insert(SIM.uiText, tostring(text))
+    end
     function cls:insertNewLineOfButtons() end
     function cls:setISButtonForB(b) self.ISButtonB = b end
     return cls

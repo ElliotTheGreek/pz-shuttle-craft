@@ -305,5 +305,11 @@
     "IGUI_TREK_PaddErased": "PADD erased.",
     "IGUI_TREK_EmhCureRunning": "Cure running: %1 hours to go -- stay aboard",
     "IGUI_TREK_WallAhead": "Structure ahead at this height -- slowing",
-    "IGUI_TREK_CannotHold": "She cannot hold this height. Set her down."
+    "IGUI_TREK_CannotHold": "She cannot hold this height. Set her down.",
+    "IGUI_TREK_Reticle_ok": "READY - %1 tiles",
+    "IGUI_TREK_Reticle_reloading": "RELOADING - %1s",
+    "IGUI_TREK_Reticle_far": "OUT OF RANGE - %1 tiles, max %2",
+    "IGUI_TREK_Reticle_close": "TOO CLOSE - %1 tiles, min %2",
+    "IGUI_TREK_Reticle_noTarget": "NO TARGET",
+    "IGUI_TREK_TorpedoNoTarget": "No firing solution under the reticle"
 }

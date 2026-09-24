@@ -3132,6 +3132,47 @@ def torpedoes():
           "an absent setting must mean the weapon as designed, never a silent "
           "disarm")
 
+    # --- the reticle says why --------------------------------------------
+    # Its colour said *that* she would not fire and never why: "it goes red,
+    # then orange, then green" came back from play as a mystery. So the label
+    # under it names the state and the number behind it, and a trigger pulled
+    # on anything but green says so over the pilot's head.
+    reset()
+    rt.run("SIM.mouse[1] = true; SIM.mouse[0] = false")
+
+    def label(dx, dy):
+        aim(dx, dy)
+        rt.run("TREK.Torpedo.poll()")
+        return rt.eval("SIM.renderFrame()") or ""
+
+    got = label(5, 0)
+    check("IGUI_TREK_Reticle_close|5|" + str(C("TorpedoMinRange")) in got,
+          f"torpedoes: aimed 5 tiles out the reticle says {got!r}, not too close "
+          f"with the distance and the minimum")
+    got = label(C("TorpedoMaxRange") + 6, 0)
+    check("IGUI_TREK_Reticle_far|" in got and "|" + str(C("TorpedoMaxRange")) in got,
+          f"torpedoes: aimed past the maximum the reticle says {got!r}")
+    got = label(OK, 0)
+    check("IGUI_TREK_Reticle_ok|" + str(OK) in got,
+          f"torpedoes: aimed {OK} tiles out and loaded, the reticle says {got!r}")
+    rt.run("TREK.Torpedo.lastFire = getTimestampMs()")
+    got = label(OK, 0)
+    check("IGUI_TREK_Reticle_reloading|" in got,
+          f"torpedoes: straight after a shot the reticle says {got!r}, not reloading")
+
+    # A pull of the trigger that does not fire answers the pilot, not only the
+    # log.
+    rt.run("SIM.notes = {}")
+    aim(5, 0)
+    rt.run("TREK.Torpedo.lastFire = 0")
+    rt.run("SIM.mouse[0] = false; TREK.Torpedo.poll()")
+    rt.run("SIM.mouse[0] = true; TREK.Torpedo.poll()")
+    check(any("IGUI_TREK_TorpedoTooClose" in n for n in rt.notes()),
+          "torpedoes: the trigger pulled too close fired nothing and told the "
+          "pilot nothing")
+    rt.run("SIM.mouse[0] = false; SIM.mouse[1] = false; TREK.Torpedo.poll()")
+    reset()
+
     print("torpedoes: the pilot aims with right mouse and fires with left, the "
           "torpedo is drawn crossing the ground with a light on it and "
           "detonates on arrival rather than on the trigger, the blast sets "

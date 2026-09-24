@@ -13,6 +13,48 @@ broken" still apply here. `MULTIPLAYER.md` is the client/server split and
 
 ---
 
+## Who can fire
+
+**The pilot, and nobody else: whoever is in the driver's seat, while she is
+flying.** The other three seats are passengers. It is enforced where it has to
+be, on the server -- `fireTorpedo` refuses anyone `drivenBy` does not name as
+the driver (`notPilot`), and anyone at all while she is on the ground
+(`notFlying`) -- and mirrored on the client, where `T.atTheControls()` gives a
+passenger no reticle and no trigger. In multiplayer that is one gunner per
+ship, and it is whoever is flying her. Everybody, passengers and people on the
+ground included, *sees* the torpedo cross the sky and the fire it starts.
+
+A separate gunner's seat is not built. It would be one line on each side (the
+seat check), plus a decision about whether the pilot keeps the trigger too.
+
+## Reading the reticle
+
+Hold right mouse (or just look, on a controller) and the reticle shows where
+she would hit. Its colour is the answer, and **the line under it is the reason**:
+
+| Colour | Label | Means |
+|---|---|---|
+| green | `READY - 18 tiles` | left click fires |
+| gold | `RELOADING - 3.4s` | the tubes are cycling: `C.TorpedoCooldownMs` (6 s) from the last launch, anybody's |
+| red | `TOO CLOSE - 7 tiles, min 12` | the blast plus the fire ring would reach her |
+| red | `OUT OF RANGE - 31 tiles, max 28` | past `C.TorpedoMaxRange` |
+| grey | `NO TARGET` | the aim point is not on the map |
+
+**Distances are measured from her shadow**, not from the hull on screen: the
+server measures from `s.x, s.y`, the square under her centre, which is where
+the shadow stands. At five storeys the hull is drawn a long way up the screen
+from that square, so aim "just below the ship" is usually the ground right
+under her -- red, too close. Move the reticle past twelve tiles from the
+shadow and it turns green.
+
+So the usual sequence in play is **red, green, fire, gold for six seconds,
+green**. A left click on anything but green fires nothing and says why over the
+pilot's head (`IGUI_TREK_TorpedoTooClose`, `...Range`, `...Reloading`,
+`...NoTarget`); it used to go only to the log, which from the cockpit looked
+like a weapon that sometimes ignored you.
+
+---
+
 ## What happens when the pilot fires
 
 ```
@@ -306,7 +348,10 @@ not re-derive these.
 ## Testing
 
 `tests/test_multiplayer.py::torpedoes()` covers: the pilot fires by holding
-right mouse and clicking left; a bare left click fires nothing; a held button
+right mouse and clicking left; the reticle's label for each state, with its
+numbers, rendered by the real overlay (`SIM.renderFrame()`, which records the
+coloured text and not the drop shadow under it); a trigger pulled on anything
+but green telling the pilot why; a bare left click fires nothing; a held button
 fires once; the ground, the cooldown, both range bounds and a passenger are
 refused; the torpedo is in the air after launch and gone after it lands; it
 carries a light and that light is put out; the blast does not happen on the
@@ -319,7 +364,11 @@ the Lua is **CRLF**, so a Python replace built on `\n` matches nothing and you
 end up testing the unmutated file. Nine mutations are known to be caught: fire
 chance to 0, fire ring to 0, smoke to 0, min range back to 4, the sandbox
 option ignored, an absent option read as no fire, detonating on the trigger,
-the projectile never drawn, and the flight light never put out. There is no
+the projectile never drawn, and the flight light never put out -- and four
+more for the reticle: the label not drawn, a refused trigger kept silent, the
+reload not counted, and the distance left out of the label. The first of
+those four was missed until the simulation stopped counting the label's black
+drop shadow as the label. There is no
 mutation runner in `tools/` — write one in the scratchpad.
 
 Four things this scenario has got wrong, all worth not repeating:
@@ -372,6 +421,9 @@ Four things this scenario has got wrong, all worth not repeating:
   the vehicle's own bindings live in Java where this mod cannot read them,
   which is exactly why the triggers were avoided. If R3 turns out to be taken,
   `fireHeld()` is the one function to change.
+- **The label in game.** Built 2026-09-24 and not yet seen: whether
+  `UIFont.Small` reads at every zoom, and whether the line under the reticle
+  sits clear of it at the reticle's real size.
 - **Two players.** Nothing here has been fired with two people connected. The
   projectile is drawn by each client from one `torpedoLaunched` and the fire is
   synced by the engine's own packet, so it should need nothing of ours — which
