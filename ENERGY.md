@@ -1,8 +1,8 @@
 # Energy — everything aboard runs on the crystal
 
-**Status: being built, phase by phase (section 12). Phases 0 to 4 are done
-(2026-09-24): the verify-first answers, the ledger, the gauge, movement and
-the dark cabin. None of it has been seen in game yet.** The design questions
+**Status: being built, phase by phase (section 12). Phases 0 to 5 are done
+(2026-09-24): the verify-first answers, the ledger, the gauge, movement,
+the dark cabin and the shields. None of it has been seen in game yet.** The design questions
 were settled with the author on 2026-09-24 (section 13). When it is built
 it becomes the working guide for the ship's power, in the shape
 `REPLICATOR.md` and `PILOTING.md` use.

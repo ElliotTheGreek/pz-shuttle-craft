@@ -1027,6 +1027,18 @@ C.EmhProjectCost = 100      -- bringing the Doctor up; putting him away is free
 -- is well under this.
 C.OdometerMaxJump = 60
 
+-- The shields' bill (ENERGY.md 5.1). A client reports what it pushed at most
+-- this often, and the server takes at most one report per player in the same
+-- window and at most ShieldReportMax pushes in one. The count is the client's
+-- word, which cannot be checked -- a zombie the server does not simulate is a
+-- push it cannot see -- so the cap is what keeps a modified client from
+-- draining a ship it shares with other people. A pushed zombie is thrown
+-- clear of the field and has to walk back in, so each is pushed two or three
+-- times in a window at most: a hundred covers forty or so at the hull. A
+-- bigger horde than that is undercharged, which is the right way round.
+C.ShieldReportSecs = 5
+C.ShieldReportMax = 100
+
 -- The cabin's lamps: colour and radius for addLamppost. The engine doubles a
 -- lamppost's colour and clamps it (ENERGY.md V2), so anything at or above 0.5
 -- renders full -- the white is simply white. Radius and position are read

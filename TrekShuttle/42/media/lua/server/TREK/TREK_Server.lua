@@ -254,6 +254,72 @@ function S.powerVehicle(vehicle)
     end
 end
 
+--- Mends crash damage while the shields are up and there is power
+--- (ENERGY.md 5.2), charged per condition point, silently.
+---
+--- On the server, because that is where collision damage is applied: a
+--- client's crash only sends vehicle/crash, and part conditions travel
+--- server to client with no driver check, so a condition set here reaches the
+--- driver and stays (V4). Vanilla's own fixPart is the shape: setCondition,
+--- the item's stats, then transmitPartCondition and transmitPartItem, and the
+--- vehicle's stats once at the end. **Never vehicle:repair()**: it refills the
+--- tank and recharges the battery for nothing.
+---
+--- The tank and the battery are skipped: those are power, not damage. When
+--- the reserve runs out part-way, a part is mended only as far as what was
+--- paid for, and the ship is dark. Shields down, or dark, and the damage
+--- stays: she is an ordinary damaged vehicle.
+---
+--- It does not heal the crew. Crash damage hurts the occupants as well, and
+--- no part repair undoes that.
+---
+--- There is no separate dark check, and that is deliberate: a dark ship's
+--- partial payment is always nothing, so nothing is mended. A guard that
+--- could never change the outcome was deleted when a mutation said so.
+function S.shieldRepair(vehicle)
+    if not U.shieldsUp() then return 0 end
+    local count = U.try("partCount", function() return vehicle:getPartCount() end) or 0
+    local mended = 0
+    for i = 0, count - 1 do
+        local part = U.try("partAt", function() return vehicle:getPartByIndex(i) end)
+        local id = part and U.try("partId", function() return part:getId() end)
+        if id and id ~= "GasTank" and id ~= "Battery" then
+            local cond = U.try("partCond", function() return part:getCondition() end) or 100
+            if cond < 100 then
+                local cost = (100 - cond) * C.RepairCostPerPoint
+                local _, paid = TREK.Energy.energize(nil, "repair", cost,
+                    { partial = true, silent = true, noCommit = true })
+                paid = paid or 0
+                local to = math.min(100, cond + math.floor(paid / C.RepairCostPerPoint + 1e-6))
+                if to > cond then
+                    U.try("partMend", function()
+                        part:setCondition(to)
+                        local item = part:getInventoryItem()
+                        if item then
+                            part:doInventoryItemStats(item, part:getMechanicSkillInstaller())
+                        end
+                        if isServer() then
+                            vehicle:transmitPartCondition(part)
+                            if item then vehicle:transmitPartItem(part) end
+                        end
+                    end)
+                    mended = mended + (to - cond)
+                end
+                if TREK.Power.dark() then break end
+            end
+        end
+    end
+    if mended > 0 then
+        U.try("partStats", function()
+            vehicle:updatePartStats()
+            vehicle:updateBulletStats()
+        end)
+        Ship.commit()
+        U.log("shields: %d point(s) of damage mended", mended)
+    end
+    return mended
+end
+
 -- Whether each shuttle's engine was running at the last pass, by ship id.
 -- Server-local and transient: a restart finds the engine off, which is what
 -- a world load does to it anyway.
@@ -657,6 +723,7 @@ function S.serviceVehicle()
         s.missingChecks = nil
         S.powerVehicle(found)
         S.engineEdge(found)
+        S.shieldRepair(found)
         local x = math.floor(found:getX())
         local y = math.floor(found:getY())
         local changed = false
@@ -1410,6 +1477,47 @@ Net.onServer("setShields", function(player, args)
     if not mayUse(player) then return end
     U.state().shields = args.up == true
     Ship.commit()
+end)
+
+-- username -> ms of the last shield report taken from them.
+local shieldReports = {}
+
+--- What a client's shields pushed (ENERGY.md 5.1), charged silently.
+---
+--- **The count is the client's word**, and there is no checking it: the
+--- server does not simulate the zombies a client owns, so a push it did not
+--- see is a push it cannot count. What it can check is everything around the
+--- number -- one report per player per window, at most C.ShieldReportMax in
+--- it, shields up, the ship landed and lit, and the reporter standing within
+--- reach of the field on the server's own copy of them. A modified client can
+--- still under-report and get cheaper shields; it cannot drain a shared ship.
+---
+--- Not gated on the crew list: a stranger standing by her is shielded by
+--- her, and it is her power that did it.
+Net.onServer("shieldDraw", function(player, args)
+    if not alive(player) then return end
+    local n = int(args.n)
+    if not n or n < 1 then return end
+    if n > C.ShieldReportMax then n = C.ShieldReportMax end
+    local s = U.state()
+    if not s.landed or s.flying or s.shields == false or TREK.Power.dark() then return end
+
+    local name = Ship.usernameOf(player)
+    local now = getTimestampMs()
+    local last = shieldReports[name]
+    -- A little slack under the window: the client's clock and this one are
+    -- not the same clock.
+    if last and now - last < C.ShieldReportSecs * 1000 * 0.8 then return end
+
+    local px = U.try("shieldX", function() return player:getX() end)
+    local py = U.try("shieldY", function() return player:getY() end)
+    if not px or not py then return end
+    local reach = C.FieldRadius + 30
+    if U.dist2(px, py, s.x, s.y) > reach * reach then return end
+
+    shieldReports[name] = now
+    TREK.Energy.energize(nil, "shields", n * C.ShieldPushCost,
+                         { partial = true, silent = true })
 end)
 
 Net.onServer("setCrew", function(player, args)

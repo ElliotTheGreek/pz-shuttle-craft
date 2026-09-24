@@ -1708,7 +1708,6 @@ function VehicleMT:enter(seat, chr)
     chr.vehicle = self
     return true
 end
-function VehicleMT:repair() self.repaired = true end
 function VehicleMT:cheatHotwire(h) self.hotwired = h end
 function VehicleMT:getPartById(id)
     if id == "Battery" then
@@ -1740,6 +1739,67 @@ function VehicleMT:getPartById(id)
 end
 function VehicleMT:transmitPartModData() end
 function VehicleMT:transmitPartUsedDelta() self.usedDeltaSent = (self.usedDeltaSent or 0) + 1 end
+
+--- Her parts with conditions (ENERGY.md V4), walked the way vanilla walks
+--- them: getPartCount / getPartByIndex. A fresh vehicle is whole. The tank
+--- and the battery are in the walk too, because the engine's is, and code
+--- that mends "every part" has to be seen skipping them.
+local DAMAGEABLE = { "Engine", "TruckBed", "TireFrontLeft", "TireFrontRight",
+                     "TireRearLeft", "TireRearRight" }
+function VehicleMT:partList()
+    if self.parts then return self.parts end
+    self.parts = {}
+    for _, id in ipairs(DAMAGEABLE) do
+        local part = { id = id, condition = 100 }
+        function part:getId() return self.id end
+        function part:getCondition() return self.condition end
+        function part:setCondition(n) self.condition = math.max(0, math.min(100, n)) end
+        function part:getInventoryItem() return { part = self } end
+        function part:doInventoryItemStats() self.statsDone = (self.statsDone or 0) + 1 end
+        function part:getMechanicSkillInstaller() return 0 end
+        table.insert(self.parts, part)
+    end
+    local vehicle = self
+    for _, id in ipairs({ "GasTank", "Battery" }) do
+        local part = vehicle:getPartById(id)
+        part.condition = 100
+        function part:getCondition() return self.condition end
+        function part:setCondition(n) self.condition = n end
+        table.insert(self.parts, part)
+    end
+    return self.parts
+end
+function VehicleMT:getPartCount() return #self:partList() end
+function VehicleMT:getPartByIndex(i) return self:partList()[i + 1] end
+function VehicleMT:transmitPartCondition(part)
+    self.conditionSent = (self.conditionSent or 0) + 1
+end
+function VehicleMT:transmitPartItem() end
+function VehicleMT:updatePartStats() end
+function VehicleMT:updateBulletStats() end
+--- The engine's own repair(): everything whole, tank full, battery charged
+--- (V4, bci 205-289). What the shields must never use.
+function VehicleMT:repair()
+    self.repaired = true
+    for _, p in ipairs(self:partList()) do p.condition = 100 end
+    self.tank.amount = self.tank.cap
+    self.battery = self.battery or {}
+    self.battery.charge = 1.0
+end
+
+--- Test helper: a crash, as the server applies it (V4): a front crash takes
+--- the Engine (this hull has no engine door), a rear one the TruckBed.
+function SIM.crash(v, front, amount)
+    local want = front and "Engine" or "TruckBed"
+    for _, p in ipairs(v:partList()) do
+        if p.id == want then p.condition = math.max(0, p.condition - (amount or 30)) end
+    end
+end
+function SIM.partCondition(v, id)
+    for _, p in ipairs(v:partList()) do
+        if (p.id or (p.getId and p:getId())) == id then return p.condition end
+    end
+end
 
 --- The engine, the way V3 found it (ENERGY.md section 12).
 ---

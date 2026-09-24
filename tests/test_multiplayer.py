@@ -2405,6 +2405,13 @@ def multiplayer():
           "multiplayer: shields did not push bob's own zombie")
     check(B.eval("math.abs(theirs.x - TREK.Ship.get().x) < 5"),
           "multiplayer: bob's client moved a zombie another client owns")
+    # ...and the ship pays for bob's one push, on the server (ENERGY.md 5.1).
+    before = float(srv.eval("TREK.Power.reserve()"))
+    B.run("TREK.Core.shieldReportAt = 0; TREK.Core.reportShieldDraw(SIM.players[1])")
+    net.pump(2)
+    paid = before - float(srv.eval("TREK.Power.reserve()"))
+    check(paid == srv.eval("TREK.Config.ShieldPushCost"),
+          f"multiplayer: bob's client pushed one zombie and the ship paid {paid}")
 
     # --- nobody but the server writes -----------------------------------------
     server_state = to_py(srv.eval("TREK.Util.state()"))
@@ -9547,6 +9554,139 @@ def energy_cabin():
           "with its sound")
 
 
+def energy_shields():
+    """The shields pay for what they do (ENERGY.md section 5): every push,
+    reported by the client that made it and capped by the server, and every
+    point of crash damage they mend. Dark, they do nothing at all."""
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('crew', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    PM = int(C("PowerMax"))
+    reserve = lambda: float(rt.eval("TREK.Power.reserve()"))
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    check(ship(rt, "landed") is True, "energy shields: she would not come down")
+
+    def horde(n):
+        rt.run(f"""
+            local s = TREK.Ship.get()
+            shieldZeds = {{}}
+            for i = 1, {n} do
+                table.insert(shieldZeds, SIM.zombie(s.x + 1.5 + (i % 3), s.y + 0.5, 0, false))
+            end
+        """)
+
+    # --- pushes are counted, reported once a window, and charged -------------
+    energy_state(rt, PM, 0)
+    rt.run("TREK.Core.shieldPushes = 0; TREK.Core.shieldReportAt = 0")
+    horde(4)
+    pushed = rt.eval("TREK.Core.repelZombies()")
+    check(pushed == 4, f"energy shields: four zombies in the field, {pushed} pushed")
+    check(rt.eval("TREK.Core.shieldPushes") == 4, "energy shields: the pushes were not counted")
+    b = reserve()
+    rt.run(f"TREK.Core.reportShieldDraw({P})")
+    net.pump(2)
+    check(b - reserve() == 4 * C("ShieldPushCost"),
+          f"energy shields: four pushes cost {b - reserve()}")
+    check(rt.eval("TREK.Core.shieldPushes") == 0, "energy shields: the count was not reset")
+
+    # The way the game drives it: the field on the player update's cadence,
+    # and the report with it.
+    net.clock += int(C("ShieldReportSecs")) * 1000 + 100
+    horde(3)
+    b = reserve()
+    for _ in range(20):
+        rt.run("for _, p in ipairs(SIM.players) do SIM.fire('OnPlayerUpdate', p) end")
+    net.pump(1)
+    check(b - reserve() == 3 * C("ShieldPushCost"),
+          f"energy shields: three zombies pushed on the player's own updates cost "
+          f"{b - reserve()} -- the report never went")
+
+    # The next report waits for its window.
+    horde(2)
+    rt.run("TREK.Core.repelZombies()")
+    b = reserve()
+    rt.run(f"TREK.Core.reportShieldDraw({P})")
+    net.pump(2)
+    check(b == reserve(), "energy shields: a second report went inside the window")
+    net.clock += int(C("ShieldReportSecs")) * 1000 + 100
+    rt.run(f"TREK.Core.reportShieldDraw({P})")
+    net.pump(2)
+    check(b - reserve() == 2 * C("ShieldPushCost"),
+          f"energy shields: the held-over pushes cost {b - reserve()} after the window")
+
+    # --- the server's own limits ---------------------------------------------
+    net.clock += int(C("ShieldReportSecs")) * 1000 + 100
+    b = reserve()
+    rt.run(f"TREK.Net.serverHandlers.shieldDraw({P}, {{ n = 1000000 }})")
+    check(b - reserve() == C("ShieldReportMax") * C("ShieldPushCost"),
+          f"energy shields: a report of a million pushes cost {b - reserve()}; "
+          f"one client could drain a shared ship")
+    b = reserve()
+    rt.run(f"TREK.Net.serverHandlers.shieldDraw({P}, {{ n = 5 }})")
+    check(b == reserve(), "energy shields: the server took two reports in one window")
+    net.clock += int(C("ShieldReportSecs")) * 1000 + 100
+    rt.run(f"local p = {P}; farX, farY = p.x, p.y; p.x, p.y = p.x + 400, p.y")
+    b = reserve()
+    rt.run(f"TREK.Net.serverHandlers.shieldDraw({P}, {{ n = 5 }})")
+    check(b == reserve(), "energy shields: a report from 400 tiles away was charged")
+    rt.run(f"local p = {P}; p.x, p.y = farX, farY")
+    net.pump(40)
+
+    # --- crash damage is mended and paid for ---------------------------------
+    v = "TREK.Vehicle.ship()"
+    rt.run(f"SIM.crash({v}, true, 30)")
+    rt.run(f"for _, p in ipairs({v}:partList()) do if p.id == nil and p:getId() == 'GasTank' then p.condition = 40 end end")
+    b = reserve()
+    rt.run("TREK.Server.serviceVehicle()")
+    check(rt.eval(f"SIM.partCondition({v}, 'Engine')") == 100,
+          f"energy shields: a front crash was not mended "
+          f"(Engine {rt.eval(f'SIM.partCondition({v}, {chr(39)}Engine{chr(39)})')})")
+    check(b - reserve() == 30 * C("RepairCostPerPoint"),
+          f"energy shields: thirty points cost {b - reserve()}")
+    check(rt.eval(f"SIM.partCondition({v}, 'GasTank')") == 40,
+          "energy shields: the tank was 'mended' -- it is power, not damage")
+    check(rt.eval(f"{v}.parts[1].statsDone or 0") >= 1,
+          "energy shields: a mended part's item stats were not redone")
+
+    # Shields down: the damage stays.
+    rt.run("TREK.Util.state().shields = false")
+    rt.run(f"SIM.crash({v}, false, 20)")
+    b = reserve()
+    rt.run("TREK.Server.serviceVehicle()")
+    check(rt.eval(f"SIM.partCondition({v}, 'TruckBed')") == 80,
+          "energy shields: crash damage was mended with the shields down")
+    check(b == reserve(), "energy shields: shields down, and something was charged")
+    rt.run("TREK.Util.state().shields = true")
+
+    # Short of power: mended as far as it was paid for, and dark.
+    energy_state(rt, 12, 0)
+    rt.run("TREK.Server.serviceVehicle()")
+    bed = rt.eval(f"SIM.partCondition({v}, 'TruckBed')")
+    check(bed == 80 + 12 // C("RepairCostPerPoint"),
+          f"energy shields: 12 units mended the bed to {bed}, not {80 + 12}")
+    check(rt.eval("TREK.Power.dark()") is True, "energy shields: the last unit went and she is lit")
+
+    # --- dark: nothing pushed, nothing mended --------------------------------
+    horde(3)
+    check(rt.eval("TREK.Core.repelZombies()") == 0, "energy shields: a dark ship pushed zombies")
+    rt.run(f"SIM.crash({v}, true, 10)")
+    rt.run("TREK.Server.serviceVehicle()")
+    check(rt.eval(f"SIM.partCondition({v}, 'Engine')") == 90,
+          "energy shields: a dark ship mended crash damage")
+
+    for w in rt.warnings():
+        fail(f"energy shields: {w}")
+    print("energy shields: every push counted, reported once a window and charged, "
+          "the server capping the count and the reporter's distance; crash damage "
+          "mended point by point, the tank left alone, nothing with the shields down, "
+          "only what was paid for when short, and nothing at all in the dark")
+
+
 def energy_multiplayer():
     """Two clients: the flag reaches both, and a race pays once."""
     net = Net("mp", clients=("kirk", "spock"))
@@ -9628,7 +9768,8 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, energy,
-            energy_movement, energy_cabin, energy_multiplayer, contact_world,
+            energy_movement, energy_cabin, energy_shields,
+            energy_multiplayer, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,

@@ -108,8 +108,8 @@ end
 
 --- Pays `cost` for `what`, or refuses. Authority only.
 ---
---- Returns true when paid (for `partial`, when anything was paid). Commits,
---- and tells `player` either way unless `opts.silent`.
+--- Returns true when paid (for `partial`, when anything was paid), and what
+--- was paid. Commits, and tells `player` either way unless `opts.silent`.
 ---
 ---   opts.why      the denial reason to send instead of "noPower", for the
 ---                 refusals that already had their own words (repNoCrystal,
@@ -149,7 +149,7 @@ function E.energize(player, what, cost, opts)
         })
     end
     E.powerChanged()
-    return paid > 0
+    return paid > 0, paid
 end
 
 -- A safety net rather than the mechanism: every spend and every load calls

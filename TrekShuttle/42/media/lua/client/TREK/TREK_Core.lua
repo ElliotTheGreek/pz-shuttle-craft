@@ -628,9 +628,17 @@ Events.OnTick.Add(function() serviceSettling() end)
 --- somebody else's zombie here would be undone by their next update. Every
 --- client near the hull runs this for its own, which between them is all of
 --- them. In single player every zombie is local.
+--
+-- **Every push is paid for** (ENERGY.md 5.1), and a dark ship's shields do
+-- nothing at all. The count is kept here and sent to the server in batches
+-- (Core.reportShieldDraw), because only the client that moved a zombie knows
+-- it did.
+Core.shieldPushes = 0
+
 function Core.repelZombies()
     local s = Ship.get()
     if not s.landed or s.shields == false then return 0 end
+    if TREK.Power.dark() then return 0 end
 
     local cell = U.cell()
     if not cell then return 0 end
@@ -662,7 +670,26 @@ function Core.repelZombies()
             end)
         end
     end
+    Core.shieldPushes = Core.shieldPushes + pushed
     return pushed
+end
+
+--- Sends what the shields have pushed since the last report, at most once
+--- every C.ShieldReportSecs: a commit per push would be the per-tick commit
+--- section 3.6 forbids. The server charges it, capped, and checks the
+--- reporter is standing by her.
+Core.shieldReportAt = 0
+function Core.reportShieldDraw(player)
+    if Core.shieldPushes <= 0 then return false end
+    local now = U.try("shieldClock", getTimestampMs) or 0
+    if now - Core.shieldReportAt < C.ShieldReportSecs * 1000 then return false end
+    Core.shieldReportAt = now
+    local n = Core.shieldPushes
+    Core.shieldPushes = 0
+    -- Net.send, not Core.send: this is not the player asking for anything,
+    -- and a refusal note must not be pinned on them.
+    Net.send(player, "shieldDraw", { n = n })
+    return true
 end
 
 ---------------------------------------------------------------------------
@@ -800,6 +827,7 @@ Events.OnPlayerUpdate.Add(function(player)
     if fieldTick >= 20 then
         fieldTick = 0
         Core.repelZombies()
+        Core.reportShieldDraw(player)
     end
 end)
 
