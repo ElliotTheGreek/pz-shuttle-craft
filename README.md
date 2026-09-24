@@ -20,7 +20,7 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Call it down** | Right-click a patch of street or field → **Call the shuttle down here**. It needs 3×5 tiles of clear ground and tells you when it hasn't got them. |
 | **Travel** | From the helm inside, click the map to lay in a course, then **take her down**. You are beamed to the site first so the ground actually loads, and the ship comes in after you. |
 | **Fly it like a truck** | The landed shuttle is a vehicle with four seats. Get in as you would a car, pick a seat on its chart, switch seats, drive. No seat has a door, so nothing can bite you in one. |
-| **Take her up** | From the pilot's seat, **Shuttlecraft ▸ Take her up**. She lifts off the ground and hovers, and she flies by *driving*, so the throttle, the steering, the seat chart and a controller all work exactly as they do on the ground. Pick a flight speed at the helm, and **Set her down below** when you are there. Up or down and nothing in between: there is one flight height. The crew can go aft to the cabin in flight and come back; she waits where you left her. While she is up the hatch is shut, so the transporter is the way off her — and once the last of you has beamed down she goes back up, ready to be called down again. |
+| **Take her up** | From the pilot's seat, **Shuttlecraft ▸ Take her up**. She rises smoothly to her hover height -- five storeys by default, set on the sandbox page -- and hovers, and she flies by *driving*, so the throttle, the steering, the seat chart and a controller all work exactly as they do on the ground. Her shadow on the street below marks exactly where she will come down. Pick a flight speed at the helm, and **Set her down below** when you are there. Up or down and nothing in between: there is one flight height, and anything taller than it is a wall she slows to a stop in front of. The crew can go aft to the cabin in flight and come back; she waits where you left her. While she is up the hatch is shut, so the transporter is the way off her — and once the last of you has beamed down she goes back up, ready to be called down again. |
 | **Never stranded** | If there is not enough room at the destination you are beamed straight back aboard with the reason. A failed landing never leaves you on foot a hundred miles from the ship. |
 | **Phasers** | Four in a locker beside the pad. The charge never runs down, they never jam and they never wear out — and they are far quieter than a firearm, which is most of the point. |
 | **A hypospray** | One dose puts right bleeding, deep wounds, infected cuts, burns, fractures, pain and stiffness — everywhere on your body at once. It will not touch a bite. Six doses, and the ship replicates more while you are aboard; out in the field, what you are carrying is what you have. |
@@ -74,7 +74,7 @@ player and the in-game Host settings add it for you; a dedicated server's
 log says `the 'TrekShuttle' map is not loaded`, and the view outside the cabin
 shows grass and trees.
 
-Five sandbox options, on the **Shuttlecraft** page:
+Six sandbox options, on the **Shuttlecraft** page:
 
 | Option | Choices | Default |
 |---|---|---|
@@ -83,6 +83,7 @@ Five sandbox options, on the **Shuttlecraft** page:
 | **Photon torpedo fire** | *Full*: the torpedo burns, and the fire spreads. *Blast only*: the explosion and the kill without the fire. | Full |
 | **Replicator** | *Patterns and energy*: it makes what the ship has scanned, and each one spends from a reserve that only dilithium refills. *Unrestricted*: anything in the catalogue, immediately, for nothing. *Off*: the machine is scenery, and says so. | Patterns and energy |
 | **Emergency Medical Hologram** | *Full*: the Doctor as designed, cure included. *Off*: the sick bay's station is inactive and says so. There is deliberately no setting that keeps him and removes the cure -- a server owner who does not want the cure turns him off. | Full |
+| **Hover height** | *2, 3, 4, 5, 6 or 8 storeys*: how high she hovers in flight. Buildings with fewer storeys pass beneath her; anything taller is a wall she slows to a stop in front of. Raise it for Louisville's towers. | 5 storeys |
 
 Every beam moves a character a long way at once, and the speed anti-cheat
 counts each one. If your players want unlimited beaming, set
@@ -108,7 +109,8 @@ transporter works either way; the hatch only works when it is down.
 Piloting works the way the game does vehicles: the landed shuttle is a vehicle
 you get into, with four seats you can switch between. From the pilot's seat the
 radial menu takes her up and sets her down -- one hovering height, nothing in
-between -- and she clears fences, trees, wrecks and single-storey roofs. While
+between -- and she clears everything shorter than it. Her shadow on the ground
+is where she will land. While
 she is up the hatch is shut, so the transporter is the way off her, and once
 the last of the crew has beamed down she goes back up and waits to be called.
 The helm is how you cross the map.
@@ -282,9 +284,13 @@ interior plus `TREK_InteriorLayout.lua`.
   and not by its physics. A one-square rim of that floor may be visible under
   the hull. See `PILOTING.md`.
 - **There is one flight height, and she hovers at it.** No climbing, no diving:
-  she is on the ground or she is up. It was four levels, and in play only the
-  ground and the first one ever behaved. At that height she clears fences,
-  trees, wrecks and single-storey roofs; a two-storey building is still a wall.
+  she is on the ground or she is up. The height is the sandbox's **Hover
+  height**, five storeys by default; a building that tall or taller is a wall,
+  and she slows to a crawl in front of it rather than hitting it. Level 5 is
+  **new and not yet seen in game** -- if the engine will not hold her there she
+  comes back down by herself and says so, and a lower setting is the answer.
+- **Her shadow is round and moves a square at a time.** It is drawn with the
+  game's own ground markers, which take one texture and whole-square positions.
 - **The hull does not block anything.** It is a world model, and world models
   have no collision: zombies and players walk through it. The footprint is
   enforced when it lands, not afterwards.

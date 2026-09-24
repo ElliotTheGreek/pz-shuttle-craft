@@ -303,5 +303,7 @@
     "IGUI_TREK_PaddErase": "Erase PADD",
     "IGUI_TREK_PaddEraseConfirm": "Erase all %1 titles",
     "IGUI_TREK_PaddErased": "PADD erased.",
-    "IGUI_TREK_EmhCureRunning": "Cure running: %1 hours to go -- stay aboard"
+    "IGUI_TREK_EmhCureRunning": "Cure running: %1 hours to go -- stay aboard",
+    "IGUI_TREK_WallAhead": "Structure ahead at this height -- slowing",
+    "IGUI_TREK_CannotHold": "She cannot hold this height. Set her down."
 }

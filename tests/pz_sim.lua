@@ -615,6 +615,8 @@ end
 -- a floor is water, which is how the ensign avoids sitting in a pond. A test
 -- marks a square `water = true` and its floor answers for it.
 IsoFlagType = IsoFlagType or { water = "water" }
+IsoFlagType.collideN = IsoFlagType.collideN or "collideN"
+IsoFlagType.collideW = IsoFlagType.collideW or "collideW"
 
 function ObjectMT:getSprite()
     local name = self.spriteName
@@ -885,6 +887,15 @@ function SquareMT:getFloor()
 end
 function SquareMT:isSolid() return self.solid end
 function SquareMT:isSolidTrans() return false end
+--- A wall on the square's north or west edge. A test marks `wallN` or
+--- `wallW`; the flight's obstacle guard asks exactly this, the way vanilla's
+--- builder does (ISBuildingObject.lua:309).
+function SquareMT:has(flag)
+    if flag == IsoFlagType.collideN then return self.wallN == true end
+    if flag == IsoFlagType.collideW then return self.wallW == true end
+    if flag == IsoFlagType.water then return self.water == true end
+    return false
+end
 function SquareMT:isFree() return not self.occupied end
 --- A vehicle stands over a 3x5 box of squares around its position (the
 --- shuttle's size; the only vehicle the tests spawn).
@@ -953,6 +964,13 @@ function SquareMT:addFloor(sprite)
     local f = SIM.object(sprite)
     f.isFloor = true
     f.square = self
+    -- The map has the floor now; the physics engine hears about it later.
+    -- RecalcProperties only *flags* the chunk level (IsoChunk.checkPhysicsLater
+    -- sets physicsCheck), and Bullet asks for the level when it next steps
+    -- (Bullet.updatePhysicsForLevelIfNeeded). A body let go onto a floor in
+    -- the same tick it was laid falls through it here, as it can in game --
+    -- which is the climb that tipped her over and left her stuck.
+    f.physicalAt = (SIM.physicsTick or 0) + (SIM.floorPhysicsLag or 3)
     table.insert(self.objects, 1, f)
     if isServer() then
         py_replicate("floor", { x = self.x, y = self.y, z = self.z, sprite = sprite })
@@ -1023,7 +1041,16 @@ function SquareMT:transmitRemoveItemFromSquare(o)
 end
 
 function SquareMT:RemoveTileObjectErosionNoRecalc(o)
-    if isClient() then SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1 end
+    -- Taking the sky plane back up is the other half of the one world edit a
+    -- client may make (addFloor above), with the same two conditions: this
+    -- sprite, and above the ground. Anything else a client removes is a world
+    -- edit and counts.
+    local skyLift = o and o.spriteName == "invisible_01_0" and (self.z or 0) > 0
+    if skyLift then
+        SIM.skyLift = (SIM.skyLift or 0) + 1
+    elseif isClient() then
+        SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1
+    end
     for i, v in ipairs(self.worldObjects) do
         if v == o then table.remove(self.worldObjects, i) return 0 end
     end
@@ -1197,6 +1224,53 @@ function cell:removeLamppost(light)
     SIM.lampsLive = SIM.lampsLive - 1
 end
 function getCell() return cell end
+
+---------------------------------------------------------------------------
+-- Ground markers (getWorldMarkers)
+---------------------------------------------------------------------------
+-- Drawn per machine and never synced, like the engine's. The list is kept
+-- so a test can ask where a client is drawing and how many are alive.
+SIM.markers = {}
+local MarkerMT = {}
+MarkerMT.__index = MarkerMT
+function MarkerMT:remove() self.removed = true end
+function MarkerMT:isRemoved() return self.removed == true end
+function MarkerMT:setAlpha(a) self.alpha = a end
+function MarkerMT:setA(a) self.a = a end
+function MarkerMT:getAlpha() return self.alpha or 1 end
+function MarkerMT:setPosAndSize(x, y, z, size)
+    self.x, self.y, self.z, self.size = x, y, z, size
+end
+function MarkerMT:setPos(x, y, z) self.x, self.y, self.z = x, y, z end
+function MarkerMT:getX() return self.x end
+function MarkerMT:getY() return self.y end
+function MarkerMT:getZ() return self.z end
+function MarkerMT:getSize() return self.size end
+
+local worldMarkers = {}
+function worldMarkers:addGridSquareMarker(tex, overlay, sq, r, g, b, doAlpha, size)
+    if isServer() then error("a server drew a ground marker") end
+    if type(tex) ~= "string" then
+        -- The six-argument overload: (square, r, g, b, doAlpha, size).
+        sq, r, g, b, doAlpha, size = tex, overlay, sq, r, g, b
+        tex, overlay = "circle_center", "circle_only_highlight"
+    end
+    local m = setmetatable({ texture = tex, overlay = overlay,
+                             x = sq.x, y = sq.y, z = sq.z, size = size,
+                             r = r, g = g, b = b }, MarkerMT)
+    table.insert(SIM.markers, m)
+    return m
+end
+function getWorldMarkers() return worldMarkers end
+
+--- The markers still standing.
+function SIM.liveMarkers()
+    local out = {}
+    for _, m in ipairs(SIM.markers) do
+        if not m.removed then table.insert(out, m) end
+    end
+    return out
+end
 -- The playable world's bounds, as the engine answers them. `isValidChunk` is
 -- what vanilla's own map asks before it will offer to teleport you somewhere
 -- (ISWorldMap.lua:941), and it takes **world squares divided by ten**, which
@@ -1299,11 +1373,25 @@ function VehicleMT:getCharacter(seat) return self.seats[seat] end
 -- plane sees the ship on the deck, exactly as the engine would show it.
 local LEVEL_UNITS = 2.4494900703430176
 
-local function floorUnder(v, level)
+-- `physical` asks the physics engine's question rather than the map's: is
+-- there a floor it has actually heard about, at a level it will hold? A level
+-- in SIM.physicsRefuse never holds anything, which is how a test makes the
+-- engine refuse a height outright.
+local function floorUnder(v, level, physical)
     if level <= 0 then return true end
     local function at(l)
+        if l <= 0 then return true end
         local sq = squares[key(math.floor(v.x), math.floor(v.y), l)]
-        return sq ~= nil and sq:getFloor() ~= nil
+        local f = sq ~= nil and sq:getFloor() or nil
+        if not f then return false end
+        if not physical then return true end
+        if SIM.physicsRefuse and SIM.physicsRefuse[l] then return false end
+        return (f.physicalAt or 0) <= (SIM.physicsTick or 0)
+    end
+    if physical then
+        -- The body rests on the floor of the band it is in; the one below it
+        -- is a level down and holds nothing up.
+        return at(level)
     end
     return at(level) or at(level - 1)
 end
@@ -1323,11 +1411,27 @@ end
 --- be -- once, in game, inside a building. A test that only reads the derived
 --- z sees the height restored on the next tick and reports success.
 function SIM.vehicleGravity()
+    SIM.physicsTick = (SIM.physicsTick or 0) + 1
     for _, v in ipairs(SIM.vehicles or {}) do
         local y = v.bulletY or 0
         if not v.removed and y > 0 then
             local level = math.floor(y / LEVEL_UNITS + 0.05)
-            if not floorUnder(v, level) then
+            -- Every placement is recorded, so a test can read the whole path
+            -- she took rather than where she ended up.
+            if SIM.trackPath then
+                -- The lowest level above her body with one of our floors
+                -- under her centre: a floor above a moving body is a shelf
+                -- in the physics engine, and running into one tips her.
+                local above = nil
+                for l = level + 1, 10 do
+                    local sq = squares[key(math.floor(v.x), math.floor(v.y), l)]
+                    local f = sq and sq:getFloor()
+                    if f and f.spriteName == "invisible_01_0" then above = l break end
+                end
+                table.insert(SIM.path, { y = y, z = v:getZ(), x = v.x, vy = v.y,
+                                         band = level, above = above })
+            end
+            if not floorUnder(v, level, true) then
                 v.bulletY = math.max(0, y - LEVEL_UNITS * 0.34)
             end
             -- The lowest she ever sagged to, recorded here rather than sampled
@@ -1354,6 +1458,7 @@ end
 function VehicleMT:setWorldTransform(t)
     local o = t:getOrigin()
     self.bulletY = o:y()
+    SIM.transformCalls = (SIM.transformCalls or 0) + 1
     -- A client moving the world's ship is not the same as a client building
     -- in the world, but it is still worth counting separately so a test can
     -- assert that only the driver's machine ever did it.
@@ -1592,6 +1697,28 @@ function addVehicleDebug(script, dir, skin, sq)
         py_replicate("vehicle", { x = sq.x, y = sq.y, z = sq.z, script = script, simId = v.simId })
     end
     return v
+end
+
+--- The vehicle physics this machine owns, as "simId=bulletY;..." -- what a
+--- VehiclePhysicsPacket carries out of the driver's machine. The server relays
+--- it without looking (it runs no vehicle physics), and every other machine's
+--- copy takes the height, which is how a crewman on another machine sees her
+--- rise. Only a client can own a vehicle's physics; single player has nobody
+--- to tell.
+function SIM.ownedBodies()
+    if SIM_ROLE ~= "client" then return "" end
+    local out = {}
+    for _, v in ipairs(SIM.vehicles or {}) do
+        if not v.removed and v:isLocalPhysicSim() then
+            table.insert(out, tostring(v.simId) .. "=" .. tostring(v.bulletY or 0))
+        end
+    end
+    return table.concat(out, ";")
+end
+
+function SIM.applyBody(simId, y)
+    local v = SIM.findVehicle(simId)
+    if v and not v:isLocalPhysicSim() then v.bulletY = y end
 end
 
 --- Test helper: a vehicle driven somewhere, optionally pointing a new way.

@@ -17,27 +17,50 @@ car. From the driver's seat, **V** opens the radial menu:
 
 | | |
 |---|---|
-| **Take her up** | She lifts to level 1 and hovers there |
-| **Set her down below** | The existing footprint check, then down |
+| **Take her up** | She rises, smoothly, to the hover height and holds there |
+| **Set her down below** | The existing footprint check, then she sinks to the ground |
 | **Go aboard (cabin)** | Through to the interior, on the ground or in the air |
 
 Then you **drive**. W/A/S/D, the stick, the seat chart, the mechanics screen —
 all of it is vanilla's, untouched. The helm inside sets the top speed.
 
 **Flight is a binary: she is on the ground, or she is hovering.** There is one
-altitude, `C.FlightLevel`, and there is no climb, no dive and no `setAltitude`
-command for them to send. It was four levels with a cruise of 3 and *Climb* and
-*Dive* on the radial; in play only the ground and level 1 ever behaved, so
-three of the four rungs were an offer the ship could not keep.
+altitude, `C.flightLevel()`, and there is no climb, no dive and no
+`setAltitude` command for them to send. What changed on 2026-09-24 is *which*
+altitude: it is the sandbox option **Hover height** (2, 3, 4, 5, 6 or 8
+storeys; default 5), because at level 1 a two-storey building has walls at her
+own level and she drives into it like a car.
 
-Level 1 is also the one altitude the engine is *structurally* willing to hold,
-which is worth knowing before anybody raises it again. `BaseVehicle.update()`
-accepts a height when there is a floor at the level **or the one below** — and
-one below level 1 is Kentucky, so the ground itself satisfies the floor half of
-the test and the sky plane only has to make the square at level 1 exist. At
-level 2 and above the plane is the only thing holding her up, and every square
-of it has to have been laid, and stay laid, before the engine will keep her
-there.
+Her **shadow** lies on the ground under her the whole time she is off it — a
+soft dark disc on the square she would be set down on, which makes it the
+landing marker as well (section 2.3). Anything taller than her hover height is
+a wall at her level: the **obstacle guard** slows her to a crawl short of it and
+says so, rather than letting her fly into it (section 2.4).
+
+### Why level 1 was the only one that worked, and why that was the climb
+
+It was four levels with a cruise of 3 and *Climb* and *Dive* on the radial, and
+in play only the ground and level 1 behaved. The report of what a climb looked
+like is the diagnosis:
+
+> initial take her up works. Take her up again and she is stuck and all of a
+> sudden becomes a physics object and seems to just instantly tip and fall over
+> or backwards back down to the previous plane, then was stuck
+
+1. *Take her up again* laid a plane at level 2 and **teleported** her onto it
+   in the same tick. The map had the floor; the physics engine had not heard of
+   it yet — a floor reaches Bullet a beat later (`RecalcProperties` →
+   `IsoChunk.checkPhysicsLater` flags the level, and Bullet asks for it on its
+   next step through `updatePhysicsForLevelIfNeeded`).
+2. With nothing under her in the physics she fell — "becomes a physics object"
+   — onto the level-1 plane, which was deliberately still there, and tipped.
+3. The old `serviceFlight` then saw z 1 against a recorded level of 2, found a
+   floor at level 2 in the *map*, and teleported her up again. Every tick.
+   A teleport zeroes a body's velocity, so she could not move: "stuck".
+
+Level 1 survived that only because it was reached from the ground, where the
+fall is nothing. So the fix is not a lower ceiling. It is: **never let go onto a
+floor the physics may not have**, and **never retry every tick**. Section 2.1.
 
 ### Getting out of her
 
@@ -141,13 +164,92 @@ The floor holds her up whether or not anybody is flying her, which is what lets
 the crew go aft to the cabin and come back, and what removes the entire class
 of bug that killed the 1.1 flight, where flight outlived its pilot.
 
+### 2.1 Getting there: carried, held, let go, watched
+
+Take-off and landing are **moves**, not teleports (`TREK_Flight`'s
+`startMove` / `serviceMove`). Every tick her physics body is placed a little
+higher (or lower), eased at both ends, directly above the square she started
+on. The renderer draws a vehicle at its *physics* height, not at its whole
+level — `ModelSlotRenderData.init`, bci 101-139, subtracts the level's base
+from `origin.y` and draws the remainder — so a smooth body is a smooth picture.
+2 levels a second, never quicker than 0.9 s.
+
+On the way, **one square of floor rides one level under her** (`Sky.column`).
+`BaseVehicle.update()` keeps a level only with a floor at it or the level
+below, so without the column she would be drawn and collided at z 0 for the
+second she spends between the ground and the plane. It is always *below* the
+band she is in and never above: a floor that appears above a rising body is a
+shelf in the physics engine, and running into one is what flips a vehicle. For
+the same reason the plane at her flight level is laid only once she is **above**
+it.
+
+At the top she is **held** — placed every tick — while the plane is laid under
+her and for `C.FlightSettleMs` after it is complete, so the physics engine has
+heard of it. Then she is **let go** and **watched** for `C.FlightWatchMs`. The
+column comes up as she is let go: one square under a hull three wide is a pivot,
+not a support, and if the plane is not holding her she must be seen to sink
+rather than be caught on it and read as holding. If she sinks more than
+`C.FlightSinkTolerance` levels, or the engine's z is not her level, she is
+carried back and held for longer — `C.FlightSettleAttempts` times, then she is
+**brought back down** to the ground with *she cannot go up* and a WARN. Only
+when the engine has held her does the client tell the server `airborne`.
+
+Landing is the same in reverse: the column is laid one level under her, the
+plane is lifted, and she sinks past floors that are no longer there.
+
+### 2.2 Falling off the level in flight
+
+If the engine lets her drop off her level in flight — a chunk streaming late,
+a knock — she is carried back up by one move, at most once every
+`C.FlightRecoverMs` and at most `C.FlightRecoverLimit` times a flight. After
+that she is left alone and the pilot is told *she cannot hold this height —
+set her down*. A recovery is one try and never carries her down: the server
+has her recorded as flying, and only the pilot ends a flight.
+
+### 2.3 The shadow
+
+A soft black disc on the ground under her centre square — exactly the square
+`F.land` hands the footprint check, so the shadow *is* where she would come
+down. `TREK_Shadow.lua`. Three things decided how it is drawn:
+
+- **Vanilla's ground markers** (`getWorldMarkers():addGridSquareMarker`, the
+  tutorial's call at `client/Tutorial/Steps.lua:55`, no debug gate). Build 42
+  draws them level by level — `FBORenderWorldMarkers.render(level, list)` draws
+  a marker with the level it stands on — so a marker on the ground is seen by a
+  pilot five levels up. They blend normally (`SRC_ALPHA, ONE_MINUS_SRC_ALPHA`)
+  with a depth test, so black darkens and a building in front hides it.
+- **Not an iso marker carrying a model**, which could have been any shape.
+  `IsoMarkers.renderIsoMarkers` draws those only on the viewer's own level
+  (bci 149-163): the pilot would never have seen it.
+- **Not the vanilla vehicle shadow.** `BaseVehicle.renderShadow` draws at
+  `fastfloor(getZ())` — at altitude that is the sky plane directly under the
+  hull, not the ground. It is probably the "small black box" seen at level 1.
+
+The renderer accepts one texture for these, `circle_center`, and it is a *ring*
+— clear in the middle. So the disc is `C.ShadowRings` rings nested inside each
+other, which fills it in. It moves a whole square at a time (markers take
+integer positions), and it is round, not hull-shaped. Every client draws its own
+from the vehicle it can see; nothing is placed in the world or synced.
+
+### 2.4 The obstacle guard
+
+Anything as tall as her hover height has walls at her level. Every tick the
+physics owner reads the squares ahead of her, the way she is actually moving,
+across her beam, at her flight level — `collideN`/`collideW` walls and anything
+solid, the test vanilla's own builder uses (`ISBuildingObject.lua:309`) — and
+brings her top speed down as a wall comes nearer, to `C.GuardCrawl` within
+`C.GuardFrom` squares, with a note to the pilot. Turned away, she has her speed
+back. **She is never lifted over it**: changing level in flight is the
+manoeuvre that failed, and a tower is a thing to go round.
+
 ---
 
 ## 3. The pieces
 
 ```
-client/TREK/TREK_Sky.lua      lays and lifts the floor; knows nothing about flying
-client/TREK/TREK_Flight.lua   take-off, landing, keeping her level, watching
+client/TREK/TREK_Sky.lua      lays and lifts the floor and the column; knows nothing about flying
+client/TREK/TREK_Flight.lua   the ascent and descent, keeping her level, the obstacle guard
+client/TREK/TREK_Shadow.lua   her shadow on the ground
 server/TREK/TREK_Server.lua   who may fly, and the watchdog that sends her back up
 shared/TREK/TREK_Config.lua   every number below
 ```
@@ -241,8 +343,12 @@ first took the floor out from under her and she fell, once into a building.
 spares it. The climb is gone and the rule is not: the same two-planes moment
 still happens every time she leaves the ground and every time she comes back.
 
-A wrong height is also corrected the moment it is noticed, not on a slow
-cadence — six ticks is a long fall.
+A wrong height used to be corrected the moment it was noticed, by a teleport,
+on the reasoning that six ticks is a long fall. **That is the rule that made
+the climb "stuck"**: when the engine would not hold the height, the correction
+ran every tick for ever and zeroed her velocity each time. A correction is now
+a move, spaced and capped (section 2.2) — a correction that cannot succeed
+must be allowed to stop.
 
 ### A watchdog gated on a loaded chunk never sees the case it exists for
 
@@ -440,8 +546,16 @@ All in `TREK_Config.lua`.
 | `SkyTrailMargin` | 0 | lift the moment she is not over it |
 | `SkyTilesPerTick` | 96 | sliced, like the landing search |
 | `SkyCleanRadius` / `SkyCleanStride` | 32 / 20 | the hunt for older flights' litter |
-| `SkyLitterTop` | 4 | levels the litter sweep walks — **not** the ceiling |
-| `FlightLevel` | 1 | the one altitude there is |
+| `SkyLitterTop` | 8 | levels the litter sweep walks — the highest any setting flies, **not** the one in force |
+| `FlightLevel` | 5 | the default hover height; `C.flightLevel()` reads the sandbox's `FlightHeight` |
+| `FlightLevels` | 2, 3, 4, 5, 6, 8 | the sandbox option's choices, as z levels |
+| `FlightClimbLevelsPerSecond` / `FlightClimbMinMs` | 2 / 900 | how fast she is carried up and down |
+| `FlightSettleMs` | 600 | held at the top after the plane is complete, per attempt |
+| `FlightWatchMs` / `FlightSinkTolerance` | 900 / 0.3 | watched after letting go; how far she may sink |
+| `FlightSettleAttempts` | 3 | holds at take-off before bringing her back down |
+| `FlightRecoverLimit` / `FlightRecoverMs` | 3 / 1500 | carrying her back to her level in flight, and then stop |
+| `GuardFrom` / `GuardReach` / `GuardPerSquare` / `GuardCrawl` | 3 / 14 / 8 / 5 | the obstacle guard |
+| `ShadowRings` / `ShadowSize` / `ShadowAlpha` | 7 rings / 4.4 / 0.55 | the shadow |
 | `FlightSpeedSteps` | 15…120 | absolute top speeds, each distinguishable |
 | `FlightLevelTolerance` | 20° | past this she is put right, about her own heading |
 | `FlightPilotGrace` | 10 checks | nobody aboard and she goes back up |
@@ -503,13 +617,22 @@ them.
   carries height (`VehiclePhysicsPacket` sends x, y, z and the server relays it
   without validation) and remote clients should re-derive the level from their
   own copy of the plane, but that is still reasoning.
-- **Whether anything above level 1 can be made to work at all.** It was not
-  investigated; the four-level ladder was removed because only two of its rungs
-  ever behaved in play and a control that does nothing is worse than no
-  control. The likely place to look, if it is ever wanted, is section 1: above
-  level 1 the sky plane is the *only* thing holding her up, so every square of
-  it has to be laid and stay laid, and the probe's `peak` line is where that
-  would show.
+- **Whether the engine holds her at level 5.** This is the question the
+  2026-09-24 build exists to answer, and only the game can. The log says it
+  either way: `holding at level 5: lowest ... after letting go, N hold(s)` on
+  success; `she sank to level ...` for each failed hold, and `the engine will
+  not hold her at level 5; bringing her back down` if it never does. If it
+  never does, lower the sandbox **Hover height** to find the highest level
+  that holds, and read section 1 again.
+- **The shadow's look.** Nested rings of a texture drawn for highlights; it
+  may band, and it steps a square at a time. `C.ShadowRings`,
+  `C.ShadowAlpha` and `C.ShadowSize` are the knobs.
+- **Rendering at height.** Every helicopter mod reports the ground or the
+  aircraft going missing at altitude. Level 1 never showed it; level 5 has
+  not been seen.
+- **The guard and roofs.** A building exactly as tall as her hover height has
+  its *roof* at her level. Whether a roof tile stops a vehicle is not settled;
+  the guard slows only for walls and solid objects.
 - **Going back up.** `S.toOrbit` fires when nobody has been aboard for
   `FlightPilotGrace` checks. The grace is what makes a beam survivable — a
   player is briefly in neither the seat nor the cabin while the transporter has
@@ -530,15 +653,23 @@ them.
 
 ## 8. If you change something here
 
-1. `python tests/test_multiplayer.py` — the flight scenarios are in `flight()`
-   and `flight_endings()`.
+1. `python tests/test_multiplayer.py` — the flight scenarios are in `flight()`,
+   `flight_ascent()` (the climb, the hold, the guard, the shadow and the
+   descent, read tick by tick from `SIM.path`), `flight_refused()` (a height the
+   engine will not hold, at take-off and in flight), `flight_two_machines()`
+   (a crewman on the street watching her go up and come down) and
+   `flight_endings()`.
 2. **Break it on purpose and confirm the test fails.** Every guard in section 4
    was mutation-checked, and two of them passed a first run for the wrong
    reason: the simulation was being too kind. If a mutation does not bite, the
    sim is wrong, not the test.
 3. `tests/pz_sim.lua` models the parts of the engine that made these bugs
    possible — the floor-gated z, vehicle gravity, the radial toggle's one-frame
-   delay, stale squares, and the vehicle's orientation as a real quaternion
-   whose Euler decomposition reads 180° past a quarter turn. Keep it honest; it
+   delay, stale squares, the vehicle's orientation as a real quaternion
+   whose Euler decomposition reads 180° past a quarter turn, **a floor that
+   reaches the physics three ticks after it reaches the map** (and
+   `SIM.physicsRefuse`, a level the physics never holds), and **the driver's
+   machine publishing the body's height** to every other client's copy, as
+   `VehiclePhysicsPacket` does. Keep it honest; it
    is the only thing standing between a plausible change and another evening in
    the game.

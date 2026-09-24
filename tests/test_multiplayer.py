@@ -314,6 +314,17 @@ class Net:
                     break
                 self.deliver(self.queue.popleft())
             self.clock += 16
+            # The driver's machine publishes the body; the server relays it.
+            bodies = {}
+            for name, c in self.clients.items():
+                for pair in (c.eval("SIM.ownedBodies()") or "").split(";"):
+                    if pair:
+                        vid, y = pair.split("=")
+                        bodies[vid] = (name, y)
+            for vid, (owner, y) in bodies.items():
+                for name, c in self.clients.items():
+                    if name != owner:
+                        c.run(f"SIM.applyBody({vid}, {y})")
             for rt in self.all():
                 rt.run("SIM.stream(); SIM.gravity(); SIM.vehicleGravity(); SIM.settleUI()")
                 rt.fire("OnTick", 0)
@@ -1230,11 +1241,22 @@ def flight():
     # the world, and a floor is a saved world object. They were still there as
     # a black blotch long after the plane itself was down to 25 squares, so the
     # tidy-up must not consult the record: it has to go and look.
-    lx, ly = ship(rt, "x"), ship(rt, "y")
+    #
+    # On ground the tidy-up has not been over yet: the pilot gets out and
+    # walks forty squares to where an old flight left its floors. (Planted
+    # beside the landing site, they would be on ground this client had already
+    # swept -- the sweep runs as soon as she is down -- and a sweep that
+    # re-walked ground it had just cleared would be walking it for ever.)
+    lx, ly = ship(rt, "x") + 40, ship(rt, "y")
     rt.run(f"""
         for dx = -6, 6 do for dy = -6, 6 do
             SIM.rawSquare({lx} + dx, {ly} + dy, 3):addFloor("invisible_01_0")
         end end
+        local p = SIM.players[1]
+        local v = TREK.Vehicle.ship()
+        if v then v:exit(p) end
+        p.vehicle = nil
+        p.x, p.y, p.z, p.lastZ = {lx} + 0.5, {ly} + 0.5, 0, 0
     """)
     stray = rt.eval(f"""(function()
         local n = 0
@@ -1279,7 +1301,11 @@ def flight():
     # is underneath her, which may be a roof, a pond or a horde. She goes back
     # up, exactly as a recall sends her up from the ground, and the crew call
     # her down again.
-    rt.run(f"SIM.players[1].z, SIM.players[1].lastZ = 0, 0")
+    rt.run(f"""
+        local p = SIM.players[1]
+        p.x, p.y = {lx} - 40 + 2.5, {ly} + 0.5
+        p.z, p.lastZ = 0, 0
+    """)
     net.pump(20)
     seat(rt)
     rt.run(f"TREK.Flight.takeOff({P})")
@@ -1342,6 +1368,403 @@ def flight():
     print("flight: take-off, the sky plane, levelling her off without losing "
           "her heading, the shut hatch, the pilot going aft, the landing, the "
           "beam that sends her back up and the tidy-up all checked")
+
+
+# ---------------------------------------------------------------------------
+# Climbing to the flight level, and coming back down
+# ---------------------------------------------------------------------------
+LU = 2.4494900703430176
+
+
+def path(rt):
+    """The body's heights, tick by tick, since SIM.trackPath was switched on."""
+    return rt.eval("""(function()
+        local out = {}
+        for _, e in ipairs(SIM.path or {}) do
+            table.insert(out, string.format("%.4f,%d,%d,%s", e.y, e.z, e.band,
+                                            tostring(e.above or "-")))
+        end
+        return table.concat(out, ";")
+    end)()""") or ""
+
+
+def samples(rt):
+    out = []
+    for e in (path(rt).split(";") if path(rt) else []):
+        y, z, band, above = e.split(",")
+        out.append((float(y) / LU, int(z), int(band),
+                    None if above == "-" else int(above)))
+    return out
+
+
+def body_level(rt):
+    return rt.eval("(TREK.Vehicle.ship() and TREK.Vehicle.ship():getBulletY() or 0)") / LU
+
+
+def markers(rt):
+    return rt.eval("""(function()
+        local out = {}
+        for _, m in ipairs(SIM.liveMarkers()) do
+            table.insert(out, string.format("%d,%d,%d,%s,%s", m.x, m.y, m.z,
+                                            tostring(m.texture), tostring(m.r)))
+        end
+        return table.concat(out, ";")
+    end)()""") or ""
+
+
+def check_travel(label, got, going_up):
+    """What every ascent and descent has to be: smooth, one way, honest about
+    its level on the way, and never passing a floor laid above her."""
+    check(len(got) > 20,
+          f"{label}: only {len(got)} ticks of movement -- she is being "
+          f"teleported, not carried")
+    worst = 0.0
+    backwards = 0
+    for (a, _, _, _), (b, _, _, _) in zip(got, got[1:]):
+        step = b - a
+        worst = max(worst, abs(step))
+        if (going_up and step < -0.02) or (not going_up and step > 0.02):
+            backwards += 1
+    check(worst <= 0.2,
+          f"{label}: she jumped {worst:.2f} levels in one tick; the crew see "
+          f"a teleport, not a climb")
+    check(backwards == 0,
+          f"{label}: she went the wrong way {backwards} time(s) on the way "
+          f"{'up' if going_up else 'down'} -- something let her fall")
+    wrong_z = [(lvl, z, band) for lvl, z, band, _ in got if band >= 1 and z != band]
+    check(not wrong_z,
+          f"{label}: {len(wrong_z)} tick(s) in the air with the engine's z "
+          f"not her level (first: body level {wrong_z[0][0]:.2f}, z {wrong_z[0][1]}) "
+          f"-- drawn and collided on the ground while she is in the air"
+          if wrong_z else "")
+    shelves = [(lvl, above) for lvl, _, _, above in got if above is not None]
+    check(not shelves,
+          f"{label}: a floor of ours stood above her body {len(shelves)} "
+          f"time(s) (first: body {shelves[0][0]:.2f}, floor at level "
+          f"{shelves[0][1]}) -- a shelf in the physics engine, which is what "
+          f"tipped her over" if shelves else "")
+
+
+def flight_ascent():
+    """Take-off to the one flight level, and the landing, as the crew see them.
+
+    The climb that failed in game lifted her in one teleport onto a floor the
+    physics engine had not been told about yet; she tipped back onto the level
+    below and the re-lift then held her there every tick. The simulation's
+    floors now reach its physics three ticks after they reach the map, so a
+    let-go that does not wait for them sinks here as it did there.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    check(ship(rt, "landed") is True, "ascent: the ship would not land to start with")
+    seat(rt)
+    L = rt.eval("TREK.Config.flightLevel()")
+    rings = rt.eval("#TREK.Config.ShadowRings")
+
+    check(markers(rt) == "", "ascent: a shadow is drawn under a ship on the ground")
+
+    # --- up -------------------------------------------------------------------
+    rt.run("SIM.trackPath = true; SIM.path = {}")
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(60)
+    # Part way up: the shadow is already on the ground under her, which is the
+    # whole point of it -- where she would come down, while she is going up.
+    mid = body_level(rt)
+    check(0.5 < mid < L,
+          f"ascent: a second in, her body is at level {mid:.2f}; she should be "
+          f"on her way up")
+    vx, vy = rt.eval("math.floor(TREK.Vehicle.ship():getX())"), \
+        rt.eval("math.floor(TREK.Vehicle.ship():getY())")
+    got = [m.split(",") for m in markers(rt).split(";") if m]
+    check(len(got) == rings,
+          f"ascent: {len(got)} shadow ring(s) drawn part way up, not {rings}")
+    check(all(int(m[0]) == vx and int(m[1]) == vy and int(m[2]) == 0 for m in got),
+          f"ascent: the shadow is at {got[:1]}, not on the ground at {vx},{vy},0 "
+          f"-- the square she would be set down on")
+    check(all(m[3] == "circle_center" and float(m[4]) == 0 for m in got),
+          f"ascent: the shadow rings are {got[:1]}: the renderer draws only "
+          f"circle_center, and a shadow has to be black")
+    # Tick by tick to the top: whenever she has been let go, the column must
+    # already be gone. One square under a hull three wide is a pivot, not a
+    # support -- caught on it she reads as holding, and in game she tips.
+    pivots = 0
+    for _ in range(340):
+        net.pump(1)
+        if rt.eval("TREK.Flight.movePhase()") == "watch" and rt.eval("TREK.Sky.columnHeld()"):
+            pivots += 1
+    check(pivots == 0,
+          f"ascent: she was let go with the column still under her for {pivots} "
+          f"tick(s) -- one square under a hull three wide is a pivot")
+    up = [e for e in samples(rt)]
+    check(ship(rt, "flying") is True, "ascent: she never got up")
+    check(vehicle_z(rt) == L, f"ascent: the engine has her at z {vehicle_z(rt)}, not {L}")
+    top = next((i for i, e in enumerate(up) if e[0] >= L), None)
+    check(top is not None, "ascent: her body never reached the flight level")
+    if top is not None:
+        check_travel("ascent", up[:top + 1], True)
+        after = [e[0] for e in up[top:]]
+        low = min(after) if after else L
+        check(low >= L - 0.02,
+              f"ascent: she sank to level {low:.2f} after reaching {L} -- let "
+              f"go onto a floor the physics had not heard of yet, which is the "
+              f"tip-and-fall the climb used to produce")
+    check(rt.eval("TREK.Sky.columnHeld()") is False,
+          "ascent: the column that carried her up is still standing under her")
+    check(rt.eval("TREK.Flight.moving()") is False, "ascent: the move never finished")
+
+    # --- the obstacle guard ------------------------------------------------
+    # A wall at her own level, ahead of her. She is slowed to a crawl short of
+    # it, told why, and given her speed back the moment she turns away.
+    vid = ship_vehicle(rt)
+    x0 = rt.eval("TREK.Vehicle.ship():getX()")
+    y0 = rt.eval("TREK.Vehicle.ship():getY()")
+    wx = int(x0) + 12
+    rt.run(f"for dy = -3, 3 do SIM.rawSquare({wx}, {int(y0)} + dy, {L}).wallW = true end")
+    top_speed = rt.eval("TREK.Flight.speed()")
+    rt.run("SIM.notes = {}")
+    x = x0
+    for _ in range(12):
+        x += 0.5
+        rt.run(f"SIM.driveVehicle({vid}, {x}, {y0})")
+        net.pump(1)
+    near = rt.eval("TREK.Vehicle.ship():getMaxSpeed()")
+    check(near < top_speed,
+          f"ascent: flying at a wall {wx - x:.1f} squares ahead at her own level, "
+          f"her top speed is still {near}")
+    check(any("IGUI_TREK_WallAhead" in n for n in rt.notes()),
+          "ascent: the guard slowed her and did not say why")
+    for _ in range(8):
+        x += 0.5
+        rt.run(f"SIM.driveVehicle({vid}, {x}, {y0})")
+        net.pump(1)
+    close = rt.eval("TREK.Vehicle.ship():getMaxSpeed()")
+    check(close <= rt.eval("TREK.Config.GuardCrawl") + 8,
+          f"ascent: {wx - x:.1f} squares from a wall she may still do {close}")
+    for _ in range(6):
+        x -= 0.5
+        rt.run(f"SIM.driveVehicle({vid}, {x}, {y0})")
+        net.pump(1)
+    check(rt.eval("TREK.Vehicle.ship():getMaxSpeed()") == top_speed,
+          f"ascent: turned away from the wall, her top speed is still "
+          f"{rt.eval('TREK.Vehicle.ship():getMaxSpeed()')}, not {top_speed}")
+    # Walls below her level are what she flies over: no slowing for those.
+    rt.run(f"for dy = -3, 3 do SIM.rawSquare({wx}, {int(y0)} + dy, {L}).wallW = nil "
+           f"SIM.rawSquare({wx}, {int(y0)} + dy, {L - 1}).wallW = true end")
+    for _ in range(8):
+        x += 0.5
+        rt.run(f"SIM.driveVehicle({vid}, {x}, {y0})")
+        net.pump(1)
+    check(rt.eval("TREK.Vehicle.ship():getMaxSpeed()") == top_speed,
+          "ascent: she was slowed for a building shorter than her flight level")
+    check(vehicle_z(rt) == L, f"ascent: the guard cost her height (z {vehicle_z(rt)})")
+
+    # Somewhere else entirely before coming down: thirty squares south, well
+    # past the stride at which the litter sweep looks at fresh ground -- the
+    # sweep that must not run while she is being carried down, because the
+    # column under her is exactly the kind of floor it hunts.
+    for _ in range(60):
+        y0 += 0.5
+        rt.run(f"SIM.driveVehicle({vid}, {x}, {y0})")
+        net.pump(1)
+    vx, vy = int(x), int(y0)
+    got = [m.split(",") for m in markers(rt).split(";") if m]
+    check(len(got) == rings and all(int(m[0]) == vx and int(m[1]) == vy
+                                    and int(m[2]) == 0 for m in got),
+          f"ascent: flown to {vx},{vy}, her shadow is at {got[:1]} -- it has to "
+          f"follow her, on the ground")
+
+    # --- down -----------------------------------------------------------------
+    rt.run("SIM.path = {}")
+    rt.run(f"TREK.Flight.land({P})")
+    net.pump(260)
+    down = samples(rt)
+    check(ship(rt, "landed") is True and ship(rt, "flying") is None,
+          "descent: she did not come down")
+    check(body_level(rt) < 0.2,
+          f"descent: her body is at level {body_level(rt):.2f}, not on the ground")
+    if down:
+        check_travel("descent", [e for e in down if e[0] > 0.12], False)
+    check(rt.eval("TREK.Sky.count()") == 0 and rt.eval("TREK.Sky.columnHeld()") is False,
+          "descent: floors left standing in the sky after she landed")
+    check(markers(rt) == "", "descent: the shadow outlived the flight")
+    check(any("IGUI_TREK_Landed" in n for n in rt.notes()),
+          "descent: nobody was told she had landed")
+    check(ship(rt, "z") == 0, f"descent: the ground she stands on is recorded as {ship(rt, 'z')}")
+
+    for w in rt.warnings():
+        fail(f"ascent: {w}")
+    print(f"ascent: she is carried up to level {L} and down again a little at a "
+          f"time, never past a floor above her, held until the physics has the "
+          f"plane, with a shadow on the ground under her and a guard that slows "
+          f"her short of a wall at her own height")
+
+
+def flight_refused():
+    """The engine will not hold her height: the take-off gives up and brings
+    her down, and in flight she is carried back only so many times -- not
+    teleported upward every tick for ever, which was "stuck"."""
+    P = "SIM.players[1]"
+
+    # --- at take-off ------------------------------------------------------
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    seat(rt)
+    L = rt.eval("TREK.Config.flightLevel()")
+    rt.run(f"SIM.physicsRefuse = {{ [{L}] = true }}")
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(1200)
+    check(ship(rt, "flying") is None,
+          "refused: the state says she is flying on a height the engine never held")
+    check(body_level(rt) < 0.2,
+          f"refused: she was left at level {body_level(rt):.2f} instead of being "
+          f"brought back down")
+    check(rt.eval("TREK.Flight.moving()") is False,
+          "refused: the take-off never stopped trying")
+    check(rt.eval("TREK.Sky.count()") == 0 and rt.eval("TREK.Sky.columnHeld()") is False,
+          "refused: the floors of a failed take-off were left in the sky")
+    check(any("IGUI_TREK_NoLift" in n for n in rt.notes()),
+          "refused: the pilot was not told she could not go up")
+    warns = rt.warnings()
+    check(any("will not hold her" in str(w) for w in warns),
+          "refused: the log does not say the engine refused the height")
+    for w in warns:
+        if "sank to level" not in str(w) and "will not hold her" not in str(w):
+            fail(f"refused: {w}")
+
+    # --- a storey under her is not her level ------------------------------
+    # She takes off beside a building one storey lower than her hover height,
+    # the plane will not hold, and she sinks onto its top floor: a fraction of
+    # a level down, and the engine's z now says the storey, not her level.
+    # Measured by height alone that is "holding".
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    seat(rt)
+    rt.run(f"""
+        SIM.physicsRefuse = {{ [{L}] = true }}
+        local v = TREK.Vehicle.ship()
+        SIM.rawSquare(math.floor(v:getX()), math.floor(v:getY()), {L - 1})
+            :addFloor("floors_interior_tilesandwood_01_1")
+    """)
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(1200)
+    check(ship(rt, "flying") is None,
+          "refused: she came to rest on a storey below her level and was "
+          "recorded as flying at it")
+    for w in rt.warnings():
+        if "sank to level" not in str(w) and "will not hold her" not in str(w):
+            fail(f"refused (storey): {w}")
+
+    # --- in flight ----------------------------------------------------------
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    seat(rt)
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+    check(ship(rt, "flying") is True, "refused: she never got up to begin with")
+    rt.run(f"SIM.physicsRefuse = {{ [{L}] = true }}; SIM.notes = {{}}")
+    net.pump(1800)
+    check(any("IGUI_TREK_CannotHold" in n for n in rt.notes()),
+          "refused: she keeps falling off her level and the pilot was never "
+          "told to set her down")
+    before = rt.eval("SIM.transformCalls or 0")
+    net.pump(300)
+    after = rt.eval("SIM.transformCalls or 0")
+    check(after == before,
+          f"refused: {after - before} more placements after giving up -- she is "
+          f"still being held in place, which is the old 'stuck'")
+    # And she can still be set down: the pilot's way out works.
+    rt.run(f"SIM.physicsRefuse = nil; TREK.Flight.land({P})")
+    net.pump(300)
+    check(ship(rt, "landed") is True and ship(rt, "flying") is None,
+          "refused: after giving up on the height she could not be set down")
+    check(rt.eval("TREK.Sky.count()") == 0, "refused: floors left behind after the landing")
+    for w in rt.warnings():
+        if not any(k in str(w) for k in ("sank to level", "keeps falling off")):
+            fail(f"refused (in flight): {w}")
+    print("refused: a height the engine will not hold brings her back down at "
+          "take-off, and in flight she is carried back a few times and then "
+          "left for the pilot to land, not held in place for ever")
+
+
+def flight_two_machines():
+    """A crewman on the street watches her go up and come down: her height
+    reaches his machine by the vehicle's own sync, he draws her shadow himself,
+    and when she lands his own copy of the plane is lifted."""
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    srv.run("SIM.player('alice', 3000.5, 3000.5, 0); SIM.player('bob', 3002.5, 3006.5, 0)")
+    A.run("SIM.player('alice', 3000.5, 3000.5, 0)")
+    B.run("SIM.player('bob', 3002.5, 3006.5, 0)")
+    net.start()
+    net.pump(5)
+    P = "SIM.players[1]"
+    A.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(60)
+    check(ship(srv, "landed") is True, "two machines: she would not land to start with")
+    for rt in (srv, A):
+        rt.run("""
+            local v = TREK.Vehicle.ship()
+            for _, p in ipairs(SIM.players) do
+                if p.name == 'alice' and v then v.seats[0] = p p.vehicle = v end
+            end
+        """)
+    L = srv.eval("TREK.Config.flightLevel()")
+    B.run("SIM.trackPath = true; SIM.path = {}")
+    A.run(f"TREK.Flight.takeOff({P})")
+    net.pump(60)
+    check(B.eval("TREK.Vehicle.ship():getBulletY()") / LU > 0.5,
+          "two machines: a second in, Bob's copy of her has not left the ground "
+          "-- her height is not reaching him")
+    check(len([m for m in markers(B).split(";") if m]) == srv.eval("#TREK.Config.ShadowRings"),
+          "two machines: Bob sees her going up and no shadow under her")
+    net.pump(400)
+    check(ship(srv, "flying") is True, "two machines: she never got up")
+    check(vehicle_z(B) == L, f"two machines: Bob sees her at z {vehicle_z(B)}, not {L}")
+    check(B.eval("TREK.Sky.count()") > 0, "two machines: Bob laid no plane to draw her on")
+    check(B.eval("TREK.Flight.moving()") is False,
+          "two machines: Bob's machine tried to move a ship it does not drive")
+    check(markers(srv) == "", "two machines: the server drew a shadow")
+
+    A.run(f"TREK.Flight.land({P})")
+    net.pump(300)
+    check(ship(srv, "landed") is True and ship(srv, "flying") is None,
+          "two machines: she did not come down")
+    check(B.eval("TREK.Sky.count()") == 0,
+          f"two machines: Bob's machine is still holding {B.eval('TREK.Sky.count()')} "
+          f"squares of invisible floor over the landing site")
+    check(vehicle_z(B) == 0, f"two machines: Bob sees her landed at z {vehicle_z(B)}")
+    check(markers(B) == "", "two machines: Bob still draws a shadow under a landed ship")
+    for name, c in (("alice", A), ("bob", B)):
+        check(c.eval("SIM.clientWorldEdit") is None,
+              f"two machines: {name} edited the world for something other than "
+              f"the sky plane")
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"two machines ({rt.name}): {w}")
+    print("two machines: the pilot's climb and landing reach a crewman's "
+          "machine through the vehicle sync, he draws her shadow himself, and "
+          "his plane comes up when she lands")
 
 
 def flight_alone():
@@ -1467,8 +1890,15 @@ def flight_alone():
     check(any("IGUI_TREK_InFlight" in n for n in r2.notes()),
           "flight alone: the refused recall said nothing")
 
-    # Empty, it is the crew's own way of unsticking her.
-    r2.run("TREK.Vehicle.ship():exit(SIM.players[1])")
+    # Empty, it is the crew's own way of unsticking her. The pilot has left
+    # her the only way there is off a hovering ship -- the transporter -- and
+    # is standing on the ground nearby, not on the invisible floor five levels
+    # up that the recall is about to take away.
+    r2.run("""
+        TREK.Vehicle.ship():exit(SIM.players[1])
+        local p = SIM.players[1]
+        p.x, p.z, p.lastZ = p.x + 8, 0, 0
+    """)
     net2.pump(30)
     r2.run(f"TREK.Menu.onRecall(nil, {P})")
     net2.pump(60)
@@ -2008,7 +2438,21 @@ def multiplayer():
     for rt in net.all():
         rt.run(f"""
             local v = TREK.Vehicle.ship()
-            if v then v.seats[0] = SIM.players[1] SIM.players[1].vehicle = v end
+            -- Alice drives. On Bob's machine he is in the seat behind her:
+            -- only one machine owns a vehicle's physics, and it is the
+            -- driver's. (Both used to sit in seat 0 on their own copies, so
+            -- both machines lifted her and nothing tested whether a crewman
+            -- sees the pilot's ship rise.)
+            -- And the server's copy has both of them where they are, because
+            -- seats are synced: a server that thought Bob was not aboard would
+            -- send her back up from under him the moment Alice was gone.
+            for _, p in ipairs(SIM.players) do
+                local seat = (p.name == "alice") and 0 or 1
+                if v and (SIM_ROLE == "server" or p == SIM.players[1]) then
+                    v.seats[seat] = p
+                    p.vehicle = v
+                end
+            end
         """)
     A.run(f"TREK.Flight.takeOff({P})")
     net.pump(400)
@@ -2085,8 +2529,31 @@ def multiplayer():
         if v then v.seats[0] = nil end
     """)
     net.pump(600)
+    # Bob is still in the seat behind her. Who counts as aboard is everybody,
+    # not the recorded pilot (PILOTING.md, MULTIPLAYER.md): pulling the ship
+    # out from under a living crewman because somebody else died would leave
+    # him in a seat belonging to nothing. This used to assert the opposite and
+    # pass, because the server's copy of the ship never had Bob in it at all.
+    check(ship(srv, "flying") is True,
+          "multiplayer: the pilot died and she was taken out from under the "
+          "crewman still aboard")
+
+    # And the last of the crew gone -- beamed down onto the street -- ends it,
+    # on the server's own initiative, the way it always has.
+    for rt in net.all():
+        rt.run("""
+            local v = TREK.Vehicle.ship()
+            for _, p in ipairs(SIM.players) do
+                if p.name == 'bob' then
+                    if v then v.seats[1] = nil end
+                    p.vehicle = nil
+                    p.x, p.z, p.lastZ = p.x + 30, 0, 0
+                end
+            end
+        """)
+    net.pump(600)
     check(ship(srv, "flying") is None,
-          "multiplayer: flight outlived its pilot on a server")
+          "multiplayer: flight outlived its crew on a server")
     check(ship(srv, "pilot") is None,
           "multiplayer: the dead pilot is still recorded at the controls")
 
@@ -7626,7 +8093,8 @@ def ground_cockpit():
           "option is not offered while she is overhead")
 
 
-SECTIONS = (static, migration, single_player, refit, flight, flight_alone,
+SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
+            flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,

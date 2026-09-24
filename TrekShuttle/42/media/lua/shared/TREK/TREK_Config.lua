@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.4.1"
+C.Version   = "1.5.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -348,15 +348,114 @@ C.SkyMaxTiles = 40000
 --
 -- Level 0 is the ground and is never paved: a floor laid there would be a
 -- floor laid on Kentucky.
-C.FlightLevel = 1
+--
+-- **Revised 2026-09-24: one altitude still, and a higher one.** At level 1 a
+-- two-storey building has walls at her own level and she drives into them. The
+-- climb that made level 2 and up look impossible was the *climb*, not the
+-- height: from the report, "take her up again" lifted her onto a floor the
+-- physics had not been told about yet, she tipped back onto the level below,
+-- and the old re-lift then teleported her upwards every tick with the state
+-- still saying level 2 -- which is "stuck". Take-off now rises straight from
+-- the ground to this level, smoothly, and hovers there until the engine is
+-- actually holding her (TREK_Flight's ascent). Nothing changes level in flight.
+--
+-- The default, and the one the tests fly. The server owner picks the real one
+-- from the sandbox page (C.flightLevel) -- Louisville has towers that no
+-- sensible default clears.
+C.FlightLevel = 5
+
+-- The sandbox option's choices, as z levels. A level clears anything with that
+-- many storeys or fewer: level 5 flies over a five-storey building.
+C.FlightLevels = { 2, 3, 4, 5, 6, 8 }
+
+--- The one altitude, as the server owner set it. Every process reads the same
+--- sandbox value, so the server's check on `airborne` and the pilot's ascent
+--- agree without a packet saying which.
+function C.flightLevel()
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.FlightHeight
+    end)
+    v = ok and tonumber(v) or nil
+    return (v and C.FlightLevels[math.floor(v)]) or C.FlightLevel
+end
 
 -- How high the tidy-up hunts for invisible floors left behind, in levels.
--- Deliberately *not* C.FlightLevel: builds up to 1.3.0 flew as high as level 4,
--- a floor is a saved world object, and the litter those flights left in
--- somebody's world does not disappear because the ceiling came down.
-C.SkyLitterTop = 4
+-- Deliberately *not* the flight level: a floor is a saved world object, and
+-- the litter a flight left in somebody's world does not disappear because a
+-- server owner lowered the ceiling afterwards. So it is the highest level any
+-- setting can fly at, not the one in force.
+C.SkyLitterTop = 8
 
--- Ticks to wait for the engine to accept a level before giving up on the lift.
+-- The ascent and the descent. She is carried between the ground and her
+-- flight level by moving the physics body a little every tick, eased at both
+-- ends, rather than by one teleport -- so the crew see her rise and settle,
+-- and so no floor is ever put *above* her while she passes it.
+--
+-- The renderer draws a vehicle at its physics height, not at its whole level
+-- (ModelSlotRenderData.init, bci 101-139: centerOfMassY is origin.y minus the
+-- level's own base), so a smooth change in the body is a smooth change on
+-- screen.
+C.FlightClimbLevelsPerSecond = 2
+C.FlightClimbMinMs = 900
+
+-- At the top she is held where she is, by the same per-tick placement, until
+-- the plane under her is complete and this long has passed: a floor reaches
+-- the physics engine a beat after it reaches the map (RecalcProperties ->
+-- IsoChunk.checkPhysicsLater, and Bullet asks for the level when it next
+-- steps). Letting go onto a floor the physics has not heard of yet is exactly
+-- the tip-and-fall the climb used to produce.
+C.FlightSettleMs = 600
+
+-- After letting go, how long to watch that she stays up, and how far she may
+-- sink (in levels) before that counts as the engine refusing the height.
+C.FlightWatchMs = 900
+C.FlightSinkTolerance = 0.3
+
+-- Holds to try before giving up on the height and bringing her back down.
+C.FlightSettleAttempts = 3
+
+-- In flight, if the engine lets her fall off her level: how many times she is
+-- carried back up, and how long between tries. After that she is left alone
+-- and the pilot is told to set her down, instead of being teleported upward
+-- every tick for ever -- which was the old "stuck".
+C.FlightRecoverLimit = 3
+C.FlightRecoverMs = 1500
+
+-- The obstacle guard (TREK_Flight). Walls at her own level are looked for
+-- from GuardFrom squares ahead of her centre -- her nose is two and a half
+-- out -- to GuardReach, the way she is moving, and her top speed is cut by
+-- GuardPerSquare for every square closer a wall is, down to GuardCrawl.
+C.GuardFrom = 3
+C.GuardReach = 14
+C.GuardPerSquare = 8
+C.GuardCrawl = 5
+
+---------------------------------------------------------------------------
+-- Flight: the shadow
+---------------------------------------------------------------------------
+-- A soft dark disc on the ground under her centre square, which is exactly the
+-- square `F.land` sets her down on: the shadow *is* the landing marker.
+--
+-- It is drawn with vanilla's ground markers (getWorldMarkers, the tutorial's
+-- call at client/Tutorial/Steps.lua:55), which draw per level being rendered
+-- -- so a marker on the ground shows while the pilot is five levels up -- and
+-- blend normally with a depth test, so black is a shadow and a building in
+-- front of it hides it. Nothing is placed in the world and nothing is synced;
+-- each client draws its own from the vehicle it can see.
+--
+-- The build 42 renderer accepts exactly one texture for these,
+-- `circle_center`, and it is a ring: transparent in the middle, strongest
+-- towards the rim. So the disc is several rings nested inside each other,
+-- which fills the centre in.
+C.ShadowTexture = "circle_center"
+C.ShadowSize = 4.4            -- the outer ring, in the marker's own units (x0.69 = tiles of radius)
+C.ShadowRings = { 1.0, 0.82, 0.64, 0.48, 0.34, 0.22, 0.12 }
+C.ShadowAlpha = 0.55
+-- Shown once her body is this far above the ground, in levels.
+C.ShadowMinLevels = 0.3
+
+-- Ticks to wait for the sky plane to appear under her before giving up on the
+-- take-off.
 C.FlightLiftTicks = 60
 
 -- Degrees she may be off level before she is put right. She rests on an

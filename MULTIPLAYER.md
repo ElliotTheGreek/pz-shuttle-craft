@@ -385,11 +385,44 @@ height**: a lift that failed must not leave the state saying she is up when she
 is sitting on the grass.
 
 **Flight is a binary**: she is on the ground or she is hovering at
-`C.FlightLevel`, and there is no `setAltitude` on either side. It was four
+`C.flightLevel()`, and there is no `setAltitude` on either side. It was four
 levels with *Climb* and *Dive* on the radial; only two of the four ever behaved
 in play, and the command was removed rather than left as a handler that accepts
-a request and quietly does nothing. `PILOTING.md` section 1 has why level 1 in
-particular is the one the engine will hold.
+a request and quietly does nothing. `PILOTING.md` section 1 has why: it was
+the *climb* that failed, not the height.
+
+**The height is a sandbox option** (`TrekShuttle.FlightHeight`, default 5
+storeys), and no packet says which it is: every process reads the same
+`SandboxVars`, so the server's equality check on `airborne` and the pilot's
+ascent agree by construction.
+
+**The ascent and descent are the physics owner's alone.** The pilot's client
+carries her body up and down a little every tick (`PILOTING.md` 2.1), and
+every other machine sees it through the vehicle's own sync -- the same
+`VehiclePhysicsPacket` that carries her along the road -- and draws her at
+that height, because the renderer draws a vehicle at its physics height. Only
+the pilot's client lays the one-square *column* under her on the way; the
+others have no plane until the state says she is flying, and need none to
+draw her.
+
+**Two windows where she is off the ground and `flying` is not set**: the climb
+before `airborne`, and the descent after `touchdown` has recorded her landed.
+So `serviceVehicle` no longer copies her z into `s.z` whenever she is not
+flying: **the ground under a landed ship only ever moves down**. Letting it
+follow her up would put the hatch, the shields and the beam-down destination
+five levels in the air.
+
+**Every client lifts its own plane when the flight ends by the record.**
+`touchdownGranted` goes to the pilot only; a second machine used to keep its
+plane over the landing site until its player happened to walk twenty squares
+away. `Ship.onChange` now lifts it the moment `flying` goes false.
+
+**The shadow** is each client's own, drawn with the game's ground markers from
+the vehicle it can see, whenever her body is off the ground -- the climb and
+the descent included. Nothing is placed in the world and nothing is sent.
+
+**The obstacle guard** runs on the physics owner, which is the only machine
+whose `setMaxSpeed` moves anything.
 
 **And nobody aboard means she goes back up, not down.** The hatch is shut while
 she hovers, so the only way out of her is the transporter; when the last of the
@@ -626,6 +659,10 @@ it is handed, and from the server's side both look like success.
    two-client scenario says both see her at altitude -- but the engine's own
    half of that (`clientUpdateVehiclePos` writes `setZ(0)` and
    `BaseVehicle.update()` then recomputes it) has only been reasoned about.
+   The simulation now relays the driver's body height to the other copies the
+   way the engine does, which is what makes `flight_two_machines()` able to see
+   the climb from the street at all; whether a real connection carries it as
+   smoothly is the game's to say.
 9. **Flight speed at one helm reaching the pilot at another.** Proven in
    simulation; unproven across a real connection.
 10. **The heading she is flown on, seen from the other machine.** The levelling

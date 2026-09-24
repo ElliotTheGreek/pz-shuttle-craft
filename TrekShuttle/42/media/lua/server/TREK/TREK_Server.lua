@@ -578,9 +578,16 @@ function S.serviceVehicle()
         -- player out onto, what W.hullCovers compares against, what the
         -- shields measure from and what S.land's "already here" check reads.
         -- The altitude is s.level, and only the pilot's client sets it.
+        --
+        -- And `flying` is not the whole of "in the air" any more: she is
+        -- carried up for a couple of seconds before the pilot's client reports
+        -- her airborne, and carried down for a couple after the server has
+        -- recorded her landed. So the ground never moves *up* from here. It
+        -- is set where she lands (S.land, touchdown) and only ever corrected
+        -- downwards -- a ship on the ground has nowhere higher to be.
         if not s.flying then
             local z = math.floor(found:getZ())
-            if z ~= s.z then s.z = z changed = true end
+            if z < (s.z or 0) then s.z = z changed = true end
         end
         if x ~= s.x or y ~= s.y then s.x, s.y = x, y changed = true end
 
@@ -863,9 +870,9 @@ Net.onServer("takeoff", function(player)
         return
     end
     claim(player)
-    Net.toClient(player, "takeoffGranted", { level = C.FlightLevel })
+    Net.toClient(player, "takeoffGranted", { level = C.flightLevel() })
     U.log("%s has the helm; clearing her for level %d",
-          Ship.usernameOf(player), C.FlightLevel)
+          Ship.usernameOf(player), C.flightLevel())
 end)
 
 --- The client got her up and the engine held the height. Only now is the ship
@@ -880,7 +887,7 @@ Net.onServer("airborne", function(player, args)
     -- One altitude, so this is an equality and not a range. A client reporting
     -- any other height is reporting something the ship cannot be doing.
     local level = int(args.level)
-    if level ~= C.FlightLevel then return end
+    if level ~= C.flightLevel() then return end
     s.flying = true
     s.level = level
     s.pilot = Ship.usernameOf(player)
@@ -1185,7 +1192,7 @@ Net.onServer("fireTorpedo", function(player, args)
     -- the same documented exception the sky plane uses -- no client touches
     -- ship state and no client does damage.
     Net.toAll("torpedoLaunched", {
-        x0 = s.x, y0 = s.y, level = s.level or C.FlightLevel,
+        x0 = s.x, y0 = s.y, level = s.level or C.flightLevel(),
         x = x, y = y, z = z,
         ms = flight,
     })

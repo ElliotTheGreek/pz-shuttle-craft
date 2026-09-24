@@ -610,7 +610,26 @@ And a tenth, found in play on 2026-09-24:
    air" when they called her down -- and here nobody ever did.
    `hover_call_down()` reproduces the exact message against the old line.
 
-All ten are fixed, and the rule they share is worth more than any of them:
+And two more, from making the flight level a real height (2026-09-24):
+
+11. **A floor the physics heard about the instant it was laid.** The sim's
+    gravity read the map's floors, so a body let go onto a floor laid that same
+    tick sat on it perfectly -- exactly the case that tipped her over and
+    stranded her in game. Floors now reach the sim's physics three ticks after
+    they reach its map (`physicalAt`), and `SIM.physicsRefuse` makes a level
+    the physics never holds, which is the only way to test a take-off that has
+    to give up.
+12. **A vehicle whose height never left the driver's machine.** Each client's
+    copy kept its own body height, so the two-player test had *both* players
+    sitting in the driver's seat on their own machines and both lifting her --
+    which the engine would never allow. The driver's machine now publishes the
+    body height and the others take it, as `VehiclePhysicsPacket` does, and
+    the server's copy has the crew in the seats they are really in. Getting
+    that right turned up a test asserting the opposite of the design: it
+    expected a dead pilot to bring her down with a living crewman aboard, and
+    had only ever passed because the server never knew he was there.
+
+All twelve are fixed, and the rule they share is worth more than any of them:
 **when a test is easy to satisfy, suspect the simulation before believing the
 code.** `MULTIPLAYER.md` says the same thing about vehicle gravity, the
 floor-gated height and the radial menu's one-frame delay, each of which let a
@@ -1355,6 +1374,30 @@ a round trip, with code for one direction.
 - **A prose claim about a round trip is a check nobody runs.** This one had
   survived two documents and a test suite. `flight_alone()` now goes aft and
   comes forward again.
+
+### A correction that cannot succeed must be allowed to stop
+
+**New in this mod, and it is the whole of the "stuck" climb.** The flight
+loop put a wrong height right the moment it saw one -- a teleport to the
+recorded level, on the reasoning that six ticks of falling is a long way down.
+When the engine would not hold that level, it saw a wrong height every tick,
+and corrected it every tick, for ever. A teleport zeroes a body's velocity, so
+the pilot had a ship that could not move and a log that said nothing was
+wrong.
+
+- **Every self-healing loop needs a budget.** Spaced (`C.FlightRecoverMs`),
+  counted (`C.FlightRecoverLimit`), and when it runs out it *stops* and tells a
+  human -- here, the pilot, who can land her.
+- **A retry is not the same act as the first try.** The take-off may bring her
+  back to the ground when the height will not hold; a recovery in flight, with
+  the server recording her as flying, must never do that. The first draft
+  reused the take-off's routine for both and carried a flying ship to the
+  ground three holds later.
+- **Two guards that cover each other hide from a mutation.** Letting her go
+  onto a pivot (the column) and reading a sunk ship as holding were each
+  caught by the other, so deleting either one broke nothing. That is *A branch
+  a mutation cannot break may be unreachable*, with the other answer: both
+  were reachable, and each needed a test of its own.
 
 ### An offer the ship cannot keep is worse than a smaller offer
 
@@ -2152,6 +2195,10 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **The shuttle "flies" but is drawn on the ground** | Its z is not its physics height. `BaseVehicle.update()` zeroes a vehicle's z every tick and restores the level only where a floor exists under its centre square — so the sky plane is not being laid. `grep "sky plane" console.txt`. See *A vehicle's altitude is a floor, not a height*. |
 | **The shuttle flies and ploughs through fences** | Same cause. Collision resolves at `getZ()`, which is 0 without a floor. |
 | **The shuttle snaps back to one heading and will only fly in reverse** | Something is levelling her off with `flipUpright()`, which is `setAngleAxis(0, Y)` -- the identity, heading and all -- on a test that reads `getAngleX()` as pitch. That getter is 180 for a *level* ship turned more than a quarter turn. See *A getter named for an axis is one corner of a decomposition*. |
+| **"She cannot go up", and she settles back onto the ground** | The engine would not hold her at the hover height: she was carried up, held, let go and sank, three times. The log has `she sank to level ...` per try and `the engine will not hold her at level N`. Lower the sandbox **Hover height**. |
+| **"She cannot hold this height -- set her down"** | In flight, she fell off her level and was carried back `C.FlightRecoverLimit` times. Nothing is held in place after that; land her. |
+| **She stops short of a building and will only crawl towards it** | The obstacle guard: a wall at her own level ahead. Working as designed -- go round it. `obstacle guard:` lines in the log. |
+| **No shadow under her in flight** | `TREK_Shadow` could not make the ground markers (a WARN says so), or her body is not actually off the ground. `shadow: showing under her at` is logged once per flight. |
 | **The radial menu offers Climb or Dive** | Something has grown the altitude ladder back. There is one flight level (`C.FlightLevel`) and no `setAltitude` command; `tests/test_multiplayer.py` fails on either. |
 | **A hovering shuttle nobody can reach: the hatch says "in flight", recall is refused, and calling her down brings her back in hover** | `flying` is stuck true. The watchdog that clears it must run whether or not her chunk is loaded -- see *A guard gated on loaded ground*. A world reload also clears it (`OnInitGlobalModData`). |
 | **A pilot goes aft to the cabin in flight and cannot get back to the cockpit** | The aboard menu's *Forward to the cockpit* is missing or its beam is not being serviced. See *A door with no handle on the inside*. |
@@ -2321,7 +2368,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.4.1**, build revision **28**.
+Version **1.5.0**, build revision **28**.
 
 `modversion` in `mod.info` and `C.Version` in `TREK_Config.lua` are the same
 number, and `tests/test_assets.py` fails if they are not -- they had drifted a
@@ -2746,6 +2793,23 @@ server...*, above). Reading is its own action, applying `ISReadABook`'s
 effects to a book rebuilt in no container, because a real book in the
 reader's hands would be a duplication exploit. Seventeen mutations caught.
 Build revision 28, for the armoury's two PADDs. `PADD.md`. Not yet played.
+
+**The 2026-09-24 flight height** replaces level 1 with a sandbox option,
+**Hover height**, default five storeys, because at level 1 a two-storey
+building is a wall. The user's description of the old climb -- up once fine,
+up again and she "becomes a physics object", tips back to the level below and
+is stuck -- read as a diagnosis: she was teleported onto a floor the physics
+had not heard of yet, fell onto the plane below, and was re-teleported every
+tick after. So take-off and landing are now *moves* (carried a little each
+tick, drawn at her physics height, held at the top until the plane is in the
+physics, let go and watched), a wrong height is corrected a capped number of
+times, a soft shadow on the ground marks where she will land (vanilla's ground
+markers -- the only thing Lua can draw on the ground that a pilot five levels
+up can see), and an obstacle guard slows her short of anything taller.
+`PILOTING.md` sections 1 and 2.1-2.4. Three test sections, two simulation
+holes (11 and 12 above), and a new rule. **Nothing of it has been seen in
+game**: the first question is whether the engine holds her at level 5 at all,
+and the log answers it either way.
 
 **Next up** is `ROADMAP.md`'s step 7: publishing -- or `ROADMAP2.md` 1.6, the
 cold start, if it is to ship with the ensign. Everything else on the roadmap

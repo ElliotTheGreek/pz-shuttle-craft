@@ -123,7 +123,7 @@ T.inFlight = {}
 --- Adds one. Returns it, so the tests can read it back.
 function T.launch(a)
     local t = {
-        x0 = a.x0, y0 = a.y0, level = a.level or C.FlightLevel,
+        x0 = a.x0, y0 = a.y0, level = a.level or C.flightLevel(),
         x = a.x, y = a.y, z = a.z or 0,
         start = getTimestampMs(),
         ms = a.ms or C.TorpedoMinFlightMs,
