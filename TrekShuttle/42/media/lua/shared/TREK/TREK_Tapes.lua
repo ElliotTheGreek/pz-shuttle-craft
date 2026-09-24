@@ -453,6 +453,69 @@ RecMedia["TREK_LogSix"] = {
     },
 }
 
+-- The Cardassian Prisoner
+RecMedia["TREK_Prisoner"] = {
+    itemDisplayName = "RM_TREK_Prisoner_name",
+    title = "RM_TREK_Prisoner_title",
+    subtitle = "RM_TREK_Prisoner_sub",
+    author = "RM_TREK_Prisoner_author",
+    extra = "RM_TREK_Prisoner_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_Prisoner_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_02", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_03", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_04", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_05", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_06", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_07", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_08", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_09", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_10", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_11", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_12", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_13", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_14", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,UHP+1" },
+        { text = "RM_TREK_Prisoner_15", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_16", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_17", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_18", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_19", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_20", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_21", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_22", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_23", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_24", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_25", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_26", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_27", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_28", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_29", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_30", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_31", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_32", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_33", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_34", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_35", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_36", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,UHP+1" },
+        { text = "RM_TREK_Prisoner_37", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_38", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_39", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_40", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_41", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_42", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_43", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_44", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,STS-0.2" },
+        { text = "RM_TREK_Prisoner_45", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_Prisoner_46", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_47", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_48", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Prisoner_49", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1,UHP+1" },
+        { text = "RM_TREK_Prisoner_50", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1,UHP-1" },
+    },
+}
+
 -- The ids the ship is issued with, in shelf order. TREK_Build
 -- reads this to stock the tape shelf, so a tape added above
 -- reaches the shelf without a second list to keep in step.
@@ -465,6 +528,7 @@ TREK_TapeIds = {
     "TREK_LogFour",
     "TREK_LogFive",
     "TREK_LogSix",
+    "TREK_Prisoner",
 }
 
 Events.OnInitRecordedMedia.Add(function(rc)

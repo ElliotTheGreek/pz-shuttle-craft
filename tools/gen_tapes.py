@@ -655,6 +655,98 @@ TAPES = [
             line("card", "END OF LOG"),
         ],
     },
+    {
+        # -------------------------------------------------------------------
+        # The Cardassian Prisoner. One of Shepard's relics rather than one of
+        # her logs -- she collects family histories and this is the best one
+        # she found.
+        #
+        # **The name is held to the last two lines.** He never says it, the
+        # interviewer never says it, and the reveal is an archival slate. The
+        # story has to work without it, and it does: a man does eleven years in
+        # a labour camp, walks two hundred and six people out, and refuses to
+        # steal on the way. The name only tells a Star Trek audience *which*
+        # man, and what it cost him to be the copy.
+        #
+        # The arithmetic, because somebody will check it. Thomas Riker shares
+        # William Riker's birth year, 2335; he is duplicated at Nervala IV in
+        # 2361 and sentenced to a Cardassian labour camp in 2371, aged 36.
+        # Eight years to the solo chance he threw away (44), three more to the
+        # escape (47), two to clear Cardassian space (49) -- and he settles on
+        # Risa at 49, straight off the border, which is where the tape is
+        # recorded. No gap to explain: he stops the moment he is allowed to.
+        # Shepard is watching a fifty-one-year-old recording.
+        #
+        # Risa is the point of the ending and not a throwaway: the most
+        # frivolous planet in the Federation, named by a man who spent eleven
+        # years underground and was offered anywhere in it. He says he is
+        # settling, out loud, because that is the thing the story is for.
+        "id": "TREK_Prisoner",
+        "display": "The Cardassian Prisoner",
+        "title": "The Cardassian Prisoner",
+        "subtitle": "Risan oral history project, tape eleven",
+        "author": "subject interviewed at home; no surname given",
+        "extra": "Fifty-one years old. One line about him in any archive.",
+        "spawning": 0,
+        "lines": [
+            line("card", "RISAN ORAL HISTORY PROJECT -- TAPE ELEVEN"),
+            line("card", "SUBJECT INTERVIEWED AT HOME. NO SURNAME GIVEN."),
+            line("dub", "This is the one. This is why I keep the rack."),
+            line("note", "An old man in a garden. Not in uniform. Never again."),
+            line("solo", "They gave me life. That is the sentence. Life, and a number."),
+            line("solo", "Lazon Two. A mining camp. You will not have heard of it."),
+            line("solo", "I was thirty-six. I thought that was the end of the story."),
+            line("card", "-- THE FIRST EIGHT YEARS --"),
+            line("solo", "You learn the guard rota. Then the ventilation. Then rock."),
+            line("solo", "It took me eight years to find a way out of that place."),
+            line("solo", "One man, one night, a gap in the third shift. I had it."),
+            line("note", "He stops and looks at something off camera for a while."),
+            line("solo", "And then I did the arithmetic on who would be left behind."),
+            line("solo", "Two hundred and six. I knew all their names by then.",
+                 codes="UHP+1"),
+            line("solo", "That is the trouble with eight years. You learn the names."),
+            line("solo", "So I put the plan in a hole in the wall and started again."),
+            line("card", "-- THE NEXT THREE --"),
+            line("solo", "Three more years to build one that everybody walked out of."),
+            line("solo", "I was clever where I could be and worse where I had to be."),
+            line("solo", "Some of what I did in those three years stays off the tape."),
+            line("solo", "A guard drowned in six inches of slurry. I am not sorry."),
+            line("card", "-- THE NIGHT --"),
+            line("solo", "There was a shuttle on the pad outside our quarters."),
+            line("solo", "A warp drive will not engage on the ground. It will try."),
+            line("solo", "Everything inside a hundred metres goes inward first."),
+            line("solo", "Then outward. There is very little left to count after."),
+            line("solo", "They counted what they expected. Two hundred and seven dead."),
+            line("note", "He says the number like a joke he has told before."),
+            line("solo", "We were four kilometres out, in the dark, holding hands."),
+            line("solo", "Through the paths I found three years before and never used."),
+            line("card", "-- THE TWO YEARS AFTER --"),
+            line("solo", "Getting out of Cardassian space took longer than the camp."),
+            line("solo", "Freight holds. Back roads. Other people's barns. Two years."),
+            line("solo", "We starved twice. Both times there was a till I could take."),
+            line("solo", "Somebody asked me why I did not. I gave a poor answer then."),
+            line("solo", "The real answer is I had been somebody once. I wanted him back.",
+                 codes="UHP+1"),
+            line("solo", "Two hundred and six people came out of there with me."),
+            line("solo", "Not one of them had to steal to do it. That is the record."),
+            line("card", "-- AND NOW --"),
+            line("solo", "At the border they asked where I wanted to be taken."),
+            line("solo", "You may name anywhere in the Federation. I named Risa."),
+            line("note", "He gestures at the garden. It is a very ordinary garden."),
+            line("solo", "I am forty-nine. I grow things. Nobody here knows any of it."),
+            line("solo", "They have a word here for rest. I did not have one before.",
+                 codes="STS-0.2"),
+            line("solo", "I am not going anywhere else. I am settling here. Risa.",
+                 codes="UHP-1"),
+            line("solo", "You asked would I do it again. I did it again every day."),
+            line("card", "-- END OF INTERVIEW --"),
+            line("card", "SUBJECT: RIKER, THOMAS. SETTLED, RISA. NO SERVICE RECORD."),
+            line("dub", "No record. He was the copy, so the file went to the other one.",
+                 codes="UHP+1"),
+            line("dub", "Every archive I can reach has one line on him. That was the rest.",
+                 codes="UHP-1"),
+        ],
+    },
 ]
 
 
