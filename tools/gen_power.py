@@ -162,6 +162,20 @@ def power_down(duration=1.05):
     return normalise(out, 0.9)
 
 
+def bus_hum(duration=2.0):
+    """The power bus running (TrekBusLoop): the core's idle hum, quiet and
+    seamless. Every partial completes a whole number of cycles in the clip,
+    so the loop point is inaudible."""
+    n = int(RATE * duration)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        s = (math.sin(2 * math.pi * 55 * t) + 0.45 * math.sin(2 * math.pi * 110 * t)
+             + 0.15 * math.sin(2 * math.pi * 165 * t)) * (1 + 0.06 * math.sin(2 * math.pi * 2 * t))
+        out.append(s)
+    return normalise(out, 0.5)
+
+
 def strip(path, samples, width=900, height=120):
     """A waveform strip, for looking at the shape (design/art/power/)."""
     try:
@@ -189,6 +203,9 @@ def main():
     up, down = power_up(), power_down()
     write(os.path.join(sound, "TREK_PowerUp.wav"), up)
     write(os.path.join(sound, "TREK_PowerDown.wav"), down, peak=24000)
+    write(os.path.join(sound, "TREK_BusHum.wav"), bus_hum(), peak=20000)
+    # The bus's start, stop and backfire: deliberately nothing.
+    write(os.path.join(sound, "TREK_BusQuiet.wav"), [0.0] * int(RATE * 0.05))
     art = os.path.join(root, "design", "art", "power")
     strip(os.path.join(art, "power_up_wave.png"), up)
     strip(os.path.join(art, "power_down_wave.png"), down)

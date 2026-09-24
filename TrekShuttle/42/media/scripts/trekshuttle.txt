@@ -208,6 +208,29 @@ module TrekShuttle
         scale = 1.0,
     }
 
+    /*  The ship's power bus (ENERGY.md 9): the generator that powers the
+        galley, which nobody ever sees or carries. Tagged base:generator so
+        the engine's generator code reads *this* item's numbers when it
+        looks the sprite up: it never wears (a long absence replays every
+        missed hour at once, and a vanilla generator's wear would set the
+        cabin alight), and it makes no noise worth the name. It is drawn
+        with the invisible sky tile. The replicator will not make one.  */
+    item TrekPowerBus
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Shuttle Power Bus,
+        Icon = TREK_Dilithium,
+        Weight = 40.0,
+        ConditionMax = 100,
+        Tags = base:generator,
+        WorldObjectSprite = invisible_01_0,
+        ConditionLowerChanceOneIn = 1000000,
+        SoundRadius = 1,
+        SoundVolume = 1,
+    }
+
     item TrekDilithium
     {
         DisplayCategory = Material,
@@ -1200,6 +1223,72 @@ module TrekShuttle
         {
             file = media/sound/TREK_PowerDown.wav,
             volume = 0.8,
+        }
+    }
+
+    /*  The power bus (ENERGY.md 9). The engine plays <prefix>Loop while it
+        runs and <prefix>Starting/Stopping on every toggle; the bus's sprite
+        is given the prefix TrekBus, so these replace a petrol generator's
+        hum and clunk with a faint core hum and silence. The power-up and
+        power-down sounds already say the rest.  */
+    sound TrekBusLoop
+    {
+        category = Object,
+        loop = true,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_BusHum.wav,
+            distanceMax = 8,
+            volume = 0.15,
+        }
+    }
+
+    sound TrekBusStarting
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_BusQuiet.wav,
+            volume = 0.0,
+        }
+    }
+
+    sound TrekBusStopping
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_BusQuiet.wav,
+            volume = 0.0,
+        }
+    }
+
+    sound TrekBusFailedToStart
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_BusQuiet.wav,
+            volume = 0.0,
+        }
+    }
+
+    sound TrekBusBackfire
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_BusQuiet.wav,
+            volume = 0.0,
         }
     }
 

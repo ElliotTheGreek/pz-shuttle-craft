@@ -10384,6 +10384,189 @@ def wild_dilithium():
           f"and on two machines the crystals reach the client while the record stays home")
 
 
+def galley():
+    """The galley made real (ENERGY.md section 9): a hidden generator -- the
+    power bus -- that the ship fuels from its reserve and switches with its
+    power, and an oven and a microwave built as the engine's IsoStove.
+
+    The simulation cannot say whether a fridge cools: that is the engine's own
+    code and the game's to show. What it can hold is everything the mod does
+    to make the engine do it."""
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('cook', 1000.5, 1000.5, 0)")
+    net.start()
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    PM = int(C("PowerMax"))
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 1004, 1000, 0)")
+    net.pump(40)
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "galley, beaming up"):
+        return
+    reserve = lambda: float(rt.eval("TREK.Power.reserve()"))
+
+    def bus(field):
+        return rt.eval(f"(function() local g = TREK.Build.powerBus() return g and g.{field} end)()")
+
+    def generators():
+        return int(rt.eval("""(function()
+            local _, sq = TREK.Build.powerBus()
+            local n = 0
+            for _, o in ipairs(sq and sq.objects or {}) do
+                if instanceof(o, "IsoGenerator") then n = n + 1 end
+            end
+            return n end)()"""))
+
+    # --- the bus: one, ours, on and full -------------------------------------
+    check(generators() == 1, f"galley: {generators()} generators on the bus's square, not 1")
+    check(bus("modData.TREK") == C("PowerBusTag"), "galley: the bus is not tagged the ship's")
+    check(bus("activated") is True and bus("connected") is True,
+          "galley: the bus is not running in a lit ship")
+    check(bus("fuel") == 10 and bus("condition") == 100,
+          f"galley: the bus arrived with fuel {bus('fuel')} and condition {bus('condition')}")
+    check(rt.eval(f'SIM.spriteProps["{C("SkyTile")}"].GeneratorSound') == C("PowerBusSound"),
+          "galley: the bus would sound like a petrol generator")
+    check(rt.eval(f"TREK.Util.isAboard(TREK.Util.at(TREK.Config.PowerBusSpot.x, "
+                  f"TREK.Config.PowerBusSpot.y))") is False,
+          "galley: the bus stands on the deck, where somebody can walk onto it")
+
+    # --- the stoves are stoves, and the fridge has its freezer ----------------
+    def fitting(tag, field):
+        return rt.eval(f"""(function()
+            local L = require "TREK/TREK_InteriorLayout"
+            for _, e in ipairs(L.tiles) do
+                if e.tag == "{tag}" then
+                    local x, y = TREK.Util.at(e.x, e.y)
+                    local o = TREK.Util.findSprite(SIM.rawSquare(x, y, TREK.Config.CabinZ), e.sprite)
+                    return o and {field}
+                end
+            end end)()""")
+    for tag in ("oven", "microwave"):
+        check(fitting(tag, 'o.class') == "IsoStove",
+              f"galley: the {tag} is a {fitting(tag, 'o.class')}, not a stove -- it will not heat")
+        check(fitting(tag, 'o.container ~= nil') is True, f"galley: the {tag} has no container")
+    check(fitting("fridge", "o:getContainerCount()") == 2,
+          "galley: the fridge has no freezer")
+
+    # --- an hour: what it burned is billed, and it is filled and mended -------
+    energy_state(rt, PM, 0)
+    rt.run("SIM.generatorHours(4)")
+    burned = 10 - float(bus("fuel"))
+    rt.run("local g = TREK.Build.powerBus(); g.condition = 55")
+    rt.fire("EveryHours")
+    check(abs((PM - reserve()) - burned * C("FuelToEnergy")) < 1e-6,
+          f"galley: {burned:.2f} fuel burned was billed as {PM - reserve()}")
+    check(bus("fuel") == 10 and bus("condition") == 100,
+          "galley: the hour did not refuel and mend the bus")
+    b = reserve()
+    rt.fire("EveryHours")
+    check(reserve() == b, "galley: an hour with nothing burned was billed")
+
+    # --- dark: the bus goes out with the lights; power: it comes back ---------
+    energy_state(rt, 0, 0)
+    rt.run("TREK.Energy.powerChanged()")
+    check(bus("activated") is False, "galley: the ship went dark and the bus kept running")
+    rt.fire("EveryHours")
+    check(bus("activated") is False, "galley: a dark ship's hourly pass switched the bus on")
+    energy_state(rt, PM, 0)
+    rt.run("TREK.Energy.powerChanged()")
+    check(bus("activated") is True, "galley: power came back and the bus stayed off")
+
+    # Ran dry while nobody was aboard: billed for all of it, and on again.
+    rt.run("local g = TREK.Build.powerBus(); g.fuel, g.activated = 0, false")
+    b = reserve()
+    rt.fire("EveryHours")
+    check(b - reserve() == 10 * C("FuelToEnergy") and bus("activated") is True,
+          "galley: a bus that ran dry was not refilled, billed and restarted")
+
+    # --- a rebuild finds it rather than making another ------------------------
+    rt.run("TREK.Build.buildCabin()")
+    check(generators() == 1, f"galley: a rebuild left {generators()} generators")
+
+    # --- an old save's oven, with a meal in it, becomes a stove ---------------
+    moved = rt.eval("""(function()
+        local L = require "TREK/TREK_InteriorLayout"
+        local e
+        for _, t in ipairs(L.tiles) do if t.tag == "oven" then e = t end end
+        local x, y = TREK.Util.at(e.x, e.y)
+        local sq = SIM.rawSquare(x, y, TREK.Config.CabinZ)
+        for i = #sq.objects, 1, -1 do
+            if sq.objects[i].spriteName == e.sprite then table.remove(sq.objects, i) end
+        end
+        local old = SIM.object(e.sprite)
+        old.square = sq
+        old.modData.TREK = "oven"
+        old:createContainersFromSpriteProperties()
+        local meal = instanceItem("Base.Hammer")
+        meal.modData.mine = "stew"
+        old.container:AddItem(meal)
+        table.insert(sq.objects, old)
+        TREK.Util.state().rev = 28
+        TREK.Build.ensureCabin()
+        local n, kept = 0, nil
+        for _, o in ipairs(sq.objects) do
+            if o.spriteName == e.sprite then
+                n = n + 1
+                if o.class == "IsoStove" and o.container.items[1] then
+                    kept = o.container.items[1].modData.mine
+                end
+            end
+        end
+        return n .. ":" .. tostring(kept)
+    end)()""")
+    check(moved == "1:stew",
+          f"galley: an old oven became {moved!r} -- one IsoStove holding the same "
+          f"live item was expected")
+
+    # --- the freezer is not lost when a fridge is emptied ---------------------
+    spilled = rt.eval("""(function()
+        local L = require "TREK/TREK_InteriorLayout"
+        local e
+        for _, t in ipairs(L.tiles) do if t.tag == "fridge" then e = t end end
+        local x, y = TREK.Util.at(e.x, e.y)
+        local o = TREK.Util.findSprite(SIM.rawSquare(x, y, TREK.Config.CabinZ), e.sprite)
+        local ice = instanceItem("Base.Hammer")
+        ice.modData.mine = "ice"
+        o.freezer:AddItem(ice)
+        local n = TREK.Build.spillToPad(o)
+        local px, py = TREK.Util.at(TREK.Config.Landing.x, TREK.Config.Landing.y)
+        for _, w in ipairs(SIM.rawSquare(px, py, TREK.Config.CabinZ).worldObjects) do
+            if w.item and w.item.modData.mine == "ice" then return "pad" end
+        end
+        return "lost:" .. tostring(n)
+    end)()""")
+    check(spilled == "pad", f"galley: emptying the fridge lost the freezer's contents ({spilled})")
+
+    # --- the Generator submenu is taken off the bus, and nobody else's --------
+    rt.run("""
+        ISWorldObjectContextMenu.fetchVars.generator = TREK.Build.powerBus()
+        TREK.WarpCoreUI.hideBus(0, {}, {}, false)
+    """)
+    check(rt.eval("ISWorldObjectContextMenu.fetchVars.generator") is None,
+          "galley: vanilla's Generator menu -- with Take -- is offered on the bus")
+    rt.run("""
+        local other = SIM.object("appliances_misc_01_0", "IsoGenerator")
+        other.square = SIM.rawSquare(1003, 1003, 0)
+        ISWorldObjectContextMenu.fetchVars.generator = other
+        TREK.WarpCoreUI.hideBus(0, {}, {}, false)
+    """)
+    check(rt.eval("ISWorldObjectContextMenu.fetchVars.generator") is not None,
+          "galley: a player's own generator lost its menu")
+    rt.run("ISWorldObjectContextMenu.fetchVars.generator = nil")
+    check(rt.eval(f'TREK.Config.ReplicatorBlocked["{C("PowerBusItem")}"]') is True,
+          "galley: the replicator would make a power bus")
+
+    for w in rt.warnings():
+        fail(f"galley: {w}")
+    print("galley: one hidden power bus, ours, quiet, off the deck; the oven and "
+          "microwave are stoves and the fridge has its freezer; each hour's fuel "
+          "billed and the bus refilled and mended; out with the lights and back "
+          "with them; a rebuild finds it; an old oven's meal moves into the new "
+          "stove; the freezer is spilled, not lost; and the Generator menu is gone")
+
+
 def energy_multiplayer():
     """Two clients: the flag reaches both, and a race pays once."""
     net = Net("mp", clients=("kirk", "spock"))
@@ -10471,7 +10654,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             contact_map, contacts_multiplayer, probes, energy,
             energy_movement, energy_cabin, energy_shields, energy_emergency,
             energy_emergency_mp, cold_start, cold_start_edges,
-            cold_start_mp, wild_dilithium,
+            cold_start_mp, wild_dilithium, galley,
             energy_multiplayer, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,

@@ -656,7 +656,21 @@ function ObjectMT:createContainersFromSpriteProperties()
        or self.spriteName:find("CONTAINER") then
         self.container = SIM.container(40)
         self.container.parentObject = self
+        -- A fridge tile is a fridge and a freezer (V8: the combo's secondary
+        -- container), and code that walks only the first destroys the second.
+        if self.spriteName:find("refrigeration") then
+            self.freezer = SIM.container(20)
+            self.freezer.parentObject = self
+        end
     end
+end
+function ObjectMT:getContainerCount()
+    return (self.container and 1 or 0) + (self.freezer and 1 or 0)
+end
+function ObjectMT:getContainerByIndex(i)
+    if i == 0 then return self.container end
+    if i == 1 then return self.freezer end
+    return nil
 end
 function ObjectMT:getContainer() return self.container end
 function ObjectMT:getItemContainer() return self.container end
@@ -3776,3 +3790,80 @@ function SIM.radioTick()
     end
 end
 Events.OnTick.Add(SIM.radioTick)
+
+---------------------------------------------------------------------------
+-- The galley (ENERGY.md section 9): stoves, a generator, sprite properties
+---------------------------------------------------------------------------
+-- A sprite's properties persist per name, as the engine's do: the power bus's
+-- sound prefix is set on the sky tile's sprite once and read back later.
+SIM.spriteProps = {}
+local baseGetSprite = getSprite
+function getSprite(name)
+    local s = baseGetSprite(name)
+    SIM.spriteProps[name] = SIM.spriteProps[name] or {}
+    local store = SIM.spriteProps[name]
+    s.getProperties = function()
+        return {
+            set = function(_, k, v) store[k] = v end,
+            get = function(_, k) return store[k] end,
+            Val = function(_, k) return store[k] end,
+        }
+    end
+    return s
+end
+
+--- The engine's IsoStove, from vanilla's own runtime route
+--- (ISMoveableSpriteProps.lua:2162). Its containers come from the sprite, as
+--- a map-loaded one's do, and only once somebody asks for them.
+IsoStove = {}
+function IsoStove.new(_cell, _sq, sprite)
+    local name = type(sprite) == "table" and sprite.name or sprite
+    return SIM.object(name, "IsoStove")
+end
+SIM.SUPER.IsoStove = "IsoObject"
+SIM.SUPER.IsoGenerator = "IsoObject"
+
+--- The engine's IsoGenerator, the way V5 found it: the constructor takes its
+--- fuel and condition from the item, **adds itself to the square and sends
+--- itself to clients** (bci 68-78), and setFuel clamps to 0..10. Burning is
+--- the engine's hourly update, which SIM.generatorHours stands in for: a
+--- running generator burns its base draw plus a fridge, and one that runs dry
+--- switches itself off.
+SIM.generators = {}
+IsoGenerator = {}
+function IsoGenerator.new(item, _cell, sq)
+    local g = SIM.object("invisible_01_0", "IsoGenerator")
+    g.fuel = tonumber(item and item.modData and item.modData.fuel) or 0
+    g.condition = item and item.condition or 100
+    g.activated, g.connected = false, false
+    function g:getFuel() return self.fuel end
+    function g:getMaxFuel() return 10.0 end
+    function g:setFuel(f) self.fuel = math.max(0, math.min(10, f)) end
+    function g:getCondition() return self.condition end
+    function g:setCondition(c) self.condition = math.max(0, math.min(100, c)) end
+    function g:isActivated() return self.activated end
+    function g:setActivated(b) self.activated = b == true end
+    function g:setConnected(b) self.connected = b == true end
+    function g:isConnected() return self.connected end
+    g.square = sq
+    table.insert(sq.objects, g)
+    if isServer() then
+        local d = describe(g)
+        d.x, d.y, d.z = sq.x, sq.y, sq.z
+        py_replicate("object", d)
+    end
+    table.insert(SIM.generators, g)
+    return g
+end
+
+--- Test helper: n game hours of the engine's generator update.
+function SIM.generatorHours(n, draw)
+    for _, g in ipairs(SIM.generators) do
+        if g.activated then
+            g.fuel = math.max(0, g.fuel - (draw or 0.15) * n)
+            if g.fuel <= 0 then g.activated = false end
+        end
+    end
+end
+
+ISWorldObjectContextMenu.fetchVars = ISWorldObjectContextMenu.fetchVars or {}

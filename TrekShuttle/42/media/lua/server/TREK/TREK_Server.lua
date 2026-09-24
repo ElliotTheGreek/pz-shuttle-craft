@@ -2474,6 +2474,21 @@ end
 
 TREK.Energy.onPowerDown(function() S.failCures("main power lost") end)
 
+-- The galley's power bus follows the ship at once (ENERGY.md 9): off when she
+-- goes dark, so the fridge and the stoves go with the lights, and on again
+-- when she comes back. Only while the cabin is loaded: that is where it is.
+local function busFollows()
+    if B.cabinCurrent() and B.cabinLoaded() then B.servicePowerBus(true) end
+end
+TREK.Energy.onPowerDown(busFollows)
+TREK.Energy.onPowerUp(busFollows)
+
+-- Every game hour: bill what the bus burned, refuel and mend it. The engine
+-- burns fuel hourly too, so this is the same cadence as the thing it pays for.
+Events.EveryHours.Add(function()
+    U.try("powerBus", busFollows)
+end)
+
 ---------------------------------------------------------------------------
 -- Long-range probes
 ---------------------------------------------------------------------------

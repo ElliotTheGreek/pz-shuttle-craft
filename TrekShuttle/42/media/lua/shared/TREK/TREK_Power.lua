@@ -188,6 +188,27 @@ Events.EveryOneMinute.Add(function()
     U.try("serviceDevices", P.serviceDevices)
 end)
 
+--- The galley's power bus (ENERGY.md 9) is a generator drawn with the sky
+--- tile. The engine plays <GeneratorSound>Loop while one runs and
+--- <GeneratorSound>Starting/Stopping on each toggle, reading the prefix off
+--- the *sprite's* properties -- so setting it on this sprite gives the bus the
+--- ship's own quiet hum instead of a petrol generator. A sprite property
+--- survives RecalcProperties, which clears the square's, and it has to be set
+--- in every process, because every client plays the loop. The sky floor wears
+--- the same sprite, and only generator code ever reads this property.
+--- PropertyContainer.set(String, String) is public, and vanilla's own server
+--- farming code sets a sprite property the same way (MOFarming.lua:91).
+function P.quietBus()
+    return U.try("busSound", function()
+        getSprite(C.SkyTile):getProperties():set("GeneratorSound", C.PowerBusSound)
+        return true
+    end) == true
+end
+
+Events.OnInitGlobalModData.Add(function()
+    U.try("quietBus", P.quietBus)
+end)
+
 ---------------------------------------------------------------------------
 -- The ship's reserve, and the crystal it burns
 ---------------------------------------------------------------------------

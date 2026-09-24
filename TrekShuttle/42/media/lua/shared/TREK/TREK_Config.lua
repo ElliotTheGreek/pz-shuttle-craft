@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 28
+C.BuildRev = 29
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -1036,6 +1036,35 @@ C.OdometerMaxJump = 60
 -- clear of the field and has to walk back in, so each is pushed two or three
 -- times in a window at most: a hundred covers forty or so at the hull. A
 -- bigger horde than that is undercharged, which is the right way round.
+-- The galley made real (ENERGY.md section 9).
+--
+-- A fridge cools, and an oven or microwave heats, only when its square has
+-- power, and in this engine power means the town grid or a running
+-- generator in the chunk (ItemContainer.isObjectPowered). The cabin is on
+-- no grid, so the ship keeps a **generator the crew never see**: its power
+-- bus. A mod item drawn with the invisible sky tile, standing on the hull
+-- ring beside the galley, kept fuelled from the reserve and switched off
+-- when the ship is dark. Vanilla's own code then does the cooling and the
+-- cooking. The research that settled it is ENERGY.md V5-V8.
+C.PowerBusItem = "TrekShuttle.TrekPowerBus"
+C.PowerBusTag = "powerbus"
+-- On the hull ring west of the oven: floored (the walls stand on it), outside
+-- the cabin's shape so nobody walks onto it, and well inside the generator's
+-- 20-square reach of every appliance.
+C.PowerBusSpot = { x = -1, y = 2 }
+-- What one unit of generator fuel costs the reserve. The fridge and the bus
+-- itself burn about 0.15 fuel a game hour, so this is about 3 units an hour,
+-- 72 a day: a crystal keeps the galley cold for two months of game time on
+-- its own. Only billed while the cabin is loaded -- which is also the only
+-- time the engine burns any.
+C.FuelToEnergy = 20
+-- The sound prefix the bus's sprite is given, so the engine plays
+-- TrekBusLoop and friends rather than a petrol generator's hum and clunk.
+C.PowerBusSound = "TrekBus"
+-- The galley fittings that are built as the engine's IsoStove, which is what
+-- makes them heat: an IsoObject wearing an oven's picture is a cupboard.
+C.StoveTags = { oven = true, microwave = true }
+
 -- Dilithium in the wild (server/TREK/TREK_Wild.lua), sandbox
 -- `TrekShuttle.WildDilithium`. Crystals lie on natural ground -- grass, dirt,
 -- sand, clay -- and never in town: the Douwd's copied land carries it and the
@@ -1527,6 +1556,7 @@ C.RescueSupply = {
 --   TrekHelmConsole  the deleted helm prop, still declared so old saves can
 --                    load the ones lying on their decks
 C.ReplicatorBlocked = {
+    ["TrekShuttle.TrekPowerBus"] = true,
     ["TrekShuttle.TrekTorpedo"]     = true,
     ["TrekShuttle.TrekShuttleHull"] = true,
     ["TrekShuttle.TrekHelmConsole"] = true,
