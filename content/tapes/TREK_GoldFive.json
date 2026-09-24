@@ -1,0 +1,32 @@
+{
+  "id": "TREK_GoldFive",
+  "order": 18,
+  "display": "Holo fragment 5 (dubbed)",
+  "title": "Fragment five: putting it down",
+  "subtitle": "A holo recording, three hundred years old",
+  "author": "dubbed to tape by Lt. Shepard",
+  "extra": "One of six. His name is in this one.",
+  "spawning": 0,
+  "issued": true,
+  "lines": [
+    { "voice": "card", "text": "DUBBED FROM HOLO -- FRAGMENT FIVE OF SIX" },
+    { "voice": "note", "text": "Outside now. A porch. A dog asleep on his feet." },
+    { "voice": "tucker", "text": "Five. I put it down." },
+    { "voice": "tucker", "text": "Whatever I was. The making and the unmaking. All of it." },
+    { "voice": "tucker", "text": "I made myself a man, and then I made it stick." },
+    { "voice": "tucker", "text": "It was the hardest thing I have ever done." },
+    { "voice": "tucker", "text": "Harder than the valley. Harder than the river." },
+    { "voice": "tucker", "text": "You cannot know what it is to close a hand for good." },
+    { "voice": "tucker", "text": "I needed a name, then. A man has to have a name." },
+    { "voice": "tucker", "text": "Tucker Gold. It is a stupid name. She chose it." },
+    { "voice": "tucker", "text": "She said I looked like I'd been left out in the sun." },
+    { "voice": "note", "text": "He laughs, properly, and the dog wakes up and glares." },
+    { "voice": "tucker", "text": "We grew old. That was the whole plan. It worked." },
+    { "voice": "tucker", "text": "My back hurt. My eyes went. I loved all of it.", "codes": "UHP-1" },
+    { "voice": "tucker", "text": "She never asked what happened to her the first time." },
+    { "voice": "tucker", "text": "I never told her. I do not know if that was right." },
+    { "voice": "tucker", "text": "I think she knew. She would look at the river, sometimes." },
+    { "voice": "tucker", "text": "Then she would go back to the bees." },
+    { "voice": "card", "text": "-- FRAGMENT FIVE ENDS --" }
+  ]
+}

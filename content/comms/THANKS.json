@@ -1,0 +1,46 @@
+{
+  "id": "THANKS",
+  "priority": 2,
+  "title": "Somebody came up",
+  "kind": "incoming",
+  "notes": [
+    "The eleven, as they come up (COMMS.md 6.2)",
+    "Distress calls carry random names, so a rescue is not a roster. What she",
+    "can do is say the name back -- which is the thing a counter never does."
+  ],
+  "requires": ["thanksDue", "met"],
+  "forbids": ["quiet"],
+  "retry": false,
+  "repeatable": true,
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "It's Shepard. %2 is aboard. In quarantine, but aboard." }
+      ],
+      "options": [
+        { "text": "How are they?", "go": "02" },
+        { "text": "Good.", "go": "03" }
+      ],
+      "clears": ["thanksDue"]
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "Thin. Filthy. Asked for coffee before a blanket." },
+        { "voice": "shepard", "text": "The Doctor says that's a good sign. I think he's lying." }
+      ],
+      "options": [
+        { "text": "Tell them they owe me one.", "go": "03" },
+        { "text": "I'm glad.", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "I'll tell them. Thank you. Really. Shepard out." }
+      ]
+    }
+  ]
+}

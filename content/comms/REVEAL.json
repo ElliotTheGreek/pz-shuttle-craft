@@ -1,0 +1,122 @@
+{
+  "id": "REVEAL",
+  "priority": 10,
+  "title": "The one who left the Link",
+  "kind": "incoming",
+  "notes": [
+    "The reveal: a rogue Changeling, the Founders' virus grafted to Borg",
+    "nanoprobes, and the plan for the Federation worlds. The logs have told it;",
+    "this is what it means now that she knows."
+  ],
+  "after": {"thread": "ARCHIVE", "hours": 48},
+  "forbids": ["quiet"],
+  "entries": ["01", "01M"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. Are you somewhere you can sit down?" }
+      ],
+      "options": [
+        { "text": "I'm sitting.", "go": "02" },
+        { "text": "No. Talk anyway.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "01M",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. Please pick up. This is the one that matters." }
+      ],
+      "options": [
+        { "text": "I'm here.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "We put the pieces together. Okafor, the Doctor, me." },
+        { "voice": "shepard", "text": "The Founders' virus. Borg nanoprobes. One engine." },
+        { "voice": "shepard", "text": "A Changeling left the Great Link, years ago, on purpose." },
+        { "voice": "shepard", "text": "It knew what Section 31 did to its people. The virus." },
+        { "voice": "shepard", "text": "And it spent sixty years making that into this." }
+      ],
+      "options": [
+        { "text": "I know. It's on your last tape.", "go": "03T", "requires": ["watched:TREK_LogSix"] },
+        { "text": "A Changeling did all this?", "go": "03" },
+        { "text": "Why here?", "go": "04" }
+      ]
+    },
+    {
+      "id": "03T",
+      "lines": [
+        { "voice": "shepard", "text": "Then you know I left the chair where it was. Good." },
+        { "voice": "shepard", "text": "What the tape doesn't have is the part that's next." }
+      ],
+      "options": [
+        { "text": "What's next?", "go": "05" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "One. Alone. That's the part I can't get past." },
+        { "voice": "shepard", "text": "One person, grieving for long enough, did all of it." }
+      ],
+      "options": [
+        { "text": "Why here?", "go": "04" }
+      ]
+    },
+    {
+      "id": "04",
+      "lines": [
+        { "voice": "shepard", "text": "Because nobody was watching. Nothing filed. No relay." },
+        { "voice": "shepard", "text": "An order saying do not interfere. The Prime Directive" },
+        { "voice": "shepard", "text": "is what left this world undefended. I helped write it." },
+        { "voice": "shepard", "text": "And because your world is the closest thing to Earth" },
+        { "voice": "shepard", "text": "anybody has ever found. It's a rehearsal." }
+      ],
+      "options": [
+        { "text": "A rehearsal for what?", "go": "05" }
+      ]
+    },
+    {
+      "id": "05",
+      "lines": [
+        { "voice": "shepard", "text": "For the Federation. The worlds that did this to it." },
+        { "voice": "shepard", "text": "A horde is a Collective with no Queen, and nobody at" },
+        { "voice": "shepard", "text": "home knows it exists. We can't warn them. Comms dark." }
+      ],
+      "options": [
+        { "text": "Then we have to get word out.", "go": "06" },
+        { "text": "What do you want me to do?", "go": "06" },
+        { "text": "It's not my Federation.", "go": "06N" }
+      ]
+    },
+    {
+      "id": "06N",
+      "lines": [
+        { "voice": "shepard", "text": "No. It's the one that watched you die and took notes." },
+        { "voice": "shepard", "text": "You don't owe it anything. I'm not going to ask." }
+      ],
+      "options": [
+        { "text": "...", "go": "06" }
+      ]
+    },
+    {
+      "id": "06",
+      "lines": [
+        { "voice": "shepard", "text": "Stay alive. Bring my people up. Keep the tapes." },
+        { "voice": "shepard", "text": "If a ship ever does come, I want the whole record." },
+        { "voice": "shepard", "text": "Not a report. A record. Everything, in order." },
+        { "voice": "shepard", "text": "Shepard out." }
+      ],
+      "sets": ["revealDone"]
+    }
+  ]
+}

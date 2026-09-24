@@ -1,0 +1,138 @@
+{
+  "id": "SCIENCE",
+  "priority": 7,
+  "title": "Half a signature",
+  "kind": "incoming",
+  "notes": [
+    "The science: the graft. Morphogenic markers plus something the Doctor",
+    "cannot place -- he is reading half a signature (LORE.md 1b, entry four)."
+  ],
+  "after": {"thread": "ELEVEN", "hours": 30},
+  "forbids": ["quiet"],
+  "entries": ["01", "01M"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- TWO VOICES" },
+        { "voice": "shepard", "text": "Shepard. I've got the Doctor with me. Ours." },
+        { "voice": "emh", "text": "Good afternoon. Or whatever it is on the surface." }
+      ],
+      "options": [
+        { "text": "Hello, Doctor.", "go": "02" },
+        { "text": "Is this going to be bad news?", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "01M",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- TWO VOICES" },
+        { "voice": "emh", "text": "I did say they wouldn't pick up. I said it twice." },
+        { "voice": "shepard", "text": "You did. Shuttle, have you got a moment?" }
+      ],
+      "options": [
+        { "text": "Sorry. Go on.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "02",
+      "route": [
+        { "go": "02E", "requires": ["emh"] },
+        { "go": "02S" }
+      ]
+    },
+    {
+      "id": "02E",
+      "lines": [
+        { "voice": "emh", "text": "Your shuttle's hologram has been sending me readings." },
+        { "voice": "emh", "text": "Sensibly formatted, which I did not expect from a" },
+        { "voice": "emh", "text": "copy of myself. I suppose I should be flattered." }
+      ],
+      "options": [
+        { "text": "What did he find?", "go": "03" }
+      ]
+    },
+    {
+      "id": "02S",
+      "lines": [
+        { "voice": "emh", "text": "The crew you've sent up brought samples on their boots." },
+        { "voice": "emh", "text": "Accidentally. I have made the most of them." }
+      ],
+      "options": [
+        { "text": "And?", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "emh", "text": "The dead down there are not dead in the usual way." },
+        { "voice": "emh", "text": "Something rebuilt them. Morphogenic markers, yes --" },
+        { "voice": "emh", "text": "the Founders' own chemistry, which is bad enough." },
+        { "voice": "emh", "text": "But there's a second signature underneath it." },
+        { "voice": "emh", "text": "Something is holding the tissue together. Running it." }
+      ],
+      "options": [
+        { "text": "What is it?", "go": "04" },
+        { "text": "In words I'd understand?", "go": "03P" }
+      ]
+    },
+    {
+      "id": "03P",
+      "lines": [
+        { "voice": "emh", "text": "Two different things did this. I can see one of them." },
+        { "voice": "emh", "text": "The other is a shape in the dark where one should be." }
+      ],
+      "options": [
+        { "text": "What's the shape?", "go": "04" }
+      ]
+    },
+    {
+      "id": "04",
+      "lines": [
+        { "voice": "emh", "text": "I don't know. That's the sentence I dislike most." },
+        { "voice": "emh", "text": "I can support the chemistry. I cannot support the author." },
+        { "voice": "shepard", "text": "He keeps saying that. It still sounds like Section 31." },
+        { "voice": "emh", "text": "It sounds like whoever you have already decided on." }
+      ],
+      "options": [
+        { "text": "Could it be cured?", "go": "05" },
+        { "text": "Who do you think it is?", "go": "04W" },
+        { "text": "Does it matter who?", "go": "04M" }
+      ]
+    },
+    {
+      "id": "04W",
+      "lines": [
+        { "voice": "emh", "text": "I think it is two people who never met. One made" },
+        { "voice": "emh", "text": "the poison and one made the engine. Don't quote me." }
+      ],
+      "options": [
+        { "text": "Could it be cured?", "go": "05" }
+      ]
+    },
+    {
+      "id": "04M",
+      "lines": [
+        { "voice": "shepard", "text": "It matters to me. It'll matter to whoever gets home." },
+        { "voice": "emh", "text": "It matters to a cure. Which is my department." }
+      ],
+      "options": [
+        { "text": "Could it be cured?", "go": "05" }
+      ]
+    },
+    {
+      "id": "05",
+      "lines": [
+        { "voice": "emh", "text": "The living, if they're caught early? Your shuttle" },
+        { "voice": "emh", "text": "does that already, at a price. The dead? No." },
+        { "voice": "emh", "text": "I'm sorry. I would like to be wrong about that." },
+        { "voice": "shepard", "text": "Thank you, Doctor. Shuttle, Shepard out." }
+      ],
+      "sets": ["scienceDone"]
+    }
+  ]
+}

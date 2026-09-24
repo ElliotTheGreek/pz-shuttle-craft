@@ -1,0 +1,59 @@
+{
+  "id": "QUIET",
+  "priority": 14,
+  "title": "Stop calling",
+  "kind": "hail",
+  "notes": [
+    "The quiet path (COMMS.md 6.2)",
+    "The player tells her to stop calling, and she does. Cheap, respectful, and a",
+    "mod whose premise is \"nobody is coming\" should be able to honour somebody",
+    "who would rather it stayed that way.",
+    "Repeatable, with a day's cooldown: the one hail that is always there once",
+    "you have met her, so it is also what \"she picks up about once a day\" means.",
+    "Not repeatable, a player who said \"wrong button\" once would lose the quiet",
+    "path for good."
+  ],
+  "requires": ["met"],
+  "forbids": ["quiet"],
+  "repeatable": true,
+  "cooldown": 24,
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "HAILING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Adirondack. Shepard. Everything all right down there?" }
+      ],
+      "options": [
+        { "text": "I want you to stop calling.", "go": "02" },
+        { "text": "Nothing. Wrong button.", "go": "09" }
+      ]
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "..." },
+        { "voice": "shepard", "text": "All right. I can do that." },
+        { "voice": "shepard", "text": "The shuttle will still hear the beacons. That's hers." },
+        { "voice": "shepard", "text": "If you ever want me, hail. I'll pick up if I can." }
+      ],
+      "options": [
+        { "text": "Thank you.", "go": "03" },
+        { "text": "I won't.", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "Look after yourself. Shepard out." }
+      ],
+      "sets": ["quiet"]
+    },
+    {
+      "id": "09",
+      "lines": [
+        { "voice": "shepard", "text": "Happens. Shepard out." }
+      ]
+    }
+  ]
+}

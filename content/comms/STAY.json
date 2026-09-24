@@ -1,0 +1,171 @@
+{
+  "id": "STAY",
+  "priority": 5,
+  "title": "Why she stayed",
+  "kind": "incoming",
+  "notes": [
+    "Come up / stay down. She explains why she stayed on the ground for five",
+    "months. The player can argue, and should be able to lose the argument."
+  ],
+  "after": {"thread": "FIRST", "hours": 40},
+  "forbids": ["quiet"],
+  "entries": ["01", "01M"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. Have you got a minute? A real one." }
+      ],
+      "options": [
+        { "text": "Go ahead.", "go": "02" },
+        { "text": "I've got about thirty seconds.", "go": "02" },
+        { "text": "Is something wrong?", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "01M",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "I tried you yesterday. I'll assume the dead were busy." },
+        { "voice": "shepard", "text": "Have you got a minute now?" }
+      ],
+      "options": [
+        { "text": "Go ahead.", "go": "02" },
+        { "text": "Make it quick.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "Something you asked, or didn't. Why I stayed down." },
+        { "voice": "shepard", "text": "February to July, on the ground, with a ship overhead" },
+        { "voice": "shepard", "text": "begging me to come up. I owe somebody the answer." }
+      ],
+      "options": [
+        { "text": "Why did you?", "go": "03" },
+        { "text": "You don't owe me anything.", "go": "02X" },
+        { "text": "I figured it was the work.", "go": "03" }
+      ]
+    },
+    {
+      "id": "02X",
+      "lines": [
+        { "voice": "shepard", "text": "I owe the ten who stayed because I did. You'll do." }
+      ],
+      "options": [
+        { "text": "All right. Why?", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "Because it was the best work anybody in my field" },
+        { "voice": "shepard", "text": "will ever get to do. A living world, unannounced." },
+        { "voice": "shepard", "text": "And because I could pass. Six months of market days." },
+        { "voice": "shepard", "text": "The others could sit in orbit and read my notes." },
+        { "voice": "shepard", "text": "Ten of them didn't. They came down because I did." }
+      ],
+      "options": [
+        { "text": "That's on them, not you.", "go": "04A" },
+        { "text": "You got them killed.", "go": "04B" },
+        { "text": "Would you do it again?", "go": "04C" }
+      ]
+    },
+    {
+      "id": "04A",
+      "lines": [
+        { "voice": "shepard", "text": "That's kind. It's also not how command works." },
+        { "voice": "shepard", "text": "A lieutenant who plants a flag is a place to stand." },
+        { "voice": "shepard", "text": "I knew that. I planted it anyway." }
+      ],
+      "options": [
+        { "text": "Then you'd better start carrying it.", "go": "05" },
+        { "text": "Okay.", "go": "05" }
+      ]
+    },
+    {
+      "id": "04B",
+      "lines": [
+        { "voice": "shepard", "text": "..." },
+        { "voice": "shepard", "text": "Some of them. Yes. Say it again if it helps you." },
+        { "voice": "shepard", "text": "It doesn't help me, but I'm not the one down there." }
+      ],
+      "options": [
+        { "text": "I'm sorry. That was cruel.", "go": "04BS" },
+        { "text": "It's the truth.", "go": "04BT" }
+      ]
+    },
+    {
+      "id": "04BS",
+      "lines": [
+        { "voice": "shepard", "text": "It was fair. Cruel and fair aren't opposites." }
+      ],
+      "options": [
+        { "text": "...", "go": "05" }
+      ]
+    },
+    {
+      "id": "04BT",
+      "lines": [
+        { "voice": "shepard", "text": "It is. I'll be carrying it a long time." },
+        { "voice": "shepard", "text": "You don't have to carry it with me. That's all." }
+      ],
+      "options": [
+        { "text": "...", "go": "05" }
+      ]
+    },
+    {
+      "id": "04C",
+      "lines": [
+        { "voice": "shepard", "text": "Knowing what I know now? No." },
+        { "voice": "shepard", "text": "Knowing what I knew then? Yes. Every time." },
+        { "voice": "shepard", "text": "That's the whole problem with being a historian." }
+      ],
+      "options": [
+        { "text": "That's a terrible answer.", "go": "05" },
+        { "text": "That's an honest one.", "go": "05" }
+      ]
+    },
+    {
+      "id": "05",
+      "lines": [
+        { "voice": "shepard", "text": "They've asked me to ask you to come up. For the file." },
+        { "voice": "shepard", "text": "I told them it's quarantine and you'd say no anyway." },
+        { "voice": "shepard", "text": "Would you? If the Doctor cleared it?" }
+      ],
+      "options": [
+        { "text": "Yes. Tomorrow.", "go": "06Y" },
+        { "text": "No. Somebody has to stay down here.", "go": "06N" },
+        { "text": "Ask me when he's cleared it.", "go": "06L" }
+      ]
+    },
+    {
+      "id": "06Y",
+      "lines": [
+        { "voice": "shepard", "text": "Then I hope he's quick. I really do." },
+        { "voice": "shepard", "text": "Until then the beacons are yours. Shepard out." }
+      ],
+      "sets": ["stayed"]
+    },
+    {
+      "id": "06N",
+      "lines": [
+        { "voice": "shepard", "text": "..." },
+        { "voice": "shepard", "text": "Now you know why I stayed. Shepard out." }
+      ],
+      "sets": ["stayed"]
+    },
+    {
+      "id": "06L",
+      "lines": [
+        { "voice": "shepard", "text": "Fair. I'll ask. He'll say not yet. Shepard out." }
+      ],
+      "sets": ["stayed"]
+    }
+  ]
+}

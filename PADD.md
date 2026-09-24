@@ -532,7 +532,7 @@ All six are answered in 12.8.
 `shared/TREK/TREK_Comms.lua` (the stores, conditions and the renderer),
 `server/TREK/TREK_CommsServer.lua` (the authority), the generated
 `shared/TREK/TREK_CommsTree.lua` and `Translate/EN/Print_Text.json` from
-`tools/gen_comms.py` + `tools/comms_threads.py`, and in `TREK_Padd.lua` /
+`tools/gen_comms.py` from `content/comms/`, and in `TREK_Padd.lua` /
 `TREK_PaddActions.lua` the transcripts and `TREKTranscribePadd` / `TREKReadTape`.
 
 **Opening it (12.7).** *Open PADD* is the first option on every PADD's inventory

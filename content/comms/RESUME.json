@@ -1,0 +1,35 @@
+{
+  "id": "RESUME",
+  "priority": 15,
+  "title": "Opening the channel",
+  "kind": "hail",
+  "requires": ["quiet"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "HAILING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "..." },
+        { "voice": "shepard", "text": "Hello, you. I did wonder." }
+      ],
+      "options": [
+        { "text": "You can call again.", "go": "02" },
+        { "text": "Just checking you're there.", "go": "03" }
+      ]
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "I will, then. Sparingly. I promise." },
+        { "voice": "shepard", "text": "Shepard out." }
+      ],
+      "clears": ["quiet"]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "Still here. Still going nowhere. Shepard out." }
+      ]
+    }
+  ]
+}

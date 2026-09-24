@@ -104,7 +104,10 @@ from comms_vocab import say, opt, branch, node, thread  # noqa: E402,F401
 # ---------------------------------------------------------------------------
 # The threads
 # ---------------------------------------------------------------------------
-from comms_threads import THREADS  # noqa: E402  (the writing lives on its own)
+# Every thread is in content/comms/, one JSON file each (content/README.md).
+import content  # noqa: E402
+
+THREADS = content.load_threads()
 
 
 # ---------------------------------------------------------------------------

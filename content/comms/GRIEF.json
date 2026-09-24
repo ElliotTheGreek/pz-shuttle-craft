@@ -1,0 +1,74 @@
+{
+  "id": "GRIEF",
+  "priority": 12,
+  "title": "Two griefs",
+  "kind": "incoming",
+  "notes": [
+    "The last call, once both halves of the story are in: the world made by",
+    "grief, being unmade by grief. Both makers the last of something."
+  ],
+  "requires": ["revealDone", "goldDone"],
+  "forbids": ["quiet"],
+  "entries": ["01", "01M"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. Nothing's wrong. I just want to say a thing" },
+        { "voice": "shepard", "text": "out loud to somebody who'll understand it." }
+      ],
+      "options": [
+        { "text": "Go on.", "go": "02" },
+        { "text": "I'm listening.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "01M",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. No emergency. When you've got a second." }
+      ],
+      "options": [
+        { "text": "I've got one.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "A Douwd made this county because he couldn't bear" },
+        { "voice": "shepard", "text": "one death. A Changeling is emptying it because it" },
+        { "voice": "shepard", "text": "couldn't bear a genocide. Made by grief, and unmade." },
+        { "voice": "shepard", "text": "Both of them the last of something. Both alone." }
+      ],
+      "options": [
+        { "text": "And us?", "go": "03" },
+        { "text": "That's bleak.", "go": "03" },
+        { "text": "Grief doesn't excuse it.", "go": "03E" }
+      ]
+    },
+    {
+      "id": "03E",
+      "lines": [
+        { "voice": "shepard", "text": "No. It explains it. That's all I'm good for." }
+      ],
+      "options": [
+        { "text": "...", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "We're the ones who aren't alone. That's the difference." },
+        { "voice": "shepard", "text": "A hundred and forty up here. You down there." },
+        { "voice": "shepard", "text": "The ones you've brought up. We have each other." },
+        { "voice": "shepard", "text": "It's not a plan. It's just true. Shepard out." }
+      ],
+      "sets": ["griefDone"]
+    }
+  ]
+}

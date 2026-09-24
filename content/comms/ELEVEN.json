@@ -1,0 +1,131 @@
+{
+  "id": "ELEVEN",
+  "priority": 6,
+  "title": "The eleven",
+  "kind": "incoming",
+  "notes": [
+    "The eleven. Coordinates for crew on the ground, and what the channel knows",
+    "about the ones who came up."
+  ],
+  "after": {"thread": "STAY", "hours": 40},
+  "forbids": ["quiet"],
+  "entries": ["01", "01M"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. I want to talk about my people. The eleven." }
+      ],
+      "options": [
+        { "text": "Go on.", "go": "02" },
+        { "text": "I'm listening.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "01M",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Twice now. I'm going to keep calling about this one." }
+      ],
+      "options": [
+        { "text": "Go on.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "02",
+      "route": [
+        { "go": "02R", "requires": ["rescued>=1"] },
+        { "go": "02N" }
+      ]
+    },
+    {
+      "id": "02R",
+      "lines": [
+        { "voice": "shepard", "text": "You've already brought some of them up. %2, last." },
+        { "voice": "shepard", "text": "I read the quarantine log every morning. Every name." }
+      ],
+      "options": [
+        { "text": "How many are left?", "go": "03" }
+      ]
+    },
+    {
+      "id": "02N",
+      "lines": [
+        { "voice": "shepard", "text": "Nobody has come up yet. That isn't a complaint." },
+        { "voice": "shepard", "text": "Beacons come and go. The shuttle hears them first." }
+      ],
+      "options": [
+        { "text": "How many are left?", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "I don't know. That's the honest answer." },
+        { "voice": "shepard", "text": "Eleven went down. The beacons don't say who's calling." },
+        { "voice": "shepard", "text": "Some are from people I trained. Some I barely knew." },
+        { "voice": "shepard", "text": "Some have stopped, and I don't know which of those" },
+        { "voice": "shepard", "text": "are dead and which just dropped the combadge." }
+      ],
+      "options": [
+        { "text": "What happens to them up there?", "go": "04" },
+        { "text": "Why don't they walk to a clearing?", "go": "03W" },
+        { "text": "I can't save everyone.", "go": "03C" }
+      ]
+    },
+    {
+      "id": "03W",
+      "lines": [
+        { "voice": "shepard", "text": "Some can't walk. Some are in a basement with forty" },
+        { "voice": "shepard", "text": "of the dead on the stairs. Clear ground is a luxury." }
+      ],
+      "options": [
+        { "text": "What happens to them up there?", "go": "04" }
+      ]
+    },
+    {
+      "id": "03C",
+      "lines": [
+        { "voice": "shepard", "text": "Nobody asked you to. Least of all me." },
+        { "voice": "shepard", "text": "One is a lot more than none. I'll take one." }
+      ],
+      "options": [
+        { "text": "What happens to them up there?", "go": "04" }
+      ]
+    },
+    {
+      "id": "04",
+      "lines": [
+        { "voice": "shepard", "text": "Quarantine. Showers, blood, the Doctor's bad jokes." },
+        { "voice": "shepard", "text": "Then a bunk, and a lot of staring at the viewport." },
+        { "voice": "shepard", "text": "Nobody has turned. Not one. He doesn't know why yet." }
+      ],
+      "options": [
+        { "text": "That's good news.", "go": "05" },
+        { "text": "Yet.", "go": "05Y" }
+      ]
+    },
+    {
+      "id": "05Y",
+      "lines": [
+        { "voice": "shepard", "text": "Yet. You and he would get on." }
+      ],
+      "options": [
+        { "text": "...", "go": "05" }
+      ]
+    },
+    {
+      "id": "05",
+      "lines": [
+        { "voice": "shepard", "text": "Keep answering them. The ship pays you for each one." },
+        { "voice": "shepard", "text": "I pay you in gratitude, which is worth less. Shepard out." }
+      ],
+      "sets": ["elevenDone"]
+    }
+  ]
+}

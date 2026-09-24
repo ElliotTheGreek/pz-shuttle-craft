@@ -1,0 +1,87 @@
+{
+  "id": "GOLD",
+  "priority": 11,
+  "title": "Tucker Gold",
+  "kind": "incoming",
+  "notes": [
+    "All six on tape. Nobody announces that the Q theory is wrong; she just",
+    "says his name, which the fragments gave her and the file never had."
+  ],
+  "requires": ["converted>=6", "met"],
+  "forbids": ["quiet"],
+  "entries": ["01", "01M"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. I've watched them. All six. Twice." }
+      ],
+      "options": [
+        { "text": "And?", "go": "02" },
+        { "text": "Me too.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "01M",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. When you have a minute. About the six." }
+      ],
+      "options": [
+        { "text": "I have a minute.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "His name was Tucker Gold. The name he chose, when he" },
+        { "voice": "shepard", "text": "stopped being what he was. That's in number five." },
+        { "voice": "shepard", "text": "There's a case like him on file. Rana Four. A Douwd." },
+        { "voice": "shepard", "text": "Beings that can make a world out of grief. Or end one." }
+      ],
+      "options": [
+        { "text": "He made all this? The whole county?", "go": "03" },
+        { "text": "So it wasn't a Q.", "go": "02Q" },
+        { "text": "Does it change anything?", "go": "04" }
+      ]
+    },
+    {
+      "id": "02Q",
+      "lines": [
+        { "voice": "shepard", "text": "I'm writing it up. I'm not going to write it that way." },
+        { "voice": "shepard", "text": "I'm going to write what he said. They can decide." }
+      ],
+      "options": [
+        { "text": "He made all this?", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "The land and the river, and the people on it. Then" },
+        { "voice": "shepard", "text": "he put it down and grew old with her, and the towns" },
+        { "voice": "shepard", "text": "grew on their own for three hundred years." },
+        { "voice": "shepard", "text": "Your parents were real. Your town was real. Is." }
+      ],
+      "options": [
+        { "text": "It doesn't feel any different.", "go": "04" },
+        { "text": "I needed to hear that.", "go": "04" },
+        { "text": "I'm not from here.", "go": "04" }
+      ]
+    },
+    {
+      "id": "04",
+      "lines": [
+        { "voice": "shepard", "text": "It's real either way. That's the only line I'd hold." },
+        { "voice": "shepard", "text": "The place was made. The people weren't. Nobody made you." },
+        { "voice": "shepard", "text": "Thank you for bringing him in. Shepard out." }
+      ],
+      "sets": ["goldDone"]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 """The vocabulary the Adirondack channel is written in (tools/gen_comms.py).
 
-Its own module so that the writing (tools/comms_threads.py) and the generator
-can both import it without importing each other.
+tools/content.py builds threads from content/comms/ with it, and the generator's
+own tests (tests/test_comms.py) write small broken trees in it.
 """
 
 

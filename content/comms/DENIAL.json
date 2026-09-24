@@ -1,0 +1,138 @@
+{
+  "id": "DENIAL",
+  "priority": 8,
+  "title": "Commander Okafor",
+  "kind": "incoming",
+  "notes": [
+    "The denial: log five, now interactive. The Section 31 officer. The player",
+    "may press or let it go, and neither answer changes what is true."
+  ],
+  "after": {"thread": "SCIENCE", "hours": 36},
+  "forbids": ["quiet"],
+  "entries": ["01", "01M"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- UNLOGGED" },
+        { "voice": "officer", "text": "Commander Okafor. You don't know me. Shepard does." },
+        { "voice": "officer", "text": "She tells me you have questions about my employer." }
+      ],
+      "options": [
+        { "text": "Section 31.", "go": "02" },
+        { "text": "I don't have any questions.", "go": "01Q" },
+        { "text": "Where's Shepard?", "go": "01S" }
+      ],
+      "timeout": 60,
+      "silence": "01Q"
+    },
+    {
+      "id": "01M",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- UNLOGGED" },
+        { "voice": "officer", "text": "Okafor. I called once already. I don't usually." }
+      ],
+      "options": [
+        { "text": "Section 31.", "go": "02" },
+        { "text": "I don't have any questions.", "go": "01Q" }
+      ],
+      "timeout": 60,
+      "silence": "01Q"
+    },
+    {
+      "id": "01S",
+      "lines": [
+        { "voice": "officer", "text": "Asleep, for once. This is not her conversation." }
+      ],
+      "options": [
+        { "text": "Section 31.", "go": "02" },
+        { "text": "Then I don't want it.", "go": "01Q" }
+      ]
+    },
+    {
+      "id": "01Q",
+      "lines": [
+        { "voice": "officer", "text": "Then I'll answer the one you didn't ask." }
+      ],
+      "options": [
+        { "text": "Go on.", "go": "02" }
+      ]
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "officer", "text": "It wasn't us. It wasn't anyone I know of." },
+        { "voice": "officer", "text": "We did not disable this ship. We did not do that" },
+        { "voice": "officer", "text": "to the county below you. We were as blind as she was." }
+      ],
+      "options": [
+        { "text": "That's exactly what you'd say.", "go": "03P" },
+        { "text": "I believe you.", "go": "03B" },
+        { "text": "Why tell me at all?", "go": "03W" }
+      ]
+    },
+    {
+      "id": "03P",
+      "lines": [
+        { "voice": "officer", "text": "It is. If it were us, I would not be calling you." },
+        { "voice": "officer", "text": "I'd be letting you believe it. It's cheaper." }
+      ],
+      "options": [
+        { "text": "Prove it.", "go": "04P" },
+        { "text": "...Fine.", "go": "05" }
+      ]
+    },
+    {
+      "id": "04P",
+      "lines": [
+        { "voice": "officer", "text": "I can't. There is nothing I could show you that" },
+        { "voice": "officer", "text": "an organisation like mine could not also forge." },
+        { "voice": "officer", "text": "That is the problem with us. We earned it." }
+      ],
+      "options": [
+        { "text": "Then why should anyone trust you?", "go": "04T" },
+        { "text": "All right. I'll let it go.", "go": "05" }
+      ],
+      "sets": ["pressed"]
+    },
+    {
+      "id": "04T",
+      "lines": [
+        { "voice": "officer", "text": "They shouldn't. Believe the evidence, not me." },
+        { "voice": "officer", "text": "The Doctor's reading half a signature. Follow that." }
+      ],
+      "options": [
+        { "text": "...", "go": "05" }
+      ]
+    },
+    {
+      "id": "03B",
+      "lines": [
+        { "voice": "officer", "text": "Don't, particularly. Believe what the Doctor finds." }
+      ],
+      "options": [
+        { "text": "...", "go": "05" }
+      ]
+    },
+    {
+      "id": "03W",
+      "lines": [
+        { "voice": "officer", "text": "Because she will not hear it from me any more." },
+        { "voice": "officer", "text": "And because whoever did this is still out there." }
+      ],
+      "options": [
+        { "text": "...", "go": "05" }
+      ]
+    },
+    {
+      "id": "05",
+      "lines": [
+        { "voice": "officer", "text": "Five months she's been angry at the wrong people." },
+        { "voice": "officer", "text": "Somebody left the room before we were blinded," },
+        { "voice": "officer", "text": "and came back for the test. I want to know who." },
+        { "voice": "officer", "text": "Okafor out." }
+      ],
+      "sets": ["denialDone"]
+    }
+  ]
+}

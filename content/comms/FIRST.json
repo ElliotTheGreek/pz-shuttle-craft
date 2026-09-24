@@ -1,0 +1,276 @@
+{
+  "id": "FIRST",
+  "priority": 1,
+  "title": "First contact",
+  "kind": "incoming",
+  "notes": [
+    "6.1 First contact",
+    "She is astonished anyone is aboard her shuttle. Three facts: she is alive,",
+    "the ship cannot leave, they can still transport. And the player decides who",
+    "they are, and the mod never says whether that is true."
+  ],
+  "day": 7,
+  "forbids": ["quiet"],
+  "entries": ["01", "01M", "01MM"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shuttlecraft, this is the Adirondack. Please respond." },
+        { "voice": "shepard", "text": "Somebody has been aboard my shuttle. The core says so." },
+        { "voice": "shepard", "text": "If you can hear me, say something. Anything at all." }
+      ],
+      "options": [
+        { "text": "I hear you. Who is this?", "go": "02" },
+        { "text": "Your shuttle? Finders keepers.", "go": "02R" },
+        { "text": "Is anyone coming to get us?", "go": "02H" }
+      ],
+      "timeout": 60,
+      "silence": "01S"
+    },
+    {
+      "id": "01M",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- SECOND ATTEMPT" },
+        { "voice": "shepard", "text": "Shuttlecraft, Adirondack. Second time of asking." },
+        { "voice": "shepard", "text": "I know somebody is down there. The core keeps count." },
+        { "voice": "shepard", "text": "Pick up. Please." }
+      ],
+      "options": [
+        { "text": "Sorry. I'm here. Who is this?", "go": "02" },
+        { "text": "I was busy staying alive.", "go": "02R" },
+        { "text": "Is anyone coming to get us?", "go": "02H" }
+      ],
+      "timeout": 60,
+      "silence": "01S"
+    },
+    {
+      "id": "01MM",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Third time. I'm going to assume you're busy." },
+        { "voice": "shepard", "text": "Or dead. I would rather busy. Answer if you can." }
+      ],
+      "options": [
+        { "text": "Busy. Not dead. Go ahead.", "go": "02" },
+        { "text": "Stop calling me.", "go": "02R" }
+      ],
+      "timeout": 45,
+      "silence": "01S"
+    },
+    {
+      "id": "01S",
+      "lines": [
+        { "voice": "shepard", "text": "Nothing. All right. Then I'll talk, and you listen." },
+        { "voice": "shepard", "text": "If you're hurt, or scared, that is fine. Just listen." }
+      ],
+      "options": [
+        { "text": "...Go on.", "go": "02" }
+      ]
+    },
+    {
+      "id": "02R",
+      "lines": [
+        { "voice": "shepard", "text": "Ha. No. Mine. Logged item by item, every lamp." },
+        { "voice": "shepard", "text": "But you're alive and you found her, so she's yours now." },
+        { "voice": "shepard", "text": "Look after her. She's the only one left down there." }
+      ],
+      "options": [
+        { "text": "Who are you?", "go": "02" }
+      ]
+    },
+    {
+      "id": "02H",
+      "lines": [
+        { "voice": "shepard", "text": "No. I'm sorry. Nobody is coming. Not for years." },
+        { "voice": "shepard", "text": "I'd rather tell you that now than have you hope." }
+      ],
+      "options": [
+        { "text": "Then who are you?", "go": "02" },
+        { "text": "Great. Thanks.", "go": "02" }
+      ]
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "Lieutenant Lucy Shepard. Cultural survey. And that" },
+        { "voice": "shepard", "text": "is my shuttle you're standing in. My fridge, my oven." },
+        { "voice": "shepard", "text": "My chair, which I would quite like back one day." },
+        { "voice": "shepard", "text": "I have talked to the same hundred and forty faces" },
+        { "voice": "shepard", "text": "since July. You are the first new voice in months." }
+      ],
+      "options": [
+        { "text": "Lucky me.", "go": "03" },
+        { "text": "What happened to you?", "go": "03" },
+        { "text": "July? What happened in July?", "go": "03J" }
+      ]
+    },
+    {
+      "id": "03J",
+      "lines": [
+        { "voice": "shepard", "text": "You know what happened in July. You're living in it." },
+        { "voice": "shepard", "text": "I meant up here. It's been a long summer in orbit." }
+      ],
+      "options": [
+        { "text": "Right. Sorry.", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "So. Who am I talking to?" }
+      ],
+      "options": [
+        { "text": "I'm from around here. I found this in a field.", "go": "04N" },
+        { "text": "Starfleet. Same as you.", "go": "04S" },
+        { "text": "My name's %1. That's all you get.", "go": "04X", "sets": ["named"] },
+        { "text": "Doesn't matter who I am.", "go": "04X" }
+      ],
+      "timeout": 60,
+      "silence": "04Q"
+    },
+    {
+      "id": "04N",
+      "lines": [
+        { "voice": "shepard", "text": "A local. Of course you are. Of course you are." },
+        { "voice": "shepard", "text": "Then I owe you an apology, and it is a very big one." },
+        { "voice": "shepard", "text": "We were up here watching when it happened to you." },
+        { "voice": "shepard", "text": "We watched, and we wrote it down, and we did nothing." }
+      ],
+      "options": [
+        { "text": "You couldn't have stopped it.", "go": "05" },
+        { "text": "Yeah. You did.", "go": "05" },
+        { "text": "Write down what, exactly?", "go": "05" }
+      ]
+    },
+    {
+      "id": "04S",
+      "lines": [
+        { "voice": "shepard", "text": "Starfleet." },
+        { "voice": "shepard", "text": "Nobody told me. Nobody told any of us anything." },
+        { "voice": "shepard", "text": "I'll take it. I'm not in any position to check." },
+        { "voice": "shepard", "text": "And frankly, I've stopped caring whose side anyone is on." }
+      ],
+      "options": [
+        { "text": "Good. Neither have I.", "go": "05" },
+        { "text": "I'm not here to argue.", "go": "05" }
+      ]
+    },
+    {
+      "id": "04X",
+      "lines": [
+        { "voice": "shepard", "text": "Fair. I wouldn't tell me either, after this summer." }
+      ],
+      "options": [
+        { "text": "So what do you want?", "go": "05" }
+      ]
+    },
+    {
+      "id": "04Q",
+      "lines": [
+        { "voice": "shepard", "text": "Nothing? All right. I'll call you the shuttle, then." },
+        { "voice": "shepard", "text": "Plenty of people up here I'd rather not know better." }
+      ],
+      "options": [
+        { "text": "...Fine.", "go": "05" }
+      ]
+    },
+    {
+      "id": "05",
+      "lines": [
+        { "voice": "shepard", "text": "Three things, and then you can hang up on me." },
+        { "voice": "shepard", "text": "One. I'm alive. So are a hundred and forty others." },
+        { "voice": "shepard", "text": "Two. The Adirondack cannot leave. No warp. No impulse." },
+        { "voice": "shepard", "text": "Three. We can still transport. That is what we kept." }
+      ],
+      "options": [
+        { "text": "Transport what, where?", "go": "06" },
+        { "text": "Then get me out of here.", "go": "06U" },
+        { "text": "Why tell me any of this?", "go": "06W" }
+      ]
+    },
+    {
+      "id": "06U",
+      "lines": [
+        { "voice": "shepard", "text": "I would. I can't. Not yet, and it isn't my call." },
+        { "voice": "shepard", "text": "The Doctor won't bring anyone up from the surface" },
+        { "voice": "shepard", "text": "until he knows how it spreads. Quarantine. Hard stop." },
+        { "voice": "shepard", "text": "I'm sorry. I know exactly what I'm asking you to live in." }
+      ],
+      "options": [
+        { "text": "Of course you do.", "go": "06" },
+        { "text": "I'll hold you to 'not yet'.", "go": "06" }
+      ]
+    },
+    {
+      "id": "06W",
+      "lines": [
+        { "voice": "shepard", "text": "Because you're in my shuttle, and my shuttle works." },
+        { "voice": "shepard", "text": "And because there are people down there who are mine." }
+      ],
+      "options": [
+        { "text": "Go on.", "go": "06" }
+      ]
+    },
+    {
+      "id": "06",
+      "lines": [
+        { "voice": "shepard", "text": "Eleven of my crew stayed on the ground. For the work." },
+        { "voice": "shepard", "text": "Some of them are still calling. Distress beacons." },
+        { "voice": "shepard", "text": "Your shuttle hears them. I can't find them without you." },
+        { "voice": "shepard", "text": "Get to one, call it in, and we pull them up from here." }
+      ],
+      "options": [
+        { "text": "I'll see what I can do.", "go": "07" },
+        { "text": "Why should I risk my neck for your people?", "go": "06Q" },
+        { "text": "No promises.", "go": "07" }
+      ]
+    },
+    {
+      "id": "06Q",
+      "lines": [
+        { "voice": "shepard", "text": "You shouldn't. I'm not going to pretend otherwise." },
+        { "voice": "shepard", "text": "The ship pays for it. Patterns for the replicator," },
+        { "voice": "shepard", "text": "supplies. And they would do it for you. Every one." }
+      ],
+      "options": [
+        { "text": "We'll see.", "go": "07" }
+      ]
+    },
+    {
+      "id": "07",
+      "lines": [
+        { "voice": "shepard", "text": "One more thing, and it's the one that matters to me." },
+        { "voice": "shepard", "text": "The tapes by the television. They're mine. Watch them." },
+        { "voice": "shepard", "text": "Everything I know about what happened is on those." }
+      ],
+      "options": [
+        { "text": "I have. All six logs.", "go": "07A", "requires": ["watched:TREK_LogSix"] },
+        { "text": "I'll get to them.", "go": "08" },
+        { "text": "Not my kind of television.", "go": "08" }
+      ]
+    },
+    {
+      "id": "07A",
+      "lines": [
+        { "voice": "shepard", "text": "Then you know more than Starfleet does." },
+        { "voice": "shepard", "text": "That's a low bar. I'm sorry you had to clear it." },
+        { "voice": "shepard", "text": "And you know about the chair. Don't sit in it for me." }
+      ],
+      "options": [
+        { "text": "Too late.", "go": "08" },
+        { "text": "It's a good chair.", "go": "08" }
+      ]
+    },
+    {
+      "id": "08",
+      "lines": [
+        { "voice": "shepard", "text": "I'll call again. Or you call me, off your PADD." },
+        { "voice": "shepard", "text": "Most of the time nobody answers up here. Try anyway." },
+        { "voice": "shepard", "text": "Shepard out." }
+      ],
+      "sets": ["met"]
+    }
+  ]
+}

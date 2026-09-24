@@ -1,0 +1,40 @@
+{
+  "id": "LOST",
+  "priority": 3,
+  "title": "A beacon stopped",
+  "kind": "incoming",
+  "requires": ["lostDue", "met"],
+  "forbids": ["quiet"],
+  "retry": false,
+  "repeatable": true,
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "It's Shepard. %2's beacon stopped an hour ago." },
+        { "voice": "shepard", "text": "I'm not calling to blame you. I'm calling so someone" },
+        { "voice": "shepard", "text": "hears the name out loud. That's all." }
+      ],
+      "options": [
+        { "text": "I couldn't get there.", "go": "02" },
+        { "text": "I'm sorry.", "go": "02" },
+        { "text": "There'll be others.", "go": "03" }
+      ],
+      "clears": ["lostDue"]
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "I know. Nobody could. Shepard out." }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "There will. That's the worst thing anyone's said today." },
+        { "voice": "shepard", "text": "It's also true. Shepard out." }
+      ]
+    }
+  ]
+}

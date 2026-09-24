@@ -1,0 +1,108 @@
+{
+  "id": "ARCHIVE",
+  "priority": 9,
+  "title": "Paperwork",
+  "kind": "incoming",
+  "notes": [
+    "The archive: Phlox's omicron note, 2153. Paperwork, not a miracle -- the",
+    "right job for a hologram who reads everything."
+  ],
+  "after": {"thread": "DENIAL", "hours": 36},
+  "forbids": ["quiet"],
+  "entries": ["01", "01M"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- SICKBAY" },
+        { "voice": "emh", "text": "Shuttle. The Doctor. I have been reading. Don't sigh." }
+      ],
+      "options": [
+        { "text": "Reading what?", "go": "02" },
+        { "text": "I didn't sigh.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "01M",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- SICKBAY" },
+        { "voice": "emh", "text": "I have a finding and nobody to tell it to. Please." }
+      ],
+      "options": [
+        { "text": "Go on, then.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "emh", "text": "Medical logs. The old ones. Two hundred and eighty" },
+        { "voice": "emh", "text": "years of them, filed and unread, which is a crime." },
+        { "voice": "emh", "text": "In 2153 a Denobulan named Phlox stopped nanoprobes." },
+        { "voice": "emh", "text": "Borg nanoprobes, in a crewman, with omicron radiation." },
+        { "voice": "emh", "text": "He wrote it down. Nobody ever read it. Until now." }
+      ],
+      "options": [
+        { "text": "Nanoprobes? That's the second signature?", "go": "03" },
+        { "text": "What does that mean for us?", "go": "03" },
+        { "text": "Who's Phlox?", "go": "02P" }
+      ]
+    },
+    {
+      "id": "02P",
+      "lines": [
+        { "voice": "emh", "text": "A colleague. Before my time, and everybody's." },
+        { "voice": "emh", "text": "He wrote beautifully. I envy that more than anything." }
+      ],
+      "options": [
+        { "text": "And the nanoprobes?", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "emh", "text": "It fits the shape I couldn't see. Something Borg is" },
+        { "voice": "emh", "text": "holding those bodies together. Rebuilding. Running." },
+        { "voice": "emh", "text": "And omicron radiation takes nanoprobes apart." }
+      ],
+      "options": [
+        { "text": "So you can cure it.", "go": "04" },
+        { "text": "So we can kill them.", "go": "04K" }
+      ]
+    },
+    {
+      "id": "04K",
+      "lines": [
+        { "voice": "emh", "text": "They're already dead. You'd be switching them off." },
+        { "voice": "emh", "text": "I'm not sure that's different. I'm not sure it isn't." }
+      ],
+      "options": [
+        { "text": "Can you cure the living?", "go": "04" }
+      ]
+    },
+    {
+      "id": "04",
+      "lines": [
+        { "voice": "emh", "text": "No. I want to be very clear, because it's tempting." },
+        { "voice": "emh", "text": "It's a note in a file. It needs a laboratory, months," },
+        { "voice": "emh", "text": "and a ship that can go somewhere. We have none of it." },
+        { "voice": "emh", "text": "But it tells us what this is made of. That matters." }
+      ],
+      "options": [
+        { "text": "Thank you, Doctor.", "go": "05" },
+        { "text": "Tell Shepard.", "go": "05" }
+      ]
+    },
+    {
+      "id": "05",
+      "lines": [
+        { "voice": "emh", "text": "I have. She cried, which I am choosing to take well." },
+        { "voice": "emh", "text": "Sickbay out." }
+      ],
+      "sets": ["archiveDone"]
+    }
+  ]
+}

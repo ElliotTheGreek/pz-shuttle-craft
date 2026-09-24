@@ -178,6 +178,22 @@ def main():
         fail(f"TREK_CommsServer.lua raises '{f}' and the generator does not "
              f"know it can be waited on")
 
+    # --- the writing is in content/, in the house layout ---------------------
+    # tools/text_units.py and a reviewer's diff both rely on one line of
+    # dialogue per line of file; a hand edit that reflowed a file would turn a
+    # one-sentence rewrite into a whole-file diff.
+    import content
+    files = content.tape_files() + content.thread_files()
+    if len(files) < 30:
+        fail(f"only {len(files)} files in content/: the loader is looking in the wrong place")
+    for p in files:
+        if p.read_text(encoding="utf-8") != content.dump(content.read(p)):
+            fail(f"{p.relative_to(ROOT)} is not in the house layout -- load and "
+                 f"content.write() it")
+    for py in (ROOT / "tools").glob("*.py"):
+        if re.search(r'^\s*line\(\s*"(tucker|pilot|solo|dub)"', py.read_text(encoding="utf-8"), re.M):
+            fail(f"{py.name} has tape lines written in it; the writing belongs in content/")
+
     # --- the tapes the Lua issues exist, and are held back from the shelf ----
     import gen_tapes
     by_id = {t["id"]: t for t in gen_tapes.TAPES}

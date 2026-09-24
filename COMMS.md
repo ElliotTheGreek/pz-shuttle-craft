@@ -376,7 +376,7 @@ Every question below is answered in section 9.
 ```
 tools/gen_comms.py                    the generator and its checks
 tools/comms_vocab.py                  say / opt / branch / node / thread
-tools/comms_threads.py                the writing -- every thread, in priority order
+content/comms/*.json                  the writing -- one file per thread (content/README.md)
 shared/TREK/TREK_CommsTree.lua        generated: the tree the server walks
 shared/Translate/EN/Print_Text.json   generated: every line, option and name
 shared/TREK/TREK_Comms.lua            the two stores, conditions, the renderer

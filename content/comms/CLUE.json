@@ -1,0 +1,86 @@
+{
+  "id": "CLUE",
+  "priority": 4,
+  "title": "Something old",
+  "kind": "incoming",
+  "notes": [
+    "The clue chain (COMMS.md 6.3, LORE.md 1c)",
+    "Starfleet's answer for this planet is a Q, and it is wrong. Nobody says so:",
+    "she mentions it early, less as the fragments come in, and not at all once",
+    "they are all on tape. The theory dies of accumulation."
+  ],
+  "requires": ["clueSeen", "met"],
+  "forbids": ["quiet"],
+  "entries": ["01", "01M"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. Your probe flagged something. Not dilithium." }
+      ],
+      "options": [
+        { "text": "What is it?", "go": "02" },
+        { "text": "Is it dangerous?", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "01M",
+      "lines": [
+        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. The probe's signal. Have you looked yet?" }
+      ],
+      "options": [
+        { "text": "Not yet. What is it?", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "A holo emitter. A small one, very old. Three hundred" },
+        { "voice": "shepard", "text": "years, give or take, in a world that shouldn't have" },
+        { "voice": "shepard", "text": "a holo emitter at all. Somebody left a recording." }
+      ],
+      "options": [
+        { "text": "Who?", "go": "03" },
+        { "text": "Why would anyone do that here?", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "There's a file on this planet. You'll have heard" },
+        { "voice": "shepard", "text": "of the Q. Starfleet's view is that one made this place." },
+        { "voice": "shepard", "text": "A copy of Earth, dropped here, for a joke or a test." },
+        { "voice": "shepard", "text": "It's the only category they have. It's not a bad one." }
+      ],
+      "options": [
+        { "text": "Do you believe that?", "go": "04" },
+        { "text": "A Q? Really?", "go": "04" }
+      ]
+    },
+    {
+      "id": "04",
+      "lines": [
+        { "voice": "shepard", "text": "I believe I'd like to hear the recording." },
+        { "voice": "shepard", "text": "Bring it to me, off the PADD. Hail me with it on you." },
+        { "voice": "shepard", "text": "And don't die with it. It's the only one we know of." }
+      ],
+      "options": [
+        { "text": "I'll find it.", "go": "05" },
+        { "text": "No promises.", "go": "05" }
+      ]
+    },
+    {
+      "id": "05",
+      "lines": [
+        { "voice": "shepard", "text": "Good hunting. Shepard out." }
+      ],
+      "sets": ["clueTold"]
+    }
+  ]
+}

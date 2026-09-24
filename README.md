@@ -214,7 +214,7 @@ engine facts it rests on.
 | `tools/gen_warpcore.py` | The warp core — mesh and texture — and the two renders it was judged on, into `design/art/warpcore/`. |
 | `tools/gen_ensign.py` | The downed ensign: the vanilla body and our uniform, posed in the game's own animation and baked into six static figures, with the render they were judged on in `design/art/ensign/`. |
 | `tools/xskin.py` | Reads the game's skinned `.x` characters and animations, and poses one at a given frame -- what `gen_ensign.py` is built on. |
-| `tools/gen_comms.py` | The Adirondack channel: writes the dialogue tree and `Print_Text.json` from `tools/comms_threads.py`, and refuses a tree with an orphan goto, an unreachable node, a timed node with no silence, or a flag nothing sets. |
+| `tools/gen_comms.py` | The Adirondack channel: writes the dialogue tree and `Print_Text.json` from `content/comms/`, and refuses a tree with an orphan goto, an unreachable node, a timed node with no silence, or a flag nothing sets. |
 | `tools/gen_fragment.py` | The six holo fragments: one mesh and texture, six numbered icons, and their sheet in `design/art/fragment/`. |
 | `tools/gen_padd.py` | The PADD: mesh, LCARS texture, icon rendered from the mesh, and its sheet in `design/art/padd/`. |
 | `tools/gen_poster.py` | The mods-screen poster. |

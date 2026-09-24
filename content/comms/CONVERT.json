@@ -1,0 +1,191 @@
+{
+  "id": "CONVERT",
+  "priority": 13,
+  "title": "On tape",
+  "kind": "hail",
+  "notes": [
+    "The conversion. A hail with a fragment on you: one per call, the first",
+    "the holder carries. \"Hang on. I can put that on magnetic tape.\""
+  ],
+  "requires": ["carrying"],
+  "repeatable": true,
+  "cooldown": 1,
+  "nodes": [
+    {
+      "id": "01",
+      "route": [
+        { "go": "HANG", "forbids": ["converted>=1"] },
+        { "go": "PICK" }
+      ]
+    },
+    {
+      "id": "HANG",
+      "lines": [
+        { "voice": "card", "text": "HAILING -- U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. You found it? Hold it up to the PADD." },
+        { "voice": "shepard", "text": "..." },
+        { "voice": "shepard", "text": "Hang on. I can put that on magnetic tape." },
+        { "voice": "shepard", "text": "It's what I've been doing with holos all year." }
+      ],
+      "options": [
+        { "text": "Do it.", "go": "PICK" },
+        { "text": "On tape?", "go": "HANGT" }
+      ]
+    },
+    {
+      "id": "HANGT",
+      "lines": [
+        { "voice": "shepard", "text": "The television takes tape. So everything goes on tape." },
+        { "voice": "shepard", "text": "Once it's on the shelf, it can't be lost. Ready?" }
+      ],
+      "options": [
+        { "text": "Do it.", "go": "PICK" }
+      ]
+    },
+    {
+      "id": "PICK",
+      "route": [
+        { "go": "F1", "requires": ["carrying:1"] },
+        { "go": "F2", "requires": ["carrying:2"] },
+        { "go": "F3", "requires": ["carrying:3"] },
+        { "go": "F4", "requires": ["carrying:4"] },
+        { "go": "F5", "requires": ["carrying:5"] },
+        { "go": "F6", "requires": ["carrying:6"] },
+        { "go": "NONE" }
+      ]
+    },
+    {
+      "id": "NONE",
+      "lines": [
+        { "voice": "shepard", "text": "I'm not reading one on you. Did you drop it?" },
+        { "voice": "shepard", "text": "Hail me again when it's in your hands. Shepard out." }
+      ]
+    },
+    {
+      "id": "F1",
+      "lines": [
+        { "voice": "shepard", "text": "It's a man. Old, recording himself. It's numbered one." },
+        { "voice": "shepard", "text": "He says he was something that doesn't die, once." },
+        { "voice": "shepard", "text": "Curious about a species that does. I'm dubbing it now." }
+      ],
+      "options": [
+        { "text": "Is it all there?", "go": "COUNT" },
+        { "text": "...", "go": "COUNT" }
+      ],
+      "convert": 1
+    },
+    {
+      "id": "F2",
+      "lines": [
+        { "voice": "shepard", "text": "Number two. He's talking about a woman. Gently." },
+        { "voice": "shepard", "text": "He says his kind can't love anything. And then he did." },
+        { "voice": "shepard", "text": "It's going on tape. You'll want to watch this one." }
+      ],
+      "options": [
+        { "text": "Is it all there?", "go": "COUNT" },
+        { "text": "...", "go": "COUNT" }
+      ],
+      "convert": 2
+    },
+    {
+      "id": "F3",
+      "lines": [
+        { "voice": "shepard", "text": "Three. It's about her dying. A war over furs." },
+        { "voice": "shepard", "text": "Fought by people she'd never met, miles away." },
+        { "voice": "shepard", "text": "I'm putting it on tape. I'm not going to watch it twice." }
+      ],
+      "options": [
+        { "text": "Is it all there?", "go": "COUNT" },
+        { "text": "...", "go": "COUNT" }
+      ],
+      "convert": 3
+    },
+    {
+      "id": "F4",
+      "lines": [
+        { "voice": "shepard", "text": "Four. He copied it. The land, the river, the falls." },
+        { "voice": "shepard", "text": "And the people. He copied the people. And her." },
+        { "voice": "shepard", "text": "That's-- I need a minute. It's going on tape." }
+      ],
+      "options": [
+        { "text": "Is it all there?", "go": "COUNT" },
+        { "text": "...", "go": "COUNT" }
+      ],
+      "convert": 4
+    },
+    {
+      "id": "F5",
+      "lines": [
+        { "voice": "shepard", "text": "Five. He gave it up. The power. Made himself mortal" },
+        { "voice": "shepard", "text": "so he could grow old with her. And he wonders if he" },
+        { "voice": "shepard", "text": "ever told her what she was. Taping it now." }
+      ],
+      "options": [
+        { "text": "Is it all there?", "go": "COUNT" },
+        { "text": "...", "go": "COUNT" }
+      ],
+      "convert": 5
+    },
+    {
+      "id": "F6",
+      "lines": [
+        { "voice": "shepard", "text": "Six. He's old. Dying, I think. And he's talking to" },
+        { "voice": "shepard", "text": "whoever found this. To you, I suppose. Not by name." },
+        { "voice": "shepard", "text": "He knew the world would outlive them both. Taping it." }
+      ],
+      "options": [
+        { "text": "Is it all there?", "go": "COUNT" },
+        { "text": "...", "go": "COUNT" }
+      ],
+      "convert": 6
+    },
+    {
+      "id": "COUNT",
+      "route": [
+        { "go": "ALL", "requires": ["converted>=6"] },
+        { "go": "LAST", "requires": ["converted>=5"] },
+        { "go": "MID", "requires": ["converted>=3"] },
+        { "go": "EARLY", "requires": ["converted>=2"] },
+        { "go": "FIRSTONE" }
+      ]
+    },
+    {
+      "id": "FIRSTONE",
+      "lines": [
+        { "voice": "shepard", "text": "It'll be on the shelf by the television. One of six," },
+        { "voice": "shepard", "text": "he says. The Q file is going to hate this. Or love it." },
+        { "voice": "shepard", "text": "Find the rest if you can. Shepard out." }
+      ]
+    },
+    {
+      "id": "EARLY",
+      "lines": [
+        { "voice": "shepard", "text": "On the shelf. Out of order, but he numbered them," },
+        { "voice": "shepard", "text": "bless him. A historian's dream. Shepard out." }
+      ]
+    },
+    {
+      "id": "MID",
+      "lines": [
+        { "voice": "shepard", "text": "That's half of him, near enough, on the shelf." },
+        { "voice": "shepard", "text": "Whoever he was, he meant these to be found." },
+        { "voice": "shepard", "text": "Shepard out." }
+      ]
+    },
+    {
+      "id": "LAST",
+      "lines": [
+        { "voice": "shepard", "text": "One left. I've been counting days by these." },
+        { "voice": "shepard", "text": "Shepard out." }
+      ]
+    },
+    {
+      "id": "ALL",
+      "lines": [
+        { "voice": "shepard", "text": "That's all six. The whole of him. On the shelf." },
+        { "voice": "shepard", "text": "..." },
+        { "voice": "shepard", "text": "I'll call you when I've listened. Shepard out." }
+      ]
+    }
+  ]
+}
