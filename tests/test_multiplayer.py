@@ -7521,8 +7521,61 @@ def seat_exit():
           "the shuttle is still loaded")
 
 
+
+def hover_call_down():
+    """Beam down beside a hovering shuttle, and call her down somewhere new.
+
+    Found in play, 2026-09-24: "Not while the shuttle is in the air". The
+    ship's test for whether anybody is aboard asked `getSeat(p) ~= nil`, and
+    the engine answers -1 -- not nil -- for somebody who is not in the
+    vehicle, so every living player near her counted as her crew. The
+    simulation answered nil, so nothing here could see it.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    seat(rt)
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+    if ship(rt, "flying") is not True:
+        fail("hover call-down: she never got up")
+        return
+
+    # Down on the transporter, a few squares from her -- close enough that
+    # her vehicle is loaded and the seat test is really asked.
+    sx, sy = ship(rt, "x"), ship(rt, "y")
+    rt.run(f"TREK.Transport.beamDown({P}, {{ x = {sx} + 10, y = {sy}, z = 0 }})")
+    net.pump(300)
+    check(rt.eval(f"{P}.vehicle") is None,
+          "hover call-down: the pilot is still in the seat after beaming down")
+    check(rt.eval("TREK.Vehicle.ship() ~= nil") is True,
+          "hover call-down: her vehicle is not loaded beside the crew, so the "
+          "seat test this exists for is never asked")
+
+    rt.run("SIM.notes = {}")
+    px = int(rt.eval(f"math.floor({P}.x)"))
+    py = int(rt.eval(f"math.floor({P}.y)"))
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, {px} + 2, {py} + 6, 0)")
+    net.pump(60)
+    check(not any("IGUI_TREK_InFlight" in n for n in rt.notes()),
+          "hover call-down: calling her down after beaming off her was "
+          "refused as 'Not while the shuttle is in the air'")
+    check(ship(rt, "landed") is True and ship(rt, "flying") is None,
+          "hover call-down: she did not come down where she was called")
+
+    for w in rt.warnings():
+        fail(f"hover call-down: {w}")
+    print("hover call-down: a crew who beam down beside a hovering shuttle are "
+          "not her crew any more, and can call her down somewhere new")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_alone,
-            flight_endings, seat_exit,
+            flight_endings, seat_exit, hover_call_down,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, contact_world,

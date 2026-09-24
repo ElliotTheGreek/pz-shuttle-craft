@@ -401,8 +401,16 @@ function crewAboard(vehicle)
     for _, p in ipairs(U.players()) do
         if U.try("crewDead", function() return p:isDead() end) == false then
             if U.isInteriorPlayer(p) then return true end
+            -- **getSeat answers -1 for somebody not in the vehicle**, never
+            -- nil (BaseVehicle.getSeat, bci 27: iconst_m1). `~= nil` counted
+            -- every living player near a hovering shuttle as seated in her,
+            -- so a crew who beamed down beside her could not call her down
+            -- -- "Not while the shuttle is in the air" -- and she never went
+            -- back up while anybody stood near. The simulation answered nil,
+            -- which is how it passed.
             if vehicle and U.try("crewSeated", function()
-                return vehicle:getSeat(p) ~= nil
+                local seat = vehicle:getSeat(p)
+                return seat ~= nil and seat >= 0
             end) == true then
                 return true
             end

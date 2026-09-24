@@ -600,7 +600,17 @@ one level further in:
    ship back to her spawn heading ten times a second in game, and the entire
    flight suite was green. The stub keeps a real quaternion now.
 
-All nine are fixed, and the rule they share is worth more than any of them:
+And a tenth, found in play on 2026-09-24:
+
+10. **A seat test that answered nil.** `BaseVehicle.getSeat(character)`
+   returns **-1** for somebody not in the vehicle (bci 27, `iconst_m1`); the
+   stub returned nil. `crewAboard` asked `getSeat(p) ~= nil`, so in the game
+   every living player near a hovering shuttle counted as her crew -- a crew
+   who beamed down beside her were told "Not while the shuttle is in the
+   air" when they called her down -- and here nobody ever did.
+   `hover_call_down()` reproduces the exact message against the old line.
+
+All ten are fixed, and the rule they share is worth more than any of them:
 **when a test is easy to satisfy, suspect the simulation before believing the
 code.** `MULTIPLAYER.md` says the same thing about vehicle gravity, the
 floor-gated height and the radial menu's one-frame delay, each of which let a
@@ -2189,6 +2199,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A probe or a distress call on a server says there is no position fix** | The server has no return point for a player standing in the cabin. The `move` handler writes one before every beam up; a player who has not beamed since the fix will have one after their next. See *Player mod data a client writes is not the server's*. |
 | **`ItemContainer.isOccupiedVehicleSeat` NullPointerException, once, on arriving aboard** | Somebody left the shuttle's seat for the cabin without the loot panel being rebuilt: it still showed the seat's container, the move unloaded the shuttle, and vanilla asked a seat whose vehicle was gone. Every seat exit goes through `Core.leaveSeat`, which does what `ISExitVehicle` does -- `vehicle:exit`, `OnExitVehicle`, `ISInventoryPage.dirtyUI()` -- while she is still loaded. `seat_exit()` tests both routes. |
 | **A cure is lost although the patient never left** | They went forward to the cockpit. The seats are aboard (`EMH.aboardForCure`), and leaving starts a two-minute grace rather than ending it. |
+| **"Not while the shuttle is in the air" when calling her down after beaming off her** | Something counted a player on the ground as seated. `BaseVehicle.getSeat` answers -1, not nil, for somebody who is not in the vehicle -- test `>= 0`. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
 ---

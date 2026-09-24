@@ -1504,11 +1504,15 @@ function VehicleMT:setMaxSpeed(v) self.maxSpeed = v end
 function VehicleMT:getThrottle() return self.throttle or 0 end
 function VehicleMT:getCurrentSteering() return self.steering or 0 end
 function VehicleMT:getDriver() return self.seats[0] end
+--- -1 for somebody not in the vehicle, as the engine answers
+--- (BaseVehicle.getSeat, bci 27). This stub used to answer nil, which let a
+--- `getSeat(p) ~= nil` test count everybody near a hovering shuttle as her
+--- crew -- in the game, and never here.
 function VehicleMT:getSeat(chr)
     for seat, who in pairs(self.seats) do
         if who == chr then return seat end
     end
-    return nil
+    return -1
 end
 function VehicleMT:isDriver(chr) return self.seats[0] == chr end
 function VehicleMT:exit(chr)
