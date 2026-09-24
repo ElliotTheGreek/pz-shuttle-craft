@@ -100,6 +100,10 @@ class Runtime:
             ("toServer", self, who, mod, cmd, to_py(args)))
         g.py_server_command = lambda who, mod, cmd, args: net.queue.append(
             ("toClient", self, who, mod, cmd, to_py(args)))
+        # A timed action handed to the server (PADD.md): by class name, with
+        # its arguments in `new`'s parameter order.
+        g.py_client_action = lambda who, kind, args, token: net.queue.append(
+            ("action", self, who, kind, to_py(args), token))
         path = "/".join(LUA.split(os.sep))
         self.lua.execute(f'package.path = "{path}/shared/?.lua;{path}/client/?.lua;'
                          f'{path}/server/?.lua;" .. package.path')
@@ -231,6 +235,15 @@ APPLY = r"""
         elseif op == "vehicleRemove" then
             local v = SIM.findVehicle(d.simId)
             if v then v.removed = true end
+        elseif op == "itemModData" then
+            -- The server pushed an item's mod data to the player carrying it.
+            for _, p in ipairs(SIM.players) do
+                if p.name == d.who then
+                    for _, it in ipairs(p.inventory.items) do
+                        if it.id == d.id then it.modData = copy(d.modData) end
+                    end
+                end
+            end
         elseif op == "modData" then
             local o = find(sq.objects, d.sprite)
             if o then o.modData = copy(d.modData) end
@@ -281,6 +294,14 @@ class Net:
             targets = [c for c in self.all() if c is not src]
             for rt in targets:
                 rt.fire("OnReceiveGlobalModData", key, rt.table(data))
+        elif kind == "action":
+            _, src, who, action, args, token = msg
+            n = max([int(k) for k in args] or [0])
+            table = self.server.lua.table()
+            for k, v in args.items():
+                table[int(k)] = self.server.table(v)
+            ok = self.server.lua.globals().SIM.serverAction(action, table, n)
+            src.lua.globals().SIM.clientActionDone(token, bool(ok))
         elif kind == "request":
             _, src, key = msg
             data = to_py(self.server.eval(f'SIM.globalData["{key}"]') or self.server.lua.table())
@@ -6974,13 +6995,406 @@ def ensign_multiplayer():
           "exactly who they should")
 
 
+
+# ---------------------------------------------------------------------------
+# The PADD (PADD.md)
+# ---------------------------------------------------------------------------
+def give(rt, who, full, item_id, title=None):
+    """Puts an item with a fixed id in a player's pockets on this runtime.
+
+    Fixed, because an item sent over the network is resolved by id: a PADD
+    in the owner's pockets on the server and on the owner's client has to be
+    the same PADD, as it is in the engine."""
+    md = f'it.modData.literatureTitle = "{title}"' if title else ""
+    rt.run(f"""
+        local it = instanceItem("{full}")
+        it.id = {item_id}
+        {md}
+        for _, p in ipairs(SIM.players) do
+            if p.name == "{who}" then p.inventory:AddItem(it) end
+        end
+    """)
+
+
+def shelf(rt, x, y, z, items):
+    """A container on the floor holding books, the way a school's shelf is:
+    reached through the loot panel, never picked up."""
+    rows = []
+    for full, item_id, title in items:
+        md = f'it.modData.literatureTitle = "{title}"' if title else ""
+        rows.append(f"""
+            do local it = instanceItem("{full}"); it.id = {item_id}; {md}
+               o.container:AddItem(it) end""")
+    rt.run(f"""
+        local sq = SIM.rawSquare({x}, {y}, {z})
+        local o = SIM.object("furniture_shelving_01_28")
+        o.square = sq
+        o.container = SIM.container(40)
+        o.container.parentObject = o
+        {''.join(rows)}
+        table.insert(sq.objects, o)
+    """)
+
+
+def padd_menu(rt, item_ids):
+    """Right-clicks these items in an inventory pane; returns every label."""
+    ids = ", ".join(str(i) for i in item_ids)
+    rt.run(f"""
+        local list = {{}}
+        for _, id in ipairs({{ {ids} }}) do table.insert(list, SIM.findItem(id)) end
+        paddCtx = SIM.contextMenu()
+        TREK.PaddUI.fillInventoryMenu(0, paddCtx, list)
+    """)
+    return str(rt.eval("paddCtx:deepLabels()"))
+
+
+def padd_click(rt, text):
+    """Clicks an option anywhere in the last menu, then runs what it queued."""
+    rt.run(f"""
+        for _, o in ipairs(paddCtx:all()) do
+            if o.name:find("{text}", 1, true) and o.fn then
+                o.fn(o.target, unpack(o.args))
+                break
+            end
+        end
+        SIM.runActions()
+    """)
+
+
+def library(rt, item_id):
+    return int(rt.eval(f"#TREK.Padd.library(SIM.findItem({item_id}))"))
+
+
+def option_greyed(rt, text):
+    return rt.eval(f"""(function()
+        for _, o in ipairs(paddCtx:all()) do
+            if o.name:find("{text}", 1, true) then return o.notAvailable == true end
+        end
+        return "absent"
+    end)()""")
+
+
+def padd():
+    """Load, read, copy and erase, in single player.
+
+    PADD.md sections 1-5: a PADD takes a digital copy of a book and leaves the
+    book; reading off it gives what the book gives, applied to a book rebuilt
+    in no container; a library copies and erases; and nothing that must not
+    load does.
+    """
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "padd, beaming up"):
+        return
+
+    # --- the armoury issues two -----------------------------------------------
+    issued = rt.eval("""(function()
+        local U = TREK.Util
+        local x, y = U.at(3, 0)
+        local sq = U.square(x, y, TREK.Config.CabinZ, false)
+        local n = 0
+        for _, o in ipairs(sq.objects) do
+            if o.container then
+                for _, it in ipairs(o.container.items) do
+                    if it.fullType == TREK.Config.PaddItem then n = n + 1 end
+                end
+            end
+        end
+        return n
+    end)()""")
+    check(issued == int(rt.eval("TREK.Config.PaddIssue")),
+          f"padd: the armoury holds {issued} PADDs, not "
+          f"{rt.eval('TREK.Config.PaddIssue')}")
+
+    # Out into a town, with books on a shelf beside the player.
+    rt.run(f"""
+        local p = {P}
+        p.x, p.y, p.z, p.lastZ = 2000.5, 2000.5, 0, 0
+        p.streamX, p.streamY = 2000.5, 2000.5
+    """)
+    shelf(rt, 2001, 2000, 0, [("Base.BookCarpentry1", 9001, None),
+                              ("Base.BookCarpentry2", 9002, None),
+                              ("Base.Book", 9003, "LastTrain"),
+                              ("Base.Book", 9004, "SeaOfGlass"),
+                              ("Base.MagazineCooking1", 9005, None),
+                              ("Base.Notebook", 9006, None),
+                              ("Base.Flier", 9007, None)])
+
+    # --- no PADD, no option -----------------------------------------------------
+    check("IGUI_TREK_PaddLoad" not in padd_menu(rt, [9001]),
+          "padd: a book offers Load onto PADD to a player with no PADD")
+
+    give(rt, "owner", "TrekShuttle.TrekPADD", 8001)
+    check("IGUI_TREK_PaddLoad" in padd_menu(rt, [9001]),
+          "padd: a skill book on a shelf offers no Load with a PADD in hand")
+    check("IGUI_TREK_PaddLoad" not in padd_menu(rt, [9006]),
+          "padd: a writable notebook offers Load; what a player wrote is theirs")
+    check("IGUI_TREK_PaddLoad" not in padd_menu(rt, [9007]),
+          "padd: a flier used up when read offers Load")
+
+    # --- loading copies, and leaves the book ---------------------------------------
+    padd_menu(rt, [9001])
+    padd_click(rt, "IGUI_TREK_PaddLoad")
+    check(library(rt, 8001) == 1, "padd: loading a book put nothing on the PADD")
+    check(rt.eval("SIM.findItem(9001) ~= nil and SIM.findItem(9001).container ~= nil")
+          is True, "padd: loading took the book off the shelf; a PADD copies")
+    check(any("IGUI_TREK_PaddLoaded" in n for n in rt.notes()),
+          "padd: a book was loaded without a word")
+    padd_menu(rt, [9001])
+    check(option_greyed(rt, "IGUI_TREK_PaddLoad") is True,
+          "padd: a book already on the PADD is offered again, not greyed")
+
+    # --- two novels are two books; the same novel twice is one -----------------
+    padd_menu(rt, [9003, 9004, 9005])
+    check("IGUI_TREK_PaddLoadMany|3" in str(rt.eval("paddCtx:deepLabels()")),
+          "padd: selecting three books did not offer to load all three")
+    padd_click(rt, "IGUI_TREK_PaddLoadMany")
+    check(library(rt, 8001) == 4,
+          f"padd: the library holds {library(rt, 8001)} after four different "
+          f"books; two copies of Base.Book with different titles are two books")
+    shelf(rt, 2001, 2001, 0, [("Base.Book", 9008, "LastTrain")])
+    padd_menu(rt, [9008])
+    check(option_greyed(rt, "IGUI_TREK_PaddLoad") is True,
+          "padd: a second copy of the same novel is offered as a new book")
+
+    # --- out of reach ------------------------------------------------------------------
+    shelf(rt, 2012, 2000, 0, [("Base.BookCarpentry2", 9010, None)])
+    rt.run("""
+        local p, padd, book = SIM.players[1], SIM.findItem(8001), SIM.findItem(9010)
+        ISTimedActionQueue.add(TREKLoadPadd:new(p, padd, book))
+        SIM.runActions()
+    """)
+    check(library(rt, 8001) == 4,
+          "padd: a book ten squares away was loaded")
+
+    # --- the read menu --------------------------------------------------------------
+    labels = padd_menu(rt, [8001])
+    for key in ("IGUI_TREK_PaddRead|4", "IGUI_TREK_PaddSkillBooks",
+                "IGUI_TREK_PaddRecipes", "IGUI_TREK_PaddLiterature",
+                "IGUI_TREK_PaddCopy", "IGUI_TREK_PaddErase"):
+        check(key in labels, f"padd: the PADD's menu has no {key}: {labels!r}")
+
+    # --- reading a skill book --------------------------------------------------------
+    ticks = int(rt.eval("""TREK.Padd.readTicks(SIM.players[1],
+        TREK.Padd.library(SIM.findItem(8001))[1])"""))
+    # 220 pages * 2 minutes per page / (1 / 60 / 2), over five.
+    want = int(220 * 2.0 / (1 / 60 / 2) / 5)
+    check(abs(ticks - want) <= 1,
+          f"padd: a 220-page book takes {ticks} ticks off a PADD, not {want} "
+          f"-- a fifth of what ISReadABook would take")
+    rt.run("SIM.players[1].traits = { FAST_READER = true }")
+    fast = int(rt.eval("""TREK.Padd.readTicks(SIM.players[1],
+        TREK.Padd.library(SIM.findItem(8001))[1])"""))
+    check(abs(fast - int(want * 0.7)) <= 1,
+          f"padd: a Fast Reader takes {fast} ticks, not {int(want * 0.7)}; the "
+          f"vanilla traits apply before the PADD's speed")
+    rt.run("SIM.players[1].traits = nil")
+
+    padd_menu(rt, [8001])
+    padd_click(rt, "Carpentry for Beginners")
+    xp = rt.eval("SIM.xp[#SIM.xp]")
+    check(xp is not None and str(xp.perk.name) == "Carpentry" and int(xp.mult) == 3
+          and int(xp.lvl) == 1 and int(xp.maxLvl) == 2,
+          "padd: reading Carpentry Vol. 1 off the PADD gave no skill multiplier, "
+          "or the wrong one")
+    check(int(rt.eval('SIM.players[1]:getAlreadyReadPages("Base.BookCarpentry1")')) == 220,
+          "padd: a finished book is not recorded as read to the last page")
+    check(int(rt.eval("#SIM.literatureRead")) == 0,
+          "padd: a skill book was read as literature too")
+    check(rt.eval("SIM.syncedFields[#SIM.syncedFields].mask") == 7,
+          "padd: the player's recipes, traits and books were never synced")
+
+    # Too advanced: greyed with a reason, and refused if forced.
+    padd_menu(rt, [8001])
+    shelf(rt, 2000, 2001, 0, [("Base.BookCarpentry2", 9011, None)])
+    rt.run("""
+        local padd, book = SIM.findItem(8001), SIM.findItem(9011)
+        TREK.Padd.add(padd, TREK.Padd.entryOf(book))
+    """)
+    padd_menu(rt, [8001])
+    check(option_greyed(rt, "Carpentry for Intermediates") is True,
+          "padd: a Vol. 2 for a character with no carpentry is not greyed")
+    n = int(rt.eval("#SIM.xp"))
+    padd_click(rt, "Carpentry for Intermediates")
+    check(int(rt.eval("#SIM.xp")) == n,
+          "padd: a book too advanced for the reader gave a multiplier anyway")
+
+    # --- reading literature ----------------------------------------------------------
+    padd_menu(rt, [8001])
+    key = rt.eval("""(function()
+        for _, e in ipairs(TREK.Padd.library(SIM.findItem(8001))) do
+            if e.md and e.md.literatureTitle == "LastTrain" then
+                return TREK.Padd.key(e)
+            end
+        end
+    end)()""")
+    rt.run(f"""
+        ISTimedActionQueue.add(TREKReadPadd:new(SIM.players[1], SIM.findItem(8001), "{key}"))
+        SIM.runActions()
+    """)
+    read = rt.eval("SIM.literatureRead[1]")
+    check(read is not None and str(read.title) == "LastTrain",
+          "padd: reading a novel off the PADD did not read it")
+    check(read is not None and read.inContainer is False,
+          "padd: the book rebuilt for reading was put in a container -- that "
+          "is a real, droppable copy of the book")
+    check(rt.eval('SIM.players[1]:isLiteratureRead("LastTrain")') is True,
+          "padd: the novel's title was not ticked off")
+    rt.run(f"""
+        ISTimedActionQueue.add(TREKReadPadd:new(SIM.players[1], SIM.findItem(8001), "{key}"))
+        SIM.runActions()
+    """)
+    check(int(rt.eval("#SIM.literatureRead")) == 1,
+          "padd: reading the same novel twice comforted twice; vanilla does "
+          "not, and a PADD must not")
+
+    # A recipe magazine: recorded as read, which is what recipes key on.
+    padd_menu(rt, [8001])
+    padd_click(rt, "Good Cooking Magazine")
+    check(rt.eval('SIM.players[1].booksRead and '
+                  'SIM.players[1].booksRead["Base.MagazineCooking1"]') is True,
+          "padd: a recipe magazine read off the PADD was not recorded as read")
+
+    # --- copying ------------------------------------------------------------------
+    labels = padd_menu(rt, [8001])
+    check(option_greyed(rt, "IGUI_TREK_PaddCopy") is True,
+          "padd: Copy is live with only one PADD")
+    give(rt, "owner", "TrekShuttle.TrekPADD", 8002)
+    padd_menu(rt, [8001])
+    padd_click(rt, "IGUI_TREK_PaddCopyTo")
+    check(library(rt, 8002) == library(rt, 8001),
+          f"padd: the copy holds {library(rt, 8002)} of "
+          f"{library(rt, 8001)} titles")
+    before = library(rt, 8002)
+    padd_menu(rt, [8001])
+    padd_click(rt, "IGUI_TREK_PaddCopyTo")
+    check(library(rt, 8002) == before,
+          "padd: copying the same library twice duplicated its titles")
+
+    # --- erasing ------------------------------------------------------------------
+    padd_menu(rt, [8002])
+    padd_click(rt, "IGUI_TREK_PaddEraseConfirm")
+    check(library(rt, 8002) == 0, "padd: erasing left titles on the PADD")
+    check(library(rt, 8001) == before,
+          "padd: erasing one PADD touched the other")
+
+    # --- a replicated PADD is blank ------------------------------------------------
+    check(rt.eval('#TREK.Padd.library(instanceItem("TrekShuttle.TrekPADD"))') == 0,
+          "padd: a new PADD is not blank")
+
+    for w in rt.warnings():
+        fail(f"padd: {w}")
+
+    print("padd: the armoury issues two; a book loads as a copy and stays on "
+          "its shelf, only once, only within reach, and never a notebook or "
+          "a single-use flier; two novels are two books; reading gives the "
+          "skill multiplier at a fifth of the time, refuses a book too "
+          "advanced, comforts once per title from a book in no container, and "
+          "records a recipe magazine; a library copies without duplicates and "
+          "erases alone")
+
+
+def padd_multiplayer():
+    """Two clients: the server writes the library and the reader's machine
+    gets it; reading happens on the server, with the comfort on the client."""
+    net = Net("mp", clients=("owner", "crew"))
+    srv = net.server
+    owner, crew = net.clients["owner"], net.clients["crew"]
+    srv.run("SIM.player('owner', 2000.5, 2000.5, 0); "
+            "SIM.player('crew', 2003.5, 2000.5, 0)")
+    owner.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    crew.run("SIM.player('crew', 2003.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+
+    for rt in (srv, owner):
+        give(rt, "owner", "TrekShuttle.TrekPADD", 8101)
+    for rt in (srv, owner, crew):
+        shelf(rt, 2001, 2000, 0, [("Base.BookCarpentry1", 9101, None),
+                                  ("Base.Book", 9102, "LastTrain")])
+    net.pump(4)
+
+    # --- loading: the client asks, the server writes, the owner hears ------------
+    padd_menu(owner, [9101])
+    padd_click(owner, "IGUI_TREK_PaddLoad")
+    net.pump(4)
+    check("TREKLoadPadd" in [str(x) for x in srv.eval("SIM.actionsDone").values()],
+          "padd mp: the server never ran the load -- a mod timed action has to "
+          "be rebuilt there by its class name")
+    check(library(srv, 8101) == 1,
+          "padd mp: the server's PADD holds nothing after a load")
+    check(library(owner, 8101) == 1,
+          "padd mp: the owner's own PADD shows nothing after a load; the "
+          "server wrote it and never synced it")
+
+    padd_menu(owner, [9102])
+    padd_click(owner, "IGUI_TREK_PaddLoad")
+    net.pump(4)
+    check(library(owner, 8101) == 2, "padd mp: the second load never reached the owner")
+
+    # A client is not an author.
+    owner.run("""
+        TREK.Padd.add(SIM.findItem(8101), { type = "Base.Forged", name = "x" })
+    """)
+    check(library(owner, 8101) == 2,
+          "padd mp: a client wrote its own PADD's library")
+
+    # --- reading: the effects are the server's; the comfort is on both ----------
+    padd_menu(owner, [8101])
+    padd_click(owner, "Carpentry for Beginners")
+    net.pump(4)
+    check(int(srv.eval("#SIM.xp")) == 1,
+          "padd mp: the skill multiplier never landed on the server")
+    check(int(owner.eval("#SIM.xp")) == 0,
+          "padd mp: the client applied the multiplier itself; complete() "
+          "never runs on a client")
+
+    key = owner.eval("""(function()
+        for _, e in ipairs(TREK.Padd.library(SIM.findItem(8101))) do
+            if e.md and e.md.literatureTitle == "LastTrain" then
+                return TREK.Padd.key(e)
+            end
+        end
+    end)()""")
+    owner.run(f"""
+        ISTimedActionQueue.add(TREKReadPadd:new(SIM.players[1], SIM.findItem(8101), "{key}"))
+        SIM.runActions()
+    """)
+    net.pump(4)
+    check(int(srv.eval("#SIM.literatureRead")) == 1,
+          "padd mp: the novel's comfort never landed on the server")
+    check(int(owner.eval("#SIM.literatureRead")) == 1,
+          "padd mp: the novel's comfort never landed on the reader's own "
+          "client, where vanilla applies it too")
+    check(int(crew.eval("#SIM.literatureRead")) == 0,
+          "padd mp: somebody else's client read the owner's novel")
+
+    for name, rt in (("owner", owner), ("crew", crew)):
+        check(int(rt.eval("SIM.clientWorldEdit or 0")) == 0,
+              f"padd mp: the {name}'s client edited the world")
+    for name, rt in (("server", srv), ("owner", owner), ("crew", crew)):
+        for w in rt.warnings():
+            fail(f"padd mp ({name}): {w}")
+
+    print("padd multiplayer: a load is rebuilt and completed on the server "
+          "and the library reaches the owner's machine; a client cannot write "
+          "one; reading applies the multiplier on the server only, and a "
+          "novel's comfort on the server and the reader's client and nowhere "
+          "else")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_alone,
             flight_endings,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
-            ensign_multiplayer, tapes, multiplayer)
+            ensign_multiplayer, padd, padd_multiplayer, tapes, multiplayer)
 
 
 def main():

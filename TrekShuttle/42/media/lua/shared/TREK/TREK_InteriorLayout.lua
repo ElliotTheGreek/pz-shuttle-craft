@@ -180,9 +180,11 @@ L.tiles = {
     -- `special` takes a list: this locker owes the crew four phasers and one
     -- uniform of each division, and those are two different counts.
     -- 4 phasers (2.4) + 2 of each of the 4 blades (15.0) + 6 uniforms (8.4)
-    -- is 25.8 of the locker's 40 units, so nothing is dropped for room.
+    -- + 2 PADDs (0.6) is 26.4 of the locker's 40 units, so nothing is
+    -- dropped for room.
     { x = 3, y = 0, sprite = "furniture_storage_02_11", tag = "armoury",
-      container = true, special = { "phasers", "uniforms" }, loot = "weapons",
+      container = true, special = { "phasers", "uniforms", "padds" },
+      loot = "weapons",
       fill = 1.0, cap = 8 },        -- 4 phasers + 2 of each of the 4 blades
     { x = 3, y = 1, sprite = "furniture_storage_02_11", tag = "provisions",
       container = true, loot = "food",

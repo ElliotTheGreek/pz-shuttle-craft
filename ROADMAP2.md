@@ -398,7 +398,7 @@ Mission offer, acceptance, target, and completion are shared ship data. Any auth
 
 ---
 
-# 1.8 — The PADD  **[DESIGN ONLY]**
+# 1.8 — The PADD  **[BUILT 2026-09-24, NOT YET PLAYED]**
 
 A light Starfleet tablet that copies books. Load a book you find onto it,
 read it later off the PADD, copy the library to another PADD; lose the PADD
@@ -406,7 +406,9 @@ and you lose the books. `PADD.md` is the design, the engine facts it rests on
 -- a build 42 book is a type *and* its copy's mod data, and reading applies
 its effects on the server -- and the six things to prove before building,
 the first being whether a mod's own timed action runs its server half in
-multiplayer.
+multiplayer -- which the bytecode answered yes, and the mod's first timed
+actions are built on. Unlimited, a copy that leaves the book, five times
+faster than paper, two in the armoury.
 
 ---
 

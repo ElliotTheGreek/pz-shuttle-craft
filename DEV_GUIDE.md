@@ -841,6 +841,33 @@ test of the ensign asked the server where the crew were.
 - `ensign_multiplayer()` asserts the server's answer for a player aboard, and
   launches a probe from the cabin on a server.
 
+### A timed action is rebuilt on the server by its name and its parameters
+
+**New in this mod, with the PADD -- its first timed actions.** In build 42 a
+client does not run a Lua timed action by itself. Three facts, all from the
+bytecode, and each one a way for an action to do nothing in multiplayer while
+working perfectly in single player:
+
+- **Every one goes to the server.** `LuaTimedActionNew.start()` calls
+  `ActionManager.createNetTimedAction` on a client (bci 60-101), and the
+  server rebuilds the action by looking its **global class name** up
+  (`NetTimedAction.parse`, bci 75-167). So the class has to be a global, in
+  `shared/`, where the server loads it.
+- **Its arguments are its own fields, by `new`'s parameter names.**
+  `NetTimedAction.set` walks `Prototype.locvars` and `rawget`s each name off
+  the action. `new(character, padd, book)` storing `o.item = book` sends the
+  server a nil book, and the rebuilt action is simply invalid. Store every
+  parameter under exactly its own name.
+- **`complete()` never runs on a client** (bci 34), and `perform()` runs on
+  the client. So the state change is `complete()`, followed by the sync that
+  gets it back to the player (`syncItemModData`, `sendSyncPlayerFields`), and
+  `perform()` is for notes and sounds.
+
+`tests/pz_sim.lua` models all three: single player runs the whole action in
+one process, a client sends it by class name with arguments read by
+`debug.getlocal` on `new`, and the server rebuilds, validates and completes
+it. A mutation that renames one parameter is caught. `PADD.md` section 7.
+
 ### A setter's own sync may be one-sided
 
 **New in this mod.** `IsoDoor.setLockedByKey(b)` does sync itself, which makes
@@ -2016,6 +2043,7 @@ python tools/gen_emh.py     TrekShuttle/42       # the Doctor: mesh, texture, po
 python tools/gen_uniform.py TrekShuttle/42        # the six uniforms: textures, icons, clothing XML, GUID table
 python tools/gen_map_symbols.py TrekShuttle/42    # the world-map contact glyphs and their registration
 python tools/gen_ensign.py  TrekShuttle/42        # the downed ensign: six baked figures (after gen_uniform)
+python tools/gen_padd.py    TrekShuttle/42        # the PADD: mesh, texture, icon
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
@@ -2280,7 +2308,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.4.1**, build revision **27**.
+Version **1.4.1**, build revision **28**.
 
 `modversion` in `mod.info` and `C.Version` in `TREK_Config.lua` are the same
 number, and `tests/test_assets.py` fails if they are not -- they had drifted a
@@ -2695,6 +2723,17 @@ moved to ground that was not.
 tricorder, rescue, three patterns learned. `ENSIGN.md` section 9 has what is
 still open, chiefly two clients.
 
+**The 2026-09-24 PADD** is `ROADMAP2.md` 1.8: a tablet that holds digital
+copies of books, without limit, read five times faster than paper, copied
+between PADDs, and lost with the PADD. It is the mod's **first timed
+action**, and the first thing checked was whether a mod's own action runs
+its server half in multiplayer -- the bytecode says it is rebuilt there by
+class name and by `new`'s parameter names (*A timed action is rebuilt on the
+server...*, above). Reading is its own action, applying `ISReadABook`'s
+effects to a book rebuilt in no container, because a real book in the
+reader's hands would be a duplication exploit. Seventeen mutations caught.
+Build revision 28, for the armoury's two PADDs. `PADD.md`. Not yet played.
+
 **Next up** is `ROADMAP.md`'s step 7: publishing -- or `ROADMAP2.md` 1.6, the
 cold start, if it is to ship with the ensign. Everything else on the roadmap
 is built; what is left is playing it. Four systems have never been in a game at
@@ -2737,6 +2776,9 @@ TrekShuttle/42/media/lua/client/TREK/TREK_EMHUI.lua            the Doctor: his m
 TrekShuttle/42/media/lua/client/TREK/TREK_Menu.lua             right-click menus, crew
 TrekShuttle/42/media/lua/server/TREK/TREK_Missions.lua         distress calls and the downed ensign: the authority
 TrekShuttle/42/media/lua/client/TREK/TREK_EnsignUI.lua         the ensign's right-click menu, the chirp, the notes
+TrekShuttle/42/media/lua/shared/TREK/TREK_Padd.lua             the PADD's library: books, entries, reading arithmetic
+TrekShuttle/42/media/lua/shared/TREK/TREK_PaddActions.lua      the PADD's timed actions (global, shared: the server rebuilds them by name)
+TrekShuttle/42/media/lua/client/TREK/TREK_PaddUI.lua           the PADD's inventory menus
 TrekShuttle/42/media/clothing/clothingItems/*.xml              the six uniforms: vanilla rigs, our textures (generated)
 TrekShuttle/42/media/fileGuidTable.xml                         the GUID each garment is reached by (generated)
 TrekShuttle/42/media/textures/clothes/trek/*.png               the uniform textures (generated)

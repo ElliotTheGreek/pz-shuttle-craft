@@ -1,9 +1,12 @@
 # The PADD
 
 The working guide for the Personal Access Display Device, in the shape
-`ENSIGN.md`, `PROBES.md` and `UNIFORMS.md` use. **Nothing here is built yet.**
-This is the design, the engine facts it rests on, the one decision that shapes
-all of it, and what to prove before writing code.
+`ENSIGN.md`, `PROBES.md` and `UNIFORMS.md` use: what the player does, the
+engine facts it rests on, the one decision that shapes all of it, how each
+piece works, and what is still to see in a game.
+
+**Built 2026-09-24; not yet seen in game.** Section 7 is what was checked
+before a line of it was written, and section 11 is the route to try it.
 
 ---
 
@@ -108,6 +111,12 @@ nobody can hold it.** Recommended.
   one function call as a bag of data the Java methods know how to read.
 - Then `sendSyncPlayerFields(character, 0x07)`, exactly as vanilla.
 
+**One deliberate difference from vanilla**: a skill book's multiplier is
+granted when the read *completes*. Vanilla grants part of it as the pages go
+by. An interrupted read still keeps its pages -- the progress is the
+character's -- so the next read off the PADD resumes and finishes, and at
+five times the speed that is a short wait.
+
 The cost of B is that it duplicates `ISReadABook`'s arithmetic -- the
 multiplier per level, the pages-read scaling, the too-high and too-low level
 refusals -- and a patch that changes vanilla's leaves ours behind. That is
@@ -123,13 +132,20 @@ mirrors, so it can be diffed when the game updates.
 
 ```lua
 padd:getModData().TREKLibrary = {
-    { type = "Base.BookCarpentry1", name = "Carpentry Vol. 1", pages = 220 },
-    { type = "Base.Book", name = "The Last Train",
-      md = { literatureTitle = "LastTrain" } },
-    { type = "Base.MagazineFirearms1", name = "Guns Monthly",
-      md = { learnedRecipe = nil } },
+    { type = "Base.BookCarpentry1", name = "Carpentry for Beginners",
+      kind = "skill", skill = "Carpentry", level = 1, maxLevel = 2,
+      pages = 220, fast = false },
+    { type = "Base.Book", name = "The Last Train", kind = "literature",
+      pages = 0, fast = false, md = { literatureTitle = "LastTrain" } },
+    { type = "Base.MagazineCooking1", name = "Good Cooking Magazine",
+      kind = "recipe", pages = 0, fast = false },
 }
 ```
+
+`kind`, `skill`, the levels and the page count are read off the real book
+when it is loaded and kept, so the menus can group and grey without asking
+the engine about an item that is not there. `TREK_Padd.lua` is the whole of
+it: `Pd.entryOf`, `Pd.key`, `Pd.add`, `Pd.merge`, `Pd.erase`.
 
 - **The item, not the player**, which is what makes "lose the PADD, lose the
   books" true without any code: mod data on an `InventoryItem` is saved with
@@ -164,7 +180,7 @@ padd:getModData().TREKLibrary = {
 | Action | From | Needs | Does |
 |---|---|---|---|
 | **Load onto PADD** | right-click a book in the inventory or loot panel | a PADD on you; the book in your inventory or a container within reach; not already on it | `TREKLoadPadd`, a few seconds with the chirp; server adds the entry and syncs |
-| **Load every book here** *(phase 2)* | right-click a bookcase | the same | one action per book, queued -- a school library in one go |
+| **Load N books onto PADD** | select several books in the loot panel, right-click | the same | one action per book, queued -- a school's shelf in one go. (A right-click on the bookcase itself is not built; selecting the shelf's contents does the same job.) |
 | **Read** | right-click the PADD, submenu of titles | the PADD on you | `TREKReadPadd` (section 3) |
 | **Copy library to ...** | right-click one PADD, submenu of your other PADDs | two PADDs in your inventory | `TREKCopyPadd`, time per entry; merge, no duplicates |
 | **Erase** | right-click the PADD | -- | clears the library, with a confirmation |
@@ -204,18 +220,45 @@ system.
 
 ---
 
-## 7. Verify first, in this order
+## 7. Checked before building, and still to see in a game
 
-Each of these is a claim the design leans on that no static check can
-answer.
+**Settled from the bytecode**, and the architecture rests on these:
 
-1. **A mod timed action runs its server half in multiplayer.** The bytecode
-   says `NetTimedAction` rebuilds an action by its `Type` and `new`
-   parameter names; prove it with the smallest possible action on the
-   dedicated server -- a two-second `TREKLoadPadd` that writes one entry --
-   before anything else is built on it. **If it does not, the fallback is a
-   client-run action that ends in a server command**, which is how the EMH
-   treats a body today.
+- **Every Lua timed action on a client goes to the server.**
+  `LuaTimedActionNew.start()` calls `ActionManager.createNetTimedAction` on a
+  client unless the action opts out (bci 60-101). A mod's action is no
+  exception.
+- **The server rebuilds it by its global class name**, with no allowlist:
+  `NetTimedAction.parse` reads the type, `LuaManager.get(type)`, and calls
+  its `new` (bci 75-167). So the classes are globals in `shared/`.
+- **The arguments are the action's own fields, named after `new`'s
+  parameters** -- `NetTimedAction.set` walks `Prototype.locvars` and
+  `rawget`s each name. So every `new` here stores each parameter under
+  exactly its own name. A field under another name reaches the server as nil,
+  and the action never completes, silently.
+- **Strings, numbers, booleans, tables, items and world objects cross**
+  (`PZNetKahluaTableImpl.save`). A PADD, a book on a shelf and a string key
+  all do.
+- **`complete()` never runs on a client** (`LuaTimedActionNew.complete`,
+  bci 34); it runs in single player and on the server. `perform()` runs on
+  the client.
+- **`syncItemModData(player, item)`** is a `GlobalObject` call with an
+  ordinary vanilla call site doing exactly this job
+  (`ISChangeFishingRodEquip:complete()`).
+- **Vanilla applies a book's comfort twice in multiplayer** -- on the server
+  in `complete()`, and on the reader's client through
+  `literature.readLiterature`, which looks the book up by item id. A book
+  read off a PADD has no id, so the PADD sends `paddRead` with the entry and
+  the client rebuilds the book itself. Only on a server: in single player the
+  two halves are one process.
+- **`ReadLiterature` calls `Use()` on a `CONSUME_ON_READ` book**, so those
+  are not loadable at all -- a reconstructed copy must never be used up, and
+  a thing that is used up has no business being read for ever.
+
+**Still for a game to answer:**
+
+1. **The whole loop on the dedicated server** -- the class-name rebuild is
+   read out of the bytecode and simulated, not yet watched.
 2. **`syncItemModData` reaches the owner and survives a relog** -- load a
    book, disconnect, reconnect, read.
 3. **A detached `instanceItem` is accepted by `ReadLiterature` and
@@ -230,8 +273,9 @@ answer.
    ticks the same title in the literature panel (`ISLiteratureUI`) as reading
    the paper copy would.
 
-Numbers 1 and 3 decide the architecture; do them before the model, the icon
-or a line of menu code.
+7. **How the PADD sits in the hand.** The mesh lies flat, screen up, and the
+   `Bip01_Prop2` attachment is vanilla's Book's six numbers as a first guess.
+   Six numbers to judge in a fist, the blades' open question again.
 
 ---
 
@@ -243,6 +287,7 @@ or a line of menu code.
 | What reading gives | **Server**, in `TREKReadPadd:complete()`, then `sendSyncPlayerFields` | Exactly where vanilla gives it |
 | Page progress | **The character**, per book type, as vanilla keeps it | Nothing new |
 | Menus, the title list | **Client** | Presentation |
+| A novel's comfort | **Server and the reader's client**, as vanilla does it | The stats live on both; `paddRead` carries the entry |
 
 A PADD is personal: two players cannot read the same PADD at once, because
 it is in one inventory. Sharing is copying, or handing it over.
@@ -269,3 +314,57 @@ it is in one inventory. Sharing is copying, or handing it over.
   point rather than its storage; worth considering once the PADD exists.
 - **Tapes and discs.** Vanilla's media are played on a television, which the
   cabin already has.
+
+---
+
+## 11. Where things live, the checks, and the route
+
+```
+shared/TREK/TREK_Padd.lua          the library: what a book is, entries, keys,
+                                   add / merge / erase, reach, read time,
+                                   refusals, the rebuilt book, the comfort
+shared/TREK/TREK_PaddActions.lua   TREKLoadPadd, TREKReadPadd, TREKCopyPadd,
+                                   TREKErasePadd, and the paddRead handler
+client/TREK/TREK_PaddUI.lua        the inventory menus
+server/TREK/TREK_Build.lua         the armoury's `padds` rule
+media/scripts/trekshuttle.txt      TrekPADD and its model
+tools/gen_padd.py                  the mesh, texture, icon and render
+```
+
+**`tests/test_multiplayer.py`** `padd` and `padd_multiplayer`: the armoury's
+two; no option without a PADD; notebooks and single-use fliers refused; a
+load that copies and leaves the book; once only; out of reach refused; two
+novels as two books and the same novel twice as one; the read time at a
+fifth, with the traits first; a skill book's multiplier and its level
+refusals; a novel's comfort once per title, from a book in no container; a
+recipe magazine recorded; copy without duplicates; erase alone; a blank new
+PADD. On two clients: the load rebuilt and completed on the server and
+synced to its owner; a client unable to write a library; the multiplier on
+the server only; the comfort on the server and the reader's client and
+nobody else's.
+
+`tests/pz_sim.lua` gained **timed actions modelled on the bytecode** --
+single player runs all of it in one process, a client starts the action and
+sends it by class name with its arguments read by `new`'s parameter names,
+the server rebuilds and completes it, the client performs. The mod had never
+had a timed action before, so the harness had never needed one.
+
+**Seventeen mutations, one at a time, all caught**, including a `new` whose
+parameter name does not match its field, a load that is never synced, a
+rebuilt book put in the reader's pockets, and a multiplier applied on the
+client.
+
+**To try it, in a fresh world** (the armoury's two PADDs are new-world
+stock; in an existing save, replicate one):
+
+1. Beam aboard and take a PADD from the armoury, 3,0.
+2. Go to a school, a library or a house with books. Open a bookcase in the
+   loot panel, right-click a book: **Load onto PADD**. Select several and
+   it offers to load them all.
+3. Right-click the PADD: **Read from PADD** -> Skill books / Recipes / Books
+   and magazines. Read one and time it against paper.
+4. With a second PADD: **Copy library to...**. And **Erase PADD** on one.
+
+What to look at: the PADD in the reading hand, the book staying on its
+shelf, a titled novel ticked in the literature panel, and -- on the server
+-- that a load and a read actually complete.

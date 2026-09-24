@@ -178,6 +178,8 @@ So a server-side file guarded by `if isClient() then return end` runs in
 | Distress calls, rescues, the downed ensign's figure and the clock | **Server**, in the contact store (`TREK_Contacts_v1`) beside the contacts | A mission is shared ship knowledge; the figure is a world item; the clock has to run with nobody near (ENSIGN.md) |
 | The ensign's beacon (`addSound`) | **Server** | It moves zombies, which is world state |
 | The ensign's combadge chirp | **Each client, for itself** | Presentation: what this machine hears |
+| A PADD's library | **Server**, in a timed action's `complete()`, pushed to the carrier with `syncItemModData` | Item state; every Lua timed action on a client is rebuilt and completed on the server (PADD.md section 7) |
+| What reading off a PADD gives | **Server**, in `TREKReadPadd:complete()`; a novel's comfort also on the reader's client via `paddRead` | Exactly where vanilla applies a book |
 
 ### Files
 
@@ -253,6 +255,7 @@ Server -> client (`OnServerCommand` / direct in SP):
 | `emhCureStarted {hours}` / `emhCured` / `emhCureLost` | The cure beginning, landing (clear your own flags and moodle) or being abandoned |
 | `distressCall` / `distressAccepted` / `distressDeclined` / `distressLapsed` | A call arriving (note and chime), and what became of it |
 | `ensignRescued {name, by, learned}` / `ensignLost {name, why}` | How a rescue ended |
+| `paddRead {entry}` | The reader's client applies a novel's comfort to itself, as vanilla's `literature.readLiterature` does for a paper book |
 
 ---
 

@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 27
+C.BuildRev = 28
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -1552,5 +1552,40 @@ C.UniformIssue = {
     "TrekShuttle.TrekUniformDressOperations",
     "TrekShuttle.TrekUniformDressScience",
 }
+
+---------------------------------------------------------------------------
+-- The PADD (PADD.md)
+---------------------------------------------------------------------------
+-- A Starfleet tablet that holds digital copies of books. The library lives in
+-- the PADD's own mod data, so it travels with the item: lose the PADD and the
+-- books go with it; recover it and they come back.
+C.PaddItem = "TrekShuttle.TrekPADD"
+C.PaddType = "TrekPADD"
+
+-- Two issued in the armoury, beside the uniforms (PADD.md section 9). New
+-- worlds only, like every other change to what a locker holds; the
+-- replicator knows the pattern from the first day, and makes them blank.
+C.PaddIssue = 2
+
+-- Reading off a PADD takes a fifth of the time the same book takes on paper,
+-- after the vanilla rules -- sandbox minutes per page, Fast and Slow Reader,
+-- reading glasses, sitting down -- have all been applied. The author's
+-- number (PADD.md section 9).
+C.PaddReadSpeed = 5
+
+-- How long loading one book takes, in timed-action ticks: a scan, not a read.
+C.PaddLoadTicks = 90
+
+-- Copying a library: a base, plus a little per title, capped so a library of
+-- hundreds is not a quarter of an hour stood still.
+C.PaddCopyBaseTicks = 60
+C.PaddCopyTicksPerTitle = 4
+C.PaddCopyMaxTicks = 600
+
+-- Erasing: short, but long enough to be cancelled by walking away.
+C.PaddEraseTicks = 60
+
+-- The mod data key the library is kept under, on the PADD.
+C.PaddLibraryKey = "TREKLibrary"
 
 return C

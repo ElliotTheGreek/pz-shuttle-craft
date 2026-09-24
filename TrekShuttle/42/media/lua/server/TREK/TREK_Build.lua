@@ -660,6 +660,9 @@ local SPECIALS = {
     -- shuttle does not need a second command tunic, and the replicator makes
     -- any of them for nothing but energy.
     uniforms = { items = C.UniformIssue, copies = function() return 1 end },
+    -- Two PADDs, blank (PADD.md). A PADD is personal -- the library is on
+    -- the item -- so two means a crew of two each carries one.
+    padds = { items = { C.PaddItem }, copies = function() return C.PaddIssue end },
 }
 
 --- Stocks one authored container. Returns true when something went in.

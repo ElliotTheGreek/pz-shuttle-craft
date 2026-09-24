@@ -209,7 +209,9 @@ function instanceItem(id)
     -- `class` so instanceof(item, "InventoryItem") answers the way the engine
     -- does. Without it the mod's context-menu code, which has to tell a single
     -- item from a stack, sees neither and offers nothing at all.
+    SIM.nextItemId = (SIM.nextItemId or 1000) + 1
     local it = { fullType = id, modData = {}, class = "InventoryItem",
+                 id = SIM.nextItemId,
                  ammo = 0, chambered = false, jammed = false, condition = 10,
                  -- Negative is the engine's "nobody has set this yet", and it
                  -- is what makes a dropped item pick its own angle below.
@@ -272,7 +274,45 @@ function instanceItem(id)
     function it:getConditionMax() return 10 end
     function it:getCondition() return self.condition end
     function it:setCondition(n) self.condition = n end
+
+    -- Identity and whereabouts, which is how the engine resolves an item
+    -- sent over the network, and how a timed action finds its item again.
+    function it:getID() return self.id end
+    function it:getContainer() return self.container end
+    function it:getWorldItem() return self.worldItem end
+    function it:hasModData()
+        for _ in pairs(self.modData) do return true end
+        return false
+    end
+    function it:getName() return self.displayName or bareTypeOf(self.fullType) end
+    function it:getType() return bareTypeOf(self.fullType) end
+    function it:hasTag(tag) return self.tags ~= nil and self.tags[tag] == true end
+
+    -- The literature half (PADD.md): what ISReadABook reads off a book.
+    local lit = SIM.literature and SIM.literature[id]
+    if lit then
+        it.class = "Literature"
+        it.displayName = lit.name
+        it.tags = {}
+        if lit.consume then it.tags[ItemTag.CONSUME_ON_READ] = true end
+        function it:getNumberOfPages() return lit.pages or 0 end
+        function it:getSkillTrained() return lit.skill or "" end
+        function it:getLvlSkillTrained() return lit.lvl or 0 end
+        function it:getMaxLevelTrained() return lit.maxLvl or 0 end
+        function it:getLearnedRecipes()
+            local l = jlist(lit.recipes or {})
+            function l:isEmpty() return self:size() == 0 end
+            return l
+        end
+        function it:canBeWrite() return lit.writable == true end
+        function it:getStressChange() return lit.stress or 0 end
+    end
     return it
+end
+
+--- The bare type, for items -- defined ahead of the catalogue's copy.
+function bareTypeOf(fullType)
+    return (tostring(fullType):gsub("^.*%.", ""))
 end
 
 --- The bare type, the way the engine's recursive lookups compare it:
@@ -373,7 +413,10 @@ for _, id in ipairs({ "TrekShuttle.TrekPhaser", "TrekShuttle.TrekHypospray",
                       "TrekShuttle.TrekEnsignMScience",
                       "TrekShuttle.TrekEnsignFCommand",
                       "TrekShuttle.TrekEnsignFOperations",
-                      "TrekShuttle.TrekEnsignFScience" }) do
+                      "TrekShuttle.TrekEnsignFScience",
+                      -- The PADD: the ship knows its pattern, and a
+                      -- replicated one is blank (PADD.md).
+                      "TrekShuttle.TrekPADD" }) do
     scriptItem(id, { name = bareType(id), category = "Starfleet", weight = 0.6 })
 end
 
@@ -440,15 +483,36 @@ function SIM.container(capacity)
         if not item then return nil end
         if self:getContentsWeight() + 0.5 > self.capacity then return nil end
         table.insert(self.items, item)
+        item.container = self
         return item
     end
+    function c:contains(item)
+        for _, held in ipairs(self.items) do
+            if rawequal(held, item) then return true end
+        end
+        return false
+    end
+    function c:containsID(id)
+        for _, held in ipairs(self.items) do
+            if held.id == id then return true end
+        end
+        return false
+    end
+    function c:isInCharacterInventory(chr)
+        return self.ownerName ~= nil and chr ~= nil and self.ownerName == chr.name
+    end
+    function c:getParent() return self.parentObject end
     function c:getItems() return jlist(self.items) end
     --- Takes one item back out. Real, not a no-op: the refit migration empties
     --- a doomed locker onto the deck, and a Remove that did nothing would let
     --- the item be both spilled and destroyed with the container.
     function c:Remove(item)
         for i, held in ipairs(self.items) do
-            if rawequal(held, item) then table.remove(self.items, i) return end
+            if rawequal(held, item) then
+                table.remove(self.items, i)
+                item.container = nil
+                return
+            end
         end
     end
     function c:getCapacity() return self.capacity end
@@ -746,8 +810,17 @@ function SIM.drainDevices(minutes)
     end
 end
 
+-- The one piece of the class hierarchy anything here asks about: a book is
+-- an InventoryItem too, and a menu that handles "an item" must see it.
+SIM.SUPER = { Literature = "InventoryItem" }
 function instanceof(o, class)
-    return type(o) == "table" and o.class == class
+    if type(o) ~= "table" then return false end
+    local c = o.class
+    while c do
+        if c == class then return true end
+        c = SIM.SUPER[c]
+    end
+    return false
 end
 
 ComponentType = { FluidContainer = {} }
@@ -1543,6 +1616,56 @@ function SIM.player(name, x, y, z, admin)
     return p
 end
 
+-- What reading touches on a character (PADD.md), recorded per runtime so a
+-- test can say which machine a book's effects landed on.
+function PlayerMT:hasTrait(t) return self.traits ~= nil and self.traits[t] == true end
+function PlayerMT:getPerkLevel(perk)
+    return (self.perks and perk and self.perks[perk.name]) or 0
+end
+function PlayerMT:isTimedActionInstant() return false end
+function PlayerMT:getAlreadyReadPages(t)
+    return (self.readPages and self.readPages[t]) or 0
+end
+function PlayerMT:setAlreadyReadPages(t, n)
+    self.readPages = self.readPages or {}
+    self.readPages[t] = n
+end
+function PlayerMT:isLiteratureRead(title)
+    return self.readTitles ~= nil and self.readTitles[title] == true
+end
+function PlayerMT:addReadLiterature(title)
+    self.readTitles = self.readTitles or {}
+    self.readTitles[title] = true
+end
+SIM.literatureRead = {}
+function PlayerMT:ReadLiterature(book)
+    if book.tags and book.tags[ItemTag.CONSUME_ON_READ] then
+        error("ReadLiterature on a CONSUME_ON_READ book calls Use() on it")
+    end
+    table.insert(SIM.literatureRead, { who = self.name, type = book.fullType,
+                                       title = book.modData.literatureTitle,
+                                       inContainer = book.container ~= nil })
+end
+function PlayerMT:learnRecipe(r)
+    self.recipes = self.recipes or {}
+    self.recipes[r] = true
+    return true
+end
+function PlayerMT:getAlreadyReadBook()
+    self.booksRead = self.booksRead or {}
+    local list = self.booksRead
+    return { add = function(_, t) list[t] = true end }
+end
+function PlayerMT:addReadPrintMedia(id)
+    self.media = self.media or {}
+    self.media[id] = true
+end
+function PlayerMT:setReading(v) self.reading = v end
+function PlayerMT:reportEvent() end
+function PlayerMT:getWornItems() return { getItem = function() return nil end } end
+function PlayerMT:isSitOnGround() return false end
+function PlayerMT:isSittingOnFurniture() return false end
+
 function PlayerMT:getX() return self.x end
 function PlayerMT:getY() return self.y end
 --- A character in a seat is wherever the vehicle is.
@@ -2038,6 +2161,7 @@ end
 
 local gameTime = {
     getWorldAgeHours = function() return SIM.worldAgeHours end,
+    getMinutesPerDay = function() return 60 end,
     getWorldAgeDaysSinceBegin = function() return SIM.worldAgeHours / 24 end,
 }
 function getGameTime() return gameTime end
@@ -2932,3 +3056,245 @@ package.preload["Vehicles/ISUI/ISVehicleMenu"] = function() return true end
 package.preload["Vehicles/ISUI/ISCarMechanicsOverlay"] = function() return true end
 package.preload["Vehicles/ISUI/ISVehicleSeatUI"] = function() return true end
 UIFont = { Small = 1, Medium = 2 }
+
+---------------------------------------------------------------------------
+-- Timed actions (PADD.md)
+---------------------------------------------------------------------------
+-- Modelled on what build 42 actually does, read out of its bytecode:
+--
+--   * single player runs the whole action in one process: isValid, start,
+--     update, perform, **and complete** (LuaTimedActionNew.complete skips
+--     only on a client, bci 34);
+--   * a client runs isValid and start, then hands the action to the server
+--     (LuaTimedActionNew.start -> ActionManager.createNetTimedAction). The
+--     server **rebuilds it by its global class name**, calling `new` with the
+--     arguments read off the client's action **by the parameter names of
+--     `new`** (NetTimedAction.set, Prototype.locvars), runs it, and
+--     completes it; the client then performs.
+--
+-- The parameter-name rule is the one this has to be unkind about: an action
+-- that stores `self.item` under a parameter called `book` arrives on the
+-- server with a nil book, and never completes -- in the engine and here.
+ISBaseObject = ISBaseObject or {}
+ISBaseObject.__index = ISBaseObject
+function ISBaseObject:derive(type)
+    local o = {}
+    setmetatable(o, self)
+    self.__index = self
+    o.Type = type
+    return o
+end
+
+ISBaseTimedAction = ISBaseObject:derive("ISBaseTimedAction")
+function ISBaseTimedAction:new(character)
+    local o = {}
+    setmetatable(o, self)
+    self.__index = self
+    o.character = character
+    o.stopOnWalk = true
+    o.stopOnRun = true
+    o.maxTime = -1
+    o.jobDelta = 0
+    return o
+end
+function ISBaseTimedAction:isValid() return true end
+function ISBaseTimedAction:start() end
+function ISBaseTimedAction:update() end
+function ISBaseTimedAction:stop() self.stopped = true end
+function ISBaseTimedAction:perform() self.performed = true end
+function ISBaseTimedAction:getJobDelta() return self.jobDelta or 0 end
+function ISBaseTimedAction:setJobDelta(d) self.jobDelta = d end
+function ISBaseTimedAction:setActionAnim(a) self.anim = a end
+function ISBaseTimedAction:setAnimVariable(k, v)
+    self.animVars = self.animVars or {}
+    self.animVars[k] = v
+end
+function ISBaseTimedAction:setOverrideHandModels(primary, secondary)
+    self.handModels = { primary, secondary }
+end
+package.preload["TimedActions/ISBaseTimedAction"] = function() return ISBaseTimedAction end
+
+SIM.actionQueue = {}
+SIM.actionsDone = {}
+ISTimedActionQueue = {}
+function ISTimedActionQueue.add(action)
+    table.insert(SIM.actionQueue, action)
+    return action
+end
+
+-- `new`'s parameter names, after `self`, the way NetTimedAction reads them.
+local function paramNames(class)
+    local names = {}
+    local fn = rawget(class, "new")
+    if type(fn) ~= "function" then return names end
+    local i = 2
+    while true do
+        local name = debug.getlocal(fn, i)
+        if not name then break end
+        table.insert(names, name)
+        i = i + 1
+    end
+    return names
+end
+SIM.paramNames = paramNames
+
+local function encode(v)
+    if type(v) == "table" and v.inventory and v.name then return { __player = v.name } end
+    if instanceof(v, "InventoryItem") then return { __item = v.id } end
+    return v
+end
+
+--- Every item this runtime can see, by id: pockets, and containers and the
+--- ground on every square. What the engine resolves a network item by.
+function SIM.findItem(id)
+    for _, p in ipairs(SIM.players) do
+        for _, it in ipairs(p.inventory.items) do
+            if it.id == id then return it end
+        end
+    end
+    for _, sq in pairs(SIM.squares) do
+        for _, o in ipairs(sq.objects) do
+            if o.container then
+                for _, it in ipairs(o.container.items) do
+                    if it.id == id then return it end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function decode(v)
+    if type(v) == "table" and v.__player then
+        for _, p in ipairs(SIM.players) do
+            if p.name == v.__player then return p end
+        end
+        return nil
+    end
+    if type(v) == "table" and v.__item then return SIM.findItem(v.__item) end
+    return v
+end
+
+--- Runs what is queued, the way the engine's three setups do.
+function SIM.runActions()
+    local queue = SIM.actionQueue
+    SIM.actionQueue = {}
+    for _, action in ipairs(queue) do
+        if action:isValid() then
+            action:start()
+            if SIM_ROLE == "client" then
+                local names = paramNames(getmetatable(action))
+                local args = {}
+                for i, name in ipairs(names) do args[i] = encode(action[name]) end
+                SIM.pendingActions = SIM.pendingActions or {}
+                SIM.nextToken = (SIM.nextToken or 0) + 1
+                SIM.pendingActions[SIM.nextToken] = action
+                py_client_action(action.character.name, action.Type, args,
+                                 SIM.nextToken)
+            else
+                action:setJobDelta(1.0)
+                action:update()
+                action:perform()
+                action:complete()
+                table.insert(SIM.actionsDone, action.Type)
+            end
+        else
+            table.insert(SIM.actionsDone, action.Type .. ":invalid")
+        end
+    end
+end
+
+--- The server's half: rebuilt by class name and parameter, run, completed.
+function SIM.serverAction(typeName, args, count)
+    local class = _G[typeName]
+    if type(class) ~= "table" then
+        SIM.log[#SIM.log + 1] = "SIM WARN no timed action class " .. tostring(typeName)
+        return false
+    end
+    local decoded = {}
+    for i = 1, count do decoded[i] = decode(args[i]) end
+    local action = class:new(unpack(decoded, 1, count))
+    if not action:isValid() then
+        table.insert(SIM.actionsDone, typeName .. ":invalid")
+        return false
+    end
+    action:start()
+    action:setJobDelta(1.0)
+    action:update()
+    action:complete()
+    table.insert(SIM.actionsDone, typeName)
+    return true
+end
+
+function SIM.clientActionDone(token, ok)
+    local action = SIM.pendingActions and SIM.pendingActions[token]
+    if not action then return end
+    SIM.pendingActions[token] = nil
+    if ok then action:perform() else action:stop() end
+end
+
+ISInventoryPaneContextMenu = ISInventoryPaneContextMenu or {}
+function ISInventoryPaneContextMenu.transferIfNeeded() end
+
+---------------------------------------------------------------------------
+-- Books (PADD.md)
+---------------------------------------------------------------------------
+-- A small literature table: a skill book, a titled novel, a recipe
+-- magazine, a notebook that must not load and a flyer that is used up when
+-- read. Each is what ISReadABook reads off a real one.
+SIM.literature = {
+    ["Base.BookCarpentry1"] = { name = "Carpentry for Beginners", pages = 220,
+                                skill = "Carpentry", lvl = 1, maxLvl = 2 },
+    ["Base.BookCarpentry2"] = { name = "Carpentry for Intermediates", pages = 260,
+                                skill = "Carpentry", lvl = 3, maxLvl = 4 },
+    ["Base.Book"]           = { name = "Book", pages = 0, stress = -40 },
+    ["Base.MagazineCooking1"] = { name = "Good Cooking Magazine", pages = 0,
+                                  recipes = { "MakeCake" } },
+    ["Base.Notebook"]       = { name = "Notebook", pages = 0, writable = true },
+    ["Base.Flier"]          = { name = "Flier", pages = 0, consume = true },
+}
+
+ItemTag = ItemTag or {}
+ItemTag.CONSUME_ON_READ = "CONSUME_ON_READ"
+ItemTag.FAST_READ = "FAST_READ"
+CharacterTrait = CharacterTrait or {}
+CharacterTrait.ILLITERATE = "ILLITERATE"
+CharacterTrait.FAST_READER = "FAST_READER"
+CharacterTrait.SLOW_READER = "SLOW_READER"
+ItemBodyLocation = ItemBodyLocation or { EYES = "EYES" }
+CharacterActionAnims = CharacterActionAnims or { Read = "Read" }
+
+Perks = Perks or {}
+Perks.Carpentry = Perks.Carpentry or { name = "Carpentry",
+                                       getName = function(self) return self.name end }
+SkillBook = SkillBook or {}
+SkillBook.Carpentry = { perk = Perks.Carpentry, maxMultiplier1 = 3,
+                        maxMultiplier2 = 5, maxMultiplier3 = 8,
+                        maxMultiplier4 = 12, maxMultiplier5 = 16 }
+
+local sandbox = { MinutesPerPage = 2.0 }
+function getSandboxOptions()
+    return { getOptionByName = function(_, name)
+        return { getValue = function() return sandbox[name] end }
+    end }
+end
+
+-- What reading gives, recorded where it lands: which runtime, which player.
+SIM.xp = {}
+SIM.syncedFields = {}
+function addXpMultiplier(player, perk, mult, lvl, maxLvl)
+    table.insert(SIM.xp, { who = player.name, perk = perk, mult = mult,
+                           lvl = lvl, maxLvl = maxLvl })
+end
+function sendSyncPlayerFields(player, mask)
+    table.insert(SIM.syncedFields, { who = player.name, mask = mask })
+end
+
+--- The item's mod data, pushed to the player carrying it. Only from the
+--- server, and only to that player: another client's copy of somebody
+--- else's pockets does not exist to update.
+function syncItemModData(player, item)
+    if not isServer() then return end
+    py_replicate("itemModData", { x = 0, y = 0, z = 0, who = player.name,
+                                  id = item.id, modData = item.modData })
+end
