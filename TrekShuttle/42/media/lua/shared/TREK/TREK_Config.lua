@@ -387,10 +387,20 @@ C.FlightSpeedDefaultStep = 3
 -- anti-cheat to trip, so the pilot gets the whole range.
 C.FlightSpeedCapFraction = 1.0
 
--- Consecutive server checks with no pilot in the driver's seat before the
--- ship is brought down by itself. A ship left parked in the sky by somebody's
--- disconnect would otherwise stay there for the life of the world.
-C.FlightPilotGrace = 5
+-- Consecutive server checks (one a second) with nobody aboard before she goes
+-- back up by herself. A ship left hovering by somebody's disconnect would
+-- otherwise stay there for the life of the world.
+--
+-- It is the gap between leaving a seat and arriving in the cabin, or the other
+-- way round, that this has to cover -- a player mid-beam is in neither.
+C.FlightPilotGrace = 10
+
+-- And the long version of the same thing, set when somebody is granted a beam
+-- *towards* a hovering ship. A beam is a second and a half; the ground at the
+-- far end can take far longer than that to stream in, and a crew who watched
+-- her leave while they were still dematerialised would be right to call it a
+-- bug.
+C.FlightBoardingChecks = 30
 
 ---------------------------------------------------------------------------
 -- Photon torpedoes

@@ -328,9 +328,18 @@ end
 function Core.enter(player)
     if not player or U.isInteriorPlayer(player) then return false end
     local s = Ship.get()
-    -- The ramp is only there when she is down. Flying, the hatch is three
-    -- levels overhead; the transporter is the way aboard.
-    if not s.landed or s.flying then return false end
+    -- The ramp is only there when she is down. Hovering, the hatch is a storey
+    -- overhead; the transporter is the way aboard.
+    --
+    -- It says so now. This returned false in silence, and *Enter* is offered
+    -- wherever the hull covers the square -- which it does while she hovers
+    -- over you -- so the option was there, did nothing, and explained nothing:
+    -- the thing TREK_Menu.lua's own header forbids.
+    if not s.landed or s.flying then
+        U.note(player, getText(s.flying and "IGUI_TREK_InFlight"
+                                        or "IGUI_TREK_NotLanded"), 255, 90, 90)
+        return false
+    end
     return Core.requestMove(player, "hatchIn", function(p)
         local s = Ship.get()
         if not s.landed then return end

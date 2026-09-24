@@ -67,6 +67,11 @@ function M.onBeamUp(_, player)
     if not ok and why == "busy" then busyNote(player) end
 end
 
+function M.onToCockpit(_, player)
+    local ok, why = TREK.Transport.toCockpit(player)
+    if not ok and why == "busy" then busyNote(player) end
+end
+
 function M.onBeamDown(_, player)
     local ok, why = TREK.Transport.beamDown(player)
     if ok then return end
@@ -188,6 +193,12 @@ local function aboardMenu(context, player, worldobjects, test)
     -- flight, the transporter is the only way off.
     if s.landed and not s.flying then
         menu:addOption(getText("IGUI_TREK_StepOutside"), worldobjects, M.onExit, player)
+    end
+    -- And forward to the cockpit, which only exists while she is up -- on the
+    -- ground you step out and walk in. Without it, going aft in flight is a
+    -- one-way door and the pilot can never fly her again.
+    if s.flying then
+        menu:addOption(getText("IGUI_TREK_ToCockpit"), worldobjects, M.onToCockpit, player)
     end
     menu:addOption(getText("IGUI_TREK_BookmarkHere"), worldobjects,
                    M.onBookmarkHere, player)

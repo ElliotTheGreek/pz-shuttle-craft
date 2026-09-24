@@ -1233,6 +1233,63 @@ Four things worth carrying:
 
 `PILOTING.md` section 4 has the full derivation.
 
+### A guard gated on loaded ground never sees the case it exists for
+
+**New in this mod, and it stranded a crew in the second two-player session.**
+The server's watchdog -- nobody aboard the hovering shuttle, so send her back
+up -- lived inside `if found then`, where `found` is the ship's vehicle as the
+cell lists it. Chunks stream only around players, so `found` is nil exactly
+when nobody is near her, which is exactly the case the watchdog exists to
+catch. A crew who beamed down and walked away left her flying for the life of
+the world.
+
+Nothing else was wrong, and everything else looked wrong: the hatch refused
+("in flight"), recall refused ("in flight"), and a call-down spawned her on the
+ground and every client immediately paved a plane under her and lifted her back
+into hover, because `flying` was still set. Four bug reports, one line.
+
+- **Ask what a guard's own inputs are nil for.** A nil was not an edge case
+  here, it was the subject. Anything conditioned on "the world near X is
+  loaded" has a blind spot shaped exactly like "nobody is near X" -- and for a
+  watchdog, that shape is usually the whole job.
+- **The related question: can this run at all where it matters?** The same
+  file already gets this right twice on purpose -- `serviceCures` and
+  `serviceProbe` sit *outside* the cabin-loaded branch, with a comment saying
+  so, because a cure and a probe are logical jobs with no world object behind
+  them. Whether a ship is still flying is the same kind of fact.
+- **And a stuck state needs a manual way out.** The crew's own instincts --
+  recall her, call her down -- were both right and both refused. They work now,
+  refused only while somebody is actually aboard, and the refusal names itself
+  rather than falling through to "not enough room".
+
+The simulation was honest for once (`cell:getVehicles()` already filters on
+`SIM.loaded`); the *test* was the kind one, because the pilot beamed down to a
+return point a few squares away and her chunk never unloaded. Which is the
+same lesson one level out: **a scenario that never reaches the condition is not
+a test of it**, so `flight_alone()` asserts `TREK.Vehicle.ship()` really is nil
+before it believes anything that follows.
+
+### A door with no handle on the inside
+
+**New in this mod.** Flight lets the crew go aft to the cabin and come back --
+that sentence had been in `PILOTING.md` since the feature was built, and the
+second half of it was never implemented. Going aft in flight worked; coming
+forward did not exist. The hatch is shut while she hovers, *Step outside* is
+hidden for the same reason, and the aboard menu's only other way off her is a
+beam down. A pilot who stepped through to read the helm could never fly her
+again.
+
+It is not that anything refused. There was simply no option, and an absent
+option is the hardest kind of missing feature to notice from the source,
+because nothing in the diff is wrong. The tell was in the docs: a claim about
+a round trip, with code for one direction.
+
+- **When you add a one-way move, write the return leg in the same pass** --
+  or write down that there is not one.
+- **A prose claim about a round trip is a check nobody runs.** This one had
+  survived two documents and a test suite. `flight_alone()` now goes aft and
+  comes forward again.
+
 ### An offer the ship cannot keep is worse than a smaller offer
 
 **New in this mod.** Flight shipped with four altitudes: `FlightMin` 1,
@@ -2003,6 +2060,8 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **The shuttle flies and ploughs through fences** | Same cause. Collision resolves at `getZ()`, which is 0 without a floor. |
 | **The shuttle snaps back to one heading and will only fly in reverse** | Something is levelling her off with `flipUpright()`, which is `setAngleAxis(0, Y)` -- the identity, heading and all -- on a test that reads `getAngleX()` as pitch. That getter is 180 for a *level* ship turned more than a quarter turn. See *A getter named for an axis is one corner of a decomposition*. |
 | **The radial menu offers Climb or Dive** | Something has grown the altitude ladder back. There is one flight level (`C.FlightLevel`) and no `setAltitude` command; `tests/test_multiplayer.py` fails on either. |
+| **A hovering shuttle nobody can reach: the hatch says "in flight", recall is refused, and calling her down brings her back in hover** | `flying` is stuck true. The watchdog that clears it must run whether or not her chunk is loaded -- see *A guard gated on loaded ground*. A world reload also clears it (`OnInitGlobalModData`). |
+| **A pilot goes aft to the cabin in flight and cannot get back to the cockpit** | The aboard menu's *Forward to the cockpit* is missing or its beam is not being serviced. See *A door with no handle on the inside*. |
 | **The shuttle vanishes out of the sky** | Working as designed: nobody has been aboard for `C.FlightPilotGrace` checks, so she went back up rather than dropping onto whatever was underneath. `landed` is false and she can be called down. The log says `the shuttle has gone back up`, and the crew get a note. |
 | **A ship parked in the sky for ever** | Flight ended without `Sky.clear()`. The floors are world objects and they are saved. `s.skyAt` is how they get lifted; if that was lost, they are permanent. |
 | **An explosion kills things and nothing is seen** | In build 42 the visible part of an explosion *is* the fire and the smoke; there is no separate effect. `FireStartingChance`, `FireRange` and `SmokeRange` are set in **two** places — the item script and the Lua — and `triggerExplosion()` skips any mode whose range is 0 entirely. See `PHOTON_TORPEDOS.md`. |
@@ -2518,9 +2577,32 @@ how it shipped -- `U.try` hands back the value, so a successful call answering
 *false* counted as aboard and only death ever ended a flight), and
 `S.endFlight` without its `toOrbit`.
 
+**The same evening's second report** was four symptoms and one line. The
+watchdog that notices nobody is aboard a hovering shuttle lived inside
+`serviceVehicle`'s `if found then` block, and `found` is nil exactly when
+nobody is standing near her -- which is exactly the case it exists for. A crew
+who beamed down and walked away left her flying for ever: hatch refused, recall
+refused, and a call-down that spawned her on the ground and was lifted straight
+back into hover by every client because `flying` was still set. It runs
+unconditionally now; `S.recall` sends an empty hovering ship back up; `S.land`
+refuses a call-down from under her pilot by name and otherwise ends the flight
+before it lands her; and `Core.enter` says why instead of returning false in
+silence.
+
+That session also found a door with no handle on the inside: going aft to the
+cabin in flight had no return leg, so a pilot who stepped through could never
+fly her again. *Forward to the cockpit* is the aboard menu's answer, arriving
+on the ground beneath her and using vanilla's own `vehicle:enter(seat,
+character)`. Two more sections of this file came out of the pair. Six
+mutations, all caught -- one of them only after the "unreachable" branch it
+covered was given a reachable path (a crewman calling her down while somebody
+else flies her), which is *A branch a mutation cannot break may be
+unreachable* answered the other way round: the branch was real, the caller
+was missing.
+
 **Still unproven**, and only the game can say: whether the other machine draws
-her in the air, and whether five checks of `FlightPilotGrace` is enough room
-for a real beam on a real connection.
+her in the air, and whether ten checks of `FlightPilotGrace` plus thirty of
+`FlightBoardingChecks` is enough room for a real beam on a real connection.
 
 **Next up** is `ROADMAP.md`'s step 7: publishing. Everything on the roadmap is
 built; what is left is playing it. Four systems have never been in a game at

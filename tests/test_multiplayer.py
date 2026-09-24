@@ -1300,17 +1300,170 @@ def flight():
           "inside the game that is indistinguishable from losing her")
 
     # And she can be called down again, which is the whole point of going up
-    # rather than falling over.
+    # rather than falling over -- and she must arrive **landed**. A call-down
+    # with `flying` still set spawns her on the ground and every client then
+    # paves a plane under her and lifts her straight back into the air: "it is
+    # called in hover state so I cannot enter". Seen in game.
     rt.run(f"TREK.Menu.onCallDown(nil, {P}, {px} + 6, {py}, 0)")
-    net.pump(60)
+    net.pump(120)
     check(ship(rt, "landed") is True,
           "flight: she went back up and could not be called down again")
+    check(ship(rt, "flying") is None,
+          "flight: she was called down still flying, so she will be lifted "
+          "back into hover and nobody can get in")
+    check(vehicle_z(rt) == 0,
+          f"flight: she was called down and is at z {vehicle_z(rt)}, hovering")
+    check(rt.eval("TREK.Sky.count()") == 0,
+          "flight: a sky plane is being held under a landed ship")
 
     for w in rt.warnings():
         fail(f"flight: {w}")
     print("flight: take-off, the sky plane, levelling her off without losing "
           "her heading, the shut hatch, the pilot going aft, the landing, the "
           "beam that sends her back up and the tidy-up all checked")
+
+
+def flight_alone():
+    """A hovering ship with nobody aboard, which is where the crew got stuck.
+
+    Every symptom of the 2026-09-23 report is one line: the watchdog that
+    notices nobody is aboard lived inside `if found`, and `found` is nil
+    exactly when nobody is standing near her. A crew who beamed down and walked
+    away left her flying for ever -- the hatch shut against them, recall
+    refused, and a call-down arriving in hover.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    seat(rt)
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+    check(ship(rt, "flying") is True, "flight alone: she never got up")
+
+    # --- forward to the cockpit: going aft must not be a one-way door ------
+    # The hatch is shut while she hovers and the seat cannot be stepped out of,
+    # so without a way forward again a pilot who went aft to read the helm
+    # could never fly her. The cabin is faked here rather than built: what is
+    # under test is the trip forward, not the arrival hold.
+    rt.run("""
+        local v = TREK.Vehicle.ship()
+        v:exit(SIM.players[1])
+        local x, y, z = TREK.Util.padSpot()
+        SIM.rawSquare(x, y, z):addFloor("floors_interior_tilesandwood_01_1")
+        local p = SIM.players[1]
+        p.x, p.y = x + 0.5, y + 0.5
+        p.z, p.lastZ = z, z
+    """)
+    net.pump(120)
+    check(ship(rt, "flying") is True,
+          "flight alone: she came down when the pilot went aft")
+    check(rt.eval(f"TREK.Transport.toCockpit({P})") is True,
+          "flight alone: the cabin offers no way forward to the cockpit")
+    net.pump(500)
+    check(rt.eval(f"{P}.vehicle") is not None,
+          "flight alone: the pilot went aft in flight and could not get back "
+          "to the cockpit -- that is a one-way door")
+    check(ship(rt, "flying") is True,
+          "flight alone: coming forward again brought her down")
+
+    # --- and the watchdog reaches a ship nobody is anywhere near -----------
+    sx, sy = ship(rt, "x"), ship(rt, "y")
+    rt.run(f"""
+        local v = TREK.Vehicle.ship()
+        v:exit(SIM.players[1])
+        local p = SIM.players[1]
+        p.x, p.y, p.z, p.lastZ = {sx} + 300, {sy} + 300, 0, 0
+        p.streamX, p.streamY = p.x, p.y
+        SIM.notes = {{}}
+    """)
+    check(rt.eval("TREK.Vehicle.ship()") is None,
+          "flight alone: her chunk is still loaded from 300 tiles away, so the "
+          "case this whole section exists for cannot happen here")
+    net.pump(1200)
+    check(ship(rt, "flying") is None,
+          "flight alone: nobody is aboard and nobody is near her, and she is "
+          "still flying -- the watchdog only runs where her chunk is loaded, "
+          "which is never the case when the crew have gone")
+    check(ship(rt, "landed") is False,
+          "flight alone: she stopped flying but is still recorded down here")
+    check(any("IGUI_TREK_BackUp" in n for n in rt.notes()),
+          "flight alone: she went back up and told nobody")
+
+    # --- and she cannot be yanked out of the sky from under her pilot ------
+    # `S.land` is reached by *Call her down* as well as by the helm, so a
+    # crewman on the ground can ask for a ship somebody else is flying. Same
+    # rule as a recall, and for the same reason: pulling her out of the sky
+    # drops whoever is in her. The refusal has to name itself -- falling
+    # through to "not enough room" sends them hunting for a bigger field.
+    net3 = Net("sp")
+    r3 = net3.server
+    r3.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net3.start()
+    net3.pump(5)
+    r3.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net3.pump(40)
+    seat(r3)
+    r3.run(f"TREK.Flight.takeOff({P})")
+    net3.pump(400)
+    check(ship(r3, "flying") is True, "flight alone: she never got up (call down)")
+    r3.run("SIM.notes = {}")
+    r3.run(f"TREK.Menu.onCallDown(nil, {P}, 3020, 3000, 0)")
+    net3.pump(60)
+    check(ship(r3, "flying") is True,
+          "flight alone: she was called down out of the sky from under her "
+          "own pilot")
+    check(ship(r3, "x") != 3020,
+          f"flight alone: she moved to {ship(r3, 'x')} while somebody was "
+          f"flying her")
+    check(any("IGUI_TREK_InFlight" in n for n in r3.notes()),
+          "flight alone: the refused call-down blamed the room instead of "
+          "saying somebody is flying her")
+
+    # --- a hovering ship can be recalled, if she is empty ------------------
+    net2 = Net("sp")
+    r2 = net2.server
+    r2.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net2.start()
+    net2.pump(5)
+    r2.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net2.pump(40)
+    seat(r2)
+    r2.run(f"TREK.Flight.takeOff({P})")
+    net2.pump(400)
+    check(ship(r2, "flying") is True, "flight alone: she never got up (recall)")
+
+    # With the pilot still in her, recall is refused: pulling her out from
+    # under somebody leaves them standing on nothing.
+    r2.run(f"TREK.Menu.onRecall(nil, {P})")
+    net2.pump(30)
+    check(ship(r2, "flying") is True,
+          "flight alone: she was recalled out from under her own pilot")
+    check(any("IGUI_TREK_InFlight" in n for n in r2.notes()),
+          "flight alone: the refused recall said nothing")
+
+    # Empty, it is the crew's own way of unsticking her.
+    r2.run("TREK.Vehicle.ship():exit(SIM.players[1])")
+    net2.pump(30)
+    r2.run(f"TREK.Menu.onRecall(nil, {P})")
+    net2.pump(60)
+    check(ship(r2, "flying") is None,
+          "flight alone: an empty hovering shuttle could not be recalled")
+    check(ship(r2, "landed") is False,
+          "flight alone: recalled out of hover and still recorded down here")
+    check(shuttles(r2) == 0,
+          "flight alone: recalled out of hover and her vehicle is still there")
+
+    for r in (rt, r2, r3):
+        for w in r.warnings():
+            fail(f"flight alone: {w}")
+    print("flight alone: the trip forward to the cockpit, a watchdog that "
+          "reaches a ship nobody is near, a call-down refused from under her "
+          "pilot, and a recall that unsticks an empty hovering shuttle")
 
 
 def flight_endings():
@@ -6046,7 +6199,8 @@ def tapes():
           "recording, none is blank, and building twice neither re-labels them "
           "nor hands out a second set")
 
-SECTIONS = (static, migration, single_player, refit, flight, flight_endings,
+SECTIONS = (static, migration, single_player, refit, flight, flight_alone,
+            flight_endings,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, contact_world,

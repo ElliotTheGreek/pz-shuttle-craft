@@ -394,6 +394,22 @@ pilot: on a server the pilot may beam down while a crewman is still aft, and
 pulling the ship out from under them would leave them in a cabin belonging to
 nothing.
 
+**And it runs whether or not her chunk is loaded**, which is the multiplayer
+half of it and the thing that broke in play. Chunks stream only around players,
+so the server's copy of the vehicle is missing exactly when nobody is near her
+-- exactly the case the watchdog exists for. Gated on the vehicle being there,
+it never fired, and a crew who beamed down and walked away left her flying for
+ever, with the hatch and the recall both refusing them. `crewAboard(nil)` is
+correct: a player in a seat keeps her chunk loaded by being in it, so an
+unloaded ship has nobody in a seat by definition, and the cabin test needs no
+vehicle at all.
+
+Two graces, for the two gaps a beam leaves. `FlightPilotGrace` covers a player
+who is briefly in neither the seat nor the cabin. `FlightBoardingChecks` is set
+by the server the moment somebody is *granted* a beam towards a hovering ship,
+because on a real connection the ground at the far end can take far longer to
+stream in than the beam itself.
+
 ### Why a client may lay world floor
 
 This is a documented exception to hard rule 4, and a narrow one.

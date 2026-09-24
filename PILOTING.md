@@ -41,10 +41,23 @@ there.
 
 ### Getting out of her
 
-| Where she is | The hatch | The transporter | Go aboard |
-|---|---|---|---|
-| On the ground | yes, walk out | yes | yes |
-| **Hovering** | **no** — three metres of nothing | **yes, and it is the only way** | yes, from a seat |
+| | On the ground | Hovering |
+|---|---|---|
+| Walk out of the hatch | yes | **no** — a storey of nothing |
+| Beam down | yes | yes, **and it is the only way off her** |
+| Go aft to the cabin | yes | yes, from a seat (a beam) |
+| Come forward to the cockpit | walk in | *Forward to the cockpit*, from the aboard menu |
+
+That last row is not decoration. Without it, going aft in flight is a one-way
+door: the hatch is shut, *Step outside* is hidden for the same reason, and the
+only other way off her is a beam down — so a pilot who stepped through to read
+the helm could never fly her again. `T.toCockpit` arrives on the **ground
+beneath her** rather than on the plane beside her, waits for her to stream in,
+and uses `vehicle:enter(seat, character)`, which is vanilla's own call
+(`ISEnterVehicle.lua:50`) with its distance check in the *action* rather than
+in the method. Arriving on real ground is the safety of it: a shuttle that
+never loads leaves the player standing somewhere, not on a five-by-five island
+of invisible floor with the engine culling everything below it.
 
 And **when the last of the crew beams down from a hovering ship, she goes back
 up.** Not down: coming down where she happens to be drops five tonnes of
@@ -54,6 +67,17 @@ removes the vehicle and sets `landed = false` — the same state a recall leaves
 her in, so *Call her down* already knows what to do with it. The crew are told
 (`IGUI_TREK_BackUp`), because a ship that vanishes without a word is
 indistinguishable from a ship that has been lost.
+
+Two more ways out of the sky, both of which exist because the automatic one
+failed in game and left a crew with no move at all:
+
+- **Recall** sends an empty hovering shuttle back up, from the ground. It is
+  refused while anybody is aboard — pulling her out from under them leaves them
+  standing on nothing — and that refusal used to be flat.
+- **Call her down** refuses for the same reason while somebody is flying her,
+  and by its own name (`inFlight`) rather than by falling through to "not
+  enough room", which would send a crewman off hunting for a bigger field.
+  When she is empty it lands her, whatever the record says about flying.
 
 ---
 
@@ -220,6 +244,50 @@ still happens every time she leaves the ground and every time she comes back.
 A wrong height is also corrected the moment it is noticed, not on a slow
 cadence — six ticks is a long fall.
 
+### A watchdog gated on a loaded chunk never sees the case it exists for
+
+**Every symptom of the second two-player report is this one line.** The check
+that notices nobody is aboard and sends her back up lived inside
+`serviceVehicle`'s `if found then` block — and `found` is the ship's vehicle
+*as the cell lists it*, which is nil exactly when nobody is standing near her.
+Which is exactly the case the watchdog exists to catch.
+
+So a crew who beamed down and walked away left her flying for ever, and
+everything else followed from `flying` being stuck true:
+
+| What the player did | What happened | Why |
+|---|---|---|
+| tried the hatch | "Not while the shuttle is in the air" | `move` refuses `hatchIn` while `flying` |
+| tried *Recall* | refused | `S.recall` refused any flight outright |
+| walked off and called her down | **she arrived hovering** | `S.land` never cleared `flying`, so every client paved a plane and lifted her straight back up |
+| tried *Enter* | nothing at all | `Core.enter` returned false in silence |
+
+The watchdog runs unconditionally now, and `crewAboard(nil)` is correct rather
+than merely tolerated: a player in a seat keeps her chunk loaded by being in
+it, so an unloaded ship has nobody in a seat by definition, and the cabin test
+does not need her at all.
+
+Three things worth carrying past this one:
+
+- **Ask what a guard's own inputs are nil for.** A nil here was not an error or
+  an edge case, it was the *subject*. Anything conditioned on "the world near
+  X is loaded" has a blind spot shaped exactly like "nobody is near X".
+- **A stuck state needs a manual way out.** `S.recall` and `S.land` both know
+  how to end a flight now, because the crew's own instinct — call her down, or
+  send her back up — was right and both were refused.
+- **Two graces, not one.** `FlightPilotGrace` (10 checks, one a second) covers
+  the gap between a seat and the cabin. `FlightBoardingChecks` (30) is set by
+  the server when somebody is *granted* a beam towards a hovering ship,
+  because the ground at the far end can take far longer to stream in than the
+  beam itself — and a crew watching her leave while they were dematerialised
+  would be right to call it a bug.
+
+The simulation was honest here for once: `cell:getVehicles()` already filters
+on `SIM.loaded`. The test was the kind one — the pilot beamed down to a return
+point a few squares away, so her chunk never unloaded. `flight_alone()` walks
+them three hundred tiles off and checks `TREK.Vehicle.ship()` really is nil
+before it believes the result.
+
 ### `getAngleX` and `getAngleZ` are not pitch and roll
 
 **This is the one that made the first two-player flight unflyable, and it was
@@ -376,7 +444,8 @@ All in `TREK_Config.lua`.
 | `FlightLevel` | 1 | the one altitude there is |
 | `FlightSpeedSteps` | 15…120 | absolute top speeds, each distinguishable |
 | `FlightLevelTolerance` | 20° | past this she is put right, about her own heading |
-| `FlightPilotGrace` | 5 checks | nobody aboard and she goes back up |
+| `FlightPilotGrace` | 10 checks | nobody aboard and she goes back up |
+| `FlightBoardingChecks` | 30 checks | somebody is beaming towards her; hold the above off |
 
 Three traps in there. **`SkyLitterTop` is not `FlightLevel` and must not be
 made to follow it.** Builds up to 1.3.0 flew as high as level 4 and a floor is

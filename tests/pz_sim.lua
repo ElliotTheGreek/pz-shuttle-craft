@@ -1407,6 +1407,15 @@ function VehicleMT:exit(chr)
     end
     chr.vehicle = nil
 end
+--- Vanilla's own `vehicle:enter(seat, character)` -- ISEnterVehicle.lua:50.
+--- The distance check lives in the *action*, not in the method, so this puts
+--- the character in the seat wherever they happen to be standing.
+function VehicleMT:enter(seat, chr)
+    if self.seats[seat] ~= nil then return false end
+    self.seats[seat] = chr
+    chr.vehicle = self
+    return true
+end
 function VehicleMT:repair() self.repaired = true end
 function VehicleMT:cheatHotwire(h) self.hotwired = h end
 function VehicleMT:getPartById(id)

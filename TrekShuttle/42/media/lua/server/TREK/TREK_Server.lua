@@ -259,6 +259,11 @@ local function spawnVehicle(sq)
     return vehicle
 end
 
+-- Declared here and defined in the Flight section below: landing has to ask
+-- whether anybody is aboard before it pulls her out of the sky, and Lua
+-- resolves a local by where it was declared rather than by when it is called.
+local crewAboard
+
 --- Sets the ship down centred on a square, lifting it from wherever it was.
 --- Returns `ok, reason, blocked`.
 function S.land(x, y, z, player)
@@ -267,6 +272,25 @@ function S.land(x, y, z, player)
     if not sq then return false, "unloaded", 0 end
 
     local s = U.state()
+
+    -- She cannot arrive hovering, and the check is here rather than in the
+    -- caller because every way of landing her comes through this function.
+    --
+    -- Two things reach it with `flying` set. One is a crewman on the ground
+    -- calling her down while somebody else is flying her, and that is refused
+    -- for the same reason a recall is: pulling her out of the sky from under
+    -- her pilot drops them. The other is a stale flight, which is what the
+    -- 2026-09-23 report was -- she was spawned on the ground and every client
+    -- then paved a plane under her and lifted her straight back up, "called in
+    -- hover state so I cannot enter". A ship being set down on a named square
+    -- is not flying, whatever the record thinks.
+    --
+    -- Before the "already here" test, because that returns early.
+    if s.flying then
+        if crewAboard(V.find(s.vehicleId)) then return false, "inFlight", 0 end
+        S.endFlight("she is being set down")
+    end
+
     local here = s.landed and s.x == x and s.y == y and s.z == z
     if here and V.find(s.vehicleId) then
         return true, nil, 0
@@ -373,7 +397,7 @@ end
 --- successful call that answered **false** -- which is to say for a player who
 --- is not in a seat at all. Every living player counted as aboard, and the
 --- only ending that ever fired was death.
-local function crewAboard(vehicle)
+function crewAboard(vehicle)
     for _, p in ipairs(U.players()) do
         if U.try("crewDead", function() return p:isDead() end) == false then
             if U.isInteriorPlayer(p) then return true end
@@ -392,10 +416,24 @@ end
 function S.recall()
     local s = U.state()
     if not s.landed then return false end
-    -- And never out from under a ship that is in the air: the crew would be
-    -- left standing on nothing three levels up.
-    if s.flying then return false, "inFlight" end
     local vehicle = V.find(s.vehicleId)
+
+    -- A hovering ship can be sent back up too, as long as she is empty.
+    --
+    -- This used to be a flat refusal, on the reasoning that recalling her out
+    -- from under her crew would leave them standing on nothing -- which is
+    -- true, and only true while somebody is aboard. Empty, it is the crew's
+    -- own way of dealing with a shuttle hovering somewhere they cannot reach,
+    -- and *that state was unreachable by any other means* for one build: the
+    -- watchdog below only ran while her chunk was loaded, so a crew who beamed
+    -- down and walked away left her flying for ever, the hatch shut against
+    -- them and recall refusing. Both halves are fixed; this is the manual one.
+    if s.flying then
+        if crewAboard(vehicle) then return false, "inFlight" end
+        S.endFlight("recalled", true)
+        return true
+    end
+
     if vehicle and V.occupied(vehicle) then return false, "crewSeated" end
     if vehicle then removeVehicle(vehicle, "recalled") end
     local _, why = S.removeHullAt(s.x, s.y, s.z)
@@ -479,6 +517,46 @@ function S.serviceVehicle()
         end
     end
 
+    -- Somebody has to be aboard for her to stay up -- in a seat, or aft in the
+    -- cabin. Nobody there for long enough -- they died, they logged out, they
+    -- beamed down -- and she goes back up rather than hanging in the sky for
+    -- the rest of the world's life.
+    --
+    -- **This runs whether or not her vehicle is loaded, and that is the whole
+    -- point.** It used to live inside the `if found` block below, and `found`
+    -- is nil exactly when nobody is standing near her -- which is exactly the
+    -- case it exists to catch. A crew who beamed down and walked away left her
+    -- flying for ever: the hatch shut against them (`inFlight`), recall
+    -- refused (`inFlight`), and a call-down that spawned her on the ground and
+    -- was immediately lifted back to hover by every client, because `flying`
+    -- was still set. Seen in game, 2026-09-23, and every symptom in that
+    -- report is this one line's fault.
+    --
+    -- `crewAboard(nil)` is correct rather than merely tolerated: a player in a
+    -- seat keeps her chunk loaded by being in it, so an unloaded ship has
+    -- nobody in a seat by definition, and the cabin test does not need her at
+    -- all.
+    --
+    -- The grace is what makes a beam survivable: a player is briefly in
+    -- neither the seat nor the cabin while the transporter has them.
+    -- `flightHold` is the longer version of the same thing, set when somebody
+    -- is granted a beam *towards* her -- streaming the ground at the far end
+    -- can take a good deal longer than the beam itself.
+    if s.flying then
+        if crewAboard(found) then
+            s.pilotGrace, s.flightHold = nil, nil
+        elseif (s.flightHold or 0) > 0 then
+            s.flightHold = s.flightHold - 1
+            s.pilotGrace = nil
+        else
+            s.pilotGrace = (s.pilotGrace or 0) + 1
+            if s.pilotGrace >= C.FlightPilotGrace then
+                S.endFlight("nobody is aboard her", true)
+                return
+            end
+        end
+    end
+
     if found then
         s.missingChecks = nil
         S.refuel(found)
@@ -497,28 +575,6 @@ function S.serviceVehicle()
             if z ~= s.z then s.z = z changed = true end
         end
         if x ~= s.x or y ~= s.y then s.x, s.y = x, y changed = true end
-
-        -- Somebody has to be aboard for her to stay up -- in a seat or aft in
-        -- the cabin. Nobody there for long enough -- they died, they logged
-        -- out, they beamed down -- and she goes back up rather than hanging in
-        -- the sky for the rest of the world's life.
-        --
-        -- The grace is what makes a beam survivable: a player is briefly
-        -- neither in the seat nor in the cabin while the transporter has them,
-        -- and one check taken in that gap would send the ship away from under
-        -- a crew who are on their way aft.
-        if s.flying then
-            if crewAboard(found) then
-                s.pilotGrace = nil
-            else
-                s.pilotGrace = (s.pilotGrace or 0) + 1
-                if s.pilotGrace >= C.FlightPilotGrace then
-                    S.endFlight("nobody is aboard her", true)
-                    return
-                end
-                changed = true
-            end
-        end
 
         if changed then Ship.commit() end
         return
@@ -702,6 +758,16 @@ Net.onServer("move", function(player, args)
         return
     end
     if rule.access then claim(player) end
+
+    -- Somebody is on their way aboard a ship that is hovering with nobody in
+    -- her. Hold the watchdog off while they are in transit: a beam is a second
+    -- and a half, and the ground at the far end can take a good deal longer
+    -- than that to stream in. Without this the crew could watch her leave
+    -- while they were still dematerialised.
+    if kind == "beamUp" and s.flying then
+        s.flightHold = C.FlightBoardingChecks
+    end
+
     Net.toClient(player, "moveGranted", { kind = kind, token = args.token })
 end)
 
