@@ -78,7 +78,7 @@ player before.
    Revision 15, so a world made before today will not have the items in its
    sick bay.
 
-12. **The downed ensign** (`ENSIGN.md`, section 9). Board,
+12. ~~**The downed ensign**~~ -- **played end to end in single player, 2026-09-24**: call, accept, mark, tricorder, rescue, patterns. What remains is `ENSIGN.md` section 9's details and two clients. (`ENSIGN.md`, section 9.) Board,
    play an hour of game time, answer the call at the sensor console, follow
    the mark, sweep with the tricorder, and beam them up. Needs no fresh world.
    The questions only a game can answer: does the figure read as hurt and

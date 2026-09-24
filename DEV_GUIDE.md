@@ -2691,8 +2691,9 @@ not the server's*). Seventeen mutations, one pass at a time, all caught --
 after one test that passed because the ground it stood on was unloaded was
 moved to ground that was not.
 
-**Not yet seen in game at all**, and it needs no fresh world. `ENSIGN.md`
-section 9 is the route and the questions.
+**Played end to end in single player the same day**: call, accept, mark,
+tricorder, rescue, three patterns learned. `ENSIGN.md` section 9 has what is
+still open, chiefly two clients.
 
 **Next up** is `ROADMAP.md`'s step 7: publishing -- or `ROADMAP2.md` 1.6, the
 cold start, if it is to ship with the ensign. Everything else on the roadmap

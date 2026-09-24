@@ -307,7 +307,7 @@ During cold start, emergency reserve is restricted to probe launches and cannot 
 
 ---
 
-# 1.7 — First mission: the downed ensign  **[BUILT 2026-09-24, NOT YET PLAYED]**
+# 1.7 — First mission: the downed ensign  **[BUILT AND PLAYED 2026-09-24]**
 
 > **Built.** `ENSIGN.md` is the working guide; what follows is the design it
 > came from. What the implementation settled:
@@ -451,7 +451,7 @@ Never inspect live squares in unloaded chunks, create orphan squares, or place t
    distress calls, the offer on the sensor console, deferred placement of a
    baked figure, the beacon and the chirp, the tricorder's cross, the
    right-click rescue with one reward, the clock and its cleanup.
-   `ENSIGN.md`. Not yet played.
+   `ENSIGN.md`. Played end to end in single player the same day.
 
 ---
 

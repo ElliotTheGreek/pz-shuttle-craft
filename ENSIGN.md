@@ -382,7 +382,22 @@ dilithium, an instant first call, and Accept always live.
 
 ## 9. Not proven in game, and what to look at
 
-**Seen working:** nothing yet. This is the first version.
+**Seen working in single player, 2026-09-24**, the whole loop in a fresh
+world: the call arrived about an hour of game time after boarding, was
+accepted at the sensor console, the figure was placed when the crew stepped
+out 40 tiles from it -- beside the map's mark, which is exactly how far off
+the long-range fix is allowed to be -- the tricorder found it, and the
+rescue learned Antibiotics, Suture Needle and Splint. The figure draws and
+the right-click lands on it.
+
+The one moment of doubt was the design working: the player walked to the
+mark and saw nobody, because the mark is a circle forty tiles across and the
+ensign was on its far edge. The tricorder is what closes that gap, so the
+call's note and this guide both say so.
+
+Still open from the list below: player size and facing on close inspection,
+whether the beacon drew anything, the chirp over a long rescue, vanilla's
+own options on the figure, and two clients.
 
 The route, in a fresh world or an existing one (the call needs only a built
 cabin and dilithium in the core):
