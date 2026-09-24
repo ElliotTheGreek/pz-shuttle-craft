@@ -50,11 +50,29 @@ the tapes. This is what makes the shelf an *archive* rather than a diary, and
 it is why a talent night from stardate 44390.7 is a fifty-eight-year-old
 curiosity rather than last month's party.
 
-**The pilot is a historian by temperament.** She is a Starfleet officer on an
-observation posting, and privately a buff — Starfleet history, and family
-histories above all. That is the entire reason the shelf exists: the tapes are
-*her collection*, not the ship's library, and it is why the bow of a shuttle
-has a row of somebody's favourite recordings in it.
+**The pilot is Lieutenant Lucy Shepard**, cultural survey specialist off the
+**U.S.S. Adirondack** — a science ship about Voyager's size, a hundred and
+forty-one crew. She is a historian by temperament and privately a buff:
+Starfleet history, and family histories above all. That is the entire reason
+the shelf exists — the tapes are *her collection*, not the ship's library, and
+it is why the bow of a shuttle has a row of somebody's favourite recordings in
+it.
+
+**The cabin is hers, and that is the retcon that pays for the whole mod.**
+Every vanilla object in this ship — the fridge, the oven, the counters, the
+theatre chair, the lamp, the lockers, the television — had no in-fiction reason
+to be aboard a Starfleet shuttle, and now it has one: **she collected them.**
+A survey specialist furnished her field station with what she was studying,
+because you cannot understand a people from orbit. Her department calls it
+method; the *Adirondack* called it clutter. One tape, and twenty-four squares
+of borrowed Project Zomboid furniture stop being a compromise and become a
+character trait.
+
+**The medium follows from the machine.** She dubbed her favourites down onto
+magnetic tape because that is what the television takes — videos, holos
+flattened to two dimensions, and transcripts read aloud. That last one matters
+more than it looks: it is the in-fiction licence for a tape that is nothing but
+a voice reading, which is what several of the best ideas in the library are.
 
 **The television is an anthropological artifact, and that is why it is aboard.**
 This is the piece the mod has never accounted for: a Starfleet shuttle does not
@@ -80,6 +98,139 @@ It explains the medium, it explains why the tapes are *in the room* rather than
 in a menu, it lets the shelf hold genuine 1993 Earth tapes alongside Starfleet
 ones without a seam — and it gives the collection an owner, which is the thing
 that turns a list of stories into somebody's shelf.
+
+---
+
+## 1b. The arc: what actually happened here
+
+Settled 2026-09-23. This is the spine the ship's logs deliver, in order, and
+the reveal at the end of it is the mod's answer to what the Knox Event *was*.
+
+**The posting.** Shepard's detachment is parked at a hidden outpost above a
+world so close to Earth's own 1990s that the first survey logged it as a sensor
+fault. No relay, no traffic, nothing filed — deniable by design. She beams down
+at dawn and up before dark, six months of market days and radio broadcasts, and
+she is going to get a very good paper out of it.
+
+### The timeline, and why it is shaped like this
+
+**Shepard's last entry is the player's first day.** Project Zomboid starts on
+**9 July 1993** (`StartMonth 7`, `StartDay 9`), and entry six is recorded that
+morning: she beams up, and hours later somebody who has never heard of Starfleet
+wakes up in Knox County.
+
+Getting there forced one decision, and it improved the story. **The sabotage and
+the release are five months apart.**
+
+| entry | day | date | |
+|---|---|---|---|
+| — | — | **9 Feb 1993** | the *Adirondack* is disabled from the inside |
+| one | 2 | 10 Feb | stranded above a world having an ordinary week |
+| two | 19 | 27 Feb | contact; she stays for the fieldwork |
+| three | 141 | 29 Jun | the county dies in two days — and she connects it to February |
+| four | 146 | 4 Jul | the Doctor's science |
+| five | 149 | 7 Jul | nobody is coming; Section 31 denies it |
+| six | 151 | **9 Jul** | the truth, the chair, she beams up — **gameplay day 1** |
+
+The gap is not a workaround. A careful operator does not blind the witnesses in
+the same week it runs the test; it clears the room, prepares, and comes back.
+Three things fall out of it:
+
+- **Entry one is worse in the good way.** She is sabotaged, stranded and
+  looking down at a perfectly healthy planet. The markets open. The radio
+  plays. A player standing in July reads a February tape saying nothing is
+  wrong, and does that arithmetic themselves.
+- **Entry three gains its best beat** — the moment she realises the two events
+  are one operation. *"We were never the target. We were the witnesses. They
+  blinded us and went away."*
+- **Entry five's best line becomes literally true.** "Five months angry at the
+  wrong people" is February to July, exactly.
+
+And it gives the rescue feature its number: **eleven of the crew stayed on the
+ground for the work**, which is why there are Starfleet survivors scattered
+across a dead county. They stayed for the science and the science killed them.
+
+**The break.** On the ninth of February the *Adirondack* is damaged and **cannot
+depart**. Not destroyed and not lost: she is intact, crewed and fed, with warp
+and impulse gone — a very expensive orbital platform. Some of the crew were
+on the surface when it happened, and eleven of them chose to stay.
+Starfleet does not know anyone was ever here, and long-range comms have been
+dark the whole time, so nobody is looking and no rescue is coming.
+
+**The ship can still transport, and that is the mechanic.** Every survivor the
+player beams to safety goes *up there* — which is where `ROADMAP2.md` 1.7's
+"safe off-screen recovery" has always needed to be going. **Every ensign
+rescued is one of her crew**, off a number the player has already heard.
+
+**The wrong answer.** Shepard reasons her way to **Section 31**: a hidden
+outpost, a Federation bioweapon precedent, and a plague. It is honestly argued
+and it is wrong, and it has to be written that way — a misdirection that is a
+lie is cheap, and a misdirection the audience can out-reason is worse.
+
+**The truth**, and it lands in the last log. A **Changeling** left the Great
+Link deliberately, carrying knowledge of the morphogenic virus Section 31 used
+against its own people. Working alone, in isolation, it spent decades turning
+that into something else. Nearly sixty years later it found this outpost — and
+the near-perfect copy of a human world underneath it — and decided that was the
+ideal proving ground.
+
+So the apocalypse the player is surviving is a **reply**. The Federation
+attempted a genocide, and two generations later the survivor of it is running
+the experiment on a world full of people who have never heard of any of them.
+The player is standing in the consequence of an argument Trek never settled,
+which is the shelf's whole thesis in one move.
+
+### The logs, as a series
+
+Six entries, settled 2026-09-23. Each is a different kind of tape, and the
+misdirection is broken from the inside rather than by Shepard out-reasoning it.
+
+| | | |
+|---|---|---|
+| **One** | *Field Station* | **BUILT.** The posting, the world, the cabin, the tapes, the break, the scattered crew. Plants Section 31 without naming it. |
+| **Two** | *Somebody Answered* | **BUILT.** She accuses Section 31 outright, with no evidence and an honest admission of that. Then she raises the *Adirondack*: intact, crewed, fed, and going nowhere — warp and impulse gone. **They can still transport.** They ask her to come up; she refuses, because she is the only one of them who knows how this century boils water. |
+| **Three** | *The Attack* | **BUILT.** The event itself, in detail: the *Adirondack* disabled first, then the region below collapsing far faster than any plague she knows of. |
+| **Four** | *What the Doctor Found* | **BUILT.** She and the **EMH** run the science. Confusing Changeling markers, which they both read as Section 31 tradecraft. |
+| **Five** | *Nobody Is Coming* | **BUILT.** Long-range comms have been dark the whole time; there is little chance of rescue. The crew argue about isolating somewhere on the ground and whether that breaks the Prime Directive. Shepard stays. Then **the Section 31 officer aboard** says the attack blindsided them too, and they have no idea where it came from. |
+| **Six** | *The One Who Left the Link* | **BUILT.** Somebody aboard works out the truth — a rogue Changeling, building on the Founders' own virus — and tells her. Shepard beams up. |
+
+**All six are written as of 2026-09-23**, and three details of the execution are
+worth keeping because they are reusable:
+
+- **The science is right and only the attribution is wrong.** In entry four the
+  Doctor states the chemistry and then refuses the conclusion — "I can support
+  the chemistry. I cannot support the author." She overrules him. The tape
+  therefore contains its own correction, and a second viewing finds it.
+- **The misdirection is broken by the accused, not by the detective.** Entry
+  five's Section 31 officer denies it credibly because they had every reason to
+  lie and did not bother: *"No. But then I would not be calling you."* That
+  leaves Shepard with something worse than a villain — an absence.
+- **The reason she leaves is a moved chair.** Entry six: nothing broken,
+  nothing taken, a chair in a different place. That is the theatre chair at 1,2
+  the player sits in to watch these tapes.
+
+Three things that structure settles, and they are worth more than the plot:
+
+- **Shepard is alive.** She ends entry six aboard the *Adirondack*, which is why
+  the player inherits a working shuttle with somebody's furniture in it rather
+  than a derelict with a body in it.
+- **The accusation is broken by the accused.** Section 31 is aboard, and the
+  officer's denial in entry five is credible precisely because they had every
+  reason to lie and didn't. That is a far better way out of a misdirection than
+  the detective spotting a flaw in her own logic.
+- **The EMH earns a plot.** Entry four puts the sick bay's hologram into the
+  investigation, which makes a fixture the player already talks to part of the
+  story rather than a utility.
+
+**Mechanically they all sit in the rack from the first arrival, and that is a
+deliberate decision (2026-09-23), not an oversight.** Getting the ink on the
+page beats building the machinery to ration it, and a reveal that is merely
+*available* early is a far smaller problem than a reveal that is never written.
+The gating design in section 6 stays parked until every log exists — and when it
+is wanted, the answer is probably **a survivor hands you the next log**, which
+solves `ROADMAP2.md` 1.7's reward problem at the same time: the reward for a
+rescue is a piece of the truth, which costs the ship nothing and is worth more
+than a crystal.
 
 ---
 
@@ -258,46 +409,58 @@ The bow row is `y = 0`. The deck plan today:
 
 ```
     0123
-  0 TVTA        0,0 monitor wall   1,0 television on a low table
-  1 F*.p        2,0 monitor wall   3,0 armoury
+  0 TVLA        0,0 monitor wall   1,0 television on a low table
+  1 F*.p        2,0 tape shelf     3,0 armoury
   2 oh.M
   3 wD.H
   4 m*.B
   5 R.@B
 ```
 
-**The rack goes at 2,0: `location_shop_generic_01_1`, a video-shop display.**
-Chosen for the silhouette — the brief was that it should look like the thing a
-rental shop keeps tapes in — and out of `tools/_catalog/tiles.json`:
+**The shelf is at 2,0: `furniture_shelving_01_28`, a metal wall shelf.**
 
 ```
-ContainerCapacity 20    container shelves    CustomName Shelves
-GroupName "Comics Shop"    Facing S    solidtrans
+ContainerCapacity 30    container metal_shelves    MoveType WallObject
+Facing S    attachedN    ContainerPosition High
+(no `solid`, no `solidtrans`)
 ```
 
-Rows of things stood face-out, and `Facing S` is the way the bow bulkhead's
-monitor banks and the television already face, so it sits against the forward
-wall rather than at an angle to it.
+It is the sprite `DEV_GUIDE.md` already lists under *Half the tileset does not
+block its square*, and `Facing S` / `attachedN` is the orientation the bow's
+monitor banks use — it hangs on the forward bulkhead and **2,0 is still deck**.
 
-**It is the only sprite in the game that reads as a media rack in one square.**
-Everything else is two tiles: both Rental groups
-(`location_entertainment_theatre_01_120..135`, the actual video-store racks) and
-both magazine shelves carry `SpriteGridPos` pairs, and the bow row has no two
-adjacent free squares — 1,0 is the television and 3,0 is the armoury. The
-Fossoil magazine shelf is the near miss and is worth remembering: two tiles, but
+That last part is the whole reason for the choice: **2,0 is the only square a
+player can stand on to open the armoury at 3,0**, because 3,1 and 3,2 are the
+other two lockers. A floor-standing container here leaves the ship's sidearms,
+blades and uniforms reachable diagonally at best.
+
+### A video-shop rack was tried here, and reverted
+
+Worth recording, because the failure is a new one for this project.
+`location_shop_generic_01_1` is catalogued as **"Comics Shop Shelves"**,
+capacity 20, `container = shelves`, `Facing S` — everything a tape rack should
+be, on paper. In the game it draws as a **grocery shelf stocked with orange
+soda**, at twice the depth a twenty-four square cabin can spare.
+
+Nothing in `tiles.json` says so, and nothing in it could: `CustomName`,
+`GroupName` and `container` describe what a tile is *for*. **None of them
+describes what it looks like.** So a fitting chosen for its silhouette is in the
+same category as a mesh — it has to be looked at, and the catalogue is not a
+substitute for looking. That is *Render it and look* arriving from the one
+direction this project had not met it from, since a tile cannot be put through
+`tools/preview_model.py` at all.
+
+The genuine video-rental racks are in the tileset —
+`location_entertainment_theatre_01_120..135`, groups literally named "Large
+Rental" and "Small Rental" — and every one of them is a **two-tile** piece
+(`SpriteGridPos 0,0` + `1,0`), as are both magazine shelves. The bow row has no
+two adjacent free squares: 1,0 is the television and 3,0 is the armoury. The
+Fossoil magazine shelf is the near miss worth remembering — two tiles, but
 **non-blocking**, and from the same tileset as the cabin's own walls.
 
-**It blocks its square, and that costs one thing.** 2,0 was the only square a
-player could stand on to open the **armoury** at 3,0, because 3,1 and 3,2 are
-the other two lockers. The armoury is now reached **diagonally from 2,1**.
-Vanilla kitchens are full of corner cabinets opened exactly that way, so this is
-expected to be fine — but the engine's reach rule is not in Lua and has not been
-read, so it is an **in-game check and not a proven fact**. The rack itself is
-reached straight on from 2,1, which is the access that matters most, and the
-swap back to a wall shelf is one sprite name if the armoury turns out awkward.
-
-The monitor bank at 2,0 came back with the rack: it takes the floor, so there is
-no longer a free deck square there to hang screens over.
+The monitor bank that used to be on 2,0 is **gone and has not come back**: two
+wall-mounted objects on one edge of one square is the thing that looks like a
+bug whether or not it is one. The bow is three screens and a shelf.
 
 One thing this deliberately avoided: **the television's own table.**
 `furniture_tables_low_01_3` is `solidtrans` and carries **no** `container`
@@ -312,18 +475,18 @@ bow row is now `T V L A` — monitor wall, television, tape shelf, armoury.
 
 **The `.tbx` was edited by script, not in BuildingEd**, and that is a deviation
 from *The interior is authored in BuildingEd, not in the code* worth recording
-honestly. It is plain XML: a `<furniture>` block holding the rack's two
-facings (appended, so its document index is 33, which is what
+honestly. It is plain XML: a `<furniture>` block holding the shelving
+set's four facings (appended, so its document index is 33, which is what
 `<object FurnitureTiles="33">` means — `tools/import_tbx_layout.py` builds its
 table from `root.findall("furniture")` in document order), `33` added to
 `<used_furniture>` to keep that list a permutation of the block indices, and the
 object at 2,0 repointed from block 1 to block 33. `orient` names the wall the
-object stands against, so the set's two facings map to `N` (`_001`, facing south
-off a north wall) and `W` (`_000`, facing east off a west wall) — the same
-convention the bow's monitor banks already use.
+object stands against, so each slot takes the tile whose own `attached<Edge>`
+property matches — `orient="N"` on the bow bulkhead resolves to
+`furniture_shelving_01_28`.
 
-`tools/import_tbx_layout.py` reads it back as `2,0 location_shop_generic_01_1
-container=shelves` and `tests/test_layout.py`'s drift check passes both
+`tools/import_tbx_layout.py` reads it back as `2,0 furniture_shelving_01_28
+container=metal_shelves` and `tests/test_layout.py`'s drift check passes both
 ways, which is the evidence the edit was well formed. The old file is kept at
 `TrekShuttle_Interior.tbx.pre-tapeshelf.bak`.
 
@@ -447,9 +610,12 @@ The shape, in their own order:
    and came out supremely charismatic, deeply empathetic, and telepathically
    strong enough that the kid mentions it the way you mention a parent being
    tall. She never joined Starfleet.
-6. The kid did. And — "it is a small galaxy" — they are now with one of
-   **Tuvok's** descendants, which they find delightful and deliver as the
-   punchline of the whole project.
+6. The kid did. And — "it is a small galaxy" — their closest friend at the
+   Academy is one of **Tuvok's** great-grandchildren, which they find
+   delightful and deliver as the punchline of the whole project. **Friends,
+   not a romance** (decided 2026-09-23), and the punchline is better for it:
+   half of Tuvix *was* Tuvok, so the two of them worked out on a padd that
+   they are cousins, sort of, and there is no form for that.
 
 What makes it land is that none of it is presented as tragedy. The kid is
 pleased. The sadness is entirely the viewer's, arriving about four lines after
@@ -765,12 +931,13 @@ Extend what exists; do not add in-game checks (`DEV_GUIDE.md`, *Testing*).
 - the shelf is built and stocked, reaching both clients with its contents;
 - **every tape in it has media data**, read back off the item — the
   `B.stockReport` shape, and the check that catches a blank tape;
-- `tests/pz_sim.lua` needs the rack's sprite in its list of container-bearing
-  sprite substrings (`shop_generic`), or the rack is scenery in every test and
+- `tests/pz_sim.lua` needs the shelf's sprite covered by its list of
+  container-bearing sprite substrings, or the shelf is scenery in every test and
   every tape check fails on a feature that works (*The simulation has to be as
-  unkind as the engine*, fault 4). **This bit on the swap**: nothing in
-  `location_shop_generic_01_1` resembles any word already in that list, and
-  removing the substring again is a mutation the tapes suite catches;
+  unkind as the engine*, fault 4). `shelving` covers the wall shelf; the video
+  rack needed `shop_generic` added, and **this bit on the swap in both
+  directions** — the substring went in with the rack and came out with it, and
+  either way round the tapes suite catches it;
 - and the simulation needs `RecordedMedia`, `register`, `addLine` and
   `setRecordedMediaData` stubbed **the way they really behave**: `register`
   returning something with `addLine`, and `getMediaData(id)` answering nil for
@@ -782,34 +949,55 @@ mutation applied.
 
 ---
 
-## 8. In game
+## 8. In game  **[CONFIRMED WORKING 2026-09-23]**
 
-Not provable at the desk, in the order worth checking:
+**The shelf, the tapes and the television all work, tested repeatedly by the
+author.** A tape goes into the cabin's television and plays.
 
-1. **A tape goes into the television and plays.** The one thing no static check
-   can reach — whether a custom `MediaCategory` really is media type 1 in the
-   running engine and whether `ISDeviceMediaAction` accepts it. Everything else
-   here is downstream of this.
-2. **The lines are readable and the pacing is bearable**, with a stopwatch on
-   two long lines and two short ones, which is where the real length band comes
-   from.
-3. **The halos fire** — boredom, stress, XP — which is the `isOutside()` and
-   ±5-tile question in section 2.
-4. **The shelf looks right beside the screen**, with or without the monitor
-   bank behind it. Render it and look.
-5. **The tapes have their titles in the inventory**, which proves
-   `setRecordedMediaData` landed. A row of tapes all called the same thing
-   means it did not.
-6. **The television needs power**: it runs on `TREK_Power.lua`'s own cell and
-   `DeviceData.updateMediaPlaying` needs `isTurnedOn` and a volume above zero.
-   A tape that plays in silence with no subtitles is the volume, not the tape.
-7. **Two clients watching the same tape.** The engine claims to sync the
-   current line; `ROADMAP.md` is right that this is exactly the kind of claim
-   that wants checking.
-8. **An existing save gets the shelf** on the next arrival after the
-   `C.BuildRev` bump, stocked, because the container is new.
+That settles the one thing no static check in this repository could reach: a
+**custom `MediaCategory` really is media type 1 in the running engine**. So
+`RecordedMedia.getMediaTypeForCategory` returning 1 for every string that is not
+`"cds"` is confirmed behaviour rather than bytecode reading, and everything in
+section 2 now stands on an observation.
 
----
+It also settles, by implication, three joins that each fail silently:
+
+- **the mod's own `Recorded_Media.json` merges** into the engine's translation
+  table -- a tape playing readable English rather than `RM_TREK_...` keys is the
+  proof;
+- **`OnInitRecordedMedia` reaches a mod's `RecMedia` entries**, by whichever of
+  the two routes got there first (vanilla's walk, or our own handler);
+- **`setRecordedMediaData` lands on the authority**, because a tape carrying no
+  recording would have gone into the television and done nothing.
+
+### A correction worth keeping
+
+For several turns this file, and the assistant writing it, repeated that "the
+television has never been switched on in a real game" -- sourced from
+`ROADMAP.md`'s *Not yet seen in game* list and `DEV_GUIDE.md`'s current-state
+section. **Both were stale.** The author had tested the television many times.
+
+That is this project's own rule arriving from a new direction: *A test encodes
+an expectation, not a fact* applies to a **document** just as hard. A
+"not yet proven" list is a claim about what somebody had got round to writing
+down, and it decays silently every time the game is played and the file is not
+edited. Both lists are corrected now. **When a doc says something is unproven,
+that is a prompt to ask, not a fact to repeat at the person who has played it.**
+
+### Still genuinely unobserved
+
+Narrower than the list that used to be here, and none of it blocks anything:
+
+1. **Whether the line effects fire** -- the boredom, stress and unhappiness
+   halos. Those are `ISRadioInteractions` reaching the player through
+   `OnDeviceText`, and they depend on the +/-5 tile range check and on the
+   source square and the player square agreeing about `isOutside()`. The cabin
+   is not a building, so they should agree; that is reasoning, not evidence.
+2. **Two clients watching one tape.** The engine transmits the current line with
+   the device state, so this should need nothing of ours -- which is exactly the
+   kind of claim `ROADMAP.md` says wants checking.
+3. **The pacing over a long tape**, now that entries run to forty-odd lines.
+4. **An existing save** picking the shelf up on the refit at revision 27.
 
 ## 9. Open questions
 

@@ -2166,8 +2166,10 @@ that both ends apply* above.
    machine earns its place at its new size, the panel under 4913 rows, and a
    pattern crossing between machines.
 3. **The interior refit**: the shape, the three lockers, the five empty
-   containers, the television actually turning on, the biobed as a bed -- and,
-   in a save made before it, the migration. `INTERIOR_REFIT.md` section 7.
+   containers, the biobed as a bed -- and, in a save made before it, the
+   migration. `INTERIOR_REFIT.md` section 7. **The television is off this
+   list: it has been switched on and used repeatedly in game, and it plays
+   tapes** (2026-09-23).
 4. **The medical set**: the three items in the sick-bay locker, a dose that
    leaves a bite alone, the health panel at doctor level, the sensor sweep in
    front of a horde, and the lock override on a door and then on a padlock.

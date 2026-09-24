@@ -62,7 +62,8 @@ player before.
 8. **Shields** — the `isRemoteZombie()` path is live here in a way single
    player never exercises, even with one client.
 9. **The interior refit.** The 4x6 cabin, the three lockers,
-   the five empty containers, the television, the biobed as a bed. Revision
+   the five empty containers, the biobed as a bed. (**The television is
+   confirmed working and playing tapes**, 2026-09-23.) Revision
    17. And, in a world made before it, the migration -- no furniture left
    standing outside the hull, the old contents piled on the pad.
 10. **The replicator.** Newest of all. The parts a server adds are the
