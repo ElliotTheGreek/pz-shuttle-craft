@@ -16,7 +16,7 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Shuttlecraft, this is the Adirondack. Please respond." },
         { "voice": "shepard", "text": "Somebody has been aboard my shuttle. The core says so." },
         { "voice": "shepard", "text": "If you can hear me, say something. Anything at all." }
@@ -32,7 +32,7 @@
     {
       "id": "01M",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- SECOND ATTEMPT" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK. SECOND ATTEMPT" },
         { "voice": "shepard", "text": "Shuttlecraft, Adirondack. Second time of asking." },
         { "voice": "shepard", "text": "I know somebody is down there. The core keeps count." },
         { "voice": "shepard", "text": "Pick up. Please." }
@@ -48,7 +48,7 @@
     {
       "id": "01MM",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Third time. I'm going to assume you're busy." },
         { "voice": "shepard", "text": "Or dead. I would rather busy. Answer if you can." }
       ],
@@ -63,7 +63,7 @@
       "id": "01S",
       "lines": [
         { "voice": "shepard", "text": "Nothing. All right. Then I'll talk, and you listen." },
-        { "voice": "shepard", "text": "If you're hurt, or scared, that is fine. Just listen." }
+        { "voice": "shepard", "text": "If you're hurt or scared, fine. Just listen." }
       ],
       "options": [
         { "text": "...Go on.", "go": "02" }
@@ -95,8 +95,8 @@
       "id": "02",
       "lines": [
         { "voice": "shepard", "text": "Lieutenant Lucy Shepard. Cultural survey. And that" },
-        { "voice": "shepard", "text": "is my shuttle you're standing in. My fridge, my oven." },
-        { "voice": "shepard", "text": "My chair, which I would quite like back one day." },
+        { "voice": "shepard", "text": "is my shuttle you're standing in. Everything in it." },
+        { "voice": "shepard", "text": "Including the chair, which I'd quite like back one day." },
         { "voice": "shepard", "text": "I have talked to the same hundred and forty faces" },
         { "voice": "shepard", "text": "since July. You are the first new voice in months." }
       ],
@@ -134,9 +134,9 @@
       "id": "04N",
       "lines": [
         { "voice": "shepard", "text": "A local. Of course you are. Of course you are." },
-        { "voice": "shepard", "text": "Then I owe you an apology, and it is a very big one." },
+        { "voice": "shepard", "text": "Then I owe you an apology. A big one." },
         { "voice": "shepard", "text": "We were up here watching when it happened to you." },
-        { "voice": "shepard", "text": "We watched, and we wrote it down, and we did nothing." }
+        { "voice": "shepard", "text": "We wrote it all down, and we didn't lift a finger." }
       ],
       "options": [
         { "text": "You couldn't have stopped it.", "go": "05" },
@@ -182,7 +182,7 @@
         { "voice": "shepard", "text": "Three things, and then you can hang up on me." },
         { "voice": "shepard", "text": "One. I'm alive. So are a hundred and forty others." },
         { "voice": "shepard", "text": "Two. The Adirondack cannot leave. No warp. No impulse." },
-        { "voice": "shepard", "text": "Three. We can still transport. That is what we kept." }
+        { "voice": "shepard", "text": "Three. The transporters still work." }
       ],
       "options": [
         { "text": "Transport what, where?", "go": "06" },
@@ -196,11 +196,11 @@
         { "voice": "shepard", "text": "I would. I can't. Not yet, and it isn't my call." },
         { "voice": "shepard", "text": "The Doctor won't bring anyone up from the surface" },
         { "voice": "shepard", "text": "until he knows how it spreads. Quarantine. Hard stop." },
-        { "voice": "shepard", "text": "I'm sorry. I know exactly what I'm asking you to live in." }
+        { "voice": "shepard", "text": "I'm sorry. I know what that means for you." }
       ],
       "options": [
         { "text": "Of course you do.", "go": "06" },
-        { "text": "I'll hold you to 'not yet'.", "go": "06" }
+        { "text": "'Not yet.' I'll remember that.", "go": "06" }
       ]
     },
     {
@@ -232,7 +232,7 @@
       "lines": [
         { "voice": "shepard", "text": "You shouldn't. I'm not going to pretend otherwise." },
         { "voice": "shepard", "text": "The ship pays for it. Patterns for the replicator," },
-        { "voice": "shepard", "text": "supplies. And they would do it for you. Every one." }
+        { "voice": "shepard", "text": "supplies. And any of them would do it for you." }
       ],
       "options": [
         { "text": "We'll see.", "go": "07" }
@@ -241,7 +241,7 @@
     {
       "id": "07",
       "lines": [
-        { "voice": "shepard", "text": "One more thing, and it's the one that matters to me." },
+        { "voice": "shepard", "text": "One more thing. This one's for me." },
         { "voice": "shepard", "text": "The tapes by the television. They're mine. Watch them." },
         { "voice": "shepard", "text": "Everything I know about what happened is on those." }
       ],
@@ -255,7 +255,7 @@
       "id": "07A",
       "lines": [
         { "voice": "shepard", "text": "Then you know more than Starfleet does." },
-        { "voice": "shepard", "text": "That's a low bar. I'm sorry you had to clear it." },
+        { "voice": "shepard", "text": "Not that that's saying much. I'm sorry you had to." },
         { "voice": "shepard", "text": "And you know about the chair. Don't sit in it for me." }
       ],
       "options": [

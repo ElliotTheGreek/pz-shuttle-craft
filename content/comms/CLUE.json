@@ -16,7 +16,7 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Shepard. Your probe flagged something. Not dilithium." }
       ],
       "options": [
@@ -29,7 +29,7 @@
     {
       "id": "01M",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Shepard. The probe's signal. Have you looked yet?" }
       ],
       "options": [
@@ -56,7 +56,7 @@
         { "voice": "shepard", "text": "There's a file on this planet. You'll have heard" },
         { "voice": "shepard", "text": "of the Q. Starfleet's view is that one made this place." },
         { "voice": "shepard", "text": "A copy of Earth, dropped here, for a joke or a test." },
-        { "voice": "shepard", "text": "It's the only category they have. It's not a bad one." }
+        { "voice": "shepard", "text": "It's the only box they have for it. It's a fair guess." }
       ],
       "options": [
         { "text": "Do you believe that?", "go": "04" },

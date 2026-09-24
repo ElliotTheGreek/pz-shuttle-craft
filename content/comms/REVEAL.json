@@ -15,7 +15,7 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Shepard. Are you somewhere you can sit down?" }
       ],
       "options": [
@@ -28,8 +28,8 @@
     {
       "id": "01M",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
-        { "voice": "shepard", "text": "Shepard. Please pick up. This is the one that matters." }
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. Please pick up. This one's important." }
       ],
       "options": [
         { "text": "I'm here.", "go": "02" }
@@ -41,7 +41,7 @@
       "id": "02",
       "lines": [
         { "voice": "shepard", "text": "We put the pieces together. Okafor, the Doctor, me." },
-        { "voice": "shepard", "text": "The Founders' virus. Borg nanoprobes. One engine." },
+        { "voice": "shepard", "text": "The Founders' virus and Borg nanoprobes, in one engine." },
         { "voice": "shepard", "text": "A Changeling left the Great Link, years ago, on purpose." },
         { "voice": "shepard", "text": "It knew what Section 31 did to its people. The virus." },
         { "voice": "shepard", "text": "And it spent sixty years making that into this." }
@@ -65,7 +65,7 @@
     {
       "id": "03",
       "lines": [
-        { "voice": "shepard", "text": "One. Alone. That's the part I can't get past." },
+        { "voice": "shepard", "text": "Just one of them, on its own. I can't get past that." },
         { "voice": "shepard", "text": "One person, grieving for long enough, did all of it." }
       ],
       "options": [
@@ -75,7 +75,7 @@
     {
       "id": "04",
       "lines": [
-        { "voice": "shepard", "text": "Because nobody was watching. Nothing filed. No relay." },
+        { "voice": "shepard", "text": "Because nobody was watching. There wasn't even a relay." },
         { "voice": "shepard", "text": "An order saying do not interfere. The Prime Directive" },
         { "voice": "shepard", "text": "is what left this world undefended. I helped write it." },
         { "voice": "shepard", "text": "And because your world is the closest thing to Earth" },
@@ -111,9 +111,9 @@
     {
       "id": "06",
       "lines": [
-        { "voice": "shepard", "text": "Stay alive. Bring my people up. Keep the tapes." },
+        { "voice": "shepard", "text": "Stay alive. Keep bringing my people up, and keep the tapes." },
         { "voice": "shepard", "text": "If a ship ever does come, I want the whole record." },
-        { "voice": "shepard", "text": "Not a report. A record. Everything, in order." },
+        { "voice": "shepard", "text": "All of it, in the order it happened." },
         { "voice": "shepard", "text": "Shepard out." }
       ],
       "sets": ["revealDone"]

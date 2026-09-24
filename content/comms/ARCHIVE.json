@@ -14,7 +14,7 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- SICKBAY" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK, SICKBAY" },
         { "voice": "emh", "text": "Shuttle. The Doctor. I have been reading. Don't sigh." }
       ],
       "options": [
@@ -27,7 +27,7 @@
     {
       "id": "01M",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- SICKBAY" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK, SICKBAY" },
         { "voice": "emh", "text": "I have a finding and nobody to tell it to. Please." }
       ],
       "options": [
@@ -43,7 +43,7 @@
         { "voice": "emh", "text": "years of them, filed and unread, which is a crime." },
         { "voice": "emh", "text": "In 2153 a Denobulan named Phlox stopped nanoprobes." },
         { "voice": "emh", "text": "Borg nanoprobes, in a crewman, with omicron radiation." },
-        { "voice": "emh", "text": "He wrote it down. Nobody ever read it. Until now." }
+        { "voice": "emh", "text": "He wrote it down. I appear to be the first to read it." }
       ],
       "options": [
         { "text": "Nanoprobes? That's the second signature?", "go": "03" },
@@ -55,7 +55,7 @@
       "id": "02P",
       "lines": [
         { "voice": "emh", "text": "A colleague. Before my time, and everybody's." },
-        { "voice": "emh", "text": "He wrote beautifully. I envy that more than anything." }
+        { "voice": "emh", "text": "He wrote beautifully. Almost as well as I do." }
       ],
       "options": [
         { "text": "And the nanoprobes?", "go": "03" }
@@ -64,8 +64,8 @@
     {
       "id": "03",
       "lines": [
-        { "voice": "emh", "text": "It fits the shape I couldn't see. Something Borg is" },
-        { "voice": "emh", "text": "holding those bodies together. Rebuilding. Running." },
+        { "voice": "emh", "text": "It fills in the half I couldn't read. Something Borg is" },
+        { "voice": "emh", "text": "holding those bodies together and keeping them moving." },
         { "voice": "emh", "text": "And omicron radiation takes nanoprobes apart." }
       ],
       "options": [
@@ -77,7 +77,7 @@
       "id": "04K",
       "lines": [
         { "voice": "emh", "text": "They're already dead. You'd be switching them off." },
-        { "voice": "emh", "text": "I'm not sure that's different. I'm not sure it isn't." }
+        { "voice": "emh", "text": "Whether that's different from killing, I haven't decided." }
       ],
       "options": [
         { "text": "Can you cure the living?", "go": "04" }
@@ -89,7 +89,7 @@
         { "voice": "emh", "text": "No. I want to be very clear, because it's tempting." },
         { "voice": "emh", "text": "It's a note in a file. It needs a laboratory, months," },
         { "voice": "emh", "text": "and a ship that can go somewhere. We have none of it." },
-        { "voice": "emh", "text": "But it tells us what this is made of. That matters." }
+        { "voice": "emh", "text": "But it tells us what this is made of. I'd call that progress." }
       ],
       "options": [
         { "text": "Thank you, Doctor.", "go": "05" },

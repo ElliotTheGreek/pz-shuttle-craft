@@ -14,7 +14,7 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Shepard. Nothing's wrong. I just want to say a thing" },
         { "voice": "shepard", "text": "out loud to somebody who'll understand it." }
       ],
@@ -28,7 +28,7 @@
     {
       "id": "01M",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Shepard. No emergency. When you've got a second." }
       ],
       "options": [
@@ -42,8 +42,8 @@
       "lines": [
         { "voice": "shepard", "text": "A Douwd made this county because he couldn't bear" },
         { "voice": "shepard", "text": "one death. A Changeling is emptying it because it" },
-        { "voice": "shepard", "text": "couldn't bear a genocide. Made by grief, and unmade." },
-        { "voice": "shepard", "text": "Both of them the last of something. Both alone." }
+        { "voice": "shepard", "text": "couldn't bear a genocide. I keep turning that over." },
+        { "voice": "shepard", "text": "And each of them the last of something, on their own." }
       ],
       "options": [
         { "text": "And us?", "go": "03" },
@@ -54,7 +54,7 @@
     {
       "id": "03E",
       "lines": [
-        { "voice": "shepard", "text": "No. It explains it. That's all I'm good for." }
+        { "voice": "shepard", "text": "No. I'm only explaining it. It's all I'm good for." }
       ],
       "options": [
         { "text": "...", "go": "03" }
@@ -63,10 +63,10 @@
     {
       "id": "03",
       "lines": [
-        { "voice": "shepard", "text": "We're the ones who aren't alone. That's the difference." },
+        { "voice": "shepard", "text": "Us? At least we're not on our own." },
         { "voice": "shepard", "text": "A hundred and forty up here. You down there." },
-        { "voice": "shepard", "text": "The ones you've brought up. We have each other." },
-        { "voice": "shepard", "text": "It's not a plan. It's just true. Shepard out." }
+        { "voice": "shepard", "text": "And the ones you've brought up." },
+        { "voice": "shepard", "text": "It won't fix anything. Anyway. Shepard out." }
       ],
       "sets": ["griefDone"]
     }

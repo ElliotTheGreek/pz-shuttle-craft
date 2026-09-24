@@ -21,7 +21,7 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "HAILING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "HAILING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Adirondack. Shepard. Everything all right down there?" }
       ],
       "options": [

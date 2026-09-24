@@ -130,7 +130,7 @@ RecMedia["TREK_Tuvix"] = {
     },
 }
 
--- Personal Log -- Entry One
+-- Personal Log: Entry One
 RecMedia["TREK_LogOne"] = {
     itemDisplayName = "RM_TREK_LogOne_name",
     title = "RM_TREK_LogOne_title",
@@ -191,7 +191,7 @@ RecMedia["TREK_LogOne"] = {
     },
 }
 
--- Personal Log -- Entry Two
+-- Personal Log: Entry Two
 RecMedia["TREK_LogTwo"] = {
     itemDisplayName = "RM_TREK_LogTwo_name",
     title = "RM_TREK_LogTwo_title",
@@ -244,7 +244,7 @@ RecMedia["TREK_LogTwo"] = {
     },
 }
 
--- Personal Log -- Entry Three
+-- Personal Log: Entry Three
 RecMedia["TREK_LogThree"] = {
     itemDisplayName = "RM_TREK_LogThree_name",
     title = "RM_TREK_LogThree_title",
@@ -301,7 +301,7 @@ RecMedia["TREK_LogThree"] = {
     },
 }
 
--- Personal Log -- Entry Four
+-- Personal Log: Entry Four
 RecMedia["TREK_LogFour"] = {
     itemDisplayName = "RM_TREK_LogFour_name",
     title = "RM_TREK_LogFour_title",
@@ -347,7 +347,7 @@ RecMedia["TREK_LogFour"] = {
     },
 }
 
--- Personal Log -- Entry Five
+-- Personal Log: Entry Five
 RecMedia["TREK_LogFive"] = {
     itemDisplayName = "RM_TREK_LogFive_name",
     title = "RM_TREK_LogFive_title",
@@ -397,7 +397,7 @@ RecMedia["TREK_LogFive"] = {
     },
 }
 
--- Personal Log -- Entry Six
+-- Personal Log: Entry Six
 RecMedia["TREK_LogSix"] = {
     itemDisplayName = "RM_TREK_LogSix_name",
     title = "RM_TREK_LogSix_title",

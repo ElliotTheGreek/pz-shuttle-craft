@@ -14,7 +14,7 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Shepard. Have you got a minute? A real one." }
       ],
       "options": [
@@ -28,7 +28,7 @@
     {
       "id": "01M",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "I tried you yesterday. I'll assume the dead were busy." },
         { "voice": "shepard", "text": "Have you got a minute now?" }
       ],
@@ -65,13 +65,13 @@
       "id": "03",
       "lines": [
         { "voice": "shepard", "text": "Because it was the best work anybody in my field" },
-        { "voice": "shepard", "text": "will ever get to do. A living world, unannounced." },
+        { "voice": "shepard", "text": "will ever get to do. A world that didn't know we were there." },
         { "voice": "shepard", "text": "And because I could pass. Six months of market days." },
         { "voice": "shepard", "text": "The others could sit in orbit and read my notes." },
         { "voice": "shepard", "text": "Ten of them didn't. They came down because I did." }
       ],
       "options": [
-        { "text": "That's on them, not you.", "go": "04A" },
+        { "text": "That was their choice.", "go": "04A" },
         { "text": "You got them killed.", "go": "04B" },
         { "text": "Would you do it again?", "go": "04C" }
       ]
@@ -79,12 +79,12 @@
     {
       "id": "04A",
       "lines": [
-        { "voice": "shepard", "text": "That's kind. It's also not how command works." },
-        { "voice": "shepard", "text": "A lieutenant who plants a flag is a place to stand." },
-        { "voice": "shepard", "text": "I knew that. I planted it anyway." }
+        { "voice": "shepard", "text": "That's kind. Command doesn't work like that." },
+        { "voice": "shepard", "text": "People follow a lieutenant who goes down first." },
+        { "voice": "shepard", "text": "I knew that. I went anyway." }
       ],
       "options": [
-        { "text": "Then you'd better start carrying it.", "go": "05" },
+        { "text": "Then that's yours to live with.", "go": "05" },
         { "text": "Okay.", "go": "05" }
       ]
     },
@@ -103,7 +103,7 @@
     {
       "id": "04BS",
       "lines": [
-        { "voice": "shepard", "text": "It was fair. Cruel and fair aren't opposites." }
+        { "voice": "shepard", "text": "It was also fair. Don't take it back." }
       ],
       "options": [
         { "text": "...", "go": "05" }
@@ -124,7 +124,7 @@
       "lines": [
         { "voice": "shepard", "text": "Knowing what I know now? No." },
         { "voice": "shepard", "text": "Knowing what I knew then? Yes. Every time." },
-        { "voice": "shepard", "text": "That's the whole problem with being a historian." }
+        { "voice": "shepard", "text": "I know. I've had five months to think about it." }
       ],
       "options": [
         { "text": "That's a terrible answer.", "go": "05" },

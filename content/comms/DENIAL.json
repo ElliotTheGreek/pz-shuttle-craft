@@ -14,7 +14,7 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- UNLOGGED" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK. UNLOGGED" },
         { "voice": "officer", "text": "Commander Okafor. You don't know me. Shepard does." },
         { "voice": "officer", "text": "She tells me you have questions about my employer." }
       ],
@@ -29,7 +29,7 @@
     {
       "id": "01M",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- UNLOGGED" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK. UNLOGGED" },
         { "voice": "officer", "text": "Okafor. I called once already. I don't usually." }
       ],
       "options": [
@@ -87,7 +87,7 @@
       "lines": [
         { "voice": "officer", "text": "I can't. There is nothing I could show you that" },
         { "voice": "officer", "text": "an organisation like mine could not also forge." },
-        { "voice": "officer", "text": "That is the problem with us. We earned it." }
+        { "voice": "officer", "text": "You're right not to trust us. We earned that." }
       ],
       "options": [
         { "text": "Then why should anyone trust you?", "go": "04T" },
@@ -98,7 +98,7 @@
     {
       "id": "04T",
       "lines": [
-        { "voice": "officer", "text": "They shouldn't. Believe the evidence, not me." },
+        { "voice": "officer", "text": "They shouldn't. Go by the evidence." },
         { "voice": "officer", "text": "The Doctor's reading half a signature. Follow that." }
       ],
       "options": [

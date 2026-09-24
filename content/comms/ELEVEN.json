@@ -14,7 +14,7 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Shepard. I want to talk about my people. The eleven." }
       ],
       "options": [
@@ -27,7 +27,7 @@
     {
       "id": "01M",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Twice now. I'm going to keep calling about this one." }
       ],
       "options": [
@@ -47,7 +47,7 @@
       "id": "02R",
       "lines": [
         { "voice": "shepard", "text": "You've already brought some of them up. %2, last." },
-        { "voice": "shepard", "text": "I read the quarantine log every morning. Every name." }
+        { "voice": "shepard", "text": "I read the quarantine log every morning." }
       ],
       "options": [
         { "text": "How many are left?", "go": "03" }
@@ -66,9 +66,9 @@
     {
       "id": "03",
       "lines": [
-        { "voice": "shepard", "text": "I don't know. That's the honest answer." },
+        { "voice": "shepard", "text": "I don't know. Honestly." },
         { "voice": "shepard", "text": "Eleven went down. The beacons don't say who's calling." },
-        { "voice": "shepard", "text": "Some are from people I trained. Some I barely knew." },
+        { "voice": "shepard", "text": "I trained some of them. A couple I barely knew." },
         { "voice": "shepard", "text": "Some have stopped, and I don't know which of those" },
         { "voice": "shepard", "text": "are dead and which just dropped the combadge." }
       ],
@@ -82,7 +82,7 @@
       "id": "03W",
       "lines": [
         { "voice": "shepard", "text": "Some can't walk. Some are in a basement with forty" },
-        { "voice": "shepard", "text": "of the dead on the stairs. Clear ground is a luxury." }
+        { "voice": "shepard", "text": "of the dead on the stairs. They can't just walk out." }
       ],
       "options": [
         { "text": "What happens to them up there?", "go": "04" }
@@ -92,7 +92,7 @@
       "id": "03C",
       "lines": [
         { "voice": "shepard", "text": "Nobody asked you to. Least of all me." },
-        { "voice": "shepard", "text": "One is a lot more than none. I'll take one." }
+        { "voice": "shepard", "text": "Bring me one and I'll be grateful." }
       ],
       "options": [
         { "text": "What happens to them up there?", "go": "04" }
@@ -101,9 +101,9 @@
     {
       "id": "04",
       "lines": [
-        { "voice": "shepard", "text": "Quarantine. Showers, blood, the Doctor's bad jokes." },
+        { "voice": "shepard", "text": "Quarantine. Blood tests, mostly, and the Doctor." },
         { "voice": "shepard", "text": "Then a bunk, and a lot of staring at the viewport." },
-        { "voice": "shepard", "text": "Nobody has turned. Not one. He doesn't know why yet." }
+        { "voice": "shepard", "text": "Nobody has turned. He doesn't know why yet." }
       ],
       "options": [
         { "text": "That's good news.", "go": "05" },
@@ -123,7 +123,7 @@
       "id": "05",
       "lines": [
         { "voice": "shepard", "text": "Keep answering them. The ship pays you for each one." },
-        { "voice": "shepard", "text": "I pay you in gratitude, which is worth less. Shepard out." }
+        { "voice": "shepard", "text": "I can only say thank you. Shepard out." }
       ],
       "sets": ["elevenDone"]
     }

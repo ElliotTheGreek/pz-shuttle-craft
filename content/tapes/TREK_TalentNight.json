@@ -8,8 +8,8 @@
   "extra": "Dubbed from the Archive copy. Sixty-eight years old.",
   "spawning": 0,
   "lines": [
-    { "voice": "card", "text": "PERSONAL RECORDING -- DO NOT ARCHIVE" },
-    { "voice": "card", "text": "TEN FORWARD, DECK TEN -- STARDATE 44390.7" },
+    { "voice": "card", "text": "PERSONAL RECORDING. DO NOT ARCHIVE." },
+    { "voice": "card", "text": "TEN FORWARD, DECK TEN: STARDATE 44390.7" },
     { "voice": "dub", "text": "The television is a surface artifact. I logged it as one." },
     { "voice": "dub", "text": "Then I found out what else it plays, and here we are." },
     { "voice": "dub", "text": "Sixty-eight years old, and nobody has watched this." },
@@ -37,7 +37,7 @@
     { "voice": "room", "text": "He has not declined. He has been entered." },
     { "voice": "note", "text": "A long silence. Then forty seconds of Klingon opera." },
     { "voice": "note", "text": "Nobody in the room breathes through any of it.", "codes": "STS-0.2,UHP-1" },
-    { "voice": "room", "text": "...Mister Worf, that was extraordin--" },
+    { "voice": "room", "text": "...Mister Worf, that was extraordin..." },
     { "voice": "room", "text": "I have declined to participate." },
     { "voice": "mc", "text": "Ensign Ruiz. Impressions of the senior staff." },
     { "voice": "note", "text": "Engineering, security, medical. Cruel and exact." },
@@ -46,10 +46,10 @@
     { "voice": "room", "text": "Do go on, Ensign." },
     { "voice": "note", "text": "He does not go on. He sits down. They are merciless." },
     { "voice": "mc", "text": "Lieutenant Barclay is on the list and not in the room." },
-    { "voice": "card", "text": "-- recording continues --" },
+    { "voice": "card", "text": "RECORDING CONTINUES" },
     { "voice": "note", "text": "The room empties. Nobody switches the camera off." },
     { "voice": "note", "text": "Two people stack chairs and argue about the trombone." },
-    { "voice": "dub", "text": "That is why I keep these. Somebody stacked the chairs." },
+    { "voice": "dub", "text": "I watch the end more than the acts. The chair stacking." },
     { "voice": "dub", "text": "There are nineteen more. Start with this one.", "codes": "UHP-1" }
   ]
 }

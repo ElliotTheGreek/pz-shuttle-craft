@@ -9,13 +9,13 @@
   "spawning": 0,
   "issued": true,
   "lines": [
-    { "voice": "card", "text": "DUBBED FROM HOLO -- FRAGMENT FOUR OF SIX" },
+    { "voice": "card", "text": "DUBBED FROM HOLO: FRAGMENT FOUR OF SIX" },
     { "voice": "note", "text": "The chair again. He is older. He speaks slowly now." },
     { "voice": "tucker", "text": "Four. I copied it." },
     { "voice": "tucker", "text": "Not her. Not only her. I want to be exact about this." },
-    { "voice": "tucker", "text": "I took the valley. The river, and the bend in it." },
-    { "voice": "tucker", "text": "The falls where the boats had to stop. The escarpment." },
-    { "voice": "tucker", "text": "The salt licks. The hunting country. The weather." },
+    { "voice": "tucker", "text": "I took the valley. The river, with the bend in it exactly right." },
+    { "voice": "tucker", "text": "The falls where the boats had to stop, and the escarpment too." },
+    { "voice": "tucker", "text": "I did the salt licks and the hunting country. The weather as well." },
     { "voice": "tucker", "text": "And I put it on a world in a similar orbit, far away." },
     { "voice": "tucker", "text": "Where nobody was fighting over anything at all." },
     { "voice": "tucker", "text": "And the people. I copied the people on it. Everyone." },
@@ -24,10 +24,10 @@
     { "voice": "tucker", "text": "I know. I know what that is. I have thought of little else." },
     { "voice": "tucker", "text": "They were not copies to themselves. They woke up." },
     { "voice": "tucker", "text": "They were hungry and cold and arguing, like people." },
-    { "voice": "tucker", "text": "They were people. They are people. I did not make them.", "codes": "UHP-1" },
+    { "voice": "tucker", "text": "They were people, and they still are. I did not make them.", "codes": "UHP-1" },
     { "voice": "tucker", "text": "I made the ground they stand on. That is all." },
     { "voice": "tucker", "text": "I owe them something. I do not know what it is." },
     { "voice": "tucker", "text": "Perhaps only to leave them alone. So I tried that." },
-    { "voice": "card", "text": "-- FRAGMENT FOUR ENDS --" }
+    { "voice": "card", "text": "FRAGMENT FOUR ENDS" }
   ]
 }

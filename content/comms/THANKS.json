@@ -16,7 +16,7 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "It's Shepard. %2 is aboard. In quarantine, but aboard." }
       ],
       "options": [
@@ -39,7 +39,7 @@
     {
       "id": "03",
       "lines": [
-        { "voice": "shepard", "text": "I'll tell them. Thank you. Really. Shepard out." }
+        { "voice": "shepard", "text": "I'll tell them. And thank you. Shepard out." }
       ]
     }
   ]

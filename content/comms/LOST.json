@@ -11,10 +11,10 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "It's Shepard. %2's beacon stopped an hour ago." },
-        { "voice": "shepard", "text": "I'm not calling to blame you. I'm calling so someone" },
-        { "voice": "shepard", "text": "hears the name out loud. That's all." }
+        { "voice": "shepard", "text": "I don't blame you. I just wanted somebody else" },
+        { "voice": "shepard", "text": "to hear the name out loud." }
       ],
       "options": [
         { "text": "I couldn't get there.", "go": "02" },

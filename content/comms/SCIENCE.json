@@ -14,7 +14,7 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- TWO VOICES" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK. TWO VOICES" },
         { "voice": "shepard", "text": "Shepard. I've got the Doctor with me. Ours." },
         { "voice": "emh", "text": "Good afternoon. Or whatever it is on the surface." }
       ],
@@ -28,7 +28,7 @@
     {
       "id": "01M",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK -- TWO VOICES" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK. TWO VOICES" },
         { "voice": "emh", "text": "I did say they wouldn't pick up. I said it twice." },
         { "voice": "shepard", "text": "You did. Shuttle, have you got a moment?" }
       ],
@@ -70,7 +70,7 @@
       "id": "03",
       "lines": [
         { "voice": "emh", "text": "The dead down there are not dead in the usual way." },
-        { "voice": "emh", "text": "Something rebuilt them. Morphogenic markers, yes --" },
+        { "voice": "emh", "text": "Something rebuilt them. Morphogenic markers, yes," },
         { "voice": "emh", "text": "the Founders' own chemistry, which is bad enough." },
         { "voice": "emh", "text": "But there's a second signature underneath it." },
         { "voice": "emh", "text": "Something is holding the tissue together. Running it." }
@@ -84,7 +84,7 @@
       "id": "03P",
       "lines": [
         { "voice": "emh", "text": "Two different things did this. I can see one of them." },
-        { "voice": "emh", "text": "The other is a shape in the dark where one should be." }
+        { "voice": "emh", "text": "The other is only an outline. A gap in the data." }
       ],
       "options": [
         { "text": "What's the shape?", "go": "04" }
@@ -93,7 +93,7 @@
     {
       "id": "04",
       "lines": [
-        { "voice": "emh", "text": "I don't know. That's the sentence I dislike most." },
+        { "voice": "emh", "text": "I don't know. I do so dislike saying that." },
         { "voice": "emh", "text": "I can support the chemistry. I cannot support the author." },
         { "voice": "shepard", "text": "He keeps saying that. It still sounds like Section 31." },
         { "voice": "emh", "text": "It sounds like whoever you have already decided on." }

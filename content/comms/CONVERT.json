@@ -21,7 +21,7 @@
     {
       "id": "HANG",
       "lines": [
-        { "voice": "card", "text": "HAILING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "HAILING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Shepard. You found it? Hold it up to the PADD." },
         { "voice": "shepard", "text": "..." },
         { "voice": "shepard", "text": "Hang on. I can put that on magnetic tape." },
@@ -77,7 +77,7 @@
     {
       "id": "F2",
       "lines": [
-        { "voice": "shepard", "text": "Number two. He's talking about a woman. Gently." },
+        { "voice": "shepard", "text": "Number two. He's talking about a woman, very gently." },
         { "voice": "shepard", "text": "He says his kind can't love anything. And then he did." },
         { "voice": "shepard", "text": "It's going on tape. You'll want to watch this one." }
       ],
@@ -103,9 +103,9 @@
     {
       "id": "F4",
       "lines": [
-        { "voice": "shepard", "text": "Four. He copied it. The land, the river, the falls." },
-        { "voice": "shepard", "text": "And the people. He copied the people. And her." },
-        { "voice": "shepard", "text": "That's-- I need a minute. It's going on tape." }
+        { "voice": "shepard", "text": "Four. He copied the whole valley, down to the falls." },
+        { "voice": "shepard", "text": "And the people on it. Her too." },
+        { "voice": "shepard", "text": "That's... I need a minute. It's going on tape." }
       ],
       "options": [
         { "text": "Is it all there?", "go": "COUNT" },
@@ -182,7 +182,7 @@
     {
       "id": "ALL",
       "lines": [
-        { "voice": "shepard", "text": "That's all six. The whole of him. On the shelf." },
+        { "voice": "shepard", "text": "That's all six on the shelf now." },
         { "voice": "shepard", "text": "..." },
         { "voice": "shepard", "text": "I'll call you when I've listened. Shepard out." }
       ]

@@ -14,8 +14,8 @@
     {
       "id": "01",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
-        { "voice": "shepard", "text": "Shepard. I've watched them. All six. Twice." }
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. I've watched all six. Twice." }
       ],
       "options": [
         { "text": "And?", "go": "02" },
@@ -27,7 +27,7 @@
     {
       "id": "01M",
       "lines": [
-        { "voice": "card", "text": "INCOMING -- U.S.S. ADIRONDACK" },
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
         { "voice": "shepard", "text": "Shepard. When you have a minute. About the six." }
       ],
       "options": [
@@ -42,7 +42,7 @@
         { "voice": "shepard", "text": "His name was Tucker Gold. The name he chose, when he" },
         { "voice": "shepard", "text": "stopped being what he was. That's in number five." },
         { "voice": "shepard", "text": "There's a case like him on file. Rana Four. A Douwd." },
-        { "voice": "shepard", "text": "Beings that can make a world out of grief. Or end one." }
+        { "voice": "shepard", "text": "A kind that can make a world, or end one, when it grieves." }
       ],
       "options": [
         { "text": "He made all this? The whole county?", "go": "03" },
@@ -77,7 +77,7 @@
     {
       "id": "04",
       "lines": [
-        { "voice": "shepard", "text": "It's real either way. That's the only line I'd hold." },
+        { "voice": "shepard", "text": "It's real either way. That part I'd swear to." },
         { "voice": "shepard", "text": "The place was made. The people weren't. Nobody made you." },
         { "voice": "shepard", "text": "Thank you for bringing him in. Shepard out." }
       ],
