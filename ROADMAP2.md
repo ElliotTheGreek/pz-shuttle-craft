@@ -398,6 +398,18 @@ Mission offer, acceptance, target, and completion are shared ship data. Any auth
 
 ---
 
+# 1.8 — The PADD  **[DESIGN ONLY]**
+
+A light Starfleet tablet that copies books. Load a book you find onto it,
+read it later off the PADD, copy the library to another PADD; lose the PADD
+and you lose the books. `PADD.md` is the design, the engine facts it rests on
+-- a build 42 book is a type *and* its copy's mod data, and reading applies
+its effects on the server -- and the six things to prove before building,
+the first being whether a mod's own timed action runs its server half in
+multiplayer.
+
+---
+
 # Shared architecture
 
 ## Separate bounded stores
