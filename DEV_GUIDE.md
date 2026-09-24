@@ -2244,7 +2244,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **No distress call ever comes** | The ship is not hearing: nobody has boarded since the cabin was built, or there is no dilithium in the core or the reserve. The first call is due an hour of game time after it first hears; the log says `distress: the ship is listening`. See `ENSIGN.md`. |
 | **"No transporter lock" on a downed ensign you can see** | The server looked at their square and the figure was not there. The next pass puts a missing figure back. |
 | **A probe or a distress call on a server says there is no position fix** | The server has no return point for a player standing in the cabin. The `move` handler writes one before every beam up; a player who has not beamed since the fix will have one after their next. See *Player mod data a client writes is not the server's*. |
-| **`ItemContainer.isOccupiedVehicleSeat` NullPointerException, once, on arriving aboard** | Somebody left the shuttle's seat for the cabin without the loot panel being rebuilt: it still showed the seat's container, the move unloaded the shuttle, and vanilla asked a seat whose vehicle was gone. Every seat exit goes through `Core.leaveSeat`, which does what `ISExitVehicle` does -- `vehicle:exit`, `OnExitVehicle`, `ISInventoryPage.dirtyUI()` -- while she is still loaded. `seat_exit()` tests both routes. |
+| **`ItemContainer.isOccupiedVehicleSeat` NullPointerException, once, on arriving aboard** | Somebody left the shuttle's seat for the cabin without the loot panel being rebuilt: it still showed the seat's container, the move unloaded the shuttle, and vanilla asked a seat whose vehicle was gone. Every seat exit goes through `Core.leaveSeat`, which does what `ISExitVehicle` does -- `vehicle:exit`, `OnExitVehicle`, `ISInventoryPage.dirtyUI()`. **And the rebuild that counts is the one after the move**: `dirtyUI` works at once from where the player stands, so a rebuild made *beside* her lists her seats again. The 2026-09-24 play-test hit it through the hatch after a landing; `Core.beginArrival` now rebuilds the panel once they are on the pad, which covers every way aboard. `seat_exit()` tests beaming up, going aft and walking up the ramp from beside her. |
 | **A cure is lost although the patient never left** | They went forward to the cockpit. The seats are aboard (`EMH.aboardForCure`), and leaving starts a two-minute grace rather than ending it. |
 | **"Not while the shuttle is in the air" when calling her down after beaming off her** | Something counted a player on the ground as seated. `BaseVehicle.getSeat` answers -1, not nil, for somebody who is not in the vehicle -- test `>= 0`. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
@@ -2810,6 +2810,16 @@ up can see), and an obstacle guard slows her short of anything taller.
 holes (11 and 12 above), and a new rule. **Nothing of it has been seen in
 game**: the first question is whether the engine holds her at level 5 at all,
 and the log answers it either way.
+
+**Played the same day, single player, and it works**: level 5 held on the
+first hold, the climb and descent are smooth, the shadow is where it should
+be. The play-test turned up one thing, the loot panel's
+`isOccupiedVehicleSeat` NullPointerException through the hatch (failure
+signatures, above) -- the seat-exit fix had rebuilt the panel beside the
+shuttle, where it lists her seats all over again, and the simulation's
+`dirtyUI` only counted calls, so a rebuild in the wrong place passed. It
+rebuilds from where the player stands now. The guard and two players are
+still to see (`PILOTING.md` section 7).
 
 **Next up** is `ROADMAP.md`'s step 7: publishing -- or `ROADMAP2.md` 1.6, the
 cold start, if it is to ship with the ensign. Everything else on the roadmap

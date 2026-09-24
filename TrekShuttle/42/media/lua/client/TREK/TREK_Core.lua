@@ -249,7 +249,19 @@ function Core.beginArrival(player, move)
     else
         arrival = { x = x, y = y, z = z, tries = 0, player = player }
     end
-    if move then Core.hold(player, x, y, z) end
+    if move then
+        Core.hold(player, x, y, z)
+        -- And the loot panel rebuilt from here, in this same tick. Vanilla's
+        -- dirtyUI rebuilds it at once from wherever the player now stands, so
+        -- the only rebuild that can clear the shuttle out of it is one made
+        -- *after* the move: made beside her -- which is where a seat exit or
+        -- the foot of the ramp leaves somebody -- it lists her seats again,
+        -- the move unloads her, and the next frame's panel asks a seat whose
+        -- vehicle is gone (ItemContainer.isOccupiedVehicleSeat, the
+        -- NullPointerException in the 2026-09-24 play-test, through the
+        -- hatch). Every way aboard comes through here.
+        Core.refreshInventoryUI()
+    end
     Ship.playerData(player).aboard = true
     Core.send(player, "boarded", {})
     return true

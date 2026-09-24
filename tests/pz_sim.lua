@@ -3123,9 +3123,41 @@ SIM.floorContainer = { isVehiclePart = function() return false end }
 -- a test can say whether a move out of a seat rebuilt them while the shuttle
 -- was still there -- the missing step behind one NullPointerException in
 -- every session that went from a seat into the cabin.
+--
+-- And it rebuilds, the way vanilla's does: at once, from where the player is
+-- standing *now*. Standing beside a vehicle puts its seats in the loot panel.
+-- It used to only count, which let a rebuild made beside the shuttle -- one
+-- that puts her seats straight back -- pass as the fix.
 SIM.inventoryRefreshes = 0
 ISInventoryPage = { GetFloorContainer = function() return SIM.floorContainer end,
-                    dirtyUI = function() SIM.inventoryRefreshes = SIM.inventoryRefreshes + 1 end }
+                    dirtyUI = function()
+                        SIM.inventoryRefreshes = SIM.inventoryRefreshes + 1
+                        local p = SIM.players[1]
+                        local page = getPlayerLoot(0)
+                        page.inventory = SIM.floorContainer
+                        if not p then return end
+                        for _, v in ipairs(SIM.vehicles or {}) do
+                            if not v.removed and math.abs(p.x - v.x) <= 3
+                               and math.abs(p.y - v.y) <= 4
+                               and math.floor(p.z or 0) == v:getZ() then
+                                page.inventory = v:seatContainer()
+                            end
+                        end
+                    end }
+
+--- True when the loot panel is holding a seat of a vehicle the player is no
+--- longer beside -- what vanilla's panel throws on once that vehicle unloads.
+function SIM.lootStale()
+    local page = SIM.loot[0]
+    if not page or not page.inventory then return false end
+    local p = SIM.players[1]
+    for _, v in ipairs(SIM.vehicles or {}) do
+        if page.inventory == v.seatContainerObj then
+            return v.removed or math.abs(p.x - v.x) > 3 or math.abs(p.y - v.y) > 4
+        end
+    end
+    return false
+end
 
 --- Vanilla fires its own events from Lua with triggerEvent; ISExitVehicle
 --- fires OnExitVehicle this way. Recorded, and passed on to any handler.

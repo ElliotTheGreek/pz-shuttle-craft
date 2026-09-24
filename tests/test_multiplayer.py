@@ -7981,11 +7981,39 @@ def seat_exit():
     check("OnExitVehicle" in [str(x) for x in rt.eval("SIM.triggered").values()],
           "seat exit: going aft in flight never fired OnExitVehicle")
 
+    # --- up the ramp from beside her -------------------------------------
+    # The 2026-09-24 play-test: set her down, step out, walk up the ramp --
+    # and the same NullPointerException, through the hatch. Beside her the
+    # loot panel lists her seats; a rebuild made there puts them straight
+    # back; the move into the cabin unloads her. Only a rebuild made *after*
+    # the move clears her out of it.
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    rt.run(f"""
+        local p = {P}
+        local s = TREK.Util.state()
+        p.x, p.y, p.z, p.lastZ = s.x + 1.5, s.y + 3.5, 0, 0
+        ISInventoryPage.dirtyUI()
+    """)
+    check(rt.eval("SIM.loot[0].inventory ~= SIM.floorContainer"),
+          "seat exit: standing beside her, the simulated loot panel does not "
+          "list her seats, so the check below proves nothing")
+    rt.run(f"TREK.Core.enter({P})")
+    net.pump(1)
+    check(rt.eval("SIM.lootStale()") is False,
+          "seat exit: up the ramp and into the cabin with the loot panel still "
+          "holding the shuttle's seat -- the NullPointerException on the first "
+          "frame aboard")
+
     for w in rt.warnings():
         fail(f"seat exit: {w}")
-    print("seat exit: beaming up and going aft both leave the seat the way "
-          "vanilla does -- OnExitVehicle, and the loot panel rebuilt while "
-          "the shuttle is still loaded")
+    print("seat exit: beaming up, going aft and walking up the ramp all leave "
+          "the loot panel rebuilt from the cabin, not from beside the shuttle")
 
 
 
