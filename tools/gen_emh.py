@@ -23,10 +23,11 @@ anywhere -- so re-running this writes a byte-identical file and a regenerated
 asset is never a silent diff. That rule is in `gen_warpcore.py`'s header and
 it applies here.
 
-  * **one hue.** Every pixel is mapped by luminance onto the LCARS blue ramp
-    (`H.P.blue`, 0.60 0.80 1.00). A hologram is monochrome light, and a
-    monochrome figure cannot read as a shop dummy the way a flesh-toned one
-    can;
+  * **his own colours, cooled.** The source diffuse survives and a TINT of
+    the LCARS blue (`H.P.blue`, 0.60 0.80 1.00) is mixed over it. The first
+    figure was mapped wholly onto the blue ramp and read as a blue ghost; the
+    Doctor everybody remembers is a solid man in black and teal, and it is
+    the scanlines, not the hue, that make him projected;
   * **scanlines.** Bands across him at a fixed height, dimmed. That is what
     says "projected" in a still image, and the game's camera only ever gives
     it a still image;
@@ -101,10 +102,20 @@ EMH_YAW = 180
 # The LCARS blue the panel, the light and the helm all use: H.P.blue.
 BLUE = (0.60, 0.80, 1.00)
 
-# How far off black the darkest texel is allowed to sit, 0..1. A hologram is
-# light: nothing on it is unlit, and at zero the figure loses its legs against
-# the deck at the game's camera distance.
-FLOOR = 0.30
+# How much of the LCARS blue is mixed into his own colours, 0..1.
+#
+# **He is the Doctor, not a ghost.** The first figure was mapped wholly onto
+# the blue ramp, and in game he read as a blue mannequin: the thing everybody
+# remembers about the EMH is that he looks like a solid man in a black-and-teal
+# uniform, and the shimmer is only how he arrives. So his own diffuse -- skin,
+# teal yoke, grey collar, gold badge -- survives, with a cool cast over it that
+# says "projected" without repainting him.
+TINT = 0.18
+
+# How far off black the darkest texel is allowed to sit, 0..1. A black
+# uniform at zero loses its legs against the dark deck at the game's camera
+# distance; a hologram is light, so nothing on him is quite unlit.
+FLOOR = 0.10
 
 # The scanlines, in world height rather than in texture rows -- see the
 # header. SCAN_PITCH is the distance between bands in tiles, SCAN_DUTY the
@@ -118,7 +129,7 @@ FLOOR = 0.30
 # uniform and nothing you could mistake for cloth.
 SCAN_PITCH = 0.028
 SCAN_DUTY = 0.38
-SCAN_DIM = 0.88
+SCAN_DIM = 0.92
 
 # The panel portrait, square, at the size TREKEMHWindow draws it.
 PORTRAIT = 96
@@ -195,17 +206,22 @@ def holographic(path, mesh):
             # Rec. 601 luminance: the same weighting every other tool here
             # uses to decide what is light and what is dark.
             lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
-            lum = FLOOR + (1.0 - FLOOR) * lum
+            # His own colour, lifted off black, with the blue mixed in at
+            # the luminance it would have had on the old monochrome ramp.
+            rgb = []
+            for c, tone in ((r, BLUE[0]), (g, BLUE[1]), (b, BLUE[2])):
+                v = FLOOR + (1.0 - FLOOR) * c / 255.0
+                rgb.append((1.0 - TINT) * v + TINT * tone * lum)
+            scale = 1.0
             if covered[k]:
                 phase = (heights[k] / SCAN_PITCH) % 1.0
                 if phase < SCAN_DUTY:
-                    lum *= SCAN_DIM
+                    scale = SCAN_DIM
                     banded += 1
-            total += lum
-            img.set(x, y, (min(255, int(BLUE[0] * lum * 255 + 0.5)),
-                           min(255, int(BLUE[1] * lum * 255 + 0.5)),
-                           min(255, int(BLUE[2] * lum * 255 + 0.5)),
-                           a))
+            total += (0.299 * rgb[0] + 0.587 * rgb[1]
+                      + 0.114 * rgb[2]) * scale
+            img.set(x, y, tuple(min(255, int(v * scale * 255 + 0.5))
+                                for v in rgb) + (a,))
             lit += 1
     img.save(path)
     return lit, banded, total / max(1, lit)

@@ -168,11 +168,18 @@ fitted by **height**, not footprint. `C.EmhHeight` and the generator's target
 height must stay in step. Trust the generator's printed bounding box rather
 than the input constant.
 
-The texture supplies the holographic treatment:
+He is drawn to the classic EMH's look: balding with a dark fringe at the
+sides and back, black jumpsuit with a squared teal yoke, grey ribbed
+undershirt collar, plain cuffs, blank gold badge. The face is an original one,
+not the actor's, and the badge carries no delta (`SOURCE.txt` has the prompt).
 
-- LCARS-blue monochrome ramp;
-- lifted dark values so the figure remains luminous;
-- scanlines derived from mesh/world height, not horizontal texture rows.
+The texture supplies the holographic treatment without repainting him:
+
+- his own colours kept, with `TINT` of LCARS blue mixed over them -- the first
+  figure was mapped wholly onto a blue ramp and read as a blue ghost, not the
+  Doctor;
+- lifted dark values so the black uniform keeps its legs against the deck;
+- faint scanlines derived from mesh/world height, not horizontal texture rows.
 
 Imported UVs are an atlas. Texture-row stripes turn into unrelated diagonals
 across different mesh islands, so any level effect must be calculated from the
