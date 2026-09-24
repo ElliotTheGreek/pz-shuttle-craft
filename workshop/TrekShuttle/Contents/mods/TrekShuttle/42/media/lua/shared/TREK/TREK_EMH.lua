@@ -139,6 +139,19 @@ function E.cures()
     return s.emhCures
 end
 
+--- Whether a patient is aboard, for the cure: **in the cabin, or in one of
+--- the shuttle's seats.** The cockpit is the ship. The first version asked
+--- only about the cabin, and a patient who went forward to fly her during
+--- the twelve hours lost the cure and the crystal the moment they sat down
+--- -- found in a game, from the log: "beaming forward to the cockpit", then
+--- two seconds later "left the ship and the cure is lost".
+function E.aboardForCure(player)
+    if not player then return false end
+    if U.isInteriorPlayer(player) then return true end
+    local vehicle = U.try("emh.vehicle", function() return player:getVehicle() end)
+    return vehicle ~= nil and TREK.Vehicle ~= nil and TREK.Vehicle.isShuttle(vehicle) == true
+end
+
 --- When this player's cure is due, in world-age hours, or nil.
 function E.cureDue(username)
     if not username then return nil end

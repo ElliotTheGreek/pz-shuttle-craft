@@ -540,6 +540,27 @@ local function serviceMinerals()
     return true
 end
 
+--- The downed ensign relative to this sweep, if they are in range; nil if not.
+---
+--- ROADMAP2: "Long-range systems locate the region; the tricorder locates
+--- the person." Their square is already in the contact store every client
+--- holds, so this is arithmetic, not a search -- and it is their *true* square,
+--- where the map only ever draws the long-range circle.
+local function personnelFix(sw)
+    local m = TREK.Probes and TREK.Probes.mission()
+    if not m then return nil end
+    local x, y = m.ex or m.tx, m.ey or m.ty
+    local z = m.ez or m.tz or 0
+    if not x or not y then return nil end
+    if z < sw.zBottom or z > sw.zTop then return nil end
+    local dx, dy = x + 0.5 - sw.x, y + 0.5 - sw.y
+    local dist = math.sqrt(dx * dx + dy * dy)
+    if dist > C.SweepRadius then return nil end
+    return { dx = dx, dy = dy, dist = math.floor(dist + 0.5),
+             compass = U.compass(sw.x, sw.y, x + 0.5, y + 0.5),
+             name = m.name }
+end
+
 --- One slice. Returns true while the sweep is still running.
 function M.serviceSweep()
     if not sweep then return false end
@@ -561,6 +582,8 @@ function M.serviceSweep()
             -- is nil by the time anything below wants them.
             zBottom = sweep.zBottom,
             zTop = sweep.zTop,
+            -- A Starfleet life sign, drawn apart from every other contact.
+            personnel = personnelFix(sweep),
         }
         M.lastSweep = result
         sweep = nil
@@ -611,7 +634,7 @@ end
 ---------------------------------------------------------------------------
 TREKTricorderWindow = ISPanelJoypad:derive("TREKTricorderWindow")
 
-local TW, TH = 360, 450
+local TW, TH = 360, 470
 local SIDE, TOPH, BOTH, PAD, R = 56, 26, 16, 14, 22
 local PLOT = 210
 
@@ -738,6 +761,18 @@ function TREKTricorderWindow:drawPlot()
         self:drawRect(px - 1.5, py - 1.5, 4, 4, 1,
                       P.violet[1], P.violet[2], P.violet[3])
     end
+
+    -- **The ensign**, as a cross -- a third shape, not a third shade, for the
+    -- reason the crystal is a ring: the ensign is the thing the panel was opened
+    -- to find, and must not be mistaken for the dead walking toward them.
+    local f = result.personnel
+    if f then
+        local px = cx + (f.dx / result.radius) * half
+        local py = cy + (f.dy / result.radius) * half
+        self:drawRect(px - 5, py - 1, 11, 3, 1, P.blue[1], P.blue[2], P.blue[3])
+        self:drawRect(px - 1, py - 5, 3, 11, 1, P.blue[1], P.blue[2], P.blue[3])
+        self:drawRect(px, py, 1, 1, 1, P.white[1], P.white[2], P.white[3])
+    end
 end
 
 function TREKTricorderWindow:render()
@@ -769,6 +804,7 @@ function TREKTricorderWindow:render()
                       P.blue[1], P.blue[2], P.blue[3], 1, UIFont.Small)
         y = y + 20
         self:drawDilithium(cx, y, result)
+        self:drawPersonnel(cx, y + 18, result)
         return
     end
 
@@ -795,6 +831,7 @@ function TREKTricorderWindow:render()
     -- And the line the tricorder is really carried for once the replicator
     -- is running: where the dilithium is.
     self:drawDilithium(cx, y, result)
+    self:drawPersonnel(cx, y + 18, result)
 
     if self.joyfocus then
         self:drawTextRight(string.upper(getText("IGUI_TREK_MedJoypadHint")),
@@ -811,6 +848,19 @@ function TREKTricorderWindow:drawDilithium(cx, y, result)
     self:drawText(string.upper(getText("IGUI_TREK_SweepDilithium")), cx + 30, y,
                   dc[1] * 1.2, dc[2] * 1.2, dc[3] * 1.2, 1, UIFont.Small)
     self:drawTextRight(tostring(found), self.width - PAD, y,
+                       P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
+end
+
+--- The ensign's line: only when they are in range, because on every other
+--- sweep of the save it would be a row that says nothing.
+function TREKTricorderWindow:drawPersonnel(cx, y, result)
+    local f = result and result.personnel
+    if not f then return end
+    H.pill(self, cx, y + 3, 22, 9, P.blue, true, true)
+    self:drawText(string.upper(getText("IGUI_TREK_SweepPersonnel")), cx + 30, y,
+                  P.blue[1], P.blue[2], P.blue[3], 1, UIFont.Small)
+    self:drawTextRight(getText("IGUI_TREK_SweepPersonnelAt", tostring(f.dist),
+                               f.compass), self.width - PAD, y,
                        P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
 end
 

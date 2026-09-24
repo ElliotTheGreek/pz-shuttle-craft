@@ -291,25 +291,96 @@ function Sky.trim()
     end
 end
 
---- Takes the whole plane up. Every way flight ends comes through here.
-function Sky.clear()
+---------------------------------------------------------------------------
+-- The column: one square that carries her level on the way up and down
+---------------------------------------------------------------------------
+-- The engine keeps a vehicle's level only with a floor under its centre at
+-- that level *or the one below* (BaseVehicle.update, bci 1429-1530). Between
+-- the ground and the flight level there is no plane, so on the way up or down
+-- a single square of floor one level under her body keeps her game z honest:
+-- drawn, collided and synced at the height she is really at, rather than
+-- snapping to the ground for the second she spends passing through.
+--
+-- It is always **below** her. A floor laid above a body that then rises
+-- through it is a solid shelf in the physics engine, and that collision is
+-- what flips a vehicle. The ascent asks for the level under the band she is
+-- already in, never the one she is heading for.
+local column = nil   -- { x, y, z, native }
+
+--- Puts the column at one square and level, lifting the old one; nil lifts it.
+--- Returns true when the square it was asked for has a floor now.
+function Sky.column(x, y, level)
+    if level then
+        x, y, level = math.floor(x), math.floor(y), math.floor(level)
+        if level < 1 then level = nil end
+    end
+    if column and level and column.x == x and column.y == y and column.z == level then
+        return true
+    end
+    if column then
+        local take = U.batch("sky.removeFloor")
+        if not liftOne(column, take) then table.insert(pending, column) end
+        column = nil
+    end
+    if not level then return false end
+
+    local sq = U.square(x, y, level, true)
+    if not sq then return false end
+    local floor = U.try("columnFloor", function() return sq:getFloor() end)
+    if floor then
+        -- Somebody's upper storey: it does the job, and it is not ours to lift.
+        column = { x = x, y = y, z = level, native = true }
+        return true
+    end
+    local place = U.batch("sky.addFloor")
+    local ok = place(function()
+        sq:addFloor(Sky.TILE)
+        sq:RecalcProperties()
+        sq:RecalcAllWithNeighbours(true)
+        return true
+    end)
+    if not ok then return false end
+    column = { x = x, y = y, z = level }
+    Sky.stats.laid = Sky.stats.laid + 1
+    return true
+end
+
+function Sky.columnHeld()
+    return column ~= nil
+end
+
+--- Takes the plane up and leaves the column. The descent does this at the
+--- top: the column one level down is what she is resting on (as far as the
+--- game's z is concerned) while the plane she is about to sink through goes.
+function Sky.clearPlane()
     local take = U.batch("sky.removeFloor")
     local left = 0
     for k, t in pairs(laid) do
-        if liftOne(t, take) then
-            laid[k] = nil
-        else
+        if not liftOne(t, take) then
             table.insert(pending, t)
-            laid[k] = nil
             left = left + 1
         end
+        laid[k] = nil
     end
     count = 0
     job = nil
+    return left
+end
+
+--- Takes the whole plane up, and the column. Every way flight ends comes
+--- through here.
+function Sky.clear()
+    local left = Sky.clearPlane()
+    Sky.column(nil)
     if left > 0 then
         U.log("sky plane: %d square(s) could not be lifted yet and will be " ..
               "cleared when their ground next loads", left)
     end
+end
+
+--- True when a paving pass has laid every square of the patch it was given.
+function Sky.paved()
+    return job ~= nil and job.cursor >= #offsets()
 end
 
 --- What the plane cost. Logged by itself -- nothing here needs a console.
@@ -353,6 +424,10 @@ function Sky.sweepArea(cx, cy, job)
         local d = list[i]
         local x, y = math.floor(cx) + d[1], math.floor(cy) + d[2]
         local sq = U.square(x, y, level, false)
+        -- Squares that were never made cost nothing to pass over, and most of
+        -- the sky is exactly that: eight levels of a patch this size would
+        -- otherwise take six seconds to walk.
+        if not sq then done = done - 0.9 end
         if sq then
             local obj = U.findSprite(sq, Sky.TILE)
             if obj then

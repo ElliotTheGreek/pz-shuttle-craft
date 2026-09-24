@@ -61,7 +61,6 @@ local F = {}
 TREK.Flight = F
 
 -- The take-off in progress on this client, if any.
-local rising = nil
 
 -- The speed step is the ship's, not this client's.
 --
@@ -396,6 +395,275 @@ function F.setSpeedStep(player, step)
 end
 
 ---------------------------------------------------------------------------
+-- Moving between the ground and the flight level
+---------------------------------------------------------------------------
+-- She is carried up and down by placing her physics body a little higher (or
+-- lower) every tick, eased at both ends, instead of by one teleport. Three
+-- reasons, each of which was a bug:
+--
+--   * the crew see her rise and settle. The renderer draws a vehicle at its
+--     physics height, not at its whole level (ModelSlotRenderData.init, bci
+--     101-139), so the smooth body is a smooth picture;
+--   * nothing is ever laid above her. The column (Sky.column) sits one level
+--     under the band she is in, and the plane is laid only once she is above
+--     it -- a floor that appears in front of a rising body is a shelf in the
+--     physics engine, and running into it is what tipped her over;
+--   * she is *held* at the top until the plane is complete and the physics
+--     engine has had time to hear about it, then let go and watched. The old
+--     climb let go at once onto a floor the physics had not been told about,
+--     she fell back a level, and the re-lift then teleported her upward every
+--     tick for ever with the state still claiming the new level: "stuck".
+--
+-- While a move is under way she is held by placement every tick, so gravity
+-- and the plane beneath play no part until she is let go.
+local moving = nil
+
+function F.moving()
+    return moving ~= nil
+end
+
+--- The stage of the move under way ("travel", "settle", "watch"), or nil.
+function F.movePhase()
+    return moving and moving.phase or nil
+end
+
+local function bodyY(vehicle)
+    return U.try("bodyY", function()
+        local t = Transform.new()
+        vehicle:getWorldTransform(t)
+        return t:getOrigin():y()
+    end)
+end
+
+--- Puts her physics body at a height, keeping her x, z and rotation. Returns
+--- "ok" rather than true for the reason F.lift does.
+local function place(vehicle, y, px, pz)
+    return U.try("placeBody", function()
+        local t = Transform.new()
+        vehicle:getWorldTransform(t)
+        local o = t:getOrigin()
+        o:set(px or o:x(), y, pz or o:z())
+        vehicle:setWorldTransform(t)
+        return "ok"
+    end) == "ok"
+end
+
+-- The resting height for a level: a touch above its floor, as F.lift does.
+local function restY(level)
+    return level * C.LevelUnits + 0.25
+end
+
+-- The level band a body height is in, by the engine's own rounding
+-- (BaseVehicle.update: fastfloor(origin.y / 2.449 + 0.05)).
+local function bandOf(y)
+    return math.floor(y / C.LevelUnits + 0.05)
+end
+
+local function smooth(f)
+    if f <= 0 then return 0 end
+    if f >= 1 then return 1 end
+    return f * f * (3 - 2 * f)
+end
+
+--- The column for a body height: one level under the band she is in, and
+--- nothing at all within a level of the ground, where Kentucky does the job.
+local function columnFor(x, y, bodyHeight)
+    local band = bandOf(bodyHeight)
+    if band >= 2 then
+        Sky.column(x, y, band - 1)
+    else
+        Sky.column(nil)
+    end
+end
+
+--- Starts a move of the body from where it is to a level. `kind` is "up" (a
+--- take-off, or carrying her back to her level in flight) or "down".
+local function startMove(kind, vehicle, level, player, why)
+    local from = bodyY(vehicle)
+    if not from then
+        U.log("WARN cannot read the shuttle's height; the %s did not start", kind)
+        return false
+    end
+    local to = restY(level)
+    local levels = math.abs(to - from) / C.LevelUnits
+    -- Straight up or straight down, over the square she started on. A pilot
+    -- with a foot on the throttle during a landing would otherwise drift her
+    -- off the ground the footprint check approved.
+    local px, pz = U.try("bodyXZ", function()
+        local t = Transform.new()
+        vehicle:getWorldTransform(t)
+        return t:getOrigin():x(), t:getOrigin():z()
+    end)
+    local vx = U.try("vx", function() return vehicle:getX() end)
+    local vy = U.try("vy", function() return vehicle:getY() end)
+    if vx and vy then columnFor(vx, vy, from) end
+    local ms = math.max(C.FlightClimbMinMs,
+                        levels / C.FlightClimbLevelsPerSecond * 1000)
+    U.try("wakePhysics", function() vehicle:setPhysicsActive(true, true) end)
+    moving = {
+        kind = kind, vehicle = vehicle, level = level, player = player,
+        from = from, to = to, start = getTimestampMs(), ms = ms,
+        phase = "travel", attempts = 0, why = why, ticks = 0,
+        px = px, pz = pz,
+        -- A take-off holds and lets go up to C.FlightSettleAttempts times
+        -- and then brings her back to the ground. A recovery in flight is one
+        -- try: the ship is recorded as flying, so it must never carry her
+        -- down, and serviceFlight counts the tries and stops.
+        maxAttempts = (why == "recovery") and 1 or C.FlightSettleAttempts,
+    }
+    U.log("%s: carrying her from level %.2f to level %d over %d ms (%s)",
+          kind == "up" and "ascent" or "descent", from / C.LevelUnits,
+          level, math.floor(ms), tostring(why))
+    return true
+end
+
+-- Ends a move that could not finish: take up whatever is holding her and let
+-- the engine have her. Only ever after she has been brought back down.
+local function abandon(job, noteKey)
+    U.try("wakePhysics", function() job.vehicle:setPhysicsActive(true, true) end)
+    if noteKey and job.player then
+        U.note(job.player, getText(noteKey), 255, 90, 90)
+    end
+    moving = nil
+end
+
+local function serviceMove()
+    local job = moving
+    if not job then return end
+    local vehicle = job.vehicle
+    job.ticks = job.ticks + 1
+
+    local x = U.try("vx", function() return math.floor(vehicle:getX()) end)
+    local y = U.try("vy", function() return math.floor(vehicle:getY()) end)
+    if not x then
+        U.log("WARN lost sight of the shuttle during the %s", job.kind)
+        moving = nil
+        return
+    end
+    local now = getTimestampMs()
+
+    if job.phase == "travel" then
+        local f = smooth((now - job.start) / job.ms)
+        local h = job.from + (job.to - job.from) * f
+        columnFor(x, y, h)
+        place(vehicle, h, job.px, job.pz)
+        if job.ticks % 6 == 0 then keepLevel(vehicle) end
+        if f < 1 then return end
+
+        if job.kind == "down" then
+            -- On the ground. Everything that held her up comes away, and the
+            -- engine has her again.
+            place(vehicle, job.to, job.px, job.pz)
+            Sky.clear()
+            restoreSpeed(vehicle)
+            U.log("descent complete at %d,%d (%s)", x, y, tostring(job.why))
+            if job.onDone then job.onDone() end
+            moving = nil
+            return
+        end
+        job.phase = "settle"
+        job.settleFrom = nil
+        return
+    end
+
+    if job.phase == "settle" then
+        -- Hold her where she is and lay the plane under her. She is above it
+        -- by a quarter of a unit, so nothing is ever put where she is.
+        place(vehicle, job.to, job.px, job.pz)
+        columnFor(x, y, job.to)
+        Sky.pave(x, y, job.level)
+        Sky.keep(job.level)
+        if job.ticks % 6 == 0 then keepLevel(vehicle) end
+        if not (Sky.paved() and Sky.holds(x, y, job.level)) then
+            job.settleFrom = nil
+            if now - job.start > job.ms + C.FlightLiftTicks * 4 * 16 then
+                U.log("WARN the sky plane never took under the ship at %d,%d " ..
+                      "level %d; bringing her back down", x, y, job.level)
+                Sky.report("plane failed")
+                F.bringDown(job, "IGUI_TREK_NoLift")
+            end
+            return
+        end
+        job.settleFrom = job.settleFrom or now
+        -- Longer each time: if the physics was slow to hear about the floor
+        -- once, it is given more time to hear about it again.
+        if now - job.settleFrom < C.FlightSettleMs * (job.attempts + 1) then return end
+        job.phase = "watch"
+        job.watchFrom = now
+        job.lowest = nil
+        -- The column comes up as she is let go. One square under a hull three
+        -- wide is not a support, it is a pivot: if the plane is not holding
+        -- her, she must be seen to sink -- not be caught on a single square,
+        -- read as holding, and tipped over it.
+        Sky.column(nil)
+        U.try("wakePhysics", function() vehicle:setPhysicsActive(true, true) end)
+        return
+    end
+
+    if job.phase == "watch" then
+        -- Let go. Nothing is placed now: this is the engine's floor or nothing.
+        Sky.pave(x, y, job.level)
+        Sky.keep(job.level)
+        local h = bodyY(vehicle) or 0
+        local lvl = h / C.LevelUnits
+        if job.lowest == nil or lvl < job.lowest then job.lowest = lvl end
+        if lvl < job.level - C.FlightSinkTolerance or levelOf(vehicle) ~= job.level then
+            job.attempts = job.attempts + 1
+            U.log("WARN she sank to level %.2f after being let go at level %d " ..
+                  "(attempt %d of %d); the physics does not have the floor yet",
+                  lvl, job.level, job.attempts, job.maxAttempts)
+            if job.attempts >= job.maxAttempts then
+                if job.why == "recovery" then
+                    U.log("recovery at level %d did not hold; leaving her to " ..
+                          "the engine", job.level)
+                    moving = nil
+                    return
+                end
+                U.log("WARN the engine will not hold her at level %d; " ..
+                      "bringing her back down", job.level)
+                Sky.report("level refused")
+                F.bringDown(job, "IGUI_TREK_NoLift")
+                return
+            end
+            -- Back up, gently, and hold for longer.
+            job.from, job.start = h, now
+            job.ms = C.FlightClimbMinMs
+            job.phase = "travel"
+            return
+        end
+        if now - job.watchFrom < C.FlightWatchMs then return end
+
+        -- She is up and the engine is holding her there.
+        Sky.column(nil)
+        local got = levelOf(vehicle)
+        U.log("holding at level %s: lowest %.2f after letting go, %d hold(s)",
+              tostring(got), job.lowest or -1, job.attempts + 1)
+        if not probed then
+            probed = true
+            report(vehicle, job.level, got)
+        end
+        moving = nil
+        if job.onDone then job.onDone(got) end
+    end
+end
+
+--- Brings her back down from wherever a move stalled -- to the ground, which
+--- is the one floor that never has to be laid. Nothing is sent to the server:
+--- a take-off that failed never told it she was up.
+function F.bringDown(job, noteKey)
+    local vehicle = job.vehicle
+    Sky.clearPlane()
+    if noteKey and job.player then
+        U.note(job.player, getText(noteKey), 255, 90, 90)
+    end
+    moving = nil
+    if not startMove("down", vehicle, 0, job.player, "gave up on the height") then
+        abandon(job)
+        Sky.clear()
+    end
+end
+
+---------------------------------------------------------------------------
 -- Take off
 ---------------------------------------------------------------------------
 function F.takeOff(player)
@@ -405,7 +673,7 @@ function F.takeOff(player)
         U.note(player, getText("IGUI_TREK_NotPilot"), 255, 90, 90)
         return false, "notPilot"
     end
-    if rising then return false, "busy" end
+    if moving then return false, "busy" end
     Core.send(player, "takeoff", {})
     return true
 end
@@ -427,88 +695,29 @@ Net.onClient("takeoffGranted", function(args)
         U.log("take-off granted, but this machine does not move her")
         return
     end
-    local level = math.floor(args.level or C.FlightLevel)
-    rising = {
-        vehicle = vehicle, level = level, ticks = 0,
-        player = player, lifted = false,
-    }
+    if moving then
+        U.log("take-off granted while she is already being moved; ignored")
+        return
+    end
+    local level = math.floor(args.level or C.flightLevel())
     U.note(player, getText("IGUI_TREK_TakingOff"))
-    U.log("taking her up to level %d; paving the sky plane first", level)
-end)
-
---- The rise: pave, lift, then read the height back off the engine.
----
---- In that order and no other. Lifting a ship onto a floor that is not there
---- yet drops it back the same tick, because update() throws the height away
---- when the square under the ship has nothing in it.
-local function serviceRise()
-    local job = rising
-    if not job then return end
-    local vehicle = job.vehicle
-    job.ticks = job.ticks + 1
-
-    local x = U.try("vx", function() return math.floor(vehicle:getX()) end)
-    local y = U.try("vy", function() return math.floor(vehicle:getY()) end)
-    if not x then rising = nil return end
-
-    Sky.pave(x, y, job.level)
-
-    if not job.lifted then
-        if not Sky.holds(x, y, job.level) then
-            if job.ticks > C.FlightLiftTicks * 4 then
-                U.log("WARN the sky plane never took under the ship at %d,%d " ..
-                      "level %d; staying on the ground", x, y, job.level)
-                Sky.report("plane failed")
-                Sky.clear()
-                U.note(job.player, getText("IGUI_TREK_NoLift"), 255, 90, 90)
-                rising = nil
-            end
-            return
-        end
-        if not F.lift(vehicle, job.level) then
-            U.log("WARN the lift call itself did not go through; Transform is " ..
-                  "probably not reachable from Lua in this build")
-            report(vehicle, job.level, levelOf(vehicle))
-            Sky.clear()
-            U.note(job.player, getText("IGUI_TREK_NoLift"), 255, 90, 90)
-            rising = nil
-            return
-        end
-        job.lifted = true
-        job.liftedAt = job.ticks
+    if not startMove("up", vehicle, level, player, "take-off") then
+        U.note(player, getText("IGUI_TREK_NoLift"), 255, 90, 90)
         return
     end
-
-    -- A tick or two for the engine to recompute the vehicle's z from its
-    -- physics body and settle it onto the floor.
-    if job.ticks - job.liftedAt < 4 then return end
-
-    local got = F.levelReached(vehicle)
-    if not probed then
-        probed = true
-        report(vehicle, job.level, got)
-    end
-
-    if got == job.level then
+    -- Only once the engine has held her there does the server hear she is
+    -- up: a take-off that fails must never leave the state saying she is in
+    -- the air when she is sitting on the grass.
+    moving.onDone = function(got)
+        if got ~= level then
+            U.log("WARN the ascent finished at level %s, not %d", tostring(got), level)
+            return
+        end
         F.applySpeed(vehicle)
-        Core.send(job.player, "airborne", { level = job.level })
-        U.log("airborne at level %d", job.level)
-        rising = nil
-        return
+        Core.send(player, "airborne", { level = level })
+        U.log("airborne at level %d", level)
     end
-
-    if job.ticks - job.liftedAt < C.FlightLiftTicks then
-        -- Try again: the floor may have arrived a moment after the lift.
-        F.lift(vehicle, job.level)
-        return
-    end
-
-    U.log("WARN the engine would not hold the ship at level %d (it reports %s); " ..
-          "coming back down", job.level, tostring(got))
-    Sky.clear()
-    U.note(job.player, getText("IGUI_TREK_NoLift"), 255, 90, 90)
-    rising = nil
-end
+end)
 
 ---------------------------------------------------------------------------
 -- Landing
@@ -566,19 +775,31 @@ end
 
 Net.onClient("touchdownGranted", function(args)
     local vehicle = F.vehicle()
+    local player = Core.lastAsker or U.player(0)
     U.log("setting her down at %d,%d", args.x or -1, args.y or -1)
+    Sky.report("landing")
     if vehicle and ownsPhysics(vehicle) then
-        -- Down onto real ground first, and only then take the plane up: the
-        -- other way round is a five-tonne shuttle with nothing under it.
+        -- Carried down, not dropped: the column one level under her takes over
+        -- from the plane (startMove lays it before anything is lifted), the
+        -- plane goes, and she sinks past floors that are no longer there.
+        moving = nil
+        if startMove("down", vehicle, math.floor(args.z or 0), player, "touchdown") then
+            Sky.clearPlane()
+            moving.onDone = function()
+                U.note(player, getText("IGUI_TREK_Landed"))
+            end
+            return
+        end
+        -- The old way, if the height cannot even be read: onto the ground
+        -- first, and only then take the plane up.
         if not F.lift(vehicle, math.floor(args.z or 0)) then
             U.log("WARN touchdown transform failed; keeping the sky plane under the shuttle")
             return
         end
         restoreSpeed(vehicle)
     end
-    Sky.report("landing")
     Sky.clear()
-    U.note(Core.lastAsker or U.player(0), getText("IGUI_TREK_Landed"))
+    U.note(player, getText("IGUI_TREK_Landed"))
 end)
 
 ---------------------------------------------------------------------------
@@ -591,8 +812,102 @@ end)
 local holdTick = 0
 local reportTick = 0
 
+-- Carrying her back to her level after the engine let her fall off it. Capped:
+-- the old code re-lifted her every tick for as long as the height was wrong,
+-- which on a floor the physics did not have was every tick for ever -- velocity
+-- zeroed sixty times a second, the "stuck" of the climb report.
+local recover = { count = 0, at = nil, gaveUp = false }
+
+---------------------------------------------------------------------------
+-- The obstacle guard
+---------------------------------------------------------------------------
+-- At her flight level she clears anything shorter; anything taller has walls
+-- at her own level and would stop her the way a wall stops a car. So the
+-- squares ahead of her, the way she is moving, are read at her level, and her
+-- top speed is brought down as a wall comes nearer -- to a crawl just short of
+-- it. She is never lifted over anything: changing level in flight is the
+-- manoeuvre that failed, and a tower is a thing to go round.
+local guard = { lastX = nil, lastY = nil, dirX = 0, dirY = 0, capped = nil, told = false }
+
+-- The same test vanilla's own builder uses for "a wall stands here"
+-- (server/BuildingObjects/ISBuildingObject.lua:309), and anything solid.
+local function blockedAt(x, y, level)
+    local sq = U.square(math.floor(x), math.floor(y), level, false)
+    if not sq then return false end
+    return U.try("guardSquare", function()
+        return sq:has(IsoFlagType.collideN) or sq:has(IsoFlagType.collideW)
+            or sq:isSolid() or sq:isSolidTrans()
+    end) == true
+end
+
+--- The distance, in squares from her centre, to the first wall ahead of her
+--- at this level; nil for none within reach.
+function F.wallAhead(vehicle, level, dirX, dirY)
+    local cx = U.try("vx", function() return vehicle:getX() end)
+    local cy = U.try("vy", function() return vehicle:getY() end)
+    if not cx then return nil end
+    -- Across her beam: the hull is three wide, so her centre line and a
+    -- square and a bit to either side.
+    local sideX, sideY = -dirY, dirX
+    for d = 1, C.GuardReach do
+        for side = -1, 1 do
+            local x = cx + dirX * d + sideX * side * 1.2
+            local y = cy + dirY * d + sideY * side * 1.2
+            if blockedAt(x, y, level) then return d end
+        end
+    end
+    return nil
+end
+
+local function serviceGuard(vehicle, level, player)
+    local x = U.try("vx", function() return vehicle:getX() end)
+    local y = U.try("vy", function() return vehicle:getY() end)
+    if not x then return end
+    if guard.lastX then
+        local dx, dy = x - guard.lastX, y - guard.lastY
+        local d = math.sqrt(dx * dx + dy * dy)
+        -- Only a real movement changes which way is "ahead"; standing still
+        -- keeps the last one, so a pilot stopped at a wall is still guarded.
+        if d > 0.02 then guard.dirX, guard.dirY = dx / d, dy / d end
+    end
+    guard.lastX, guard.lastY = x, y
+    if guard.dirX == 0 and guard.dirY == 0 then return end
+
+    local dist = F.wallAhead(vehicle, level, guard.dirX, guard.dirY)
+    local cap = nil
+    if dist then
+        cap = math.max(C.GuardCrawl, (dist - C.GuardFrom) * C.GuardPerSquare)
+        if dist <= C.GuardFrom then cap = C.GuardCrawl end
+        if cap >= F.speed() then cap = nil end
+    end
+    if cap == guard.capped then return end
+    guard.capped = cap
+    U.try("guardSpeed", function() vehicle:setMaxSpeed(cap or F.speed()) end)
+    if cap then
+        U.log("obstacle guard: a wall %d squares ahead at level %d; top speed %s",
+              dist, level, tostring(cap))
+        if not guard.told and player then
+            guard.told = true
+            U.note(player, getText("IGUI_TREK_WallAhead"), 255, 200, 120)
+        end
+    else
+        guard.told = false
+        U.log("obstacle guard: clear ahead; top speed back to %s", tostring(F.speed()))
+    end
+end
+
+function F.guardCap()
+    return guard.capped
+end
+
 local function serviceFlight()
-    if not F.flying() then return end
+    if not F.flying() then
+        recover.count, recover.at, recover.gaveUp = 0, nil, false
+        guard.capped, guard.lastX, guard.dirX, guard.dirY = nil, nil, 0, 0
+        return
+    end
+    -- A move under way owns the height; nothing here may fight it.
+    if moving then return end
     local s = Ship.get()
     local vehicle = F.vehicle()
     if not vehicle then return end
@@ -601,7 +916,7 @@ local function serviceFlight()
     local y = U.try("vy", function() return math.floor(vehicle:getY()) end)
     if not x then return end
 
-    local level = math.floor(s.level or C.FlightLevel)
+    local level = math.floor(s.level or C.flightLevel())
     Sky.pave(x, y, level)
 
     -- Whatever level she is on this instant is the one holding her up, and it
@@ -610,13 +925,34 @@ local function serviceFlight()
     local got = levelOf(vehicle)
     Sky.keep(got)
 
-    -- A wrong height is put right the moment it is noticed, not on the slow
-    -- cadence below. Six ticks of falling is a long way down, and a climb is
-    -- exactly when the answer is briefly wrong: she is at the old level, the
-    -- target is the new one, and the gap between them is a fall.
-    if got ~= level and ownsPhysics(vehicle) and Sky.holds(x, y, level) then
-        U.debug("moving her to level %d (engine had %s)", level, tostring(got))
-        F.lift(vehicle, level)
+    -- A wrong height is put right -- by carrying her back up the way the
+    -- take-off does, not by teleporting her there every tick. And only so
+    -- many times: if the engine keeps refusing the height, she is left where
+    -- she is and the pilot is told, rather than held in place for ever.
+    if got ~= level and ownsPhysics(vehicle) and not recover.gaveUp then
+        local now = getTimestampMs()
+        if recover.at == nil or now - recover.at >= C.FlightRecoverMs then
+            recover.at = now
+            recover.count = recover.count + 1
+            local pilot = U.player(0)
+            if recover.count > C.FlightRecoverLimit then
+                recover.gaveUp = true
+                U.log("WARN she keeps falling off level %d (engine has %s); no " ..
+                      "more attempts this flight -- the pilot has been told to " ..
+                      "set her down", level, tostring(got))
+                U.note(pilot, getText("IGUI_TREK_CannotHold"), 255, 90, 90)
+            else
+                U.log("she fell off level %d (engine has %s); carrying her back " ..
+                      "up, attempt %d of %d", level, tostring(got),
+                      recover.count, C.FlightRecoverLimit)
+                startMove("up", vehicle, level, pilot, "recovery")
+                return
+            end
+        end
+    end
+
+    if ownsPhysics(vehicle) then
+        U.try("guard", serviceGuard, vehicle, level, U.player(0))
     end
 
     holdTick = holdTick + 1
@@ -648,6 +984,9 @@ end
 --- was lost, and the crew need to know they can call her down again.
 Net.onClient("flightEnded", function(args)
     local vehicle = F.vehicle()
+    -- Whatever move was under way is over: the ship is somebody else's now,
+    -- or on her way out of the sky.
+    moving = nil
     if vehicle then
         if ownsPhysics(vehicle) then F.lift(vehicle, math.floor(args.z or 0)) end
         restoreSpeed(vehicle)
@@ -658,7 +997,6 @@ Net.onClient("flightEnded", function(args)
     U.log("flight ended (%s)", tostring(args.why))
     Sky.report("flight ended")
     Sky.clear()
-    rising = nil
 end)
 
 ---------------------------------------------------------------------------
@@ -691,6 +1029,10 @@ local cleaning = nil
 --- the player has moved somewhere it has not already been.
 local function serviceClean()
     if Ship.get().flying then return end
+    -- Nor while she is being carried up or down: she is not flying by the
+    -- record then, and the column under her is exactly the kind of floor
+    -- this goes looking for.
+    if moving then return end
     local player = U.player(0)
     if not player then return end
     local px, py = math.floor(player:getX()), math.floor(player:getY())
@@ -722,7 +1064,7 @@ local function serviceSweep()
     -- take-off it began sweeping away the very plane the ship was resting on,
     -- physics took over, and she tipped backwards into the ground. Seen in
     -- game, 2026-09-17 20:00:18.
-    if s.flying then sweeping = nil return end
+    if s.flying or moving then sweeping = nil return end
     local at = s.skyAt
     if not at then sweeping = nil return end
     if sweptAt and sweptAt.x == at.x and sweptAt.y == at.y
@@ -751,6 +1093,28 @@ end
 -- A speed set at the helm is ship state, so it arrives here as a state change
 -- rather than as a button press. Whoever is flying applies it; on a server
 -- that is usually not the crewman who set it.
+-- Every client lays its own plane, so every client has to take its own up.
+-- A touchdown ends the flight by the ship state alone -- touchdownGranted goes
+-- to the pilot and nobody else -- and a second machine that went on holding
+-- its plane left a patch of invisible floor over the landing site for as long
+-- as nobody walked twenty squares away from it.
+--
+-- Not on the machine that drives her. There the plane is what she is resting
+-- on, and the state can arrive a network round trip before touchdownGranted:
+-- lifting it on the state would drop her for that long. touchdownGranted and
+-- flightEnded take it up there, in the right order.
+local wasFlying = false
+Ship.onChange(function()
+    local flying = F.flying()
+    local vehicle = (wasFlying and not flying) and F.vehicle() or nil
+    local drives = vehicle ~= nil and ownsPhysics(vehicle)
+    if wasFlying and not flying and not moving and not drives then
+        U.log("the flight is over by the ship's record; lifting this machine's plane")
+        Sky.clear()
+    end
+    wasFlying = flying
+end)
+
 Ship.onChange(function()
     if not F.flying() then return end
     local vehicle = F.vehicle()
@@ -758,7 +1122,7 @@ Ship.onChange(function()
 end)
 
 Events.OnTick.Add(function()
-    U.try("serviceRise", serviceRise)
+    U.try("serviceMove", serviceMove)
     U.try("serviceFlight", serviceFlight)
     -- Unconditionally, not only while flying: the plane has to be laid *before*
     -- the ship can be up, and gating this on being airborne would leave the

@@ -20,5 +20,13 @@
     "Sandbox_TrekShuttle.EMH": "Emergency Medical Hologram",
     "Sandbox_TrekShuttle.EMH_tooltip": "The sick bay's holographic doctor: full diagnosis, unlimited treatment for everything a hypospray treats and more, and the only cure for zombie infection in this mod. He draws on the same dilithium reserve the replicator does, and the cure costs a whole crystal and twelve game hours confined to the ship. Full is the Doctor as designed. Off leaves the sick bay's wall station inactive and says so. There is deliberately no setting that keeps him and removes the cure -- a server owner who does not want the cure turns him off.",
     "Sandbox_TrekShuttle.EMH_option1": "Full",
-    "Sandbox_TrekShuttle.EMH_option2": "Off"
+    "Sandbox_TrekShuttle.EMH_option2": "Off",
+    "Sandbox_TrekShuttle.FlightHeight": "Hover height",
+    "Sandbox_TrekShuttle.FlightHeight_tooltip": "How many storeys up the shuttle hovers when she is taken up. Buildings with fewer storeys pass beneath her; anything as tall or taller is a wall at her height, and she slows to a stop in front of it rather than flying into it. Higher clears more of the map and takes a moment longer to climb to and to come down from.",
+    "Sandbox_TrekShuttle.FlightHeight_option1": "2 storeys",
+    "Sandbox_TrekShuttle.FlightHeight_option2": "3 storeys",
+    "Sandbox_TrekShuttle.FlightHeight_option3": "4 storeys",
+    "Sandbox_TrekShuttle.FlightHeight_option4": "5 storeys",
+    "Sandbox_TrekShuttle.FlightHeight_option5": "6 storeys",
+    "Sandbox_TrekShuttle.FlightHeight_option6": "8 storeys"
 }

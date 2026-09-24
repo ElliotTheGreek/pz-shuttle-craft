@@ -194,10 +194,11 @@ local function aboardMenu(context, player, worldobjects, test)
     if s.landed and not s.flying then
         menu:addOption(getText("IGUI_TREK_StepOutside"), worldobjects, M.onExit, player)
     end
-    -- And forward to the cockpit, which only exists while she is up -- on the
-    -- ground you step out and walk in. Without it, going aft in flight is a
-    -- one-way door and the pilot can never fly her again.
-    if s.flying then
+    -- And forward to the cockpit: straight into a seat, whether she is flying
+    -- or on the ground. In flight it is the only way back to the controls;
+    -- on the ground it saves stepping out and walking round to the door.
+    -- Not while she is overhead, where there are no seats anywhere near.
+    if s.flying or s.landed then
         menu:addOption(getText("IGUI_TREK_ToCockpit"), worldobjects, M.onToCockpit, player)
     end
     menu:addOption(getText("IGUI_TREK_BookmarkHere"), worldobjects,

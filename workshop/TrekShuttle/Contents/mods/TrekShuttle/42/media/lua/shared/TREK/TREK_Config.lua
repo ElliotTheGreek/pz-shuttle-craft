@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.4.1"
+C.Version   = "1.5.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 27
+C.BuildRev = 28
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -348,15 +348,114 @@ C.SkyMaxTiles = 40000
 --
 -- Level 0 is the ground and is never paved: a floor laid there would be a
 -- floor laid on Kentucky.
-C.FlightLevel = 1
+--
+-- **Revised 2026-09-24: one altitude still, and a higher one.** At level 1 a
+-- two-storey building has walls at her own level and she drives into them. The
+-- climb that made level 2 and up look impossible was the *climb*, not the
+-- height: from the report, "take her up again" lifted her onto a floor the
+-- physics had not been told about yet, she tipped back onto the level below,
+-- and the old re-lift then teleported her upwards every tick with the state
+-- still saying level 2 -- which is "stuck". Take-off now rises straight from
+-- the ground to this level, smoothly, and hovers there until the engine is
+-- actually holding her (TREK_Flight's ascent). Nothing changes level in flight.
+--
+-- The default, and the one the tests fly. The server owner picks the real one
+-- from the sandbox page (C.flightLevel) -- Louisville has towers that no
+-- sensible default clears.
+C.FlightLevel = 5
+
+-- The sandbox option's choices, as z levels. A level clears anything with that
+-- many storeys or fewer: level 5 flies over a five-storey building.
+C.FlightLevels = { 2, 3, 4, 5, 6, 8 }
+
+--- The one altitude, as the server owner set it. Every process reads the same
+--- sandbox value, so the server's check on `airborne` and the pilot's ascent
+--- agree without a packet saying which.
+function C.flightLevel()
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.FlightHeight
+    end)
+    v = ok and tonumber(v) or nil
+    return (v and C.FlightLevels[math.floor(v)]) or C.FlightLevel
+end
 
 -- How high the tidy-up hunts for invisible floors left behind, in levels.
--- Deliberately *not* C.FlightLevel: builds up to 1.3.0 flew as high as level 4,
--- a floor is a saved world object, and the litter those flights left in
--- somebody's world does not disappear because the ceiling came down.
-C.SkyLitterTop = 4
+-- Deliberately *not* the flight level: a floor is a saved world object, and
+-- the litter a flight left in somebody's world does not disappear because a
+-- server owner lowered the ceiling afterwards. So it is the highest level any
+-- setting can fly at, not the one in force.
+C.SkyLitterTop = 8
 
--- Ticks to wait for the engine to accept a level before giving up on the lift.
+-- The ascent and the descent. She is carried between the ground and her
+-- flight level by moving the physics body a little every tick, eased at both
+-- ends, rather than by one teleport -- so the crew see her rise and settle,
+-- and so no floor is ever put *above* her while she passes it.
+--
+-- The renderer draws a vehicle at its physics height, not at its whole level
+-- (ModelSlotRenderData.init, bci 101-139: centerOfMassY is origin.y minus the
+-- level's own base), so a smooth change in the body is a smooth change on
+-- screen.
+C.FlightClimbLevelsPerSecond = 2
+C.FlightClimbMinMs = 900
+
+-- At the top she is held where she is, by the same per-tick placement, until
+-- the plane under her is complete and this long has passed: a floor reaches
+-- the physics engine a beat after it reaches the map (RecalcProperties ->
+-- IsoChunk.checkPhysicsLater, and Bullet asks for the level when it next
+-- steps). Letting go onto a floor the physics has not heard of yet is exactly
+-- the tip-and-fall the climb used to produce.
+C.FlightSettleMs = 600
+
+-- After letting go, how long to watch that she stays up, and how far she may
+-- sink (in levels) before that counts as the engine refusing the height.
+C.FlightWatchMs = 900
+C.FlightSinkTolerance = 0.3
+
+-- Holds to try before giving up on the height and bringing her back down.
+C.FlightSettleAttempts = 3
+
+-- In flight, if the engine lets her fall off her level: how many times she is
+-- carried back up, and how long between tries. After that she is left alone
+-- and the pilot is told to set her down, instead of being teleported upward
+-- every tick for ever -- which was the old "stuck".
+C.FlightRecoverLimit = 3
+C.FlightRecoverMs = 1500
+
+-- The obstacle guard (TREK_Flight). Walls at her own level are looked for
+-- from GuardFrom squares ahead of her centre -- her nose is two and a half
+-- out -- to GuardReach, the way she is moving, and her top speed is cut by
+-- GuardPerSquare for every square closer a wall is, down to GuardCrawl.
+C.GuardFrom = 3
+C.GuardReach = 14
+C.GuardPerSquare = 8
+C.GuardCrawl = 5
+
+---------------------------------------------------------------------------
+-- Flight: the shadow
+---------------------------------------------------------------------------
+-- A soft dark disc on the ground under her centre square, which is exactly the
+-- square `F.land` sets her down on: the shadow *is* the landing marker.
+--
+-- It is drawn with vanilla's ground markers (getWorldMarkers, the tutorial's
+-- call at client/Tutorial/Steps.lua:55), which draw per level being rendered
+-- -- so a marker on the ground shows while the pilot is five levels up -- and
+-- blend normally with a depth test, so black is a shadow and a building in
+-- front of it hides it. Nothing is placed in the world and nothing is synced;
+-- each client draws its own from the vehicle it can see.
+--
+-- The build 42 renderer accepts exactly one texture for these,
+-- `circle_center`, and it is a ring: transparent in the middle, strongest
+-- towards the rim. So the disc is several rings nested inside each other,
+-- which fills the centre in.
+C.ShadowTexture = "circle_center"
+C.ShadowSize = 4.4            -- the outer ring, in the marker's own units (x0.69 = tiles of radius)
+C.ShadowRings = { 1.0, 0.82, 0.64, 0.48, 0.34, 0.22, 0.12 }
+C.ShadowAlpha = 0.55
+-- Shown once her body is this far above the ground, in levels.
+C.ShadowMinLevels = 0.3
+
+-- Ticks to wait for the sky plane to appear under her before giving up on the
+-- take-off.
 C.FlightLiftTicks = 60
 
 -- Degrees she may be off level before she is put right. She rests on an
@@ -1155,6 +1254,130 @@ C.ContactLabels = {
     downedPersonnel = "IGUI_TREK_Contact_downedPersonnel",
 }
 
+---------------------------------------------------------------------------
+-- The downed ensign: distress calls and rescues (ENSIGN.md)
+---------------------------------------------------------------------------
+-- The mod's first mission, built on the contact store above: a distress call
+-- the crew can accept at the sensor console, a `downedPersonnel` contact on
+-- the map, a figure placed when a player loads its ground, and a rescue that
+-- pays out exactly once. Every number here is ENSIGN.md section 4.
+
+-- Game hours from the ship first being able to hear (a built cabin and a
+-- crystal in the core) to the first call. One hour is a few real minutes, so
+-- a fresh world meets its first ensign in the first sitting.
+C.DistressFirstHours = 1
+
+-- From one call ending -- rescued, lost, declined or lapsed -- to the next.
+C.DistressIntervalHours = 36
+
+-- How long an unanswered call waits before it fades. Ignoring a call is
+-- declining it, and costs exactly as little.
+C.DistressOfferHours = 12
+
+-- When a call could not find anywhere valid to point, how soon it tries again.
+C.DistressRetryHours = 1
+
+-- The clock, from acceptance, in game hours. Generous on purpose: it is a
+-- reason to go now rather than tomorrow, not a trap.
+C.EnsignLifeHours = 72
+
+-- How far away she comes down, in squares from the crew: a real walk, a short
+-- drive. Picked the way a probe's endpoint is, and checked against the world.
+C.EnsignMinDistance = 150
+C.EnsignMaxDistance = 450
+C.EnsignBearingTries = 24
+
+-- The long-range fix's error. The tricorder sweeps 40 squares, so a sweep
+-- taken from the middle of the circle on the map always reaches her.
+C.EnsignReportSpread = 40
+
+-- Rings searched outward from the ensign's square for somewhere to sit them.
+C.EnsignPlaceRadius = 8
+
+-- How close the rescuer has to be, by the server's copy of where they are.
+C.EnsignRescueRange = 3
+
+-- Slack for the right-click. A click resolves to the floor square under the
+-- cursor, and a figure sitting on the ground covers a little of the squares
+-- beside her own (DEV_GUIDE: *a right-click lands on the floor*).
+C.EnsignMenuMargin = 1
+
+-- The combadge beacon. `addSound` is the engine's zombie-attraction noise; a
+-- gunshot is about 50. This is the block she is in, not the town.
+C.BeaconEveryMinutes = 10
+C.BeaconRadius = 45
+C.BeaconVolume = 45
+
+-- The chirp each nearby client plays at the ensign's square, in real milliseconds, and
+-- how near "nearby" is. Presentation only: no ship state rides on it.
+C.ChirpEveryMs = 6000
+C.ChirpRange = 30
+
+-- The figures: two bodies, three divisions, one world item each. The mesh is
+-- shared per body and the texture per division (tools/gen_ensign.py).
+C.EnsignBodies = { "M", "F" }
+C.EnsignDivisions = { "Command", "Operations", "Science" }
+
+-- What each division is called. Written out, not pasted onto a prefix, for
+-- the reason C.ContactLabels is: a constructed key that is wrong resolves to
+-- itself and no check can see it.
+C.DivisionLabels = {
+    Command = "IGUI_TREK_Division_Command",
+    Operations = "IGUI_TREK_Division_Operations",
+    Science = "IGUI_TREK_Division_Science",
+}
+
+-- Written out rather than pasted together, so tests/test_assets.py can check
+-- every one against the item scripts -- the same reason C.ContactLabels is.
+C.EnsignItemIds = {
+    M = { Command = "TrekShuttle.TrekEnsignMCommand",
+          Operations = "TrekShuttle.TrekEnsignMOperations",
+          Science = "TrekShuttle.TrekEnsignMScience" },
+    F = { Command = "TrekShuttle.TrekEnsignFCommand",
+          Operations = "TrekShuttle.TrekEnsignFOperations",
+          Science = "TrekShuttle.TrekEnsignFScience" },
+}
+
+function C.ensignItem(body, division)
+    local row = C.EnsignItemIds[body]
+    return row and row[division] or nil
+end
+
+C.EnsignItems = {}
+for _, row in pairs(C.EnsignItemIds) do
+    for _, id in pairs(row) do C.EnsignItems[id] = true end
+end
+
+-- Who the ensign is. Invented names, not canon characters: a crew the player has
+-- never met is the point of a distress call.
+C.EnsignGivenNames = {
+    M = { "Tomas", "Rafael", "Idris", "Kenji", "Anatoly", "Declan", "Samir",
+          "Oluwaseun", "Mateo", "Hollis" },
+    F = { "Amara", "Ines", "Yuki", "Soraya", "Maren", "Priya", "Talia",
+          "Nadia", "Esme", "Ruth" },
+}
+C.EnsignSurnames = { "Okafor", "Vance", "Tamura", "Reyes", "Lindqvist",
+                     "Haddad", "Castellan", "Novak", "Achebe", "Moreau",
+                     "Sato", "Brennan", "Kowalczyk", "Ferreira" }
+
+-- What a rescue pays. Patterns, not a crystal: ROADMAP2 says not to hand out
+-- another crystal right after the opening one, and a pattern is for ever.
+-- Learned in this order, the first few the ship does not already know.
+C.RescuePatterns = {
+    "Base.Antibiotics", "Base.SutureNeedle", "Base.Splint",
+    "Base.Disinfectant", "Base.Tweezers", "Base.Pills",
+    "Base.WaterPurificationTablets", "Base.Screwdriver", "Base.Hammer",
+    "Base.Saw", "Base.Wrench", "Base.DuctTape", "Base.Rope",
+    "Base.HandTorch", "Base.Battery", "Base.Crowbar",
+}
+C.RescuePatternsPerRescue = 3
+
+-- And a modest supply in the rescuer's hands.
+C.RescueSupply = {
+    { "TrekShuttle.TrekRationPack", 2 },
+    { "TrekShuttle.TrekHypospray", 1 },
+}
+
 -- Never replicated, whatever the sandbox says, and the list exists from day
 -- one because adding it later means adding it in a hurry.
 --
@@ -1184,6 +1407,11 @@ C.ReplicatorBlocked = {
     ["TrekShuttle.TrekEMH"]         = true,
     ["TrekShuttle.TrekEMHStation"]  = true,
 }
+-- **The downed ensign**, all six figures. Each is a Furniture item for the
+-- same reason the Doctor is, and a replicated one would be a second ensign
+-- on the deck that no mission knows about -- one the rescue could never
+-- complete and the map would never draw.
+for id in pairs(C.EnsignItems) do C.ReplicatorBlocked[id] = true end
 
 -- Modules the catalogue skips wholesale. Vanilla's own item viewer skips
 -- Moveables (ISItemsListViewer.lua:71) and so does this: they are the
@@ -1269,6 +1497,14 @@ C.EmhCureCrystals = 1
 -- sleep it off; at the default day length twelve hours is about half an hour
 -- confined to the cabin.
 C.EmhCureHours = 12
+
+-- How long a patient may be off the ship before the cure is lost, in game
+-- hours. Not a loophole: it is the time it takes to change places. Going
+-- forward to the cockpit puts the patient on the ground beside her for a
+-- moment before the seat takes them, and a cure checked in that moment was
+-- lost -- crystal and all -- by a player who never left (EMH.md, *Aboard
+-- means the ship*). Two game minutes is a few real seconds.
+C.EmhCureGraceHours = 2 / 60
 
 -- The light he casts on the deck. Per client, like the cabin's lamps and the
 -- torpedo's -- scenery, never ship state.
@@ -1423,5 +1659,40 @@ C.UniformIssue = {
     "TrekShuttle.TrekUniformDressOperations",
     "TrekShuttle.TrekUniformDressScience",
 }
+
+---------------------------------------------------------------------------
+-- The PADD (PADD.md)
+---------------------------------------------------------------------------
+-- A Starfleet tablet that holds digital copies of books. The library lives in
+-- the PADD's own mod data, so it travels with the item: lose the PADD and the
+-- books go with it; recover it and they come back.
+C.PaddItem = "TrekShuttle.TrekPADD"
+C.PaddType = "TrekPADD"
+
+-- Two issued in the armoury, beside the uniforms (PADD.md section 9). New
+-- worlds only, like every other change to what a locker holds; the
+-- replicator knows the pattern from the first day, and makes them blank.
+C.PaddIssue = 2
+
+-- Reading off a PADD takes a fifth of the time the same book takes on paper,
+-- after the vanilla rules -- sandbox minutes per page, Fast and Slow Reader,
+-- reading glasses, sitting down -- have all been applied. The author's
+-- number (PADD.md section 9).
+C.PaddReadSpeed = 5
+
+-- How long loading one book takes, in timed-action ticks: a scan, not a read.
+C.PaddLoadTicks = 90
+
+-- Copying a library: a base, plus a little per title, capped so a library of
+-- hundreds is not a quarter of an hour stood still.
+C.PaddCopyBaseTicks = 60
+C.PaddCopyTicksPerTitle = 4
+C.PaddCopyMaxTicks = 600
+
+-- Erasing: short, but long enough to be cancelled by walking away.
+C.PaddEraseTicks = 60
+
+-- The mod data key the library is kept under, on the PADD.
+C.PaddLibraryKey = "TREKLibrary"
 
 return C

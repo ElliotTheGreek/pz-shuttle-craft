@@ -410,6 +410,19 @@ function TREKEMHWindow:drawFindings(cx, cw)
                                        and "IGUI_TREK_EmhInfected"
                                        or "IGUI_TREK_EmhClean")),
                   cx, y, c[1], c[2], c[3], 1, UIFont.Small)
+
+    -- **A cure that is running says so, and says how long.** The bite and the
+    -- infection stay until it lands -- twelve game hours -- and a panel that
+    -- still reads "infected" with nothing else on it looks like a cure that
+    -- did not work. That is how the first one anybody tried was read: every
+    -- treatment in the meantime patched the bite's bleeding, the bite
+    -- reopened it, and it looked like the Doctor could not make it stick.
+    local due = row and E.cureDue(row.name)
+    if due then
+        local left = math.max(0, math.ceil(due - E.worldHours()))
+        self:drawText(string.upper(getText("IGUI_TREK_EmhCureRunning", tostring(left))),
+                      cx, y + 16, P.gold[1], P.gold[2], P.gold[3], 1, UIFont.Small)
+    end
 end
 
 function TREKEMHWindow:render()

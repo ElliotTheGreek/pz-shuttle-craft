@@ -28,12 +28,38 @@ P.listeners = {}
 ---   active | nil              one logical probe in flight
 ---   contacts { ... }          bounded shared reports
 ---   launches                  lifetime launch count
+---   distress | nil            the pending distress call (ENSIGN.md)
+---   nextDistressAt | nil      world hour the next call may come
+---   ensignRemovals { ... }    figures to take away once their ground loads
+---
+--- The distress call and the removals live here rather than in ship state
+--- for the reason the contacts do: this table is published when it changes,
+--- and the ship state is published every time the moving shuttle commits.
 function P.store()
     local data = ModData.getOrCreate(C.ContactKey)
     data.contacts = data.contacts or {}
     data.serial = tonumber(data.serial) or 0
     data.launches = tonumber(data.launches) or 0
+    data.ensignRemovals = data.ensignRemovals or {}
     return data
+end
+
+--- The pending distress call, or nil.
+function P.distress()
+    return P.store().distress
+end
+
+--- The live rescue, or nil: an unresolved `downedPersonnel` contact with a
+--- clock on it. There is at most one, because a call is never made while one
+--- is live. The clock is what makes it a mission rather than a bare contact.
+function P.mission()
+    for _, contact in ipairs(P.contacts()) do
+        if contact.kind == "downedPersonnel" and contact.deadline
+           and not P.isResolved(contact.status) then
+            return contact
+        end
+    end
+    return nil
 end
 
 function P.onChange(fn)
@@ -95,6 +121,12 @@ local function nextId(prefix)
     local data = P.store()
     data.serial = data.serial + 1
     return tostring(prefix or "contact") .. ":" .. tostring(data.serial)
+end
+
+--- A fresh persistent id. Authority only; the serial is saved with the store.
+function P.newId(prefix)
+    if isClient() then return nil end
+    return nextId(prefix)
 end
 
 --- Starts one persisted logical flight. Authority only.

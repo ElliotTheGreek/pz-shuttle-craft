@@ -153,11 +153,24 @@ function T.toCockpit(player)
     if not U.isInteriorPlayer(player) then return false, "not aboard" end
     if busy() then return false, "busy" end
     local s = Ship.get()
-    if not s.flying then return false, "notFlying" end
+    -- In flight, or on the ground. Overhead there are no seats anywhere near
+    -- to go to: she is not a vehicle in the world at all.
+    local grounded = s.landed == true and not s.flying
+    if not s.flying and not grounded then return false, "notLanded" end
 
     Core.requestMove(player, "beamUp", function(p)
-        begin(p, "cockpit", math.floor(s.x), math.floor(s.y), math.floor(s.z))
-        U.log("beaming forward to the cockpit at %d,%d", s.x, s.y)
+        -- **Where they arrive is the one difference.** In flight it is the
+        -- ground beneath her, because that is real ground under a ship three
+        -- metres up. On the ground that square *is* her hull -- a player put
+        -- there stands inside a vehicle while it streams in -- so they arrive
+        -- where stepping out through the hatch puts people, clear of her,
+        -- and the seat takes them from there (vehicle:enter has no distance
+        -- check; the distance check lives in vanilla's action).
+        local y = math.floor(s.y)
+        if grounded then y = y + Core.STEP_OUT_OFFSET end
+        begin(p, "cockpit", math.floor(s.x), y, math.floor(s.z))
+        U.log("beaming forward to the cockpit at %d,%d (%s)", s.x, s.y,
+              grounded and "on the ground" or "in flight")
     end)
     return true
 end
@@ -204,10 +217,7 @@ local function finishDown(job)
         -- Out of the seat now, not when the beam was asked for: the engine
         -- otherwise believes the character is still riding and puts them back
         -- in. vehicle:exit is what vanilla's own ISExitVehicle action calls.
-        local vehicle = U.try("playerVehicle", function() return player:getVehicle() end)
-        if vehicle then
-            U.try("vehicleExit", function() vehicle:exit(player) end)
-        end
+        Core.leaveSeat(player)
         U.teleport(player, job.x, job.y, job.z)
         Ship.playerData(player).aboard = false
         job.arrived = true
@@ -313,11 +323,7 @@ local function serviceBeam()
     --
     -- Nothing in the mod's own Lua appears in that stack trace, which is what
     -- made it look like a vanilla fault rather than a missing line here.
-    local vehicle = U.try("playerVehicle", function()
-        return job.player:getVehicle()
-    end)
-    if vehicle then
-        U.try("vehicleExit", function() vehicle:exit(job.player) end)
+    if Core.leaveSeat(job.player) then
         U.log("left the cockpit on beaming up")
     end
 

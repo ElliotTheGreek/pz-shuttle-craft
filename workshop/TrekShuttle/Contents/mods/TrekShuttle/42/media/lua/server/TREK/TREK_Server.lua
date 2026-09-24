@@ -401,8 +401,16 @@ function crewAboard(vehicle)
     for _, p in ipairs(U.players()) do
         if U.try("crewDead", function() return p:isDead() end) == false then
             if U.isInteriorPlayer(p) then return true end
+            -- **getSeat answers -1 for somebody not in the vehicle**, never
+            -- nil (BaseVehicle.getSeat, bci 27: iconst_m1). `~= nil` counted
+            -- every living player near a hovering shuttle as seated in her,
+            -- so a crew who beamed down beside her could not call her down
+            -- -- "Not while the shuttle is in the air" -- and she never went
+            -- back up while anybody stood near. The simulation answered nil,
+            -- which is how it passed.
             if vehicle and U.try("crewSeated", function()
-                return vehicle:getSeat(p) ~= nil
+                local seat = vehicle:getSeat(p)
+                return seat ~= nil and seat >= 0
             end) == true then
                 return true
             end
@@ -570,9 +578,16 @@ function S.serviceVehicle()
         -- player out onto, what W.hullCovers compares against, what the
         -- shields measure from and what S.land's "already here" check reads.
         -- The altitude is s.level, and only the pilot's client sets it.
+        --
+        -- And `flying` is not the whole of "in the air" any more: she is
+        -- carried up for a couple of seconds before the pilot's client reports
+        -- her airborne, and carried down for a couple after the server has
+        -- recorded her landed. So the ground never moves *up* from here. It
+        -- is set where she lands (S.land, touchdown) and only ever corrected
+        -- downwards -- a ship on the ground has nowhere higher to be.
         if not s.flying then
             local z = math.floor(found:getZ())
-            if z ~= s.z then s.z = z changed = true end
+            if z < (s.z or 0) then s.z = z changed = true end
         end
         if x ~= s.x or y ~= s.y then s.x, s.y = x, y changed = true end
 
@@ -759,6 +774,25 @@ Net.onServer("move", function(player, args)
     end
     if rule.access then claim(player) end
 
+    -- **Where they are leaving from, written down on this machine too.** The
+    -- return point is player mod data and the client sets it -- on the
+    -- client's own copy of the player. A dedicated server never sees that
+    -- write, so `Ship.worldOrigin` asked about a player standing in the cabin
+    -- had no answer there: a probe launched aboard was refused for want of a
+    -- position fix, and a distress call had nowhere to be measured from.
+    -- Single player never showed it, because there the two copies are one
+    -- (DEV_GUIDE: *Single player cannot test a fix that both ends apply*).
+    -- This handler runs before the move, so the player is still standing
+    -- where they are leaving from.
+    if kind == "beamUp" or kind == "hatchIn" then
+        local px = U.try("moveFromX", function() return player:getX() end)
+        local py = U.try("moveFromY", function() return player:getY() end)
+        local pz = U.try("moveFromZ", function() return player:getZ() end)
+        if px and py and pz and not U.isAboard(px, py, pz) then
+            Ship.setReturnPoint(player, px, py, pz)
+        end
+    end
+
     -- Somebody is on their way aboard a ship that is hovering with nobody in
     -- her. Hold the watchdog off while they are in transit: a beam is a second
     -- and a half, and the ground at the far end can take a good deal longer
@@ -836,9 +870,9 @@ Net.onServer("takeoff", function(player)
         return
     end
     claim(player)
-    Net.toClient(player, "takeoffGranted", { level = C.FlightLevel })
+    Net.toClient(player, "takeoffGranted", { level = C.flightLevel() })
     U.log("%s has the helm; clearing her for level %d",
-          Ship.usernameOf(player), C.FlightLevel)
+          Ship.usernameOf(player), C.flightLevel())
 end)
 
 --- The client got her up and the engine held the height. Only now is the ship
@@ -853,7 +887,7 @@ Net.onServer("airborne", function(player, args)
     -- One altitude, so this is an equality and not a range. A client reporting
     -- any other height is reporting something the ship cannot be doing.
     local level = int(args.level)
-    if level ~= C.FlightLevel then return end
+    if level ~= C.flightLevel() then return end
     s.flying = true
     s.level = level
     s.pilot = Ship.usernameOf(player)
@@ -1158,7 +1192,7 @@ Net.onServer("fireTorpedo", function(player, args)
     -- the same documented exception the sky plane uses -- no client touches
     -- ship state and no client does damage.
     Net.toAll("torpedoLaunched", {
-        x0 = s.x, y0 = s.y, level = s.level or C.FlightLevel,
+        x0 = s.x, y0 = s.y, level = s.level or C.flightLevel(),
         x = x, y = y, z = z,
         ms = flight,
     })
@@ -1684,6 +1718,11 @@ local Med = TREK.Medical
 local offers = {}
 local offerSerial = 0
 
+-- name -> world hour a patient under a cure was first seen off the ship.
+-- Server-local and transient on purpose: it is a grace period measured in
+-- game minutes, and a restart in the middle of one simply starts it again.
+local offShip = {}
+
 --- The common gate. Alive, allowed, the sandbox is on, standing at the
 --- station -- all measured here, on the server's own copy of the world.
 local function atEMH(player)
@@ -2027,13 +2066,28 @@ function S.serviceCures()
     for _, name in ipairs(names) do
         local patient = playerNamed(name)
         if patient then
-            if not U.isInteriorPlayer(patient) then
+            local aboard = EMH.aboardForCure(patient)
+            if aboard then
+                offShip[name] = nil
+            elseif not offShip[name] then
+                -- The first check off the ship starts the grace; it does not
+                -- end the cure. Changing places -- forward to the cockpit,
+                -- aft to the cabin -- passes through the ground beside her.
+                offShip[name] = now
+                U.log("emh: %s is off the ship; the cure is lost if they stay "
+                      .. "off for %.0f game minute(s)", name,
+                      C.EmhCureGraceHours * 60)
+            end
+            if not aboard and now - offShip[name] >= C.EmhCureGraceHours then
                 cures[name] = nil
+                offShip[name] = nil
                 dropped = dropped + 1
                 Net.toClient(patient, "emhCureLost", {})
                 U.log("emh: %s left the ship and the cure is lost, crystal "
                       .. "and all", name)
-            elseif now >= (cures[name] or 0) then
+            elseif aboard and now >= (cures[name] or 0) then
+                -- Only aboard: a cure that falls due during the grace waits
+                -- for them to come back, rather than landing on the road.
                 cures[name] = nil
                 done = done + 1
                 local counts = cureBody(patient)

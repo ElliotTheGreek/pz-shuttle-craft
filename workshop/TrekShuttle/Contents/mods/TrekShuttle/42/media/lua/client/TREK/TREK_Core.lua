@@ -137,6 +137,13 @@ local DENIALS = {
     emhNoOffer        = "IGUI_TREK_EmhNoOffer",
     emhOfferLapsed    = "IGUI_TREK_EmhOfferLapsed",
     emhGone           = "IGUI_TREK_EmhGone",
+    -- The downed ensign (ENSIGN.md).
+    distressAboard    = "IGUI_TREK_DistressAboard",
+    distressGone      = "IGUI_TREK_DistressGone",
+    ensignGone        = "IGUI_TREK_EnsignGone",
+    ensignSafe        = "IGUI_TREK_EnsignSafe",
+    ensignMissing     = "IGUI_TREK_EnsignMissing",
+    ensignFar         = "IGUI_TREK_EnsignTooFar",
 }
 
 Net.onClient("denied", function(args)
@@ -242,7 +249,19 @@ function Core.beginArrival(player, move)
     else
         arrival = { x = x, y = y, z = z, tries = 0, player = player }
     end
-    if move then Core.hold(player, x, y, z) end
+    if move then
+        Core.hold(player, x, y, z)
+        -- And the loot panel rebuilt from here, in this same tick. Vanilla's
+        -- dirtyUI rebuilds it at once from wherever the player now stands, so
+        -- the only rebuild that can clear the shuttle out of it is one made
+        -- *after* the move: made beside her -- which is where a seat exit or
+        -- the foot of the ramp leaves somebody -- it lists her seats again,
+        -- the move unloads her, and the next frame's panel asks a seat whose
+        -- vehicle is gone (ItemContainer.isOccupiedVehicleSeat, the
+        -- NullPointerException in the 2026-09-24 play-test, through the
+        -- hatch). Every way aboard comes through here.
+        Core.refreshInventoryUI()
+    end
     Ship.playerData(player).aboard = true
     Core.send(player, "boarded", {})
     return true
@@ -357,9 +376,42 @@ local settling = nil
 -- Squares from the ship's centre a player first arrives at when stepping out:
 -- clear of a hull five long, in any orientation.
 local STEP_OUT_OFFSET = 4
+-- Shared with the trip forward to the cockpit on the ground, which arrives
+-- where stepping out does before it takes the seat.
+Core.STEP_OUT_OFFSET = STEP_OUT_OFFSET
 
 --- Puts the player back down beside the ship.
 ---
+--- Rebuilds this client's inventory and loot panels from where the player
+--- now is. Vanilla's own call (ISInventoryPage.lua:1330), used by vanilla
+--- after anything that changes what a player can reach.
+function Core.refreshInventoryUI()
+    U.try("inventoryDirty", function() ISInventoryPage.dirtyUI() end)
+end
+
+--- Takes a player out of their seat **the way vanilla's exit does**, for the
+--- moves that cannot wait for vanilla's exit action: a beam, a trip aft.
+---
+--- Three steps and the last is the one that was missing. `vehicle:exit` is
+--- what ISExitVehicle:perform calls; `OnExitVehicle` is what it fires next
+--- (the dashboard listens for it). And the loot panel has to be rebuilt
+--- **now, while the shuttle is still loaded**: it was left showing the seat's
+--- container, the move into the cabin unloaded the shuttle's chunk, and on the
+--- first frame aboard vanilla's panel drew its title by asking that seat
+--- `isOccupiedVehicleSeat()` -- whose vehicle was gone. One NullPointerException
+--- in every session that went from a seat into the cabin, in every log from
+--- 2026-09-23 on (ENSIGN.md's play-test found it; DEV_GUIDE failure
+--- signatures).
+function Core.leaveSeat(player)
+    if not player then return false end
+    local vehicle = U.try("playerVehicle", function() return player:getVehicle() end)
+    if not vehicle then return false end
+    U.try("vehicleExit", function() vehicle:exit(player) end)
+    U.try("exitEvent", function() triggerEvent("OnExitVehicle", player) end)
+    Core.refreshInventoryUI()
+    return true
+end
+
 --- Two steps, for the same reason a beam-down has two: the ground by the ship
 --- is not loaded while the player is in the cabin, so a clear square cannot be
 --- found until they are standing near it. They arrive a few squares off the

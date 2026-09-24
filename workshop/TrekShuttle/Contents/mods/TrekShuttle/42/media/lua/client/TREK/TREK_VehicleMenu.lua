@@ -80,8 +80,7 @@ function VM.onBoardFromSeat(player)
 
     if TREK.Flight and TREK.Flight.flying() then
         Core.requestMove(player, "beamUp", function(p)
-            local v = U.try("playerVehicle", function() return p:getVehicle() end)
-            if v then U.try("vehicleExit", function() v:exit(p) end) end
+            Core.leaveSeat(p)
             Ship.setReturnPoint(p, Ship.get().x, Ship.get().y, Ship.get().z)
             Core.beginArrival(p, true)
             U.log("beamed aft to the cabin from the cockpit in flight")
@@ -99,6 +98,10 @@ Events.OnPlayerUpdate.Add(function(player)
     -- Out of the seat is the moment the exit action finishes.
     if player:getVehicle() then return end
     boarding[player] = nil
+    -- Vanilla's exit action has run; the loot panel may still be showing the
+    -- seat, and the walk up the ramp is a move into the cabin's cell that
+    -- unloads the shuttle behind it. Rebuild it while she is still here.
+    Core.refreshInventoryUI()
     Core.enter(player)
 end)
 

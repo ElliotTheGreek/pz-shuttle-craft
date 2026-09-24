@@ -26,3 +26,8 @@ option TrekShuttle.EMH = {
     type = enum, numValues = 2, default = 1,
     page = TrekShuttle, translation = TrekShuttle.EMH, valueTranslation = TrekShuttle.EMH,
 }
+
+option TrekShuttle.FlightHeight = {
+    type = enum, numValues = 6, default = 4,
+    page = TrekShuttle, translation = TrekShuttle.FlightHeight, valueTranslation = TrekShuttle.FlightHeight,
+}
