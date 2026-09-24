@@ -359,6 +359,13 @@ sensible holds it.
 
 ### The clue chain: six fragments, and a conversion
 
+**Built 2026-09-24.** The six tapes are `TREK_GoldOne`..`TREK_GoldSix` in
+`tools/gen_tapes.py`, in the `tucker` voice (the fragment's own cyan); the items
+are `TrekShuttle.TrekFragment1`..`6` from `tools/gen_fragment.py`; the machinery
+is `COMMS.md` 9. His name is spoken in fragment five, where he takes it; six is
+to whoever found it. A fragment lost is found again by a later probe -- *he made
+more than one copy of everything* -- so the chain cannot be soft-locked.
+
 **Tucker Gold left holo recordings.** A being that spent an immortal life copying
 and preserving things, and then made itself mortal, leaves records the way a
 mortal leaves letters. They are scattered across the county because he lived a
@@ -1069,10 +1076,17 @@ Bars, houses, the odd office. `BOR-1`.
 
 ### Tier 3 — the spine, gated on the campaign
 
+**Superseded in part (2026-09-24).** #15 and #16 below were written before the
+arc in 1b was settled, and #15 contradicts it -- it has her ship destroyed and the
+mothership gone, where 1b has the *Adirondack* intact and able to transport. The
+six built logs (`TREK_LogOne`..`LogSix`) are what these two became, and neither
+is to be written. **#17 is built**, as `TREK_EnsignLog`, issued to the ship on the
+first rescue (`COMMS.md` 9). They are kept below as the record of the idea.
+
 These tie the shelf to `ROADMAP2.md`'s progression, and they are the reason the
 shelf is worth doing before 1.6 rather than after.
 
-**15. `TREK_FinalLog` — *SHUTTLECRAFT LOG, FINAL ENTRY — dubbed for playback***
+**15. `TREK_FinalLog` — *SHUTTLECRAFT LOG, FINAL ENTRY — dubbed for playback*** — SUPERSEDED by the six logs
 
 **On the shelf from the start**, because a dead ship with one working screen is
 precisely the situation this tape is about. It is the mod's premise, in the
@@ -1103,7 +1117,7 @@ She does not answer it. The player does.
 `BOR-1` only — **no XP**. Charging a tutorial in experience points cheapens the
 tutorial and the tape, and this one is doing enough work already.
 
-**16. `TREK_EarlierLog` — *SHUTTLECRAFT LOG, THE ENTRY BEFORE THE LAST***
+**16. `TREK_EarlierLog` — *SHUTTLECRAFT LOG, THE ENTRY BEFORE THE LAST*** — SUPERSEDED by the six logs
 
 Appears in the shelf **only once the ship is commissioned**. Recorded earlier
 and therefore worse, because in it she still thinks she is going home, and
@@ -1111,7 +1125,7 @@ mentions twice what she is going to do first when she gets there.
 
 `UHP+1`, `MOR+1`.
 
-**17. `TREK_EnsignTape` — *(unlabelled; off a personal recorder)***
+**17. `TREK_EnsignTape` — *(unlabelled; off a personal recorder)*** — BUILT as `TREK_EnsignLog`
 
 1.7's reward, taken from the downed ensign's pocket and worth more than the
 crystal the roadmap was worried about awarding. Three minutes, recorded lying
@@ -1149,6 +1163,14 @@ addresses *whoever found this*, never the player personally.
 ---
 
 ## 6. What the shelf cannot do yet, and should not pretend to
+
+**Built 2026-09-24, as `COMMS.md` 9 describes.** The issue record exists: the
+channel issues a tape (`TREK_CommsServer.issueTape`), and `TREK_Build.deliverTapes`
+puts it on the shelf the next time the cabin loads, in existing saves too. A tape
+`gen_tapes.py` marks `issued` is registered and not stocked. Its customers so far
+are the first rescue (`TREK_EnsignLog`) and the six Tucker Gold fragments
+(`TREK_GoldOne`..`Six`). The logs are still all on the shelf from the first build,
+which 1b decided and nothing here changes. What follows is the design as it stood.
 
 The engine gives us a container of tapes and a television. It does not give us
 a *library* — and three things on the list above want one:
@@ -1353,9 +1375,10 @@ feature.
 
 **Step 5 now belongs to `COMMS.md`.** The issue record is that feature's trigger
 engine as well as this one's gating, so it gets built there — which means the
-order above can run 1 → 4 without it, and tier 3's gating plus the arriving
-every converted fragment arrive as a side effect of the channel rather than as
-work of their own.
+order above can run 1 → 4 without it, and tier 3's gating and every converted
+fragment arrive as a side effect of the channel rather than as work of their own.
+**Both are built** (2026-09-24): the issue record, the ensign's tape and all six
+fragments.
 
 **And 1c is the writing brief a new session needs.** The world's origin, the
 precedents, the clock and the two rules to hold are settled; what is *not*

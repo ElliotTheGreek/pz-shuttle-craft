@@ -1,7 +1,8 @@
 # Energy — everything aboard runs on the crystal
 
-**Status: implementation guide, awaiting the author's approval. Nothing in it
-is built.** Once approved, it is followed phase by phase (section 12), and it
+**Status: implementation guide. The design questions were settled with the
+author on 2026-09-24 (section 13), and the whole guide is awaiting their
+review. Nothing in it is built.** Once approved, it is followed phase by phase (section 12), and it
 becomes the working guide for the ship's power in the shape `REPLICATOR.md`
 and `PILOTING.md` use.
 
@@ -261,12 +262,35 @@ tuned in play.**
   takes away. Charging for them would be a steady drain nobody can see a
   reason for.
 
-**What a crystal buys, roughly.** A busy day is four beams (100), a call-down
-(150), a take-off (100), 500 tiles of flight (1000), an hour of hovering (60),
-fifty zombies at the shields (100), a scrape repaired (100) and a visit to the
-Doctor (175) — about 1,800. **So a crystal is two to three busy days.** It
-used to be close to "never", with only the replicator drawing on it. If that
-is too tight, halve the flight cost first: flight is most of the bill.
+**What a crystal buys: about three outings (the author's choice,
+2026-09-24).** A crystal is 5,000 units, and the ship burns one at a time. An
+*outing* is one typical session with the ship:
+
+| Part of an outing | Units |
+|---|---|
+| Call her down | 150 |
+| Take off | 100 |
+| Fly about 500 tiles (2 / tile) | 1,000 |
+| Hover an hour of game time (1 / minute) | 60 |
+| Shields push about 50 zombies (2 each) | 100 |
+| One scrape repaired | 100 |
+| Four beams (25 each) | 100 |
+| Summon the EMH and one treatment (100 + 25) | 125 |
+| **Total** | **about 1,800** |
+
+5,000 / 1,800 is **about three outings per crystal**. The player sees the gauge
+fall, and a crystal hunt comes round every few sessions. Before this guide,
+only the replicator drew power, so a crystal almost never ran out.
+
+**Flight is more than half of every outing**, so it is the lever when tuning:
+
+- about one outing per crystal is roughly double these prices (flight about
+  4 / tile);
+- about ten is roughly a third (flight about 0.6 / tile).
+
+The test in `test_multiplayer.py` that prices this outing and asserts it
+lands between 1,500 and 2,100 is what keeps a later tweak from quietly
+changing the feel.
 
 ### 3.6 Commits
 
@@ -421,10 +445,26 @@ The `GasTank` and `Battery` are skipped: those are power, not damage.
   stays reachable when dark (it already skips `atEMH`).
 - **Going dark takes him away.** `powerDown` sets `s.emh = nil` and runs
   `B.serviceEMH()`. The projection needs power to exist at all.
-  - A cure that is already running is **not** cancelled. It was paid for with
-    a whole crystal when it began, and `ae11af3` made it survive leaving the
-    cabin. Taking it away because the ship went dark later would be
-    punishing the player twice.
+  - **A cure that is running fails** (the author's decision, 2026-09-24:
+    *"PZ is a fiercely realistic simulator"*). The twelve hours aboard are
+    the Doctor keeping the patient under treatment. If the ship goes dark
+    during them, the treatment stops:
+    - the patient **stays infected**;
+    - the crystal that paid for the cure is **gone**, with no refund;
+    - the crew are told plainly: *"Main power lost -- the Doctor's treatment
+      has failed. You are still infected."* (red). It has to be delivered,
+      because a cure that ends in silence reads as a bug. DEV_GUIDE: *a
+      correct refusal that nobody is shown is indistinguishable from a broken
+      feature*.
+
+    `S.beginCure`'s running state is cleared on `powerDown` by the same code
+    that already ends a cure that fails its conditions. The test starts a
+    cure, drains the ship to dark partway through, and asserts all of it: the
+    bite and the infection still present, `s.crystals` not refunded, the cure
+    state gone, and the message sent. The cure is paid for with a *spare*
+    crystal, so the one burning in the core is a separate thing. It is
+    possible to pay for a cure and then run the reserve dry with the
+    replicator, and that is the case the test uses.
 - **The replicator** already refuses when it can't afford. It gains the dark
   gate so its panel reads **OFFLINE**, instead of offering buttons that all
   fail.
@@ -485,13 +525,11 @@ This is a **landing** in the story and in the code: the crew arrive standing
 beside her with the hatch in front of them. It is the same move `descend`
 makes today, and not a transporter beam.
 
-- *For the author's attention:* this is the one place the ship moves the crew
-  without being asked. It is the only way the engine allows her to land where
-  nobody is standing.
-- The alternative is to refuse any cabin spend that would take a ship in orbit
-  below `C.LandCost` — "power reserved for landing". That never strands
-  anyone, but it contradicts "everything runs until it runs out".
-- **Recommended: the emergency descent.**
+- **Approved by the author, 2026-09-24.** It is the one place the ship moves
+  the crew without being asked, and the only way the engine allows her to
+  land where nobody is standing.
+- The rejected alternative was refusing any cabin spend that would take a
+  ship in orbit below `C.LandCost` ("power reserved for landing").
 
 **7.4 After touchdown** she is an ordinary dark ship on the ground: landed,
 battery flat, tank empty, hatch working. `s.emergency` clears.
@@ -763,7 +801,7 @@ and a commit. None of it needs a game until the phase marked **play**.
 | 1 | **The ledger** | `S.energize`, `P.dark`, `s.dark`, `powerUp`/`powerDown`, the notes, the `DENIALS` entries, the three existing charges moved onto it, burn-on-load when dark. |
 | 2 | **The gauge** | `TREK_PowerHUD.lua`, the shared bar, the helm's bar, threshold warnings. UI harness tests. |
 | 3 | **Movement** | beams, call-down, recall, take-off, the odometer, hover drain, battery and tank gating, the engine-start charge. |
-| 4 | **The dark cabin** | light handles and red emergency lighting, television off, sink off, replicator offline, EMH projection cost and dark removal, `gen_power.py` and both sounds. |
+| 4 | **The dark cabin** | light handles and red emergency lighting, television off, sink off, replicator offline, EMH projection cost and dark removal, a running cure failing when dark (patient still infected, crystal lost), `gen_power.py` and both sounds. |
 | 5 | **Shields** | repel reports and charges, crash repair. |
 | 6 | **Emergency landing** | 7.1–7.4, with the sim made unkind enough to test a dark hover (a pilot, no pilot, blocked ground, unloaded ground). |
 | — | **Play** | One single-player session: spend to dark, see the red, load a crystal, hear the sound. Hover to dark over a town. This is the first time anything here is proven. |
@@ -806,18 +844,19 @@ Each gets modelled **before** the test that relies on it.
 
 ---
 
-## 13. Open for the author before approval
+## 13. Decisions settled with the author (2026-09-24)
 
-Each item has a recommendation. None of them is settled yet.
+1. **The emergency descent from orbit** (7.3): yes.
+2. **Costs** (3.5): **about three outings per crystal**, at the prices in the
+   table, tuned in play from there.
+3. **Hovering costs power** even when she is standing still: yes.
+4. **A running EMH cure fails if the ship goes dark** (section 6). The patient
+   stays infected and the crystal is lost. *"PZ is a fiercely realistic
+   simulator."*
+5. **Lights, sink and television are free while powered**: yes. The galley
+   appliances draw power through the generator (section 9).
+6. **Cold-start placement**, 6 to 15 tiles from the first player (10.3): yes,
+   as a starting distance.
 
-1. **Emergency descent from orbit** (7.3). Recommended. The alternative is
-   refusing cabin spends that would leave less than the landing cost.
-2. **Costs** (3.5). Proposed as starting values. A crystal lasts about two to
-   three busy days, down from nearly for ever. Is that the right feel?
-3. **Hovering** costs `C.HoverCostPerMinute` even when she is standing still.
-   Recommended.
-4. **A running EMH cure survives going dark** (section 6). Recommended.
-5. **Lights, sink and television draw nothing while powered** (3.5).
-   Recommended. The galley appliances do draw power, through the generator.
-6. **Cold-start placement**: 6 to 15 tiles from the first player (10.3).
-   Recommended.
+What is still open is the verify-first list (section 12). Those questions are
+answered by the engine, not by the author.

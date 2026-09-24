@@ -14,7 +14,10 @@ server owns the channel, its state and anything it hands out; a client asks and
 displays. Read *Rules that exist because they were broken* before starting
 anything below — section 2 exists entirely because of them.
 
-Specced 2026-09-24. Nothing here is built.
+Specced 2026-09-24 and **built the same day**, the whole of section 7: the
+channel, its scheduler, every thread in 6.1-6.3 and the clue chain. First contact
+has been seen in game. Section 9 is what was built and what was decided while
+building it; read it before changing anything here.
 
 ---
 
@@ -94,7 +97,7 @@ ever.
 |---|---|
 | holder logs out mid-call | channel releases; current node stands; next interactor becomes holder |
 | holder is out of contact | there is no range check — a PADD reaches orbit. Losing the PADD releases the channel |
-| a player joins mid-call | sees the transcript from the current node on, not the whole history |
+| a player joins mid-call | sees the live call and **the whole history** (decided 2026-09-24: the record is the ship's) |
 | two clients answer in one tick | first to the server wins; the second is refused and told why |
 
 **Nothing is stored client-side.** Not the transcript, not the flags, not the
@@ -336,6 +339,8 @@ equivalent.
 
 ## 8. Open questions
 
+Every question below is answered in section 9.
+
 - ~~**Where the panel goes.**~~ **Closed** — there is no panel. The PADD is the
   terminal (`PADD.md` 12.4).
 - **Whether the issue record fits in transmitted ship state**, which is a
@@ -361,3 +366,151 @@ equivalent.
   channel is shared and the shelf is shared, so probably yes and it does not
   matter who carries it — but it is the kind of thing that wants saying out loud
   before two people argue about it in a session.
+
+---
+
+## 9. As built (2026-09-24)
+
+### Where things live
+
+```
+tools/gen_comms.py                    the generator and its checks
+tools/comms_vocab.py                  say / opt / branch / node / thread
+tools/comms_threads.py                the writing -- every thread, in priority order
+shared/TREK/TREK_CommsTree.lua        generated: the tree the server walks
+shared/Translate/EN/Print_Text.json   generated: every line, option and name
+shared/TREK/TREK_Comms.lua            the two stores, conditions, the renderer
+server/TREK/TREK_CommsServer.lua      scheduler, call, holder, clock, handlers
+client/TREK/TREK_PaddScreen.lua       the surface (PADD.md 12.8)
+tests/test_comms.py                   the generator refuses what it should
+tests/test_multiplayer.py             comms, comms_missed, comms_multiplayer,
+                                      comms_story (the whole campaign)
+```
+
+**Why Print_Text.** A mod cannot add a translation category: `Translator.BY_NAME`
+is a fixed list and a key is routed to its map by prefix (`getTextInternal`).
+`Print_Text_` is the category vanilla keeps printed text in, this mod had no file
+for it, so `gen_comms.py` owns it outright -- one writer per file, the rule
+`gen_tapes.py` already follows for `Recorded_Media.json`.
+
+### The two stores
+
+`C.CommsKey` is the live channel: the call, flags, what has fired, misses,
+counters, the issue record. Published on every choice. `C.CommsLogKey` is the
+history, published when a call ends. A row is a thread id, a day, the holder's
+name and the steps as `{ n = node, o = option }` -- `o = 0` is silence. The text is
+rendered from the tree at display time, so fixing a line fixes every transcript.
+Bounded at `C.CommsLogMax` rows.
+
+### The call
+
+- **Ringing** for `C.CommsRingHours` game hours; then it is **missed**.
+- **Answered** by whoever gets to the server first, carrying a PADD and allowed to
+  use the ship. The second is refused by name (`commsHeld`).
+- The server walks the tree. On entering a node it applies the node's flags, any
+  tape it issues and any fragment it converts, records the step, and publishes
+  **the indices of the options this holder may take** (`call.avail`). The client
+  shows exactly those, because the questions behind them -- what the holder
+  carries, what they have watched -- are only answered truly on the authority.
+- A choice is accepted only for the live node and an offered index; anything else
+  is `commsStale`.
+- **Silence**: a node's `timeout` is seconds of play on the authority's tick, each
+  tick capped at `C.CommsMaxTickSeconds` so a pause or a hitch cannot eat an
+  answer. When it runs out the call takes the silence branch and records `o = 0`.
+- **The holder lets go** when they go offline, die, stop carrying a PADD, or sit
+  for `C.CommsIdleSeconds` without choosing. The call keeps its node and anybody
+  can take it (`commsAnswer` on a live call with no holder); the options are asked
+  again for the new holder.
+- A live call nobody holds for a ring's length is **cut**, and counts as missed.
+
+### The scheduler
+
+Every game minute, outside any loaded-ground branch. **Day zero is the first
+boarding** (decided): `TREK_CommsServer.commission` sets it the first time the
+cabin is built, and ROADMAP2 1.6's cold start will change that one function.
+
+- An incoming thread rings when its `day` has come, the thread named in `after`
+  has run and its hours have passed, its `requires` hold and its `forbids` do not,
+  it has not fired (unless repeatable), its retry time has passed, and the
+  channel has been quiet for `C.CommsGapHours`. First eligible in priority order.
+- **The sandbox's "When the Adirondack first calls"** (straight away, a day, three
+  days, a week, two weeks) shifts the whole calendar, so later threads keep their
+  spacing. "Straight away" is also how a player reaches the channel in a fresh
+  world without a debug console.
+- **A missed story thread comes back worse, rather than again.** It rings after
+  `C.CommsRetryHours` and opens on the entry for that many misses (`01`, `01M`,
+  `01MM`...). Collapse is built in: one thread, one follow-up, never a queue
+  (section 8's open question).
+- A missed **repeatable** (`THANKS`, `LOST`) lets go of the event it was waiting
+  on, so the next rescue rings afresh.
+- **Hails.** The first hail thread whose conditions hold picks up; a repeatable
+  hail has a cooldown, and otherwise nobody answers (`commsNoAnswer`, and a hail
+  cooldown). `QUIET` is repeatable with a day's cooldown -- not repeatable, a
+  player who once said "wrong button" would have lost the quiet path for good.
+
+### Tapes the channel issues (LORE.md 6)
+
+The issue record is `issued` and `pendingTapes` in the live store.
+`TREK_Build.deliverTapes` puts each owed tape on the shelf the next time the cabin
+is loaded, reads each one back off the container before it stops being owed, and
+runs as a build phase and on the service tick -- so it reaches existing saves.
+`gen_tapes.py` marks such a tape `issued`: registered like any other, not stocked
+on the first build. `tests/test_comms.py` fails if a tape the story issues is also
+shelf stock.
+
+The first rescue issues `TREK_EnsignLog` (LORE.md 5, #17). Each conversion issues
+its fragment's tape.
+
+### The threads, as written
+
+| thread | rings | what it is |
+|---|---|---|
+| `FIRST` | day 7 (sandbox) | 6.1: she is alive, the ship cannot leave, they can transport, and who the player is -- never adjudicated, never stored |
+| `THANKS` / `LOST` | a rescue / a lost beacon | repeatable; she says the ensign's name (`%2`) |
+| `CLUE` | a probe finds a clue site | the holo emitter, and the Q theory on file, respectfully |
+| `STAY` | after FIRST, 40 h | why she stayed down; the player can argue and lose |
+| `ELEVEN` | after STAY, 40 h | the crew on the ground; routes on whether anyone has come up |
+| `SCIENCE` | after ELEVEN, 30 h | the graft, half a signature -- off the shuttle's Doctor if he is up, off the rescued crew's samples if not |
+| `DENIAL` | after SCIENCE, 36 h | Okafor; press or let it go |
+| `ARCHIVE` | after DENIAL, 36 h | Phlox's omicron note: paperwork, not a miracle |
+| `REVEAL` | after ARCHIVE, 48 h | the one who left the Link, and what it is rehearsing for |
+| `GOLD` | all six converted | his name, and "the place was made, the people weren't" |
+| `GRIEF` | REVEAL and GOLD both done | two griefs; the last call |
+| `CONVERT` | hail, carrying a fragment | one conversion per call |
+| `QUIET` / `RESUME` | hail | the quiet path, both ways |
+
+**Nothing waits on a system the player might never build.** The science was
+specced behind "EMH online"; it routes instead.
+
+**The Q theory dies of accumulation**, as 6.3 asks: `CLUE` states it, the first
+conversions mention it, the later ones do not, and `GOLD` never says it was wrong
+-- she says she will write down what he said and let them decide.
+
+### The clue chain (6.3)
+
+- `C.ContactKinds.clue`, with its own hexagonal map symbol. Once `met` is set, a
+  probe that finds something finds a clue site `C.ProbeClueShare` of the time,
+  while any fragment is owed. Never the first probe of a save.
+- **A fragment is owed while it is not on tape and no live contact points at
+  one** -- not "while nobody has picked it up". A fragment lost on a body can be
+  found again by a later probe, so the chain cannot be soft-locked, and a death on
+  the way home costs time rather than the story (section 8's question about
+  losing one). The fragments are in any order and she says which one it is.
+- The ship puts the fragment on real ground when a player loads it, exactly as a
+  crystal; the tricorder plots it as its own shape with its own line.
+- `CONVERT` converts one fragment per call, chosen by what the holder carries,
+  taken out of their pockets on the authority at that moment. The first time she
+  says the line: *"Hang on. I can put that on magnetic tape."*
+- **Anybody can convert a fragment somebody else found** (decided). The fragment
+  is consumed (decided).
+
+### What play and the harness found
+
+- **The first ring said she had never called.** A ringing call has no lines yet,
+  and the empty box fell through to the idle text. Found in the first play-test,
+  fixed, and the harness now fails it.
+- Section 8's remaining questions were decided: the claimed identity is not
+  stored; a hail does not interrupt the television; missed calls collapse; the crew
+  share one colour (blue); Tucker Gold is `gen_tapes.py`'s `tucker` voice, in the
+  fragment's own cyan.
+

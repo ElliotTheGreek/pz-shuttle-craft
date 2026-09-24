@@ -630,7 +630,24 @@ And two more, from making the flight level a real height (2026-09-24):
     expected a dead pilot to bring her down with a living crewman aboard, and
     had only ever passed because the server never knew he was there.
 
-All twelve are fixed, and the rule they share is worth more than any of them:
+And two more, from the PADD's tape reading (2026-09-24), both about timed
+actions:
+
+13. **An action that took no time.** `SIM.runActions` ran an action as one
+    `update()` at job delta 1.0. The one piece of per-tick state an action can
+    lean on is vanilla's radio debounce -- thirty ticks per effect code -- and a
+    tape read that applied every line in its last tick would fire one BOR and
+    swallow the rest, in the game and not here. `SIM.stepAction` runs an action
+    through its duration now, ticking only the debounce between steps, so a
+    26,000-tick book is still cheap. The debounce itself is in the stub, which
+    is the other half: without it the pacing could not be tested at all.
+14. **A client that never ran its own update().** In the engine a client runs
+    `update()` on its copy of the action as the bar fills; the simulated client
+    only started and sent it. So a tape's effects applied on the client passed,
+    because the only guard anybody could delete was one that never ran. The
+    client steps its action now.
+
+All fourteen are fixed, and the rule they share is worth more than any of them:
 **when a test is easy to satisfy, suspect the simulation before believing the
 code.** `MULTIPLAYER.md` says the same thing about vehicle gravity, the
 floor-gated height and the radial menu's one-frame delay, each of which let a
@@ -2054,10 +2071,53 @@ nothing at all, silently — and it looks fine, because `DisplayName` in the ite
 script is the fallback the game shows when the lookup misses.
 `tests/test_assets.py` checks all three files against the Lua and the scripts.
 
+### A mod cannot add a translation category, and keys are routed by prefix
+
+**New in this mod, from the Adirondack channel.** `Translator.loadFiles` loads a
+fixed list of categories (`Translator.BY_NAME`) and `getTextInternal` sends a
+key to one of them **by its prefix** -- `IGUI_` to IG_UI, `RM_` to
+Recorded_Media, `Print_Text_` to Print_Text, and so on. A `Comms.json` would
+never be read, and a key with no known prefix is looked for in the wrong map.
+
+So the channel's five hundred strings live in `Print_Text.json` -- the category
+vanilla keeps printed text in, which this mod had no file for -- and
+`tools/gen_comms.py` owns that file outright. **One generator per file**: the
+tapes' generator owns `Recorded_Media.json` for the same reason, and two
+programs writing one JSON file is the two-files-disagree problem inside a single
+file.
+
+The useful corollary: `MediaLineData.getTranslatedText()` is
+`Translator.getText(key)`, nothing more. A tape's lines are keys in the `RecMedia`
+table every process loads, so the PADD renders a transcript straight from that
+table with `getText`, and needs no engine media call at all.
+
+### An effect the engine debounces has to be paced
+
+**New in this mod.** Reading a tape off the PADD applies each line through
+vanilla's `ISRadioInteractions.checkPlayer`, the function the television uses --
+which debounces every effect code for thirty ticks per player. Hand it forty
+lines at once and it applies the first boredom code and silently drops the other
+thirty-nine. Nothing throws and nothing logs; the read simply gives a fraction of
+the tape.
+
+So the lines are applied one at a time across the action's length, and the length
+is chosen so the gap between lines is never under the debounce
+(`C.PaddTapeLineMin` is set by the radio, not by taste). Two things generalise:
+
+- **Before calling vanilla's interpreter for something, read what it keeps
+  between calls.** A cooldown table, a "last seen" set, a latch: each is a way for
+  the second call in a tick to be a different call from the first.
+- **The harness has to keep the same state**, or the pacing is untestable -- which
+  is simulation holes 13 and 14.
+
 ### The game runs Lua 5.1
 
 Kahlua, where `unpack` is a global. `tools/luacheck.py` and the tests use Lua
 5.5 and stub it back. Do not write `table.unpack` in mod code.
+
+`math.huge` is missing too, and `tests/pz_sim.lua` removes it: the tape read's
+"apply everything left" first used it and the harness threw on the last tick of
+every read. Use a large number.
 
 **And the difference cuts both ways.** `math.atan2` exists in Kahlua and was
 removed in Lua 5.3, so a bearing written with it works in the game and throws
@@ -2098,6 +2158,9 @@ python tools/gen_uniform.py TrekShuttle/42        # the six uniforms: textures, 
 python tools/gen_map_symbols.py TrekShuttle/42    # the world-map contact glyphs and their registration
 python tools/gen_ensign.py  TrekShuttle/42        # the downed ensign: six baked figures (after gen_uniform)
 python tools/gen_padd.py    TrekShuttle/42        # the PADD: mesh, texture, icon
+python tools/gen_fragment.py TrekShuttle/42       # the six holo fragments: mesh, texture, numbered icons
+python tools/gen_tapes.py   TrekShuttle/42        # every tape: RecMedia and Recorded_Media.json
+python tools/gen_comms.py   TrekShuttle/42        # the channel: the tree and Print_Text.json (refuses a bad tree)
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
@@ -2248,6 +2311,11 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **`ItemContainer.isOccupiedVehicleSeat` NullPointerException, once, on arriving aboard** | Somebody left the shuttle's seat for the cabin without the loot panel being rebuilt: it still showed the seat's container, the move unloaded the shuttle, and vanilla asked a seat whose vehicle was gone. Every seat exit goes through `Core.leaveSeat`, which does what `ISExitVehicle` does -- `vehicle:exit`, `OnExitVehicle`, `ISInventoryPage.dirtyUI()`. **And the rebuild that counts is the one after the move**: `dirtyUI` works at once from where the player stands, so a rebuild made *beside* her lists her seats again. The 2026-09-24 play-test hit it through the hatch after a landing; `Core.beginArrival` now rebuilds the panel once they are on the pad, which covers every way aboard. `seat_exit()` tests beaming up, going aft and walking up the ramp from beside her. |
 | **A cure is lost although the patient never left** | They went forward to the cockpit. The seats are aboard (`EMH.aboardForCure`), and leaving starts a two-minute grace rather than ending it. |
 | **"Not while the shuttle is in the air" when calling her down after beaming off her** | Something counted a player on the ground as seated. `BaseVehicle.getSeat` answers -1, not nil, for somebody who is not in the vehicle -- test `>= 0`. |
+| **The PADD rings and the channel says she has never called** | Fixed in 1.6.0: a ringing call has no lines yet and the empty box fell through to the idle text. If it comes back, the ringing branch of `TREKPaddScreen:content` is not filling the box. |
+| **The Adirondack never calls** | Day zero is the first time the cabin is built, and the first call waits the sandbox's *When the Adirondack first calls* (a week by default). A crew who told her to stop calling have `quiet` set -- hail her to undo it. `comms: day zero is hour ...` in the log says the clock started. |
+| **A channel line shows as `Print_Text_TREK_COMM_...`** | `Print_Text.json` is out of step with the tree: run `tools/gen_comms.py`. `tests/test_comms.py` fails when they disagree. |
+| **Reading a tape off the PADD relieves boredom once and then nothing** | The lines are being applied faster than vanilla's thirty-tick debounce. See *An effect the engine debounces has to be paced*. |
+| **A tape the story issued never reaches the shelf** | It is owed until the cabin is loaded -- `comms: the ship has been issued ...` and later `tape: ... is on the shelf`. A full shelf keeps it owed and says so once. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
 ---
@@ -2369,7 +2437,7 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.5.0**, build revision **28**.
+Version **1.6.0**, build revision **28**.
 
 `modversion` in `mod.info` and `C.Version` in `TREK_Config.lua` are the same
 number, and `tests/test_assets.py` fails if they are not -- they had drifted a
@@ -2793,7 +2861,9 @@ class name and by `new`'s parameter names (*A timed action is rebuilt on the
 server...*, above). Reading is its own action, applying `ISReadABook`'s
 effects to a book rebuilt in no container, because a real book in the
 reader's hands would be a duplication exploit. Seventeen mutations caught.
-Build revision 28, for the armoury's two PADDs. `PADD.md`. Not yet played.
+Build revision 28, for the armoury's two PADDs. `PADD.md`. **Played the same
+day**: books loaded, the character died, the PADD recovered off the body with its
+library intact.
 
 **The 2026-09-24 flight height** replaces level 1 with a sandbox option,
 **Hover height**, default five storeys, because at level 1 a two-storey
@@ -2821,6 +2891,25 @@ shuttle, where it lists her seats all over again, and the simulation's
 `dirtyUI` only counted calls, so a rebuild in the wrong place passed. It
 rebuilds from where the player stands now. The guard and two players are
 still to see (`PILOTING.md` section 7).
+
+**The 2026-09-24 PADD screen and the Adirondack channel** are `PADD.md` 12 and
+`COMMS.md`, built in one session: a full-screen PADD (channel, history, library,
+on the shoulder buttons; *Open PADD* on its menu, **K** on the keyboard), a
+server-owned conversation with one holder and a silence branch, fifteen threads
+and 132 nodes written through `tools/gen_comms.py`, any VHS tape transcribable
+and readable for what watching it gives, and the clue chain -- a probe's third
+result, six holo fragments, a conversion per hail and six tapes from the man who
+made the county. `COMMS.md` 9 is the working guide. Version 1.6.0; no build
+revision, because the cabin did not change. Two new sections above (*A mod cannot
+add a translation category* and *An effect the engine debounces has to be
+paced*), two new simulation holes (13 and 14), and thirty-nine mutations run one
+pass at a time, all caught -- one only after a pair of guards that covered for
+each other were made into one.
+
+**Seen in game the same day**: the first ring, and the screen, which said she had
+never called while she was calling. Fixed within the hour; the harness checks it.
+Still to see: a whole call answered, the spine over a real week, a tape read for
+its XP, a fragment found by a probe, and two players on one channel.
 
 **Next up** is `ROADMAP.md`'s step 7: publishing -- or `ROADMAP2.md` 1.6, the
 cold start, if it is to ship with the ensign. Everything else on the roadmap
@@ -2873,6 +2962,12 @@ TrekShuttle/42/media/textures/clothes/trek/*.png               the uniform textu
 TrekShuttle/42/media/lua/shared/TREK/TREK_Probes.lua           the contact store: bounded, server-owned, its own mod-data key
 TrekShuttle/42/media/lua/client/TREK/TREK_MapContacts.lua      contacts drawn on the world map, rebuilt from the store
 TrekShuttle/42/media/lua/shared/Definitions/TrekMapSymbols.lua the map symbol registration (generated)
+TrekShuttle/42/media/lua/client/TREK/TREK_PaddScreen.lua       the PADD's screen: channel, history, library; the K key
+TrekShuttle/42/media/lua/shared/TREK/TREK_Comms.lua            the channel's stores, conditions and renderer
+TrekShuttle/42/media/lua/shared/TREK/TREK_CommsTree.lua        the dialogue tree (generated by tools/gen_comms.py)
+TrekShuttle/42/media/lua/server/TREK/TREK_CommsServer.lua      the channel's authority: scheduler, call, holder, conversion
+TrekShuttle/42/media/lua/shared/Translate/EN/Print_Text.json   every channel line (generated)
+tools/comms_threads.py                                         the channel, as written
 tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network
 ```
 

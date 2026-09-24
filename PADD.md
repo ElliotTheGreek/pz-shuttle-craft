@@ -5,10 +5,12 @@ The working guide for the Personal Access Display Device, in the shape
 engine facts it rests on, the one decision that shapes all of it, how each
 piece works, and what is still to see in a game.
 
-**Phase one is built and played. Phase two is section 12** — a full-screen
-surface, transcribed tapes, and the entire Adirondack channel. `COMMS.md` is its
-other half and the two files have to be read together: **the channel's content,
-scheduling and multiplayer authority live there; its surface lives here.**
+**Phase one is built and played. Phase two, section 12, is built** (2026-09-24)
+-- a full-screen surface, transcribed tapes, and the entire Adirondack channel --
+and its first call has been seen in game. `COMMS.md` is its other half and the
+two files have to be read together: **the channel's content, scheduling and
+multiplayer authority live there; its surface lives here.** Section 12.8 is what
+was built and how it differs from the spec above it.
 
 **Built and played 2026-09-24**: books loaded, the character died, the PADD
 was recovered off the body with its library intact. A finished title carries
@@ -322,7 +324,8 @@ it is in one inventory. Sharing is copying, or handing it over.
   too, readable anywhere aboard. It would make the PADD's portability the
   point rather than its storage; worth considering once the PADD exists.
 - ~~**Tapes and discs.**~~ **Reversed 2026-09-24** — transcription is phase two,
-  section 12. A tape is still *played* on the television; the PADD *reads* it.
+  section 12. A tape is still *played* on the television; the PADD *reads* it, and
+  reading it does what watching it does (12.8).
 
 ---
 
@@ -382,7 +385,9 @@ shelf, a titled novel ticked in the literature panel, and -- on the server
 
 ## 12. Phase two: the full-screen PADD
 
-Specced 2026-09-24. Nothing here is built. `COMMS.md` is the other half.
+Specced 2026-09-24 and **built the same day**. 12.1-12.7 are the spec as written;
+12.8 is what was built, including two things the author reversed while it was
+being built. `COMMS.md` is the other half.
 
 Phase one is a context menu. Phase two is **a screen** — because three things
 arriving at once all want a surface, and none of them fits in a right-click
@@ -518,3 +523,72 @@ the ship's decks. Taken that way it constrains the design usefully:
   immediately may be the right answer or may throw away every reveal at once.
 - **Whether the six Tucker Gold fragments get a view of their own.** They are
   evidence rather than testimony, and a player will want them in order.
+
+All six are answered in 12.8.
+
+### 12.8 As built
+
+**Files.** `client/TREK/TREK_PaddScreen.lua` (the screen, its notes and the key),
+`shared/TREK/TREK_Comms.lua` (the stores, conditions and the renderer),
+`server/TREK/TREK_CommsServer.lua` (the authority), the generated
+`shared/TREK/TREK_CommsTree.lua` and `Translate/EN/Print_Text.json` from
+`tools/gen_comms.py` + `tools/comms_threads.py`, and in `TREK_Padd.lua` /
+`TREK_PaddActions.lua` the transcripts and `TREKTranscribePadd` / `TREKReadTape`.
+
+**Opening it (12.7).** *Open PADD* is the first option on every PADD's inventory
+menu -- which is also how a controller gets there on the Deck: select the PADD,
+press A. Keyboard players also get a rebindable key, **K** by default, from build
+42's own mod options (`PZAPI.ModOptions`, *Options -> Mods*). Vanilla reads
+`ModOptions.ini` when its options screen is built, before any mod Lua exists, so
+the screen re-reads it once the option is created -- or a rebound key would only
+take effect after the options screen had been opened.
+
+**The screen.** 1180x760 at most, never less than 900x600: inside a Deck's
+1280x800 with room round it. Three views on LB/RB; X and Y step the list (or page
+the channel's transcript); the transcript also has Up and Down buttons, because
+the wheel is not a Deck's; B closes. Every control is registered once and hidden
+when its view is not showing -- vanilla's `ISPanelJoypad` navigation skips
+anything not `isReallyVisible()`, so visibility is what decides reachability. A
+timed node shows its clock ("Silence in 23s"), counted from when the node reached
+this client; the server's clock is the one that decides. The screen closes itself
+when its PADD is no longer carried.
+
+**What an empty PADD shows (12.7).** The channel view says she has not called
+yet; the library says how to load a book or transcribe a tape. Never an empty box.
+**A ringing call fills the box itself** -- the first play-test found it falling
+through to "she has not called" while she was calling.
+
+**Tapes -- reversed by the author while it was built.** 12.3 said a player may
+only transcribe a tape they had watched to the end, and that reading a transcript
+grants nothing. Both are gone:
+
+- **Any tape** can be transcribed -- vanilla's and the mod's, watched or not. The
+  tape stays where it was; the PADD gains its recording id.
+- **Reading a transcript does what watching it does, once.** `TREKReadTape` feeds
+  each line through vanilla's own interpreter, `ISRadioInteractions.checkPlayer`,
+  with no source square: it records the line as heard *before* applying anything,
+  so a line pays once per character whether it was heard on the television or read
+  here, and it keeps the XP cut-off and the halos.
+- **It is paced, not instant.** The interpreter debounces each code for thirty
+  ticks per player; applying a whole tape in the last tick would fire one BOR and
+  swallow the rest. The read applies its lines evenly across its length, a line's
+  time is the television's (length / 10 * 60 frames) over the PADD's speed, and the
+  per-line floor (`C.PaddTapeLineMin` 160) is set so that is never under thirty.
+- **On the authority only**, like the television's own effects in multiplayer.
+  The guard is in `applyTo` alone; `update()` runs on the client too.
+
+**Transcripts copy (12.7)** with the books, in the same action, and an erase takes
+both.
+
+**The fragments get their own rows (12.7)**, in order, once the channel has
+mentioned them: a transcribed one reads; one converted and not transcribed says
+it is on the shelf; the rest say not recovered. The gap is the point.
+
+**Late joiners see the whole history (12.7, decided).** The record is the ship's.
+
+**What was learned, for DEV_GUIDE:** a translation category cannot be added by a
+mod (`Translator.BY_NAME` is a fixed list, and keys route by prefix), so the
+channel's text lives in `Print_Text.json`, which this mod did not have and
+`gen_comms.py` owns outright; and `MediaLineData.getTranslatedText()` is
+`Translator.getText(key)`, so a transcript renders straight from the `RecMedia`
+table with no engine media calls at all.
