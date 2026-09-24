@@ -99,12 +99,17 @@ end
 ---------------------------------------------------------------------------
 -- Day zero, and what the rest of the mod tells the channel
 ---------------------------------------------------------------------------
---- Sets day zero the first time the ship is found to be built. Returns true
---- when it changed anything.
+--- Sets day zero the first time the ship is found built **and commissioned**
+--- (ENERGY.md 10.4). On a cold ship that is the first power-up -- the cabin
+--- was built when they first walked in, dark -- so the sandbox's "when the
+--- Adirondack first calls" counts from commissioning. A commissioned start is
+--- commissioned from the beginning, so day zero stays first boarding, as it
+--- always was. Returns true when it changed anything.
 function S.commission()
     local d = Cm.store()
     if d.day0 then return false end
-    if not U.state().built then return false end
+    local s = U.state()
+    if s.built ~= true or s.commissioned ~= true then return false end
     d.day0 = now()
     d.flags.commissioned = true
     U.log("comms: day zero is hour %.1f; the first call is due on day %d",

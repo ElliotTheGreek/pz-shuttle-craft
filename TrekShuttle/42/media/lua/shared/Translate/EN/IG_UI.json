@@ -176,6 +176,8 @@
     "IGUI_TREK_PowerEmergency": "EMERGENCY POWER",
     "IGUI_TREK_PowerLow": "Power at %1 percent, and no spare crystals aboard",
     "IGUI_TREK_PowerLastCrystal": "The last dilithium crystal is burning",
+    "IGUI_TREK_ColdPlaced": "Your shuttle is down nearby, without power",
+    "IGUI_TREK_ColdRecovery": "A probe has been fabricated from the reserve cells. Find dilithium",
     "IGUI_TREK_EmergencyLanding": "Main power lost. Emergency landing",
     "IGUI_TREK_EmergencyLanded": "Emergency landing complete. The shuttle is down, without power",
     "IGUI_TREK_PowerDown": "Main power lost. Emergency lighting only",

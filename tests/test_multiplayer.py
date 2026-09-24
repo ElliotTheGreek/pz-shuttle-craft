@@ -7051,17 +7051,26 @@ def distress():
     for w in rt.warnings():
         fail(f"distress: {w}")
 
-    # --- a ship with no dilithium hears nothing -------------------------------
+    # --- an uncommissioned ship hears nothing (ENERGY.md 10.4) ----------------
+    # It used to be "no dilithium, no calls". The calls and the channel work
+    # dark now (3.2, the author's decision), so what keeps a ship deaf is
+    # never having been commissioned: a cold ship before its first crystal.
+    # A commissioned ship that has run itself flat still listens.
     net = Net("sp")
     rt = net.server
     rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
     net.start()
     rt.run(f"TREK.Transport.beamUp({P})")
     net.pump(210)
-    rt.run("local s = TREK.Util.state(); s.power = 0; s.crystals = 0")
+    rt.run("local s = TREK.Util.state(); s.commissioned = false")
     tick_missions(rt)
     check(rt.eval("TREK.Probes.store().nextDistressAt") is None,
-          "distress: a ship with no dilithium at all is listening for calls")
+          "distress: a ship that was never commissioned is listening for calls")
+    rt.run("local s = TREK.Util.state(); s.commissioned = true; s.power = 0; s.crystals = 0")
+    tick_missions(rt)
+    check(rt.eval("TREK.Probes.store().nextDistressAt") is not None,
+          "distress: a commissioned ship that ran flat stopped listening -- the "
+          "calls are meant to work dark")
     for w in rt.warnings():
         fail(f"distress (unpowered): {w}")
 
@@ -9953,6 +9962,272 @@ def energy_emergency_mp():
           "through the hatch with no power")
 
 
+def cold_start():
+    """The cold start (ENERGY.md section 10), walked the way 10.5 has the
+    player walk it: spawn, told she is down nearby, walk in through the hatch
+    to a red, silent cabin, launch a probe that always finds dilithium, take
+    the crystal to the core, and hear her come to life -- which is the
+    commissioning, and what the story's clock waits on.
+
+    The sandbox value is **absent** here, which must read as cold: the suite's
+    harness sets Commissioned for every other section, so this is the one place
+    the game's own default is checked.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SandboxVars.TrekShuttle.StartState = nil")
+    rt.run("SIM.player('captain', 4000.5, 4000.5, 0)")
+    net.start()
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    PM = int(C("PowerMax"))
+
+    # --- 10.2: the state ------------------------------------------------------
+    state = {k: ship(rt, k) for k in ("commissioned", "coldStart", "power",
+                                      "crystals", "probes", "dark")}
+    check(state == {"commissioned": False, "coldStart": True, "power": 0,
+                    "crystals": 0, "probes": C("ColdStartProbes"), "dark": True},
+          f"cold start: a new world with the option absent began as {state}")
+
+    # --- 10.3: down beside the first player -----------------------------------
+    # The notes are not cleared first: she can be down within the harness's
+    # own start-up ticks, which is how quickly it should happen.
+    net.pump(60)
+    check(ship(rt, "landed") is True and ship(rt, "coldPlaced") is True,
+          "cold start: the shuttle was never set down beside the player")
+    d = max(abs(ship(rt, "x") - 4000), abs(ship(rt, "y") - 4000))
+    check(int(C("ColdPlaceMin")) <= d <= int(C("ColdPlaceMax")),
+          f"cold start: she came down {d} squares from the player, not "
+          f"{C('ColdPlaceMin')}..{C('ColdPlaceMax')}")
+    check("IGUI_TREK_ColdPlaced" in rt.notes(),
+          f"cold start: the player was not told where she is ({rt.notes()})")
+    rt.run("TREK.Server.serviceVehicle()")
+    v = "TREK.Vehicle.ship()"
+    check(rt.eval(f"SIM.startEngine({v})") == "noPower",
+          "cold start: a dark ship's engine would start")
+    whole = rt.eval(f"""(function()
+        for _, p in ipairs({v}:partList()) do
+            if p.condition ~= 100 then return false end
+        end
+        return true end)()""")
+    check(whole is True, "cold start: she was set down damaged")
+    placed = (ship(rt, "x"), ship(rt, "y"))
+    rt.run(f"local p = {P}; p.x = p.x + 30")
+    net.pump(120)
+    check((ship(rt, "x"), ship(rt, "y")) == placed,
+          "cold start: she was moved again when the player walked on")
+
+    # A cold ship whose vehicle is lost before she is commissioned is not left
+    # overhead, where nobody could ever reach her: she is set down again.
+    rt.run("""
+        local s = TREK.Util.state()
+        s.landed, s.vehicleId = false, nil
+        for _, v in ipairs(SIM.vehicles) do v.removed = true end
+    """)
+    net.pump(60)
+    check(ship(rt, "landed") is True,
+          "cold start: a dark ship that lost her vehicle before commissioning was "
+          "left overhead, where nobody can reach her")
+    placed = (ship(rt, "x"), ship(rt, "y"))
+
+    # --- the loop: no beam, walk in ------------------------------------------
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(20)
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is False,
+          "cold start: a dark ship beamed the captain up")
+    rt.run(f"local p = {P}; p.x, p.y = {ship(rt, 'x')} + 0.5, {ship(rt, 'y')} + 4.5")
+    net.pump(40)
+    rt.run(f"TREK.Core.enter({P})")
+    net.pump(220)
+    if died(rt, "cold start, walking in"):
+        return
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is True,
+          "cold start: the hatch would not take the captain aboard a dark ship")
+    check(ship(rt, "built") is True, "cold start: the cabin was not built for a dark ship")
+    check(crystals_aboard(rt) == 0, "cold start: the cabin build issued spare crystals")
+    check(float(rt.eval("TREK.Power.reserve()")) == 0,
+          "cold start: walking in cost something, or filled the reserve")
+
+    # Before commissioning: the story's clock has not started, and nothing hears.
+    rt.run("TREK.CommsServer.commission()")
+    check(rt.eval("TREK.Comms.store().day0") is None,
+          "cold start: day zero was set before the ship was commissioned")
+    check(rt.eval("TREK.Missions.hearing()") is False,
+          "cold start: an uncommissioned ship is listening for distress calls")
+
+    # --- a probe, dark -------------------------------------------------------
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(10)
+    check(ship(rt, "probes") == C("ColdStartProbes") - 1,
+          "cold start: a dark ship would not launch a probe from its rack")
+    for _ in range(int(C("ProbeFlightTicks")) + 2):
+        rt.run("TREK.Server.serviceProbe()")
+    check(int(rt.eval("#TREK.Probes.contacts()")) == 1
+          and str(rt.eval("TREK.Probes.contacts()[1].kind")) == "dilithium",
+          "cold start: the first probe did not find dilithium")
+
+    # The recovery probe does not fire while a way forward is still out there.
+    rt.run("TREK.Util.state().probes = 0")
+    check(rt.eval("TREK.ColdStart.serviceRecovery()") is False,
+          "cold start: a recovery probe while a dilithium contact is still live")
+
+    # --- the crystal, loaded: the commissioning -------------------------------
+    stand_at(rt, net, int(C("DilithiumSpot").x) + 1, int(C("DilithiumSpot").y))
+    rt.run(f'{P}.inventory:AddItem(instanceItem("{C("DilithiumItem")}"))')
+    rt.run("SIM.notes = {}; SIM.sounds = {}")
+    rt.run(f"TREK.Core.send({P}, 'loadCrystal', {{}})")
+    net.pump(4)
+    check(ship(rt, "commissioned") is True, "cold start: the first crystal did not commission her")
+    check(ship(rt, "dark") is False and float(rt.eval("TREK.Power.reserve()")) == PM,
+          "cold start: the first crystal did not bring the power up")
+    check("IGUI_TREK_Commissioned" in rt.notes(),
+          f"cold start: the commissioning was not announced ({rt.notes()})")
+    check("TREK_PowerUp" in [str(s.name) for s in rt.eval("SIM.sounds").values()],
+          "cold start: the commissioning was silent")
+    rt.run("TREK.CommsServer.commission()")
+    check(rt.eval("TREK.Comms.store().day0") is not None,
+          "cold start: commissioning did not start the story's clock")
+    check(rt.eval("TREK.Missions.hearing()") is True,
+          "cold start: a commissioned ship is not listening for calls")
+    # Out through the hatch, which is where her vehicle is loaded.
+    rt.run(f"TREK.Core.exit({P})")
+    net.pump(320)
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is False,
+          "cold start: the captain could not step out of a commissioned ship")
+    rt.run("TREK.Server.serviceVehicle()")
+    check(rt.eval(f"{v} ~= nil and SIM.startEngine({v})") == "started",
+          "cold start: a commissioned ship's engine would not start")
+    # Commissioned, she is the crew's: sent up, she stays up.
+    rt.run(f"TREK.Menu.onRecall(nil, {P})")
+    net.pump(60)
+    check(ship(rt, "landed") is False,
+          "cold start: a commissioned ship sent up was dragged back down beside "
+          "the player")
+    # A second power-up is not a second commissioning.
+    energy_state(rt, 0, 0)
+    rt.run("TREK.Energy.powerChanged(); SIM.notes = {}")
+    energy_state(rt, PM, 0)
+    rt.run("TREK.Energy.powerChanged()")
+    check("IGUI_TREK_Commissioned" not in rt.notes() and "IGUI_TREK_PowerUp" in rt.notes(),
+          f"cold start: a later power-up was announced as {rt.notes()}")
+
+    for w in rt.warnings():
+        fail(f"cold start: {w}")
+    print("cold start: an absent option is cold; she is set down dark and whole "
+          "beside the first player; no beam, but the hatch; a cabin with no spares; "
+          "the probe finds dilithium; and the first crystal commissions her, with the "
+          "sound, the clock and the calls")
+
+
+def cold_start_edges():
+    """The ways a cold start must not go wrong: an old save drained, a
+    commissioned start that is cold, and a campaign with no way forward."""
+    P = "SIM.players[1]"
+
+    # --- an existing save is never drained -----------------------------------
+    net = Net("sp")
+    rt = net.server
+    rt.run("SandboxVars.TrekShuttle.StartState = 1")
+    rt.run("SIM.player('old', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run("""
+        local s = TREK.Util.state()
+        s.commissioned, s.coldStart, s.dark, s.probes = nil, nil, nil, nil
+        s.built, s.power, s.crystals = true, 1234, 2
+    """)
+    check(rt.eval("TREK.ColdStart.init()") == "migrated",
+          "cold edges: an existing ship was not recognised as one")
+    check(ship(rt, "commissioned") is True and ship(rt, "power") == 1234
+          and ship(rt, "crystals") == 2,
+          "cold edges: a cold-start setting drained an existing save")
+    check(rt.eval("TREK.ColdStart.init()") is None,
+          "cold edges: the start was decided twice")
+
+    # --- a commissioned start is the ship as she was --------------------------
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('new', 1000.5, 1000.5, 0)")
+    net.start()
+    check(ship(rt, "commissioned") is True and ship(rt, "coldStart") is None,
+          "cold edges: a Commissioned world began cold")
+    net.pump(60)
+    check(ship(rt, "landed") is not True,
+          "cold edges: a commissioned ship was set down beside the player")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(200)
+    check(crystals_aboard(rt) == rt.eval("TREK.Config.DilithiumIssue"),
+          "cold edges: a commissioned ship was not issued her spares")
+
+    # --- the recovery probe ----------------------------------------------------
+    net = Net("sp")
+    rt = net.server
+    rt.run("SandboxVars.TrekShuttle.StartState = 1")
+    rt.run("SIM.player('lost', 4000.5, 4000.5, 0)")
+    net.start()
+    net.pump(60)
+    rt.run("TREK.Util.state().probes = 0; TREK.Probes.store().contacts = {}")
+    check(rt.eval("TREK.ColdStart.serviceRecovery()") is True,
+          "cold edges: a stranded cold ship was given no probe")
+    check(ship(rt, "probes") == 1, "cold edges: the recovery put no probe in the rack")
+    rt.run("TREK.Util.state().probes = 0")
+    check(rt.eval("TREK.ColdStart.serviceRecovery()") is False,
+          "cold edges: two recovery probes in one game day")
+    for i in range(3):
+        rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 25; TREK.Util.state().probes = 0")
+        rt.run("TREK.ColdStart.serviceRecovery()")
+    check(ship(rt, "coldRecoveries") == 4, f"cold edges: {ship(rt, 'coldRecoveries')} recoveries")
+    check(any("recovery probes in one save" in w for w in rt.warnings()),
+          "cold edges: a fourth recovery probe said nothing -- that is a bug, not luck")
+    rt.run("SIM.log = {}")
+    # A crystal in hand to load means the core is not empty: no recovery.
+    rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 25")
+    rt.run("TREK.Util.state().crystals = 1; TREK.Util.state().probes = 0")
+    check(rt.eval("TREK.ColdStart.serviceRecovery()") is False,
+          "cold edges: a recovery probe with a crystal in the core")
+
+    for w in rt.warnings():
+        fail(f"cold edges: {w}")
+    print("cold edges: an old save carries on commissioned and full, a commissioned "
+          "world is the ship as she was, and a stranded cold ship gets a probe a day "
+          "at most, with a warning past three")
+
+
+def cold_start_mp():
+    """Two players, a cold world: she comes down beside the first to join,
+    both machines see her there dark, and both hear the commissioning."""
+    net = Net("mp", clients=("first", "second"))
+    srv, A, B = net.server, net.clients["first"], net.clients["second"]
+    for rt in net.all():
+        rt.run("SandboxVars.TrekShuttle.StartState = 1")
+    srv.run("SIM.player('first', 5000.5, 5000.5, 0); SIM.player('second', 5080.5, 5000.5, 0)")
+    A.run("SIM.player('first', 5000.5, 5000.5, 0)")
+    B.run("SIM.player('second', 5080.5, 5000.5, 0)")
+    net.start()
+    net.pump(60)
+    check(ship(srv, "landed") is True, "cold mp: she was never set down")
+    d = max(abs(ship(srv, "x") - 5000), abs(ship(srv, "y") - 5000))
+    check(d <= int(srv.eval("TREK.Config.ColdPlaceMax")),
+          f"cold mp: she came down {d} squares from the first player to join")
+    for name, c in (("first", A), ("second", B)):
+        check(c.eval("TREK.Power.dark()") is True and c.eval("TREK.Util.state().commissioned") is False,
+              f"cold mp: {name}'s copy of the ship is not a dark, uncommissioned one")
+        c.run("SIM.notes = {}")
+    energy_state(srv, int(srv.eval("TREK.Config.PowerMax")), 0)
+    srv.run("TREK.Energy.powerChanged()")
+    net.pump(2)
+    for name, c in (("first", A), ("second", B)):
+        check("IGUI_TREK_Commissioned" in c.notes(),
+              f"cold mp: {name} did not hear the commissioning ({c.notes()})")
+        check(c.eval("TREK.Util.state().commissioned") is True,
+              f"cold mp: {name}'s copy of the ship was never told she is commissioned")
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"cold mp ({rt.name}): {w}")
+    print("cold mp: she comes down beside the first to join, both machines see "
+          "her dark, and both hear the commissioning")
+
+
 def energy_multiplayer():
     """Two clients: the flag reaches both, and a race pays once."""
     net = Net("mp", clients=("kirk", "spock"))
@@ -10039,7 +10314,8 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, energy,
             energy_movement, energy_cabin, energy_shields, energy_emergency,
-            energy_emergency_mp,
+            energy_emergency_mp, cold_start, cold_start_edges,
+            cold_start_mp,
             energy_multiplayer, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,

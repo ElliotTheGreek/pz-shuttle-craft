@@ -1036,6 +1036,36 @@ C.OdometerMaxJump = 60
 -- clear of the field and has to walk back in, so each is pushed two or three
 -- times in a window at most: a hundred covers forty or so at the hull. A
 -- bigger horde than that is undercharged, which is the right way round.
+-- The cold start (ENERGY.md section 10), sandbox `TrekShuttle.StartState`.
+-- Cold is the default for a new world: zero power, no spares, two probes, and
+-- the ship landed dark beside the first player. Commissioned is the ship as
+-- she always was. **Only a brand new ship reads it**: a save whose ship has
+-- ever been built or landed carries on commissioned whatever the setting.
+C.StartCold = 1
+C.StartCommissioned = 2
+C.ColdStartProbes = 2
+
+--- The start the server owner chose. An absent value is **cold**: the feature
+--- as designed, the precedent C.ReplicatorPatterns set.
+function C.startState()
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.StartState
+    end)
+    v = ok and tonumber(v) or nil
+    if v == C.StartCommissioned then return C.StartCommissioned end
+    return C.StartCold
+end
+
+-- Where a cold ship is set down: this many squares from the first player,
+-- measured on the square ring (Chebyshev), close enough to see and with room
+-- to walk to her. The author's starting distance, 2026-09-24.
+C.ColdPlaceMin = 6
+C.ColdPlaceMax = 15
+-- A cold ship that has run out of every way to find a crystal is given one
+-- probe a game day (10.6). More than this in one save is a bug, not bad luck,
+-- and says so in the log.
+C.ColdRecoveryWarn = 3
+
 -- The emergency landing (ENERGY.md section 7). The top speed a dark ship is
 -- held to while her pilot looks for somewhere to set her down: a glide, not a
 -- flight. And how long the server waits before asking the crew again to take

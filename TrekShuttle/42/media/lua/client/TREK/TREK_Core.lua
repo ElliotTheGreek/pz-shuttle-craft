@@ -234,6 +234,16 @@ Net.onClient("powerDown", function()
     toEveryLocal(getText("IGUI_TREK_PowerDown"), 255, 170, 90, "TREK_PowerDown")
 end)
 
+-- The cold start (ENERGY.md section 10).
+Net.onClient("coldPlaced", function()
+    local player = U.player(0)
+    if player then U.note(player, getText("IGUI_TREK_ColdPlaced"), 150, 220, 255) end
+end)
+
+Net.onClient("coldRecovery", function()
+    toEveryLocal(getText("IGUI_TREK_ColdRecovery"), 150, 220, 255)
+end)
+
 -- The emergency landing (ENERGY.md section 7).
 Net.onClient("emergency", function()
     toEveryLocal(getText("IGUI_TREK_EmergencyLanding"), 255, 170, 90)

@@ -69,7 +69,17 @@ function E.powerChanged()
     end
     U.log("power: main power online -- %d units, %d spare(s)",
           math.floor(P.reserve()), P.crystals())
-    Net.toAll("powerUp", {})
+    -- **The first power-up of a cold ship is the commissioning** (ENERGY.md
+    -- 10.4). Explicit and published, never inferred from the reserve, and it
+    -- is what the story's clock waits on.
+    local args = {}
+    if s.commissioned == false then
+        s.commissioned = true
+        args.first = true
+        Ship.commit()
+        U.log("power: the shuttle is commissioned")
+    end
+    Net.toAll("powerUp", args)
     for _, fn in ipairs(E.upListeners) do U.try("powerUpListener", fn) end
     return "up"
 end

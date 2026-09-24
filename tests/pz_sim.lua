@@ -2569,7 +2569,11 @@ function getServerOptions()
         end,
     }
 end
-SandboxVars = { TrekShuttle = { Access = 1, TransporterLimit = 1 } }
+-- StartState is Commissioned here, not the game's default of Cold: every
+-- scenario in the suite was written for a ship that starts with power, and
+-- the cold start has its own sections that set it to Cold themselves. The
+-- game's own reading of a *missing* value (cold) is checked there too.
+SandboxVars = { TrekShuttle = { Access = 1, TransporterLimit = 1, StartState = 2 } }
 
 -- The world's map folders, void map included.
 function getLotDirectories()

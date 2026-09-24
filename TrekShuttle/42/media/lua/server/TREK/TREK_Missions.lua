@@ -129,14 +129,15 @@ end
 ---------------------------------------------------------------------------
 --- Whether the ship can hear a distress call at all.
 ---
---- **This is the one line cold start (ROADMAP2 1.6) changes.** Today it is a
---- ship that has been boarded -- the cabin exists -- with dilithium in the
---- core; when commissioning exists it becomes "commissioned", and nothing
---- else in this file has to move.
+--- **The one line cold start changed** (ENERGY.md 10.4): a ship that has
+--- been boarded -- the cabin exists -- and has been commissioned. Not "has
+--- dilithium": the channel and the calls work dark (3.2, decided 2026-09-24),
+--- so a ship that ran its reserve down still hears, and a cold ship that has
+--- never had power does not. A commissioned start is commissioned from the
+--- first moment, so for it this is "boarded", as it always was.
 function M.hearing()
     local s = U.state()
-    if not s.built then return false end
-    return TREK.Power.reserve() > 0 or TREK.Power.crystals() > 0
+    return s.built == true and s.commissioned == true
 end
 
 --- Where the crew are, for a call to be measured from. The first player with

@@ -1,8 +1,8 @@
 # Energy — everything aboard runs on the crystal
 
-**Status: being built, phase by phase (section 12). Phases 0 to 6 are done
+**Status: being built, phase by phase (section 12). Phases 0 to 7 are done
 (2026-09-24): the verify-first answers, the ledger, the gauge, movement,
-the dark cabin, the shields and the emergency landing. None of it has been seen in game yet.** The design questions
+the dark cabin, the shields, the emergency landing and the cold start. None of it has been seen in game yet.** The design questions
 were settled with the author on 2026-09-24 (section 13). When it is built
 it becomes the working guide for the ship's power, in the shape
 `REPLICATOR.md` and `PILOTING.md` use.
@@ -724,7 +724,13 @@ never be reached.
   server, the first player means the first to join. Everybody else finds her
   where she is.
 - If there is no room within the radius, it retries as the player moves.
-  `s.coldPlaced` records success, so it never happens twice.
+- **It is gated on "cold, uncommissioned and not landed", not on having
+  been placed once** (changed while building phase 7). A `coldPlaced` flag
+  could change nothing a mutation could see, and it would have cost a
+  soft-lock: a cold ship whose vehicle is lost before commissioning is
+  recorded as overhead, where a dark ship can never be reached. She is set
+  down beside the first player again instead. `s.coldPlaced` stays as a
+  record.
 
 ### 10.4 Commissioning
 
