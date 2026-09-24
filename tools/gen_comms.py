@@ -215,6 +215,8 @@ def validate(threads, tape_ids):
                 bad(f"{where}: silence goes to {n['silence']}, not a node of {tid}")
             if n["silence"] and not n["options"]:
                 bad(f"{where}: a silence branch on a node with nothing to answer")
+            if n["convert"] and not (1 <= int(n["convert"]) <= 6):
+                bad(f"{where}: converts fragment {n['convert']}; there are six")
             for tape in n["issue"]:
                 if tape not in tape_ids:
                     bad(f"{where}: issues {tape}, which gen_tapes.py does not make")
@@ -406,7 +408,7 @@ def write_lua(path, threads):
             if n["issue"]:
                 parts.append("issue = " + lua_list(n["issue"]))
             if n["convert"]:
-                parts.append("convert = true")
+                parts.append(f"convert = {int(n['convert'])}")
             if not n["options"] and not n["route"]:
                 parts.append("terminal = true")
             w(f"    [{lua_str(nid)}] = {{ " + ", ".join(parts) + " },")

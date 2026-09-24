@@ -82,6 +82,11 @@ VOICES = {
     # The EMH, who is in the room rather than on a channel. Green, like every
     # other second party this shelf has had: he is the one talking back.
     "emh": (0.00, 0.69, 0.31),
+    # Tucker Gold, on his own holo fragments (LORE.md 1c). The fragments'
+    # cyan -- the emitter's lit face, the map's hexagon -- so the man and the
+    # object he left read as one thing. His tapes carry no other speaker but
+    # the camera and Shepard's dub, so it is never a fifth colour on a tape.
+    "tucker": (0.60, 0.90, 1.00),
 }
 
 # The house effect: every line of every tape relieves boredom, the way every
@@ -982,6 +987,265 @@ TAPES = [
             line("card", "-- RECORDING ENDS --"),
         ],
     },
+    # -----------------------------------------------------------------------
+    # Issued by the channel, not stocked (COMMS.md 4, LORE.md 6)
+    # -----------------------------------------------------------------------
+    {
+        # LORE.md 5, #17. Off the first rescued ensign's own recorder, handed
+        # to the ship on that rescue. ROADMAP2 1.7 wanted a reward that is not
+        # another crystal. The ensigns are random names, so this one has
+        # none: it is whoever was lying there, which is the point.
+        "id": "TREK_EnsignLog",
+        "issued": True,
+        "display": "Unlabelled tape (personal recorder)",
+        "title": "Unlabelled recording",
+        "subtitle": "Off a Starfleet personal recorder, dubbed to tape",
+        "author": "an ensign of the Adirondack's survey detachment",
+        "extra": "Handed over in quarantine. Dubbed by Lt. Shepard.",
+        "spawning": 0,
+        "lines": [
+            line("card", "PERSONAL RECORDER -- NO LABEL"),
+            line("dub", "They handed me this in quarantine. They wanted you to have it."),
+            line("note", "A ceiling. The camera is on somebody's chest."),
+            line("solo", "Okay. Okay. Recording. Hi."),
+            line("solo", "I'm in a-- it's a laundromat. I think it's a laundromat."),
+            line("solo", "I'm on the floor. I'm fine. That's a lie. I'm mostly fine."),
+            line("note", "The breathing is wrong. Short, and it catches."),
+            line("solo", "My leg is cut. Not bitten. I checked. I checked twice."),
+            line("solo", "I've set the beacon. Nobody's answered it. That's fine."),
+            line("solo", "I don't know if anybody's coming. I'm sorry. I'm just--"),
+            line("solo", "Sorry. I don't know why I'm apologising. To who."),
+            line("solo", "Field dressing. Okay. Talk through it. Talk through it."),
+            line("solo", "Pressure first. Above the wound. Something tight.", codes="DOC+1"),
+            line("solo", "Belt. I've got a belt. Nobody tell the quartermaster."),
+            line("solo", "Clean it if you can. I can't. There's bleach in here.", codes="DOC+1"),
+            line("solo", "Don't use bleach. That's a joke. I'm making jokes.", codes="DOC+1"),
+            line("solo", "Cover it. Wrap it. Not so tight your foot goes cold.", codes="DOC+1"),
+            line("note", "A long pause. Something outside the window, walking."),
+            line("solo", "They walk past. They don't stop. I think they can't see me."),
+            line("solo", "I'm very still. I'm very, very still."),
+            line("solo", "If you find this and I'm-- if I'm not--"),
+            line("solo", "Tell Lieutenant Shepard it was worth it. The work."),
+            line("solo", "It's not true. Tell her anyway. She'd want it to be.", codes="UHP+1"),
+            line("note", "A chirp. Faint. From a long way off. A shuttle's hail."),
+            line("solo", "Oh. Oh. That's-- somebody's there. Somebody heard."),
+            line("solo", "Okay. Stopping. I have to be quiet now. Okay."),
+            line("card", "-- RECORDING ENDS --"),
+            line("dub", "They came up. They're in quarantine now. Thank you."),
+        ],
+    },
+    {
+        # LORE.md 1c: the six fragments. Tucker Gold's own holo recordings,
+        # flattened to tape by Shepard when the player brings one in. His
+        # life in order: what he was, her, her death, the copy, putting the
+        # power down, and an old man talking to whoever eventually asks.
+        #
+        # Rules for all six, from 1c:
+        #   * she is never named, and her nation is never named. The place is
+        #     specific; the person is private;
+        #   * no dates. Non-corporeal immortals do not file timestamps;
+        #   * no Q. He has never heard of Starfleet, or of anybody watching;
+        #   * his name is in five, because five is where he takes it;
+        #   * six is to "whoever found this", never to the player by name.
+        "id": "TREK_GoldOne",
+        "issued": True,
+        "display": "Holo fragment 1 (dubbed)",
+        "title": "Fragment one: what I was",
+        "subtitle": "A holo recording, three hundred years old",
+        "author": "dubbed to tape by Lt. Shepard",
+        "extra": "One of six. He numbered them himself.",
+        "spawning": 0,
+        "lines": [
+            line("card", "DUBBED FROM HOLO -- FRAGMENT ONE OF SIX"),
+            line("dub", "Flattened to two dimensions. It loses the depth. Sorry."),
+            line("note", "An old man in a chair by a window. The light is morning."),
+            line("tucker", "This is the first. I am going to do them in order."),
+            line("tucker", "Whoever finds these may not find them in order. Well."),
+            line("tucker", "I was not always a man. I was not always anything."),
+            line("tucker", "I was a thing that went from place to place. Looking."),
+            line("tucker", "You would not have seen me. You would have felt weather."),
+            line("tucker", "There are others of my kind. We do not keep company."),
+            line("tucker", "We have nothing to say to each other. We are too alike."),
+            line("note", "He laughs, once, and it turns into a cough."),
+            line("tucker", "I could make things. Anything. A house, a forest, a sea."),
+            line("tucker", "And unmake them. I want you to know that I could."),
+            line("tucker", "It matters to the rest of this, that I could."),
+            line("tucker", "I came to your people because you die."),
+            line("tucker", "Nothing I had ever known died. Stars, but not quickly."),
+            line("tucker", "You were born and you were gone, and in between you"),
+            line("tucker", "did the most extraordinary things, in such a hurry."),
+            line("tucker", "I watched for a long time. I did not interfere."),
+            line("tucker", "I thought watching was a kind of respect.", codes="UHP-1"),
+            line("tucker", "I thought a great many things, then."),
+            line("note", "He looks out of the window. Something outside, a river."),
+            line("tucker", "That is the first. The next one is about her."),
+            line("card", "-- FRAGMENT ONE ENDS --"),
+        ],
+    },
+    {
+        "id": "TREK_GoldTwo",
+        "issued": True,
+        "display": "Holo fragment 2 (dubbed)",
+        "title": "Fragment two: her",
+        "subtitle": "A holo recording, three hundred years old",
+        "author": "dubbed to tape by Lt. Shepard",
+        "extra": "One of six.",
+        "spawning": 0,
+        "lines": [
+            line("card", "DUBBED FROM HOLO -- FRAGMENT TWO OF SIX"),
+            line("note", "The same chair. Evening now. He has a blanket."),
+            line("tucker", "Two. Her."),
+            line("tucker", "I am not going to tell you her name. It was hers."),
+            line("tucker", "She was not young when I met her. That surprised me."),
+            line("tucker", "I had thought, if it ever happened, it would be young."),
+            line("tucker", "She kept bees. She argued with everybody. She laughed"),
+            line("tucker", "at me the first time I spoke, because I spoke badly."),
+            line("tucker", "I had never spoken before. I had never needed a mouth."),
+            line("note", "He smiles at something off to one side of the frame."),
+            line("tucker", "My kind is not supposed to be able to love anything."),
+            line("tucker", "We are too big. It is like a sea loving one stone."),
+            line("tucker", "I loved her. I do not know how. I stopped asking.", codes="UHP-1"),
+            line("tucker", "I made myself a man so I could sit with her."),
+            line("tucker", "A poor one, at first. I did not know about hunger."),
+            line("tucker", "Or cold, or tiredness. She taught me. She was patient."),
+            line("tucker", "No. She was not patient. She was kind, and quick."),
+            line("tucker", "There is a difference and she was the second one."),
+            line("tucker", "I told her what I was, a little. She did not believe me."),
+            line("tucker", "Then she did, and she was not afraid. Not of me."),
+            line("tucker", "She was afraid of the war. She was right to be."),
+            line("card", "-- FRAGMENT TWO ENDS --"),
+        ],
+    },
+    {
+        "id": "TREK_GoldThree",
+        "issued": True,
+        "display": "Holo fragment 3 (dubbed)",
+        "title": "Fragment three: the war over furs",
+        "subtitle": "A holo recording, three hundred years old",
+        "author": "dubbed to tape by Lt. Shepard",
+        "extra": "One of six. The hardest of them.",
+        "spawning": 0,
+        "lines": [
+            line("card", "DUBBED FROM HOLO -- FRAGMENT THREE OF SIX"),
+            line("dub", "I only watched this once. You don't have to either."),
+            line("note", "No chair. He is standing, and he does not sit down."),
+            line("tucker", "Three. How she died. I will say it once."),
+            line("tucker", "There was a war in that valley. It was about furs."),
+            line("tucker", "Beaver pelts. Hats, in cities she would never see."),
+            line("tucker", "The people who fought it had never met her."),
+            line("tucker", "Most of them had never met each other."),
+            line("tucker", "Somebody far away wanted pelts, and so people came."),
+            line("tucker", "And the valley emptied, raid by raid, for years."),
+            line("tucker", "I could have stopped it. I have told you I could."),
+            line("tucker", "I did not. I thought it was not mine to stop."),
+            line("tucker", "I had watched a long time. Watching was what I did."),
+            line("note", "A very long silence. He does not look at the camera."),
+            line("tucker", "They came in the morning. I was at the river.", codes="UHP+1"),
+            line("tucker", "I was a man that day. I was slow. I was too slow."),
+            line("tucker", "She was dead before I was back up the hill.", codes="UHP+1"),
+            line("tucker", "I have never told anyone that I was at the river."),
+            line("tucker", "I am telling you, because you are nobody. Forgive me."),
+            line("tucker", "The next one is what I did about it."),
+            line("tucker", "It is worse. Or it is better. I have never decided."),
+            line("card", "-- FRAGMENT THREE ENDS --"),
+        ],
+    },
+    {
+        "id": "TREK_GoldFour",
+        "issued": True,
+        "display": "Holo fragment 4 (dubbed)",
+        "title": "Fragment four: the copy",
+        "subtitle": "A holo recording, three hundred years old",
+        "author": "dubbed to tape by Lt. Shepard",
+        "extra": "One of six.",
+        "spawning": 0,
+        "lines": [
+            line("card", "DUBBED FROM HOLO -- FRAGMENT FOUR OF SIX"),
+            line("note", "The chair again. He is older. He speaks slowly now."),
+            line("tucker", "Four. I copied it."),
+            line("tucker", "Not her. Not only her. I want to be exact about this."),
+            line("tucker", "I took the valley. The river, and the bend in it."),
+            line("tucker", "The falls where the boats had to stop. The escarpment."),
+            line("tucker", "The salt licks. The hunting country. The weather."),
+            line("tucker", "And I put it on a world in a similar orbit, far away."),
+            line("tucker", "Where nobody was fighting over anything at all."),
+            line("tucker", "And the people. I copied the people on it. Everyone."),
+            line("tucker", "The ones who would have died in the raids, and her."),
+            line("note", "He holds up a hand, as if somebody has interrupted."),
+            line("tucker", "I know. I know what that is. I have thought of little else."),
+            line("tucker", "They were not copies to themselves. They woke up."),
+            line("tucker", "They were hungry and cold and arguing, like people."),
+            line("tucker", "They were people. They are people. I did not make them.", codes="UHP-1"),
+            line("tucker", "I made the ground they stand on. That is all."),
+            line("tucker", "I owe them something. I do not know what it is."),
+            line("tucker", "Perhaps only to leave them alone. So I tried that."),
+            line("card", "-- FRAGMENT FOUR ENDS --"),
+        ],
+    },
+    {
+        "id": "TREK_GoldFive",
+        "issued": True,
+        "display": "Holo fragment 5 (dubbed)",
+        "title": "Fragment five: putting it down",
+        "subtitle": "A holo recording, three hundred years old",
+        "author": "dubbed to tape by Lt. Shepard",
+        "extra": "One of six. His name is in this one.",
+        "spawning": 0,
+        "lines": [
+            line("card", "DUBBED FROM HOLO -- FRAGMENT FIVE OF SIX"),
+            line("note", "Outside now. A porch. A dog asleep on his feet."),
+            line("tucker", "Five. I put it down."),
+            line("tucker", "Whatever I was. The making and the unmaking. All of it."),
+            line("tucker", "I made myself a man, and then I made it stick."),
+            line("tucker", "It was the hardest thing I have ever done."),
+            line("tucker", "Harder than the valley. Harder than the river."),
+            line("tucker", "You cannot know what it is to close a hand for good."),
+            line("tucker", "I needed a name, then. A man has to have a name."),
+            line("tucker", "Tucker Gold. It is a stupid name. She chose it."),
+            line("tucker", "She said I looked like I'd been left out in the sun."),
+            line("note", "He laughs, properly, and the dog wakes up and glares."),
+            line("tucker", "We grew old. That was the whole plan. It worked."),
+            line("tucker", "My back hurt. My eyes went. I loved all of it.", codes="UHP-1"),
+            line("tucker", "She never asked what happened to her the first time."),
+            line("tucker", "I never told her. I do not know if that was right."),
+            line("tucker", "I think she knew. She would look at the river, sometimes."),
+            line("tucker", "Then she would go back to the bees."),
+            line("card", "-- FRAGMENT FIVE ENDS --"),
+        ],
+    },
+    {
+        "id": "TREK_GoldSix",
+        "issued": True,
+        "display": "Holo fragment 6 (dubbed)",
+        "title": "Fragment six: for whoever found this",
+        "subtitle": "A holo recording, three hundred years old",
+        "author": "dubbed to tape by Lt. Shepard",
+        "extra": "The last of six.",
+        "spawning": 0,
+        "lines": [
+            line("card", "DUBBED FROM HOLO -- FRAGMENT SIX OF SIX"),
+            line("dub", "This one's for you. He didn't know your name either."),
+            line("note", "A bed. He is very old. The light is bad."),
+            line("tucker", "Six. This one is for whoever found it."),
+            line("tucker", "She is gone. Years now. I am going soon. It is fine."),
+            line("tucker", "I have left these in more than one place. I know how"),
+            line("tucker", "things get lost. I have lost the only thing that mattered."),
+            line("tucker", "If you are hearing this, the world outlived us both."),
+            line("tucker", "I hoped it would. I did not make it to last for ever."),
+            line("tucker", "I made it to be left alone. Has it been left alone?"),
+            line("note", "He waits, as if for an answer. The pause is long."),
+            line("tucker", "Probably not. Nothing is. Somebody always comes."),
+            line("tucker", "I did. That is how all of this started."),
+            line("tucker", "Whoever you are: the people on this ground are real."),
+            line("tucker", "Whatever anybody tells you. Whatever they are for.", codes="UHP-1"),
+            line("tucker", "I only made the ground. Everything on it made itself."),
+            line("tucker", "Look after it, if you can. I stopped being able to."),
+            line("tucker", "That was the price. I would pay it again. Every time."),
+            line("tucker", "There. That is all of me. You can turn it off."),
+            line("note", "He does not turn it off. The recording runs on, quiet."),
+            line("card", "-- FRAGMENT SIX ENDS --"),
+        ],
+    },
 ]
 
 
@@ -1062,9 +1326,15 @@ def write_lua(path, entries):
     out.append("RecMedia = RecMedia or {}")
     out.append("")
 
-    ids = []
+    ids, shelf = [], []
     for tape, fields, lines in entries:
         ids.append(tape["id"])
+        # An `issued` tape is registered like any other and is not on the
+        # shelf from the first build: the channel hands it to the ship when
+        # the story gets there (COMMS.md 4, LORE.md 6), and TREK_Build puts it
+        # on the shelf then.
+        if not tape.get("issued"):
+            shelf.append(tape["id"])
         out.append('-- %s' % tape["title"])
         out.append('RecMedia["%s"] = {' % tape["id"])
         out.append("    itemDisplayName = %s," % lua_string(fields["display"]))
@@ -1086,13 +1356,21 @@ def write_lua(path, entries):
     out.append("-- reads this to stock the tape shelf, so a tape added above")
     out.append("-- reaches the shelf without a second list to keep in step.")
     out.append("TREK_TapeIds = {")
+    for ident in shelf:
+        out.append('    "%s",' % ident)
+    out.append("}")
+    out.append("")
+    out.append("-- Every tape this mod registers, the issued ones included: the")
+    out.append("-- registration below has to cover a tape that is not on the shelf")
+    out.append("-- yet, or it arrives blank.")
+    out.append("TREK_AllTapeIds = {")
     for ident in ids:
         out.append('    "%s",' % ident)
     out.append("}")
     out.append("")
     out.append("Events.OnInitRecordedMedia.Add(function(rc)")
     out.append("    if not rc then return end")
-    out.append("    for _, id in ipairs(TREK_TapeIds) do")
+    out.append("    for _, id in ipairs(TREK_AllTapeIds) do")
     out.append("        local known = nil")
     out.append("        local ok = pcall(function() known = rc:getMediaData(id) end)")
     out.append("        if ok and not known then")

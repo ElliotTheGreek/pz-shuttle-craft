@@ -1150,6 +1150,35 @@ def main():
                for d in found if d.kind == "text"):
         failures.append("tricorder: the ensign is in range and the readout "
                         "does not say so")
+    # A holo fragment as well, on the range limit due west: a frame round a
+    # lit centre -- the only 11x11 border on the plot -- on the west edge, and
+    # its own line in a readout that already has the ensign's.
+    lua.execute("""
+        win.result.clue = { dx = -TREK.Config.SweepRadius, dy = 0,
+                            dist = TREK.Config.SweepRadius, compass = "W", n = 3 }
+    """)
+    both = run_frames(lua, "tricorder, the ensign and a fragment")
+    check_bounds(lua, both, "tricorder, the ensign and a fragment")
+    frames = [d for d in both if d.kind == "rectborder"
+              and abs(float(d.w) - 11) < 0.01 and abs(float(d.h) - 11) < 0.01]
+    if len(frames) != FRAMES:
+        failures.append(f"tricorder: a holo fragment in range was drawn "
+                        f"{len(frames) // FRAMES} times, not once")
+    else:
+        box = next(d for d in both
+                   if d.kind == "rectborder"
+                   and abs(float(d.x) - float(win.plotX)) < 0.01
+                   and abs(float(d.y) - float(win.plotY)) < 0.01)
+        side = float(box.w)
+        west = float(win.plotX) + side / 2 - (side / 2 - 6)
+        if abs(float(frames[0].x) + 5 - west) > 1.0:
+            failures.append("tricorder: a fragment on the range limit due west "
+                            "is not drawn on the west edge of the plot")
+    if not any(str(d.extra) == IG["IGUI_TREK_SweepClue"].upper()
+               for d in both if d.kind == "text"):
+        failures.append("tricorder: a holo fragment is in range and the readout "
+                        "does not say so")
+    lua.execute("win.result.clue = nil")
     lua.execute("win.result.personnel = nil")
     plain = run_frames(lua, "tricorder, no ensign")
     if any(str(d.extra) == IG["IGUI_TREK_SweepPersonnel"].upper()

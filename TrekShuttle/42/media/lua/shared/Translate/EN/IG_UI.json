@@ -367,5 +367,7 @@
     "IGUI_TREK_FragmentN": "Fragment %1 of 6",
     "IGUI_TREK_FragmentMissing": "Not recovered.",
     "IGUI_TREK_FragmentShelf": "On the shelf. Transcribe it there to read it here.",
-    "IGUI_TREK_CommsRingingBody": "The Adirondack is hailing this PADD. Press Answer to take the call."
+    "IGUI_TREK_CommsRingingBody": "The Adirondack is hailing this PADD. Press Answer to take the call.",
+    "IGUI_TREK_Contact_clue": "Holo signature: %1 tiles %2",
+    "IGUI_TREK_SweepClue": "Holo signature"
 }

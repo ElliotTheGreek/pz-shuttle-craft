@@ -561,6 +561,28 @@ local function personnelFix(sw)
              name = m.name }
 end
 
+--- The nearest holo fragment the ship has put on the ground, relative to
+--- this sweep, if one is in range (LORE.md 1c). The same arithmetic as the
+--- ensign's: the ship knows the exact square it placed the fragment on, and
+--- every client holds the contact store.
+local function clueFix(sw)
+    if not TREK.Probes then return nil end
+    local best = nil
+    for _, c in ipairs(TREK.Probes.contacts()) do
+        if c.kind == "clue" and c.placed and not TREK.Probes.isResolved(c.status)
+           and (c.z or 0) >= sw.zBottom and (c.z or 0) <= sw.zTop then
+            local dx, dy = c.x + 0.5 - sw.x, c.y + 0.5 - sw.y
+            local dist = math.sqrt(dx * dx + dy * dy)
+            if dist <= C.SweepRadius and (not best or dist < best.dist) then
+                best = { dx = dx, dy = dy, dist = dist, n = c.fragment,
+                         compass = U.compass(sw.x, sw.y, c.x + 0.5, c.y + 0.5) }
+            end
+        end
+    end
+    if best then best.dist = math.floor(best.dist + 0.5) end
+    return best
+end
+
 --- One slice. Returns true while the sweep is still running.
 function M.serviceSweep()
     if not sweep then return false end
@@ -584,6 +606,8 @@ function M.serviceSweep()
             zTop = sweep.zTop,
             -- A Starfleet life sign, drawn apart from every other contact.
             personnel = personnelFix(sweep),
+            -- A holo fragment on the ground, found by its fix.
+            clue = clueFix(sweep),
         }
         M.lastSweep = result
         sweep = nil
@@ -773,6 +797,17 @@ function TREKTricorderWindow:drawPlot()
         self:drawRect(px - 1, py - 5, 3, 11, 1, P.blue[1], P.blue[2], P.blue[3])
         self:drawRect(px, py, 1, 1, 1, P.white[1], P.white[2], P.white[3])
     end
+
+    -- **A holo fragment**, as a square frame round a lit centre: a fourth
+    -- shape, for the reason there is a third -- a thing the player came here
+    -- for must not read as one more dot.
+    local g = result.clue
+    if g then
+        local px = cx + (g.dx / result.radius) * half
+        local py = cy + (g.dy / result.radius) * half
+        self:drawRectBorder(px - 5, py - 5, 11, 11, 1, 0.31, 0.84, 0.94)
+        self:drawRect(px - 2, py - 2, 5, 5, 1, 0.82, 0.97, 1.0)
+    end
 end
 
 function TREKTricorderWindow:render()
@@ -805,6 +840,7 @@ function TREKTricorderWindow:render()
         y = y + 20
         self:drawDilithium(cx, y, result)
         self:drawPersonnel(cx, y + 18, result)
+        self:drawClue(cx, y + (result.personnel and 36 or 18), result)
         return
     end
 
@@ -832,6 +868,7 @@ function TREKTricorderWindow:render()
     -- is running: where the dilithium is.
     self:drawDilithium(cx, y, result)
     self:drawPersonnel(cx, y + 18, result)
+    self:drawClue(cx, y + (result.personnel and 36 or 18), result)
 
     if self.joyfocus then
         self:drawTextRight(string.upper(getText("IGUI_TREK_MedJoypadHint")),
@@ -861,6 +898,19 @@ function TREKTricorderWindow:drawPersonnel(cx, y, result)
                   P.blue[1], P.blue[2], P.blue[3], 1, UIFont.Small)
     self:drawTextRight(getText("IGUI_TREK_SweepPersonnelAt", tostring(f.dist),
                                f.compass), self.width - PAD, y,
+                       P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
+end
+
+--- The fragment's line: only when one is in range, like the ensign's.
+function TREKTricorderWindow:drawClue(cx, y, result)
+    local g = result and result.clue
+    if not g then return end
+    local c = { 0.31, 0.84, 0.94 }
+    H.pill(self, cx, y + 3, 22, 9, c, true, true)
+    self:drawText(string.upper(getText("IGUI_TREK_SweepClue")), cx + 30, y,
+                  c[1], c[2], c[3], 1, UIFont.Small)
+    self:drawTextRight(getText("IGUI_TREK_SweepPersonnelAt", tostring(g.dist),
+                               g.compass), self.width - PAD, y,
                        P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
 end
 

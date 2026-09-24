@@ -122,6 +122,10 @@ function S.event(kind, name)
         d.rescued = (d.rescued or 0) + 1
         d.lastName = name
         d.flags.thanksDue = true
+        -- The first rescue hands the ship a tape off the ensign's own
+        -- recorder (LORE.md 5, #17): ROADMAP2 1.7 wanted a reward that is
+        -- not another crystal, and a piece of somebody is it.
+        if d.rescued == 1 then S.issueTape(C.EnsignTape) end
     elseif kind == "lost" then
         d.lost = (d.lost or 0) + 1
         d.lastName = name
@@ -233,7 +237,7 @@ local function enter(nodeId, holder)
 
     applyFlags(nd.sets, nd.clears)
     for _, tape in ipairs(nd.issue or {}) do S.issueTape(tape) end
-    if nd.convert then S.convert(holder) end
+    if nd.convert then S.convert(holder, nd.convert) end
 
     call.node = nodeId
     call.nodeSerial = (call.nodeSerial or 0) + 1
@@ -547,12 +551,44 @@ function S.flushTapes()
     end
 end
 
---- Converts the fragments the holder carries (COMMS.md 6.3). Filled in with
---- the clue chain; declared now so a node that asks for it is not a nil call.
-function S.convert(holder)
-    if TREK.Fragments and TREK.Fragments.convert then
-        TREK.Fragments.convert(holder)
+--- Puts fragment `n` on tape (COMMS.md 6.3): one taken off the holder, the
+--- fragment marked converted, and its tape issued to the ship -- shared,
+--- permanent, on the shelf for everyone. Returns true when it happened.
+---
+--- The node that does this was reached by a route that checked the holder
+--- was carrying it, but the holder's pockets are asked again here, on the
+--- authority, at the moment it matters: a fragment dropped between the route
+--- and this line must not be converted out of thin air.
+function S.convert(holder, n)
+    local d = Cm.store()
+    n = tonumber(n)
+    if not holder or not n or d.converted[n] then return false end
+    local id = Cm.fragmentItem(n)
+    if not id then return false end
+    local taken = false
+    U.try("comms.takeFragment", function()
+        local inv = holder:getInventory()
+        local list = inv:getAllTypeRecurse(id:match("%.(.+)$"))
+        for i = 0, list:size() - 1 do
+            local it = list:get(i)
+            if it:getFullType() == id then
+                local c = it:getContainer() or inv
+                c:Remove(it)
+                if isServer() then sendRemoveItemFromContainer(c, it) end
+                taken = true
+                return
+            end
+        end
+    end)
+    if not taken then
+        U.log("WARN comms: %s is not carrying fragment %d; nothing converted",
+              tostring(Ship.usernameOf(holder)), n)
+        return false
     end
+    d.converted[n] = true
+    S.issueTape(C.FragmentTapes[n])
+    U.log("comms: fragment %d is on tape", n)
+    return true
 end
 
 ---------------------------------------------------------------------------

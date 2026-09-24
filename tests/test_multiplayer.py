@@ -8697,6 +8697,235 @@ def transcripts_multiplayer():
           "client")
 
 
+
+def talk_through(rt, net, player, label, pick=1):
+    """Answers a ringing call (or takes a live one) and walks it to its end,
+    taking the `pick`th offered option each time -- or the last if there are
+    fewer. Returns the node ids visited, or None if the call never ended."""
+    call = rt.eval("TREK.Comms.call() and TREK.Comms.call().id")
+    if call is None:
+        fail(f"{label}: there is no call to answer")
+        return None
+    if rt.eval("TREK.Comms.call().holder") is None:
+        rt.run(f'TREK.Net.send({player}, "commsAnswer", {{ id = "{call}" }})')
+        net.pump(2)
+    seen = []
+    for _ in range(80):
+        if rt.eval("TREK.Comms.call()") is None:
+            return seen
+        node = str(rt.eval("TREK.Comms.call().node"))
+        seen.append(node)
+        avail = comms_avail(rt)
+        if not avail:
+            rt.run("TREK.CommsServer.onNode = 1e6")
+            net.pump(2)
+            continue
+        choice = avail[min(pick, len(avail)) - 1]
+        comms_choose(rt, net, player, choice)
+    fail(f"{label}: the call was still going after 80 steps at "
+         f"{rt.eval('TREK.Comms.call().node')}")
+    return None
+
+
+def ring_next(rt, net, want, label, limit=240):
+    """Moves the clock on until something rings; checks it is `want`."""
+    for _ in range(limit // 6):
+        rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 6; TREK.CommsServer.service()")
+        net.pump(1)
+        got = rt.eval("TREK.Comms.call() and TREK.Comms.call().thread")
+        if got is not None:
+            check(str(got) == want, f"{label}: {got} rang where {want} was due")
+            return str(got) == want
+    fail(f"{label}: nothing rang in {limit} hours; {want} was due")
+    return False
+
+
+def shelf_tapes(rt):
+    """The recordings on the tape shelf, by id."""
+    return str(rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        for ox = 0, C.CabinW do for oy = 0, C.CabinL do
+            local x, y = U.at(ox, oy)
+            local sq = SIM.rawSquare(x, y, C.CabinZ)
+            for _, o in ipairs(sq.objects) do
+                if o.modData and o.modData.TREK == "tapes" and o.container then
+                    local out = {}
+                    for _, it in ipairs(o.container.items) do
+                        local d = it:getMediaData()
+                        if d then table.insert(out, d:getId()) end
+                    end
+                    return table.concat(out, ",")
+                end
+            end
+        end end
+        return ""
+    end)()""")).split(",")
+
+
+def comms_story():
+    """The whole campaign, played in order: every thread rings when it
+    should, every one can be talked to its end, a rescue hands the ship a
+    tape, a probe finds a fragment and the ship puts it on the ground, six
+    fragments go on tape and onto the shelf, and the last two calls come."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0)")
+    net.start()
+    P = "SIM.players[1]"
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "comms story, beaming up"):
+        return
+    give(rt, "owner", "TrekShuttle.TrekPADD", 8801)
+    rt.run("SandboxVars.TrekShuttle = SandboxVars.TrekShuttle or {}; "
+           "SandboxVars.TrekShuttle.CommsFirstDay = 1")
+    rt.run("TREK.CommsServer.service()")
+    net.pump(2)
+    if talk_through(rt, net, P, "comms story, first contact") is None:
+        return
+
+    # A rescue before anything else is due: she says the name, and the ship
+    # is handed the ensign's own tape.
+    rt.run('TREK.CommsServer.event("rescued", "Ensign Pell")')
+    if ring_next(rt, net, "THANKS", "comms story, the first rescue"):
+        talk_through(rt, net, P, "comms story, thanks")
+    rt.run("TREK.Build.deliverTapes()")
+    check("TREK_EnsignLog" in shelf_tapes(rt),
+          "comms story: the first rescue did not put the ensign's tape on the shelf")
+    check(len(str(rt.eval("#TREK.Comms.store().pendingTapes"))) and
+          int(rt.eval("#TREK.Comms.store().pendingTapes")) == 0,
+          "comms story: a delivered tape is still owed")
+
+    # The spine, in order, each one talked to its end.
+    for thread, pick in (("STAY", 1), ("ELEVEN", 2), ("SCIENCE", 1),
+                         ("DENIAL", 1), ("ARCHIVE", 2), ("REVEAL", 3)):
+        if not ring_next(rt, net, thread, f"comms story, {thread}"):
+            return
+        nodes = talk_through(rt, net, P, f"comms story, {thread}", pick)
+        if nodes is None:
+            return
+        if thread == "SCIENCE":
+            check("SCIENCE_02S" in nodes,
+                  "comms story: with no Doctor aboard the shuttle, the science "
+                  "call did not use the samples the rescued crew brought up")
+
+    # --- the clue chain --------------------------------------------------------
+    # A probe whose dice say "a clue": the first find of a save is always the
+    # crystal, so the ship has found one before.
+    rt.run("""
+        TREK.Util.state().probeEverFound = true
+        TREK.Config.ProbeClueShare = 1
+        TREK.Probes.begin(2000, 2000, 0, 60, 1)
+        SIM.randQueue = { 0, 30, 30, 0, 0 }
+        TREK.Server.serviceProbe()
+    """)
+    clue = rt.eval("""(function()
+        for _, c in ipairs(TREK.Probes.contacts()) do
+            if c.kind == "clue" then return c end
+        end
+    end)()""")
+    check(clue is not None, "comms story: a probe told to find a clue found none")
+    if clue is None:
+        return
+    check(str(clue.item).startswith("TrekShuttle.TrekFragment"),
+          f"comms story: the clue contact carries {clue.item}, not a fragment")
+    n = int(clue.fragment)
+    check(rt.eval("TREK.Comms.store().flags.clueSeen") is True,
+          "comms story: the first clue did not tell the channel")
+
+    # Somebody goes there: the ship puts the fragment on real ground.
+    walk_to(rt, int(clue.x), int(clue.y))
+    net.pump(4)
+    rt.run("TREK.Server.serviceContacts()")
+    placed = rt.eval(f"""(function()
+        local c = TREK.Probes.byId("{clue.id}")
+        if not c.placed then return nil end
+        local sq = SIM.rawSquare(c.x, c.y, c.z)
+        for _, w in ipairs(sq.worldObjects) do
+            if w.item and w.item:getFullType() == c.item then return true end
+        end
+        return false
+    end)()""")
+    check(placed is True, "comms story: the fragment was never put on the ground")
+
+    if ring_next(rt, net, "CLUE", "comms story, the clue call"):
+        talk_through(rt, net, P, "comms story, the clue call")
+
+    # All six in the player's pockets; one converted per hail.
+    for k in range(1, 7):
+        give(rt, "owner", f"TrekShuttle.TrekFragment{k}", 8900 + k)
+    converted_seen = []
+    for k in range(6):
+        rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 2")
+        comms_send(rt, P, "commsHail")
+        net.pump(2)
+        if rt.eval("TREK.Comms.call() and TREK.Comms.call().thread") != "CONVERT":
+            fail(f"comms story: hail {k + 1} with fragments on hand did not "
+                 f"reach the conversion ({rt.eval('TREK.Comms.call() and TREK.Comms.call().thread')})")
+            return
+        nodes = talk_through(rt, net, P, f"comms story, conversion {k + 1}")
+        if k == 0:
+            check(nodes and "CONVERT_HANG" in nodes,
+                  "comms story: the first conversion never said she could put it on tape")
+        elif nodes:
+            check("CONVERT_HANG" not in nodes,
+                  "comms story: she explained tape again on a later conversion")
+        converted_seen.append(int(rt.eval(
+            "(function() local n = 0 for _ in pairs(TREK.Comms.store().converted) do n = n + 1 end return n end)()")))
+    check(converted_seen == [1, 2, 3, 4, 5, 6],
+          f"comms story: fragments on tape went {converted_seen}, not one per hail")
+    left = int(rt.eval("""(function()
+        local n = 0
+        for _, it in ipairs(SIM.players[1].inventory.items) do
+            if it.fullType:find("TrekFragment") then n = n + 1 end
+        end
+        return n
+    end)()"""))
+    check(left == 0, f"comms story: {left} fragment(s) still in the pockets after "
+                     f"all six went on tape")
+    # Out in the county the cabin is not loaded: the tapes are owed, not lost.
+    rt.run("TREK.Build.deliverTapes()")
+    check(int(rt.eval("#TREK.Comms.store().pendingTapes")) == 6,
+          f"comms story: {rt.eval('#TREK.Comms.store().pendingTapes')} tapes owed "
+          f"with the cabin unloaded, not 6")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    rt.run("TREK.Build.deliverTapes()")
+    tapes = shelf_tapes(rt)
+    for t in rt.eval("TREK.Config.FragmentTapes").values():
+        check(str(t) in tapes, f"comms story: {t} is not on the shelf after its conversion")
+
+    # A seventh hail has nothing to convert; she picks up as herself.
+    rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 30")
+    comms_send(rt, P, "commsHail")
+    net.pump(2)
+    check(rt.eval("TREK.Comms.call() and TREK.Comms.call().thread") == "QUIET",
+          "comms story: a hail with nothing to convert went to the conversion")
+    talk_through(rt, net, P, "comms story, a hail after", 2)
+
+    if ring_next(rt, net, "GOLD", "comms story, Tucker Gold"):
+        talk_through(rt, net, P, "comms story, Tucker Gold")
+    if ring_next(rt, net, "GRIEF", "comms story, the last call"):
+        talk_through(rt, net, P, "comms story, the last call")
+    check(rt.eval("TREK.Comms.store().flags.griefDone") is True,
+          "comms story: the last call did not close")
+
+    # Everything that rang is in the history, and nothing rings after the end.
+    rows = int(rt.eval("#TREK.Comms.log().rows"))
+    check(rows >= 16, f"comms story: only {rows} calls in the history of a whole campaign")
+    rt.run("SIM.worldAgeHours = SIM.worldAgeHours + 400; TREK.CommsServer.service()")
+    check(rt.eval("TREK.Comms.call()") is None,
+          "comms story: something rang after the story had ended")
+
+    for w in rt.warnings():
+        fail(f"comms story: {w}")
+    print("comms story: first contact, a rescue and its tape, the six-thread "
+          "spine in order with the science falling back to the crew's samples, "
+          "a probe's fragment placed on real ground, six conversions one hail "
+          "at a time with the tape explained once, six tapes on the shelf, Tucker "
+          "Gold and the last call -- and nothing after")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -8705,7 +8934,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             contact_map, contacts_multiplayer, probes, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
-            comms_missed, comms_multiplayer, transcripts,
+            comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, multiplayer)
 
 

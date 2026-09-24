@@ -2322,11 +2322,13 @@ local function placeContact(contact)
         return true
     end
 
+    -- A crystal, or a clue's fragment: the contact says which.
+    local what = contact.item or C.DilithiumItem
     local item = U.try("contactCrystal", function()
-        return best:AddWorldInventoryItem(C.DilithiumItem, 0.5, 0.5, 0.0)
+        return best:AddWorldInventoryItem(what, 0.5, 0.5, 0.0)
     end)
     if not item then
-        U.log("WARN contact %s: the crystal could not be created", contact.id)
+        U.log("WARN contact %s: %s could not be created", contact.id, what)
         return false
     end
 
@@ -2338,8 +2340,8 @@ local function placeContact(contact)
     -- No longer a guess: the ship knows exactly where it put it.
     contact.approximate = false
     contact.status = "investigated"
-    U.log("contact %s: a crystal is on the ground at %d,%d",
-          contact.id, contact.x, contact.y)
+    U.log("contact %s: %s is on the ground at %d,%d",
+          contact.id, what, contact.x, contact.y)
     return true
 end
 
@@ -2353,7 +2355,9 @@ local function crystalTaken(contact)
         for i = 0, items:size() - 1 do
             local o = items:get(i)
             local it = o and o.getItem and o:getItem()
-            if it and it:getFullType() == C.DilithiumItem then return true end
+            if it and it:getFullType() == (contact.item or C.DilithiumItem) then
+                return true
+            end
         end
         return false
     end)
@@ -2375,7 +2379,8 @@ function S.serviceContacts()
             changed = true
             U.log("contact %s at %d,%d is outside the world; retired",
                   contact.id, contact.x, contact.y)
-        elseif contact.kind == "dilithium" and not Probes.isResolved(contact.status) then
+        elseif (contact.kind == "dilithium" or contact.kind == "clue")
+               and not Probes.isResolved(contact.status) then
             if not contact.placed then
                 -- No proximity pre-check. There was one -- skip contacts no
                 -- player is near -- and it could not be observed from
@@ -2397,6 +2402,36 @@ function S.serviceContacts()
         Probes.prune()
         Probes.publish()
     end
+end
+
+--- Which fragment a probe finds, or nil for a crystal. Authority only.
+---
+--- A fragment is owed while it is not on tape and no live contact already
+--- points at one. **Not** "while nobody has picked it up": a fragment lost on
+--- a body, or burned in a house, is a fragment a later probe can find again
+--- -- he made more than one copy of everything, which is the kind of man he
+--- was (LORE.md 1c). So the chain cannot be soft-locked by losing one, and a
+--- death on the way home costs time rather than the story.
+function S.clueFor()
+    local Cm = TREK.Comms
+    if not Cm then return nil end
+    local d = Cm.store()
+    if not d.flags.met then return nil end
+    local live = {}
+    for _, c in ipairs(Probes.contacts()) do
+        if c.kind == "clue" and not Probes.isResolved(c.status) and c.fragment then
+            live[c.fragment] = true
+        end
+    end
+    local owed = {}
+    for n = 1, 6 do
+        if not (d.converted or {})[n] and not live[n] then table.insert(owed, n) end
+    end
+    if #owed == 0 then return nil end
+    local roll = U.try("clueRoll", function() return ZombRand(100) end) or 100
+    if roll >= math.floor(C.ProbeClueShare * 100) then return nil end
+    local pick = U.try("cluePick", function() return ZombRand(#owed) end) or 0
+    return owed[pick + 1]
 end
 
 --- Advances the probe and reports what it found. Authority only.
@@ -2447,7 +2482,21 @@ function S.serviceProbe()
         -- endpoint itself rather than reporting a square nobody can reach.
         local cx, cy = done.x + scatter(), done.y + scatter()
         if not U.inWorld(cx, cy) then cx, cy = done.x, done.y end
-        local contact = Probes.addContact("dilithium", cx, cy, 0, done.id, true)
+        -- The third result: a holo fragment's site, once Shepard has been
+        -- met and while any of the six is still owed. Never the first probe
+        -- of a save -- that one is the crystal the ship needs.
+        local clue = s.probeEverFound and S.clueFor and S.clueFor()
+        local contact
+        if clue then
+            contact = Probes.addContact("clue", cx, cy, 0, done.id, true)
+            if contact then
+                contact.fragment = clue
+                contact.item = C.FragmentItems[clue]
+                if TREK.CommsServer then TREK.CommsServer.event("clue") end
+            end
+        else
+            contact = Probes.addContact("dilithium", cx, cy, 0, done.id, true)
+        end
         if contact then
             U.log("probe %s reports %s at %d,%d", done.id, contact.kind,
                   contact.x, contact.y)

@@ -1162,6 +1162,13 @@ C.ProbeBearingTries = 24
 -- mechanism and is deliberately not this number.
 C.ProbeFindChance = 0.65
 
+-- Of the probes that find something once first contact has happened, how
+-- many find a holo fragment's site rather than a crystal, while any of the
+-- six is still owed (COMMS.md 6.3). A third: the chain is a campaign's
+-- worth of probes, not an afternoon's, and the crystals are still what keeps
+-- the ship running.
+C.ProbeClueShare = 0.35
+
 -- How far from the reported square the ship will actually put the crystal,
 -- and how far a player has to come before the world is asked to hold it.
 --
@@ -1203,6 +1210,10 @@ C.MaxResolvedContacts = 16
 C.ContactKinds = {
     dilithium = true,
     downedPersonnel = true,
+    -- A holo fragment's site (LORE.md 1c, COMMS.md 6.3): the probe's third
+    -- result, beside a crystal and a survivor. The contact carries the
+    -- fragment's number, and is placed and retired the way a crystal is.
+    clue = true,
 }
 
 -- ROADMAP2's common lifecycle:
@@ -1237,6 +1248,7 @@ C.ContactResolved = {
 C.ContactSymbols = {
     dilithium = "TrekContactDilithium",
     downedPersonnel = "TrekContactPersonnel",
+    clue = "TrekContactClue",
 }
 
 -- What each kind is called in the sensor menu.
@@ -1252,6 +1264,7 @@ C.ContactSymbols = {
 C.ContactLabels = {
     dilithium = "IGUI_TREK_Contact_dilithium",
     downedPersonnel = "IGUI_TREK_Contact_downedPersonnel",
+    clue = "IGUI_TREK_Contact_clue",
 }
 
 ---------------------------------------------------------------------------
@@ -1721,6 +1734,10 @@ C.PaddTapeLineMax = 600
 -- (LORE.md 1c, COMMS.md 6.3), in the order of his life.
 C.FragmentTapes = { "TREK_GoldOne", "TREK_GoldTwo", "TREK_GoldThree",
                     "TREK_GoldFour", "TREK_GoldFive", "TREK_GoldSix" }
+
+-- The tape off the first rescued ensign's own recorder (LORE.md 5, #17),
+-- issued to the ship on the first rescue.
+C.EnsignTape = "TREK_EnsignLog"
 
 -- The fragments themselves, as items: six, rather than one with a number in
 -- its mod data, because a player reads the name in the inventory. Spelled out

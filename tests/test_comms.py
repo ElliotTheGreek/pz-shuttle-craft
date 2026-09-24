@@ -178,6 +178,26 @@ def main():
         fail(f"TREK_CommsServer.lua raises '{f}' and the generator does not "
              f"know it can be waited on")
 
+    # --- the tapes the Lua issues exist, and are held back from the shelf ----
+    import gen_tapes
+    by_id = {t["id"]: t for t in gen_tapes.TAPES}
+    cfg = (ROOT / "TrekShuttle/42/media/lua/shared/TREK/TREK_Config.lua").read_text(
+        encoding="utf-8")
+    frag = re.search(r"C\.FragmentTapes = \{(.*?)\}", cfg, re.S)
+    ensign = re.search(r'C\.EnsignTape = "(\w+)"', cfg)
+    issued = re.findall(r'"(TREK_\w+)"', frag.group(1)) if frag else []
+    if ensign:
+        issued.append(ensign.group(1))
+    if len(issued) != 7:
+        fail(f"found {len(issued)} issued tape ids in TREK_Config.lua, not 7: the "
+             f"pattern has stopped matching")
+    for t in issued:
+        if t not in by_id:
+            fail(f"the Lua issues {t} and gen_tapes.py does not make it")
+        elif not by_id[t].get("issued"):
+            fail(f"{t} is issued by the story and also stocked on the shelf "
+                 f"from the first build -- a fragment on day one gives the chain away")
+
     if failures:
         print(f"{len(failures)} PROBLEM(S):")
         for f in failures:

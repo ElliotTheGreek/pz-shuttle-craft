@@ -649,6 +649,77 @@ local function stockTapes(obj)
     return held
 end
 
+--- Tapes the channel has issued (TREK_CommsServer.issueTape), put on the
+--- shelf. Returns how many went on.
+---
+--- The issue record is written when the story gets there, wherever the crew
+--- are; the tape reaches the shelf the next time the cabin is loaded. That is
+--- the ghost hull's pattern run the other way: write it down, do it when the
+--- ground is there. And it reaches an existing save, because the shelf is
+--- found by its tag rather than stocked when it was created.
+---
+--- Each tape is read back off the container before it leaves the pending
+--- list. A full shelf drops what it is handed without a word, and a tape that
+--- never landed must stay owed rather than be marked delivered.
+function B.deliverTapes()
+    local Cm = TREK.Comms
+    if not Cm then return 0 end
+    local d = Cm.store()
+    local pending = d.pendingTapes
+    if type(pending) ~= "table" or #pending == 0 then return 0 end
+    if not U.state().built or not B.cabinLoaded() then return 0 end
+
+    local shelf = nil
+    for _, entry in ipairs(L.tiles) do
+        if entry.tag == "tapes" then
+            local x, y = at(entry.x, entry.y)
+            local sq = U.square(x, y, C.CabinZ, false)
+            shelf = sq and U.findSprite(sq, entry.sprite)
+        end
+    end
+    local container = shelf and U.containerOf(shelf)
+    if not container then
+        U.warnOnce("tapes:noShelf", "tapes are owed and there is no tape shelf to put them on")
+        return 0
+    end
+    local media = U.try("recordedMedia", function()
+        return getZomboidRadio():getRecordedMedia()
+    end)
+    if not media then return 0 end
+
+    local delivered, keep = 0, {}
+    for _, id in ipairs(pending) do
+        local data = U.try("tapes.data", function() return media:getMediaData(id) end)
+        if not data then
+            -- Nothing registered under the id: a blank tape is worse than
+            -- none, and this is the two generators disagreeing, so it is loud
+            -- and it is not retried for ever.
+            U.log("WARN issued tape %s has no recording; dropped", tostring(id))
+        else
+            local item = U.try("tapes.item", function() return instanceItem(C.TapeItem) end)
+            local landed = false
+            if item then
+                U.try("tapes.label", function() item:setRecordedMediaData(data) end)
+                U.try("tapes.add", function() container:AddItem(item) end)
+                landed = U.try("tapes.check", function() return container:contains(item) end) == true
+                if landed and isServer() then
+                    U.try("tapes.send", function() sendAddItemToContainer(container, item) end)
+                end
+            end
+            if landed then
+                delivered = delivered + 1
+                U.log("tape: %s is on the shelf", tostring(id))
+            else
+                U.warnOnce("tapes:full", "the tape shelf is full; issued tapes wait")
+                table.insert(keep, id)
+            end
+        end
+    end
+    d.pendingTapes = keep
+    Cm.publish()
+    return delivered
+end
+
 local SPECIALS = {
     tapes   = { stock = stockTapes },
     phasers = { items = { C.PhaserItem }, copies = function() return C.PhaserCount end },
@@ -1433,6 +1504,7 @@ function B.buildCabin()
         -- with him dismissed does not stand him up again.
         { "emh",            B.serviceEMH },
         { "stockReport", function() B.stockReport() end },
+        { "deliverTapes",   B.deliverTapes },
         { "clearMargin",    clearSurroundings },
     }
     for _, phase in ipairs(phases) do

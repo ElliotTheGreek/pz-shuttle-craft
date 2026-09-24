@@ -2,11 +2,12 @@
 
     python tools/gen_map_symbols.py TrekShuttle/42
 
-Two 64x64 glyphs, the size and shape of vanilla's own (`media/ui/
+Three 64x64 glyphs, the size and shape of vanilla's own (`media/ui/
 LootableMaps/map_*.png`, ninety-two of them, all 64x64):
 
     TrekContactDilithium   a crystal      -- what the probes are looking for
     TrekContactPersonnel   a Starfleet delta -- 1.7's downed ensign
+    TrekContactClue        a hexagon       -- a holo fragment (LORE.md 1c)
 
 They are registered from `media/lua/shared/Definitions/TrekMapSymbols.lua`,
 which is how vanilla registers its own -- `MapSymbolDefinitions.getInstance()
@@ -138,9 +139,30 @@ def delta():
     return img
 
 
+HOLO_FILL = (80, 214, 240, 255)
+HOLO_CORE = (210, 248, 255, 255)
+
+
+def hexagon():
+    """A holo emitter: the fragment's own hexagon (tools/gen_fragment.py), in
+    the cyan nothing else on the map uses, with a lit ring inside it."""
+    img = Image(SIZE, SIZE, (0, 0, 0, 0))
+    cx = cy = SIZE / 2.0
+
+    def ring(r):
+        return [(cx + r * math.cos(math.pi / 3 * i + math.pi / 6),
+                 cy + r * math.sin(math.pi / 3 * i + math.pi / 6)) for i in range(6)]
+    fill_polygon(img, ring(17), HOLO_FILL)
+    fill_polygon(img, ring(10), HOLO_CORE)
+    fill_polygon(img, ring(5), HOLO_FILL)
+    outline(img)
+    return img
+
+
 SYMBOLS = {
     "TrekContactDilithium": crystal,
     "TrekContactPersonnel": delta,
+    "TrekContactClue": hexagon,
 }
 
 # **Never a category of our own.** These went in a "Starfleet" category and
