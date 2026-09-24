@@ -326,7 +326,14 @@ function TREKPaddScreen:content()
             return getText("IGUI_TREK_CommsLive"), Cm.render(call.steps, call.a1, call.a2)
         end
         if call and call.state == "ringing" then
-            return getText("IGUI_TREK_CommsIncoming"), {}
+            -- Nothing has been said yet, but the box must not be empty: an
+            -- empty box fell through to "she has not called", which is the
+            -- one thing that is untrue while she is calling (play-test,
+            -- 2026-09-24).
+            local c = Pal.red
+            return getText("IGUI_TREK_CommsIncoming"),
+                   { { text = getText("IGUI_TREK_CommsRingingBody", Cm.title(call.thread)),
+                       r = c[1], g = c[2], b = c[3] } }
         end
         local rows = Cm.log().rows
         local last = rows[#rows]

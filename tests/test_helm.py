@@ -644,6 +644,13 @@ def padd_screen():
     if win.actionBtn.title != TEXT["IGUI_TREK_CommsAnswer"]:
         failures.append(f"padd screen: a ringing call offers {win.actionBtn.title!r}, "
                         f"not Answer")
+    if not win.actionBtn.visible:
+        failures.append("padd screen: a ringing call shows no Answer button")
+    if TEXT["IGUI_TREK_CommsNothing"] in texts(d):
+        failures.append("padd screen: while she is calling, the screen says she "
+                        "has not called")
+    if not any(t.startswith(TEXT["IGUI_TREK_CommsRingingBody"][:20]) for t in texts(d)):
+        failures.append("padd screen: a ringing call does not say to press Answer")
     lua.execute("win.actionBtn:click()")
     if str(lua.eval("sent[#sent].cmd")) != "commsAnswer" \
             or str(lua.eval("sent[#sent].args.id")) != "call:1":

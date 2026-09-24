@@ -366,5 +366,6 @@
     "IGUI_TREK_CommsNoAnswerNote": "No answer. Static.",
     "IGUI_TREK_FragmentN": "Fragment %1 of 6",
     "IGUI_TREK_FragmentMissing": "Not recovered.",
-    "IGUI_TREK_FragmentShelf": "On the shelf. Transcribe it there to read it here."
+    "IGUI_TREK_FragmentShelf": "On the shelf. Transcribe it there to read it here.",
+    "IGUI_TREK_CommsRingingBody": "The Adirondack is hailing this PADD. Press Answer to take the call."
 }
