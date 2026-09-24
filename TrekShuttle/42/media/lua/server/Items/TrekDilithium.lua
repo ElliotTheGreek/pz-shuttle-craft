@@ -12,10 +12,12 @@
     it somewhere a person would guess.
 
     **The weights are vanilla's own scale.** In `JewelryGems` a diamond is 1
-    and a bag of gems is 0.1, so 0.6 there is "rarer than a diamond" and 0.25
-    in a tool crate is most of a town before one turns up. One crystal is
-    five thousand units -- a thousand bandages -- so they are meant to be an
-    expedition, not a shopping trip.
+    and a bag of gems is 0.1. They were a quarter of what they are now --
+    "rarer than a diamond" -- when a crystal only fed the replicator. Since
+    the energy system (ENERGY.md) everything aboard runs on one, and the
+    first cold-start play went a long way without finding another, so they
+    were raised fourfold (2026-09-24): a jeweller's case is now the likeliest
+    place in town, and a tool crate a fair bet rather than a long shot.
 
     This file lives in server/Items/ rather than server/TREK/ because that is
     where the engine looks for distribution code, and it deliberately does not
@@ -32,20 +34,20 @@ local CRYSTAL = "TrekShuttle.TrekDilithium"
 
 local PLACES = {
     -- A gem among gems: the one place a player will think of first.
-    { "JewelryGems",           0.6 },
-    { "PawnShopCases",         0.5 },
+    { "JewelryGems",           2.4 },
+    { "PawnShopCases",         2 },
     -- Small, valuable, electrical.
-    { "ElectronicStoreMisc",   0.4 },
-    { "StoreShelfElectronics", 0.3 },
-    { "ElectronicStoreLights", 0.25 },
-    { "MechanicShelfElectric", 0.3 },
+    { "ElectronicStoreMisc",   1.6 },
+    { "StoreShelfElectronics", 1.2 },
+    { "ElectronicStoreLights", 1 },
+    { "MechanicShelfElectric", 1.2 },
     -- Industrial: where you would keep an odd lump of crystal.
-    { "MetalShopTools",        0.3 },
-    { "CrateMetalwork",        0.25 },
-    { "CrateTools",            0.25 },
-    { "CrateToolsOld",         0.25 },
-    { "GarageTools",           0.2 },
-    { "MechanicShelfMisc",     0.2 },
+    { "MetalShopTools",        1.2 },
+    { "CrateMetalwork",        1 },
+    { "CrateTools",            1 },
+    { "CrateToolsOld",         1 },
+    { "GarageTools",           0.8 },
+    { "MechanicShelfMisc",     0.8 },
 }
 
 -- Once per world, however many times the event fires. A second pass would

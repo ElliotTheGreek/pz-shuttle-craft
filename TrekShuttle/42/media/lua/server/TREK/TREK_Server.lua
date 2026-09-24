@@ -2822,15 +2822,19 @@ function S.serviceProbe()
     -- how it read the first time anybody played it. ROADMAP2 1.6 wants a
     -- guaranteed opening for the cold start anyway; this is the honest
     -- minimum of it, and every probe after the first is a fair roll.
+    --
+    -- And never more than C.ProbeDryLimit empty ones in a row: the first
+    -- cold-start play drew four, which is a campaign stalled on luck.
     local s = U.state()
     local found
-    if not s.probeEverFound then
+    if not s.probeEverFound or (s.probeDry or 0) >= C.ProbeDryLimit then
         found = true
     else
         found = (U.try("probeRoll", function()
             return ZombRand(100)
         end) or 0) < math.floor(C.ProbeFindChance * 100)
     end
+    s.probeDry = found and 0 or (s.probeDry or 0) + 1
 
     if found then
         -- A long-range fix is a region, not a square. The spread is what the

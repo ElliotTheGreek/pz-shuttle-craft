@@ -6307,6 +6307,30 @@ def probes():
           "probes: a later probe still cannot come back empty, so the "
           "guarantee is permanent rather than an opening")
 
+    # But never more than C.ProbeDryLimit in a row: a second miss, and then
+    # the next probe finds something whatever its roll says. The first
+    # cold-start play drew four empties in a row, which is a campaign
+    # stalled on luck.
+    dry = int(rt.eval("TREK.Config.ProbeDryLimit"))
+    for i in range(dry - 1):
+        rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+        net.pump(10)
+        rt.run("SIM.randQueue = { 99 }")
+        for _ in range(ticks + 2):
+            rt.run("TREK.Server.serviceProbe()")
+    check(int(rt.eval("#TREK.Probes.contacts()")) == 0,
+          f"probes: fewer than {dry} misses in a row were forced into a find")
+    rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
+    net.pump(10)
+    rt.run("SIM.randQueue = { 99, 30, 30 }")
+    for _ in range(ticks + 2):
+        rt.run("TREK.Server.serviceProbe()")
+    check(int(rt.eval("#TREK.Probes.contacts()")) == 1,
+          f"probes: after {dry} empty probes in a row the next came back empty too")
+    check(rt.eval("TREK.Util.state().probeDry") == 0,
+          "probes: a find did not reset the dry streak")
+    rt.run("TREK.Probes.store().contacts = {}")
+
     # --- and it reports ----------------------------------------------------
     rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
     net.pump(10)

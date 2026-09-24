@@ -1253,7 +1253,17 @@ C.ProbeBearingTries = 24
 -- nothing" -- an honest empty report is a valid outcome and the interface has
 -- to be able to say so. The opening guarantee that 1.6 needs is a separate
 -- mechanism and is deliberately not this number.
-C.ProbeFindChance = 0.65
+--
+-- It was 0.65, and the first cold-start play (2026-09-24) drew four empty
+-- probes in a row after the opening one -- a 1.5% streak, but a design that
+-- can do that to somebody will. Now that everything aboard runs on the
+-- crystal, a probe is how the crew eat: 0.9, and C.ProbeDryLimit below.
+C.ProbeFindChance = 0.9
+
+-- After this many empty probes in a row, the next one always finds
+-- something. Not a hidden pity timer for its own sake: an honest empty report
+-- is still a real outcome, but a streak of them is a campaign stalled on luck.
+C.ProbeDryLimit = 2
 
 -- Of the probes that find something once first contact has happened, how
 -- many find a holo fragment's site rather than a crystal, while any of the
