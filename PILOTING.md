@@ -17,13 +17,43 @@ car. From the driver's seat, **V** opens the radial menu:
 
 | | |
 |---|---|
-| **Take her up** | She climbs to level 3, above the rooftops |
-| **Climb** / **Dive** | One level at a time, between 1 and 4 |
+| **Take her up** | She lifts to level 1 and hovers there |
 | **Set her down below** | The existing footprint check, then down |
 | **Go aboard (cabin)** | Through to the interior, on the ground or in the air |
 
 Then you **drive**. W/A/S/D, the stick, the seat chart, the mechanics screen —
 all of it is vanilla's, untouched. The helm inside sets the top speed.
+
+**Flight is a binary: she is on the ground, or she is hovering.** There is one
+altitude, `C.FlightLevel`, and there is no climb, no dive and no `setAltitude`
+command for them to send. It was four levels with a cruise of 3 and *Climb* and
+*Dive* on the radial; in play only the ground and level 1 ever behaved, so
+three of the four rungs were an offer the ship could not keep.
+
+Level 1 is also the one altitude the engine is *structurally* willing to hold,
+which is worth knowing before anybody raises it again. `BaseVehicle.update()`
+accepts a height when there is a floor at the level **or the one below** — and
+one below level 1 is Kentucky, so the ground itself satisfies the floor half of
+the test and the sky plane only has to make the square at level 1 exist. At
+level 2 and above the plane is the only thing holding her up, and every square
+of it has to have been laid, and stay laid, before the engine will keep her
+there.
+
+### Getting out of her
+
+| Where she is | The hatch | The transporter | Go aboard |
+|---|---|---|---|
+| On the ground | yes, walk out | yes | yes |
+| **Hovering** | **no** — three metres of nothing | **yes, and it is the only way** | yes, from a seat |
+
+And **when the last of the crew beams down from a hovering ship, she goes back
+up.** Not down: coming down where she happens to be drops five tonnes of
+shuttle onto whatever is underneath her, which may be a roof, a pond or a
+horde. `S.endFlight(why, toOrbit)` clears the flight and then `S.toOrbit`
+removes the vehicle and sets `landed = false` — the same state a recall leaves
+her in, so *Call her down* already knows what to do with it. The crew are told
+(`IGUI_TREK_BackUp`), because a ship that vanishes without a word is
+indistinguishable from a ship that has been lost.
 
 ---
 
@@ -93,8 +123,8 @@ of bug that killed the 1.1 flight, where flight outlived its pilot.
 
 ```
 client/TREK/TREK_Sky.lua      lays and lifts the floor; knows nothing about flying
-client/TREK/TREK_Flight.lua   take-off, climb, dive, landing, and watching
-server/TREK/TREK_Server.lua   who may fly, what level, and the watchdog
+client/TREK/TREK_Flight.lua   take-off, landing, keeping her level, watching
+server/TREK/TREK_Server.lua   who may fly, and the watchdog that sends her back up
 shared/TREK/TREK_Config.lua   every number below
 ```
 
@@ -104,7 +134,7 @@ shared/TREK/TREK_Config.lua   every number below
 |---|---|
 | **The plane** | Each client, for itself. Never synced. |
 | **`flying`, `level`, `pilot`** | The server, as ship state, set by validated commands |
-| **The lift between levels** | The machine that moves her: the driver's client on a server, and in single player this one (see below) |
+| **The lift, and keeping her level** | The machine that moves her: the driver's client on a server, and in single player this one (see below) |
 | **Driving, steering, seats, camera, sync** | Vanilla. The mod does not touch any of it. |
 
 **Single player owns the physics and the engine will not say so.**
@@ -132,10 +162,15 @@ from every other client world edit so the general rule keeps its teeth.
 ### The protocol
 
 `takeoff` → `takeoffGranted` → *(client paves, lifts, confirms)* → `airborne`
-→ `setAltitude` → `touchdown` → `touchdownGranted`, plus `flightEnded` to all
-and `skyCleared` back. The server never sets `flying` until the client reports
-the engine actually held the height: a lift that failed must never leave the
-state saying she is up when she is sitting on the grass.
+→ `touchdown` → `touchdownGranted`, plus `flightEnded` to all. The server never
+sets `flying` until the client reports the engine actually held the height: a
+lift that failed must never leave the state saying she is up when she is
+sitting on the grass.
+
+There is deliberately **no `setAltitude`**, on either side. One altitude means
+there is nothing to set, and a command left in place as a no-op is a request
+with a handler that quietly does nothing — the shape this project keeps paying
+for. `tests/test_multiplayer.py` fails if either end grows one back.
 
 ---
 
@@ -175,14 +210,88 @@ wheels.
 
 ### Never lift the floor she is standing on
 
-Changing level means two planes exist for a moment, and she is on the *old* one.
-Trimming to the new target first took the floor out from under her mid-climb:
-she fell, once into a building. `Sky.keep(level)` names the level she is
-actually on this instant, and trim spares it.
+Two planes can exist for a moment — during a take-off, during a landing, and
+(while there were four levels) during a climb, where trimming to the new target
+first took the floor out from under her and she fell, once into a building.
+`Sky.keep(level)` names the level she is actually on this instant, and trim
+spares it. The climb is gone and the rule is not: the same two-planes moment
+still happens every time she leaves the ground and every time she comes back.
 
 A wrong height is also corrected the moment it is noticed, not on a slow
-cadence — six ticks is a long fall, and a climb is exactly when the height is
-briefly wrong by design.
+cadence — six ticks is a long fall.
+
+### `getAngleX` and `getAngleZ` are not pitch and roll
+
+**This is the one that made the first two-player flight unflyable, and it was
+in from the day flight was built.** The report was "in hover she snaps us back
+basically forever, but if I go backwards it seems to work", and both halves of
+that sentence are the bug.
+
+`keepLevel` ran every six ticks and read
+
+```lua
+if math.abs(vehicle:getAngleX()) < 4 and math.abs(vehicle:getAngleZ()) < 4 then
+```
+
+Those two are not fields. They are the X and Z of JOML's `getEulerAnglesXYZ`
+decomposition of the whole rotation, times 180/π:
+
+```
+getEulerAnglesXYZ:  x = atan2(2(xw - yz), 1 - 2(x² + y²))
+                    y = asin(2(xz + yw))
+                    z = atan2(2(zw - xy), 1 - 2(y² + z²))
+```
+
+For a ship that is dead level and turned by yaw alone, the quaternion is
+`(0, sin θ/2, 0, cos θ/2)`, so `x` is `atan2(0, cos θ)` — **exactly 180° the
+moment the heading is more than a quarter turn from the one she spawned at**,
+and `z` with it. So the test is true in one half of the compass and false in
+the other, for a ship that is level in both.
+
+And what it called is worse. `flipUpright()` is not "level her":
+
+```
+Quaternionf.setAngleAxis(0, _UNIT_Y)    ; an angle of ZERO -- the identity
+Transform.setRotation(q)
+BaseVehicle.setWorldTransform(t)        ; -> Bullet.teleportVehicle
+```
+
+an angle of *nothing* about Y. That is not level, it is **no rotation at all**:
+it throws the heading away along with the pitch and the roll, and teleports the
+physics body to do it. Turn her past ninety degrees and she was wrenched back
+to her spawn heading ten times a second, losing her velocity each time. Reverse
+never leaves the safe half of the compass, so reversing worked perfectly —
+which is exactly how a player would describe it.
+
+The fix is two lines and both of them matter:
+
+- **ask the yaw-independent question.** The Y of her own up-vector, worked out
+  from the three angles, is `cos(az)·cos(ax) − sin(az)·sin(ay)·sin(ax)`. One is
+  level, zero is on her side, minus one is on her back;
+- **level her about her own heading.** `Rx(0) Ry(a) Rz(0)` and
+  `Rx(180) Ry(a) Rz(180)` are both exactly level — both are pure yaw — and they
+  are the two halves of the compass. Which one carries her present heading is
+  decided by the sign of `cos(angleX)`: the same artefact, read the right way
+  round. `setAngles(flat, angleY, flat)` builds it with `Quaternionf
+  .rotationXYZ` and applies it through the same `setWorldTransform` the lift
+  uses, so it cannot cost height either.
+
+`org.joml.Quaternionf` is **not** on `LuaManager$Exposer`'s allow-list, so none
+of this could be done by reading the rotation directly; `Transform` is exposed
+and hands out only its origin. `BaseVehicle.setAngles(F,F,F)` is the whole of
+the reachable surface for orientation, and it takes degrees.
+
+The tolerance went from 4° to 20° in the same pass, for a separate reason: a
+vehicle's suspension pitches it several degrees under throttle and brakes, and
+putting her right is a physics teleport the pilot feels as a stutter. Going
+over backwards is ninety.
+
+**And the simulation was kinder than the engine, again.** `pz_sim.lua` stored
+the three angles as fields and handed them back, so the 180° artefact could not
+exist there, and its `flipUpright` kept the heading the engine throws away. The
+whole flight suite passed against a build nobody could steer. It keeps a real
+quaternion now, decomposes it exactly as the engine does, and `flipUpright`
+resets it to the identity — heading and all.
 
 ### Wake her before teleporting her
 
@@ -263,12 +372,17 @@ All in `TREK_Config.lua`.
 | `SkyTrailMargin` | 0 | lift the moment she is not over it |
 | `SkyTilesPerTick` | 96 | sliced, like the landing search |
 | `SkyCleanRadius` / `SkyCleanStride` | 32 / 20 | the hunt for older flights' litter |
-| `FlightCruise` / `Min` / `Max` | 3 / 1 / 4 | the ceiling is cruise + 1 |
+| `SkyLitterTop` | 4 | levels the litter sweep walks — **not** the ceiling |
+| `FlightLevel` | 1 | the one altitude there is |
 | `FlightSpeedSteps` | 15…120 | absolute top speeds, each distinguishable |
-| `FlightLevelTolerance` | 4° | past this she is levelled off |
-| `FlightPilotGrace` | 5 checks | no pilot aboard and she comes down |
+| `FlightLevelTolerance` | 20° | past this she is put right, about her own heading |
+| `FlightPilotGrace` | 5 checks | nobody aboard and she goes back up |
 
-Two traps in there. **Speed steps must differ from their neighbours** — they
+Three traps in there. **`SkyLitterTop` is not `FlightLevel` and must not be
+made to follow it.** Builds up to 1.3.0 flew as high as level 4 and a floor is
+a saved world object, so the litter those flights left in somebody's world does
+not disappear because the ceiling came down. **Speed steps must differ from
+their neighbours** — they
 were once multipliers capped to a common ceiling, so the top three were
 identical and the control appeared dead. And **`SpeedLimit`'s unit is not
 settled**: `PILOTING` once read it as 70 tiles/s, but it is a 10–150 vehicle
@@ -284,11 +398,11 @@ block by itself, once per session:
 
 ```
 Transform reachable from Lua: true
-asked for level 3: engine reports z 3, physics body is at level 3.0996
+asked for level 1: engine reports z 1, physics body is at level 1.1021
   (if the body is at the level and z is 0, the floor check refused it;
    if the body is at 0 too, the teleport itself did not take)
-vehicle position 10819.97,10199.08,3.00  physics active=false
-  seat 0: z=3.00 falling=false
+vehicle position 10819.97,10199.08,1.00  physics active=false
+  seat 0: z=1.00 falling=false
 sky plane: 25 square(s) held, peak 25 of a 25-square patch, 25 laid, 0 lifted
 ```
 
@@ -314,10 +428,24 @@ them.
 
 ## 7. What is still unproven
 
-- **Multiplayer.** None of this has been flown with two people. The wire format
+- **Multiplayer.** Flown with two people for the first time on 2026-09-23, and
+  it produced the levelling bug in section 4. What that session has *not* yet
+  settled is whether the other machine draws her in the air: the wire format
   carries height (`VehiclePhysicsPacket` sends x, y, z and the server relays it
-  without validation), and remote clients should re-derive the level from their
-  own copy of the plane — but that is reasoning, not evidence.
+  without validation) and remote clients should re-derive the level from their
+  own copy of the plane, but that is still reasoning.
+- **Whether anything above level 1 can be made to work at all.** It was not
+  investigated; the four-level ladder was removed because only two of its rungs
+  ever behaved in play and a control that does nothing is worse than no
+  control. The likely place to look, if it is ever wanted, is section 1: above
+  level 1 the sky plane is the *only* thing holding her up, so every square of
+  it has to be laid and stay laid, and the probe's `peak` line is where that
+  would show.
+- **Going back up.** `S.toOrbit` fires when nobody has been aboard for
+  `FlightPilotGrace` checks. The grace is what makes a beam survivable — a
+  player is briefly in neither the seat nor the cabin while the transporter has
+  them — and five checks has only been reasoned about, not timed against a real
+  beam on a real server.
 - **`setWorldTransform` has no vanilla Lua call site.** It is public, ungated,
   and on the engine's Lua exposure allow-list, and it demonstrably works in
   game — but it does not meet the three-way bar `MULTIPLAYER.md` sets, and the
@@ -341,5 +469,7 @@ them.
    sim is wrong, not the test.
 3. `tests/pz_sim.lua` models the parts of the engine that made these bugs
    possible — the floor-gated z, vehicle gravity, the radial toggle's one-frame
-   delay, and stale squares. Keep it honest; it is the only thing standing
-   between a plausible change and another evening in the game.
+   delay, stale squares, and the vehicle's orientation as a real quaternion
+   whose Euler decomposition reads 180° past a quarter turn. Keep it honest; it
+   is the only thing standing between a plausible change and another evening in
+   the game.

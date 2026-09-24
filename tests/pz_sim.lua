@@ -1283,14 +1283,112 @@ function VehicleMT:isLocalPhysicSim()
     return self.seats ~= nil and self.seats[0] ~= nil
            and self.seats[0] == SIM.players[1]
 end
-function VehicleMT:setAngles(x, y, z)
-    self.angleX, self.angleY, self.angleZ = x, y, z
+---------------------------------------------------------------------------
+-- Orientation, the way the engine really reports it
+---------------------------------------------------------------------------
+-- This was three stored numbers -- `getAngleX` handed back whatever
+-- `setAngles` had last put in `angleX` -- and it was kinder than the engine in
+-- the one way that mattered, which cost the mod a flight nobody could steer.
+--
+-- A vehicle's orientation is a quaternion. `getAngleX/Y/Z` do not read fields:
+-- they decompose that quaternion with JOML's `getEulerAnglesXYZ` and multiply
+-- by 180/pi. The X of that decomposition is
+--
+--     atan2(2(xw - yz), 1 - 2(x^2 + y^2))
+--
+-- which for a ship that is perfectly level, turned by yaw alone, is
+-- `atan2(0, cos yaw)` -- **exactly 180 degrees once the heading is more than a
+-- quarter turn from where she started**, and the same for Z. A stored-number
+-- stub cannot produce that, so a levelling pass that read "|angleX| is large"
+-- as "she is tipping over" looked correct here and, in game, wrenched her back
+-- to her spawn heading ten times a second.
+--
+-- So the orientation is a real quaternion now, `setAngles` builds one with
+-- `rotationXYZ` the way `BaseVehicle.setAngles` does, `flipUpright` resets it
+-- to the identity the way `BaseVehicle.flipUpright` does -- **heading and
+-- all** -- and the three getters decompose it. `SIM.setHeading` and
+-- `VehicleMT:heading()` are for tests that care where her nose is pointing.
+local DEG = 180 / math.pi
+
+local function qmul(a, b)
+    return {
+        a[4]*b[1] + a[1]*b[4] + a[2]*b[3] - a[3]*b[2],
+        a[4]*b[2] - a[1]*b[3] + a[2]*b[4] + a[3]*b[1],
+        a[4]*b[3] + a[1]*b[2] - a[2]*b[1] + a[3]*b[4],
+        a[4]*b[4] - a[1]*b[1] - a[2]*b[2] - a[3]*b[3],
+    }
 end
-function VehicleMT:getAngleX() return self.angleX or 0 end
-function VehicleMT:getAngleY() return self.angleY or 0 end
-function VehicleMT:getAngleZ() return self.angleZ or 0 end
---- Levels her off: rotation only, the height is untouched.
-function VehicleMT:flipUpright() self.angleX, self.angleZ = 0, 0 end
+
+local function qaxis(x, y, z, deg)
+    local s = math.sin(deg / DEG / 2)
+    return { x * s, y * s, z * s, math.cos(deg / DEG / 2) }
+end
+
+local IDENTITY = { 0, 0, 0, 1 }
+
+local function rot(v)
+    return v.rot or IDENTITY
+end
+
+--- Quaternionf.rotationXYZ, which is what setAngles builds from its arguments.
+local function rotationXYZ(x, y, z)
+    return qmul(qmul(qaxis(1, 0, 0, x), qaxis(0, 1, 0, y)), qaxis(0, 0, 1, z))
+end
+
+--- Turns a vector by a quaternion: q v q*.
+local function qrot(q, v)
+    local c = { -q[1], -q[2], -q[3], q[4] }
+    local r = qmul(qmul(q, { v[1], v[2], v[3], 0 }), c)
+    return r[1], r[2], r[3]
+end
+
+function VehicleMT:setAngles(x, y, z)
+    self.rot = rotationXYZ(x, y, z)
+end
+
+--- Test helper: point her nose somewhere, level, the way driving would.
+function VehicleMT:setHeading(deg)
+    self.rot = qaxis(0, 1, 0, deg)
+end
+
+--- Test helper: where her nose actually points, in degrees. The angle getters
+--- cannot answer this -- that is the whole point of them.
+function VehicleMT:heading()
+    local fx, _, fz = qrot(rot(self), { 0, 0, 1 })
+    return math.atan(fx, fz) * DEG
+end
+
+--- Test helper: the Y of her own "up". 1 is level, -1 is on her back.
+function VehicleMT:uprightness()
+    local _, uy, _ = qrot(rot(self), { 0, 1, 0 })
+    return uy
+end
+
+function VehicleMT:getAngleX()
+    local q = rot(self)
+    local x, y, z, w = q[1], q[2], q[3], q[4]
+    return math.atan(2 * (x*w - y*z), 1 - 2 * (x*x + y*y)) * DEG
+end
+
+function VehicleMT:getAngleY()
+    local q = rot(self)
+    local x, y, z, w = q[1], q[2], q[3], q[4]
+    local s = 2 * (x*z + y*w)
+    if s > 1 then s = 1 elseif s < -1 then s = -1 end
+    return math.asin(s) * DEG
+end
+
+function VehicleMT:getAngleZ()
+    local q = rot(self)
+    local x, y, z, w = q[1], q[2], q[3], q[4]
+    return math.atan(2 * (z*w - x*y), 1 - 2 * (y*y + z*z)) * DEG
+end
+
+--- The engine's own flipUpright: `setAngleAxis(0, _UNIT_Y)`, which is an angle
+--- of **zero** -- the identity. It does not level her, it un-rotates her, and
+--- the heading goes with the pitch and the roll. The stub used to keep the
+--- heading, which is why nothing here could see the bug.
+function VehicleMT:flipUpright() self.rot = IDENTITY end
 function VehicleMT:getMaxSpeed() return self.maxSpeed or 70 end
 function VehicleMT:setMaxSpeed(v) self.maxSpeed = v end
 function VehicleMT:getThrottle() return self.throttle or 0 end
@@ -1373,10 +1471,12 @@ function addVehicleDebug(script, dir, skin, sq)
     return v
 end
 
---- Test helper: a vehicle driven somewhere.
-function SIM.driveVehicle(simId, x, y)
+--- Test helper: a vehicle driven somewhere, optionally pointing a new way.
+function SIM.driveVehicle(simId, x, y, heading)
     local v = SIM.findVehicle(simId)
-    if v then v.x, v.y = x, y end
+    if not v then return end
+    v.x, v.y = x, y
+    if heading then v:setHeading(heading) end
 end
 
 ---------------------------------------------------------------------------

@@ -5,9 +5,14 @@
     throttle, the steering, the controller and the Steam Deck, the seats and
     seat switching, the camera, the position sync and the physics. There is no
     input handling in this file and no per-tick transform, because there does
-    not need to be. All it does is move the ship between levels and watch.
+    not need to be. All it does is put her up, put her down, keep her level and
+    watch.
 
-    The move between levels is the one unproven call in the feature:
+    Up and down is the whole of it: there is one flight altitude,
+    C.FlightLevel, and no climb, no dive and no setAltitude command. See
+    PILOTING.md section 1.
+
+    The lift is the one unproven call in the feature:
 
         local t = Transform.new()
         vehicle:getWorldTransform(t)
@@ -177,17 +182,76 @@ function F.bulletLevel(vehicle)
     end)
 end
 
---- Keeps her flat. She is resting on an invisible floor with real physics on,
---- and a nudge can tip a 1200kg box: seen in game, where she went over
---- backwards. flipUpright sets the rotation to level and leaves the origin
---- alone, so it cannot cost any height.
+local RAD = math.pi / 180
+
+--- The Y component of the ship's own "up", worked out from the three angles
+--- the engine reports: 1 is level, 0 is on her side, -1 is on her back.
+---
+--- This is the question `keepLevel` actually wants, and the reason it has to
+--- be asked this way rather than by looking at two of the angles is below.
+local function uprightness(ax, ay, az)
+    ax, ay, az = ax * RAD, ay * RAD, az * RAD
+    return math.cos(az) * math.cos(ax)
+           - math.sin(az) * math.sin(ay) * math.sin(ax)
+end
+
+--- Keeps her flat -- and keeps her pointing where the pilot pointed her.
+---
+--- She is resting on an invisible floor with real physics on, and a nudge can
+--- tip a 1200kg box: seen in game, where she went over backwards. So something
+--- has to put her right. What must not happen is what the first version of
+--- this did, which was the whole of "she snaps back and will only fly in
+--- reverse" from the first two-player flight.
+---
+--- **`getAngleX()` and `getAngleZ()` are not pitch and roll.** They are the X
+--- and Z of JOML's `getEulerAnglesXYZ` decomposition of the entire rotation,
+--- and the X of that decomposition is
+---
+---     atan2(2(xw - yz), 1 - 2(x^2 + y^2))
+---
+--- which for a ship that is perfectly level, turned by yaw alone, is
+--- `atan2(0, cos yaw)` -- **180 degrees the moment the heading is more than a
+--- quarter turn from the one she spawned at**, and the same for Z. So a test
+--- of "is |angleX| small" is true in one half of the compass and false in the
+--- other, for a ship that is dead level in both.
+---
+--- **And `flipUpright()` is not "level her".** Its bytecode is
+---
+---     Quaternionf.setAngleAxis(0, _UNIT_Y)    ; angle ZERO: the identity
+---     Transform.setRotation(q)
+---     BaseVehicle.setWorldTransform(t)        ; -> Bullet.teleportVehicle
+---
+--- an angle of nothing about Y, which is not level, it is *no rotation at all*
+--- -- it throws the heading away with the pitch and the roll, and teleports
+--- the physics body to do it.
+---
+--- Together: turn her past ninety degrees and every levelling check fires,
+--- ten times a second, each one wrenching her nose back to her spawn heading
+--- and killing her velocity. She goes nowhere. Reverse instead and the heading
+--- never leaves the half of the compass where the artefact does not appear, so
+--- reversing works perfectly -- which is exactly how it was reported.
+---
+--- So: ask whether she is upright, which is yaw-independent; and if she is
+--- not, level her *about her own heading*. `Rx(0) Ry(a) Rz(0)` and
+--- `Rx(180) Ry(a) Rz(180)` are both exactly level -- both are pure yaw -- and
+--- they are the two halves of the compass. Which one carries her present
+--- heading is decided by the sign of `cos(angleX)`: the same artefact, read
+--- the right way round. `setAngles` takes degrees, builds the rotation with
+--- `Quaternionf.rotationXYZ` and applies it through the same
+--- `setWorldTransform` the lift uses, so it costs no height either -- and it
+--- returns without touching anything when the angles it is handed are the ones
+--- already in force.
 local function keepLevel(vehicle)
     local ax = U.try("angleX", function() return vehicle:getAngleX() end) or 0
+    local ay = U.try("angleY", function() return vehicle:getAngleY() end) or 0
     local az = U.try("angleZ", function() return vehicle:getAngleZ() end) or 0
-    if math.abs(ax) < C.FlightLevelTolerance and math.abs(az) < C.FlightLevelTolerance then
+
+    if uprightness(ax, ay, az) >= math.cos(C.FlightLevelTolerance * RAD) then
         return false
     end
-    U.try("flipUpright", function() vehicle:flipUpright() end)
+
+    local flat = (math.abs(ax) > 90) and 180 or 0
+    U.try("setAngles", function() vehicle:setAngles(flat, ay, flat) end)
     return true
 end
 
@@ -363,7 +427,7 @@ Net.onClient("takeoffGranted", function(args)
         U.log("take-off granted, but this machine does not move her")
         return
     end
-    local level = math.floor(args.level or C.FlightCruise)
+    local level = math.floor(args.level or C.FlightLevel)
     rising = {
         vehicle = vehicle, level = level, ticks = 0,
         player = player, lifted = false,
@@ -447,31 +511,14 @@ local function serviceRise()
 end
 
 ---------------------------------------------------------------------------
--- Climb, dive and landing
+-- Landing
 ---------------------------------------------------------------------------
-function F.setLevel(player, level)
-    if not F.flying() then return false end
-    if not F.isPilot(player) then
-        U.note(player, getText("IGUI_TREK_NotPilot"), 255, 90, 90)
-        return false
-    end
-    level = math.floor(level)
-    -- Say so rather than silently clamping: a menu option that appears to do
-    -- nothing is the thing TREK_Menu.lua's header forbids.
-    if level > C.FlightMaxLevel then
-        U.note(player, getText("IGUI_TREK_CeilingReached"), 255, 170, 90)
-        return false
-    end
-    if level < C.FlightMinLevel then
-        U.note(player, getText("IGUI_TREK_FloorReached"), 255, 170, 90)
-        return false
-    end
-    Core.send(player, "setAltitude", { level = level })
-    return true
-end
-
-function F.climb(player) return F.setLevel(player, (Ship.get().level or C.FlightCruise) + 1) end
-function F.dive(player)  return F.setLevel(player, (Ship.get().level or C.FlightCruise) - 1) end
+-- There is no climb and no dive, and there is no `setAltitude` command for
+-- them to send. She is on the ground or she is hovering at C.FlightLevel: one
+-- height, chosen because it is the only one that ever behaved in play and the
+-- only one the engine will hold without the sky plane having to be perfect
+-- (TREK_Config, C.FlightLevel). Four rungs of a ladder where three of them
+-- did nothing was worse than no ladder.
 
 --- Sets her down on the ground below.
 --- Every way this can refuse writes a line. It used to write none: a pilot
@@ -554,7 +601,7 @@ local function serviceFlight()
     local y = U.try("vy", function() return math.floor(vehicle:getY()) end)
     if not x then return end
 
-    local level = math.floor(s.level or C.FlightCruise)
+    local level = math.floor(s.level or C.FlightLevel)
     Sky.pave(x, y, level)
 
     -- Whatever level she is on this instant is the one holding her up, and it
@@ -592,13 +639,21 @@ local function serviceFlight()
     end
 end
 
---- The server has taken the ship out of flight -- it landed, or nobody was
---- flying it any more. Bring her down and take the plane up.
+--- The server has taken the ship out of flight -- she landed, or nobody was
+--- aboard her any more. Bring her down and take the plane up.
+---
+--- `toOrbit` is the second of those: the last of the crew left her hovering,
+--- so she has gone back up and the server is about to remove the vehicle. Say
+--- so. A ship that vanishes with no word is indistinguishable from one that
+--- was lost, and the crew need to know they can call her down again.
 Net.onClient("flightEnded", function(args)
     local vehicle = F.vehicle()
     if vehicle then
         if ownsPhysics(vehicle) then F.lift(vehicle, math.floor(args.z or 0)) end
         restoreSpeed(vehicle)
+    end
+    if args.toOrbit then
+        U.note(U.player(0), getText("IGUI_TREK_BackUp"), 255, 200, 120)
     end
     U.log("flight ended (%s)", tostring(args.why))
     Sky.report("flight ended")

@@ -587,7 +587,20 @@ shipped:
    for the machine whose player is driving. See *Single player is neither a
    client nor a server* below.
 
-All eight are fixed, and the rule they share is worth more than any of them:
+And one more, from the first two-player flight, which is the same fault as 6
+one level further in:
+
+9. **A vehicle whose angles were three stored numbers.** `getAngleX/Y/Z` do not
+   read fields in the engine: they decompose the rotation quaternion with
+   JOML's `getEulerAnglesXYZ`, and the X of that is 180 for a *level* ship
+   turned more than a quarter turn from the identity. The stub handed back
+   whatever `setAngles` last stored, so the artefact could not exist here -- and
+   its `flipUpright` kept the heading, where the engine's resets the whole
+   rotation to the identity. The mod's levelling pass was therefore hauling the
+   ship back to her spawn heading ten times a second in game, and the entire
+   flight suite was green. The stub keeps a real quaternion now.
+
+All nine are fixed, and the rule they share is worth more than any of them:
 **when a test is easy to satisfy, suspect the simulation before believing the
 code.** `MULTIPLAYER.md` says the same thing about vehicle gravity, the
 floor-gated height and the radial menu's one-frame delay, each of which let a
@@ -1162,6 +1175,90 @@ Two things this cost that are worth keeping:
   If a class is not in that list, no amount of it being public matters. That is
   the definitive answer to "can Lua touch this", and it is worth grepping
   before designing around any engine type.
+
+### A getter named for an axis may be one corner of a decomposition
+
+**New in this mod, and it made the first two-player flight unflyable while
+every test passed.** The report was *"in hover it snaps us back basically
+forever, but if I go backwards it seems to work"*, and the cause was two
+`BaseVehicle` getters that read exactly like what a pilot means by pitch and
+roll:
+
+```lua
+if math.abs(vehicle:getAngleX()) < 4 and math.abs(vehicle:getAngleZ()) < 4 then
+    return false      -- she is level
+end
+vehicle:flipUpright()
+```
+
+`getAngleX()` does not read a field. It decomposes the vehicle's whole rotation
+with JOML's `getEulerAnglesXYZ` and multiplies by 180/pi, and the X of that
+decomposition is `atan2(2(xw - yz), 1 - 2(x^2 + y^2))`. For a ship that is dead
+level and turned by yaw alone that is `atan2(0, cos yaw)` -- **exactly 180 once
+the heading is more than a quarter turn from the identity**, and the same for
+Z. So the test was true in one half of the compass and false in the other, for
+a ship that was level in both.
+
+And `flipUpright()`, the obvious remedy, is `setAngleAxis(**0**, _UNIT_Y)`
+followed by `setWorldTransform` -- an angle of *nothing*, which is the identity:
+it discards the heading along with the pitch and the roll, by teleporting the
+physics body. Turn her past ninety degrees and she was hauled back to her spawn
+heading ten times a second, losing her velocity each time. Reverse never leaves
+the safe half of the compass, which is why reversing worked.
+
+Four things worth carrying:
+
+- **A three-number decomposition is not three independent facts.** Euler angles
+  have a representation for every rotation and more than one for some of them;
+  "is X small" is a question about the representation, not about the ship. Ask
+  something frame-independent instead -- here, the Y of the ship's own up
+  vector, `cos(az)cos(ax) - sin(az)sin(ay)sin(ax)`, which is 1 level and -1 on
+  her back at every heading.
+- **Read what the correction writes, not what its name promises.** This is *A
+  convenience method is a bundle of writes somebody else chose* again, one
+  argument wide: the bundle `flipUpright` applies includes the yaw, and the
+  name does not say so.
+- **The exposure allow-list decides what a fix can be made of.**
+  `zombie.core.physics.Transform` and `org.joml.Vector3f` are on
+  `LuaManager$Exposer`'s list; **`org.joml.Quaternionf` is not**, and `Transform`
+  hands out only its origin. So the rotation cannot be read or written
+  directly, and `BaseVehicle.setAngles(F,F,F)` -- degrees, built with
+  `Quaternionf.rotationXYZ` in Java -- is the whole reachable surface. Grep the
+  list before designing the repair, not after.
+- **And the simulation was kinder than the engine.** `pz_sim.lua` stored the
+  three angles as fields and handed them back, so the 180 artefact could not
+  occur there at all, and its `flipUpright` kept the heading the engine throws
+  away. It keeps a real quaternion now and decomposes it the same way. Hole
+  number nine; see *The simulation has to be as unkind as the engine*.
+
+`PILOTING.md` section 4 has the full derivation.
+
+### An offer the ship cannot keep is worse than a smaller offer
+
+**New in this mod.** Flight shipped with four altitudes: `FlightMin` 1,
+`FlightCruise` 3, `FlightMax` 4, and *Climb* and *Dive* on the radial menu. In
+play only the ground and level 1 ever behaved, so three of the four rungs were
+a control that appeared to do nothing -- the failure mode this file already
+names under the speed steps that all clamped to the same number.
+
+It is one altitude now, `C.FlightLevel = 1`, with no climb, no dive and **no
+`setAltitude` command on either side**. Leaving the command in as a no-op, or
+as a ceiling that refuses politely, would have been a request with a handler
+that quietly does nothing.
+
+Two things came out of doing it that generalise:
+
+- **Ask why the one that works, works.** `BaseVehicle.update()` accepts a
+  height when a floor exists at that level *or the one below*. At level 1 the
+  one below is the ground, so the engine's floor test is satisfied by Kentucky
+  and the sky plane only has to make the square exist; at level 2 and above the
+  plane is the only thing holding her up and every square of it has to be laid
+  and stay laid. Level 1 was not arbitrarily the survivor.
+- **A ceiling that comes down does not tidy up after the old one.**
+  `C.SkyLitterTop` is still 4, deliberately not following `C.FlightLevel`: a
+  floor is a saved world object and the flights that went to level 4 left
+  theirs in somebody's world. Same shape as `C.LegacyCabin` -- *write the old
+  extent down*.
 
 ### The black outside the cabin is a map, not a clearing
 
@@ -1904,6 +2001,9 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **Two shuttles** | Something was removed at a position whose chunk was not loaded, and the failure was read as success. `TREK_Ghosts()` lists hulls known to be pending and forces a sweep. |
 | **The shuttle "flies" but is drawn on the ground** | Its z is not its physics height. `BaseVehicle.update()` zeroes a vehicle's z every tick and restores the level only where a floor exists under its centre square — so the sky plane is not being laid. `grep "sky plane" console.txt`. See *A vehicle's altitude is a floor, not a height*. |
 | **The shuttle flies and ploughs through fences** | Same cause. Collision resolves at `getZ()`, which is 0 without a floor. |
+| **The shuttle snaps back to one heading and will only fly in reverse** | Something is levelling her off with `flipUpright()`, which is `setAngleAxis(0, Y)` -- the identity, heading and all -- on a test that reads `getAngleX()` as pitch. That getter is 180 for a *level* ship turned more than a quarter turn. See *A getter named for an axis is one corner of a decomposition*. |
+| **The radial menu offers Climb or Dive** | Something has grown the altitude ladder back. There is one flight level (`C.FlightLevel`) and no `setAltitude` command; `tests/test_multiplayer.py` fails on either. |
+| **The shuttle vanishes out of the sky** | Working as designed: nobody has been aboard for `C.FlightPilotGrace` checks, so she went back up rather than dropping onto whatever was underneath. `landed` is false and she can be called down. The log says `the shuttle has gone back up`, and the crew get a note. |
 | **A ship parked in the sky for ever** | Flight ended without `Sky.clear()`. The floors are world objects and they are saved. `s.skyAt` is how they get lifted; if that was lost, they are permanent. |
 | **An explosion kills things and nothing is seen** | In build 42 the visible part of an explosion *is* the fire and the smoke; there is no separate effect. `FireStartingChance`, `FireRange` and `SmokeRange` are set in **two** places — the item script and the Lua — and `triggerExplosion()` skips any mode whose range is 0 entirely. See `PHOTON_TORPEDOS.md`. |
 | **A locked door opens for the host and stays shut for everyone else** | The lock was changed on the server and never synced. `setLockedByKey` fires its own sync only when it is *not* the server; call `obj:sync()`. See *A setter's own sync may be one-sided*. |
@@ -1955,7 +2055,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | `tools/luacheck.py` | Lua syntax, via a real Lua VM |
 | `tests/test_assets.py` | sprites, items, meshes, textures, icons, sounds (both ways: a clip file that is missing, and a `playSound` the scripts never declared), the phaser's borrowed vanilla references, every translation key, every sandbox option's name, tooltip and value names, and **the whole clothing chain**: an item whose XML is missing, an XML with no GUID row, a GUID disagreeing with the table or colliding with one of vanilla's 1,795, a row for a file that is not there, a model or texture not on disk, a garment with a model for one sex and not the other, a body location the game does not declare, and an armour stat on a uniform |
 | `tests/test_stock.py` | items that cannot be created at all; loot that does not spread across its list; containers that do not reach `C.FillFraction` |
-| `tests/test_multiplayer.py` | the real code as single player and as a server with two clients: cabin build and stock reaching every client, ownership and crew, transporter charges, landing round trips, ghosts, shields pushing only local zombies, the torpedoes, the medical set (including that a dose leaves a bite and the infection alone), the replicator (the catalogue's filter, patterns, the reserve, a counted tray and all three sandbox values), the EMH (the menu, one Doctor standing square, a treatment that leaves the bite, a cure that clears both levels and the moodle for a crystal and twelve hours, consent raised on the patient's screen and nowhere else), a client editing the world or ship state, commands without handlers, missing file guards, role-gated setters, every `deny()` reason having words behind it, any logged `WARN` |
+| `tests/test_multiplayer.py` | the real code as single player and as a server with two clients: flight (one altitude, no climb or dive, a levelling pass that keeps her heading at every point of the compass, the shut hatch, and the beam that sends her back up), cabin build and stock reaching every client, ownership and crew, transporter charges, landing round trips, ghosts, shields pushing only local zombies, the torpedoes, the medical set (including that a dose leaves a bite and the infection alone), the replicator (the catalogue's filter, patterns, the reserve, a counted tray and all three sandbox values), the EMH (the menu, one Doctor standing square, a treatment that leaves the bite, a cure that clears both levels and the moodle for a crystal and twelve hours, consent raised on the patient's screen and nowhere else), a client editing the world or ship state, commands without handlers, missing file guards, role-gated setters, every `deny()` reason having words behind it, any logged `WARN` |
 | `tests/test_helm.py` | the mod's panels -- the helm console, the tricorder's contact plot, the replicator and the EMH's dialogue -- for throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
 | `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; `special` names with no rule behind them; the replicator's berth, the core's square and the EMH's; **no fixture's menu squares containing another fixture's own square or the pad**; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
 
@@ -2382,6 +2482,45 @@ is shown is indistinguishable from a broken feature**, and this file already
 says the same thing about `deny()` reasons and about `TREK_Uniform()`. An
 outcome the design calls valid still has to be delivered to the player, not
 merely recorded.
+
+**The 2026-09-23 two-player flight** is the first time anything in this mod has
+been played by two real people, and it cost one bug and one design decision.
+
+The bug: *"in hover it snaps us back basically forever, but if I go backwards
+it seems to work"*. `keepLevel` read `getAngleX()`/`getAngleZ()` as pitch and
+roll -- they are two corners of an Euler decomposition, and both read **180**
+for a ship that is dead level but turned more than a quarter turn from the
+heading she spawned at -- and then called `flipUpright()`, which is
+`setAngleAxis(**0**, Y)`: the identity, heading and all, applied by teleporting
+the physics body. Ten times a second. Reverse worked because reversing never
+leaves the safe half of the compass. It has been there since the day flight was
+built, and every test passed because `pz_sim.lua` stored the three angles
+instead of decomposing a rotation -- hole nine in *The simulation has to be as
+unkind as the engine*. Two new sections of this file came out of it: *A getter
+named for an axis may be one corner of a decomposition* and *An offer the ship
+cannot keep is worse than a smaller offer*.
+
+The decision: **flight is a binary**. Four altitudes with *Climb* and *Dive*
+went to one, `C.FlightLevel = 1`, and `setAltitude` was deleted from both ends
+rather than left as a polite ceiling -- only the ground and level 1 ever
+behaved in play, and level 1 is not arbitrary: the engine accepts a height with
+a floor at that level *or the one below*, and one below level 1 is the ground.
+With it: the hatch stays shut while she hovers, so the transporter is the only
+way out of her, and **when the last of the crew beams down she goes back up**
+rather than dropping five tonnes of shuttle onto whatever is underneath.
+`landed = false` is the state a recall already leaves her in, so calling her
+down again needed no new code. `PILOTING.md` is rewritten around all of it.
+
+Three mutations, all caught: the old `flipUpright` levelling (the heading test
+fails at 135, 180 and -135 degrees and passes everywhere else, which is the
+reported symptom exactly), `crewAboard`'s seat test back to `~= nil` (which is
+how it shipped -- `U.try` hands back the value, so a successful call answering
+*false* counted as aboard and only death ever ended a flight), and
+`S.endFlight` without its `toOrbit`.
+
+**Still unproven**, and only the game can say: whether the other machine draws
+her in the air, and whether five checks of `FlightPilotGrace` is enough room
+for a real beam on a real connection.
 
 **Next up** is `ROADMAP.md`'s step 7: publishing. Everything on the roadmap is
 built; what is left is playing it. Four systems have never been in a game at

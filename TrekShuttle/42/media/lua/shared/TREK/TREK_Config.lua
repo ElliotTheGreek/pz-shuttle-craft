@@ -325,27 +325,51 @@ C.SkyTilesPerTick = 96
 -- bound. Past this the squares furthest behind the ship are lifted first.
 C.SkyMaxTiles = 40000
 
--- Cruising height, and the levels the pilot may climb and dive between. Level
--- 0 is the ground and is never paved -- a floor laid there would be a floor
--- laid on Kentucky. Three clears a two-storey building with room to spare.
-C.FlightCruise   = 3
-C.FlightMinLevel = 1
+-- **There is one flight altitude and it is this one.** She is on the ground or
+-- she is hovering; there is no climbing and no diving, and nothing anywhere in
+-- the mod may ask for a different level.
+--
+-- It was 1 to 4 with a cruise of 3, and the menu said "Climb" and "Dive". In
+-- play only the ground and level 1 ever behaved, so three of the four rungs
+-- were an offer the ship could not keep -- and a control that appears to do
+-- nothing is the thing this project keeps writing rules about.
+--
+-- Level 1 is also the one altitude the engine is *structurally* willing to
+-- hold, which is worth knowing before anybody raises it again.
+-- BaseVehicle.update() accepts a height when
+--
+--     sq != null && (sq.getFloor() != null || (sqB != null && sqB.getFloor() != null))
+--
+-- -- a floor at the level **or the one below**. At level 1 the one below is
+-- Kentucky, so the ground itself satisfies the floor half of that test and the
+-- sky plane only has to make the square at level 1 exist. At level 2 and above
+-- the plane is the only thing holding her up, and every square of it has to
+-- have been laid, and stay laid, before the engine will keep her there.
+--
+-- Level 0 is the ground and is never paved: a floor laid there would be a
+-- floor laid on Kentucky.
+C.FlightLevel = 1
 
--- One level above the cruise and no more. Higher was offered and was not worth
--- having: the levels above this are past the height the world has any geometry
--- at, the ship has nothing to be "over" up there, and every trip that far up
--- ended badly. Kept as cruise + 1 rather than a bare number so the two cannot
--- drift apart.
-C.FlightMaxLevel = 4
+-- How high the tidy-up hunts for invisible floors left behind, in levels.
+-- Deliberately *not* C.FlightLevel: builds up to 1.3.0 flew as high as level 4,
+-- a floor is a saved world object, and the litter those flights left in
+-- somebody's world does not disappear because the ceiling came down.
+C.SkyLitterTop = 4
 
 -- Ticks to wait for the engine to accept a level before giving up on the lift.
 C.FlightLiftTicks = 60
 
--- Degrees of pitch or roll tolerated before she is levelled off again. She
--- rests on an invisible floor with real physics running, and a 1200kg box on a
--- one-tile-thick shelf will tip if it is nudged -- she went over backwards in
--- game. flipUpright touches only the rotation, never the height.
-C.FlightLevelTolerance = 4
+-- Degrees she may be off level before she is put right. She rests on an
+-- invisible floor with real physics running, and a 1200kg box on a one-tile
+-- shelf will tip if it is nudged -- she went over backwards in game.
+--
+-- This was 4, and it was measured against the wrong thing (see TREK_Flight's
+-- keepLevel). Twenty now, for two reasons: a vehicle's suspension pitches it
+-- several degrees under throttle and brakes, which is the engine drawing a
+-- car rather than a ship falling over; and putting her right is a physics
+-- teleport, which the pilot feels as a stutter. Going over backwards is
+-- ninety degrees, so twenty is still nowhere near letting it happen.
+C.FlightLevelTolerance = 20
 
 -- The helm's flight speeds, as the vehicle's own top speed in the units
 -- setMaxSpeed takes (the shuttle's script sets 70 on the ground).

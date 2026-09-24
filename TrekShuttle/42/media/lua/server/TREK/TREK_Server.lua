@@ -306,9 +306,15 @@ end
 ---
 --- One function, called from every ending, because the 1.1 flight's worst bug
 --- was an ending it did not cover: flight outlived the pilot's death and flew
---- on for the respawned character. Landing, a dead pilot, a pilot who got out,
+--- on for the respawned character. Landing, a dead pilot, a crew who all left,
 --- a disconnect and a world reload all come through here.
-function S.endFlight(why)
+---
+--- `toOrbit` is the ending where nobody is aboard any more. She does not come
+--- down where she happens to be -- that drops five tonnes of shuttle into
+--- whatever is underneath her, which may be a roof, a pond or a horde. She
+--- goes back up instead, exactly as `recall` sends her up from the ground, and
+--- the crew call her down again when they want her.
+function S.endFlight(why, toOrbit)
     local s = U.state()
     if not s.flying then return false end
     s.flying = nil
@@ -318,39 +324,67 @@ function S.endFlight(why)
     U.log("flight ended: %s", tostring(why))
     Ship.commit()
     -- The clients bring her down and take the plane up; only they can, since
-    -- build 42's server runs no vehicle physics at all.
-    Net.toAll("flightEnded", { why = why, z = s.z })
+    -- build 42's server runs no vehicle physics at all. Before the vehicle is
+    -- removed, so that every client's plane is lifted while it can still see
+    -- what it was holding up.
+    Net.toAll("flightEnded", { why = why, z = s.z, toOrbit = toOrbit == true })
+    if toOrbit then S.toOrbit(why) end
     return true
 end
 
---- Is the ship's pilot still aboard and alive?
+--- Sends her back up from wherever she was hovering: no vehicle left in the
+--- sky, no hull dropped on the ground, and `landed = false`, which is the
+--- state the whole call-down and recall machinery already understands.
 ---
---- Not simply "is that name online": a pilot who dies and respawns keeps their
---- username, and a ship that stayed up for a dead pilot is the exact bug that
---- got the 1.1 flight removed -- it outlived its pilot and flew on for the
---- replacement character.
----
---- But not "is that pilot in the seat", either. The whole point of the plane
---- holding the ship up is that the crew can go aft to the cabin in flight and
---- come back, so a pilot standing in the cabin still counts.
-local function pilotAboard(vehicle)
+--- There is no hull to lift here the way `S.recall` lifts one: a flying ship
+--- is always a vehicle, and a hull only ever exists for a save made before
+--- there was one.
+function S.toOrbit(why)
     local s = U.state()
-    if not s.pilot then return false end
+    if not s.landed then return false end
+    local vehicle = V.find(s.vehicleId)
+    if vehicle then removeVehicle(vehicle, why or "back up") end
+    s.landed = false
+    s.vehicleId = nil
+    s.missingChecks = nil
+    Ship.commit()
+    U.log("the shuttle has gone back up from %d,%d (%s)", s.x, s.y, tostring(why))
+    return true
+end
+
+--- Is anybody still aboard her -- in a seat, or aft in the cabin?
+---
+--- Not "is the recorded pilot online": a pilot who dies and respawns keeps
+--- their username, and a ship that stayed up for a dead pilot is the exact bug
+--- that got the 1.1 flight removed.
+---
+--- And not "is the pilot in the seat", either. The whole point of the plane
+--- holding the ship up is that the crew can go aft to the cabin in flight and
+--- come back, so anybody standing in the cabin counts -- which is also what
+--- makes "go aboard at any phase" safe: stepping through to the cabin is not
+--- leaving her.
+---
+--- It asks about **everybody**, not only the pilot. On a server the pilot may
+--- beam down while a crewman is still aft, and pulling the ship out from under
+--- them would leave them in a cabin belonging to nothing.
+---
+--- The seat test is `== true` and that is a fix, not a style. `U.try` hands
+--- back whatever the function returned, so `U.try(...) ~= nil` was true for a
+--- successful call that answered **false** -- which is to say for a player who
+--- is not in a seat at all. Every living player counted as aboard, and the
+--- only ending that ever fired was death.
+local function crewAboard(vehicle)
     for _, p in ipairs(U.players()) do
-        if Ship.usernameOf(p) == s.pilot then
-            if U.try("pilotDead", function() return p:isDead() end) ~= false then
-                return false
-            end
+        if U.try("crewDead", function() return p:isDead() end) == false then
             if U.isInteriorPlayer(p) then return true end
-            if vehicle and U.try("pilotSeated", function()
+            if vehicle and U.try("crewSeated", function()
                 return vehicle:getSeat(p) ~= nil
-            end) ~= nil then
+            end) == true then
                 return true
             end
-            return false
         end
     end
-    return false      -- not online at all
+    return false
 end
 
 --- Sends the ship back up. Refused while anyone is sitting in it: recalling a
@@ -464,17 +498,22 @@ function S.serviceVehicle()
         end
         if x ~= s.x or y ~= s.y then s.x, s.y = x, y changed = true end
 
-        -- The pilot has to be in the seat for the ship to be flown. Nobody
-        -- there for long enough -- they died, they logged out, they walked
-        -- off -- and she comes down by herself rather than hanging in the sky
-        -- for the rest of the world's life.
+        -- Somebody has to be aboard for her to stay up -- in a seat or aft in
+        -- the cabin. Nobody there for long enough -- they died, they logged
+        -- out, they beamed down -- and she goes back up rather than hanging in
+        -- the sky for the rest of the world's life.
+        --
+        -- The grace is what makes a beam survivable: a player is briefly
+        -- neither in the seat nor in the cabin while the transporter has them,
+        -- and one check taken in that gap would send the ship away from under
+        -- a crew who are on their way aft.
         if s.flying then
-            if pilotAboard(found) then
+            if crewAboard(found) then
                 s.pilotGrace = nil
             else
                 s.pilotGrace = (s.pilotGrace or 0) + 1
                 if s.pilotGrace >= C.FlightPilotGrace then
-                    S.endFlight("nobody is flying her")
+                    S.endFlight("nobody is aboard her", true)
                     return
                 end
                 changed = true
@@ -731,9 +770,9 @@ Net.onServer("takeoff", function(player)
         return
     end
     claim(player)
-    Net.toClient(player, "takeoffGranted", { level = C.FlightCruise })
+    Net.toClient(player, "takeoffGranted", { level = C.FlightLevel })
     U.log("%s has the helm; clearing her for level %d",
-          Ship.usernameOf(player), C.FlightCruise)
+          Ship.usernameOf(player), C.FlightLevel)
 end)
 
 --- The client got her up and the engine held the height. Only now is the ship
@@ -745,8 +784,10 @@ Net.onServer("airborne", function(player, args)
     if not s.landed then return end
     local _, driving = drivenBy(player)
     if not driving then return end
+    -- One altitude, so this is an equality and not a range. A client reporting
+    -- any other height is reporting something the ship cannot be doing.
     local level = int(args.level)
-    if not level or level < C.FlightMinLevel or level > C.FlightMaxLevel then return end
+    if level ~= C.FlightLevel then return end
     s.flying = true
     s.level = level
     s.pilot = Ship.usernameOf(player)
@@ -767,24 +808,11 @@ Net.onServer("airborne", function(player, args)
           s.x, s.y, level, s.pilot)
 end)
 
-Net.onServer("setAltitude", function(player, args)
-    if not mayUse(player) then return end
-    local s = U.state()
-    if not s.flying then return end
-    local _, driving = drivenBy(player)
-    if not driving then
-        deny(player, "notPilot")
-        return
-    end
-    local level = int(args.level)
-    if not level then return end
-    level = math.max(C.FlightMinLevel, math.min(C.FlightMaxLevel, level))
-    if level == s.level then return end
-    s.level = level
-    s.skyAt = { x = s.x, y = s.y, level = level }
-    Ship.commit()
-    U.log("shuttle changing to level %d", level)
-end)
+-- There is deliberately no `setAltitude`. Flight is a binary -- she is on the
+-- ground or she is hovering at C.FlightLevel -- so there is no altitude to
+-- set, and leaving the command in place as a no-op would be a request with a
+-- handler that quietly does nothing, which is the shape this project keeps
+-- paying for.
 
 --- The ship's flight speed. Anyone who may use her may set it -- the helm is
 --- in the cabin and the pilot is in the cockpit, so on a server the crewman
@@ -1064,7 +1092,7 @@ Net.onServer("fireTorpedo", function(player, args)
     -- the same documented exception the sky plane uses -- no client touches
     -- ship state and no client does damage.
     Net.toAll("torpedoLaunched", {
-        x0 = s.x, y0 = s.y, level = s.level or C.FlightMinLevel,
+        x0 = s.x, y0 = s.y, level = s.level or C.FlightLevel,
         x = x, y = y, z = z,
         ms = flight,
     })

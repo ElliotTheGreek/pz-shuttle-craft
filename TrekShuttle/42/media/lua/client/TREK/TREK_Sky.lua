@@ -203,7 +203,9 @@ end
 --- only restarts the pass when the ship has actually moved.
 function Sky.pave(cx, cy, level)
     cx, cy, level = math.floor(cx), math.floor(cy), math.floor(level)
-    if level < C.FlightMinLevel then return end
+    -- Level 0 is Kentucky, and a floor laid on Kentucky is a floor laid on
+    -- Kentucky.
+    if level < 1 then return end
     if job and job.x == cx and job.y == cy and job.level == level then return end
     job = { x = cx, y = cy, level = level, cursor = 0 }
 end
@@ -250,8 +252,8 @@ function Sky.service()
 end
 
 -- The level the ship is *actually* on, which is not always the level it has
--- been told to fly at. Changing altitude means there are briefly two planes,
--- and the old one is what she is still standing on.
+-- been told to fly at. Taking off and setting down both mean there are briefly
+-- two planes, and the old one is what she is still standing on.
 local keepAlso = nil
 
 --- Says which level must not be lifted whatever else happens: the one holding
@@ -262,11 +264,13 @@ end
 
 --- Lifts the squares the ship has left behind.
 ---
---- It must never lift the floor under the ship. Climbing sets the target level
---- and the very next pass used to take up every tile at the old one -- the
---- plane she was resting on -- before the new one existed or she had been
---- raised onto it, so she fell out of the sky the moment the pilot asked to go
---- higher, and once landed in a building. Seen in game, 2026-09-17 20:12:06.
+--- It must never lift the floor under the ship. Back when there were four
+--- levels, climbing set the target and the very next pass took up every tile
+--- at the old one -- the plane she was resting on -- before the new one
+--- existed or she had been raised onto it, so she fell out of the sky the
+--- moment the pilot asked to go higher, and once landed in a building. Seen in
+--- game, 2026-09-17 20:12:06. The climb is gone; the two-planes moment is not,
+--- because every take-off and every landing is one.
 function Sky.trim()
     if not job then return end
     local take = U.batch("sky.removeFloor")
@@ -336,13 +340,16 @@ function Sky.sweepArea(cx, cy, job)
     local list = cleanOffsets()
     local take = U.batch("sky.removeFloor")
     local done = 0
-    local levels = C.FlightMaxLevel - C.FlightMinLevel + 1
+    -- Every level a floor of ours could be on, which is not the same as the
+    -- one she flies at now: builds up to 1.3.0 flew as high as C.SkyLitterTop
+    -- and a floor is a saved world object (C.SkyLitterTop).
+    local levels = C.SkyLitterTop
 
     while done < C.SkyTilesPerTick do
         job.cursor = (job.cursor or 0) + 1
         if job.cursor > #list * levels then return true end
         local i = ((job.cursor - 1) % #list) + 1
-        local level = C.FlightMinLevel + math.floor((job.cursor - 1) / #list)
+        local level = 1 + math.floor((job.cursor - 1) / #list)
         local d = list[i]
         local x, y = math.floor(cx) + d[1], math.floor(cy) + d[2]
         local sq = U.square(x, y, level, false)

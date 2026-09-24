@@ -5,8 +5,10 @@ dedicated servers**, for anyone who subscribes on the Workshop.
 
 Status: **all nine migration steps built (1.3.0)**. Everything through step 8
 — the vehicle shuttle and flight — is confirmed in single player and passes the
-simulated server with two clients; **no part of it has been played with two
-real people yet.** This document is the plan and the record of why each
+simulated server with two clients. **Flight was played with two real people for
+the first time on 2026-09-23**, which is where the levelling bug in
+`PILOTING.md` section 4 came from; nothing else in here has been played with
+two real people yet. This document is the plan and the record of why each
 decision was made. Every step is covered by `tests/test_multiplayer.py`, which
 runs the real Lua as single player and as a server with two clients over a
 simulated network, flight included -- but a simulation is not the game.
@@ -359,17 +361,38 @@ What matters here is the authority split.
 | | |
 |---|---|
 | `flying`, `level`, `pilot`, `speed` | **Server**, ship state, set only by validated commands |
-| Who may take off, climb, dive, land | **Server** -- alive, `mayUse`, and in the driver's seat |
-| The lift between levels | **The client that owns the physics** (`isLocalPhysicSim`) |
+| Who may take off and land | **Server** -- alive, `mayUse`, and in the driver's seat |
+| The lift, and keeping her level | **The client that owns the physics** (`isLocalPhysicSim`) |
 | The invisible floor | **Each client, for itself.** Never synced. |
+| Sending her back up when nobody is aboard | **Server**, on its own copy of where everyone is standing |
 | Driving, steering, seats, camera, position sync | **Vanilla.** The mod touches none of it. |
 
 `takeoff` -> `takeoffGranted` -> *(the client paves, lifts, and reads the
-height back off the engine)* -> `airborne` -> `setAltitude` / `setSpeed` ->
-`touchdown` -> `touchdownGranted`, with `flightEnded` to everybody. **The
-server never records her as flying until a client reports that the engine
-actually held the height**: a lift that failed must not leave the state saying
-she is up when she is sitting on the grass.
+height back off the engine)* -> `airborne` -> `setSpeed` -> `touchdown` ->
+`touchdownGranted`, with `flightEnded` to everybody. **The server never records
+her as flying until a client reports that the engine actually held the
+height**: a lift that failed must not leave the state saying she is up when she
+is sitting on the grass.
+
+**Flight is a binary**: she is on the ground or she is hovering at
+`C.FlightLevel`, and there is no `setAltitude` on either side. It was four
+levels with *Climb* and *Dive* on the radial; only two of the four ever behaved
+in play, and the command was removed rather than left as a handler that accepts
+a request and quietly does nothing. `PILOTING.md` section 1 has why level 1 in
+particular is the one the engine will hold.
+
+**And nobody aboard means she goes back up, not down.** The hatch is shut while
+she hovers, so the only way out of her is the transporter; when the last of the
+crew beams down, `S.endFlight(why, toOrbit)` clears the flight and `S.toOrbit`
+removes the vehicle and sets `landed = false` -- the same state a recall leaves
+her in. Dropping her onto whatever happens to be underneath was the
+alternative. The crew are told, because a ship that disappears without a word
+is indistinguishable from one that has been lost.
+
+The test for who counts as aboard asks about **everybody**, not the recorded
+pilot: on a server the pilot may beam down while a crewman is still aft, and
+pulling the ship out from under them would leave them in a cabin belonging to
+nothing.
 
 ### Why a client may lay world floor
 
@@ -579,17 +602,24 @@ it is handed, and from the server's side both look like success.
    `BaseVehicle.update()` then recomputes it) has only been reasoned about.
 9. **Flight speed at one helm reaching the pilot at another.** Proven in
    simulation; unproven across a real connection.
-10. **A lock opened by one player, seen by another.** The server clears the
+10. **The heading she is flown on, seen from the other machine.** The levelling
+   pass runs on every client that can see her and only the physics owner moves
+   her, and the first two-player flight found that pass wrenching her rotation
+   to the identity whenever the pilot turned more than a quarter turn --
+   `getAngleX` reads 180 there for a ship that is dead level (`PILOTING.md`
+   section 4). Fixed and covered in simulation on both machines; the real
+   connection has not seen it since.
+11. **A lock opened by one player, seen by another.** The server clears the
     flags and calls `obj:sync()`; the packet itself has only been reasoned
     about from the bytecode.
-11. **A medical scan on another player**: the consent prompt appearing on
+12. **A medical scan on another player**: the consent prompt appearing on
     their screen, and the panel that follows reporting at doctor level
     rather than at the scanner's own Doctor skill.
-12. **A pattern scanned by one player appearing for another**, which is the
+13. **A pattern scanned by one player appearing for another**, which is the
     only thing the replicator's separate mod data key has to get right: the
     server transmits `TREK_Patterns_v1` when a pattern is learned and each
     client stores what arrives. The simulated two-client scenario agrees.
-13. **An item the server makes arriving in the asking player's hands**, and
+14. **An item the server makes arriving in the asking player's hands**, and
     in nobody else's. It rides `sendAddItemToContainer` on their own
     inventory, which is what vanilla's ClientCommands.lua does -- but on a
     real connection rather than a simulated one.

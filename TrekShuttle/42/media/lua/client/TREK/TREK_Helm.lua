@@ -395,8 +395,10 @@ function TREKHelmWindow:render()
     local step = F and F.speed() or C.FlightSpeedSteps[1]
     self.speedBtn.title = getText("IGUI_TREK_FlightSpeed", tostring(step))
     local s = Ship.get()
+    -- One altitude, so the panel names no number: "Airborne at level 3" was a
+    -- reading of a dial the ship no longer has.
     local flightText = s.flying
-        and getText("IGUI_TREK_FlightStatusAir", tostring(s.level or "?"), tostring(step))
+        and getText("IGUI_TREK_FlightStatusAir", tostring(step))
         or getText("IGUI_TREK_FlightStatusGround")
     local fc = s.flying and P.gold or P.dim
     self:drawText(flightText, cx, self.flightStatusY,

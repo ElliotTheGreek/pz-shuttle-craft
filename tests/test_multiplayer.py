@@ -933,15 +933,21 @@ def flight():
           f"flight: the radial menu offers no way to take off (slices: {titles})")
     check("IGUI_TREK_BoardCabin" in (titles or ""),
           f"flight: the radial menu offers no way into the cabin (slices: {titles})")
+    # And it is a binary. "Climb" and "Dive" were four rungs of a ladder with
+    # three that the ship could not stand on; there is one altitude now and
+    # anything offering another is the confusion this pass removed.
+    for gone in ("IGUI_TREK_Climb", "IGUI_TREK_Dive"):
+        check(gone not in (titles or ""),
+              f"flight: the radial menu still offers {gone} (slices: {titles})")
 
     # --- take off ---------------------------------------------------------
     rt.run(f"TREK.Flight.takeOff({P})")
     net.pump(400)
     check(ship(rt, "flying") is True,
           "flight: she never got off the ground")
-    check(ship(rt, "level") == rt.eval("TREK.Config.FlightCruise"),
-          f"flight: airborne at level {ship(rt, 'level')}, not the cruise level")
-    check(vehicle_z(rt) == rt.eval("TREK.Config.FlightCruise"),
+    check(ship(rt, "level") == rt.eval("TREK.Config.FlightLevel"),
+          f"flight: airborne at level {ship(rt, 'level')}, not the one flight level")
+    check(vehicle_z(rt) == rt.eval("TREK.Config.FlightLevel"),
           f"flight: the engine puts the ship at z {vehicle_z(rt)}, not the flight "
           f"level -- the sky plane is not holding it up")
     check(ship(rt, "pilot") == "pilot", "flight: the ship does not know who is flying it")
@@ -969,7 +975,7 @@ def flight():
     net.pump(300)
     check(rt.eval("TREK.Sky.count()") > 0,
           "flight: the sky plane was swept away while she was still flying on it")
-    check(vehicle_z(rt) == rt.eval("TREK.Config.FlightCruise"),
+    check(vehicle_z(rt) == rt.eval("TREK.Config.FlightLevel"),
           f"flight: she dropped to z {vehicle_z(rt)} while airborne")
     check(ship(rt, "flying") is True, "flight: she did not stay up")
 
@@ -989,39 +995,61 @@ def flight():
     check(held <= area,
           f"flight: she is dragging {held} squares of floor behind her, and the "
           f"patch is only {area} -- that is a wake of shadow on the ground")
-    check(vehicle_z(rt) == rt.eval("TREK.Config.FlightCruise"),
+    check(vehicle_z(rt) == rt.eval("TREK.Config.FlightLevel"),
           f"flight: she lost height while flying along (z {vehicle_z(rt)})")
 
-    # --- climbing and diving must not drop her -----------------------------
-    # Changing level means two planes exist for a moment, and the one she is
-    # standing on is the *old* one. Trimming to the new target first took the
-    # floor out from under her mid-climb: she fell, once into a building.
-    cruise = rt.eval("TREK.Config.FlightCruise")
-    rt.run(f"TREK.Flight.climb({P})")
-    # Watched tick by tick, not just at the end. Pulling the floor from under
-    # her mid-climb is survivable -- the next pass puts her back -- so reading
-    # only the final height reports success while she visibly lurches. The
-    # physics body must never sag toward the ground at all.
-    rt.run("""for _, v in ipairs(SIM.vehicles) do v.minLevel = nil end""")
-    net.pump(120)
-    worst = rt.eval("""(function()
-        local v = TREK.Vehicle.ship()
-        return v and v.minLevel or 99
-    end)()""")
-    check(worst >= cruise - 0.1,
-          f"flight: she sagged to level {worst:.2f} during the climb; the floor "
-          f"was taken from under her before she was on the new one")
-    check(ship(rt, "level") == cruise + 1,
-          f"flight: the climb was not accepted (level {ship(rt, 'level')})")
-    check(vehicle_z(rt) == cruise + 1,
-          f"flight: she did not reach the level she climbed to (z {vehicle_z(rt)})")
-    check(ship(rt, "flying") is True, "flight: climbing dropped her out of flight")
+    # --- levelling her off must not throw her heading away -----------------
+    # This is the bug that made the first two-player flight unflyable, and
+    # nothing here could see it because the simulation stored the three angles
+    # instead of decomposing a rotation.
+    #
+    # getAngleX/Z are not pitch and roll. They are the X and Z of JOML's
+    # getEulerAnglesXYZ, and for a level ship turned more than a quarter turn
+    # from her spawn heading the X of that is atan2(0, cos yaw) = 180. So the
+    # old "|angleX| > tolerance means she is tipping" fired on every check in
+    # half the compass, and the call it made -- flipUpright -- is
+    # setAngleAxis(**0**, Y): the identity. She was wrenched back to her spawn
+    # heading ten times a second, by a physics teleport, and only reverse
+    # worked because reversing never leaves the safe half.
+    #
+    # Two things have to hold at every heading: she ends up level, and her nose
+    # does not move.
+    cruise = rt.eval("TREK.Config.FlightLevel")
+    for heading in (0, 60, 135, 180, -135, -60):
+        rt.run(f"""
+            local v = TREK.Vehicle.ship()
+            v:setHeading({heading})
+        """)
+        net.pump(20)
+        got = rt.eval("TREK.Vehicle.ship():heading()")
+        check(abs(((got - heading) + 180) % 360 - 180) < 1.0,
+              f"flight: flying on a heading of {heading} degrees, she was "
+              f"turned to {got:.1f} -- something is levelling her off by "
+              f"throwing the whole rotation away")
+        check(rt.eval("TREK.Vehicle.ship():uprightness()") > 0.99,
+              f"flight: she is not level on a heading of {heading} degrees")
+        check(vehicle_z(rt) == cruise,
+              f"flight: levelling her off on a heading of {heading} cost her "
+              f"height (z {vehicle_z(rt)})")
 
-    rt.run(f"TREK.Flight.dive({P})")
-    net.pump(120)
-    check(vehicle_z(rt) == cruise,
-          f"flight: she did not come back down a level (z {vehicle_z(rt)})")
-    check(ship(rt, "flying") is True, "flight: diving dropped her out of flight")
+    # And she really is put right when she is really tipped -- at a heading
+    # where the angles read 180, which is where the old test could not tell a
+    # tipped ship from a turned one.
+    rt.run(f"""
+        local v = TREK.Vehicle.ship()
+        v:setHeading(135)
+        -- 40 degrees of roll on top of that heading.
+        v:setAngles(v:getAngleX(), v:getAngleY(), v:getAngleZ() - 40)
+    """)
+    check(rt.eval("TREK.Vehicle.ship():uprightness()") < 0.9,
+          "flight: the simulation would not let her tip at all, so the rescue "
+          "below proves nothing")
+    net.pump(40)
+    check(rt.eval("TREK.Vehicle.ship():uprightness()") > 0.99,
+          "flight: she was left lying over on her side")
+    got = rt.eval("TREK.Vehicle.ship():heading()")
+    check(abs(((got - 135) + 180) % 360 - 180) < 25.0,
+          f"flight: righting her swung her nose from 135 to {got:.1f}")
 
     # --- the tricorder reads the ground from up here -----------------------
     # A sweep reads the deck it is standing on, and three levels up that deck
@@ -1088,22 +1116,16 @@ def flight():
           "survey")
     rt.run("SIM.players[1].vehicle = SIM.players[1].vehicleWas")
 
-    # --- the ceiling is real, and says so ---------------------------------
-    # She is at cruise + 1 now, which is the top. Asking for more must be
-    # refused out loud rather than silently clamped to where she already is --
-    # "nothing happened" is indistinguishable from "it is broken".
-    # Up to the ceiling first -- the dive above brought her back to cruise.
-    rt.run(f"TREK.Flight.climb({P})")
-    net.pump(120)
-    before = ship(rt, "level")
-    check(before == rt.eval("TREK.Config.FlightMaxLevel"),
-          f"flight: expected her at the ceiling, she is at {before}")
-    rt.run(f"TREK.Flight.climb({P})")
-    net.pump(60)
-    check(ship(rt, "level") == before,
-          "flight: she climbed past the ceiling")
-    check(any("IGUI_TREK_CeilingReached" in n for n in rt.notes()),
-          "flight: climbing past the ceiling said nothing at all")
+    # --- there is no altitude to set --------------------------------------
+    # Not "the ceiling refuses politely": the command is gone. A handler that
+    # accepts a request and quietly does nothing is the shape this project
+    # keeps paying for, so `setAltitude` was deleted from both ends and the
+    # protocol check below is what would notice it coming back.
+    check(rt.eval("TREK.Net.serverHandlers.setAltitude") is None,
+          "flight: the server still handles setAltitude, so something can still "
+          "ask her to change height")
+    check(rt.eval("TREK.Flight.climb") is None and rt.eval("TREK.Flight.dive") is None,
+          "flight: TREK.Flight still has climb/dive")
 
     # --- the speed control actually reaches the vehicle --------------------
     # It did not. The steps were multipliers of a base of 30 capped at 42, so
@@ -1155,10 +1177,8 @@ def flight():
     # while the pilot was in the cabin the vehicle was not loaded here at all,
     # which is exactly why flight must not read "the vehicle is not in the
     # cell's list" as "the vehicle is gone".
-    # Back at whatever level she is actually flying at, not a guess: the climb
-    # above left her one higher than cruise, and standing a level below the
-    # ship is a fall.
-    # Back to wherever the ship actually is, at whatever level she is actually
+    #
+    # Back to wherever the ship actually is, at the level she is actually
     # flying at. She has been driven some way from the take-off point, and
     # standing where she *was* is standing on nothing.
     rt.run("""
@@ -1167,57 +1187,13 @@ def flight():
         -- TREK.Vehicle.find cannot see it at all.
         local p = SIM.players[1]
         local s = TREK.Util.state()
-        local lvl = s.level or TREK.Config.FlightCruise
+        local lvl = s.level or TREK.Config.FlightLevel
         p.x, p.y = s.x + 0.5, s.y + 0.5
         p.z, p.lastZ = lvl, lvl
     """)
     net.pump(70)
     seat(rt)
     net.pump(70)
-
-    # --- beaming out of the cockpit in the air is survivable ---------------
-    # It was not. Leaving a seat three levels up drops the character beside a
-    # ship that is in the air, and the beam takes ninety ticks, so they spent
-    # all of it falling -- arriving hurt, under the ship's own floor, with the
-    # screen black. They must be held still until they rematerialise, and land
-    # beside her rather than in her shadow.
-    rt.run(f"TREK.Transport.beamDown({P})")
-    # Watched all the way down. The failure was not the destination, it was the
-    # second and a half in between: out of the seat, standing on a small island
-    # of invisible floor three levels up, with the engine drawing that level and
-    # culling everything below it. Black screen. At no point may the character
-    # be out of the seat and off the ground.
-    stranded = 0
-    for _ in range(200):
-        net.pump(1)
-        if rt.eval(f"{P}.vehicle") is None and (pos(rt)[2] or 0) > 0:
-            stranded += 1
-    check(stranded == 0,
-          f"flight: the pilot spent {stranded} ticks out of the seat and up in "
-          f"the air during the beam; that is the black screen")
-    check(rt.eval(f"{P}.dead") is not True,
-          "flight: beaming down from the cockpit in flight killed the pilot")
-    net.pump(60)
-    px, py, pz = pos(rt)
-    check(pz == 0,
-          f"flight: beamed out of the air and ended at z {pz}, not on the ground")
-    sx, sy = ship(rt, "x"), ship(rt, "y")
-    check(max(abs(px - sx), abs(py - sy)) >= 2,
-          f"flight: beamed down at {px},{py}, right underneath the ship at "
-          f"{sx},{sy} -- that is inside her shadow")
-    check(ship(rt, "flying") is True,
-          "flight: the ship came down when the pilot beamed off her")
-
-    # Back in the seat once more to fly her down.
-    rt.run("""
-        local p = SIM.players[1]
-        local s = TREK.Util.state()
-        p.x, p.y = s.x + 0.5, s.y + 0.5
-        p.z, p.lastZ = s.level or TREK.Config.FlightCruise, p.z
-    """)
-    net.pump(40)
-    seat(rt)
-    net.pump(40)
     rt.run(f"TREK.Flight.land({P})")
     net.pump(200)
     check(ship(rt, "flying") is None, "flight: she would not come down")
@@ -1274,10 +1250,67 @@ def flight():
           f"flight: {stale} squares had something removed and were never "
           f"recalculated; whatever was lifted will keep darkening the ground")
 
+    # --- beaming out of a hovering ship sends her back up ------------------
+    # The way out of a ship in the air is the transporter and nothing else --
+    # the hatch is shut (above) and the seat cannot be stepped out of. So the
+    # last beam is the last person aboard, and what she must not do then is
+    # come down where she happens to be: five tonnes of shuttle onto whatever
+    # is underneath her, which may be a roof, a pond or a horde. She goes back
+    # up, exactly as a recall sends her up from the ground, and the crew call
+    # her down again.
+    rt.run(f"SIM.players[1].z, SIM.players[1].lastZ = 0, 0")
+    net.pump(20)
+    seat(rt)
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+    check(ship(rt, "flying") is True, "flight: she would not go up a second time")
+    rt.notes()      # drain, so the note below is this beam's
+
+    rt.run(f"TREK.Transport.beamDown({P})")
+    # Watched all the way down. The failure this guards was not the
+    # destination, it was the second and a half in between: out of the seat,
+    # standing on a small island of invisible floor with the engine drawing
+    # that level and culling everything below it. Black screen. At no point may
+    # the character be out of the seat and off the ground.
+    stranded = 0
+    for _ in range(200):
+        net.pump(1)
+        if rt.eval(f"{P}.vehicle") is None and (pos(rt)[2] or 0) > 0:
+            stranded += 1
+    check(stranded == 0,
+          f"flight: the pilot spent {stranded} ticks out of the seat and up in "
+          f"the air during the beam; that is the black screen")
+    check(rt.eval(f"{P}.dead") is not True,
+          "flight: beaming down from the cockpit in flight killed the pilot")
+    net.pump(600)
+    px, py, pz = pos(rt)
+    check(pz == 0,
+          f"flight: beamed out of the air and ended at z {pz}, not on the ground")
+    check(ship(rt, "flying") is None,
+          "flight: she is still recorded as flying with nobody aboard her")
+    check(ship(rt, "landed") is False,
+          f"flight: nobody is aboard and she is still down here "
+          f"(landed={ship(rt, 'landed')}) instead of back up")
+    check(shuttles(rt) == 0,
+          "flight: she went back up and left her vehicle hanging in the sky")
+    check(rt.eval("TREK.Sky.count()") == 0,
+          "flight: she went back up and left her invisible floors behind")
+    check(any("IGUI_TREK_BackUp" in n for n in rt.notes()),
+          "flight: the ship vanished out of the sky and told nobody; from "
+          "inside the game that is indistinguishable from losing her")
+
+    # And she can be called down again, which is the whole point of going up
+    # rather than falling over.
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, {px} + 6, {py}, 0)")
+    net.pump(60)
+    check(ship(rt, "landed") is True,
+          "flight: she went back up and could not be called down again")
+
     for w in rt.warnings():
         fail(f"flight: {w}")
-    print("flight: take-off, the sky plane, the shut hatch, the pilot going aft, "
-          "the landing and the tidy-up all checked")
+    print("flight: take-off, the sky plane, levelling her off without losing "
+          "her heading, the shut hatch, the pilot going aft, the landing, the "
+          "beam that sends her back up and the tidy-up all checked")
 
 
 def flight_endings():
@@ -1306,6 +1339,9 @@ def flight_endings():
           "flight endings: flight outlived its pilot -- the 1.1 bug, back again")
     check(ship(rt, "pilot") is None,
           "flight endings: the dead pilot is still recorded at the controls")
+    check(ship(rt, "landed") is False,
+          "flight endings: her pilot died and she dropped herself onto whatever "
+          "was underneath instead of going back up")
 
     # --- a world saved in flight opens on the ground ----------------------
     net2 = Net("sp")
@@ -1314,6 +1350,7 @@ def flight_endings():
         SIM.player('later', 3000.5, 3000.5, 0)
         local s = ModData.getOrCreate("TREK_State_v1")
         s.schema, s.landed, s.x, s.y, s.z = 2, true, 3004, 3000, 0
+        -- Level 3 on purpose: a save from a build that still had four of them.
         s.flying, s.level, s.pilot = true, 3, 'someone'
         s.skyAt = { x = 3004, y = 3000, level = 3 }
         s.built, s.rev, s.bookmarks, s.ghosts, s.crew = true, 10, {}, {}, {}
@@ -1815,7 +1852,7 @@ def multiplayer():
             local v = TREK.Vehicle.ship()
             return v and v:getZ() or -1
         end)()""")
-        check(z == srv.eval("TREK.Config.FlightCruise"),
+        check(z == srv.eval("TREK.Config.FlightLevel"),
               f"multiplayer: {name} sees the shuttle at z {z}, not in the air")
         held = c.eval("TREK.Sky.count()")
         check(held and held > 0,
@@ -1842,12 +1879,27 @@ def multiplayer():
           f"multiplayer: the pilot's ship is doing {top}, not what the helm was "
           f"set to; speed set by one crewman must reach the one flying")
 
-    # A crewman who is not flying may not steer her about.
-    before = ship(srv, "level")
-    B.run(f"TREK.Flight.climb({P})")
+    # A crewman who is not flying may not set her down.
+    B.run(f"TREK.Flight.land({P})")
     net.pump(60)
-    check(ship(srv, "level") == before,
-          "multiplayer: a passenger changed the ship's altitude")
+    check(ship(srv, "flying") is True,
+          "multiplayer: a passenger brought her down out of the pilot's hands")
+
+    # And the heading she is flown on is hers, on both machines. The levelling
+    # pass runs on every client that can see her, and the one that owns her
+    # physics is the only one allowed to move her -- but the bug this guards
+    # was worse than a disagreement: the old pass wrenched her rotation to the
+    # identity whenever the pilot turned more than a quarter turn from her
+    # spawn heading, because getAngleX reads 180 there for a ship that is dead
+    # level. Reverse was the only direction that worked.
+    for c in (A, B):
+        c.run("TREK.Vehicle.ship():setHeading(150)")
+    net.pump(60)
+    for name, c in (("alice", A), ("bob", B)):
+        got = c.eval("TREK.Vehicle.ship():heading()")
+        check(abs(((got - 150) + 180) % 360 - 180) < 1.0,
+              f"multiplayer: {name}'s copy of the shuttle was turned from 150 "
+              f"degrees to {got:.1f}")
 
     # Killing the pilot must bring her down, on the server's own initiative.
     A.run("SIM.players[1].dead = true")

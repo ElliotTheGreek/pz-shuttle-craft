@@ -204,8 +204,9 @@ in the air seen from the other machine.
 ## Piloting — done, and flying in single player
 
 Confirmed in game, 2026-09-17. The landed shuttle is a vehicle with four
-doorless seats; from the driver's seat the radial menu takes her up, climbs,
-dives and sets her down, and in between you simply **drive** her. The helm sets
+doorless seats; from the driver's seat the radial menu takes her up and sets
+her down -- one hovering height, no ladder -- and in between you simply
+**drive** her. The helm sets
 the top speed. The crew can go aft to the cabin in flight and come back, and
 she waits where they left her.
 
