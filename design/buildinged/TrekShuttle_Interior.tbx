@@ -832,10 +832,16 @@
  </furniture>
  <furniture>
   <entry orient="N">
-   <tile x="0" y="0" name="location_shop_generic_01_001" />
+   <tile x="0" y="0" name="furniture_shelving_01_028" />
   </entry>
   <entry orient="W">
-   <tile x="0" y="0" name="location_shop_generic_01_000" />
+   <tile x="0" y="0" name="furniture_shelving_01_029" />
+  </entry>
+  <entry orient="E">
+   <tile x="0" y="0" name="furniture_shelving_01_030" />
+  </entry>
+  <entry orient="S">
+   <tile x="0" y="0" name="furniture_shelving_01_031" />
   </entry>
  </furniture>
  <user_tiles />

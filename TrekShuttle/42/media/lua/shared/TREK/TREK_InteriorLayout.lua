@@ -64,40 +64,40 @@ L.tiles = {
     { x = 1, y = 0, sprite = "security_01_4", tag = "console" },
     { x = 3, y = 0, sprite = "security_01_4", tag = "console" },
 
-    -- The tape rack, beside the television. It is where the ship keeps what
+    -- The tape shelf, beside the television. It is where the ship keeps what
     -- it remembers, and LORE.md is the design.
     --
-    -- **A video-shop rack, chosen for the silhouette.** The author's word was
-    -- that it should look like the thing a rental shop keeps tapes in, and
-    -- `location_shop_generic_01_1` ("Comics Shop Shelves", capacity 20) is the
-    -- only sprite in the game that reads that way in **one square**: rows of
-    -- things stood face-out. `Facing S`, the same way the bow bulkhead's
-    -- monitor banks and the television face, so it sits against the forward
-    -- wall rather than at an angle to it.
+    -- **A wall shelf, and it costs no deck square.**
+    -- furniture_shelving_01_28 carries neither `solid` nor `solidtrans`
+    -- (MoveType = WallObject, attachedN, ContainerCapacity 30), so 2,0 is
+    -- still deck -- and 2,0 is the *only* square a player can stand on to
+    -- open the **armoury** at 3,0, because 3,1 and 3,2 are the other two
+    -- lockers. A floor-standing container here leaves the ship's sidearms,
+    -- blades and uniforms reachable diagonally at best.
     --
-    -- Everything else that reads as a media rack is **two tiles**. Both
-    -- Rental groups (`location_entertainment_theatre_01_120..135`) and both
-    -- magazine shelves carry `SpriteGridPos` pairs, and the bow row has no two
-    -- adjacent free squares -- 1,0 is the television and 3,0 is the armoury.
+    -- **A video-shop rack was tried here and reverted**, and the reason is
+    -- worth keeping: `location_shop_generic_01_1` is catalogued as "Comics
+    -- Shop Shelves" and it draws as a **grocery shelf stocked with orange
+    -- soda**, at twice the depth this cabin can spare. Nothing in
+    -- tiles.json says so. `CustomName`, `GroupName` and `container` describe
+    -- what a tile *is for*, and none of them describes what it looks like --
+    -- so a fitting chosen for its silhouette has to be looked at in game,
+    -- the same way every mesh in this mod has to be rendered and looked at.
+    -- The proper video-rental racks
+    -- (`location_entertainment_theatre_01_120..135`) are all two-tile pieces
+    -- and the bow row has no two adjacent free squares: 1,0 is the
+    -- television and 3,0 is the armoury.
     --
-    -- **This one blocks its square**, which the metal wall shelf it replaced
-    -- did not, and that has one consequence worth writing down: 2,0 was the
-    -- only square you could stand on to open the **armoury** at 3,0 (3,1 and
-    -- 3,2 are the other two lockers), so the armoury is now reached
-    -- diagonally from 2,1. Vanilla kitchens are full of corner cabinets
-    -- opened exactly that way, so this is expected to be fine -- but the
-    -- engine's reach rule is not in Lua and has not been read, so it is an
-    -- in-game check rather than a proven fact. Standing at 2,1 reaches the
-    -- rack itself straight on, which is the access that matters most.
-    --
-    -- The monitor bank at 2,0 came back with it: the rack takes the floor, so
-    -- there is no longer a free deck square there to hang screens over.
+    -- The monitor bank that used to be on this square is **gone** and has not
+    -- come back: two wall-mounted objects on one edge of one square is the
+    -- thing that looks like a bug whether or not it is one. The bow is three
+    -- screens and a shelf.
     --
     -- The obvious alternative was the television's own table, and it is not a
     -- container: furniture_tables_low_01_3 is `solidtrans` with no `container`
     -- property at all. Looked up rather than assumed -- see DEV_GUIDE, "A
     -- comment is not a container".
-    { x = 2, y = 0, sprite = "location_shop_generic_01_1", tag = "tapes",
+    { x = 2, y = 0, sprite = "furniture_shelving_01_28", tag = "tapes",
       container = true, special = "tapes" },
 
     -- A television that is actually a television. `device` is the field that
