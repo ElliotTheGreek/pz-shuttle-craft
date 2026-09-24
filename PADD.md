@@ -5,6 +5,11 @@ The working guide for the Personal Access Display Device, in the shape
 engine facts it rests on, the one decision that shapes all of it, how each
 piece works, and what is still to see in a game.
 
+**Phase one is built and played. Phase two is section 12** — a full-screen
+surface, transcribed tapes, and the entire Adirondack channel. `COMMS.md` is its
+other half and the two files have to be read together: **the channel's content,
+scheduling and multiplayer authority live there; its surface lives here.**
+
 **Built and played 2026-09-24**: books loaded, the character died, the PADD
 was recovered off the body with its library intact. A finished title carries
 vanilla's own green tick in the read list -- `media/ui/Tick_Mark-10.png`, the
@@ -316,8 +321,8 @@ it is in one inventory. Sharing is copying, or handing it over.
 - **A ship's library.** The replicator's pattern store could hold books
   too, readable anywhere aboard. It would make the PADD's portability the
   point rather than its storage; worth considering once the PADD exists.
-- **Tapes and discs.** Vanilla's media are played on a television, which the
-  cabin already has.
+- ~~**Tapes and discs.**~~ **Reversed 2026-09-24** — transcription is phase two,
+  section 12. A tape is still *played* on the television; the PADD *reads* it.
 
 ---
 
@@ -372,3 +377,144 @@ stock; in an existing save, replicate one):
 What to look at: the PADD in the reading hand, the book staying on its
 shelf, a titled novel ticked in the literature panel, and -- on the server
 -- that a load and a read actually complete.
+
+---
+
+## 12. Phase two: the full-screen PADD
+
+Specced 2026-09-24. Nothing here is built. `COMMS.md` is the other half.
+
+Phase one is a context menu. Phase two is **a screen** — because three things
+arriving at once all want a surface, and none of them fits in a right-click
+submenu:
+
+1. **Transcribed tapes**, read as text rather than watched.
+2. **The entire Adirondack channel** — the conversation, the options, the
+   history.
+3. **A library that is now two libraries and a shared record**, which a flat
+   submenu cannot express.
+
+### 12.1 The one decision: two libraries and a window
+
+This is the fact the whole section turns on, and it is easy to get wrong because
+phase one established the opposite.
+
+| What | Lives on | Shared? | Lost with the PADD? |
+|---|---|---|---|
+| **Books** (`TREKLibrary`) | the item, in mod data | no — copy a PADD to share | **yes** |
+| **Transcribed tapes** (`TREKTapes`) | the item, in mod data | no — same | **yes** |
+| **The comms record** | **the server, once, for the ship** | **yes, to everyone** | **no** |
+
+**A PADD is a container for the first two and a window onto the third.** Phase
+one's whole pitch — *lose the PADD, lose the books* — stays true and must not be
+quietly extended to the story: a player who drops their PADD in a warehouse has
+not lost the plot. They have lost their books.
+
+That is also the answer to the multiplayer requirement. One player advances the
+channel; the record is the ship's; every other PADD shows it, because none of
+them own it.
+
+### 12.2 The history is replayed, not stored
+
+**The comms record is the first unbounded growing shared list in this mod**, and
+DEV_GUIDE's *a table transmitted whole cannot hold a list that grows* is aimed
+squarely at it. A hundred conversations of rendered text is not something to put
+in synced state.
+
+So it does not go there. **The record stores the node ids that were visited and
+the options that were taken — nothing else.** The text is regenerated from the
+generated tree (`COMMS.md` 3) at display time, exactly the way a tape's lines are
+translation keys rather than strings.
+
+    { "TREK_COMM_FIRST_01", "TREK_COMM_FIRST_03:2", "TREK_COMM_FIRST_07:1", ... }
+
+An id is a dozen bytes. Five hundred nodes is a few kilobytes, sent when it
+changes and never on a timer. **The transcript is not data, it is a render** —
+which also means fixing a typo in a line retroactively fixes every player's
+history, and that is the right behaviour for a document nobody in the fiction
+wrote down.
+
+### 12.3 Transcription: a tape you can read
+
+**Right-click a tape: *Transcribe to PADD*.** The tape stays what it is; the PADD
+gains a text copy, in `TREKTapes`, keyed by the recording id.
+
+- **You may only transcribe a tape you have watched to the end.** The engine
+  already keeps per-character, per-line "have I heard this" state
+  (`MediaLineData.getTextGuid()`, LORE.md 2), so *watched in full* is a question
+  it can answer. This is deliberate: the PADD is **a record of what you have
+  seen**, not a way to skip the television.
+- **Reading a transcript grants nothing.** No codes, no XP, no boredom relief.
+  The television is where a tape does something to you; the PADD is where you can
+  go back and read what it said. One sentence, and it keeps the television's
+  reason to exist intact.
+- **A transcript is a render too.** Store the recording id, not the lines — same
+  reasoning as 12.2, and it means a tape regenerated by `gen_tapes.py` updates
+  every transcript of it.
+- **Speaker colour survives.** The lines already carry r, g, b per voice; a
+  transcript that drops them loses who is talking, which is most of what the
+  tapes are doing.
+
+**Why this matters more than it looks:** a forty-minute casualty list and a
+twenty-two-item legal determination are documents, and documents want re-reading,
+searching and quoting. `TREK_Wolf359` and `TREK_Uxbridge` are close to unusable
+as television and excellent as text, and the six Tucker Gold fragments
+(`LORE.md` 1c) are evidence a player will want to lay side by side.
+
+### 12.4 The channel
+
+**The PADD is the comms terminal. There is no console fitting.** This replaces
+`COMMS.md` 5 and closes its open question about where a panel goes: the
+*Adirondack* is in orbit, a PADD works anywhere on the surface, and the mod does
+not need a new square in the cabin.
+
+- **Full-screen**, or near enough — the transcript needs room and the option list
+  needs to be readable without squinting.
+- **Three views**: the **channel** (live, or idle with the last contact), the
+  **history** (every thread, replayed), and the **library** (books and tapes).
+- **A live call is the server's**, per `COMMS.md` 2: one player holds it, the
+  others see it, everybody's PADD shows it.
+- **Answering does not require being aboard.** A hail reaches a PADD in a
+  Louisville warehouse, which is correct for the fiction and much better for
+  multiplayer than making one player run home.
+- **The option list is the only interactive part.** Everything else is a reader.
+
+### 12.5 Deck and controller
+
+**Assumption to confirm**: *deck compatible* means Steam Deck and gamepad, not
+the ship's decks. Taken that way it constrains the design usefully:
+
+- **Nothing is mouse-only.** The option list is navigable with a d-pad and
+  confirmed with one button; the three views are shoulder-button tabs.
+- **No hover-only information.** Anything in a tooltip is either on the face of
+  the control or not needed.
+- **Focus is always visible**, including on an empty list.
+- **A timed node's clock is on screen**, not implied — `COMMS.md` 2's silence
+  branch is a real outcome and the player has to be able to see it coming.
+- Text at a readable size at 1280×800, which is the real constraint behind all of
+  the above.
+
+### 12.6 What this changes above
+
+- **Section 10**: tapes are no longer out of scope. Writing still is.
+- **Section 8**: the multiplayer table gains a fourth row — *the comms record:
+  server, global to the ship, read-only on every PADD.*
+- **Section 11**: new files. `client/TREK/TREK_PaddScreen.lua` (the surface),
+  `shared/TREK/TREK_Comms.lua` (the tree and the record),
+  `tools/gen_comms.py` (`COMMS.md` 3). `TREK_Padd.lua` gains `TREKTapes`.
+- **Section 1's pitch is unchanged.** An unlimited library that weighs 0.3. The
+  screen is how you read it, and the channel is a second reason to carry one.
+
+### 12.7 Open questions
+
+- **Does the screen open on right-click *Use*, or a keybind, or both?** A story
+  surface a player has to dig through an inventory for will not get opened.
+- **What a PADD with no library and no channel shows.** It is the first thing a
+  new player will see and it should not be an empty box.
+- **Whether a transcript can be copied between PADDs** like books can. Probably
+  yes, same action, but it is a separate decision from the books.
+- **Whether the history is readable before a player's first call.** A late joiner
+  in multiplayer arrives to a story already in progress; showing them all of it
+  immediately may be the right answer or may throw away every reveal at once.
+- **Whether the six Tucker Gold fragments get a view of their own.** They are
+  evidence rather than testimony, and a player will want them in order.

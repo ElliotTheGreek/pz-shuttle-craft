@@ -747,6 +747,241 @@ TAPES = [
                  codes="UHP-1"),
         ],
     },
+    {
+        # The clerical error. A comedy, and the only tape in the shelf whose
+        # joke is a filing system.
+        #
+        # **The comedy is entirely the examiner's.** Kim answers every question
+        # patiently and correctly; what deteriorates is the professionalism of
+        # the lieutenant obliged to ask them. Write the discomfort, never the
+        # admiral's -- he has no discomfort, which is the point of him.
+        #
+        # Two beats carry it and both are his, delivered flat. "Then I will
+        # answer it as an ensign would. I remember." and "Seven years. Ask the
+        # next one." The second is the whole of his career in six words and the
+        # tape does not comment on it.
+        #
+        # The ending is the examiner asking the human question off the sheet and
+        # getting nothing. Forty seconds of silence on a tape is free and it is
+        # the only thing in here that is not funny.
+        #
+        # The arithmetic: Kim is born about 2349, returns from the Delta
+        # Quadrant in 2378 at about twenty-nine, and is promoted flag rank in
+        # 2400 at about fifty-one. That makes this thirty-five years old when
+        # Shepard dubs it, which is what the first dub line says.
+        "id": "TREK_KimExam",
+        "display": "Oral Re-examination (transcript)",
+        "title": "Board of Examiners: oral re-examination",
+        "subtitle": "Starfleet Personnel, first-year cadet syllabus",
+        "author": "board recording; candidate's rank withheld on the slate",
+        "extra": "Thirty-five years old. Filed under corrections, not records.",
+        "spawning": 0,
+        "lines": [
+            line("card", "STARFLEET PERSONNEL -- BOARD OF EXAMINERS"),
+            line("card", "ORAL RE-EXAMINATION. FIRST-YEAR CADET SYLLABUS."),
+            line("dub", "Thirty-five years old, and it should not exist at all."),
+            line("dub", "A clerical error. The paperwork to fix it was worse."),
+            line("note", "Two people, one table, one recorder nobody turns off."),
+            line("mc", "For the record. State your name and rank, please."),
+            line("room", "Harry Kim. Admiral."),
+            line("mc", "...Admiral."),
+            line("room", "That is the difficulty, yes."),
+            line("mc", "The board has you down as an unverified first-year."),
+            line("room", "The board is correct. That is why I am here."),
+            line("mc", "I am obliged to ask the questions as they are written."),
+            line("room", "I would be disappointed if you did not."),
+            line("card", "-- SECTION ONE: ASTROGATION --"),
+            line("mc", "Define a subspace gradient. In your own words."),
+            line("note", "He defines it. It takes eleven seconds and is correct."),
+            line("mc", "...Thank you. Second question. Warp field geometry."),
+            line("note", "He answers that one in nine seconds."),
+            line("mc", "Do you want to sit the practical, or shall I mark it?"),
+            line("room", "Ask me the questions. All of them. It is the rule."),
+            line("card", "-- SECTION TWO: PROTOCOL --"),
+            line("mc", "You are an ensign. Your captain gives an unlawful order."),
+            line("note", "A pause. Not his. The examiner hears what he just said."),
+            line("mc", "I withdraw nothing. The question is as it is written."),
+            line("room", "Then I will answer it as an ensign would. I remember."),
+            line("mc", "...You were an ensign a long time, sir."),
+            line("room", "Seven years. Ask the next one.",
+                 codes="UHP-1"),
+            line("card", "-- SECTION THREE: EMERGENCY MEDICINE --"),
+            line("mc", "Field dressing. Penetrating wound, no medical kit."),
+            line("note", "He describes it without stopping. He has done this."),
+            line("mc", "That is not the syllabus answer. It is a better one."),
+            line("room", "Mark the syllabus answer. I do not want a note on it."),
+            line("card", "-- SECTION FOUR: ETHICS --"),
+            line("mc", "Admiral, may I say something that is not on the sheet."),
+            line("room", "You may not. You will have to write it in the margin."),
+            line("note", "He writes something in the margin. It is not read out."),
+            line("card", "-- BOARD FINDING --"),
+            line("mc", "Candidate passes. Credential verified. Rank confirmed."),
+            line("mc", "Duration of clerical suspension: three months."),
+            line("room", "Three months. Nobody noticed until the promotion."),
+            line("mc", "For the record, Admiral, this was absurd."),
+            line("room", "For the record, Lieutenant, it was the rules."),
+            line("note", "He shakes the examiner's hand. The recorder runs on."),
+            line("mc", "...Sir. What did you actually do out there?"),
+            line("note", "Forty seconds of nothing. Then a chair, and a door.",
+                 codes="UHP-1"),
+            line("dub", "He never answers. That is the part I keep it for."),
+        ],
+    },
+    {
+        # The deposition, and the cheapest tape in the shelf to write: the
+        # subject has no lines.
+        #
+        # **The witness microphone failed and nobody noticed for an hour**,
+        # which is the in-fiction licence for forty minutes of one lawyer's half
+        # of a conversation. Every answer is a `note` describing its length and
+        # its effect on the room, and the comedy is entirely in the duration.
+        #
+        # Two rules held while writing it. Nothing in here tells the audience
+        # who the witness is -- the slate does not name him and counsel never
+        # does, and a Star Trek audience gets there on "expansive" alone. And
+        # nobody wins: counsel does not get the answer, the record does not
+        # improve, and the tape runs out mid-sentence.
+        #
+        # The one short line in it -- nine seconds, the shortest answer of the
+        # day, to "where is the latinum now" -- is the only place the tape
+        # suggests the witness is in complete control of the proceeding.
+        "id": "TREK_Morn",
+        "display": "Deposition (witness inaudible)",
+        "title": "Deposition: in the matter of a quantity of latinum",
+        "subtitle": "Bajoran sector civil claims, witness track failed",
+        "author": "court recording; witness responses not captured",
+        "extra": "Forty-one minutes. Two thousand words, none of them his.",
+        "spawning": 0,
+        "lines": [
+            line("card", "BAJORAN SECTOR CIVIL CLAIMS -- DEPOSITION"),
+            line("card", "IN THE MATTER OF A QUANTITY OF LATINUM"),
+            line("card", "WITNESS TRACK FAILED. RESPONSES NOT RECOVERABLE."),
+            line("dub", "The witness microphone failed and nobody checked it."),
+            line("dub", "I have watched this more times than the talent night."),
+            line("mc", "Please state your name and residence for the record."),
+            line("note", "A long answer. The stenographer stops partway through."),
+            line("mc", "The name on its own is sufficient. Thank you."),
+            line("mc", "You understand that you remain under oath."),
+            line("note", "He understands."),
+            line("mc", "I direct your attention to the deposit made in 2367."),
+            line("note", "Eleven minutes."),
+            line("mc", "I am going to interrupt. That was not the question."),
+            line("mc", "Did you at any point hold the latinum in question?"),
+            line("note", "Four minutes. Counsel's pen stops moving entirely."),
+            line("mc", "Is that a yes."),
+            line("note", "It is not clear that it is a yes."),
+            line("mc", "Let the record reflect the witness is being expansive."),
+            line("card", "-- RECESS --"),
+            line("mc", "Back on the record. We were at the 2367 deposit."),
+            line("note", "He starts again from an earlier point than before."),
+            line("mc", "Sir. Sir. We have covered your brother-in-law."),
+            line("mc", "Twice. We have covered him twice now."),
+            line("note", "A third time. It is longer than either of the others."),
+            line("mc", "Objection. I am objecting to my own witness."),
+            line("card", "-- SECOND RECESS --"),
+            line("mc", "One question. Where is the latinum now."),
+            line("note", "Nine seconds. The shortest answer of the day."),
+            line("mc", "...I see. And you have nothing further to add."),
+            line("note", "He has a great deal further to add."),
+            line("note", "Twenty-two minutes. The tape ends mid-sentence."),
+            line("card", "-- RECORDING ENDS --"),
+            line("dub", "Forty-one minutes. Not one word of it is his.",
+                 codes="UHP-1"),
+            line("dub", "Somebody in that room knew where it went. Not counsel."),
+        ],
+    },
+    {
+        # The tape that frames the question, and it is a legal document. It is
+        # not the answer: the answer is the Tucker Gold clue chain, and Shepard
+        # never had it. This is the precedent that gives her -- and the player --
+        # a category for what a Douwd is and what one of them is capable of.
+        #
+        # **Shepard is a historian and a cultural survey specialist**, so
+        # working out what this planet is, is literally her job. This is the file
+        # she found. It is seventy-two years old, it is about somewhere else
+        # entirely, and it does not mention this world once. It does not have to.
+        #
+        # The form is the point. A records officer reads a numbered finding
+        # flatly, in order, with no idea what any of it means -- which is how the
+        # worst thing in the shelf gets delivered without a single raised voice.
+        # The reader breaks exactly once, at item fifteen, and that pause does
+        # more than any line could.
+        #
+        # Shepard's four `dub` lines are the only place the tape reaches for the
+        # player, and the last of them is the whole mod: she asks what one of
+        # them would build given longer, and does not know she is standing on
+        # the answer. Nothing in the tape connects Rana Four to this county. The
+        # player does that, or does not.
+        #
+        # **The Douwd in this document is not the one who made this world.** Kevin
+        # Uxbridge is a different one, on a different planet, and the one who made
+        # Kentucky is Tucker Gold -- discovered through the clue chain and never
+        # named on any tape Shepard dubbed, because she went up without knowing.
+        #
+        # Canon, so it stays right: TNG "The Survivors", stardate 43152.4. The
+        # colony was eleven thousand; the intact ground was a small patch; the
+        # wife had been dead since the attack and had been his wife fifty-three
+        # years; the Husnock figure is fifty billion; and the finding is Picard's
+        # -- "We have no law to fit your crime" -- rendered here in the third
+        # person because a determination is written about its subject, not to him.
+        #
+        # Gate it late once the issue record exists (LORE.md 6, COMMS.md). It is
+        # the answer, and it should arrive after the question.
+        "id": "TREK_Uxbridge",
+        "display": "Determination: Rana Four (reading copy)",
+        "title": "Determination in the matter of Rana Four",
+        "subtitle": "Federation judicial archive, reading copy",
+        "author": "read into the record by a clerk of the archive",
+        "extra": "Seventy-two years old. No review has ever been scheduled.",
+        "spawning": 0,
+        "lines": [
+            line("card", "FEDERATION JUDICIAL ARCHIVE"),
+            line("card", "DETERMINATION IN THE MATTER OF RANA FOUR"),
+            line("card", "READING COPY. PREPARED FOR THE BLIND AND THE FILED."),
+            line("dub", "I have read this eleven times. I am going to keep going."),
+            line("solo", "Determination of the commanding officer, USS Enterprise."),
+            line("solo", "Filed seventy-two years before the date of this dubbing."),
+            line("card", "-- ONE: THE FACTS FOUND --"),
+            line("solo", "One. The surface of Rana Four was found scorched to rock."),
+            line("solo", "Two. The colony there numbered eleven thousand persons."),
+            line("solo", "Three. No survivors were found among the colonists."),
+            line("solo", "Four. One small area of ground was entirely undamaged."),
+            line("solo", "Five. Within it stood a house, a garden, and two persons."),
+            line("dub", "One patch of ground. Out of a planet. That is the case."),
+            line("card", "-- TWO: THE NATURE OF THE OCCUPANTS --"),
+            line("solo", "Six. The male occupant is of no species known to us."),
+            line("solo", "Seven. He gave his kind as Douwd, and himself as immortal."),
+            line("solo", "Eight. He described himself as a being of disguises."),
+            line("solo", "Nine. And of false surroundings. Those were his words."),
+            line("card", "-- THREE: THE FEMALE OCCUPANT --"),
+            line("solo", "Ten. The female occupant had died in the attack itself."),
+            line("solo", "Eleven. She was nonetheless present, and appeared to live."),
+            line("solo", "Twelve. She had been his wife for fifty-three years."),
+            line("solo", "Thirteen. She did not know that she had died.",
+                 codes="UHP+1"),
+            line("dub", "Thirteen. Somebody typed thirteen and went to lunch."),
+            line("card", "-- FOUR: THE ACT ADMITTED --"),
+            line("solo", "Fourteen. The occupant admitted a further act, unprompted."),
+            line("solo", "Fifteen. He had, in one moment, and without any weapon--"),
+            line("note", "The reader stops here. It is the only time he does."),
+            line("solo", "--ended the Husnock. Not the vessel in orbit. The species."),
+            line("solo", "Sixteen. The figure he gave was fifty billion persons.",
+                 codes="UHP+1"),
+            line("solo", "Seventeen. He had never harmed anything before that day."),
+            line("card", "-- FIVE: THE FINDING --"),
+            line("solo", "Eighteen. This officer declines to take him into custody."),
+            line("solo", "Nineteen. We are not qualified to be his judges."),
+            line("solo", "Twenty. We have no law to fit his crime."),
+            line("solo", "Twenty-one. He was left as he was found, and undisturbed."),
+            line("solo", "Twenty-two. No interference is recommended. At any time."),
+            line("card", "-- END OF DETERMINATION --"),
+            line("solo", "Filed. No further action. No review scheduled."),
+            line("dub", "No review scheduled. Seventy-two years, and nobody went."),
+            line("dub", "He built her a house because he could not bear it."),
+            line("dub", "I want to know what one of them builds with longer."),
+            line("card", "-- RECORDING ENDS --"),
+        ],
+    },
 ]
 
 

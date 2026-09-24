@@ -8,6 +8,9 @@ on.
 beside the television in the bow — and a set of VHS tapes on it, each of which
 is a piece of somebody's testimony.
 
+`COMMS.md` is this file's companion and holds what is still **talking** — the
+channel to the *Adirondack*, and the trigger engine that section 6 parks.
+
 The rules in `DEV_GUIDE.md` and `MULTIPLAYER.md` are binding as always: the
 server owns the shelf, its contents and anything that appears in it later; a
 client asks and displays. Read *Rules that exist because they were broken*
@@ -92,6 +95,15 @@ the pilot's. That friendship is why a family-history assignment made by somebody
 else's grandchild is sitting on this shuttle's shelf at all, and it is the hook
 that ties the first tape to the last one.
 
+**The world is a made thing, and its maker is not the villain.** Kentucky is a
+copy. It was an act of grief rather than an experiment, the thing that made it
+has been dead of old age for three centuries, and the towns on the map grew
+there by themselves. Who made it, how, and why the names are what they are is
+**1c** — and it is deliberately *not* the same story as the plague. **The origin
+of the world and the origin of the virus are unrelated, and that is the point:**
+the Changeling did not build this place. It found it, for the same reason
+Shepard did.
+
 ### What the framing buys
 
 It explains the medium, it explains why the tapes are *in the room* rather than
@@ -174,11 +186,58 @@ that into something else. Nearly sixty years later it found this outpost — and
 the near-perfect copy of a human world underneath it — and decided that was the
 ideal proving ground.
 
+**It did not make this world, and that matters.** The origin of the plague and
+the origin of the planet are unrelated stories (1c). The Changeling found the
+place exactly the way Shepard did, and for exactly the same reason: no relay, no
+traffic, nothing filed, deniable by design, and an order on the file saying
+nobody may interfere. **The Prime Directive is what left it undefended.**
+
+**Why this world.** It is a full-scale working model of Earth that developed
+independently to a 1990s baseline — a control group rather than a replica. Same
+biology, same densities, same infrastructure. The Changeling is not testing a
+weapon on strangers; it is **rehearsing on a copy of the homeworld of the people
+who tried to exterminate its species**, and what comes after Kentucky is the
+Federation worlds.
+
+**How the weapon works, and why the Doctor cannot read it.** It is a graft. The
+Founders' morphogenic virus attacks what a body is made of; **Borg nanoprobes**
+rebuild a dead one and keep it running — canon revived Neelix eighteen hours
+dead with them (VOY "Mortal Coil"). Bolted together they produce a corpse
+reassembled to a template and animated, with **no Queen, no Collective and no
+purpose.** Which is the mod's thesis in one line:
+
+> **A horde is a Collective with no Queen.**
+
+It is also why entry four works. The Doctor finds *confusing* Changeling markers
+because he is reading half a signature — *"I can support the chemistry. I cannot
+support the author"* is literally true, because there are two.
+
+**Where the parts came from.** Neither half had to be invented. Daystrom
+Station's vault, as inventoried in *Picard*, holds **the morphogenic virus
+itself** alongside a Borg vinculum and a Queen's remains — both halves of this
+weapon, in one Federation warehouse. What this took was not a laboratory so much
+as a burglary. *(Available and stronger if wanted: Section 31's Project Proteus
+tortured ten Founder prisoners in the mid-2370s to build changelings that could
+defeat blood screening. A survivor of that programme has first-hand knowledge of
+Federation bioweapon work because it was the specimen.)*
+
+**And there is a cure in the archive that nobody has read.** In 2153 Phlox
+synthesised a working counter to Borg nanoprobes using **omicron radiation** and
+filed it in a medical log canon then ignored for two hundred and fifty years
+(ENT "Regeneration"). It is not a miracle; it is paperwork. Which makes it
+exactly the right job for a hologram whose defining trait is that he reads
+everything.
+
 So the apocalypse the player is surviving is a **reply**. The Federation
 attempted a genocide, and two generations later the survivor of it is running
 the experiment on a world full of people who have never heard of any of them.
 The player is standing in the consequence of an argument Trek never settled,
 which is the shelf's whole thesis in one move.
+
+**And the two griefs rhyme, which is the spine.** A Douwd built this county
+because it could not bear one death; a Changeling is emptying it because it
+cannot bear a genocide. The world was made by grief and is being unmade by
+grief, and both makers are the last of something.
 
 ### The logs, as a series
 
@@ -231,6 +290,216 @@ is wanted, the answer is probably **a survivor hands you the next log**, which
 solves `ROADMAP2.md` 1.7's reward problem at the same time: the reward for a
 rescue is a piece of the truth, which costs the ship nothing and is worth more
 than a crystal.
+
+---
+
+## 1c. Where the world came from
+
+Settled 2026-09-24. This is the deep history, and the mod's answer to the
+question a player asks in their first ten minutes: *why is there a Kentucky?*
+
+**A Douwd made it, and his name is Tucker Gold.** See *Tucker Gold, and how
+anybody finds out* below before writing anything that references him — the name
+is the design's, not the fiction's, and no character knows it at the start.
+
+Canon has met a **different** one: **Kevin Uxbridge**, TNG "The Survivors"
+(2366). He is the precedent and nothing else — another of the same kind, on
+another planet, whose case is on file and whose file is the only reason anybody
+here has a word for what they are looking at. Rana IV's surface had been scorched to bare rock and all eleven thousand
+colonists were dead — except for one intact patch of land with a house, a garden
+and two people in it. Kevin, and a wife who had died in the attack and whom he
+was still maintaining. He describes himself as *a being of disguises and false
+surroundings*. He is a pacifist who had never harmed anything, and in a single
+instant of grief he erased the **Husnock — fifty billion beings, everywhere, at
+once.** Picard declines to arrest him: *"We have no law to fit your crime."*
+
+That episode is this mod's origin story at one-house scale. Everything below is
+the same act performed larger, by somebody else of the same kind.
+
+**What happened here.**
+
+1. A Douwd passing through Earth in the **1690s** falls in love with a
+   middle-aged human in the Ohio country. Its species is not supposed to be able
+   to do that.
+2. Real history takes her. The valley was being emptied in those decades by
+   raids driven by a fur trade conducted hundreds of miles away: she dies in a
+   war over beaver pelts, fought by people she never met.
+3. It cannot cope. So it copies the **land** and the **people on it** to a world
+   in a similar orbit — the river's exact bend, the falls in the same place, the
+   escarpment, the salt licks, the hunting country, and **her.**
+4. Then it does the thing Kevin Uxbridge did not do. Kevin kept a projection and
+   stayed a god. **This one put its power down**, made itself an ordinary human,
+   and the two of them grew old together and died.
+5. The world was left alone for roughly **three hundred years**, and grew.
+6. Starfleet found it.
+
+### Tucker Gold, and how anybody finds out
+
+Settled 2026-09-24.
+
+**The Douwd who made this world is not Kevin Uxbridge.** This one lived here,
+under a human name, and the name is **Tucker Gold** — the name he chose when he
+stopped being what he was, which is the only name he has and the reason he has
+one at all.
+
+**Nobody in the fiction knows that at the start, and Shepard never learns it
+before she goes up.** Her six logs are recorded by a woman with a Douwd precedent
+in her archive and a hypothesis she cannot test. The truth arrives *after* her
+last entry — which means **it arrives through the player**, and that is the whole
+reason the clue chain exists rather than a twelfth tape.
+
+**Starfleet's answer is that a Q did it, and Starfleet is wrong. There is no Q in
+this mod.** The suspicion is on the file because it is the only category the
+Federation has for *a planet that was not there before*: honestly argued, widely
+held, and false. That makes it the **second misdirection**, and the same shape as
+the first — Section 31 is out-reasoned by the accused (1b entry five), and the Q
+theory is out-reasoned by the evidence. Neither is a lie, and neither survives
+what the player digs up. Write the suspicion as respectable, because everyone
+sensible holds it.
+
+### The clue chain: six fragments, and a conversion
+
+**Tucker Gold left holo recordings.** A being that spent an immortal life copying
+and preserving things, and then made itself mortal, leaves records the way a
+mortal leaves letters. They are scattered across the county because he lived a
+whole human life across it.
+
+The loop reuses three systems that exist and adds one:
+
+1. **A probe finds a site.** `PROBES.md`'s sweep gains a third result alongside a
+   crystal and a survivor: **a clue.**
+2. **The player recovers a fragment** — an item, at the site.
+3. **Shepard converts it.** *"Hang on. I can put that on magnetic tape."* A comms
+   beat (`COMMS.md`), and the only place in the mod where the channel hands the
+   player an object.
+4. **A new tape appears in the shelf.**
+
+Which is why the medium was always going to hold: **1a already established that
+she dubs holos flattened to two dimensions onto tape**, because that is what the
+television takes. The licence was written a day before the feature needed it, and
+that is the strongest sign the framing was right.
+
+**Six fragments, mirroring the six logs.** Six recordings from the woman who
+survived this, and six from the man who built the place she survived it in. The
+symmetry is the reason for the number.
+
+| | |
+|---|---|
+| **One** | what he was. Non-corporeal, passing through, and curious about a species that dies. |
+| **Two** | her. And the thing his kind is not supposed to be able to do. |
+| **Three** | her death, and the war over pelts that caused it. |
+| **Four** | the copy — the land, the river, the hunting country — and the admission that he copied **people**, and what he thinks he owes them. |
+| **Five** | putting the power down. What it cost, and whether he ever told her she had died. |
+| **Six** | an old man, dying, recording for whoever eventually asks, because he knew the world would outlive them both. |
+
+**Fragment six is addressed to the player** — not by name (a media line is static
+text and cannot interpolate; see 5) but to *whoever found this*. It is what the
+`TREK_Q` stretch idea was reaching for, and Tucker has a better claim on it than
+a joke does. `TREK_Q` is **retired**: there is no Q.
+
+**And a fragment is losable until it is converted.** It is an item; it stays on a
+body like everything else. Once Shepard has put it on tape it is shared,
+permanent, and on the shelf for everyone — which makes the conversion the thing
+the player is actually racing to, and gives the channel a reason to be urgent.
+
+### The towns grew, and that is the whole finding
+
+**Nothing after step 3 was designed.** The Douwd copied a river valley in the
+1690s and there was no Louisville in it — European settlement of Kentucky starts
+in the 1770s. Every town on the map arrived on its own, in the three centuries
+the world spent unattended.
+
+**So the names are a coincidence and will be read as one. They happened to call
+it Kentucky too.** That is not a shrug, it is the report. Put a town where the
+boats have to stop and somebody will put a town where the boats have to stop. The
+map is near-identical in the ways that follow from the terrain and quietly wrong
+in a hundred ways that do not — which is exactly what a cultural survey
+specialist would kill to be looking at, and which is free licence for every
+discrepancy a player ever notices. **A wrong street name is canon.**
+
+What Starfleet files it as: **Hodgkin's Law of Parallel Planetary Development,
+observed under laboratory conditions** — because somebody accidentally built the
+laboratory. Which is also why the order is *do not touch it.*
+
+### The two precedents that make "observe only" defensible
+
+The mod needs that order to be honestly arguable rather than bureaucratic
+cowardice, because it is the order that left the world undefended. Canon supplies
+two.
+
+- **Miri** (TOS, 2266). A planet with Earth's continents and Earth's cities.
+  Kirk: *"Earth... but it can't be."* **Never explained, by anybody, ever.** So
+  Starfleet has a filing category for this and exactly one prior entry in it.
+- **The Uxbridge determination** (2366). A captain found a Douwd's fabrication
+  with a resurrected woman living inside it, and **walked away and left it
+  running.** Seventy-two years before the mod's present, the Federation
+  established on the record that it does not interfere with these and does not
+  judge them.
+
+Together they turn the posting into case law. Shepard's file reads *parallel
+development, cf. the Miri anomaly, non-interference per Uxbridge, recommend
+observation only.* Every word of it is true, correctly reasoned, and the reason
+everyone died.
+
+### The clock, and why it is never explained
+
+| | |
+|---|---|
+| the mod's present | **2435** — `NOW_YEAR` in `tools/gen_tapes.py`, and pinned by the arc rather than chosen |
+| the world's present | **1993** — `StartMonth 7`, `StartDay 9` |
+| the gap | **442 years** |
+
+**Take the year from the generator, not from here.** `gen_tapes.py` pins
+`NOW_YEAR = 2435` with its reasoning attached — Section 31 deployed the Founder
+virus around 2375, the Changeling worked in isolation for nearly sixty years —
+and it has already caught one dating error in a built tape. A date in a prose
+document is not a thing anybody checks; a date in the generator is.
+
+A copy that runs at Earth's rate cannot lag, so a world copied in the 1690s and
+left alone ought to read 2435 today rather than 1993. **The mod does not resolve
+this and must not try.** Shepard notices it, checks it four times and cannot
+account for it, which is in character for a historian and costs nothing: *their
+calendar says 1993, mine says 2435, and nobody ever explained Miri either.* Put
+no external build date in any tape. Non-corporeal immortals do not file
+timestamps.
+
+### One line to hold, and one to decline
+
+**Hold this: the place is manufactured and every person on it is real.**
+Trelane's father, about the humans his son had been playing with — *"They're
+beings, Trelane. They have spirit. They're superior."* The moment Kentucky's
+population is set dressing, the mod is a shooting gallery and the shelf is
+decoration. The fabrication is the shelf the world sits on, not the world. It
+also protects the thing the framing is for: a player imagining themselves a
+native of this county is imagining a real person, from a real town, with real
+parents.
+
+**Decline this:** naming the woman's nation and making a specific people's
+catastrophe the mod's plot machinery. Keep the place specific and the person
+private — the only record is a name on a headstone somewhere in the county, and
+no tape ever finds out more than that. Voyager's own history is the cautionary
+case: that series' Native American consultant had been publicly exposed as a
+fraud nine years before he was hired to vet Chakotay, which is why Chakotay has
+no named nation to this day.
+
+---
+
+## 1d. The three lines
+
+Settled 2026-09-24. The death screen is the mod's cheapest and most-seen piece
+of writing, and it replaces the game's own triad:
+
+> **M-class. Earth-like. Unprotected.**
+> **Observe, report and explain.**
+> **This was your away mission.**
+
+**Unprotected** is the indictment and **explain** is the order nobody could carry
+out. The player reads their own orders every time they die.
+
+*Parked and still available: showing vanilla's lines until the ship is found and
+switching to these afterwards, so the reframe lands at commissioning rather than
+at first death. It needs the issue record (6, `COMMS.md`) and is not worth
+blocking the triad on.*
 
 ---
 
@@ -581,7 +850,8 @@ them should hurt to watch, and the game has a number for that.
 
 ## 5. The library
 
-Seventeen tapes in three tiers. Ids are readable rather than GUIDs (vanilla's
+Twenty-one tapes in three tiers, plus two stretch. Ids are readable rather than
+GUIDs (vanilla's
 keys are GUIDs, so there is no collision risk) and every one is prefixed
 `TREK_`, because `FileGuidTable.mergeFrom` taught this project what an
 un-namespaced id costs.
@@ -631,6 +901,12 @@ a friend of the pilot's, which is how the tape got aboard.
 Betazoid gift written here is* telepathy *rather than telekinesis, because the
 Betazoid line is what the kid is explaining and empathy is the trait they are
 proud of. Say the word and it goes back.*
+
+**One canon fact worth using, and the ship already has the character for it.**
+The EMH *refused to perform the separation on ethical grounds* — Janeway did it
+herself. The Doctor is the franchise's only on-record conscientious objector to
+Tuvix's death, and this ship has an EMH as a fixture who already earns a plot in
+1b's entry four. If anything in the mod ever reacts to this tape, it is him.
 
 **2. `TREK_TalentNight` — *Ten Forward Talent Night, stardate 44390.7*  [BUILT 2026-09-23]**
 
@@ -734,6 +1010,12 @@ in a world where everyone died has no business owning a Star Trek licence's
 worth of optimism without also owning this. No skill codes at all. `UHP+2`,
 `BOR-1`, and nothing else, because a tape that pays you to watch it is not what
 this is.
+
+**And the list can be invented, which is the licence nobody expects.** The
+production deliberately never fixed the roster so that later episodes could add
+ships: only three hulls were ever named in script — *Melbourne*, *Kyushu*,
+*Chekov* — out of thirty-nine lost from forty, with nearly eleven thousand dead.
+Every other name on this tape can be ours and still be canon-correct.
 
 **11. `TREK_Barclay` — *Holo-diaries (recovered; substantially deleted by order)***
 
@@ -850,19 +1132,19 @@ that nobody will ever reach the end, and the codes are spread thinly enough
 that finishing it is not a goal. Ties directly to a fixture that is already in
 the cabin and does nothing narrative at all today.
 
-**`TREK_Q` — *a tape nobody put there***
+**`TREK_Q` — RETIRED 2026-09-24**
 
-An unlabelled tape appears on the shelf some days after commissioning. No
-explanation, in the shelf or anywhere else. It addresses "the current
-occupant", finds the entire arrangement very funny, and knows one thing about
-the ship that the player has not been told yet.
+There is no Q (1c). The suspicion that one made this planet is Starfleet's, it is
+honestly held, and it is wrong — which makes it a misdirection rather than a
+character, and misdirections do not get tapes of their own.
 
-Mechanically this is the only tape that **arrives**: a one-shot server-side
-placement into an existing container, persisted so it happens once. Note the
-limit that shapes the writing — **a media line is static text and cannot
-interpolate the character's name**, so the tape cannot address the player
-personally. If that is wanted, it is an LCARS message from the ship, not a
-tape.
+**What it was reaching for now belongs to Tucker Gold.** An unlabelled tape that
+addresses "the current occupant", finds the arrangement remarkable, and knows one
+thing about this world the player has not been told: that is fragment six, and a
+dying man has a better claim on it than a joke did. The one mechanical note worth
+keeping from this entry is still true and still the constraint — **a media line is
+static text and cannot interpolate the character's name**, so the fragment
+addresses *whoever found this*, never the player personally.
 
 ---
 
@@ -887,6 +1169,13 @@ than an argument.
 **Until that exists, every tape is on the shelf from the first build.** That is
 a perfectly good version one and it is the version to ship first: tier 1 and
 tier 2 need nothing but text, an item and a shelf.
+
+**And the record now has a second customer, which is how it gets built.**
+`COMMS.md` specs an interactive channel to the *Adirondack*, and its trigger
+engine is this same object — one bounded server-side record of what this ship has
+fired, calls and tapes in one table, and one slow service pass. That feature pays
+for 10's step 5 rather than waiting on it, so the gating design here is parked
+*until comms needs it* rather than parked indefinitely.
 
 ---
 
@@ -1061,3 +1350,14 @@ Narrower than the list that used to be here, and none of it blocks anything:
 
 Step 1 is one evening and it answers the only question that can sink the
 feature.
+
+**Step 5 now belongs to `COMMS.md`.** The issue record is that feature's trigger
+engine as well as this one's gating, so it gets built there — which means the
+order above can run 1 → 4 without it, and tier 3's gating plus the arriving
+every converted fragment arrive as a side effect of the channel rather than as
+work of their own.
+
+**And 1c is the writing brief a new session needs.** The world's origin, the
+precedents, the clock and the two rules to hold are settled; what is *not*
+written is any tape that carries them. `TREK_Uxbridge` is the one that does most
+of the work, and it needs no machinery that does not already exist.
