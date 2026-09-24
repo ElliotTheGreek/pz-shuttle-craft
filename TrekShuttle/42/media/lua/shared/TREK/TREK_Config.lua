@@ -1399,6 +1399,14 @@ C.EmhCureCrystals = 1
 -- confined to the cabin.
 C.EmhCureHours = 12
 
+-- How long a patient may be off the ship before the cure is lost, in game
+-- hours. Not a loophole: it is the time it takes to change places. Going
+-- forward to the cockpit puts the patient on the ground beside her for a
+-- moment before the seat takes them, and a cure checked in that moment was
+-- lost -- crystal and all -- by a player who never left (EMH.md, *Aboard
+-- means the ship*). Two game minutes is a few real seconds.
+C.EmhCureGraceHours = 2 / 60
+
 -- The light he casts on the deck. Per client, like the cabin's lamps and the
 -- torpedo's -- scenery, never ship state.
 C.EmhLight = { r = 0.55, g = 0.80, b = 1.00, radius = 4 }

@@ -604,7 +604,10 @@ The EMH scenarios must cover:
 - every limb- and body-level infection field clears;
 - infection remains cleared after body updates;
 - client moodle clears;
-- leaving the cabin cancels without refund;
+- leaving the ship cancels without refund -- after a grace of
+  `C.EmhCureGraceHours` (two game minutes), and **the shuttle's seats are
+  aboard**: a patient who goes forward to fly her keeps the cure, and it
+  lands in the cockpit;
 - sandbox and power refusals;
 - two-client visibility;
 - consent appears only on the patient;
@@ -720,8 +723,8 @@ After deployment and a full restart:
 8. Treat ordinary injuries and verify bite/infection remain.
 9. Start a cure and verify one crystal is spent immediately.
 10. Complete the cure aboard and verify bite, infection, and moodle all clear.
-11. Start another cure, leave the cabin, and verify cancellation without a
-    refund.
+11. Start another cure, leave the ship, and verify cancellation without a
+    refund. Going forward to the cockpit is **not** leaving (below).
 12. Dismiss and resummon the Doctor; the permanent station must remain.
 13. With a controller, navigate every control, activate with A, close with B,
     and verify focus returns to the game.
@@ -729,6 +732,28 @@ After deployment and a full restart:
     ship state.
 15. Repeat the placement check in an existing revision-22 save to exercise the
     old panel and old Doctor cleanup.
+
+### Aboard means the ship (found in game, 2026-09-23)
+
+The first cure anybody started in a game was lost two minutes in, with a
+crystal. The log said why in two lines:
+
+```
+[TREK] materialised in the cockpit, seat 0.
+[TREK] emh: LeroyPatino left the ship and the cure is lost, crystal and all.
+```
+
+The register asked `U.isInteriorPlayer` -- the cabin -- and the pilot's seat
+is not in the cabin. The patient then treated themselves eight times, each
+treatment putting right the one thing the untouched infection kept damaging,
+which read from the chair as *the Doctor heals me and the bite comes back*.
+Treatment never touches a bite, by design; the cure had simply been lost.
+
+`EMH.aboardForCure` is the cabin **or a seat in the shuttle**, and the first
+check off the ship now starts a two-minute grace rather than ending the cure:
+going forward passes through the ground beside her before the seat takes you.
+A cure that falls due during the grace waits for the patient to come back.
+Both are mutation-checked in `tests/test_multiplayer.py` `emh()`.
 
 Static validation proves the mod's own logic and generated references. Only
 this in-game pass proves final rendering, click geometry, engine placement, and

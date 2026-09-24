@@ -4572,8 +4572,53 @@ def emh():
           f"emh: a cure with no crystals said {rt.notes()} -- the refusal has "
           f"to name dilithium, because that is what sends a player out looking")
 
+    # --- the cockpit is the ship ---------------------------------------------
+    # Found in a game, from the log: a patient went forward to fly her during
+    # the twelve hours, and two seconds after "materialised in the cockpit"
+    # the cure was lost, crystal and all. The pilot's seat is aboard.
+    rt.run("""
+        TREK.Util.state().crystals = 2
+        SIM.notes = {}
+    """)
+    rt.run("TREK.Core.send(SIM.players[1], 'emhCure', {})")
+    net.pump(4)
+    check(rt.eval("TREK.EMH.cureDue('emh') ~= nil") is True,
+          "emh: the cure never started, so the cockpit cannot be tested")
+    # A seat in a shuttle, as the cure asks about it: the vehicle's script
+    # name. Not a vehicle parked in the cell -- the ship's own vehicle service
+    # would rightly object to a shuttle it never spawned.
+    rt.run(f"""
+        TREK.Util.teleport({P}, 1000, 1000, 0)
+        {P}.vehicle = {{ x = 1000.5, y = 1000.5,
+                         getZ = function() return 0 end,
+                         getScriptName = function() return TREK.Vehicle.SCRIPT end }}
+    """)
+    net.pump(4)
+    for _ in range(6):
+        rt.run("SIM.advanceHours(1 / 60)")
+        rt.fire("EveryOneMinute")
+        net.pump(1)
+    check(rt.eval("TREK.EMH.cureDue('emh') ~= nil") is True,
+          "emh: a patient in the shuttle's pilot seat lost the cure -- the "
+          "cockpit is the ship")
+    rt.run("SIM.advanceHours(TREK.Config.EmhCureHours)")
+    rt.fire("EveryOneMinute")
+    net.pump(4)
+    check(body(rt, 6, "isBitten") is False,
+          "emh: a cure that fell due with the patient flying the ship did not "
+          "land")
+    check(any("IGUI_TREK_EmhCuredNote" in n for n in rt.notes()),
+          "emh: a cure landed in the cockpit without telling the patient")
+    rt.run(f"{P}.vehicle = nil")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    stand_at(rt, net, station[0] - 1, station[1])
+
     # --- leaving the ship costs the crystal ---------------------------------
-    rt.run(f"TREK.Util.state().crystals = 2")
+    rt.run("""
+        SIM.hurt(SIM.players[1], "infection", 6)
+        TREK.Util.state().crystals = 2
+    """)
     rt.run("SIM.notes = {}")
     rt.run("TREK.Core.send(SIM.players[1], 'emhCure', {})")
     net.pump(4)
@@ -4582,6 +4627,14 @@ def emh():
 
     rt.run(f"TREK.Util.teleport({P}, 1000, 1000, 0)")
     net.pump(4)
+    rt.fire("EveryOneMinute")
+    net.pump(2)
+    # The first check off the ship starts a grace of a couple of game
+    # minutes -- the time it takes to change places -- and does not end it.
+    check(rt.eval("TREK.EMH.cureDue('emh') ~= nil") is True,
+          "emh: the cure was lost on the first check off the ship; changing "
+          "places passes through the ground beside her")
+    rt.run("SIM.advanceHours(TREK.Config.EmhCureGraceHours + 1 / 60)")
     rt.fire("EveryOneMinute")
     net.pump(2)
     check(crystals_aboard(rt) == 1,

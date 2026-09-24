@@ -1703,6 +1703,11 @@ local Med = TREK.Medical
 local offers = {}
 local offerSerial = 0
 
+-- name -> world hour a patient under a cure was first seen off the ship.
+-- Server-local and transient on purpose: it is a grace period measured in
+-- game minutes, and a restart in the middle of one simply starts it again.
+local offShip = {}
+
 --- The common gate. Alive, allowed, the sandbox is on, standing at the
 --- station -- all measured here, on the server's own copy of the world.
 local function atEMH(player)
@@ -2046,13 +2051,28 @@ function S.serviceCures()
     for _, name in ipairs(names) do
         local patient = playerNamed(name)
         if patient then
-            if not U.isInteriorPlayer(patient) then
+            local aboard = EMH.aboardForCure(patient)
+            if aboard then
+                offShip[name] = nil
+            elseif not offShip[name] then
+                -- The first check off the ship starts the grace; it does not
+                -- end the cure. Changing places -- forward to the cockpit,
+                -- aft to the cabin -- passes through the ground beside her.
+                offShip[name] = now
+                U.log("emh: %s is off the ship; the cure is lost if they stay "
+                      .. "off for %.0f game minute(s)", name,
+                      C.EmhCureGraceHours * 60)
+            end
+            if not aboard and now - offShip[name] >= C.EmhCureGraceHours then
                 cures[name] = nil
+                offShip[name] = nil
                 dropped = dropped + 1
                 Net.toClient(patient, "emhCureLost", {})
                 U.log("emh: %s left the ship and the cure is lost, crystal "
                       .. "and all", name)
-            elseif now >= (cures[name] or 0) then
+            elseif aboard and now >= (cures[name] or 0) then
+                -- Only aboard: a cure that falls due during the grace waits
+                -- for them to come back, rather than landing on the road.
                 cures[name] = nil
                 done = done + 1
                 local counts = cureBody(patient)

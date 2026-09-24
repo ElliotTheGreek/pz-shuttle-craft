@@ -202,7 +202,7 @@
     "IGUI_TREK_EmhOfferTreat": "%1 has asked the EMH to treat you. It costs the ship %2 units of power.",
     "IGUI_TREK_EmhOfferCure": "%1 has asked the EMH to cure your infection. It costs %2 dilithium crystal and twelve hours aboard.",
     "IGUI_TREK_EmhTreatedNote": "The EMH treated %1 thing(s)",
-    "IGUI_TREK_EmhCureStarted": "The cure has begun. Stay aboard for %1 hours",
+    "IGUI_TREK_EmhCureStarted": "The cure has begun. Stay aboard -- the cabin or her seats -- for %1 hours",
     "IGUI_TREK_EmhCuredNote": "The infection is gone",
     "IGUI_TREK_EmhOff": "The sick bay's medical station is inactive",
     "IGUI_TREK_EmhFar": "Stand at the medical station in the sick bay",
