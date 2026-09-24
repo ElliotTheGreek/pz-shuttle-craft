@@ -364,6 +364,9 @@ local settling = nil
 -- Squares from the ship's centre a player first arrives at when stepping out:
 -- clear of a hull five long, in any orientation.
 local STEP_OUT_OFFSET = 4
+-- Shared with the trip forward to the cockpit on the ground, which arrives
+-- where stepping out does before it takes the seat.
+Core.STEP_OUT_OFFSET = STEP_OUT_OFFSET
 
 --- Puts the player back down beside the ship.
 ---

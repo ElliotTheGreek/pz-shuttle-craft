@@ -46,7 +46,7 @@ there.
 | Walk out of the hatch | yes | **no** — a storey of nothing |
 | Beam down | yes | yes, **and it is the only way off her** |
 | Go aft to the cabin | yes | yes, from a seat (a beam) |
-| Come forward to the cockpit | walk in | *Forward to the cockpit*, from the aboard menu |
+| Come forward to the cockpit | *Forward to the cockpit* too (since 2026-09-24): arrives beside her, where the hatch puts you, and takes a free seat | *Forward to the cockpit*, from the aboard menu: arrives on the ground beneath her |
 
 That last row is not decoration. Without it, going aft in flight is a one-way
 door: the hatch is shut, *Step outside* is hidden for the same reason, and the

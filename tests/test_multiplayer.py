@@ -7574,8 +7574,60 @@ def hover_call_down():
           "not her crew any more, and can call her down somewhere new")
 
 
+
+def ground_cockpit():
+    """Forward to the cockpit from the cabin with her on the ground.
+
+    Asked for in play, 2026-09-24: in flight the cabin goes straight to the
+    seats, on the ground it did not. The trip arrives beside her -- where the
+    hatch puts people -- not under her, because on the ground that square is
+    her hull.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    check(ship(rt, "landed") is True, "ground cockpit: she never landed")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "ground cockpit, beaming up"):
+        return
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is True,
+          "ground cockpit: the pilot never got aboard")
+
+    labels = aboard_menu(rt)
+    check("IGUI_TREK_ToCockpit" in labels,
+          f"ground cockpit: the aboard menu has no way forward to the cockpit "
+          f"with her on the ground: {labels!r}")
+    rt.run('aboardCtx:deepClick("IGUI_TREK_ToCockpit")')
+    net.pump(400)
+    check(rt.eval(f"{P}.vehicle ~= nil") is True,
+          "ground cockpit: the trip forward did not put the pilot in a seat")
+    check(ship(rt, "landed") is True and ship(rt, "flying") is None,
+          "ground cockpit: going forward on the ground moved or lifted her")
+
+    # Overhead there are no seats to go to, and the option says nothing.
+    rt.run(f"{P}.vehicle = nil")
+    rt.run("TREK.Util.state().landed = false")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    check("IGUI_TREK_ToCockpit" not in aboard_menu(rt),
+          "ground cockpit: the cockpit is offered with her overhead, where "
+          "there is no seat anywhere near")
+
+    for w in rt.warnings():
+        fail(f"ground cockpit: {w}")
+    print("ground cockpit: with her on the ground the cabin goes straight to a "
+          "seat, arriving beside her rather than inside her hull, and the "
+          "option is not offered while she is overhead")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_alone,
-            flight_endings, seat_exit, hover_call_down,
+            flight_endings, seat_exit, hover_call_down, ground_cockpit,
             torpedoes, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, contact_world,
