@@ -62,8 +62,43 @@ L.tiles = {
     -- already right.
     { x = 0, y = 0, sprite = "security_01_4", tag = "console" },
     { x = 1, y = 0, sprite = "security_01_4", tag = "console" },
-    { x = 2, y = 0, sprite = "security_01_4", tag = "console" },
     { x = 3, y = 0, sprite = "security_01_4", tag = "console" },
+
+    -- The tape shelf, beside the television. It is where the ship keeps what
+    -- it remembers, and LORE.md is the design.
+    --
+    -- **A wall shelf, and it costs no deck square.**
+    -- furniture_shelving_01_28 carries neither `solid` nor `solidtrans`
+    -- (MoveType = WallObject, attachedN, ContainerCapacity 30), so 2,0 is
+    -- still deck -- and 2,0 is the *only* square a player can stand on to
+    -- open the **armoury** at 3,0, because 3,1 and 3,2 are the other two
+    -- lockers. A floor-standing container here leaves the ship's sidearms,
+    -- blades and uniforms reachable diagonally at best.
+    --
+    -- **A video-shop rack was tried here and reverted**, and the reason is
+    -- worth keeping: `location_shop_generic_01_1` is catalogued as "Comics
+    -- Shop Shelves" and it draws as a **grocery shelf stocked with orange
+    -- soda**, at twice the depth this cabin can spare. Nothing in
+    -- tiles.json says so. `CustomName`, `GroupName` and `container` describe
+    -- what a tile *is for*, and none of them describes what it looks like --
+    -- so a fitting chosen for its silhouette has to be looked at in game,
+    -- the same way every mesh in this mod has to be rendered and looked at.
+    -- The proper video-rental racks
+    -- (`location_entertainment_theatre_01_120..135`) are all two-tile pieces
+    -- and the bow row has no two adjacent free squares: 1,0 is the
+    -- television and 3,0 is the armoury.
+    --
+    -- The monitor bank that used to be on this square is **gone** and has not
+    -- come back: two wall-mounted objects on one edge of one square is the
+    -- thing that looks like a bug whether or not it is one. The bow is three
+    -- screens and a shelf.
+    --
+    -- The obvious alternative was the television's own table, and it is not a
+    -- container: furniture_tables_low_01_3 is `solidtrans` with no `container`
+    -- property at all. Looked up rather than assumed -- see DEV_GUIDE, "A
+    -- comment is not a container".
+    { x = 2, y = 0, sprite = "furniture_shelving_01_28", tag = "tapes",
+      container = true, special = "tapes" },
 
     -- A television that is actually a television. `device` is the field that
     -- makes TREK_Build construct an IsoTelevision rather than a plain
@@ -142,8 +177,12 @@ L.tiles = {
     -- `special` is the belt to that braces: U.stockEach puts one of each in
     -- and then reads the container back, so a guarantee that did not land is
     -- reported instead of assumed.
+    -- `special` takes a list: this locker owes the crew four phasers and one
+    -- uniform of each division, and those are two different counts.
+    -- 4 phasers (2.4) + 2 of each of the 4 blades (15.0) + 6 uniforms (8.4)
+    -- is 25.8 of the locker's 40 units, so nothing is dropped for room.
     { x = 3, y = 0, sprite = "furniture_storage_02_11", tag = "armoury",
-      container = true, special = "phasers", loot = "weapons",
+      container = true, special = { "phasers", "uniforms" }, loot = "weapons",
       fill = 1.0, cap = 8 },        -- 4 phasers + 2 of each of the 4 blades
     { x = 3, y = 1, sprite = "furniture_storage_02_11", tag = "provisions",
       container = true, loot = "food",

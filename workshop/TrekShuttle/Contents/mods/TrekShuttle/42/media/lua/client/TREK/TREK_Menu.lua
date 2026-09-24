@@ -28,8 +28,11 @@ require "TREK/TREK_World"
 require "TREK/TREK_Core"
 require "TREK/TREK_Transport"
 require "TREK/TREK_Travel"
+require "TREK/TREK_Probes"
+require "TREK/TREK_Power"
 
 TREK = TREK or {}
+local C = TREK.Config
 local U = TREK.Util
 local Ship = TREK.Ship
 local W = TREK.World
@@ -61,6 +64,11 @@ end
 ---------------------------------------------------------------------------
 function M.onBeamUp(_, player)
     local ok, why = TREK.Transport.beamUp(player)
+    if not ok and why == "busy" then busyNote(player) end
+end
+
+function M.onToCockpit(_, player)
+    local ok, why = TREK.Transport.toCockpit(player)
     if not ok and why == "busy" then busyNote(player) end
 end
 
@@ -108,6 +116,19 @@ end
 
 function M.onHelm(_, player)
     TREK.Travel.openHelm(player)
+end
+
+---------------------------------------------------------------------------
+-- Long-range sensors
+---------------------------------------------------------------------------
+-- One option, which opens the console. This was a submenu that carried the
+-- launch button, the flight percentage and every contact; it worked and it
+-- read as a list of settings rather than as a station on a starship, and a
+-- probe in flight had nowhere to show progress. TREK_ProbeUI is the panel it
+-- became -- the helm's LCARS for the fourth time.
+
+function M.onSensors(_, player)
+    TREK.ProbeUI.open(player)
 end
 
 function M.onBookmarkHere(_, player)
@@ -173,8 +194,16 @@ local function aboardMenu(context, player, worldobjects, test)
     if s.landed and not s.flying then
         menu:addOption(getText("IGUI_TREK_StepOutside"), worldobjects, M.onExit, player)
     end
+    -- And forward to the cockpit, which only exists while she is up -- on the
+    -- ground you step out and walk in. Without it, going aft in flight is a
+    -- one-way door and the pilot can never fly her again.
+    if s.flying then
+        menu:addOption(getText("IGUI_TREK_ToCockpit"), worldobjects, M.onToCockpit, player)
+    end
     menu:addOption(getText("IGUI_TREK_BookmarkHere"), worldobjects,
                    M.onBookmarkHere, player)
+    menu:addOption(getText("IGUI_TREK_Sensors"), worldobjects, M.onSensors,
+                   player)
     crewMenu(menu, player, worldobjects)
     return true
 end

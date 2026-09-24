@@ -30,6 +30,7 @@ require "TREK/TREK_World"
 require "TREK/TREK_Vehicle"
 require "TREK/TREK_Medical"
 require "TREK/TREK_Replicator"
+require "TREK/TREK_Probes"
 require "TREK/TREK_EMH"
 require "TREK/TREK_Build"
 
@@ -42,6 +43,7 @@ local W = TREK.World
 local V = TREK.Vehicle
 local B = TREK.Build
 local Rep = TREK.Replicator
+local Probes = TREK.Probes
 
 local S = {}
 TREK.Server = S
@@ -257,6 +259,11 @@ local function spawnVehicle(sq)
     return vehicle
 end
 
+-- Declared here and defined in the Flight section below: landing has to ask
+-- whether anybody is aboard before it pulls her out of the sky, and Lua
+-- resolves a local by where it was declared rather than by when it is called.
+local crewAboard
+
 --- Sets the ship down centred on a square, lifting it from wherever it was.
 --- Returns `ok, reason, blocked`.
 function S.land(x, y, z, player)
@@ -265,6 +272,25 @@ function S.land(x, y, z, player)
     if not sq then return false, "unloaded", 0 end
 
     local s = U.state()
+
+    -- She cannot arrive hovering, and the check is here rather than in the
+    -- caller because every way of landing her comes through this function.
+    --
+    -- Two things reach it with `flying` set. One is a crewman on the ground
+    -- calling her down while somebody else is flying her, and that is refused
+    -- for the same reason a recall is: pulling her out of the sky from under
+    -- her pilot drops them. The other is a stale flight, which is what the
+    -- 2026-09-23 report was -- she was spawned on the ground and every client
+    -- then paved a plane under her and lifted her straight back up, "called in
+    -- hover state so I cannot enter". A ship being set down on a named square
+    -- is not flying, whatever the record thinks.
+    --
+    -- Before the "already here" test, because that returns early.
+    if s.flying then
+        if crewAboard(V.find(s.vehicleId)) then return false, "inFlight", 0 end
+        S.endFlight("she is being set down")
+    end
+
     local here = s.landed and s.x == x and s.y == y and s.z == z
     if here and V.find(s.vehicleId) then
         return true, nil, 0
@@ -304,9 +330,15 @@ end
 ---
 --- One function, called from every ending, because the 1.1 flight's worst bug
 --- was an ending it did not cover: flight outlived the pilot's death and flew
---- on for the respawned character. Landing, a dead pilot, a pilot who got out,
+--- on for the respawned character. Landing, a dead pilot, a crew who all left,
 --- a disconnect and a world reload all come through here.
-function S.endFlight(why)
+---
+--- `toOrbit` is the ending where nobody is aboard any more. She does not come
+--- down where she happens to be -- that drops five tonnes of shuttle into
+--- whatever is underneath her, which may be a roof, a pond or a horde. She
+--- goes back up instead, exactly as `recall` sends her up from the ground, and
+--- the crew call her down again when they want her.
+function S.endFlight(why, toOrbit)
     local s = U.state()
     if not s.flying then return false end
     s.flying = nil
@@ -316,39 +348,67 @@ function S.endFlight(why)
     U.log("flight ended: %s", tostring(why))
     Ship.commit()
     -- The clients bring her down and take the plane up; only they can, since
-    -- build 42's server runs no vehicle physics at all.
-    Net.toAll("flightEnded", { why = why, z = s.z })
+    -- build 42's server runs no vehicle physics at all. Before the vehicle is
+    -- removed, so that every client's plane is lifted while it can still see
+    -- what it was holding up.
+    Net.toAll("flightEnded", { why = why, z = s.z, toOrbit = toOrbit == true })
+    if toOrbit then S.toOrbit(why) end
     return true
 end
 
---- Is the ship's pilot still aboard and alive?
+--- Sends her back up from wherever she was hovering: no vehicle left in the
+--- sky, no hull dropped on the ground, and `landed = false`, which is the
+--- state the whole call-down and recall machinery already understands.
 ---
---- Not simply "is that name online": a pilot who dies and respawns keeps their
---- username, and a ship that stayed up for a dead pilot is the exact bug that
---- got the 1.1 flight removed -- it outlived its pilot and flew on for the
---- replacement character.
----
---- But not "is that pilot in the seat", either. The whole point of the plane
---- holding the ship up is that the crew can go aft to the cabin in flight and
---- come back, so a pilot standing in the cabin still counts.
-local function pilotAboard(vehicle)
+--- There is no hull to lift here the way `S.recall` lifts one: a flying ship
+--- is always a vehicle, and a hull only ever exists for a save made before
+--- there was one.
+function S.toOrbit(why)
     local s = U.state()
-    if not s.pilot then return false end
+    if not s.landed then return false end
+    local vehicle = V.find(s.vehicleId)
+    if vehicle then removeVehicle(vehicle, why or "back up") end
+    s.landed = false
+    s.vehicleId = nil
+    s.missingChecks = nil
+    Ship.commit()
+    U.log("the shuttle has gone back up from %d,%d (%s)", s.x, s.y, tostring(why))
+    return true
+end
+
+--- Is anybody still aboard her -- in a seat, or aft in the cabin?
+---
+--- Not "is the recorded pilot online": a pilot who dies and respawns keeps
+--- their username, and a ship that stayed up for a dead pilot is the exact bug
+--- that got the 1.1 flight removed.
+---
+--- And not "is the pilot in the seat", either. The whole point of the plane
+--- holding the ship up is that the crew can go aft to the cabin in flight and
+--- come back, so anybody standing in the cabin counts -- which is also what
+--- makes "go aboard at any phase" safe: stepping through to the cabin is not
+--- leaving her.
+---
+--- It asks about **everybody**, not only the pilot. On a server the pilot may
+--- beam down while a crewman is still aft, and pulling the ship out from under
+--- them would leave them in a cabin belonging to nothing.
+---
+--- The seat test is `== true` and that is a fix, not a style. `U.try` hands
+--- back whatever the function returned, so `U.try(...) ~= nil` was true for a
+--- successful call that answered **false** -- which is to say for a player who
+--- is not in a seat at all. Every living player counted as aboard, and the
+--- only ending that ever fired was death.
+function crewAboard(vehicle)
     for _, p in ipairs(U.players()) do
-        if Ship.usernameOf(p) == s.pilot then
-            if U.try("pilotDead", function() return p:isDead() end) ~= false then
-                return false
-            end
+        if U.try("crewDead", function() return p:isDead() end) == false then
             if U.isInteriorPlayer(p) then return true end
-            if vehicle and U.try("pilotSeated", function()
+            if vehicle and U.try("crewSeated", function()
                 return vehicle:getSeat(p) ~= nil
-            end) ~= nil then
+            end) == true then
                 return true
             end
-            return false
         end
     end
-    return false      -- not online at all
+    return false
 end
 
 --- Sends the ship back up. Refused while anyone is sitting in it: recalling a
@@ -356,10 +416,24 @@ end
 function S.recall()
     local s = U.state()
     if not s.landed then return false end
-    -- And never out from under a ship that is in the air: the crew would be
-    -- left standing on nothing three levels up.
-    if s.flying then return false, "inFlight" end
     local vehicle = V.find(s.vehicleId)
+
+    -- A hovering ship can be sent back up too, as long as she is empty.
+    --
+    -- This used to be a flat refusal, on the reasoning that recalling her out
+    -- from under her crew would leave them standing on nothing -- which is
+    -- true, and only true while somebody is aboard. Empty, it is the crew's
+    -- own way of dealing with a shuttle hovering somewhere they cannot reach,
+    -- and *that state was unreachable by any other means* for one build: the
+    -- watchdog below only ran while her chunk was loaded, so a crew who beamed
+    -- down and walked away left her flying for ever, the hatch shut against
+    -- them and recall refusing. Both halves are fixed; this is the manual one.
+    if s.flying then
+        if crewAboard(vehicle) then return false, "inFlight" end
+        S.endFlight("recalled", true)
+        return true
+    end
+
     if vehicle and V.occupied(vehicle) then return false, "crewSeated" end
     if vehicle then removeVehicle(vehicle, "recalled") end
     local _, why = S.removeHullAt(s.x, s.y, s.z)
@@ -443,6 +517,46 @@ function S.serviceVehicle()
         end
     end
 
+    -- Somebody has to be aboard for her to stay up -- in a seat, or aft in the
+    -- cabin. Nobody there for long enough -- they died, they logged out, they
+    -- beamed down -- and she goes back up rather than hanging in the sky for
+    -- the rest of the world's life.
+    --
+    -- **This runs whether or not her vehicle is loaded, and that is the whole
+    -- point.** It used to live inside the `if found` block below, and `found`
+    -- is nil exactly when nobody is standing near her -- which is exactly the
+    -- case it exists to catch. A crew who beamed down and walked away left her
+    -- flying for ever: the hatch shut against them (`inFlight`), recall
+    -- refused (`inFlight`), and a call-down that spawned her on the ground and
+    -- was immediately lifted back to hover by every client, because `flying`
+    -- was still set. Seen in game, 2026-09-23, and every symptom in that
+    -- report is this one line's fault.
+    --
+    -- `crewAboard(nil)` is correct rather than merely tolerated: a player in a
+    -- seat keeps her chunk loaded by being in it, so an unloaded ship has
+    -- nobody in a seat by definition, and the cabin test does not need her at
+    -- all.
+    --
+    -- The grace is what makes a beam survivable: a player is briefly in
+    -- neither the seat nor the cabin while the transporter has them.
+    -- `flightHold` is the longer version of the same thing, set when somebody
+    -- is granted a beam *towards* her -- streaming the ground at the far end
+    -- can take a good deal longer than the beam itself.
+    if s.flying then
+        if crewAboard(found) then
+            s.pilotGrace, s.flightHold = nil, nil
+        elseif (s.flightHold or 0) > 0 then
+            s.flightHold = s.flightHold - 1
+            s.pilotGrace = nil
+        else
+            s.pilotGrace = (s.pilotGrace or 0) + 1
+            if s.pilotGrace >= C.FlightPilotGrace then
+                S.endFlight("nobody is aboard her", true)
+                return
+            end
+        end
+    end
+
     if found then
         s.missingChecks = nil
         S.refuel(found)
@@ -461,23 +575,6 @@ function S.serviceVehicle()
             if z ~= s.z then s.z = z changed = true end
         end
         if x ~= s.x or y ~= s.y then s.x, s.y = x, y changed = true end
-
-        -- The pilot has to be in the seat for the ship to be flown. Nobody
-        -- there for long enough -- they died, they logged out, they walked
-        -- off -- and she comes down by herself rather than hanging in the sky
-        -- for the rest of the world's life.
-        if s.flying then
-            if pilotAboard(found) then
-                s.pilotGrace = nil
-            else
-                s.pilotGrace = (s.pilotGrace or 0) + 1
-                if s.pilotGrace >= C.FlightPilotGrace then
-                    S.endFlight("nobody is flying her")
-                    return
-                end
-                changed = true
-            end
-        end
 
         if changed then Ship.commit() end
         return
@@ -661,6 +758,16 @@ Net.onServer("move", function(player, args)
         return
     end
     if rule.access then claim(player) end
+
+    -- Somebody is on their way aboard a ship that is hovering with nobody in
+    -- her. Hold the watchdog off while they are in transit: a beam is a second
+    -- and a half, and the ground at the far end can take a good deal longer
+    -- than that to stream in. Without this the crew could watch her leave
+    -- while they were still dematerialised.
+    if kind == "beamUp" and s.flying then
+        s.flightHold = C.FlightBoardingChecks
+    end
+
     Net.toClient(player, "moveGranted", { kind = kind, token = args.token })
 end)
 
@@ -729,9 +836,9 @@ Net.onServer("takeoff", function(player)
         return
     end
     claim(player)
-    Net.toClient(player, "takeoffGranted", { level = C.FlightCruise })
+    Net.toClient(player, "takeoffGranted", { level = C.FlightLevel })
     U.log("%s has the helm; clearing her for level %d",
-          Ship.usernameOf(player), C.FlightCruise)
+          Ship.usernameOf(player), C.FlightLevel)
 end)
 
 --- The client got her up and the engine held the height. Only now is the ship
@@ -743,8 +850,10 @@ Net.onServer("airborne", function(player, args)
     if not s.landed then return end
     local _, driving = drivenBy(player)
     if not driving then return end
+    -- One altitude, so this is an equality and not a range. A client reporting
+    -- any other height is reporting something the ship cannot be doing.
     local level = int(args.level)
-    if not level or level < C.FlightMinLevel or level > C.FlightMaxLevel then return end
+    if level ~= C.FlightLevel then return end
     s.flying = true
     s.level = level
     s.pilot = Ship.usernameOf(player)
@@ -765,24 +874,11 @@ Net.onServer("airborne", function(player, args)
           s.x, s.y, level, s.pilot)
 end)
 
-Net.onServer("setAltitude", function(player, args)
-    if not mayUse(player) then return end
-    local s = U.state()
-    if not s.flying then return end
-    local _, driving = drivenBy(player)
-    if not driving then
-        deny(player, "notPilot")
-        return
-    end
-    local level = int(args.level)
-    if not level then return end
-    level = math.max(C.FlightMinLevel, math.min(C.FlightMaxLevel, level))
-    if level == s.level then return end
-    s.level = level
-    s.skyAt = { x = s.x, y = s.y, level = level }
-    Ship.commit()
-    U.log("shuttle changing to level %d", level)
-end)
+-- There is deliberately no `setAltitude`. Flight is a binary -- she is on the
+-- ground or she is hovering at C.FlightLevel -- so there is no altitude to
+-- set, and leaving the command in place as a no-op would be a request with a
+-- handler that quietly does nothing, which is the shape this project keeps
+-- paying for.
 
 --- The ship's flight speed. Anyone who may use her may set it -- the helm is
 --- in the cabin and the pilot is in the cockpit, so on a server the crewman
@@ -1062,7 +1158,7 @@ Net.onServer("fireTorpedo", function(player, args)
     -- the same documented exception the sky plane uses -- no client touches
     -- ship state and no client does damage.
     Net.toAll("torpedoLaunched", {
-        x0 = s.x, y0 = s.y, level = s.level or C.FlightMinLevel,
+        x0 = s.x, y0 = s.y, level = s.level or C.FlightLevel,
         x = x, y = y, z = z,
         ms = flight,
     })
@@ -1958,6 +2054,372 @@ function S.serviceCures()
     return done
 end
 
+---------------------------------------------------------------------------
+-- Long-range probes
+---------------------------------------------------------------------------
+-- A launch is **one authority-side transaction**: validate, spend, and create
+-- the job, with nothing in between that a second request could interleave
+-- with. Two crew hitting the menu together therefore produce one probe and
+-- one deduction, which is what ROADMAP2 asks for -- "Racing launch requests
+-- create one job and one deduction" -- and it comes out of doing the whole
+-- thing in one handler rather than out of any locking.
+--
+-- The **server chooses the bearing**. It is not a client's to pick: a client
+-- that could name the direction could name the one with the crystal in it.
+Net.onServer("launchProbe", function(player, args)
+    if not mayUse(player) then return end
+
+    -- Aboard, because the probe is fabricated and launched by the ship. This
+    -- is checked against the *server's* copy of where the player is.
+    if not U.isAboard(player:getX(), player:getY(), player:getZ()) then
+        deny(player, "probeAboard")
+        return
+    end
+    if Probes.active() then
+        deny(player, "probeActive")
+        return
+    end
+
+    -- Launching costs a **probe**, not energy. Energy bought it earlier, at
+    -- the fabricator, which is what makes "three probes aboard" a thing the
+    -- crew can see and plan around.
+    local s = U.state()
+    if (s.probes or 0) < 1 then
+        deny(player, "probeNone")
+        return
+    end
+    s.probes = (s.probes or 0) - 1
+
+    -- **From where the crew actually are**, not from the ship's own record.
+    -- `s.x, s.y` is where the shuttle was last set down, and it is 0,0 in a
+    -- world where she has never been called down -- which put the first probe
+    -- anybody fired in the far corner of the map while the crew stood in
+    -- Muldraugh. Ship.worldOrigin answers the question that was meant: where
+    -- is this player in the real world, or where would they be if they beamed
+    -- down.
+    local ox, oy = Ship.worldOrigin(player)
+    if not ox then
+        s.probes = (s.probes or 0) + 1
+        Ship.commit()
+        deny(player, "probeNoFix")
+        U.log("WARN a probe was launched with no position fix for %s",
+              Ship.usernameOf(player))
+        return
+    end
+
+    -- **Pick a bearing that actually lands somewhere.** A straight line from a
+    -- ship parked near the edge of the map spends much of the compass
+    -- pointing at nothing, and a contact outside the world is a mark the crew
+    -- walk toward that can never have anything on it. That is what the first
+    -- probe anybody launched did.
+    local span = C.ProbeMaxDistance - C.ProbeMinDistance
+    local bearing, distance
+    for _ = 1, C.ProbeBearingTries do
+        local b = (U.try("probeBearing", function()
+            return ZombRand(3600) / 3600.0
+        end) or 0) * math.pi * 2
+        local d = C.ProbeMinDistance + (U.try("probeRange", function()
+            return ZombRand(span + 1)
+        end) or math.floor(span / 2))
+        -- Shrink toward the ship rather than abandon the bearing: a shorter
+        -- hop the same way is still a probe, and near a map edge that is the
+        -- difference between reporting something and reporting nothing.
+        while d >= C.ProbeMinDistance do
+            if U.inWorld(ox + math.cos(b) * d, oy + math.sin(b) * d) then
+                bearing, distance = b, d
+                break
+            end
+            d = d - 30
+        end
+        if bearing then break end
+    end
+
+    if not bearing then
+        -- Every bearing tried and none lands in the world. Give the probe
+        -- back rather than charging for a launch that cannot report.
+        s.probes = (s.probes or 0) + 1
+        Ship.commit()
+        deny(player, "probeNoRoom")
+        U.log("WARN no bearing from %d,%d puts a probe inside the world", ox, oy)
+        return
+    end
+
+    local probe = Probes.begin(ox, oy, bearing, distance,
+                               C.ProbeFlightTicks)
+    if not probe then
+        -- Nothing took the power. begin() only refuses when a probe is
+        -- already up, and that was checked above, so reaching here means the
+        -- two disagree -- give the power back rather than quietly charging
+        -- for nothing, and **say so**.
+        --
+        -- The WARN is the point. Without it this branch is invisible: it
+        -- refunds, refuses with the same reason the guard above would have
+        -- given, and is indistinguishable from the guard working. A test
+        -- cannot tell the two apart and neither could anybody reading a log.
+        U.log("WARN probe launch got past the active check and begin() still "
+              .. "refused; the probe is back in the rack")
+        s.probes = (s.probes or 0) + 1
+        Ship.commit()
+        deny(player, "probeActive")
+        return
+    end
+
+    Ship.commit()       -- the rack changed
+    Probes.publish()    -- and so did the probe log
+    U.log("probe %s away on bearing %.2f for %d tiles, %d left in the rack",
+          probe.id, bearing, distance, s.probes)
+end)
+
+--- Turns reserve into a probe. One at a time, and the same shape as a launch:
+--- validate, spend, and hand the thing over in one handler.
+Net.onServer("buildProbe", function(player, args)
+    if not mayUse(player) then return end
+    if not U.isAboard(player:getX(), player:getY(), player:getZ()) then
+        deny(player, "probeAboard")
+        return
+    end
+
+    local s = U.state()
+    if (s.probes or 0) >= C.MaxProbes then
+        deny(player, "probeRackFull")
+        return
+    end
+
+    local cost = C.ProbeCost
+    -- afford() burns a spare crystal when the reserve is short, which is the
+    -- whole reason a crystal is worth carrying; spend() then takes the units.
+    if not TREK.Power.afford(cost) or not TREK.Power.spend(cost) then
+        deny(player, "probeNoPower",
+             { need = cost, have = math.floor(TREK.Power.reserve()) })
+        return
+    end
+
+    s.probes = (s.probes or 0) + 1
+    Ship.commit()
+    U.log("a probe is fabricated; %d in the rack, %d units left",
+          s.probes, math.floor(TREK.Power.reserve()))
+end)
+
+--- Puts the crystal in the world, once somebody is close enough to ask.
+---
+--- **This is what makes a probe report real.** A contact out of a probe is a
+--- record and nothing else: its squares are in unloaded chunks, and asking
+--- the engine about those is the one thing DEV_GUIDE forbids outright --
+--- `getOrCreateGridSquare` on an unloaded chunk hands back an orphan and the
+--- first call touching it throws. So the crystal is placed when a player
+--- legitimately loads the chunk, which is exactly the pattern `s.ghosts` and
+--- `sweepGhosts` already use for removal, run the other way round.
+---
+--- A nil square in a *loaded* chunk really is nothing there; only an unloaded
+--- chunk means "ask again later". Getting that backwards is what leaves a
+--- sweep re-walking the same squares for the life of the save.
+local function placeContact(contact)
+    if contact.placed then return false end
+
+    -- **The whole search area has to be loaded, not just the centre.** The
+    -- search below spans ContactPlaceRadius squares either side and can cross
+    -- a chunk boundary, and a nil square in an unloaded chunk means "ask
+    -- again later", never "nothing there" (DEV_GUIDE, *Never build where no
+    -- player is standing*). Checking only the middle would let a player
+    -- walking past the edge of a contact retire it before they ever arrived.
+    --
+    -- One check rather than two: this is also the cheap early-out that stops
+    -- a hundred and sixty-nine square lookups happening for every contact on
+    -- file, every game minute, for ever.
+    local r = C.ContactPlaceRadius
+    if not (U.chunkLoaded(contact.x - r, contact.y - r, contact.z)
+            and U.chunkLoaded(contact.x + r, contact.y - r, contact.z)
+            and U.chunkLoaded(contact.x - r, contact.y + r, contact.z)
+            and U.chunkLoaded(contact.x + r, contact.y + r, contact.z)) then
+        return false
+    end
+
+    -- Search outward from the reported square for ground that will hold it.
+    -- The probe's fix is approximate by design, so the exact square it named
+    -- may be a wall, a roof or a pond.
+    local best = nil
+    for ring = 0, r do
+        for dx = -ring, ring do
+            for dy = -ring, ring do
+                if math.abs(dx) == ring or math.abs(dy) == ring then
+                    local sq = U.square(contact.x + dx, contact.y + dy,
+                                        contact.z, false)
+                    if sq then
+                        local ok = U.try("contactGround", function()
+                            return sq:getFloor() ~= nil and not sq:isSolid()
+                                   and not sq:isSolidTrans()
+                        end)
+                        if ok then best = sq break end
+                    end
+                end
+            end
+            if best then break end
+        end
+        if best then break end
+    end
+
+    if not best then
+        -- Loaded, looked at, and genuinely nowhere to put it -- the middle of
+        -- a lake or inside a building. Retire it rather than retrying the
+        -- same squares for the life of the save.
+        U.log("WARN contact %s: no ground within %d squares of %d,%d; expired",
+              contact.id, C.ContactPlaceRadius, contact.x, contact.y)
+        contact.status = "expired"
+        return true
+    end
+
+    local item = U.try("contactCrystal", function()
+        return best:AddWorldInventoryItem(C.DilithiumItem, 0.5, 0.5, 0.0)
+    end)
+    if not item then
+        U.log("WARN contact %s: the crystal could not be created", contact.id)
+        return false
+    end
+
+    contact.placed = true
+    contact.x = U.try("contactX", function() return math.floor(best:getX()) end)
+                or contact.x
+    contact.y = U.try("contactY", function() return math.floor(best:getY()) end)
+                or contact.y
+    -- No longer a guess: the ship knows exactly where it put it.
+    contact.approximate = false
+    contact.status = "investigated"
+    U.log("contact %s: a crystal is on the ground at %d,%d",
+          contact.id, contact.x, contact.y)
+    return true
+end
+
+--- True when the crystal this contact placed is no longer lying there.
+local function crystalTaken(contact)
+    local sq = U.square(contact.x, contact.y, contact.z, false)
+    if not sq then return false end     -- unloaded: cannot tell, not "gone"
+    local found = U.try("contactLook", function()
+        local items = sq:getWorldObjects()
+        if not items then return false end
+        for i = 0, items:size() - 1 do
+            local o = items:get(i)
+            local it = o and o.getItem and o:getItem()
+            if it and it:getFullType() == C.DilithiumItem then return true end
+        end
+        return false
+    end)
+    return found == false
+end
+
+--- Places crystals people have come to find, and retires the ones they took.
+--- Authority only, on the per-minute tick.
+function S.serviceContacts()
+    local changed = false
+    for _, contact in ipairs(Probes.contacts()) do
+        -- A contact outside the playable world can never be reached, let
+        -- alone have a crystal put on it. Saves made before the range was
+        -- corrected carry these, so they are retired here rather than left on
+        -- the map as a mark the crew walk toward for ever.
+        if not Probes.isResolved(contact.status)
+           and not U.inWorld(contact.x, contact.y) then
+            contact.status = "invalid"
+            changed = true
+            U.log("contact %s at %d,%d is outside the world; retired",
+                  contact.id, contact.x, contact.y)
+        elseif contact.kind == "dilithium" and not Probes.isResolved(contact.status) then
+            if not contact.placed then
+                -- No proximity pre-check. There was one -- skip contacts no
+                -- player is near -- and it could not be observed from
+                -- outside: `placeContact` asks `U.chunkLoaded` first, and a
+                -- chunk is only loaded when somebody *is* near, so the two
+                -- guards always agreed. A branch a mutation cannot break is
+                -- either untested or unreachable, and this one was neither
+                -- load-bearing nor measurable. The cap is 64 contacts and
+                -- this runs once a game minute.
+                if placeContact(contact) then changed = true end
+            elseif crystalTaken(contact) then
+                contact.status = "recovered"
+                changed = true
+                U.log("contact %s: the crystal has been recovered", contact.id)
+            end
+        end
+    end
+    if changed then
+        Probes.prune()
+        Probes.publish()
+    end
+end
+
+--- Advances the probe and reports what it found. Authority only.
+---
+--- Runs on the game-minute tick rather than per server tick, because a
+--- three-hundred-tick flight at sixty ticks a second is five seconds and this
+--- is meant to be a journey. It is also the tick every setup is certain to
+--- run, so a probe cannot be stranded by a client disconnecting -- ROADMAP2:
+--- "A probe continues if its launching player disconnects."
+function S.serviceProbe()
+    if not Probes.active() then return end
+    local done = Probes.advance(C.ProbeWorkPerTick)
+    if not done then
+        -- Progress is persisted, so a server restart mid-flight resumes
+        -- rather than losing the probe and the power that bought it.
+        Probes.publish()
+        return
+    end
+
+    -- **The first probe of a save always finds something.** At a 65% hit rate
+    -- one launch in three is 250 units and an hour of game time for a line in
+    -- a log the player never reads, and the very first one coming back empty
+    -- is indistinguishable from the feature being broken -- which is exactly
+    -- how it read the first time anybody played it. ROADMAP2 1.6 wants a
+    -- guaranteed opening for the cold start anyway; this is the honest
+    -- minimum of it, and every probe after the first is a fair roll.
+    local s = U.state()
+    local found
+    if not s.probeEverFound then
+        found = true
+    else
+        found = (U.try("probeRoll", function()
+            return ZombRand(100)
+        end) or 0) < math.floor(C.ProbeFindChance * 100)
+    end
+
+    if found then
+        -- A long-range fix is a region, not a square. The spread is what the
+        -- tricorder is for, and a probe that named the exact spot would make
+        -- the whole close-range half of the design pointless.
+        local function scatter()
+            return (U.try("probeScatter", function()
+                return ZombRand(C.ProbeReportSpread * 2 + 1)
+            end) or C.ProbeReportSpread) - C.ProbeReportSpread
+        end
+        -- The scatter is applied *after* the bearing was checked, so it can
+        -- push an otherwise valid fix back out of the world. Fall back to the
+        -- endpoint itself rather than reporting a square nobody can reach.
+        local cx, cy = done.x + scatter(), done.y + scatter()
+        if not U.inWorld(cx, cy) then cx, cy = done.x, done.y end
+        local contact = Probes.addContact("dilithium", cx, cy, 0, done.id, true)
+        if contact then
+            U.log("probe %s reports %s at %d,%d", done.id, contact.kind,
+                  contact.x, contact.y)
+        end
+    else
+        -- An honest empty result is a real outcome and has to be reported as
+        -- one. What must never look like this is an engine failure, which is
+        -- why every call above goes through U.try and logs a WARN of its own.
+        U.log("probe %s returned nothing", done.id)
+    end
+
+    if found then s.probeEverFound = true end
+    s.probeReport = { id = done.id, found = found, at = getTimestampMs() }
+    Ship.commit()
+    Probes.publish()
+
+    -- **Tell the crew.** Until this, the only trace of an empty report was a
+    -- line in console.txt, so from the console a probe that found nothing and
+    -- a probe that never happened looked exactly the same. ROADMAP2 asks for
+    -- the page to show recent reports, and an honest empty result is a real
+    -- outcome that has to be reported as one.
+    for _, p in ipairs(U.players()) do
+        Net.toClient(p, "probeReport", { found = found })
+    end
+end
+
 --- Design and diagnostic tools behind the debug console. Single player, or a
 --- server admin.
 Net.onServer("debug", function(player, args)
@@ -1988,6 +2450,8 @@ Net.onServer("debug", function(player, args)
         S.replicatorReport()
     elseif what == "emh" then
         S.emhReport()
+    elseif what == "uniform" then
+        S.uniformReport()
     elseif what == "charges" then
         local c = chargeOf(Ship.usernameOf(player))
         U.log("transporter: limited=%s, %d charge(s) for %s",
@@ -2024,6 +2488,13 @@ Events.EveryOneMinute.Add(function()
     -- cabin-loaded branch on purpose: a patient who has left the ship has to
     -- lose their treatment whether or not anybody is aboard to see it.
     U.try("serviceCures", S.serviceCures)
+    -- Outside the cabin-loaded branch on purpose, like the cures: a probe is
+    -- a logical job with no world object behind it, and it must keep flying
+    -- whether or not anybody is aboard to watch it.
+    U.try("serviceProbe", S.serviceProbe)
+    -- Contacts become crystals only when somebody goes and looks, so this
+    -- runs wherever the players are rather than only near the ship.
+    U.try("serviceContacts", S.serviceContacts)
     if B.cabinCurrent() and B.cabinLoaded() then
         -- Nobody can drain the tap faster than a game minute refills it.
         U.try("refillWater", B.refillWater)
@@ -2126,6 +2597,76 @@ function S.replicatorReport()
               .. "if it is zero")
     end
     return standing == 1
+end
+
+--- One line per uniform, for TREK_Uniform(). **This is the check that the
+--- static tests cannot make.**
+---
+--- tests/test_assets.py proves the item, the clothing XML, the GUID row, the
+--- mesh and the texture all exist and agree on disk. None of that proves the
+--- *engine* agreed: `OutfitManager.getClothingItem(guid)` resolves through
+--- the merged table, and if this mod's fileGuidTable.xml did not merge -- a
+--- path the engine reads with a catch that only reaches ExceptionLogger --
+--- every one of those files is perfect and every uniform draws nothing.
+---
+--- So this asks the engine and reads the answer back, which is the only thing
+--- that has ever caught this shape of bug in this project: an unopenable
+--- locker, a tap with no water, a weapon one module away from its model. A
+--- uniform whose ClothingItem is nil here is present, drawn and inert.
+function S.uniformReport()
+    local resolved, missing = 0, 0
+    for _, id in ipairs(C.UniformIssue or {}) do
+        local item = U.try("instanceItem:" .. id, function()
+            return instanceItem(id)
+        end)
+        if not item then
+            U.log("WARN uniform %s: instanceItem returned nothing -- the item "
+                  .. "script did not load", id)
+            missing = missing + 1
+        else
+            -- getClothingItem() is a method on an object the engine handed
+            -- us, so it is reachable from Lua; it returns null when the GUID
+            -- is not in the merged table.
+            local cloth = U.try("getClothingItem:" .. id, function()
+                return item:getClothingItem()
+            end)
+            if not cloth then
+                U.log("WARN uniform %s: ClothingItem is nil. The GUID is not "
+                      .. "in the merged table, so this garment equips, weighs "
+                      .. "and insulates and draws NOTHING. Check that "
+                      .. "media/fileGuidTable.xml shipped.", id)
+                missing = missing + 1
+            else
+                local male = U.try("maleModel", function()
+                    return cloth:getMaleModel()
+                end)
+                local female = U.try("femaleModel", function()
+                    return cloth:getFemaleModel()
+                end)
+                local texes = U.try("textureChoices", function()
+                    local list = cloth:getTextureChoices()
+                    if not list or list:size() == 0 then return nil end
+                    return tostring(list:get(0))
+                end)
+                U.log("uniform %s: male=%s female=%s texture=%s",
+                      id, tostring(male), tostring(female), tostring(texes))
+                if not male or tostring(male) == "" then
+                    U.log("WARN uniform %s: resolved with no male model", id)
+                end
+                if not female or tostring(female) == "" then
+                    U.log("WARN uniform %s: resolved with no female model -- "
+                          .. "it would be invisible on a female character", id)
+                end
+                if not texes then
+                    U.log("WARN uniform %s: resolved with no texture", id)
+                end
+                resolved = resolved + 1
+            end
+        end
+    end
+    U.log("uniforms: %d of %d resolved through the GUID table",
+          resolved, resolved + missing)
+    return missing == 0
 end
 
 --- One line per thing that can be wrong with the Doctor, for TREK_EMH().

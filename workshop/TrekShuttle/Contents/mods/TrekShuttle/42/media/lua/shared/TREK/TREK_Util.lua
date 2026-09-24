@@ -269,6 +269,30 @@ function U.chunkLoaded(x, y, z)
     return chunk ~= nil
 end
 
+--- True when a square is inside the playable world.
+---
+--- `isValidChunk` takes **world coordinates divided by ten**, which is how
+--- vanilla's own map calls it before it will offer to teleport somewhere
+--- (`ISWorldMap.lua:941`). Called the same way here rather than reasoning
+--- about the units: the method multiplies its argument internally and the
+--- call site is the documentation.
+---
+--- This is not the same question as `U.chunkLoaded`. A square can be inside
+--- the world and not loaded; it can also be loaded-looking and simply not
+--- exist, which is what a probe reporting a contact two thousand squares off
+--- the top of the map produced -- a mark the crew walked toward that could
+--- never have had anything on it.
+function U.inWorld(x, y)
+    local ok = U.try("isValidChunk", function()
+        return getWorld():getMetaGrid():isValidChunk(math.floor(x / 10),
+                                                     math.floor(y / 10))
+    end)
+    -- A thrown probe is not an answer. Treat "cannot tell" as out of bounds:
+    -- refusing to report a contact is recoverable, sending the crew to one
+    -- that does not exist is not.
+    return ok == true
+end
+
 --- Grid square lookup. With create=true a square is made if its chunk is
 --- loaded; if the chunk is absent this returns nil rather than an orphan.
 function U.square(x, y, z, create)

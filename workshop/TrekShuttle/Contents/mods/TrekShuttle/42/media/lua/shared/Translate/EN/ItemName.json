@@ -24,5 +24,12 @@
     "TrekShuttle.TrekWarpCore": "Warp Core",
     "TrekShuttle.TrekDilithium": "Dilithium Crystal",
     "TrekShuttle.TrekEMH": "Emergency Medical Hologram",
-    "TrekShuttle.TrekEMHStation": "EMH Projector Station"
+    "TrekShuttle.TrekEMHStation": "EMH Projector Station",
+    "TrekShuttle.TrekUniformDutyCommand": "Starfleet Uniform (Command)",
+    "TrekShuttle.TrekUniformDutyOperations": "Starfleet Uniform (Operations)",
+    "TrekShuttle.TrekUniformDutyScience": "Starfleet Uniform (Sciences)",
+    "TrekShuttle.TrekUniformDressCommand": "Starfleet Dress Uniform (Command)",
+    "TrekShuttle.TrekUniformDressOperations": "Starfleet Dress Uniform (Operations)",
+    "TrekShuttle.TrekUniformDressScience": "Starfleet Dress Uniform (Sciences)",
+    "TrekShuttle.TrekTape": "Blank Tape"
 }

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fileGuidTable>
+	<files>
+		<path>media/clothing/clothingItems/TrekUniformDutyCommand.xml</path>
+		<guid>5c9b1bda-76be-5835-9b2a-75d8f6c597a3</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekUniformDutyOperations.xml</path>
+		<guid>48835ced-dc5b-565d-a303-4b0df9ffcf4e</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekUniformDutyScience.xml</path>
+		<guid>8efcf0f6-8797-554e-849f-31afbf85c318</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekUniformDressCommand.xml</path>
+		<guid>84d6170b-5891-583b-999e-40e1ff8872e1</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekUniformDressOperations.xml</path>
+		<guid>b65d6126-6e15-57ba-a918-17c3fe1c245c</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekUniformDressScience.xml</path>
+		<guid>67bf7f89-c497-54d5-bef0-dc2718a8a6be</guid>
+	</files>
+</fileGuidTable>

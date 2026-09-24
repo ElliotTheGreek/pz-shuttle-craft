@@ -112,10 +112,12 @@ end
 -- Every one of these is a menu entry rather than a key binding, which is the
 -- whole reason a controller and a Steam Deck work with no input code: the
 -- radial menu is already reachable with a stick. Driving is vanilla's job.
+-- Two options and no more: take her up, set her down. Flight is a binary --
+-- she is on the ground or she is hovering at C.FlightLevel -- and the four-rung
+-- ladder that used to be here ("Climb", "Dive", between levels 1 and 4) offered
+-- three rungs the ship could not actually stand on.
 function VM.onTakeOff(player)  TREK.Flight.takeOff(player) end
 function VM.onLandBelow(player) TREK.Flight.land(player) end
-function VM.onClimb(player)    TREK.Flight.climb(player) end
-function VM.onDive(player)     TREK.Flight.dive(player) end
 
 function VM.onFlightSpeed(player)
     local F = TREK.Flight
@@ -129,8 +131,6 @@ local function addFlightOptions(menu, playerObj, worldobjects)
     local F = TREK.Flight
     if not F or not F.isPilot(playerObj) then return end
     if F.flying() then
-        menu:addOption(getText("IGUI_TREK_Climb"), worldobjects, VM.onClimb, playerObj)
-        menu:addOption(getText("IGUI_TREK_Dive"), worldobjects, VM.onDive, playerObj)
         menu:addOption(getText("IGUI_TREK_LandBelow"), worldobjects, VM.onLandBelow, playerObj)
     elseif Ship.get().landed then
         menu:addOption(getText("IGUI_TREK_TakeOff"), worldobjects, VM.onTakeOff, playerObj)
@@ -151,10 +151,13 @@ end
 -- can see them and fail if one is not on disk. A concatenated path would hide
 -- them from it, and a radial slice with a nil texture draws no picture at all
 -- rather than complaining.
+-- TREK_Descend.png is still generated and still on disk, and nothing names it
+-- any more: it was the "Dive" slice, and there is no dive. Kept rather than
+-- deleted because "take her down" may yet want a second picture, and an unused
+-- file costs nothing while a deleted generated asset costs a regeneration.
 local ICONS = {
     aboard  = "media/ui/TREK_Aboard.png",
     ascend  = "media/ui/TREK_Ascend.png",
-    descend = "media/ui/TREK_Descend.png",
     land    = "media/ui/TREK_Land.png",
 }
 
@@ -205,8 +208,6 @@ function ISVehicleMenu.showRadialMenu(playerObj)
     local F = TREK.Flight
     if not F or not F.isPilot(playerObj) then return end
     if F.flying() then
-        menu:addSlice(getText("IGUI_TREK_Climb"), icon("ascend"), VM.onClimb, playerObj)
-        menu:addSlice(getText("IGUI_TREK_Dive"), icon("descend"), VM.onDive, playerObj)
         menu:addSlice(getText("IGUI_TREK_LandBelow"), icon("land"), VM.onLandBelow, playerObj)
         -- No torpedo slice here on purpose. Firing is **hold right mouse to
         -- aim, left click to fire**, with no mode to switch on, so a menu

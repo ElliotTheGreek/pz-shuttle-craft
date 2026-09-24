@@ -132,6 +132,50 @@ function T.beamDown(player, dest)
     return true
 end
 
+--- Beams the player from the cabin back to the cockpit.
+---
+--- Without this, going aft in flight is a one-way door: the hatch is shut
+--- while she hovers, *Step outside* is hidden for the same reason, and the
+--- aboard menu's only other way off her is a beam down -- which now sends her
+--- back up as soon as the last of the crew has gone. A pilot who stepped
+--- through to read the helm could never fly her again. Reported from the game
+--- as "we cannot get back in the craft".
+---
+--- It arrives on the **ground beneath her**, not on the sky plane beside her.
+--- That is the whole safety of it: the ground is real ground, so a shuttle
+--- that never streams in leaves the player standing somewhere rather than on
+--- a five-by-five island of invisible floor with the engine culling
+--- everything below it. `vehicle:enter(seat, character)` is vanilla's own
+--- call (`ISEnterVehicle.lua:50`) and the distance check lives in the action
+--- rather than in the method, so the engine will take them from there.
+function T.toCockpit(player)
+    if not player then return false, "no player" end
+    if not U.isInteriorPlayer(player) then return false, "not aboard" end
+    if busy() then return false, "busy" end
+    local s = Ship.get()
+    if not s.flying then return false, "notFlying" end
+
+    Core.requestMove(player, "beamUp", function(p)
+        begin(p, "cockpit", math.floor(s.x), math.floor(s.y), math.floor(s.z))
+        U.log("beaming forward to the cockpit at %d,%d", s.x, s.y)
+    end)
+    return true
+end
+
+--- The first seat nobody is in, the driver's for preference.
+local function freeSeat(vehicle)
+    local n = U.try("maxPassengers", function()
+        return vehicle:getMaxPassengers()
+    end) or 0
+    for seat = 0, n - 1 do
+        local taken = U.try("seatCharacter", function()
+            return vehicle:getCharacter(seat)
+        end)
+        if not taken then return seat end
+    end
+    return nil
+end
+
 --- Beams the player straight back aboard after a landing with no room. The
 --- charge for this was held back when the landing was asked for.
 function T.recoverAboard(player, message)
@@ -188,6 +232,52 @@ local function finishDown(job)
     return true
 end
 
+--- Materialises the player on the ground under the hovering ship, waits for
+--- her to stream in, and puts them in a seat.
+---
+--- Two stages, for the same reason a beam down has two: the ground under her
+--- is not loaded -- on this client or on the server -- until somebody is
+--- standing on it, and neither is she. Held still meanwhile, because the
+--- engine carries its own fall state through a move.
+local function finishCockpit(job)
+    local p = job.player
+    if not job.arrived then
+        U.teleport(p, job.x, job.y, job.z)
+        Ship.playerData(p).aboard = false
+        job.arrived = true
+        job.arrivedAt = job.tries
+        return false
+    end
+
+    local vehicle = TREK.Vehicle and TREK.Vehicle.ship()
+    if not vehicle then
+        if job.tries - job.arrivedAt < 300 then
+            Core.hold(p, job.x, job.y, job.z)
+            return false
+        end
+        -- She has gone, or her ground will not load. They are on real ground
+        -- under where she was, which is the safe half of this, and they are
+        -- told -- a beam that ends in silence is indistinguishable from one
+        -- that never happened.
+        Ship.setReturnPoint(p, job.x, job.y, job.z)
+        U.note(p, getText("IGUI_TREK_NoCockpit"), 255, 90, 90)
+        U.log("the shuttle never streamed in at %d,%d; left standing there",
+              job.x, job.y)
+        return true
+    end
+
+    local seat = freeSeat(vehicle)
+    if not seat then
+        Ship.setReturnPoint(p, job.x, job.y, job.z)
+        U.note(p, getText("IGUI_TREK_CockpitFull"), 255, 170, 90)
+        U.log("no free seat in the shuttle; left standing underneath her")
+        return true
+    end
+    U.try("vehicleEnter", function() vehicle:enter(seat, p) end)
+    U.log("materialised in the cockpit, seat %d", seat)
+    return true
+end
+
 local function serviceBeam()
     local job = T.pending
     if not job then return end
@@ -199,6 +289,11 @@ local function serviceBeam()
     if job.dir == "down" then
         -- A beam-down still waiting for its ground keeps the job alive.
         if finishDown(job) then T.pending = nil end
+        return
+    end
+
+    if job.dir == "cockpit" then
+        if finishCockpit(job) then T.pending = nil end
         return
     end
 

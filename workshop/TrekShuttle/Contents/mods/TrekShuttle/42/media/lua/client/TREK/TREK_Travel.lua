@@ -137,6 +137,11 @@ function T.refusalText(why, blocked)
         return getText("IGUI_TREK_NoRoomVehicle")
     elseif why == "void" then
         return getText("IGUI_TREK_NoRoomVoid")
+    elseif why == "inFlight" then
+        -- Not about room at all: somebody is flying her. Falling through to
+        -- the "not enough space" line would send a crewman off hunting for a
+        -- bigger field while the answer was in the cockpit.
+        return getText("IGUI_TREK_InFlight")
     end
     return getText("IGUI_TREK_NoRoom", W.footprintArea(), blocked or 0)
 end

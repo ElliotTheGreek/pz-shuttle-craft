@@ -805,6 +805,25 @@ for dp, _, fns in os.walk(os.path.join(MOD, "media", "lua")):
                     if lit not in tiles:
                         failures.append(f"{fn}:{lineno} unknown sprite {lit}")
 
+# --- the version, in the two places that both claim to hold it ---------
+# `modversion` in mod.info is what a subscriber sees on the mods screen and
+# what tells them an update arrived; `C.Version` is what the mod logs on every
+# world load and writes into the saved ship state. Nothing made them agree, so
+# they drifted -- 1.4.0 against 1.3.0 for a whole release -- and the log was
+# reporting the version *before* the one the player had installed, which is the
+# worst possible way to read a bug report.
+info = open(os.path.join(MOD, "mod.info"), encoding="utf-8").read()
+declared = re.search(r"^modversion=(.+)$", info, re.M)
+config = open(os.path.join(MOD, "media", "lua", "shared", "TREK",
+                           "TREK_Config.lua"), encoding="utf-8").read()
+coded = re.search(r'^C\.Version\s*=\s*"([^"]+)"', config, re.M)
+if not declared or not coded:
+    failures.append("cannot find modversion in mod.info or C.Version in "
+                    "TREK_Config.lua; this check has stopped matching")
+elif declared.group(1).strip() != coded.group(1):
+    failures.append(f"mod.info says version {declared.group(1).strip()} and "
+                    f"TREK_Config says {coded.group(1)}")
+
 # --- UI textures -------------------------------------------------------
 # A getTexture on a file that is not there returns nil, and the helm then
 # quietly draws flat rectangles instead of its artwork. Every media/ui file the

@@ -24,6 +24,7 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_World"
+require "TREK/TREK_Probes"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -115,6 +116,11 @@ local DENIALS = {
     repNoItem         = "IGUI_TREK_RepNoItem",
     probeAboard       = "IGUI_TREK_ProbeAboard",
     probeActive       = "IGUI_TREK_ProbeActive",
+    probeNoPower      = "IGUI_TREK_ProbeNoPower",
+    probeNone         = "IGUI_TREK_ProbeNone",
+    probeRackFull     = "IGUI_TREK_ProbeRackFull",
+    probeNoRoom       = "IGUI_TREK_ProbeNoRoom",
+    probeNoFix        = "IGUI_TREK_ProbeNoFix",
     -- probeNoPower carries numbers and is handled below, like repNoCrystal.
     -- The Doctor. Every one of these is a line the server can send, and
     -- tests/test_multiplayer.py's static pass fails if a deny() literal in
@@ -322,9 +328,18 @@ end
 function Core.enter(player)
     if not player or U.isInteriorPlayer(player) then return false end
     local s = Ship.get()
-    -- The ramp is only there when she is down. Flying, the hatch is three
-    -- levels overhead; the transporter is the way aboard.
-    if not s.landed or s.flying then return false end
+    -- The ramp is only there when she is down. Hovering, the hatch is a storey
+    -- overhead; the transporter is the way aboard.
+    --
+    -- It says so now. This returned false in silence, and *Enter* is offered
+    -- wherever the hull covers the square -- which it does while she hovers
+    -- over you -- so the option was there, did nothing, and explained nothing:
+    -- the thing TREK_Menu.lua's own header forbids.
+    if not s.landed or s.flying then
+        U.note(player, getText(s.flying and "IGUI_TREK_InFlight"
+                                        or "IGUI_TREK_NotLanded"), 255, 90, 90)
+        return false
+    end
     return Core.requestMove(player, "hatchIn", function(p)
         local s = Ship.get()
         if not s.landed then return end
@@ -611,6 +626,11 @@ function TREK_Ghosts()  return debugCommand("ghosts") end
 -- any cure that is running -- and whether he is actually standing there, as
 -- against what the ship believes.
 function TREK_EMH()     return debugCommand("emh") end
+--- Whether each uniform's ClothingItem actually resolved through the GUID
+--- table. The static tests prove the files agree with each other; only this
+--- proves the *engine* found them, and a uniform that did not resolve wears
+--- perfectly and draws nothing.
+function TREK_Uniform() return debugCommand("uniform") end
 function TREK_Charges() return debugCommand("charges") end
 
 --- TREK_Room(): whether the shuttle could set down where you are standing,

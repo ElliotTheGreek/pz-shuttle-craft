@@ -100,6 +100,41 @@ function Ship.returnPoint(player)
     return nil
 end
 
+--- Where this player is **in the real world**, for anything that has to pick
+--- a point on the map near them.
+---
+--- Three answers, in order, and the order is the whole point:
+---
+---   1. their own position, when they are actually outside;
+---   2. their return point, when they are aboard -- the cabin sits in its own
+---      cell tens of thousands of squares from Kentucky, so a player standing
+---      in it has no useful position of their own, and where they *would*
+---      beam down to is the honest answer;
+---   3. the ship's own position, if she is landed somewhere.
+---
+--- **Nil when there is no answer**, and callers must treat that as a refusal.
+--- The probe launcher used `s.x, s.y` directly and got `0, 0` in a new world
+--- where the shuttle had never been called down -- so the first probe anybody
+--- fired reported a contact in the top-left corner of the world, four hundred
+--- squares from nothing, while the crew stood in Muldraugh.
+function Ship.worldOrigin(player)
+    if player then
+        local px = U.try("originX", function() return player:getX() end)
+        local py = U.try("originY", function() return player:getY() end)
+        local pz = U.try("originZ", function() return player:getZ() end)
+        if px and py and not U.isAboard(px, py, pz) then
+            return math.floor(px), math.floor(py)
+        end
+        local rx, ry = Ship.returnPoint(player)
+        if rx and ry then return math.floor(rx), math.floor(ry) end
+    end
+    local s = Ship.get()
+    if s.landed and s.x and s.y and (s.x ~= 0 or s.y ~= 0) then
+        return math.floor(s.x), math.floor(s.y)
+    end
+    return nil
+end
+
 function Ship.setReturnPoint(player, x, y, z)
     local pd = Ship.playerData(player)
     pd.returnX, pd.returnY, pd.returnZ = math.floor(x), math.floor(y), math.floor(z)

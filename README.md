@@ -104,8 +104,11 @@ transporter works either way; the hatch only works when it is down.
 
 Piloting works the way the game does vehicles: the landed shuttle is a vehicle
 you get into, with four seats you can switch between. From the pilot's seat the
-radial menu takes her up, and she flies over buildings and trees; the helm is
-how you cross the map.
+radial menu takes her up and sets her down -- one hovering height, nothing in
+between -- and she clears fences, trees, wrecks and single-storey roofs. While
+she is up the hatch is shut, so the transporter is the way off her, and once
+the last of the crew has beamed down she goes back up and waits to be called.
+The helm is how you cross the map.
 
 The **medical set** lives in the sick-bay locker, third down the starboard row.
 Right-click the hypospray, the dermal regenerator or either tricorder in your
@@ -266,13 +269,15 @@ interior plus `TREK_InteriorLayout.lua`.
 
 - **One shuttle per world.** In multiplayer the crew shares it; a second
   ship is not supported.
-- **Flight has been flown in single player, not in multiplayer.** The shuttle
-  flies on an invisible floor the mod lays at altitude, because a vehicle's
-  height in build 42 is decided by whether there is a floor under it and not by
-  its physics. A one-square rim of that floor may be visible under the hull.
-  See `PILOTING.md`.
-- **She flies between levels 1 and 4**, which clears a two-storey building. The
-  ceiling is deliberate: there is nothing above it to fly over.
+- **Flight has been flown in single player and, since 1.4.1, with two people.**
+  The shuttle flies on an invisible floor the mod lays at altitude, because a
+  vehicle's height in build 42 is decided by whether there is a floor under it
+  and not by its physics. A one-square rim of that floor may be visible under
+  the hull. See `PILOTING.md`.
+- **There is one flight height, and she hovers at it.** No climbing, no diving:
+  she is on the ground or she is up. It was four levels, and in play only the
+  ground and the first one ever behaved. At that height she clears fences,
+  trees, wrecks and single-storey roofs; a two-storey building is still a wall.
 - **The hull does not block anything.** It is a world model, and world models
   have no collision: zombies and players walk through it. The footprint is
   enforced when it lands, not afterwards.

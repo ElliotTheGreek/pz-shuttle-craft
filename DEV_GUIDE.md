@@ -2222,7 +2222,14 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.3.0**, build revision **24**.
+Version **1.4.1**, build revision **27**.
+
+`modversion` in `mod.info` and `C.Version` in `TREK_Config.lua` are the same
+number, and `tests/test_assets.py` fails if they are not -- they had drifted a
+whole release apart (1.4.0 against 1.3.0) and the log was reporting the version
+before the one the player had installed. **The build revision is a different
+thing and must not be bumped to match**: it is what makes every existing cabin
+rebuild itself, so it moves only when the cabin's geometry or fittings do.
 
 **1.3.0 is the multiplayer rewrite** (MULTIPLAYER.md, migration steps 1-9):
 server-owned ship and cabin, request protocol, transporter charges, shields per

@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.3.0"
+C.Version   = "1.4.1"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -25,7 +25,27 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 23
+C.BuildRev = 27
+
+---------------------------------------------------------------------------
+-- The tape shelf
+---------------------------------------------------------------------------
+--- The tapes on the shelf beside the television, and the item they all are.
+---
+--- One item type carries every tape: a tape's name in the inventory comes
+--- from its MediaData rather than from the item script, so seventeen stories
+--- do not mean seventeen item scripts. `TrekTape`'s own DisplayName is "Blank
+--- Tape", which is what a tape with no recording attached reads as -- and a
+--- shelf of blank tapes is exactly the failure this system can produce
+--- silently, so it is worth being able to see.
+---
+--- Which tapes the ship is issued with is **not** here. It is `TREK_TapeIds`
+--- in TREK_Tapes.lua, which the generator writes beside the tapes themselves,
+--- because a second list in a second file is a list that goes stale. See
+--- LORE.md and tools/gen_tapes.py.
+C.TapeItem     = "TrekShuttle.TrekTape"
+C.TapeType     = "TrekTape"
+C.TapeCategory = "Trek-VHS"
 
 -- Flip to true for verbose build logging in console.txt.
 C.Debug = false
@@ -305,27 +325,51 @@ C.SkyTilesPerTick = 96
 -- bound. Past this the squares furthest behind the ship are lifted first.
 C.SkyMaxTiles = 40000
 
--- Cruising height, and the levels the pilot may climb and dive between. Level
--- 0 is the ground and is never paved -- a floor laid there would be a floor
--- laid on Kentucky. Three clears a two-storey building with room to spare.
-C.FlightCruise   = 3
-C.FlightMinLevel = 1
+-- **There is one flight altitude and it is this one.** She is on the ground or
+-- she is hovering; there is no climbing and no diving, and nothing anywhere in
+-- the mod may ask for a different level.
+--
+-- It was 1 to 4 with a cruise of 3, and the menu said "Climb" and "Dive". In
+-- play only the ground and level 1 ever behaved, so three of the four rungs
+-- were an offer the ship could not keep -- and a control that appears to do
+-- nothing is the thing this project keeps writing rules about.
+--
+-- Level 1 is also the one altitude the engine is *structurally* willing to
+-- hold, which is worth knowing before anybody raises it again.
+-- BaseVehicle.update() accepts a height when
+--
+--     sq != null && (sq.getFloor() != null || (sqB != null && sqB.getFloor() != null))
+--
+-- -- a floor at the level **or the one below**. At level 1 the one below is
+-- Kentucky, so the ground itself satisfies the floor half of that test and the
+-- sky plane only has to make the square at level 1 exist. At level 2 and above
+-- the plane is the only thing holding her up, and every square of it has to
+-- have been laid, and stay laid, before the engine will keep her there.
+--
+-- Level 0 is the ground and is never paved: a floor laid there would be a
+-- floor laid on Kentucky.
+C.FlightLevel = 1
 
--- One level above the cruise and no more. Higher was offered and was not worth
--- having: the levels above this are past the height the world has any geometry
--- at, the ship has nothing to be "over" up there, and every trip that far up
--- ended badly. Kept as cruise + 1 rather than a bare number so the two cannot
--- drift apart.
-C.FlightMaxLevel = 4
+-- How high the tidy-up hunts for invisible floors left behind, in levels.
+-- Deliberately *not* C.FlightLevel: builds up to 1.3.0 flew as high as level 4,
+-- a floor is a saved world object, and the litter those flights left in
+-- somebody's world does not disappear because the ceiling came down.
+C.SkyLitterTop = 4
 
 -- Ticks to wait for the engine to accept a level before giving up on the lift.
 C.FlightLiftTicks = 60
 
--- Degrees of pitch or roll tolerated before she is levelled off again. She
--- rests on an invisible floor with real physics running, and a 1200kg box on a
--- one-tile-thick shelf will tip if it is nudged -- she went over backwards in
--- game. flipUpright touches only the rotation, never the height.
-C.FlightLevelTolerance = 4
+-- Degrees she may be off level before she is put right. She rests on an
+-- invisible floor with real physics running, and a 1200kg box on a one-tile
+-- shelf will tip if it is nudged -- she went over backwards in game.
+--
+-- This was 4, and it was measured against the wrong thing (see TREK_Flight's
+-- keepLevel). Twenty now, for two reasons: a vehicle's suspension pitches it
+-- several degrees under throttle and brakes, which is the engine drawing a
+-- car rather than a ship falling over; and putting her right is a physics
+-- teleport, which the pilot feels as a stutter. Going over backwards is
+-- ninety degrees, so twenty is still nowhere near letting it happen.
+C.FlightLevelTolerance = 20
 
 -- The helm's flight speeds, as the vehicle's own top speed in the units
 -- setMaxSpeed takes (the shuttle's script sets 70 on the ground).
@@ -343,10 +387,20 @@ C.FlightSpeedDefaultStep = 3
 -- anti-cheat to trip, so the pilot gets the whole range.
 C.FlightSpeedCapFraction = 1.0
 
--- Consecutive server checks with no pilot in the driver's seat before the
--- ship is brought down by itself. A ship left parked in the sky by somebody's
--- disconnect would otherwise stay there for the life of the world.
-C.FlightPilotGrace = 5
+-- Consecutive server checks (one a second) with nobody aboard before she goes
+-- back up by herself. A ship left hovering by somebody's disconnect would
+-- otherwise stay there for the life of the world.
+--
+-- It is the gap between leaving a seat and arriving in the cabin, or the other
+-- way round, that this has to cover -- a player mid-beam is in neither.
+C.FlightPilotGrace = 10
+
+-- And the long version of the same thing, set when somebody is granted a beam
+-- *towards* a hovering ship. A beam is a second and a half; the ground at the
+-- far end can take far longer than that to stream in, and a crew who watched
+-- her leave while they were still dematerialised would be right to call it a
+-- bug.
+C.FlightBoardingChecks = 30
 
 ---------------------------------------------------------------------------
 -- Photon torpedoes
@@ -955,17 +1009,78 @@ C.PatternKey = "TREK_Patterns_v1"
 -- rather than riding in the ship table that is transmitted on every move.
 C.ContactKey = "TREK_Contacts_v1"
 
--- A launch fabricates the probe and sends it in one authority-side
--- transaction. One crystal can fund many probes, but a launch is expensive
--- enough to remain a decision after the cold start.
+-- **Fabricating** a probe costs this; launching one costs nothing but the
+-- probe. The two were one action and are now two, because a ship that turns
+-- energy into a *countable* thing reads better than one that turns energy
+-- into an event: "three probes aboard" is a state a player can plan around,
+-- where "830 units of reserve" is arithmetic they have to do first.
+--
+-- One crystal is 5000, so a crystal is twenty probes.
 C.ProbeCost = 250
 
--- Logical flight, in server ticks. The probe is not a world object crossing
--- unloaded chunks: its bearing, distance and progress are persisted here and
--- the client only presents the report.
-C.ProbeFlightTicks = 300
-C.ProbeMinDistance = 1200
-C.ProbeMaxDistance = 2400
+-- How many fabricated probes the ship will hold. A cap so that a crew who
+-- have nothing else to spend energy on cannot bank a hundred of them and
+-- remove the decision entirely.
+C.MaxProbes = 8
+
+-- Logical flight. The probe is not a world object crossing unloaded chunks:
+-- its bearing, distance and progress are persisted and the client only
+-- presents the report.
+--
+-- Advanced **once per game minute**, not per server tick. At sixty ticks a
+-- second a three-hundred-tick flight is five seconds, which is not a journey
+-- across a great map distance, it is a loading pause. One unit a game minute
+-- makes this an hour of game time -- long enough that a launch is something
+-- you do and then get on with, short enough to sit through while testing.
+C.ProbeFlightTicks = 60
+
+-- How far a probe reaches, in squares.
+--
+-- **This was 1200 to 2400 and it was wrong.** A quarter of the map in one
+-- hop: the first contact anybody got was placed far north of the playable
+-- world entirely, and the crew walked toward a mark that was never going to
+-- have anything on it. "Across a great map distance" is what ROADMAP2 asks
+-- for and it is not what the game can pay -- the roadmap says as much about
+-- the ensign, that "about a mile" has to be tuned by actual travel time
+-- rather than converted literally.
+--
+-- A few blocks at the **most**, measured from where the crew actually are
+-- rather than from the ship's own record of where she last landed. A town
+-- block is twenty or thirty squares, so this is two to eight of them: far
+-- enough that going is a trip, close enough that you can see where you are
+-- going before you set off.
+C.ProbeMinDistance = 80
+C.ProbeMaxDistance = 260
+
+-- How many bearings to try before giving up on finding one that lands inside
+-- the world. Only matters near an edge of the map, where most of the compass
+-- points at nothing.
+C.ProbeBearingTries = 24
+
+-- How often a probe finds anything. ROADMAP2: "Random probes may find
+-- nothing" -- an honest empty report is a valid outcome and the interface has
+-- to be able to say so. The opening guarantee that 1.6 needs is a separate
+-- mechanism and is deliberately not this number.
+C.ProbeFindChance = 0.65
+
+-- How far from the reported square the ship will actually put the crystal,
+-- and how far a player has to come before the world is asked to hold it.
+--
+-- A contact is a record until somebody goes there: the crystal is placed when
+-- a player loads its chunk, which is the only moment the engine can be asked
+-- about those squares at all. See PROBES.md, "Real dilithium".
+-- How much ground a contact uncovers on the map, in squares either side.
+-- Enough to see the roads in and pick a route, not so much that one probe
+-- hands the player the county.
+C.ContactRevealRadius = 120
+
+C.ContactPlaceRadius = 6
+
+-- How far a long-range fix can be out, in tiles. A probe reports a region and
+-- the tricorder resolves the rest; a contact that named the exact cupboard
+-- from two thousand tiles away would make the tricorder pointless and the
+-- search trivial.
+C.ProbeReportSpread = 60
 
 -- Work per authority tick and the bounded shared history. The first probe
 -- implementation resolves one logical route rather than touching distant
@@ -974,6 +1089,71 @@ C.ProbeMaxDistance = 2400
 C.ProbeWorkPerTick = 1
 C.MaxContacts = 64
 C.MaxResolvedContacts = 16
+
+-- What a contact can be, and what it can be doing.
+--
+-- Both are closed sets and both are **checked** when a contact is written,
+-- because a status is a string in one file compared against a string in
+-- another with nothing at runtime to notice a typo -- the same join that
+-- `special` and the `C.Loot` list names have, and the same answer: name the
+-- valid set once and refuse anything outside it.
+--
+-- `dilithium` is what the opening probe finds. `downedPersonnel` exists from
+-- the start because 1.7's rescue needs it and a type added in a hurry is a
+-- type nothing validates.
+C.ContactKinds = {
+    dilithium = true,
+    downedPersonnel = true,
+}
+
+-- ROADMAP2's common lifecycle:
+--
+--     unknown -> reported -> investigated -> recovered / completed
+--                                        -> expired / invalid
+--
+-- `reported` is what a probe leaves. `investigated` is the tricorder having
+-- narrowed it. The rest are ends.
+C.ContactStatuses = {
+    reported = true,
+    investigated = true,
+    recovered = true,
+    completed = true,
+    expired = true,
+    invalid = true,
+}
+
+-- Which of those are done with. Everything else is live and is never pruned:
+-- the store drops old *resolved* records first and only falls back to the
+-- oldest record of any kind when a save has somehow filled with live ones.
+C.ContactResolved = {
+    recovered = true,
+    completed = true,
+    expired = true,
+    invalid = true,
+}
+
+-- The map symbol a contact is drawn with, registered in
+-- media/lua/shared/Definitions/TrekMapSymbols.lua the way vanilla registers
+-- its own. A symbol id that nothing registered draws nothing at all.
+C.ContactSymbols = {
+    dilithium = "TrekContactDilithium",
+    downedPersonnel = "TrekContactPersonnel",
+}
+
+-- What each kind is called in the sensor menu.
+--
+-- Spelled out rather than built by pasting the kind onto a prefix. A
+-- constructed translation key resolves to nothing when it is wrong and
+-- getText hands the key straight back, so a kind added later would appear in
+-- the menu as its own raw key and nothing would have said so. Written out,
+-- every one of them is a literal that tests/test_assets.py checks against
+-- IG_UI.json like any other -- which is also why this comment does not spell
+-- the prefix out: that check reads whole files, and a key quoted in prose
+-- would be a key it goes looking for.
+C.ContactLabels = {
+    dilithium = "IGUI_TREK_Contact_dilithium",
+    downedPersonnel = "IGUI_TREK_Contact_downedPersonnel",
+}
 
 -- Never replicated, whatever the sandbox says, and the list exists from day
 -- one because adding it later means adding it in a hurry.
@@ -1206,6 +1386,42 @@ C.Loot.food = {
 C.Loot.weapons = {
     "TrekShuttle.TrekBatleth", "TrekShuttle.TrekMekleth",
     "TrekShuttle.TrekLirpa", "TrekShuttle.TrekUshaanTor",
+}
+
+---------------------------------------------------------------------------
+-- The wardrobe
+---------------------------------------------------------------------------
+--- The uniforms the ship is issued with: one duty uniform of each division
+--- and one dress uniform of each.
+---
+--- Guaranteed rather than rolled (`special = "uniforms"` on the armoury
+--- locker), because "a small issued set in ship storage" is the whole point
+--- and a fill that happened to miss a division looks exactly like one that
+--- did not. U.stockEach reads the locker back and says what did not land.
+---
+--- They are in the **armoury** and not a wardrobe of their own because the
+--- cabin has three Starfleet lockers and none of them is a slop chest: the
+--- locker at 3,0 is where the crew's issue lives, which is sidearms, blades
+--- and what they wear. A fourth locker is a change to the authored interior
+--- (design/buildinged/TrekShuttle_Interior.tbx) rather than to this file --
+--- see DEV_GUIDE, "The interior is authored in BuildingEd, not in the code".
+---
+--- Six uniforms is 8.4 of the locker's 40 units, on top of 2.4 of phasers
+--- and 15.0 of blades: 25.8 of 40, so nothing is dropped for want of room.
+--- That sum is the reason this is a short list and not every variant.
+---
+--- **New loot never reaches an existing save** (DEV_GUIDE, "Never restock an
+--- existing container"), so these arrive in new worlds only. Existing saves
+--- get them through the replicator instead: R.seedDefaults() learns every id
+--- this mod declares on each authority start, so the patterns need no
+--- migration at all.
+C.UniformIssue = {
+    "TrekShuttle.TrekUniformDutyCommand",
+    "TrekShuttle.TrekUniformDutyOperations",
+    "TrekShuttle.TrekUniformDutyScience",
+    "TrekShuttle.TrekUniformDressCommand",
+    "TrekShuttle.TrekUniformDressOperations",
+    "TrekShuttle.TrekUniformDressScience",
 }
 
 return C
