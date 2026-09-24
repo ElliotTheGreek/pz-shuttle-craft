@@ -398,7 +398,7 @@ Mission offer, acceptance, target, and completion are shared ship data. Any auth
 
 ---
 
-# 1.8 — The PADD  **[BUILT 2026-09-24, NOT YET PLAYED]**
+# 1.8 — The PADD  **[BUILT AND PLAYED 2026-09-24]**
 
 A light Starfleet tablet that copies books. Load a book you find onto it,
 read it later off the PADD, copy the library to another PADD; lose the PADD

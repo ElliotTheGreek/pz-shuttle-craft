@@ -5,7 +5,11 @@ The working guide for the Personal Access Display Device, in the shape
 engine facts it rests on, the one decision that shapes all of it, how each
 piece works, and what is still to see in a game.
 
-**Built 2026-09-24; not yet seen in game.** Section 7 is what was checked
+**Built and played 2026-09-24**: books loaded, the character died, the PADD
+was recovered off the body with its library intact. A finished title carries
+vanilla's own green tick in the read list -- `media/ui/Tick_Mark-10.png`, the
+mark the inventory draws beside a read book -- set as the option's
+`iconTexture`. Section 7 is what was checked
 before a line of it was written, and section 11 is the route to try it.
 
 ---

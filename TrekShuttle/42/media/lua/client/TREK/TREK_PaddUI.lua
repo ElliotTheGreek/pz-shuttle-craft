@@ -133,6 +133,19 @@ function M.onRead(padd, player, key)
     queue(TREKReadPadd:new(player, padd, key))
 end
 
+-- The tick vanilla's inventory draws beside a book the character has read
+-- (ISInventoryPane.lua:2314), put on the option itself -- ISContextMenu draws
+-- an option's `iconTexture` at the left of its row (ISContextMenu.lua:1060).
+-- The same mark in the same place a player already reads it from.
+M.READ_TICK = "media/ui/Tick_Mark-10.png"
+
+--- Ticks an option whose book this character has already finished.
+local function markRead(option, player, e)
+    if Pd.isRead(player, e) then
+        option.iconTexture = getTexture(M.READ_TICK)
+    end
+end
+
 local function byName(a, b)
     return tostring(a.name) < tostring(b.name)
 end
@@ -141,11 +154,9 @@ end
 local function addEntries(menu, player, padd, entries)
     table.sort(entries, byName)
     local function one(target, e)
-        local label = e.name or e.type
-        if Pd.isRead(player, e) then
-            label = getText("IGUI_TREK_PaddEntryRead", label)
-        end
-        local option = target:addOption(label, padd, M.onRead, player, Pd.key(e))
+        local option = target:addOption(e.name or e.type, padd, M.onRead,
+                                        player, Pd.key(e))
+        markRead(option, player, e)
         local why = Pd.readRefusal(player, e)
         if why then tooltip(option, REFUSAL[why] or "IGUI_TREK_PaddTooHard") end
     end
@@ -212,9 +223,9 @@ function M.addRead(context, player, padd)
                 return (a.level or 0) < (b.level or 0)
             end)
             for _, e in ipairs(skills[name]) do
-                local lbl = e.name or e.type
-                if Pd.isRead(player, e) then lbl = getText("IGUI_TREK_PaddEntryRead", lbl) end
-                local o = kMenu:addOption(lbl, padd, M.onRead, player, Pd.key(e))
+                local o = kMenu:addOption(e.name or e.type, padd, M.onRead,
+                                          player, Pd.key(e))
+                markRead(o, player, e)
                 local why = Pd.readRefusal(player, e)
                 if why then tooltip(o, REFUSAL[why] or "IGUI_TREK_PaddTooHard") end
             end

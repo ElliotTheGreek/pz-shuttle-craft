@@ -293,7 +293,6 @@
     "IGUI_TREK_PaddRecipes": "Recipes",
     "IGUI_TREK_PaddLiterature": "Books and magazines",
     "IGUI_TREK_PaddPage": "%1 - %2",
-    "IGUI_TREK_PaddEntryRead": "%1 (read)",
     "IGUI_TREK_PaddIlliterate": "Your character cannot read.",
     "IGUI_TREK_PaddTooHard": "Too advanced for your skill level.",
     "IGUI_TREK_PaddTooEasy": "Nothing left to learn from this one.",

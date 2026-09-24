@@ -7206,6 +7206,21 @@ def padd():
           "padd: a finished book is not recorded as read to the last page")
     check(int(rt.eval("#SIM.literatureRead")) == 0,
           "padd: a skill book was read as literature too")
+
+    # The read list ticks what this character has finished, with the mark
+    # vanilla's inventory uses -- and only that.
+    padd_menu(rt, [8001])
+    ticks_on = rt.eval("""(function()
+        local out = {}
+        for _, o in ipairs(paddCtx:all()) do
+            if o.iconTexture then out[o.name] = o.iconTexture.path end
+        end
+        return out
+    end)()""")
+    check(ticks_on["Carpentry for Beginners"] == "media/ui/Tick_Mark-10.png",
+          "padd: a finished book has no tick in the PADD's read list")
+    check("Good Cooking Magazine" not in ticks_on,
+          "padd: a book nobody has read is ticked in the PADD's read list")
     check(rt.eval("SIM.syncedFields[#SIM.syncedFields].mask") == 7,
           "padd: the player's recipes, traits and books were never synced")
 
