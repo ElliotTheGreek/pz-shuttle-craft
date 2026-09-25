@@ -1,0 +1,1572 @@
+{
+ "antigrav_cart": {
+  "area": "engineering",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     138
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     137
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     139
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     136
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "crate"
+  }
+ },
+ "armchair": {
+  "area": "quarters",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     34
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     33
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     35
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     32
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "seat": true
+  }
+ },
+ "bar_corner": {
+  "area": "lounge",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     58
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     57
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     59
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     56
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "counter"
+  }
+ },
+ "bar_stool": {
+  "area": "lounge",
+  "facings": {
+   "W": [
+    [
+     0,
+     0,
+     60
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "seat": true
+  }
+ },
+ "bar_straight": {
+  "area": "lounge",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     52
+    ],
+    [
+     0,
+     1,
+     53
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     50
+    ],
+    [
+     1,
+     0,
+     51
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     54
+    ],
+    [
+     1,
+     0,
+     55
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     48
+    ],
+    [
+     0,
+     1,
+     49
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "counter"
+  }
+ },
+ "bed": {
+  "area": "quarters",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     2
+    ],
+    [
+     0,
+     1,
+     3
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     1,
+     0,
+     1
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "bed": "goodBed"
+  }
+ },
+ "bed_double": {
+  "area": "quarters",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     8
+    ],
+    [
+     0,
+     1,
+     9
+    ],
+    [
+     1,
+     0,
+     10
+    ],
+    [
+     1,
+     1,
+     11
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     4
+    ],
+    [
+     0,
+     1,
+     5
+    ],
+    [
+     1,
+     0,
+     6
+    ],
+    [
+     1,
+     1,
+     7
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "bed": "goodBed"
+  }
+ },
+ "biobed": {
+  "area": "sickbay",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     114
+    ],
+    [
+     0,
+     1,
+     115
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     112
+    ],
+    [
+     1,
+     0,
+     113
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "bed": "goodBed"
+  }
+ },
+ "bottle_shelf": {
+  "area": "lounge",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     67
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     66
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "shelves"
+  }
+ },
+ "bridge_chair": {
+  "area": "bridge",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     88
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     87
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     89
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     86
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "seat": true
+  }
+ },
+ "bunk": {
+  "area": "quarters",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     13
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     12
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "bed": "averageBed"
+  }
+ },
+ "captain_chair": {
+  "area": "bridge",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     84
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     83
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     85
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     82
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "seat": true
+  }
+ },
+ "cargo_crate": {
+  "area": "engineering",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     134
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     133
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     135
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     132
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "crate"
+  }
+ },
+ "coffee_table": {
+  "area": "quarters",
+  "facings": {
+   "W": [
+    [
+     0,
+     0,
+     36
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "desk": {
+  "area": "quarters",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     18
+    ],
+    [
+     1,
+     0,
+     19
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     16
+    ],
+    [
+     0,
+     1,
+     17
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "desk"
+  }
+ },
+ "desk_chair": {
+  "area": "quarters",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     22
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     21
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     23
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     20
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "seat": true
+  }
+ },
+ "display_shelf": {
+  "area": "quarters",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     40
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     39
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "shelves"
+  }
+ },
+ "emh_station": {
+  "area": "sickbay",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     161
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     160
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "emh": true
+  }
+ },
+ "engineering_console": {
+  "area": "engineering",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     131
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     130
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "galley_counter": {
+  "area": "lounge",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     72
+    ],
+    [
+     0,
+     1,
+     73
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     70
+    ],
+    [
+     1,
+     0,
+     71
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     74
+    ],
+    [
+     1,
+     0,
+     75
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     68
+    ],
+    [
+     0,
+     1,
+     69
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "counter"
+  }
+ },
+ "galley_sink": {
+  "area": "lounge",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     78
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     77
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     79
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     76
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "counter",
+   "water": true
+  }
+ },
+ "helm_console": {
+  "area": "bridge",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     92
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     91
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     93
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     90
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "jefferies_hatch": {
+  "area": "engineering",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     141
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     140
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "lounge_chair": {
+  "area": "lounge",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     64
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     63
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     65
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     62
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "seat": true
+  }
+ },
+ "lounge_table": {
+  "area": "lounge",
+  "facings": {
+   "W": [
+    [
+     0,
+     0,
+     61
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "master_systems": {
+  "area": "engineering",
+  "facings": {
+   "W": [
+    [
+     0,
+     0,
+     126
+    ],
+    [
+     0,
+     1,
+     127
+    ],
+    [
+     1,
+     0,
+     128
+    ],
+    [
+     1,
+     1,
+     129
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "medical_cabinet": {
+  "area": "sickbay",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     121
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     120
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "medicine"
+  }
+ },
+ "medical_cart": {
+  "area": "sickbay",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     124
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     123
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     125
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     122
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "medicine"
+  }
+ },
+ "nightstand": {
+  "area": "quarters",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     15
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     14
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "sidetable"
+  }
+ },
+ "painting_nebula": {
+  "area": "any",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     169
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     168
+    ]
+   ]
+  },
+  "layer": "WallFurniture",
+  "use": {}
+ },
+ "painting_ship": {
+  "area": "any",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     167
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     166
+    ]
+   ]
+  },
+  "layer": "WallFurniture",
+  "use": {}
+ },
+ "plant": {
+  "area": "quarters",
+  "facings": {
+   "W": [
+    [
+     0,
+     0,
+     47
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "plaque": {
+  "area": "any",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     171
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     170
+    ]
+   ]
+  },
+  "layer": "WallFurniture",
+  "use": {}
+ },
+ "railing": {
+  "area": "bridge",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     106
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     105
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     107
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     104
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "ready_room_desk": {
+  "area": "bridge",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     110
+    ],
+    [
+     1,
+     0,
+     111
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     108
+    ],
+    [
+     0,
+     1,
+     109
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "desk"
+  }
+ },
+ "replicator": {
+  "area": "lounge",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     159
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     158
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "replicator": true
+  }
+ },
+ "science_display": {
+  "area": "bridge",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     177
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     176
+    ]
+   ]
+  },
+  "layer": "WallFurniture",
+  "use": {}
+ },
+ "science_station": {
+  "area": "bridge",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     103
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     102
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "sofa": {
+  "area": "quarters",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     28
+    ],
+    [
+     0,
+     1,
+     29
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     26
+    ],
+    [
+     1,
+     0,
+     27
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     30
+    ],
+    [
+     1,
+     0,
+     31
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     24
+    ],
+    [
+     0,
+     1,
+     25
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "seat": true
+  }
+ },
+ "sonic_shower": {
+  "area": "quarters",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     42
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     41
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "stasis_unit": {
+  "area": "lounge",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     81
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     80
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "fridge"
+  }
+ },
+ "surgical_bed": {
+  "area": "sickbay",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     118
+    ],
+    [
+     0,
+     1,
+     119
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     116
+    ],
+    [
+     1,
+     0,
+     117
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "tactical_rail": {
+  "area": "bridge",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     98
+    ],
+    [
+     0,
+     1,
+     99
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     96
+    ],
+    [
+     1,
+     0,
+     97
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     100
+    ],
+    [
+     1,
+     0,
+     101
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     94
+    ],
+    [
+     0,
+     1,
+     95
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "toilet": {
+  "area": "quarters",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     46
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     45
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "transporter_console": {
+  "area": "transporter",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     156
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     155
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     157
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     154
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "transporter_pad": {
+  "area": "transporter",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     148
+    ],
+    [
+     0,
+     1,
+     149
+    ],
+    [
+     1,
+     0,
+     150
+    ],
+    [
+     1,
+     1,
+     151
+    ],
+    [
+     2,
+     0,
+     152
+    ],
+    [
+     2,
+     1,
+     153
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     142
+    ],
+    [
+     0,
+     1,
+     143
+    ],
+    [
+     0,
+     2,
+     144
+    ],
+    [
+     1,
+     0,
+     145
+    ],
+    [
+     1,
+     1,
+     146
+    ],
+    [
+     1,
+     2,
+     147
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
+ "turbolift_panel": {
+  "area": "any",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     175
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     174
+    ]
+   ]
+  },
+  "layer": "WallFurniture",
+  "use": {}
+ },
+ "wall_sconce": {
+  "area": "any",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     173
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     172
+    ]
+   ]
+  },
+  "layer": "WallFurniture",
+  "use": {
+   "light": true
+  }
+ },
+ "wardrobe": {
+  "area": "quarters",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     38
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     37
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "wardrobe"
+  }
+ },
+ "warp_core": {
+  "area": "engineering",
+  "facings": {
+   "W": [
+    [
+     0,
+     0,
+     162
+    ],
+    [
+     0,
+     1,
+     163
+    ],
+    [
+     1,
+     0,
+     164
+    ],
+    [
+     1,
+     1,
+     165
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "warpcore": true
+  }
+ },
+ "wash_basin": {
+  "area": "quarters",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     44
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     43
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "water": true
+  }
+ }
+}

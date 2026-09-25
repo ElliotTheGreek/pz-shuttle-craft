@@ -24,6 +24,7 @@ after regenerating the art only refreshes the PNG. The first run keeps a copy
 of each config file as <name>.pretrek.
 """
 import os
+import json
 import re
 import shutil
 import sys
@@ -100,23 +101,55 @@ def wall_piece(layer, w, n):
 # The wall display hangs on a wall; the viewport replaces one, which is what
 # vanilla's `layer = Walls` furniture does (a wall section drawn in the wall's
 # own slot), so a viewport can go anywhere along a bulkhead.
-def two_square(w_head, w_foot, n_head, n_foot):
-    """A piece two squares long, laid out as vanilla's bed is: W runs along x
-    and N along y, head first (furniture_bedding_01_002/003, _001/000)."""
-    return ("    furniture\n    {\n"
-            "        entry\n        {\n            orient = W\n"
-            "            0,0 = %s\n            1,0 = %s\n        }\n"
-            "        entry\n        {\n            orient = N\n"
-            "            0,0 = %s\n            0,1 = %s\n        }\n"
-            "    }\n" % (f(w_head), f(w_foot), f(n_head), f(n_foot)))
+AREAS = [("quarters", "Quarters"), ("lounge", "Lounge and Galley"), ("bridge", "Bridge"),
+         ("sickbay", "Sickbay"), ("engineering", "Engineering"),
+         ("transporter", "Transporter Room"), ("any", "Wall Art")]
 
 
-FURNITURE = ("group\n{\n    label = Starfleet - Adirondack\n"
-             + wall_piece("WallFurniture", 40, 41)
-             + wall_piece("Walls", 16, 17)
-             + two_square(0, 1, 2, 3)
-             + "}\n")
-GROUP_RE = re.compile(r"group\n\{\n    label = Starfleet - Adirondack\n.*?\n\}\n", re.S)
+def furniture_blocks(names, index):
+    """BuildingEd furniture from the render's index: one `furniture` per
+    object, one `entry` per facing, one `x,y = tile` per square it covers --
+    the layout vanilla's own multi-square pieces use."""
+    out = []
+    for name in names:
+        rec = index[name]
+        lines = ["    furniture\n    {\n"]
+        if rec["layer"] != "Furniture":
+            lines.append("        layer = %s\n" % rec["layer"])
+        for facing in "WNES":
+            squares = rec["facings"].get(facing)
+            if not squares:
+                continue
+            lines.append("        entry\n        {\n            orient = %s\n" % facing)
+            for x, y, idx in squares:
+                lines.append("            %d,%d = %s\n" % (x, y, f(idx)))
+            lines.append("        }\n")
+        lines.append("    }\n")
+        out.append("".join(lines))
+    return "".join(out)
+
+
+def furniture_groups():
+    """The structural pieces, then a group per area of the ship."""
+    text = ("group\n{\n    label = Starfleet - Adirondack\n"
+            + wall_piece("WallFurniture", 40, 41)
+            + wall_piece("Walls", 16, 17)
+            + "}\n")
+    path = os.path.join(ROOT, "design", "tiles", FURN + ".json")
+    with open(path) as fh:
+        index = json.load(fh)
+    for area, label in AREAS:
+        names = [n for n in sorted(index) if index[n]["area"] == area]
+        if names:
+            text += ("group\n{\n    label = Starfleet - %s\n" % label
+                     + furniture_blocks(names, index) + "}\n")
+    return text
+
+
+FURNITURE = furniture_groups()
+# Every group whose label starts "Starfleet - " is ours, and all of them are
+# replaced together, so a renamed or emptied group does not linger.
+GROUP_RE = re.compile(r"group\n\{\n    label = Starfleet - [^\n]*\n.*?\n\}\n", re.S)
 
 
 def backup(path):

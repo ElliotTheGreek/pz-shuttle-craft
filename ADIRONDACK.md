@@ -203,7 +203,48 @@ because it is mostly one texture, and instantly recognisable.
 
 ---
 
-## 7. What is not done, in order
+## 7. How the objects are made
+
+Every object in section 6 is one entry in `tools/adirondack_objects.py` (size
+in squares, height, facings, what the game should make of it). From there:
+
+1. **Concept** -- Gemini (`generate-image`), one shared style prompt, a front
+   view on a plain background. A concept that comes back wrong is fixed with
+   `edit-image` ("only the table", "a bar counter, not a sofa") rather than
+   regenerated: it keeps what was right. Images go through the tool as base64,
+   so send a small copy (about 200 px) -- a 15,000-character one was corrupted
+   on the way and refused.
+2. **Mesh** -- fal TRELLIS (`fal-3d-trellis`, seed 1701), which takes the
+   concept's public URL. About 25 seconds each.
+3. **Tiles** -- `tools/gen_adirondack_furniture.py` fits each mesh uniformly
+   into its box, backs it onto the wall it faces from, and renders every
+   facing with `tools/isorender.py`. Facings are turns of one model, never
+   separate drawings, so a W desk and an N desk are the same desk.
+
+`tools/adirondack_jobs.py` is the ledger: every concept URL, request id and
+mesh URL, and `fetch` downloads them -- concepts to
+`design/art/adirondack/objects/`, meshes to `tools/assets/adirondack/`. The
+raws are vendored: generating again gives a different object.
+
+**Which way is the front.** A TRELLIS mesh faces **+z** with the model's right
+along +x -- checked by rendering the desk, the wardrobe and the captain's chair
+straight on from each axis. The mod's own `.x` machines face **-x**, found from
+their textures (the lit niche, the screen). A wrong front puts the replicator's
+niche on its side and nothing else says so.
+
+**Gemini alone was tried for facings, and lost.** Its sprite of the desk was
+good pixel art, and asked to turn it, it redrew the desk: different legs, a
+keyboard where the PADD was, and smaller. Fine alone, visible the first time a
+W desk and an N desk share a room. It is kept for what it is good at, the
+concepts and the fixes.
+
+**FlowDot's image storage fills up.** At about fifty concepts it refused
+("Storage limit reached"). Old images were deleted to make room, oldest first,
+with the author's go-ahead; the delete endpoint allows about one a second.
+
+---
+
+## 8. What is not done, in order
 
 1. **The author opens it.** Does BuildingEd load the file, draw the tiles, and
    do the walls join?
