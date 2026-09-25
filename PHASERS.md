@@ -1,482 +1,411 @@
-# Phasers — a tool, not a pistol
+# Phasers
 
-**Status (2026-09-24): built; the art is seen in game, the behaviour is not.**
-The model, icon, beam and spark textures, sounds, the beam overlay, per-shot
-bolts, and cutting trees and doors are all built, tested (single player and a
-server with two clients) and mutation-checked. The author has seen the model
-in the hand and on the ground and heard the lower pulse (2026-09-24). **The
-beam, the bolts and cutting have not been in a game yet.** The tricorder's
-lock override is removed. Still open: section 9's phase 6 needs nothing new if
-the engine fires the shot event for other players as its bytecode says, and
-only a two-machine game can confirm that.
+The working guide to the phaser: what it does, where each piece lives, how to
+change it, the engine facts it rests on, and what will bite you. It follows the
+shape of `PHOTON_TORPEDOS.md` and `REPLICATOR.md`.
 
-| File | What |
-|---|---|
-| `shared/TREK/TREK_PhaserCut.lua` | the rules (`PC.refusal`), the tree and door world changes, and the timed action `TREKPhaserCut` |
-| `client/TREK/TREK_PhaserFX.lua` | the overlay: cutting beams, per-shot bolts, the hum, the light; `TREK_PhaserFX()` on the console |
-| `client/TREK/TREK_Phaser.lua` | the charge sweep, and the right-click: *Cut down with phaser*, *Cut through with phaser* |
-| sandbox *Phaser cutting* | Trees and doors (default) / Trees only / Off |
+**Seen working in game, 2026-09-24:** the model in the hand and on the ground,
+the lower firing pulse, the beam, shot bolts, and cutting trees and doors. The
+author's verdict: "it works great". **Not yet seen:** two players (whether
+other people's bolts show; see *Open*), and nobody has yet commented on the
+cutting pose.
 
 `DEV_GUIDE.md`'s *Rules that exist because they were broken* and
-`MULTIPLAYER.md` apply to every line of it. The four that matter most here:
-**the server changes the world** (a felled tree and a broken door are world
-changes); **a timed action is rebuilt on the server by its name and its
-parameters**; **a vanilla call site proves reachability, never correctness**;
-and **render it and look**.
+`MULTIPLAYER.md` apply to every line. The four that matter most here: **the
+server changes the world**; **a timed action is rebuilt on the server by its
+name and its parameters**; **a vanilla call site proves reachability, never
+correctness**; and **render it and look**.
 
 ---
 
-## 1. What the author asked for
+## 1. What a player gets
 
-In the author's words, condensed (2026-09-24):
+- **Four phasers** in the armoury locker, with the mod's own model and icon.
+  The charge never runs down, they never jam and they never wear out, and
+  they are far quieter than a firearm.
+- **Every shot is a visible bolt**: a short orange beam from the emitter to
+  whatever it hit, or to the end of its range, with a low *zap* rather than a
+  gunshot.
+- **Right-click a tree → *Cut down with phaser*.** The phaser is drawn from a
+  pocket if it isn't in hand, the player walks closer if they're more than
+  `C.PhaserCutRange` (5) tiles away, and a steady beam with a hum and a glow
+  at the cut fells the tree in about three seconds, logs, stump and all.
+- **Right-click a door → *Cut through with phaser*.** About two seconds, and
+  the door is gone: key-locked, padlocked, double doors (every leaf), garage
+  doors, and the barricades nailed across it. **No lock is ever consulted**,
+  because the door stops being there. Nothing else in the mod gets through a
+  lock; the tricorder's lock override was removed on the same day.
+- **Everybody nearby sees the beam and hears the hum**, in single player,
+  co-op and on a dedicated server.
+- **Refused, with the reason shown in the menu:** a door in somebody else's
+  safehouse, and anything the server's sandbox switches off.
 
-- The phaser **is basically a pistol** today. Change that.
-- **Its own model**, made with FlowDot (Gemini for the concept, fal for the
-  mesh), or found.
-- **A laser effect** you can see.
-- **The sound is a little too high-pitched.**
-- **Aim it at a tree or a door** and get a **beam that stays on**, with a
-  **sustained sound**, while the tree is **quickly felled** or the door
-  **broken open**.
-
-In the lore a phaser on a narrow, continuous setting is Starfleet's cutting
-tool as well as its sidearm. Crews cut through bulkheads, rock and doors with
-one on screen. So the phaser here doesn't just get a new texture: it does the
-jobs of an axe and a sledgehammer, paid for in charge instead of sweat.
-
----
-
-## 2. What exists today
-
-Read from the tree on 2026-09-24.
-
-| Piece | Where | What it is |
-|---|---|---|
-| The item | `media/scripts/trekshuttle.txt`, `item TrekPhaser` | A build 42 handgun: `AmmoType = base:bullets_9mm`, `MaxAmmo = 60`, `SwingAnim = Handgun`, **`WeaponSprite = Handgun03`** (vanilla's pistol model), `DoorDamage = 12` |
-| The charge | `client/TREK/TREK_Phaser.lua` | A sweep every `C.PhaserInterval` ticks that puts back ammo, the chambered round and condition. The carrying client does it (`MULTIPLAYER.md`, *Phaser (carrying client)*) |
-| The sound | `media/sound/TREK_PhaserPulse.wav`, from `tools/gen_phaser.py` | 0.28 s. The partials sweep **1000 to 420 Hz** and **1500 to 650 Hz** with a shimmer at twice the base. That is the "too high" |
-| The icon | `media/ui/TREK_Phaser.png`, `media/textures/Item_TREK_Phaser.png` | Drawn pixel by pixel in `gen_phaser.py`. **64x64, although the phaser is a hotbar weapon** (see section 9) |
-| Config | `TREK_Config.lua`, *Phasers* | `C.PhaserItem`, `C.PhaserType`, the three never-flags, `C.PhaserRack`, `C.PhaserCount` |
-| Stock | armoury, `special = "phasers"` | Four, guaranteed |
-
-There is no beam. A shot is a vanilla bullet, and you can't see bullets.
-
-Nearby things the plan builds on:
-
-- **`PHOTON_TORPEDOS.md`, *The projectile***: a projectile drawn in **screen
-  space** with `isoToScreenX/Y`, sized by zoom, plus one light that moves
-  only when its tile changes. It places nothing in the world and needs no
-  cleanup. The beam follows the same design.
-- **`MEDICAL_SET.md`, a tricorder lock override**: the author's intent
-  (2026-09-24) is that **nothing in the mod unlocks doors, and a tricorder
-  shouldn't**. But the code for one exists: `TREK_MedKit.lua` sends
-  `Core.send("unlock")` and `TREK_Server.lua` handles it with `Med.unlock` and
-  `obj:sync()`. It has never been seen in game. **Removing it is a phase of
-  this plan** (section 9), so the phaser is the only way through a lock. Its
-  server handler is still worth reading first: it already solves range
-  checking against the server's position and syncing a door from the server.
-- **The Doctor's pipeline** (`EMH.md`, *Replacing the Doctor source through
-  Fal/Gemini*; `tools/assets/trek_emh/SOURCE.txt`): a Gemini concept image, then
-  `fal-ai/trellis` image-to-3D, a vendored GLB, and `tools/import_gltf.py`.
-- **Vanilla's own versions**: `shared/TimedActions/ISChopTreeAction.lua` (the
-  axe) and `ISDestroyStuffAction.lua` (the sledgehammer, which handles double
-  doors, garage doors and barricades).
+It deliberately does **not** cut walls, floors or windows. That's the
+sledgehammer's job, and on a server it would be a griefing tool.
 
 ---
 
-## 3. The shape of the finished thing
+## 2. Where everything lives
 
-```
-Firing at a zombie        unchanged as a weapon; each shot now draws a short
-                          orange bolt from the emitter to the target, with the
-                          lower-pitched pulse
-
-Right-click a tree with   "Cut down with phaser"  -> a timed action, beam on,
-a phaser in hand          sustained hum, ~3 s, the tree falls as if an axe had
-                          felled it (logs and all)
-
-Right-click a door        "Cut through with phaser" -> the same, ~2 s, the door
-                          is destroyed the way a sledgehammer destroys it
-                          (barricades and a double door's other leaf with it)
-
-Anyone nearby             sees the beam and hears the hum, in single player,
-                          co-op and on a dedicated server
-```
-
-**A persistent beam defeats any lock**, just as it fells any tree: a locked
-door, a key-locked door, a padlocked door. How it's locked doesn't matter,
-because the door stops being there. It's the only thing in the mod that gets
-through a lock.
-
-What it deliberately does **not** do: cut walls, floors or windows (a
-sledgehammer's job, and a sandbox-sized griefing tool on a server).
-
----
-
-## 4. The model
-
-**Built, 2026-09-24. Not yet seen in a hand in game.**
-
-```sh
-python tools/bake_phaser.py                 # once per new source; needs pip packages
-python tools/gen_phaser.py TrekShuttle/42   # every build; PIL and numpy only
-```
-
-| File | What |
+| What | Where |
 |---|---|
-| `design/art/weapons/phaser/concept_34_raw.jpg` | the Gemini concept TRELLIS was fed (three-quarter) |
-| `design/art/weapons/phaser/concept_side_raw.jpg` | the same design in profile, for reference |
-| `tools/assets/trek_phaser/SOURCE.txt` | provider, model, request ids, seed, prompt, and what was rejected |
-| `tools/assets/trek_phaser/trellis2_raw.glb` | the raw, 18 MB, **not committed** (`.gitignore`; its URL is in `SOURCE.txt`) |
-| `tools/assets/trek_phaser/phaser_baked.json` / `.png` | the bake: mesh with UVs, and its 512px texture. **This is the vendored source** |
-| `media/models_X/weapons/firearm/TREK_Phaser.x` | 2,600 faces, 0.030 x 0.151 x 0.123 |
-| `media/textures/weapons/firearm/TREK_Phaser.png` | the texture |
-| `media/textures/Item_TREK_Phaser.png`, `media/ui/TREK_Phaser.png` | the icon, 64x64, rendered from the mesh |
-| `media/scripts/trekweapons.txt`, `TrekPhaserModel` | in `module Base`, with Handgun03's own hand and ground attachments |
-| `design/art/weapons/phaser/phaser_sheet.png` | **the review sheet**, rewritten on every run |
-
-### How it is made to look good
-
-The plan is a loop, not a prompt: **every change is judged on a picture of the
-thing at the size the player sees it**, and the pictures are generated by the
-same command that builds the asset, so they cannot go stale.
-
-1. **Concept first, in 2D** (Gemini). A clean three-quarter product shot on
-   white, simple large shapes, no logos. This is the design; the mesh is only
-   ever judged against it.
-2. **Mesh from the concept** (fal TRELLIS v2). v1 was generated alongside for
-   comparison and rejected (`SOURCE.txt`).
-3. **Fit to vanilla, not to taste.** The bake puts the phaser in the frame of
-   vanilla's M9 with its grip where the M9's grip is. So the hand closes on it
-   where it closes on a pistol, and `Bip01_Prop2` and `world` are Handgun03's
-   numbers rather than guesses. Its size sits inside vanilla's pistol bracket
-   (`tools/meshbbox.py --vanilla handgun`).
-4. **Repaint rather than trust.** The texture is baked per texel from the
-   source, snapped to the concept's palette. Flat colour blocks survive the
-   20-pixel size a held weapon is drawn at; a generator's soft, lit texture
-   doesn't.
-5. **The sheet** (`phaser_sheet.png`) shows four views with the M9 outlined
-   over the side view in the same frame, then the phaser and the M9 at 18 and
-   26 pixels over grass, tarmac, a pale roof and night, then the icon at 64
-   and 32. It is drawn with a z-buffer that culls back faces, as the engine
-   does, so a flipped face or a hole shows here the way it would in game.
-6. **The icon against the set** (`tools/vet_icons.py design/art/all_icons.png`),
-   never alone.
-7. **Last, the game.** Only a fist can say whether the grip sits right.
-
-### What the loop caught
-
-Every one of these passed every number the build printed, and every one was
-obvious on the sheet:
-
-- **The mesh was a hollow shell.** TRELLIS's output is an outer skin and a dark
-  inner skin a millimetre inside it, plus 1,046 loose scraps. Decimated as it
-  stood, the inner skin showed through as black triangles all over the body.
-  Two cheaper fixes failed on the sheet (dropping the scraps, and re-orienting
-  faces). What worked is rebuilding the surface from a **filled volume**:
-  voxels, close, fill, marching cubes, then decimate. That gives one closed
-  skin by construction. *Assume every image-to-3D mesh is this shape until the
-  sheet says otherwise.*
-- **The first review renderer lied.** It was a painter's-algorithm renderer
-  that drew interior scraps over the skin, and it could not tell a fault in
-  the mesh from a fault in the drawing. It was replaced by a z-buffer.
-- **Too big.** True to the concept it was 0.041 across, twice the M9. It was
-  slimmed to 0.030 (`ACROSS` in the bake).
-- **Flat colour per face** had sawtooth panel edges and specks wherever the
-  source's thin seam line was sampled. The fix was a real texture: six planar
-  charts by facing direction (xatlas has no build for this Python), baked per
-  texel, cleaned with a mode filter, the seam closed along its length, and
-  black allowed only on the grip.
-- **The icon was the dullest in the set** (mean brightness 72 against the
-  tricorder's 110). It was re-angled to show the white flank, lit brighter
-  than the in-game preview, and given the one-pixel dark outline its
-  neighbours all have.
-
-**Two things the concept has that the model doesn't:** the four blue indicator
-lights (TRELLIS dropped them, and at held size they would be one pixel) and a
-glowing lens. The engine has no emissive channel for a weapon, so the emitter
-is a bright orange that is lit like everything else, and the beam's flare
-supplies the glow.
-
-### To change it
-
-- **Proportions, size, grip fit:** the constants at the top of
-  `tools/bake_phaser.py` (`LENGTH`, `ACROSS`, the M9 grip numbers), then rebake.
-- **Colours:** `PALETTE` in the bake. The classification bands (`DARK`,
-  `LIGHT`) are about the *source's* brightness, so don't tune them for looks.
-- **A new design:** new concept, new TRELLIS run, update `SOURCE.txt`, rebake.
-  Look at the sheet after every step.
-- **The hand position**, if a fist says it's wrong: move the grip fit in the
-  bake, not the attachment numbers. Those are Handgun03's and are right for
-  anything fitted the way this is.
+| The rules, the world changes, the timed action `TREKPhaserCut` | `media/lua/shared/TREK/TREK_PhaserCut.lua` |
+| The beam, the bolts, the hum, the light; `TREK_PhaserFX()` | `media/lua/client/TREK/TREK_PhaserFX.lua` |
+| The charge sweep, and the right-click menu; `TREK_Phaser()` | `media/lua/client/TREK/TREK_Phaser.lua` |
+| Every number | `TREK_Config.lua`, section *Phasers* |
+| The item | `media/scripts/trekshuttle.txt`, `item TrekPhaser` |
+| The model block `TrekPhaserModel` | `media/scripts/trekweapons.txt` (**`module Base`**) |
+| The four sounds | `trekshuttle.txt` beside the item; `.wav`s in `media/sound/` |
+| Mesh, texture, icon | `media/models_X/weapons/firearm/TREK_Phaser.x`, `media/textures/weapons/firearm/TREK_Phaser.png`, `media/textures/Item_TREK_Phaser.png` |
+| Beam strip and spark | `media/ui/TREK_PhaserBeam.png`, `media/ui/TREK_PhaserSpark.png` |
+| Sandbox *Phaser cutting* | `sandbox-options.txt`, `Translate/EN/Sandbox.json` |
+| Menu words and refusals | `Translate/EN/IG_UI.json`, `IGUI_TREK_Phaser*` |
+| The model's source | `tools/assets/trek_phaser/` (`SOURCE.txt`, the bake); concepts in `design/art/weapons/phaser/` |
+| Generators | `tools/bake_phaser.py` (once per source), `tools/gen_phaser.py` (mesh, icon, sounds, sheet), `tools/gen_phaser_beam.py` (beam art, sheet) |
+| Review sheets | `design/art/weapons/phaser/phaser_sheet.png`, `design/art/ui/phaser_beam_sheet.png` |
+| Tests | `tests/test_multiplayer.py`: `phaser()`, `phaser_multiplayer()`, and `medical()`'s check that a tricorder opens nothing |
 
 ---
 
-## 5. The beam
+## 3. How it works
 
-**Art built, 2026-09-24; the overlay that draws it is not.**
+### A cut
 
-```sh
-python tools/gen_phaser_beam.py TrekShuttle/42
+```
+client   right-click -> TREK.Phaser.fillWorldMenu (OnFillWorldObjectContextMenu)
+           offered to anybody carrying a phaser, on every tree and door the
+           click could mean; refused ones are GREYED with the reason
+         -> P.onCut: draw the phaser (ISWorldObjectContextMenu.equip),
+            walk up if beyond C.PhaserCutRange (luautils.walkAdj),
+            queue TREKPhaserCut:new(player, x, y, z, kind)
+         -> start(): BlowTorch pose, phaser as the hand model, local beam on
+
+server   rebuilds TREKPhaserCut by class name, from new()'s parameter names
+         isValid(): PC.refusal on the SERVER's copy of everything
+         serverStart(): Net.toAll("phaserBeam", on)     -> every client's beam
+         update(): face the target; noise every C.PhaserCutNoiseEvery ticks
+         complete(): looks the target up again and refuses again, then
+                     tree:toppleTree(player)  or  PC.breach(player, door)
+                     Net.toAll("phaserBeam", off)
+         serverStop(): Net.toAll("phaserBeam", off)     -> a cancelled cut
+
+clients  phaserBeam on  -> FX.beamOn: hum, start tail, light, overlay
+         phaserBeam off -> FX.beamOff: hum stopped, end tail, light out
+         nothing heard for C.PhaserBeamGraceMs -> FX.service drops it anyway
 ```
 
-writes `media/ui/TREK_PhaserBeam.png` (a 32x16 strip whose only meaningful
-axis is its vertical profile), `media/ui/TREK_PhaserSpark.png` (32x32), and
-`design/art/ui/phaser_beam_sheet.png`: a bolt and a cut over grass, tarmac, a
-pale roof and night, at zoom 1 and 2. **The sheet draws the beam exactly the
-way the overlay must**, so the recipe below is the spec for the Lua:
+Three things about that are the design, not the incidental detail:
+
+- **The target travels as coordinates and a kind**, never as the object. The
+  server looks it up on its own square, which is the only copy it may believe.
+- **`complete()` checks everything again** even though `isValid()` just did.
+  A tree or door can go while the beam is on it, when somebody else gets
+  there first. Without the re-check `complete()` would try to fell nothing.
+- **Single player is the same code.** `serverStart` is never called there;
+  `start()` turns the local beam on, and `Net.toAll` runs the client handler
+  directly.
+
+`PC.refusal` is the one list of reasons, each an `IGUI_TREK_Phaser*` key:
+nothing there (`NoTarget`), the sandbox (`CutOff`), no phaser in either hand
+(`NotHeld`), a different level or beyond range (`TooFar`), and a door in a
+safehouse the player isn't a member of (`Safehouse`). A reason the server
+reaches in `complete()` is sent to the cutter as `phaserRefused` and shown as
+a note.
+
+### A shot
+
+`OnWeaponSwingHitPoint(character, weapon)` → `FX.bolt`: a beam from the
+emitter straight ahead to `weapon:getMaxRange()`, for `C.PhaserBoltMs`.
+`OnWeaponHitCharacter` shortens it to whatever was hit. The engine fires the
+shot event for **other players' shots on each client** too (see section 5),
+so nothing relays bolts.
+
+### The beam on screen
+
+Drawn in **screen space, placing nothing in the world**, as the torpedo is. It
+uses one overlay element for every beam and bolt, and it isn't tied to the
+local player's weapon, because other people's beams must show too. Each beam
+is drawn exactly as `phaser_beam_sheet.png` was judged:
 
 | Step | What | Constant |
 |---|---|---|
-| 1 | the strip, stretched along emitter → target, turned, tinted | `TINT` (255, 120, 40), thickness `GLOW_PASS` x 16 px / zoom |
-| 2 | the same strip on top, **untinted**, thinner | `CORE_PASS` 0.42, alpha `CORE_ALPHA` 0.9 |
-| 3 | the spark at the emitter, tinted | `MUZZLE` 0.55 x 32 px / zoom |
-| 4 | the spark at the target, tinted, then a smaller untinted one on top | `IMPACT` 1.7 x 32 px / zoom, core x 0.45 |
+| 1 | the strip, a quad from emitter to target, tinted | `C.PhaserTint`, `C.PhaserBeamPx` / zoom |
+| 2 | the same strip, **untinted** and thinner, on top | `C.PhaserCorePass`, `C.PhaserCoreAlpha` |
+| 3 | a flare at the emitter | `C.PhaserMuzzle` x `C.PhaserSparkPx` / zoom |
+| 4 | a spark at the target, and a smaller white one on it | `C.PhaserImpact` (bolts use 0.6 of it) |
 
-What the sheet taught, in order:
+- The quad is `ISUIElement:drawTextureAllPoint` with four corners from
+  `isoToScreenX/Y`, so it needs no angle arithmetic and no tiling.
+- **The emitter is an approximation**: the shooter's position, moved
+  `C.PhaserHandAhead` toward the target and raised `C.PhaserHandZ` levels.
+  Lua can't reach the hand bone.
+- A cutting beam aims `+0.3` of a level above the target's floor.
+- **The life is in the Lua**: a shimmer on the width, and one light at the
+  cut (`addLamppost`, removed by the handle it returned). Anything baked into
+  the strip would stretch with it.
+- **The overlay is 1x1 in the corner.** See *What will bite you*; it cost a
+  play session.
 
-- **One tinted draw can never have a white-hot middle.** A tint multiplies, so
-  the first beam was orange from edge to edge. The core is a second, untinted
-  pass of the same strip.
-- **A skirt at alpha 70 drew a hard grey box on a pale roof.** At 44, with a
-  squared falloff, it is a soft shadow there and invisible on dark ground.
-- **Six hard rays on the spark read as an arrowhead** on every beam. It has
-  four soft ones now.
-- **A spark the width of the beam loses the cut point**, which is where the
-  eye goes. `IMPACT` 1.7.
-- The strip's square ends are covered by the two flares, not by fading the
-  texture: a fade baked into the strip stretches with it.
+### The sound
 
-The rest of the design stands as planned:
+| Sound | What |
+|---|---|
+| `TREK_PhaserPulse` | the shot: 0.30 s, a 480 → 210 Hz body, a 1.5x partial, a 95 Hz thump and a noise burst |
+| `TREK_PhaserBeam` | the cutting hum, `loop = true`: a one-second loop, 196 Hz carrier with 1.5x/2x/3x partials, a 49 Hz growl, a 7 Hz wobble, crackle |
+| `TREK_PhaserBeamStart` / `End` | the beam catching and letting go |
 
-- **Drawn in screen space, like the torpedo, placing nothing in the world.**
-- **One overlay element** draws every visible beam this frame, **not tied to
-  the local player's own weapon**, because other people's beams have to show
-  too (the torpedo overlay learned this the hard way).
-- **Geometry.** Start: the shooter's position plus a hand-height offset (an
-  approximation; the hand bone isn't reachable from Lua). End: the target's
-  square, or for a pistol shot the zombie hit or the end of the range. Both go
-  through `isoToScreenX/Y`.
-- **Life belongs in the Lua**, not the texture: a flicker on width and alpha,
-  and a light at the impact tile (`addLamppost`, removed with the handle it
-  returned).
-- **Two modes, one renderer.** A **bolt** lasts about 120 ms per shot. A
-  **sustained beam** stays on while a cutting action runs.
+**Every machine plays its own**, with `playSoundLocal` on the shooter's
+character, when it hears "beam on", and stops it by the handle that call
+returned. The cut's noise to zombies is separate: `addSound` at the target,
+made by the authority (`C.PhaserCutNoise`).
 
----
+### The charge
 
-## 6. The sound
-
-**Built, 2026-09-24; not yet heard in game.** Written by
-`tools/gen_phaser.py`, synthesised with the standard library, no franchise
-audio.
-
-| Sound | File | What |
-|---|---|---|
-| `TREK_PhaserPulse` | 0.30 s | **The shot, lower.** The old one swept 1000 → 420 Hz with a partial at 1500 Hz. This one has a 480 → 210 Hz body, a partial at 1.5x the base, a 95 Hz thump and a burst of filtered noise: a *zap*, not a *chirp* |
-| `TREK_PhaserBeam` | 1.00 s, `loop = true` | The cutting hum: a 196 Hz carrier with 1.5x/2x/3x partials, a 49 Hz growl, a 7 Hz wobble, crackle and pops |
-| `TREK_PhaserBeamStart` | 0.22 s | The beam catching: a swell into the loop's own timbre |
-| `TREK_PhaserBeamEnd` | 0.32 s | Letting go: the pitch sags and dies |
-
-- **The loop is seamless by construction.** Every frequency in it is a whole
-  number of hertz over a whole-second loop, so each term ends where it began.
-  The noise, which isn't periodic, is crossfaded tail-into-head. Measured: the
-  jump across the wrap is 1,429 against a typical sample step of 1,156. **Keep
-  every frequency whole** when changing a number, or it clicks once a second
-  for as long as a tree is being cut.
-- **The loop and its tails share one level**, so the start hands over to the
-  hum without a jump.
-- The pulse is what the author said was too high, and the numbers are a first
-  go. **The author judges it, not a test.**
-- Still to build with the cutting: **cutting noise attracts zombies**, a
-  `WorldSoundManager` sound at the target on a server-side tick, smaller than
-  a gunshot.
-
-`tests/test_assets.py` fails on a clip that's missing or a `playSound` name no
-script declares; all four are declared in `trekshuttle.txt`.
+Unchanged from before the rework. `TREK_Phaser.lua` sweeps the local player's
+phasers every `C.PhaserInterval` ticks and puts the ammunition, the chambered
+round and the condition back. The item nominally chambers `bullets_9mm`,
+because a mod can't declare an AmmoType. The sweep outruns any rate of fire,
+so none of the player's own 9mm is ever drawn.
 
 ---
 
-## 7. Cutting: trees and doors
+## 4. Changing it
 
-### The flow
+**Cutting.** `C.PhaserCutRange`, `C.PhaserTreeTime`, `C.PhaserDoorTime`,
+`C.PhaserCutNoise`, `C.PhaserCutNoiseEvery`. The server measures the range
+from its own copy of the player's position, with a 0.75-tile allowance.
 
-```
-client   right-click a tree/door with a TrekPhaser in either hand
-         -> "Cut down with phaser" / "Cut through with phaser"
-         -> walk into range (vanilla's luautils.walkAdj, as the axe does)
-         -> TREKPhaserCutAction (shared, a GLOBAL class; new(character, target...)
-            stores every parameter under exactly its own name)
+**What may be cut.** The sandbox option *Phaser cutting* (Trees and doors,
+Trees only, Off) through `C.phaserCutting()` and `PC.allowed(kind)`. To add a
+new kind, three places change:
+- `PC.kindOf` has to recognise it;
+- `complete()` needs its world change, which must be the engine's own
+  authority path, found in the bytecode;
+- the menu needs a label key.
 
-server   rebuilds the action by class name
-         isValid: target still exists, still a tree / door, within C.PhaserCutRange
-                  of where the SERVER thinks they are, a phaser really in hand,
-                  not a safehouse the player doesn't belong to, sandbox allows it
-         start / serverStart: tell nearby clients "beam on" (from, to, who)
-         each tick: the noise, at a spacing
-         complete(): the world change, then "beam off"
+Then add a test in `phaser()` that it really goes, and one that a client alone
+can't make it go.
 
-clients  beam on  -> overlay draws the sustained beam, the loop sound plays
-         beam off -> both stop; also stopped if no word comes for a few seconds,
-                     so a lost packet cannot leave a beam on for ever
+**The look of the beam.** Change the constant in `tools/gen_phaser_beam.py`,
+re-run it, look at the sheet, and **then** make the same change in
+`TREK_Config.lua`. They are deliberately not shared, the torpedo's rule: the
+Lua is what runs, the generator is what judges it.
+
+**The sounds.** `tools/gen_phaser.py`, then judge by ear; no test can. **Keep
+every frequency in the hum a whole number of hertz**, or the one-second loop
+clicks once a second for as long as a tree is being cut. The noise layer is
+crossfaded tail into head for the same reason.
+
+**The model.**
+
+```sh
+python tools/bake_phaser.py                 # once per new source; pip: trimesh,
+                                            # fast_simplification, networkx, scipy,
+                                            # scikit-image
+python tools/gen_phaser.py TrekShuttle/42   # every build; PIL and numpy only
 ```
 
-`perform()` runs on the client and is only for notes and sounds.
-**`complete()` never runs on a client**, so every world change lives there
-(`DEV_GUIDE.md`, *A timed action is rebuilt on the server...*).
+- **Proportions, size, grip fit:** the constants at the top of the bake
+  (`LENGTH`, `ACROSS`, the M9 grip numbers), then rebake.
+- **Colours:** `PALETTE` in the bake. `DARK` and `LIGHT` classify the
+  *source's* brightness; don't tune them for looks.
+- **The hand position**, if a fist says it's wrong: move the grip fit in the
+  bake. The attachment numbers are Handgun03's and are right for anything
+  fitted this way.
+- **A new design:** a new Gemini concept, a new TRELLIS run, `SOURCE.txt`
+  updated, then rebake. Look at `phaser_sheet.png` after every step. The raw
+  GLB is 18 MB and is **not committed** (`.gitignore`); its URL is in
+  `SOURCE.txt`, and a normal build never reads it.
 
-### Trees
+**How the model is kept looking good** is a loop, not a prompt. Every change
+is judged on a picture at the size the player sees it, drawn by the same
+command that builds the asset:
+1. the concept in 2D first;
+2. the mesh fitted to vanilla, not to taste;
+3. the texture repainted per texel in the concept's palette, because flat
+   blocks survive 20 pixels and a generator's soft, lit texture doesn't;
+4. the sheet, drawn with a z-buffer that culls back faces as the engine
+   does: four views, the M9 outlined over the side view, the phaser at 18
+   and 26 px over four grounds, and the icon at 64 and 32;
+5. the icon against the whole set (`tools/vet_icons.py`);
+6. then the game.
 
-Vanilla fells a tree by calling `tree:WeaponHit(character, axe)` on each swing
-from an animation event. The phaser has no swing, so the plan is **to find the
-server-side call that fells a tree outright and drops its logs**. Section 8
-has that question; it's the one this whole half depends on. Duration is
-`C.PhaserTreeTime` (about 3 s), with no endurance cost and no strain.
-
-### Doors
-
-Destroy it the way a sledgehammer does: `IsoDoor` and `IsoThumpable` doors,
-**a double door's other leaves and a garage door's other panels with it**, and
-barricades on it. The work is **reusing vanilla's own logic** in
-`ISDestroyStuffAction:complete()` rather than copying it. Section 8 asks
-whether it can be called without a sledgehammer in hand. Duration is
-`C.PhaserDoorTime` (about 2 s). **Locks are ignored entirely**: locked,
-key-locked and padlocked doors all go the same way. The only refusals are
-server policy, not locks: **a safehouse door that isn't yours** (a server's
-safehouse rules are a promise to its players, and a phaser shouldn't be the
-way round them), and anything the sandbox switches off.
-
-### Sandbox
-
-- **Phaser cutting**: on / off (servers that don't want a door-breaker).
-- **Cutting time multiplier**.
-- Maybe **Phaser breaks doors** separately from trees.
+**The icon** is rendered from the mesh at 64x64, three-quarter view, brighter
+than the in-game preview, with a one-pixel dark outline like its neighbours.
+The phaser has no `AttachmentType`, so the hotbar's 32x32 rule doesn't apply.
+**If it ever gets one** (for holsters; see *Open*), the icon must become 32x32.
 
 ---
 
-## 8. Settle before writing any of it
+## 5. Engine facts, established
 
-The verify-first phase. Each answer goes into this section with the tool that
-gave it, as `ENERGY.md` section 3 does.
-
-**All answered, 2026-09-24.** The engine facts the code rests on; don't
+Each was read out of the bytecode or vanilla's Lua on 2026-09-24. Don't
 re-derive them.
 
-1. **What fells a tree.** `IsoTree.WeaponHit` subtracts the weapon's
-   `TreeDamage` and calls `toppleTree(character)` at zero. `toppleTree`
-   **returns at once on a client** (bci 0-6); on the authority it removes the
-   tree with `transmitRemoveItemFromSquare`, plays `FallingTree` to everybody
-   (`PlayWorldSoundServer`), drops the logs through
-   `AddWorldInventoryItem` (which transmits on a server), and puts the stump
-   down. So the phaser calls `tree:toppleTree(player)` in `complete()` and
-   skips only the counting down. `IsoTree` is exposed (vanilla calls
-   `WeaponHit` on it from `ISChopTreeAction`), so its public methods are
-   reachable.
-2. **What breaks a door.** `ISDestroyStuffAction:complete()`'s authority path:
-   barricades on both sides, every leaf through
-   `buildUtil.getDoubleDoorObjects` / `getGarageDoorObjects`, then
-   `transmitRemoveItemFromSquare`. `buildUtil` is in `server/`, so it loads on
-   a server and in single player, which is where `complete()` runs. The
-   break sound is the sledgehammer's: `character:playSound("BreakDoor")`.
-3. **The pose.** `setActionAnim("BlowTorch")`, a tool held out and aimed at
-   the work, with the phaser as the hand model. **To be judged in game.**
-4. **Drawing a stretched, turned strip.** `DrawTextureAngle` only rotates.
-   `ISUIElement:drawTextureAllPoint(tex, tl, tr, br, bl, r, g, b, a)` draws
-   a texture on **any four corners**, so the beam is a quad from emitter to
-   target with no angles and no tiling.
-5. **The hum.** `playSound` may go over the network; `playSoundLocal` is
-   `emitter.playSoundImpl`, local only, and returns a handle that
-   `stopOrTriggerSound` takes. Every client plays the hum itself when it
-   hears "beam on", on the shooter's own character, so nobody hears it twice.
-6. **The shot.** `OnWeaponSwingHitPoint(character, weapon)` (vanilla's own
-   `ISReloadWeaponAction.onShoot` uses it) fires on a shot, and
-   `zombie.network.fields.hit.Player.attack` fires it for **other players'**
-   shots on each client too, so bolts need no relay.
-   `OnWeaponHitCharacter` shortens a bolt to what it hit.
-7. **The server's hooks on a timed action.** `NetTimedAction.start` reads
-   `serverStart` off the action and calls it; the class also names
-   `serverStop`. They are how every client learns the beam is on or off.
-   Single player never calls them; `start()` and Net.toAll cover it there.
+1. **`IsoTree:toppleTree(character)` is a complete fell.** It **returns at
+   once on a client** (bci 0-6). On the authority it:
+   - removes the tree with `transmitRemoveItemFromSquare`;
+   - plays `FallingTree` to everybody;
+   - drops the logs through `AddWorldInventoryItem`, which transmits;
+   - places the stump.
 
-8. ~~**Hotbar icon**~~ **Answered (2026-09-24, from the item script):** the
-   phaser has **no** `AttachmentType`, so vanilla's hotbar never draws it and
-   the 32x32 rule doesn't apply. Its icon stays **64x64**, like every other
-   non-blade icon here.
+   It is what `WeaponHit` calls once a tree's damage reaches zero; the phaser
+   skips only the counting. `IsoTree` is exposed (vanilla calls `WeaponHit`
+   on it), so its public methods are reachable.
+2. **A door comes down the sledgehammer's way.** `ISDestroyStuffAction:complete()`'s
+   authority path removes the barricades on both sides, then every leaf
+   through `buildUtil.getDoubleDoorObjects` / `getGarageDoorObjects`, then
+   `transmitRemoveItemFromSquare`. `buildUtil` is in `server/`, which is where
+   `complete()` runs. The break sound is `character:playSound("BreakDoor")`,
+   as the sledgehammer's.
+3. **`drawTextureAllPoint` draws on any four corners**; `DrawTextureAngle`
+   only rotates.
+4. **`playSoundLocal` is local only** (`emitter.playSoundImpl`) and returns a
+   handle `stopOrTriggerSound` takes. `playSound` may go over the network.
+5. **The shot event fires for everybody's shots.** `OnWeaponSwingHitPoint`
+   (vanilla's `ISReloadWeaponAction.onShoot` listens to it) is fired by the
+   engine for the shooter, and by `zombie.network.fields.hit.Player.attack`
+   for other players' shots on each client.
+6. **A timed action has server hooks.** `NetTimedAction.start` reads
+   `serverStart` off the action and calls it; `serverStop` is named beside
+   it. Single player calls neither.
+7. **"The mouse is over the UI" is geometry.** `UIManager.isOverElement`
+   checks visible, then the mouse inside the element's rectangle (bci 23-187).
+   It never calls a Lua `isMouseOver`, and while it says yes the world gets no
+   right-click and no aiming.
+8. **The phaser has no `AttachmentType`**, so it is not a hotbar item and
+   fits no holster.
 
 ---
 
-## 9. Phases
+## 6. Testing
 
-Each phase ends with the checks green, a mutation pass one at a time, and a
-line in this file saying what was done.
+```sh
+TREK_ONLY=phaser,phaser_multiplayer python tests/test_multiplayer.py
+```
 
-0. **Verify-first.** Section 8, answered and written down. No code.
-1. **The sound. Done 2026-09-24** (section 6): the lower pulse, the loop and
-   its tails, declared; the author judges them by ear.
-2. **The model and icon. Done 2026-09-24** (section 4): generated, rebuilt,
-   baked, fitted to vanilla's M9, `WeaponSprite = TrekPhaserModel`, icon at
-   64x64 vetted against the set. Two mutations, both caught: a wrong model
-   name, and the texture missing from disk.
-3. **The beam renderer. Done 2026-09-24**: `TREK_PhaserFX.lua`, drawn to the
-   sheet's recipe, with the light at the cut and a grace timer so a lost
-   "beam off" can't leave a beam burning. Bolts on every phaser shot.
-4. **Trees. Done 2026-09-24.** The action, the server side, the relay, the loop sound, the
-   noise, the sandbox option. `tests/test_multiplayer.py`: single player and
-   server plus two clients. The tree is gone on **every** client, the
-   non-shooter got "beam on" and "beam off", a client can't fell a tree
-   directly, out of range is refused, and a phaser not in hand is refused.
-5. **Doors. Done 2026-09-24, and the override removed.** The same, plus double and garage doors, barricades, locked,
-   key-locked and padlocked doors all falling alike, and the safehouse
-   refusal. A test for each refusal's words (`deny()` reasons must have text).
-   **And remove the tricorder's lock override** in the same pass: the menu
-   option in `TREK_MedKit.lua`, the `unlock` handler in `TREK_Server.lua`,
-   `Med.lockOn` / `Med.unlock` if nothing else uses them, the `unlocked`
-   reply, `C.UnlockRange` / `C.UnlockCooldownMs`, their translations and
-   tests, and the text in `MEDICAL_SET.md`, `README.md` and `DEV_GUIDE.md`.
-   `test_multiplayer.py` already fails on a command with no handler, which
-   catches a half-removal.
-6. **Other people's bolts.** Probably free: the engine fires the shot event
-   for remote players (8.6). Only a two-machine game can confirm it; build a
-   relay only if it doesn't.
-   **Nineteen mutations, one at a time, all caught** -- one only after a test
-   was written for it: `complete()`'s own re-check looked redundant behind
-   `isValid()`, and isn't, because a tree or door can go while the beam is on
-   it (somebody else gets there first). That is *two guards that cover each
-   other*, answered with a test that removes the target mid-cut.
-7. **Docs.** This file becomes the working guide; failure signatures and
-   *Current state* in `DEV_GUIDE.md`; the README's feature list.
+**`phaser()`**, single player, driven through the right-click menu:
+- no phaser, no option;
+- a phaser in a pocket is offered, drawn, and cuts;
+- the tree goes by `toppleTree`, with the hum started and stopped, both
+  tails, and zombie noise;
+- the beam is drawn as two strips, glow then white core, ending on the tree,
+  with flares; it is gone after its grace period;
+- **the overlay never covers the screen** (`SIM.uiUnderMouse`);
+- key-locked, padlocked, and double-and-barricaded doors all come down;
+- a stranger's safehouse is greyed with its reason and refused by the action;
+- out of range walks first, in range doesn't, and the action itself refuses
+  twenty tiles;
+- *Trees only* and *Off* are honoured;
+- a target that vanishes mid-cut is reported, not cut;
+- a phaser shot draws a bolt that goes, and a pistol's doesn't.
 
----
+**`phaser_multiplayer()`**, a server and two clients:
+- the server runs the cut, and the tree goes on all three machines;
+- the cutter's client edits nothing itself;
+- the watcher hears the beam on and off, locally;
+- the server refuses a client whose phaser isn't really in hand, and a client
+  that didn't know about a safehouse.
 
-## 10. Decisions for the author
+**`medical()`** checks that a tricorder offers nothing at a locked door.
 
-| Question | Options | Recommendation |
-|---|---|---|
-| Does cutting cost anything? | Free (the phaser is infinite today) / the phaser's own charge / the **ship's** energy (`ENERGY.md`) | **Free for now**, like the rest of the phaser. Revisit if `ENERGY.md` gets a hand-phaser cell. |
-| Doors: break or open? | Destroy like a sledgehammer / burn the lock and leave it open | **Destroy.** Decided by the author (2026-09-24): a persistent beam defeats any lock, and the door is broken open. |
-| The tricorder's lock override | Remove it / keep it | **Remove it.** The author: nothing unlocks doors and a tricorder wouldn't. Phase 5 does it. |
-| Safehouse doors on a server | Refuse / allow | **Refuse** a safehouse that isn't yours; possibly a sandbox switch. |
-| Anything else cuttable? | Doors and trees only / + windows / + walls, fences | **Doors and trees.** Walls on a server are a griefing tool. |
-| Stun and kill settings | One setting / a toggle (stun knocks down, kill as now) | **Later.** Out of scope for this pass, and worth its own doc. |
-| Model route | Generated / procedural / found | **Generated** (TRELLIS v2 from a Gemini concept), rebuilt and repainted by `tools/bake_phaser.py`. Done. |
+`tests/pz_sim.lua` gained, for this:
+- trees that topple the way the bytecode says (nothing on a client);
+- door leaves and barricades, and `buildUtil`;
+- `serverStart` in the rebuilt action;
+- settable hands;
+- sound handles and `stopOrTriggerSound`;
+- recorded beam quads and sparks;
+- `SIM.uiUnderMouse`, the engine's hover rule.
+
+**Twenty mutations, run one at a time, all caught.** Two were caught only
+after a test was written for them:
+- **`complete()`'s re-check.** Two guards covering each other; the answer is
+  a test that removes the target mid-cut.
+- **A screen-sized overlay.** The simulation couldn't see it until it modelled
+  the hover rule.
+
+**In game**, from the debug console:
+- `TREK_Phaser()` reports the phasers on you and recharges them;
+- `TREK_PhaserFX()` reports how many beams and bolts are burning.
 
 ---
 
-## 11. What will bite you
+## 7. What will bite you
 
-Carried over from `DEV_GUIDE.md` before it can happen again:
-
-- **A weapon model outside `module Base` draws nothing.** The log names the
-  model block as a mesh path.
-- **An imported mesh faces its camera and has no author.** Check yaw, fit and
-  size in one render.
-- **A 64x64 icon on a hotbar item spills into the next slot.** 32x32.
-- **A client that changes the world is a bug on every server**, even when
-  single player looks perfect. The tree and the door go in `complete()`.
+- **A UI element that covers the screen takes the world's mouse away.** The
+  first beam overlay was screen-sized. From the first shot on, the player
+  could not right-click or aim, nothing was logged, and every test passed.
+  Overriding `isMouseOver` in Lua does nothing (section 5.7). Keep the overlay
+  1x1, and give any new world-drawing overlay the `SIM.uiUnderMouse` check.
+- **A world change on a client is a bug on every server**, even when single
+  player looks perfect. Trees and doors change only in `complete()`.
 - **An action whose `new` stores a parameter under another name** reaches the
-  server as nil and is silently invalid.
-- **A sound that loops needs a guaranteed stop.** Stop it on `beam off`, on
-  `stop()`, on death, on unequip, and on a timeout. A hum that never ends is
-  the audible form of *present, drawn and inert*.
-- **A bright beam vanishes on a pale roof.** Give it the dark edge and check
+  server as nil and is silently invalid. `new(character, x, y, z, kind)`
+  stores exactly `x`, `y`, `z`, `kind`.
+- **A loop needs a guaranteed stop.** The hum stops on "beam off", on
+  `stop()`, on `perform()`, and on the grace timer. If you add a way for a
+  beam to end, make it stop the hum too.
+- **A weapon model outside `module Base` draws nothing**, and the log names
+  the model block as if it were a mesh path.
+- **An image-to-3D mesh is a hollow shell until a picture says otherwise.**
+  Rebuild it from a filled volume before decimating (`DEV_GUIDE.md`).
+- **One tinted draw has no white middle.** A tint multiplies. The core is a
+  second, untinted pass.
+- **A bright beam vanishes on a pale roof** without its dark skirt. Look at
   the sheet.
+
+---
+
+## 8. Open
+
+- **Other people's bolts.** The bytecode says the shot event fires for remote
+  shooters on each client; only a two-player game can confirm it. Build a
+  relay only if it doesn't.
+- **Holsters.** `AttachmentType = HolsterSmall` would fit every vanilla
+  holster (hip, double, shoulder, ankle), and the icon would then have to be
+  32x32. A Starfleet-flavoured alternative is a uniform that provides a hip
+  slot through `AttachmentsProvided`. Awaiting the author.
+- **The cutting pose** (`BlowTorch`) and **where the beam leaves the hand**
+  (`C.PhaserHandZ`, `C.PhaserHandAhead`) have not been commented on.
+- **Cutting costs nothing**, like the rest of the phaser. If `ENERGY.md` ever
+  gives a hand phaser a cell, cutting is the natural thing to charge for.
+- **Stun and kill settings** are not built and deserve their own document.
+- **The four blue indicator lights** in the concept did not survive TRELLIS,
+  and at held size they would be one pixel. Not painted in.
+
+---
+
+## 9. How it came to be
+
+On the morning of 2026-09-24 the phaser was a vanilla pistol: the M9's model
+(`Handgun03`), a shrill 1000 → 420 Hz chirp, and invisible bullets. The
+tricorder could talk locks open. The author asked for:
+- its own model, made with FlowDot (Gemini and fal);
+- a laser you can see;
+- a lower sound;
+- a beam that stays on a tree or a door until it is felled or broken open;
+
+and ruled that nothing a Starfleet crew carries picks a lock.
+
+**The art came first**, and every fault in it was found on a review sheet, not
+in a number:
+- the mesh was a hollow shell;
+- the first review renderer drew the inside over the skin;
+- the model was twice a pistol's width;
+- flat colour per face had sawtooth edges;
+- the beam had no white core, a grey box on pale roofs, and an arrowhead for
+  a spark;
+- the icon was the dullest in the set.
+
+`tools/assets/trek_phaser/SOURCE.txt` has the model's provenance.
+
+**Then the behaviour.** The engine questions were answered from the bytecode
+before any code was written (section 5). Then came the action, the overlay,
+the menu, the sandbox, the tests, and the removal of the tricorder's override.
+
+**Then the first play session found what no test could:** after the first
+shot the world stopped taking right-clicks and aiming. The overlay was
+screen-sized, and the engine's hover test is geometry. It was fixed and
+modelled in the simulation the same hour, and the author's verdict on the
+next run was that it works great.
