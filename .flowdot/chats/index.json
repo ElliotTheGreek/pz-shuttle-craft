@@ -2,6 +2,27 @@
   "version": 1,
   "chats": [
     {
+      "id": "4f46cf75-d3a7-4dea-951e-7bb0291a3671",
+      "title": "read 100% of these (no sed or grep or skimming of...",
+      "created": "2026-09-21T19:00:15.352Z",
+      "updated": "2026-09-21T21:34:46.619Z",
+      "messageCount": 10
+    },
+    {
+      "id": "a964b372-6356-4c00-b320-6d8c024a83db",
+      "title": "read 100% of these files - propose what we should...",
+      "created": "2026-09-21T15:57:25.950Z",
+      "updated": "2026-09-21T17:24:50.755Z",
+      "messageCount": 8
+    },
+    {
+      "id": "84c4bb8e-69bf-4f33-9949-647d640c9bb0",
+      "title": "read 100% of these files  . This is working well...",
+      "created": "2026-09-21T12:36:15.605Z",
+      "updated": "2026-09-21T15:53:31.182Z",
+      "messageCount": 22
+    },
+    {
       "id": "7c85079c-1377-42c0-bedc-af38326b54e4",
       "title": "read this attached file and help me create a...",
       "created": "2026-09-14T23:37:10.762Z",

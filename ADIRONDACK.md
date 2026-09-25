@@ -98,7 +98,112 @@ thing in BuildingEd and commit that; the tileset is what matters.
 
 ---
 
-## 5. What is not done, in order
+## 5. How the ship is put together
+
+**Not one giant building: a handful of sections.** BuildingEd handles one
+building with several floors well and one enormous building badly, and two
+people editing one file is two people waiting for each other. So each part of
+the ship is its own `.tbx` (the habitat deck, the bridge module, engineering,
+the shuttlebay), each can have several floors, and they are placed side by
+side in our void map's cells with WorldEd. The engine does not care where one
+building stops and the next starts; a corridor that meets a corridor is walked
+straight through.
+
+**Decks are joined by turbolifts**, which are a small room and a right-click
+("Deck 4, main engineering"), the same kind of move the transporter already
+makes. Stairs work too, and a Jefferies tube ladder is a nice extra.
+
+**Sliding doors open by themselves** (Starfleet doors "shoosh"). A vanilla
+door has a closed and an open sprite and `IsoDoor` has `ToggleDoor` /
+`ToggleDoorSilent`, so the whole feature is a service pass: anybody within a
+tile and a half of one of *our* doors, open it silently and play our sound;
+nobody near for a moment, close it. The server does it, because a door is
+world state (and `obj:sync()`, not trusting the setter's own sync -- the lock
+override taught that). Crew NPCs would open doors the same way players do.
+Two engine questions first: whether `ToggleDoorSilent` replicates from the
+server, and whether a tile's `DoorSound` property can name our own sound. A
+two-frame slide (half open) may be possible by swapping sprites client-side for
+a few ticks; it is polish, after the basic door works.
+
+**Our machines become tiles.** The replicator, the EMH's station and the warp
+core are world models today, placed at runtime, and a world model cannot be
+clicked where it is drawn. Rendered at the game's iso angle with the renderer
+we already have, each becomes an ordinary tile sprite that BuildingEd places
+like a fridge, that is clicked at its base like a fridge, and that the Lua
+recognises by its sprite name to hang the same menus off. The shuttle's own
+cabin can keep its world models; the Adirondack should not start with them.
+
+---
+
+## 6. The inventory
+
+What the ship needs, by area. **R** = reuse something the mod already has;
+**C** = a container; **L** = gives light; everything is W and N facing unless
+it says otherwise. Roughly in the order worth building.
+
+### Structure (every area)
+
+| Piece | Notes |
+|---|---|
+| Bulkheads: corridor, quarters, bridge, engineering, sickbay | one texture each; the geometry is shared. Corridor has the light strip |
+| Viewports: single, and a wide 2-tile | the black outside the hull is already space |
+| Doors: standard, wide cargo (2-tile), turbolift | all sliding, all auto |
+| Floors: carpet (quarters, bridge), deck plate, grating (engineering), lounge, hazard-stripe edge | |
+| Wall displays: small, large 2-tile, door-side control panel | |
+| Wall lights, floor strip lights | **L** |
+| Ladder / Jefferies tube hatch | between decks |
+| Art for the walls: original ship paintings, plaques | never a real insignia or a copied frame |
+
+### Crew quarters
+
+Bed (2-tile) **C**, bunk bed, nightstand **C**, desk, desk chair, curved sofa,
+low table, wardrobe **C**, sonic shower, sink, toilet, a plant, a replicator
+alcove (**R**, the replicator as a wall unit). Personal touches for the
+species: a bat'leth wall mount (**R** mesh), a Vulcan meditation lamp.
+
+### Mess hall / lounge
+
+Bar counter (straight, corner, end) **C**, bar stools, tables for two and four,
+chairs, bottle shelves **C**, the wide viewports, a replicator (**R**).
+Galley: counters, a sink counter, a stasis unit **C** standing in for a fridge.
+
+### Bridge
+
+Captain's chair and the two beside it, helm and ops consoles, a curved tactical
+rail, science stations, the main viewscreen (a multi-tile wall piece), railings,
+a ready-room desk.
+
+### Sickbay
+
+Starfleet biobed with its scanner arch (a bed), a surgical bed, medical
+cabinets **C**, the EMH's station (**R**, rendered as a wall tile), a
+diagnostic wall display.
+
+### Engineering
+
+**The warp core, R but much bigger**: the shuttle's model scaled to a column
+several decks tall, one piece per level. The master systems display (a table),
+engineering consoles, cargo crates **C**, an anti-grav cart, dilithium chamber
+(**R**, the crystal in its window).
+
+### Transporter room and shuttlebay
+
+Transporter platform (six pads on a multi-tile dais, **L**), transporter
+console. The shuttlebay holds the shuttle itself (**R**, the hull model) and
+cargo containers **C**.
+
+### Turbolift
+
+The car's walls, its door and its deck panel. Small, and every deck needs one.
+
+### Stretch
+
+A holodeck: black walls with the yellow grid, an arch with a panel. Cheap,
+because it is mostly one texture, and instantly recognisable.
+
+---
+
+## 7. What is not done, in order
 
 1. **The author opens it.** Does BuildingEd load the file, draw the tiles, and
    do the walls join?
