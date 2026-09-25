@@ -1564,6 +1564,10 @@ C.ReplicatorBlocked = {
     -- is a replicator with no limit at all, and the hunt for dilithium is the
     -- only reason the whole system has stakes.
     ["TrekShuttle.TrekDilithium"]   = true,
+    -- **Balso tonic**, for canon's sake: the Enterprise's replicators could
+    -- not make it (TNG "The Host"), and nor can this one. What the rations
+    -- locker holds is all there is.
+    ["TrekShuttle.TrekBalsoTonic"]  = true,
     -- **The Doctor.** He is a Furniture item so the server can stand him on
     -- the deck, which means the catalogue would happily offer him like a
     -- chair. A player who could replicate one would stand a second EMH in
@@ -1776,8 +1780,13 @@ C.Loot.food = {
     "TrekShuttle.TrekRationPack", "TrekShuttle.TrekGagh",
     "TrekShuttle.TrekLeolaStew", "TrekShuttle.TrekPlomeekSoup",
     "TrekShuttle.TrekJumjaStick",
+    "TrekShuttle.TrekAndorianTuber", "TrekShuttle.TrekOskoid",
+    "TrekShuttle.TrekWingSlugRoll", "TrekShuttle.TrekHasperat",
+    "TrekShuttle.TrekRokegPie", "TrekShuttle.TrekChadrekab",
     "TrekShuttle.TrekRaktajinoMug", "TrekShuttle.TrekEarlGreyCup",
     "TrekShuttle.TrekRomulanAle", "TrekShuttle.TrekBloodwine",
+    "TrekShuttle.TrekAndorianAle", "TrekShuttle.TrekBalsoTonic",
+    "TrekShuttle.TrekNutrientSuspension",
 }
 
 -- The armoury. The phasers are guaranteed separately (`special = "phasers"`),

@@ -1629,6 +1629,12 @@ B.GalleyItems = {
     "TrekShuttle.TrekLeolaStew",
     "TrekShuttle.TrekPlomeekSoup",
     "TrekShuttle.TrekJumjaStick",
+    "TrekShuttle.TrekAndorianTuber",
+    "TrekShuttle.TrekOskoid",
+    "TrekShuttle.TrekWingSlugRoll",
+    "TrekShuttle.TrekHasperat",
+    "TrekShuttle.TrekRokegPie",
+    "TrekShuttle.TrekChadrekab",
     -- The drinks. Each arrives full: the vessel's FluidContainer carries
     -- InitialPercentMin/Max, so instanceItem hands back a full mug or bottle
     -- rather than empty glass. If one of these comes through empty, the fill
@@ -1637,6 +1643,9 @@ B.GalleyItems = {
     "TrekShuttle.TrekEarlGreyCup",
     "TrekShuttle.TrekRomulanAle",
     "TrekShuttle.TrekBloodwine",
+    "TrekShuttle.TrekAndorianAle",
+    "TrekShuttle.TrekBalsoTonic",
+    "TrekShuttle.TrekNutrientSuspension",
     -- Not galley, and here anyway: an existing save never sees new loot, and
     -- this is the only route to a new item that does not cost a fresh world.
     -- The bat'leth is the first custom in-hand model this mod has, so it is

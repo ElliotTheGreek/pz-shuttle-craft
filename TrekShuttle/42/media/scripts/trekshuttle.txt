@@ -599,6 +599,155 @@ module TrekShuttle
         Tooltip = Tooltip_TREK_JumjaStick,
     }
 
+    /*  The third course: a dish for every species TRAITS.md names that did
+        not have one, and a second for two that did. Every one is on-screen
+        canon (Memory Alpha, 2026-09-24), except where canon has nothing.
+        TRAITS.md 3.1b is the plan to make each species like its own food;
+        until that is built, these numbers are what everybody gets.  */
+
+    /*  Andorian tuber root (DS9 "Second Sight": Jadzia finishes Sisko's).
+        A high-calorie root from a frozen world, roasted. Keeps like the
+        potato it resembles.  */
+    item TrekAndorianTuber
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.5,
+        Icon = TREK_AndorianTuber,
+        GoodHot = true,
+        DaysFresh = 5,
+        DaysTotallyRotten = 10,
+        HungerChange = -35.0,
+        UnhappyChange = -10,
+        Calories = 700.0,
+        Carbohydrates = 140.0,
+        Lipids = 10.0,
+        Proteins = 12.0,
+        StaticModel = SweetPotato_Ground,
+        WorldStaticModel = SweetPotato_Ground,
+        Tooltip = Tooltip_TREK_AndorianTuber,
+    }
+
+    /*  Oskoid (TNG "Menage a Troi"): the Betazoid delicacy, a dark yellow
+        leaf with purple veins whose own sap keeps it warm. Light, and
+        almost entirely morale.  */
+    item TrekOskoid
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.2,
+        Icon = TREK_Oskoid,
+        DaysFresh = 4,
+        DaysTotallyRotten = 8,
+        HungerChange = -12.0,
+        UnhappyChange = -20,
+        BoredomChange = -10,
+        Calories = 90.0,
+        Carbohydrates = 15.0,
+        Lipids = 2.0,
+        Proteins = 4.0,
+        StaticModel = Kale,
+        WorldStaticModel = Kale,
+        Tooltip = Tooltip_TREK_Oskoid,
+    }
+
+    /*  Wing-slug roll (LD "Shades of Green"): the one Orion food canon
+        has, eaten by the dozen. Slugs, so FoodType = Insect, as the gagh's
+        worms are. A snack, and faintly unpleasant to anyone not raised on
+        them.  */
+    item TrekWingSlugRoll
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.2,
+        Icon = TREK_WingSlugRoll,
+        FoodType = Insect,
+        DaysFresh = 2,
+        DaysTotallyRotten = 4,
+        HungerChange = -15.0,
+        UnhappyChange = 5,
+        Calories = 250.0,
+        Carbohydrates = 20.0,
+        Lipids = 10.0,
+        Proteins = 20.0,
+        StaticModel = Springroll_Ground,
+        WorldStaticModel = Springroll_Ground,
+        Tooltip = Tooltip_TREK_WingSlugRoll,
+    }
+
+    /*  Hasperat (TNG "Preemptive Strike", DS9): a Bajoran wrap in a brine
+        that makes your eyes water. Only good warm, and the positive
+        ThirstChange is the brine -- vanilla uses the same sign for salty
+        food.  */
+    item TrekHasperat
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.4,
+        Icon = TREK_Hasperat,
+        GoodHot = true,
+        DaysFresh = 3,
+        DaysTotallyRotten = 6,
+        HungerChange = -30.0,
+        ThirstChange = 10.0,
+        UnhappyChange = -10,
+        Calories = 550.0,
+        Carbohydrates = 60.0,
+        Lipids = 20.0,
+        Proteins = 25.0,
+        StaticModel = Burrito_Ground,
+        WorldStaticModel = Burrito_Ground,
+        Tooltip = Tooltip_TREK_Hasperat,
+    }
+
+    /*  Rokeg blood pie (TNG "A Matter of Honor", VOY "Day of Honor"): a
+        warrior's feast-day dish, and the most filling thing in the galley.
+        Worf's human mother made it well, so it is not a punishment the way
+        gagh is -- just a lot.  */
+    item TrekRokegPie
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 1.0,
+        Icon = TREK_RokegPie,
+        GoodHot = true,
+        DaysFresh = 3,
+        DaysTotallyRotten = 6,
+        HungerChange = -50.0,
+        UnhappyChange = -5,
+        Calories = 1100.0,
+        Carbohydrates = 70.0,
+        Lipids = 55.0,
+        Proteins = 80.0,
+        StaticModel = PieBlueberry_Ground,
+        WorldStaticModel = PieBlueberry_Ground,
+        Tooltip = Tooltip_TREK_RokegPie,
+    }
+
+    /*  Chadre'kab (VOY "The Raven", "Think Tank"): a Talaxian delicacy,
+        steamed from Neelix's family recipe. The leola stew's counterweight:
+        this one he actually gets right.  */
+    item TrekChadrekab
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.6,
+        Icon = TREK_Chadrekab,
+        GoodHot = true,
+        DaysFresh = 3,
+        DaysTotallyRotten = 6,
+        HungerChange = -25.0,
+        UnhappyChange = -15,
+        BoredomChange = -5,
+        Calories = 400.0,
+        Carbohydrates = 70.0,
+        Lipids = 8.0,
+        Proteins = 10.0,
+        StaticModel = Squash,
+        WorldStaticModel = Squash,
+        Tooltip = Tooltip_TREK_Chadrekab,
+    }
+
     /*  ------------------------------------------------------------------
         The galley's drinks.
 
@@ -757,6 +906,87 @@ module TrekShuttle
         }
     }
 
+    /*  Andorian ale (ENT "Cease Fire"): blue, served in shots, and Archer's
+        favourite. Stronger than beer and short of wine; LightSkyBlue keeps it
+        apart from the Romulan ale's DeepSkyBlue on the same shelf.  */
+    fluid TrekAndorianAle
+    {
+        ColorReference = LightSkyBlue,
+        DisplayName = Fluid_Name_TrekAndorianAle,
+        Categories
+        {
+            Beverage,
+            Alcoholic,
+        }
+        Properties
+        {
+            fatigueChange = 0.0,
+            HungerChange = -5.0,
+            StressChange = -35.0,
+            ThirstChange = -25.0,
+            UnhappyChange = -30.0,
+            Calories = 200.0,
+            Carbohydrates = 15.0,
+            Lipids = 0.0,
+            Proteins = 0.0,
+            alcohol = 0.12,
+            painReduction = 5.0,
+        }
+    }
+
+    /*  Balso tonic (TNG "The Host"): the one Trill drink canon has, with
+        "mild medicinal qualities". A nerve tonic here: stress and a little
+        pain. The Enterprise's replicators could not make it, and neither can
+        this one (C.ReplicatorBlocked).  */
+    fluid TrekBalsoTonic
+    {
+        ColorReference = Aquamarine,
+        DisplayName = Fluid_Name_TrekBalsoTonic,
+        Categories
+        {
+            Beverage,
+        }
+        Properties
+        {
+            fatigueChange = 0.0,
+            HungerChange = 0.0,
+            StressChange = -40.0,
+            ThirstChange = -20.0,
+            UnhappyChange = -15.0,
+            Calories = 30.0,
+            Carbohydrates = 7.0,
+            Lipids = 0.0,
+            Proteins = 0.0,
+            painReduction = 10.0,
+        }
+    }
+
+    /*  Data's "semi-organic nutrient suspension in a silicon-based liquid
+        medium" (TNG "Deja Q"). It keeps an android's biofunctions
+        lubricated, and it will keep a human going too -- miserably.
+        TRAITS.md 3.1a is where it stops being a joke.  */
+    fluid TrekNutrientSuspension
+    {
+        ColorReference = OldLace,
+        DisplayName = Fluid_Name_TrekNutrientSuspension,
+        Categories
+        {
+            Beverage,
+        }
+        Properties
+        {
+            fatigueChange = 0.0,
+            HungerChange = -20.0,
+            StressChange = 0.0,
+            ThirstChange = -15.0,
+            UnhappyChange = 20.0,
+            Calories = 300.0,
+            Carbohydrates = 40.0,
+            Lipids = 10.0,
+            Proteins = 15.0,
+        }
+    }
+
     /*  The vessels. Each borrows a vanilla mesh -- a mug is a mug and the
         game has five of them -- so the only new art is the inventory icon and
         its fluid mask. The Fluids block is a whitelist: without it the
@@ -868,6 +1098,86 @@ module TrekShuttle
             Fluids
             {
                 fluid = TrekBloodwine:1.0,
+            }
+        }
+    }
+
+    item TrekAndorianAle
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        Weight = 0.6,
+        Icon = TREK_AndorianAle,
+        StaticModel = BeerBottleImported,
+        WorldStaticModel = BeerBottleImported,
+        FillFromDispenserSound = GetWaterFromDispenserGlass,
+        FillFromTapSound = GetWaterFromTapGlass,
+        Tags = base:glass;base:glassbottle,
+        Tooltip = Tooltip_TREK_AndorianAle,
+        component FluidContainer
+        {
+            ContainerName = BottleBeer,
+            Capacity = 0.5,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromBottleGlass,
+            Fluids
+            {
+                fluid = TrekAndorianAle:1.0,
+            }
+        }
+    }
+
+    item TrekBalsoTonic
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        Weight = 0.4,
+        Icon = TREK_BalsoTonic,
+        StaticModel = GrenadineBottle,
+        WorldStaticModel = GrenadineBottle,
+        FillFromDispenserSound = GetWaterFromDispenserGlass,
+        FillFromTapSound = GetWaterFromTapGlass,
+        Tags = base:glass;base:glassbottle,
+        Tooltip = Tooltip_TREK_BalsoTonic,
+        component FluidContainer
+        {
+            ContainerName = BottleGlass,
+            Capacity = 0.3,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromBottleGlass,
+            Fluids
+            {
+                fluid = TrekBalsoTonic:1.0,
+            }
+        }
+    }
+
+    item TrekNutrientSuspension
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        Weight = 0.4,
+        Icon = TREK_NutrientSuspension,
+        StaticModel = Sportsbottle,
+        WorldStaticModel = Sportsbottle,
+        FillFromDispenserSound = GetWaterFromDispenser,
+        FillFromTapSound = GetWaterFromTap,
+        Tooltip = Tooltip_TREK_NutrientSuspension,
+        component FluidContainer
+        {
+            ContainerName = SportsBottle,
+            Capacity = 0.3,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromBottlePlastic,
+            Fluids
+            {
+                fluid = TrekNutrientSuspension:1.0,
             }
         }
     }

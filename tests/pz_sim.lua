@@ -418,6 +418,9 @@ for _, id in ipairs({ "TrekShuttle.TrekPhaser", "TrekShuttle.TrekHypospray",
                       "TrekShuttle.TrekEnsignFCommand",
                       "TrekShuttle.TrekEnsignFOperations",
                       "TrekShuttle.TrekEnsignFScience",
+                      -- Balso tonic: refused for canon's sake, and listed
+                      -- for the same reason as the six above.
+                      "TrekShuttle.TrekBalsoTonic",
                       -- The PADD: the ship knows its pattern, and a
                       -- replicated one is blank (PADD.md).
                       "TrekShuttle.TrekPADD" }) do

@@ -4237,6 +4237,9 @@ def replicator():
          "the crystal that powers it -- a replicator that can make its own "
          "fuel has no limit at all, and the hunt for dilithium is the only "
          "thing giving the whole system stakes"),
+        ("TrekShuttle.TrekBalsoTonic",
+         "canon: the Enterprise's replicators could not make it (TNG \"The "
+         "Host\"), and the tooltip promises this one cannot either"),
     ):
         check(rep_row(rt, item_id) is None,
               f"replicator: {item_id} is in the catalogue and should not be ({why})")
