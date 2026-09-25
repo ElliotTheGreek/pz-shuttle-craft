@@ -137,6 +137,8 @@ function T.refusalText(why, blocked)
         return getText("IGUI_TREK_NoRoomVehicle")
     elseif why == "void" then
         return getText("IGUI_TREK_NoRoomVoid")
+    elseif why == "noPower" then
+        return getText("IGUI_TREK_NoPowerBare")
     elseif why == "inFlight" then
         -- Not about room at all: somebody is flying her. Falling through to
         -- the "not enough space" line would send a crewman off hunting for a
@@ -209,6 +211,14 @@ end)
 --- had not loaded that ground yet. From the call-down menu, say why.
 Net.onClient("landingRefused", function(args)
     local job = T.pending
+    -- Not enough power to land is not a site problem, and searching on for
+    -- the rest of the timeout would only delay the beam home.
+    if job and args.why == "noPower" then
+        T.pending = nil
+        TREK.Transport.recoverAboard(job.player, getText("IGUI_TREK_NoPowerFor",
+            tostring(args.need or "?"), tostring(args.have or "?")))
+        return
+    end
     if job and job.asking then
         job.asking = false
         if args.why ~= "unloaded" and args.why ~= "far" then
@@ -217,6 +227,11 @@ Net.onClient("landingRefused", function(args)
         return
     end
     if args.why == "unloaded" or args.why == "far" then return end
+    if args.why == "noPower" then
+        U.note(Core.lastAsker or U.player(0), getText("IGUI_TREK_NoPowerFor",
+               tostring(args.need or "?"), tostring(args.have or "?")), 255, 170, 90)
+        return
+    end
     U.note(Core.lastAsker or U.player(0), T.refusalText(args.why, args.blocked),
            255, 90, 90)
 end)

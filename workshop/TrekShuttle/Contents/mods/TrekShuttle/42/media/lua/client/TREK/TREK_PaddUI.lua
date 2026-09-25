@@ -5,11 +5,14 @@
     grey an option and never good enough to act on: every choice queues a
     timed action, and the action checks again where it completes.
 
-    Two routes in, both OnFillInventoryObjectContextMenu -- build 42 has no
+    Three routes in, all OnFillInventoryObjectContextMenu -- build 42 has no
     script hook for "using" an arbitrary item:
       * right-click a **book** (in your inventory or a shelf's loot panel)
         with a PADD on you: Load onto PADD;
-      * right-click a **PADD**: Read, Copy library to..., Erase.
+      * right-click a **tape** with a PADD on you: Transcribe to PADD;
+      * right-click a **PADD**: Open PADD (first, because it is the whole
+        screen -- and on a controller, selecting the PADD and pressing A is
+        this menu, so it is the Steam Deck's way in), then Read, Copy, Erase.
 ]]
 
 if isServer() then return end
@@ -265,7 +268,7 @@ function M.addCopy(context, player, padd)
         tooltip(option, "IGUI_TREK_PaddNoOther")
         return option
     end
-    if Pd.count(padd) == 0 then
+    if Pd.count(padd) + #Pd.tapes(padd) == 0 then
         tooltip(option, "IGUI_TREK_PaddEmpty")
         return option
     end
@@ -285,7 +288,7 @@ end
 
 --- Erase is two clicks deep on purpose: the second is the confirmation.
 function M.addErase(context, player, padd)
-    local n = Pd.count(padd)
+    local n = Pd.count(padd) + #Pd.tapes(padd)
     local option = context:addOption(getText("IGUI_TREK_PaddErase"), nil, nil)
     if n == 0 then
         tooltip(option, "IGUI_TREK_PaddEmpty")
@@ -299,6 +302,62 @@ function M.addErase(context, player, padd)
 end
 
 ---------------------------------------------------------------------------
+-- Transcribing
+---------------------------------------------------------------------------
+--- The PADD a recording should go onto: the first carried that lacks it.
+function M.tapeTargetFor(player, id)
+    local padds = Pd.carried(player)
+    for _, padd in ipairs(padds) do
+        if not Pd.hasTape(padd, id) then return padd, true end
+    end
+    return nil, #padds > 0
+end
+
+function M.onTranscribe(tapes, player)
+    for _, tape in ipairs(tapes) do
+        local id = Pd.recordingOf(tape)
+        local padd = id and M.tapeTargetFor(player, id)
+        if padd then
+            toHand(player, padd)
+            queue(TREKTranscribePadd:new(player, padd, tape))
+        end
+    end
+end
+
+--- Reads a transcript off the PADD (TREKReadTape), from the screen.
+function M.onReadTape(padd, player, id)
+    toHand(player, padd)
+    queue(TREKReadTape:new(player, padd, id))
+end
+
+--- Transcribe, for every tape in the selection the PADDs on you do not
+--- already hold. Any tape, watched or not (PADD.md 12.3, as decided).
+function M.addTranscribe(context, player, tapes)
+    if #Pd.carried(player) == 0 then return end
+    local todo = {}
+    for _, tape in ipairs(tapes) do
+        local id = Pd.recordingOf(tape)
+        if id and M.tapeTargetFor(player, id) then table.insert(todo, tape) end
+    end
+    local label = #tapes == 1 and getText("IGUI_TREK_PaddTranscribe")
+                  or getText("IGUI_TREK_PaddTranscribeMany", tostring(#todo))
+    local option = context:addOption(label, todo, M.onTranscribe, player)
+    if #todo == 0 then tooltip(option, "IGUI_TREK_PaddTranscribed") end
+    return option
+end
+
+---------------------------------------------------------------------------
+-- Opening the screen
+---------------------------------------------------------------------------
+function M.onOpen(padd, player)
+    if TREK.PaddScreen then TREK.PaddScreen.open(player, padd) end
+end
+
+function M.addOpen(context, player, padd)
+    return context:addOption(getText("IGUI_TREK_PaddOpen"), padd, M.onOpen, player)
+end
+
+---------------------------------------------------------------------------
 -- The menu
 ---------------------------------------------------------------------------
 function M.fillInventoryMenu(playerNum, context, items)
@@ -307,22 +366,28 @@ function M.fillInventoryMenu(playerNum, context, items)
     local selected = selectedItems(items)
     if #selected == 0 then return end
 
-    local padd, books = nil, {}
+    local padd, books, tapes = nil, {}, {}
     for _, it in ipairs(selected) do
         if Pd.isPadd(it) then
             padd = padd or it
         elseif Pd.isBook(it) then
             table.insert(books, it)
+        elseif Pd.recordingOf(it) then
+            table.insert(tapes, it)
         end
     end
 
     if padd then
+        M.addOpen(context, player, padd)
         M.addRead(context, player, padd)
         M.addCopy(context, player, padd)
         M.addErase(context, player, padd)
     end
     if #books > 0 then
         M.addLoad(context, player, books)
+    end
+    if #tapes > 0 then
+        M.addTranscribe(context, player, tapes)
     end
 end
 

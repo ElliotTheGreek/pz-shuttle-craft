@@ -130,7 +130,7 @@ RecMedia["TREK_Tuvix"] = {
     },
 }
 
--- Personal Log -- Entry One
+-- Personal Log: Entry One
 RecMedia["TREK_LogOne"] = {
     itemDisplayName = "RM_TREK_LogOne_name",
     title = "RM_TREK_LogOne_title",
@@ -191,7 +191,7 @@ RecMedia["TREK_LogOne"] = {
     },
 }
 
--- Personal Log -- Entry Two
+-- Personal Log: Entry Two
 RecMedia["TREK_LogTwo"] = {
     itemDisplayName = "RM_TREK_LogTwo_name",
     title = "RM_TREK_LogTwo_title",
@@ -244,7 +244,7 @@ RecMedia["TREK_LogTwo"] = {
     },
 }
 
--- Personal Log -- Entry Three
+-- Personal Log: Entry Three
 RecMedia["TREK_LogThree"] = {
     itemDisplayName = "RM_TREK_LogThree_name",
     title = "RM_TREK_LogThree_title",
@@ -301,7 +301,7 @@ RecMedia["TREK_LogThree"] = {
     },
 }
 
--- Personal Log -- Entry Four
+-- Personal Log: Entry Four
 RecMedia["TREK_LogFour"] = {
     itemDisplayName = "RM_TREK_LogFour_name",
     title = "RM_TREK_LogFour_title",
@@ -347,7 +347,7 @@ RecMedia["TREK_LogFour"] = {
     },
 }
 
--- Personal Log -- Entry Five
+-- Personal Log: Entry Five
 RecMedia["TREK_LogFive"] = {
     itemDisplayName = "RM_TREK_LogFive_name",
     title = "RM_TREK_LogFive_title",
@@ -397,7 +397,7 @@ RecMedia["TREK_LogFive"] = {
     },
 }
 
--- Personal Log -- Entry Six
+-- Personal Log: Entry Six
 RecMedia["TREK_LogSix"] = {
     itemDisplayName = "RM_TREK_LogSix_name",
     title = "RM_TREK_LogSix_title",
@@ -516,6 +516,415 @@ RecMedia["TREK_Prisoner"] = {
     },
 }
 
+-- Board of Examiners: oral re-examination
+RecMedia["TREK_KimExam"] = {
+    itemDisplayName = "RM_TREK_KimExam_name",
+    title = "RM_TREK_KimExam_title",
+    subtitle = "RM_TREK_KimExam_sub",
+    author = "RM_TREK_KimExam_author",
+    extra = "RM_TREK_KimExam_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_KimExam_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_02", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_03", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_04", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_05", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_06", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_07", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_08", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_09", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_10", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_11", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_12", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_13", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_14", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_15", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_16", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_17", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_18", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_19", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_20", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_21", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_22", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_23", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_24", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_25", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_26", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_27", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_KimExam_28", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_29", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_30", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_31", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_32", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_33", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_34", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_35", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_36", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_37", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_38", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_39", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_40", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_41", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_42", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_43", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_44", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_KimExam_45", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_KimExam_46", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+    },
+}
+
+-- Deposition: in the matter of a quantity of latinum
+RecMedia["TREK_Morn"] = {
+    itemDisplayName = "RM_TREK_Morn_name",
+    title = "RM_TREK_Morn_title",
+    subtitle = "RM_TREK_Morn_sub",
+    author = "RM_TREK_Morn_author",
+    extra = "RM_TREK_Morn_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_Morn_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_02", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_03", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_04", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_05", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_06", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_07", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_08", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_09", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_10", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_11", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_12", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_13", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_14", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_15", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_16", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_17", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_18", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_19", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_20", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_21", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_22", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_23", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_24", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_25", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_26", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_27", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_28", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_29", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_30", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_31", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_32", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Morn_33", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_Morn_34", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+    },
+}
+
+-- Determination in the matter of Rana Four
+RecMedia["TREK_Uxbridge"] = {
+    itemDisplayName = "RM_TREK_Uxbridge_name",
+    title = "RM_TREK_Uxbridge_title",
+    subtitle = "RM_TREK_Uxbridge_sub",
+    author = "RM_TREK_Uxbridge_author",
+    extra = "RM_TREK_Uxbridge_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_Uxbridge_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_02", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_03", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_04", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_05", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_06", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_07", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_08", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_09", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_10", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_11", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_12", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_13", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_14", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_15", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_16", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_17", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_18", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_19", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_20", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_21", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_22", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_23", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,UHP+1" },
+        { text = "RM_TREK_Uxbridge_24", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_25", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_26", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_27", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_28", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_29", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_30", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,UHP+1" },
+        { text = "RM_TREK_Uxbridge_31", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_32", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_33", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_34", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_35", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_36", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_37", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_38", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_39", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_40", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_41", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_42", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_Uxbridge_43", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+    },
+}
+
+-- Unlabelled recording
+RecMedia["TREK_EnsignLog"] = {
+    itemDisplayName = "RM_TREK_EnsignLog_name",
+    title = "RM_TREK_EnsignLog_title",
+    subtitle = "RM_TREK_EnsignLog_sub",
+    author = "RM_TREK_EnsignLog_author",
+    extra = "RM_TREK_EnsignLog_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_EnsignLog_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_02", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_03", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_04", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_05", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_06", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_07", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_08", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_09", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_10", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_11", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_12", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_13", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,DOC+1" },
+        { text = "RM_TREK_EnsignLog_14", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_15", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,DOC+1" },
+        { text = "RM_TREK_EnsignLog_16", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,DOC+1" },
+        { text = "RM_TREK_EnsignLog_17", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,DOC+1" },
+        { text = "RM_TREK_EnsignLog_18", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_19", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_20", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_21", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_22", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_23", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,UHP+1" },
+        { text = "RM_TREK_EnsignLog_24", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_25", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_26", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_27", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_EnsignLog_28", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+    },
+}
+
+-- Fragment one: what I was
+RecMedia["TREK_GoldOne"] = {
+    itemDisplayName = "RM_TREK_GoldOne_name",
+    title = "RM_TREK_GoldOne_title",
+    subtitle = "RM_TREK_GoldOne_sub",
+    author = "RM_TREK_GoldOne_author",
+    extra = "RM_TREK_GoldOne_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_GoldOne_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_02", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_03", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_04", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_05", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_06", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_07", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_08", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_09", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_10", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_11", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_12", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_13", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_14", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_15", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_16", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_17", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_18", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_19", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_20", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_GoldOne_21", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_22", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_23", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldOne_24", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+    },
+}
+
+-- Fragment two: her
+RecMedia["TREK_GoldTwo"] = {
+    itemDisplayName = "RM_TREK_GoldTwo_name",
+    title = "RM_TREK_GoldTwo_title",
+    subtitle = "RM_TREK_GoldTwo_sub",
+    author = "RM_TREK_GoldTwo_author",
+    extra = "RM_TREK_GoldTwo_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_GoldTwo_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_02", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_03", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_04", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_05", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_06", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_07", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_08", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_09", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_10", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_11", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_12", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_13", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_GoldTwo_14", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_15", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_16", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_17", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_18", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_19", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_20", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_21", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldTwo_22", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+    },
+}
+
+-- Fragment three: the war over furs
+RecMedia["TREK_GoldThree"] = {
+    itemDisplayName = "RM_TREK_GoldThree_name",
+    title = "RM_TREK_GoldThree_title",
+    subtitle = "RM_TREK_GoldThree_sub",
+    author = "RM_TREK_GoldThree_author",
+    extra = "RM_TREK_GoldThree_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_GoldThree_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_02", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_03", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_04", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_05", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_06", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_07", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_08", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_09", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_10", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_11", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_12", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_13", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_14", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_15", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1,UHP+1" },
+        { text = "RM_TREK_GoldThree_16", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_17", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1,UHP+1" },
+        { text = "RM_TREK_GoldThree_18", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_19", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_20", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_21", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldThree_22", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+    },
+}
+
+-- Fragment four: the copy
+RecMedia["TREK_GoldFour"] = {
+    itemDisplayName = "RM_TREK_GoldFour_name",
+    title = "RM_TREK_GoldFour_title",
+    subtitle = "RM_TREK_GoldFour_sub",
+    author = "RM_TREK_GoldFour_author",
+    extra = "RM_TREK_GoldFour_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_GoldFour_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_02", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_03", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_04", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_05", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_06", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_07", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_08", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_09", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_10", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_11", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_12", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_13", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_14", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_15", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_16", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_GoldFour_17", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_18", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_19", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFour_20", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+    },
+}
+
+-- Fragment five: putting it down
+RecMedia["TREK_GoldFive"] = {
+    itemDisplayName = "RM_TREK_GoldFive_name",
+    title = "RM_TREK_GoldFive_title",
+    subtitle = "RM_TREK_GoldFive_sub",
+    author = "RM_TREK_GoldFive_author",
+    extra = "RM_TREK_GoldFive_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_GoldFive_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_02", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_03", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_04", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_05", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_06", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_07", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_08", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_09", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_10", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_11", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_12", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_13", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_14", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_GoldFive_15", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_16", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_17", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_18", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldFive_19", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+    },
+}
+
+-- Fragment six: for whoever found this
+RecMedia["TREK_GoldSix"] = {
+    itemDisplayName = "RM_TREK_GoldSix_name",
+    title = "RM_TREK_GoldSix_title",
+    subtitle = "RM_TREK_GoldSix_sub",
+    author = "RM_TREK_GoldSix_author",
+    extra = "RM_TREK_GoldSix_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_GoldSix_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_02", r = 1.00, g = 0.75, b = 0.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_03", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_04", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_05", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_06", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_07", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_08", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_09", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_10", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_11", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_12", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_13", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_14", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_15", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_GoldSix_16", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_17", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_18", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_19", r = 0.60, g = 0.90, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_20", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_GoldSix_21", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+    },
+}
+
 -- The ids the ship is issued with, in shelf order. TREK_Build
 -- reads this to stock the tape shelf, so a tape added above
 -- reaches the shelf without a second list to keep in step.
@@ -529,11 +938,39 @@ TREK_TapeIds = {
     "TREK_LogFive",
     "TREK_LogSix",
     "TREK_Prisoner",
+    "TREK_KimExam",
+    "TREK_Morn",
+    "TREK_Uxbridge",
+}
+
+-- Every tape this mod registers, the issued ones included: the
+-- registration below has to cover a tape that is not on the shelf
+-- yet, or it arrives blank.
+TREK_AllTapeIds = {
+    "TREK_TalentNight",
+    "TREK_Tuvix",
+    "TREK_LogOne",
+    "TREK_LogTwo",
+    "TREK_LogThree",
+    "TREK_LogFour",
+    "TREK_LogFive",
+    "TREK_LogSix",
+    "TREK_Prisoner",
+    "TREK_KimExam",
+    "TREK_Morn",
+    "TREK_Uxbridge",
+    "TREK_EnsignLog",
+    "TREK_GoldOne",
+    "TREK_GoldTwo",
+    "TREK_GoldThree",
+    "TREK_GoldFour",
+    "TREK_GoldFive",
+    "TREK_GoldSix",
 }
 
 Events.OnInitRecordedMedia.Add(function(rc)
     if not rc then return end
-    for _, id in ipairs(TREK_TapeIds) do
+    for _, id in ipairs(TREK_AllTapeIds) do
         local known = nil
         local ok = pcall(function() known = rc:getMediaData(id) end)
         if ok and not known then

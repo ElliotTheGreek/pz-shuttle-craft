@@ -56,4 +56,33 @@ module Base
         mesh = weapons/1handed/TREK_UshaanTor,
         texture = weapons/1handed/TREK_UshaanTor,
     }
+
+    /*  The phaser (PHASERS.md 4). Unlike the blades, this one carries
+        attachments, and they are not guesses: tools/bake_phaser.py puts the
+        mesh in the frame of vanilla's M9 (the mesh behind Handgun03) with its
+        grip where the M9's grip is, so `Bip01_Prop2` and `world` are
+        Handgun03's own, copied. The muzzle is the phaser's emitter, as the
+        bake measured it; the Handgun animation set reads it for the flash.
+        If it sits wrong in the fist, the grip fit in the bake is the thing
+        to move, not these numbers.  */
+    model TrekPhaserModel
+    {
+        mesh = weapons/firearm/TREK_Phaser,
+        texture = weapons/firearm/TREK_Phaser,
+        attachment muzzle
+        {
+            offset = 0.0 0.1656 -0.0372,
+            rotate = -90.0 0.0 0.0,
+        }
+        attachment world
+        {
+            offset = -0.009 0.062 0.0,
+            rotate = 0.0 0.0 0.0,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = -0.0338 0.0424 0.0,
+            rotate = 90.0008 1.1964 -90.0396,
+        }
+    }
 }

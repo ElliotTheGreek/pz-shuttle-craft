@@ -361,8 +361,8 @@ end
 local sweep = nil     -- { player, list, n, i, contacts, counts, radius2 }
 
 --- 1, 2 or 3: close, middle or far, by the fractions in C.SweepBands.
-local function band(dist)
-    local r = C.SweepRadius
+local function band(dist, r)
+    r = r or C.SweepRadius
     if dist <= r * C.SweepBands[1] then return 1 end
     if dist <= r * C.SweepBands[2] then return 2 end
     return 3
@@ -423,6 +423,9 @@ function M.startSweep(player)
 
     sweep = {
         player = player,
+        -- A science officer reads further (TRAITS.md 3.2). Held on the sweep
+        -- so the plot, the bands and the fixes all agree on it.
+        radius = TREK.Traits and TREK.Traits.sweepRadius(player) or C.SweepRadius,
         list = list,
         n = n,
         i = 0,
@@ -555,10 +558,32 @@ local function personnelFix(sw)
     if z < sw.zBottom or z > sw.zTop then return nil end
     local dx, dy = x + 0.5 - sw.x, y + 0.5 - sw.y
     local dist = math.sqrt(dx * dx + dy * dy)
-    if dist > C.SweepRadius then return nil end
+    if dist > (sw.radius or C.SweepRadius) then return nil end
     return { dx = dx, dy = dy, dist = math.floor(dist + 0.5),
              compass = U.compass(sw.x, sw.y, x + 0.5, y + 0.5),
              name = m.name }
+end
+
+--- The nearest holo fragment the ship has put on the ground, relative to
+--- this sweep, if one is in range (LORE.md 1c). The same arithmetic as the
+--- ensign's: the ship knows the exact square it placed the fragment on, and
+--- every client holds the contact store.
+local function clueFix(sw)
+    if not TREK.Probes then return nil end
+    local best = nil
+    for _, c in ipairs(TREK.Probes.contacts()) do
+        if c.kind == "clue" and c.placed and not TREK.Probes.isResolved(c.status)
+           and (c.z or 0) >= sw.zBottom and (c.z or 0) <= sw.zTop then
+            local dx, dy = c.x + 0.5 - sw.x, c.y + 0.5 - sw.y
+            local dist = math.sqrt(dx * dx + dy * dy)
+            if dist <= (sw.radius or C.SweepRadius) and (not best or dist < best.dist) then
+                best = { dx = dx, dy = dy, dist = dist, n = c.fragment,
+                         compass = U.compass(sw.x, sw.y, c.x + 0.5, c.y + 0.5) }
+            end
+        end
+    end
+    if best then best.dist = math.floor(best.dist + 0.5) end
+    return best
 end
 
 --- One slice. Returns true while the sweep is still running.
@@ -570,7 +595,7 @@ function M.serviceSweep()
             contacts = sweep.contacts,
             counts = sweep.counts,
             total = sweep.total,
-            radius = C.SweepRadius,
+            radius = sweep.radius or C.SweepRadius,
             crystals = sweep.crystals,
             crystalTotal = sweep.crystalTotal,
             crystalRadius = C.CrystalScanRadius,
@@ -584,6 +609,8 @@ function M.serviceSweep()
             zTop = sweep.zTop,
             -- A Starfleet life sign, drawn apart from every other contact.
             personnel = personnelFix(sweep),
+            -- A holo fragment on the ground, found by its fix.
+            clue = clueFix(sweep),
         }
         M.lastSweep = result
         sweep = nil
@@ -597,7 +624,7 @@ function M.serviceSweep()
 
     local join = U.batch("sweep.classify")
     local done = 0
-    local radius = C.SweepRadius
+    local radius = sweep.radius or C.SweepRadius
     while sweep.i < sweep.n and done < C.SweepPerTick do
         local i = sweep.i
         sweep.i = i + 1
@@ -610,7 +637,7 @@ function M.serviceSweep()
             local dx, dy = z:getX() - sweep.x, z:getY() - sweep.y
             local dist = math.sqrt(dx * dx + dy * dy)
             if dist > radius then return end
-            local b = band(dist)
+            local b = band(dist, radius)
             sweep.counts[b] = sweep.counts[b] + 1
             sweep.total = sweep.total + 1
             table.insert(sweep.contacts, { dx = dx, dy = dy, band = b })
@@ -773,6 +800,17 @@ function TREKTricorderWindow:drawPlot()
         self:drawRect(px - 1, py - 5, 3, 11, 1, P.blue[1], P.blue[2], P.blue[3])
         self:drawRect(px, py, 1, 1, 1, P.white[1], P.white[2], P.white[3])
     end
+
+    -- **A holo fragment**, as a square frame round a lit centre: a fourth
+    -- shape, for the reason there is a third -- a thing the player came here
+    -- for must not read as one more dot.
+    local g = result.clue
+    if g then
+        local px = cx + (g.dx / result.radius) * half
+        local py = cy + (g.dy / result.radius) * half
+        self:drawRectBorder(px - 5, py - 5, 11, 11, 1, 0.31, 0.84, 0.94)
+        self:drawRect(px - 2, py - 2, 5, 5, 1, 0.82, 0.97, 1.0)
+    end
 end
 
 function TREKTricorderWindow:render()
@@ -805,6 +843,7 @@ function TREKTricorderWindow:render()
         y = y + 20
         self:drawDilithium(cx, y, result)
         self:drawPersonnel(cx, y + 18, result)
+        self:drawClue(cx, y + (result.personnel and 36 or 18), result)
         return
     end
 
@@ -832,6 +871,7 @@ function TREKTricorderWindow:render()
     -- is running: where the dilithium is.
     self:drawDilithium(cx, y, result)
     self:drawPersonnel(cx, y + 18, result)
+    self:drawClue(cx, y + (result.personnel and 36 or 18), result)
 
     if self.joyfocus then
         self:drawTextRight(string.upper(getText("IGUI_TREK_MedJoypadHint")),
@@ -861,6 +901,19 @@ function TREKTricorderWindow:drawPersonnel(cx, y, result)
                   P.blue[1], P.blue[2], P.blue[3], 1, UIFont.Small)
     self:drawTextRight(getText("IGUI_TREK_SweepPersonnelAt", tostring(f.dist),
                                f.compass), self.width - PAD, y,
+                       P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
+end
+
+--- The fragment's line: only when one is in range, like the ensign's.
+function TREKTricorderWindow:drawClue(cx, y, result)
+    local g = result and result.clue
+    if not g then return end
+    local c = { 0.31, 0.84, 0.94 }
+    H.pill(self, cx, y + 3, 22, 9, c, true, true)
+    self:drawText(string.upper(getText("IGUI_TREK_SweepClue")), cx + 30, y,
+                  c[1], c[2], c[3], 1, UIFont.Small)
+    self:drawTextRight(getText("IGUI_TREK_SweepPersonnelAt", tostring(g.dist),
+                               g.compass), self.width - PAD, y,
                        P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
 end
 
@@ -920,41 +973,6 @@ function M.openSweep(player)
     M.startSweep(player)
     return w
 end
-
----------------------------------------------------------------------------
--- The tricorder: the lock override
----------------------------------------------------------------------------
--- A lock is world state, so the server opens it. The client looks first only
--- so it can offer the option and explain a refusal in the menu rather than
--- in silence; the server looks again before it touches anything, because a
--- client is a request and never a fact.
-
-function M.onOverride(_, player, x, y, z)
-    Core.send(player, "unlock", { x = x, y = y, z = z })
-end
-
--- Why the server said no, in the player's own words. A refusal that arrives
--- as nothing at all is indistinguishable from a mod that is broken.
-local UNLOCK_TEXT = {
-    padlock   = "IGUI_TREK_OverridePadlock",
-    safehouse = "IGUI_TREK_OverrideSafehouse",
-    cooling   = "IGUI_TREK_OverrideCooling",
-    far       = "IGUI_TREK_OverrideFar",
-    notool    = "IGUI_TREK_OverrideNoTool",
-}
-
-TREK.Net.onClient("unlocked", function(args)
-    local player = U.player(0)
-    if not player then return end
-    if args.ok then
-        U.try("unlock.sound", function()
-            player:playSoundLocal("TREK_TricorderChirp")
-        end)
-        note(player, "IGUI_TREK_OverrideDone")
-        return
-    end
-    warnNote(player, UNLOCK_TEXT[args.why] or "IGUI_TREK_OverrideFailed")
-end)
 
 ---------------------------------------------------------------------------
 -- Menus
@@ -1078,13 +1096,16 @@ function M.onScanOther(_, player, other)
     end
 end
 
---- The world menu: the lock override, and scanning somebody else.
+--- The world menu: scanning somebody else.
 ---
 --- On OnFillWorldObjectContextMenu rather than the Pre- event the rest of the
---- mod uses, and for the opposite reason: a locked door and another player
---- are both things the base game already considers interactable, so the later
---- event fires on them, and these options belong beside vanilla's own rather
---- than above them.
+--- mod uses: another player is something the base game already considers
+--- interactable, so the later event fires on them, and this belongs beside
+--- vanilla's own options rather than above them.
+---
+--- The tricorder's lock override used to live here too. It is gone
+--- (2026-09-24): nothing a Starfleet crew carries picks a lock, and a phaser
+--- takes the door out of its frame instead (PHASERS.md 7).
 function M.fillWorldMenu(playerNum, context, worldobjects, test)
     local player = U.player(playerNum)
     if not player then return end
@@ -1096,45 +1117,20 @@ function M.fillWorldMenu(playerNum, context, worldobjects, test)
     end
     if not sq then return end
 
-    local username = U.try("menu.username", function() return player:getUsername() end)
-
-    local lock, lockWhy = nil, nil
-    if Med.carries(player, C.TricorderType, C.TricorderItem) then
-        lock, lockWhy = Med.lockOn(sq, username)
-    end
-
     -- Scanning somebody else exists only where there is somebody else: a
     -- client connected to a server. Single player never offers it.
     local patient = nil
     if isClient() and Med.carries(player, C.MedTricorderType, C.MedTricorderItem) then
         patient = otherPlayerOn(sq, player)
     end
-
-    local offerLock = lock ~= nil or lockWhy == "padlock"
-    if not offerLock and not patient then return end
+    if not patient then return end
     if test then return ISWorldObjectContextMenu.setTest() end
 
-    if offerLock then
-        local option = context:addOption(getText("IGUI_TREK_Override"), worldobjects,
-                                         M.onOverride, player,
-                                         sq:getX(), sq:getY(), sq:getZ())
-        if not lock then
-            -- A padlock is refused, and it says so in the menu. Hiding the
-            -- option would leave the player guessing whether the tricorder
-            -- can do this at all.
-            option.notAvailable = true
-            option.toolTip = ISWorldObjectContextMenu.addToolTip()
-            option.toolTip.description = getText("IGUI_TREK_OverridePadlock")
-        end
-    end
-
-    if patient then
-        local name = U.try("menu.otherName", function()
-            return patient:getDisplayName()
-        end) or "?"
-        context:addOption(getText("IGUI_TREK_MedScanOther", name), worldobjects,
-                          M.onScanOther, player, patient)
-    end
+    local name = U.try("menu.otherName", function()
+        return patient:getDisplayName()
+    end) or "?"
+    context:addOption(getText("IGUI_TREK_MedScanOther", name), worldobjects,
+                      M.onScanOther, player, patient)
 end
 
 Events.OnFillWorldObjectContextMenu.Add(M.fillWorldMenu)

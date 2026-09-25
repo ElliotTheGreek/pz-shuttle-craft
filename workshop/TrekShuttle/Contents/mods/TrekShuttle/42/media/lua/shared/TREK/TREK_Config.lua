@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.5.0"
+C.Version   = "1.8.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 28
+C.BuildRev = 29
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -696,6 +696,63 @@ C.PhaserInterval = 30
 C.PhaserRack  = { x = 3, y = 0 }
 C.PhaserCount = 4
 
+-- Cutting (PHASERS.md 7). A phaser held on a tree fells it; held on a door,
+-- it burns the door out of its frame, whatever was locking it. The action is
+-- TREKPhaserCut (shared/TREK/TREK_PhaserCut.lua); the world change is the
+-- server's, in complete().
+--
+-- How far away the cutter may stand, in tiles, measured by the server from
+-- where it thinks they are. A phaser is a ranged tool -- nobody walks up and
+-- presses it against the bark -- but not a sniper's: far enough to stand
+-- clear of a falling tree, near enough that the beam reads as aimed.
+C.PhaserCutRange = 5
+-- Action lengths, in the timed-action units vanilla's own use (the axe's
+-- chop is paced by its animation; these are simply "quick", per the author).
+C.PhaserTreeTime = 180
+C.PhaserDoorTime = 120
+-- The noise a cut makes at the target, as WorldSoundManager.addSound takes
+-- it: radius and volume. The axe's tree hit is 20 and 20; a phaser hums
+-- rather than thuds, so a little quieter, and far below a gunshot.
+C.PhaserCutNoise = { radius = 14, volume = 14 }
+-- How often the cut makes that noise, in game ticks of the action.
+C.PhaserCutNoiseEvery = 30
+
+-- The beam as the overlay draws it. The numbers are tools/gen_phaser_beam.py's
+-- recipe, which is the picture design/art/ui/phaser_beam_sheet.png was judged
+-- on: change one there, change it here, and look at the sheet again.
+C.PhaserTint      = { r = 1.00, g = 0.47, b = 0.16 }   -- (255, 120, 40)
+C.PhaserBeamPx    = 16      -- strip thickness at zoom 1
+C.PhaserCorePass  = 0.42    -- the untinted core, as a fraction of that
+C.PhaserCoreAlpha = 0.9
+C.PhaserSparkPx   = 32
+C.PhaserImpact    = 1.7     -- spark at the target, x PhaserSparkPx
+C.PhaserMuzzle    = 0.55    -- flare at the emitter, x PhaserSparkPx
+-- Where on a standing character the beam leaves from, in levels above their
+-- feet (a level is ~2.44 m, so this is about chest height), and how far
+-- ahead of them toward the target, in tiles.
+C.PhaserHandZ     = 0.45
+C.PhaserHandAhead = 0.35
+-- A shot's bolt, and how long a cutting beam may go unconfirmed before a
+-- client drops it by itself -- so a lost "beam off" is a flicker, not a
+-- beam left burning for the rest of the session.
+C.PhaserBoltMs    = 120
+C.PhaserBeamGraceMs = 2500
+C.PhaserLight = { r = 1.0, g = 0.55, b = 0.2, radius = 3 }
+
+-- Sandbox: what a phaser may cut. An absent value is the feature as designed.
+C.PhaserCutAll   = 1
+C.PhaserCutTrees = 2
+C.PhaserCutNone  = 3
+
+function C.phaserCutting()
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.PhaserCutting
+    end)
+    v = ok and tonumber(v) or nil
+    if v == C.PhaserCutTrees or v == C.PhaserCutNone then return v end
+    return C.PhaserCutAll
+end
+
 ---------------------------------------------------------------------------
 -- The medical set
 ---------------------------------------------------------------------------
@@ -791,13 +848,6 @@ C.CrystalScanRadius = 20
 -- reports "close" before it reports "thirteen metres".
 C.SweepBands = { 0.33, 0.66 }
 
--- The lock override. Range in tiles from the player to the lock, and the
--- cooldown between overrides in milliseconds, held per player on the server.
---
--- The range is small because the server validates it and a client is a
--- request, never a fact: without a bound, a crafted command unlocks the map.
-C.UnlockRange       = 2
-C.UnlockCooldownMs  = 20000
 
 ---------------------------------------------------------------------------
 -- Sprites
@@ -995,6 +1045,147 @@ C.DilithiumIssue = 3
 -- haveElectricity() means "a generator is running in this chunk".
 C.DevicePower = 1.0
 
+-- Where the power bar turns amber and then red, as a fraction of the crystal
+-- burning (ENERGY.md 3.4). The same two numbers are the thresholds the crew
+-- are warned at on the way down, once each, when there is no spare behind it.
+C.PowerAmber = 0.25
+C.PowerRed = 0.10
+
+-- What everything costs (ENERGY.md 3.5). **Starting values, meant to be tuned
+-- in play.** They were set so one crystal buys about three outings, the
+-- author's choice on 2026-09-24: an outing (call her down, take off, fly
+-- about 500 tiles, hover an hour, push fifty zombies, mend a scrape, four
+-- beams, the Doctor and one treatment) comes to about 1,800 units, and
+-- tests/test_multiplayer.py fails if a later tweak moves that outside
+-- 1,500..2,100. Flight is more than half of every outing, so AirCostPerTile
+-- is the lever: about 4 is one outing a crystal, about 0.6 is ten.
+C.BeamCost = 25             -- each beam, either direction, per person
+C.LandCost = 150            -- calling her down, or the helm's take-her-down
+C.RecallCost = 50           -- sending her up, by hand or when the crew leave
+C.EngineStartCost = 25      -- the engine catching, charged on the start edge
+C.TakeoffCost = 100         -- checked at take-off, spent once she is up
+C.GroundCostPerTile = 0.5   -- driving on the ground
+C.AirCostPerTile = 2        -- moving in the air
+C.HoverCostPerMinute = 1    -- holding five tonnes up, moving or not
+C.ShieldPushCost = 2        -- each zombie the shields push
+C.RepairCostPerPoint = 1    -- each condition point the shields mend
+C.EmhProjectCost = 100      -- bringing the Doctor up; putting him away is free
+
+-- The odometer ignores a move longer than this in one vehicle pass (a second
+-- of game time). A respawn, a landing move or a teleport is not a journey,
+-- and billing one would empty a crystal for nothing. The fastest she drives
+-- is well under this.
+C.OdometerMaxJump = 60
+
+-- The shields' bill (ENERGY.md 5.1). A client reports what it pushed at most
+-- this often, and the server takes at most one report per player in the same
+-- window and at most ShieldReportMax pushes in one. The count is the client's
+-- word, which cannot be checked -- a zombie the server does not simulate is a
+-- push it cannot see -- so the cap is what keeps a modified client from
+-- draining a ship it shares with other people. A pushed zombie is thrown
+-- clear of the field and has to walk back in, so each is pushed two or three
+-- times in a window at most: a hundred covers forty or so at the hull. A
+-- bigger horde than that is undercharged, which is the right way round.
+-- The galley made real (ENERGY.md section 9).
+--
+-- A fridge cools, and an oven or microwave heats, only when its square has
+-- power, and in this engine power means the town grid or a running
+-- generator in the chunk (ItemContainer.isObjectPowered). The cabin is on
+-- no grid, so the ship keeps a **generator the crew never see**: its power
+-- bus. A mod item drawn with the invisible sky tile, standing on the hull
+-- ring beside the galley, kept fuelled from the reserve and switched off
+-- when the ship is dark. Vanilla's own code then does the cooling and the
+-- cooking. The research that settled it is ENERGY.md V5-V8.
+C.PowerBusItem = "TrekShuttle.TrekPowerBus"
+C.PowerBusTag = "powerbus"
+-- On the hull ring west of the oven: floored (the walls stand on it), outside
+-- the cabin's shape so nobody walks onto it, and well inside the generator's
+-- 20-square reach of every appliance.
+C.PowerBusSpot = { x = -1, y = 2 }
+-- What one unit of generator fuel costs the reserve. The fridge and the bus
+-- itself burn about 0.15 fuel a game hour, so this is about 3 units an hour,
+-- 72 a day: a crystal keeps the galley cold for two months of game time on
+-- its own. Only billed while the cabin is loaded -- which is also the only
+-- time the engine burns any.
+C.FuelToEnergy = 20
+-- The sound prefix the bus's sprite is given, so the engine plays
+-- TrekBusLoop and friends rather than a petrol generator's hum and clunk.
+C.PowerBusSound = "TrekBus"
+-- The galley fittings that are built as the engine's IsoStove, which is what
+-- makes them heat: an IsoObject wearing an oven's picture is a cupboard.
+C.StoveTags = { oven = true, microwave = true }
+
+-- Dilithium in the wild (server/TREK/TREK_Wild.lua), sandbox
+-- `TrekShuttle.WildDilithium`. Crystals lie on natural ground -- grass, dirt,
+-- sand, clay -- and never in town: the Douwd's copied land carries it and the
+-- towns grew on top later (LORE.md 1c). One plot in this many holds one, a
+-- plot being the engine's own 8x8 chunk. Plentiful is about one per 28x28
+-- squares of field or wood, so a crew walking the countryside with a
+-- tricorder (20 tiles) usually has one or two on the plot. Tuned for "a
+-- crystal buys about three outings" (ENERGY.md 3.5): finding one should be an
+-- afternoon's walk, not a campaign.
+C.WildKey = "TREK_Wild_v1"
+C.WildPlot = 8
+C.WildPlentiful = 1
+C.WildScarce = 2
+C.WildNone = 3
+C.WildPlentifulOneIn = 12
+C.WildScarceOneIn = 48
+-- How far around each player on foot the ground is looked at, in squares.
+C.WildScanRadius = 40
+
+-- The cold start (ENERGY.md section 10), sandbox `TrekShuttle.StartState`.
+-- Cold is the default for a new world: zero power, no spares, two probes, and
+-- the ship landed dark beside the first player. Commissioned is the ship as
+-- she always was. **Only a brand new ship reads it**: a save whose ship has
+-- ever been built or landed carries on commissioned whatever the setting.
+C.StartCold = 1
+C.StartCommissioned = 2
+C.ColdStartProbes = 2
+
+--- The start the server owner chose. An absent value is **cold**: the feature
+--- as designed, the precedent C.ReplicatorPatterns set.
+function C.startState()
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.StartState
+    end)
+    v = ok and tonumber(v) or nil
+    if v == C.StartCommissioned then return C.StartCommissioned end
+    return C.StartCold
+end
+
+-- Where a cold ship is set down: this many squares from the first player,
+-- measured on the square ring (Chebyshev), close enough to see and with room
+-- to walk to her. The author's starting distance, 2026-09-24.
+C.ColdPlaceMin = 6
+C.ColdPlaceMax = 15
+-- A cold ship that has run out of every way to find a crystal is given one
+-- probe a game day (10.6). More than this in one save is a bug, not bad luck,
+-- and says so in the log.
+C.ColdRecoveryWarn = 3
+
+-- The emergency landing (ENERGY.md section 7). The top speed a dark ship is
+-- held to while her pilot looks for somewhere to set her down: a glide, not a
+-- flight. And how long the server waits before asking the crew again to take
+-- a dark ship down from orbit.
+C.EmergencyGlideSpeed = 12
+C.EmergencyDescendRetryMs = 60000
+
+C.ShieldReportSecs = 5
+C.ShieldReportMax = 100
+
+-- The cabin's lamps: colour and radius for addLamppost. The engine doubles a
+-- lamppost's colour and clamps it (ENERGY.md V2), so anything at or above 0.5
+-- renders full -- the white is simply white. Radius and position are read
+-- once, when a lamp is hung; colour is changed in place.
+C.CabinLight = { 0.92, 0.96, 1.0, 8 }
+C.PadLight = { 0.70, 0.88, 1.0, 6 }
+-- A dark ship's deckheads (ENERGY.md 8.1): full red after the doubling, with
+-- a trace of green and blue so it reads as light rather than as a filter.
+-- They keep the deckheads' radius, because changing that means a fresh lamp,
+-- and the pad light goes out.
+C.EmergencyLight = { 0.50, 0.05, 0.04 }
+
 ---------------------------------------------------------------------------
 -- The replicator
 ---------------------------------------------------------------------------
@@ -1041,7 +1232,7 @@ C.LegacyReplicatorTag = "replicator"
 
 -- How close you have to stand, in tiles. Measured on the server against its
 -- own copy of where the player is, because a client is a request and never a
--- fact -- the same reason C.UnlockRange exists.
+-- fact -- the same reason C.PhaserCutRange is measured on the server.
 C.ReplicatorRange = 2
 
 -- How far around the berth a right-click still finds the machine, in squares.
@@ -1160,7 +1351,24 @@ C.ProbeBearingTries = 24
 -- nothing" -- an honest empty report is a valid outcome and the interface has
 -- to be able to say so. The opening guarantee that 1.6 needs is a separate
 -- mechanism and is deliberately not this number.
-C.ProbeFindChance = 0.65
+--
+-- It was 0.65, and the first cold-start play (2026-09-24) drew four empty
+-- probes in a row after the opening one -- a 1.5% streak, but a design that
+-- can do that to somebody will. Now that everything aboard runs on the
+-- crystal, a probe is how the crew eat: 0.9, and C.ProbeDryLimit below.
+C.ProbeFindChance = 0.9
+
+-- After this many empty probes in a row, the next one always finds
+-- something. Not a hidden pity timer for its own sake: an honest empty report
+-- is still a real outcome, but a streak of them is a campaign stalled on luck.
+C.ProbeDryLimit = 2
+
+-- Of the probes that find something once first contact has happened, how
+-- many find a holo fragment's site rather than a crystal, while any of the
+-- six is still owed (COMMS.md 6.3). A third: the chain is a campaign's
+-- worth of probes, not an afternoon's, and the crystals are still what keeps
+-- the ship running.
+C.ProbeClueShare = 0.35
 
 -- How far from the reported square the ship will actually put the crystal,
 -- and how far a player has to come before the world is asked to hold it.
@@ -1203,6 +1411,10 @@ C.MaxResolvedContacts = 16
 C.ContactKinds = {
     dilithium = true,
     downedPersonnel = true,
+    -- A holo fragment's site (LORE.md 1c, COMMS.md 6.3): the probe's third
+    -- result, beside a crystal and a survivor. The contact carries the
+    -- fragment's number, and is placed and retired the way a crystal is.
+    clue = true,
 }
 
 -- ROADMAP2's common lifecycle:
@@ -1237,6 +1449,7 @@ C.ContactResolved = {
 C.ContactSymbols = {
     dilithium = "TrekContactDilithium",
     downedPersonnel = "TrekContactPersonnel",
+    clue = "TrekContactClue",
 }
 
 -- What each kind is called in the sensor menu.
@@ -1252,6 +1465,7 @@ C.ContactSymbols = {
 C.ContactLabels = {
     dilithium = "IGUI_TREK_Contact_dilithium",
     downedPersonnel = "IGUI_TREK_Contact_downedPersonnel",
+    clue = "IGUI_TREK_Contact_clue",
 }
 
 ---------------------------------------------------------------------------
@@ -1392,6 +1606,7 @@ C.RescueSupply = {
 --   TrekHelmConsole  the deleted helm prop, still declared so old saves can
 --                    load the ones lying on their decks
 C.ReplicatorBlocked = {
+    ["TrekShuttle.TrekPowerBus"] = true,
     ["TrekShuttle.TrekTorpedo"]     = true,
     ["TrekShuttle.TrekShuttleHull"] = true,
     ["TrekShuttle.TrekHelmConsole"] = true,
@@ -1399,6 +1614,10 @@ C.ReplicatorBlocked = {
     -- is a replicator with no limit at all, and the hunt for dilithium is the
     -- only reason the whole system has stakes.
     ["TrekShuttle.TrekDilithium"]   = true,
+    -- **Balso tonic**, for canon's sake: the Enterprise's replicators could
+    -- not make it (TNG "The Host"), and nor can this one. What the rations
+    -- locker holds is all there is.
+    ["TrekShuttle.TrekBalsoTonic"]  = true,
     -- **The Doctor.** He is a Furniture item so the server can stand him on
     -- the deck, which means the catalogue would happily offer him like a
     -- chair. A player who could replicate one would stand a second EMH in
@@ -1611,8 +1830,13 @@ C.Loot.food = {
     "TrekShuttle.TrekRationPack", "TrekShuttle.TrekGagh",
     "TrekShuttle.TrekLeolaStew", "TrekShuttle.TrekPlomeekSoup",
     "TrekShuttle.TrekJumjaStick",
+    "TrekShuttle.TrekAndorianTuber", "TrekShuttle.TrekOskoid",
+    "TrekShuttle.TrekWingSlugRoll", "TrekShuttle.TrekHasperat",
+    "TrekShuttle.TrekRokegPie", "TrekShuttle.TrekChadrekab",
     "TrekShuttle.TrekRaktajinoMug", "TrekShuttle.TrekEarlGreyCup",
     "TrekShuttle.TrekRomulanAle", "TrekShuttle.TrekBloodwine",
+    "TrekShuttle.TrekAndorianAle", "TrekShuttle.TrekBalsoTonic",
+    "TrekShuttle.TrekNutrientSuspension",
 }
 
 -- The armoury. The phasers are guaranteed separately (`special = "phasers"`),
@@ -1694,5 +1918,221 @@ C.PaddEraseTicks = 60
 
 -- The mod data key the library is kept under, on the PADD.
 C.PaddLibraryKey = "TREKLibrary"
+
+-- Transcribed tapes, on the same PADD, under their own key (PADD.md 12.3).
+-- An entry is a recording id and nothing else: the lines are rendered from
+-- the registered recording at read time, so a tape regenerated by
+-- gen_tapes.py updates every transcript of it.
+C.PaddTapesKey = "TREKTapes"
+
+-- Transcribing is a scan of a whole tape, not a read of it.
+C.PaddTranscribeTicks = 120
+
+-- Reading a transcript is paced like the television (a line's time is its
+-- length / 10 * 60 frames, DeviceData.updateMediaPlaying) and then divided by
+-- C.PaddReadSpeed, like a book. Each line is clamped between these, so a
+-- two-word line is not instant and a paragraph is not a minute.
+--
+-- **The floor is set by the radio, not by taste.** Vanilla debounces each
+-- effect code for thirty ticks per player, and the read applies its lines
+-- evenly across its length: 160 / C.PaddReadSpeed is 32 ticks a line at
+-- least, so a tape where every line relieves boredom relieves it on every
+-- line, as the television does.
+C.PaddTapeLineMin = 160
+C.PaddTapeLineMax = 600
+
+-- The six Tucker Gold fragments, as the tapes they become on conversion
+-- (LORE.md 1c, COMMS.md 6.3), in the order of his life.
+C.FragmentTapes = { "TREK_GoldOne", "TREK_GoldTwo", "TREK_GoldThree",
+                    "TREK_GoldFour", "TREK_GoldFive", "TREK_GoldSix" }
+
+-- The tape off the first rescued ensign's own recorder (LORE.md 5, #17),
+-- issued to the ship on the first rescue.
+C.EnsignTape = "TREK_EnsignLog"
+
+-- The fragments themselves, as items: six, rather than one with a number in
+-- its mod data, because a player reads the name in the inventory. Spelled out
+-- so every id is a literal tests/test_assets.py can check against the script.
+C.FragmentItems = { "TrekShuttle.TrekFragment1", "TrekShuttle.TrekFragment2",
+                    "TrekShuttle.TrekFragment3", "TrekShuttle.TrekFragment4",
+                    "TrekShuttle.TrekFragment5", "TrekShuttle.TrekFragment6" }
+
+---------------------------------------------------------------------------
+-- The Adirondack channel (COMMS.md)
+---------------------------------------------------------------------------
+-- The live channel: the call, the flags the story sets, what has fired and
+-- when. Small, and published whenever it changes -- which is every choice a
+-- player makes in a call, so it must stay small. Its own key for the reason
+-- the contacts have theirs: the ship state goes out whole every time the
+-- moving shuttle commits.
+C.CommsKey = "TREK_Comms_v1"
+
+-- The history: one row per finished call, node ids and option numbers only
+-- (PADD.md 12.2 -- the transcript is a render, not data). Its own key so it
+-- is sent when a call *ends*, never on each choice inside one.
+C.CommsLogKey = "TREK_CommsLog_v1"
+
+-- A bound on the history, which is the first shared list in this mod that
+-- grows for the life of the save. A row is a few dozen short strings; three
+-- hundred calls is a long campaign and a few tens of kilobytes.
+C.CommsLogMax = 300
+
+-- Incoming calls ring for this many game hours before they are missed. At
+-- the default day length that is a quarter of an hour of real time: long
+-- enough to finish a fight and dig the PADD out, short enough to miss.
+C.CommsRingHours = 6
+
+-- The least time between the end of one incoming call and the next ring.
+-- The channel is a person, not a notification feed.
+C.CommsGapHours = 18
+
+-- A story thread that was missed rings again after this long, opening on a
+-- worse node (COMMS.md 4: a missed call becomes its own, worse follow-up).
+C.CommsRetryHours = 20
+
+-- Hailing her yourself: once per this many game hours per ship, whether or
+-- not anybody picked up. Most of the time nobody does (COMMS.md 4).
+C.CommsHailCooldownHours = 2
+
+-- A holder who has not chosen anything for this many seconds of play loses
+-- the channel, and anybody else with a PADD may pick it up. Separate from a
+-- node's own timeout, which is part of the conversation; this one is only
+-- there so an idle player cannot hold the story hostage (COMMS.md 2).
+C.CommsIdleSeconds = 150
+
+-- A single tick of the call's clock never counts for more than this, so a
+-- hitch, a loading screen or a paused game does not eat a timed node.
+C.CommsMaxTickSeconds = 0.25
+
+-- Day zero is the first time the cabin is built (COMMS.md 4; the cold start
+-- will move this to commissioning, in TREK_CommsServer.commission alone). The
+-- first call waits a week of the crew's own time: the shelf comes first.
+C.CommsFirstContactDay = 7
+
+-- The sandbox's "When the Adirondack first calls", as days. The story is
+-- written against C.CommsFirstContactDay; the option moves the channel's
+-- whole calendar, so everything after first contact keeps its spacing
+-- (TREK_Comms.day). "Straight away" is also how a player reaches the
+-- channel in a fresh world without a debug console.
+C.CommsFirstDays = { 0, 1, 3, 7, 14 }
+
+function C.commsFirstDay()
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.CommsFirstDay
+    end)
+    v = ok and tonumber(v) or nil
+    local days = v and C.CommsFirstDays[math.floor(v)]
+    if days == nil then return C.CommsFirstContactDay end
+    return days
+end
+
+---------------------------------------------------------------------------
+-- Traits: species, divisions and rank (TRAITS.md)
+---------------------------------------------------------------------------
+-- The ids are registered in media/registries.lua and read through
+-- TREK.Traits; what each one *does* is tuned here. Stat scales are the
+-- engine's: unhappiness, boredom and panic run 0-100, stress, endurance,
+-- fatigue, hunger and thirst 0-1 (vanilla's own debug sliders say so).
+
+-- Raised when the first-sighting pass learns something new, so a character
+-- made under an older one gets the new part and nothing twice.
+C.TraitsInitRev = 1
+
+-- Whose food is whose (TRAITS.md 3.1b). Only the galley's dishes: Kentucky's
+-- food is nobody's, and neutral for everybody. The drinks are fluids and
+-- are never "eaten", so they are not here.
+C.SpeciesFood = {
+    ["TrekShuttle.TrekPlomeekSoup"]    = "vulcan",
+    ["TrekShuttle.TrekGagh"]           = "klingon",
+    ["TrekShuttle.TrekRokegPie"]       = "klingon",
+    ["TrekShuttle.TrekAndorianTuber"]  = "andorian",
+    ["TrekShuttle.TrekOskoid"]         = "betazoid",
+    ["TrekShuttle.TrekJumjaStick"]     = "bajoran",
+    ["TrekShuttle.TrekHasperat"]       = "bajoran",
+    ["TrekShuttle.TrekChadrekab"]      = "talaxian",
+    ["TrekShuttle.TrekLeolaStew"]      = "talaxian",
+    ["TrekShuttle.TrekWingSlugRoll"]   = "orion",
+}
+-- A whole meal's worth; a part eaten scales it.
+C.FoodHomeUnhappy     = -15      -- its own species' dish
+C.FoodHomeStress      = -0.10
+C.FoodForeignUnhappy  = 10       -- somebody else's
+C.FoodMeatUnhappy     = 15       -- a Vulcan and anything that was an animal
+C.FoodReplicatedUnhappy = 15     -- Real Food Only, and any Klingon
+-- FoodType values that were an animal. Insect is here for the gagh and
+-- the wing-slugs.
+C.MeatFoodTypes = { Meat = true, Poultry = true, Fish = true, Seafood = true,
+                    Beef = true, Sausage = true, Insect = true, Game = true }
+-- Mod data the replicator stamps on what it makes: a Klingon can tell.
+C.ReplicatedKey = "TREKReplicated"
+
+-- Transporter phobia, per beam.
+C.PhobiaStress  = 0.25
+C.PhobiaPanic   = 40
+C.PhobiaUnhappy = 5
+
+-- Every ten game minutes.
+C.BajoranStress   = -0.02
+C.BajoranUnhappy  = -1
+C.TalaxianRange   = 6              -- tiles
+C.TalaxianBoredom = -2
+C.TalaxianUnhappy = -2
+C.SpacesickStress  = 0.04
+C.SpacesickUnhappy = 2
+
+-- Orion pheromones: a small world sound where they stand, as a noise draws
+-- the dead. Never aboard: the cabin is not on the map the dead walk.
+C.OrionScentRadius = 12
+C.OrionScentVolume = 12
+
+-- Liberated Borg: the hum. At least this many of the dead within the radius,
+-- at most once an hour of game time.
+C.BorgHumRadius = 20
+C.BorgHumCount  = 15
+C.BorgHumEveryHours = 1
+
+-- Betazoid: senses the live rescue within this range, a direction and no
+-- more, at most every half hour.
+C.EmpathRange = 120
+C.EmpathEveryHours = 0.5
+
+-- Trill: past hosts, one level each, rolled once.
+C.TrillHosts = 3
+C.TrillPerks = { "Cooking", "Doctor", "Electricity", "Mechanics", "MetalWelding",
+                 "Woodwork", "Tailoring", "Farming", "Fishing", "Trapping",
+                 "PlantScavenging", "Aiming", "Reloading", "SmallBlade",
+                 "LongBlade", "Axe", "SmallBlunt", "Blunt", "Spear", "Nimble",
+                 "Sneak", "Lightfoot", "Maintenance" }
+
+-- The android (TRAITS.md 3.1a). Charge is a percentage. Full to flat is a day
+-- and a half of game time; asleep aboard it fills at ten points an hour, and
+-- each point is paid for out of the ship's reserve.
+C.AndroidChargeKey      = "TREKCharge"
+C.AndroidDrainPerHour   = 100 / 36
+C.AndroidChargePerHour  = 10
+C.AndroidChargeCost     = 2       -- reserve units per point
+C.AndroidLowCharge      = 25      -- below this: tired and slow
+C.AndroidFlatFatigue    = 0.95    -- at nothing: exhausted
+C.AndroidLowFatigue     = 0.6
+C.AndroidNotes          = { 50, 25, 10, 0 }
+
+-- Divisions. What each reports for duty with, handed over once.
+C.DivisionKit = {
+    sf_security = { "TrekShuttle.TrekPhaser" },
+    sf_medical  = { "TrekShuttle.TrekHypospray" },
+    sf_science  = { "TrekShuttle.TrekTricorder" },
+    sf_survey   = { "TrekShuttle.TrekPADD" },
+}
+C.HelmSpeedFactor     = 1.2       -- sf_helm at the controls
+C.EngineeringFactor   = 0.9       -- what the ship spends, with sf_engineering aboard
+C.ScienceSweepFactor  = 1.5       -- sf_science's tricorder
+C.HistorianTimeFactor = 0.75      -- holohistorian on a PADD
+
+-- Rank (TRAITS.md 3.3), lowest first, and the rescues each one takes.
+-- Everybody starts unranked; a Starfleet profession reports as an ensign,
+-- and Command as a lieutenant (j.g.).
+C.Ranks = { "rank_ensign", "rank_ltjg", "rank_lt", "rank_ltcmdr", "rank_cmdr" }
+C.RankRescues = { 1, 3, 5, 8, 11 }
+C.RescuesKey = "TREKRescues"
 
 return C

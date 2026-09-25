@@ -232,7 +232,9 @@ function E.refusal(player)
     if not TREK.Ship.canUse(player) then return "access" end
     if E.isOff() then return "emhOff" end
     if not E.inReachOf(player) then return "emhFar" end
-    if TREK.Power.reserve() <= 0 and TREK.Power.crystals() <= 0 then
+    -- A dark ship cannot project him at all (ENERGY.md 6). Published as a
+    -- flag, so a client's panel greys with the ship's own answer.
+    if TREK.Power.dark() then
         return "emhNoPower"
     end
     return nil

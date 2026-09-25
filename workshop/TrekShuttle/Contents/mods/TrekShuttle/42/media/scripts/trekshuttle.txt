@@ -208,6 +208,29 @@ module TrekShuttle
         scale = 1.0,
     }
 
+    /*  The ship's power bus (ENERGY.md 9): the generator that powers the
+        galley, which nobody ever sees or carries. Tagged base:generator so
+        the engine's generator code reads *this* item's numbers when it
+        looks the sprite up: it never wears (a long absence replays every
+        missed hour at once, and a vanilla generator's wear would set the
+        cabin alight), and it makes no noise worth the name. It is drawn
+        with the invisible sky tile. The replicator will not make one.  */
+    item TrekPowerBus
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Shuttle Power Bus,
+        Icon = TREK_Dilithium,
+        Weight = 40.0,
+        ConditionMax = 100,
+        Tags = base:generator,
+        WorldObjectSprite = invisible_01_0,
+        ConditionLowerChanceOneIn = 1000000,
+        SoundRadius = 1,
+        SoundVolume = 1,
+    }
+
     item TrekDilithium
     {
         DisplayCategory = Material,
@@ -268,6 +291,52 @@ module TrekShuttle
         }
     }
 
+    /*  The cutting beam (PHASERS.md 6): a one-second hum that wraps
+        seamlessly, and the tails either side of it. All three are written by
+        tools/gen_phaser.py at one shared level, so the start hands over to
+        the loop without a jump. Whoever starts the loop owns stopping it.  */
+    sound TREK_PhaserBeam
+    {
+        category = Weapon,
+        loop = true,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_PhaserBeam.wav,
+            distanceMin = 2,
+            distanceMax = 30,
+            volume = 0.7,
+        }
+    }
+
+    sound TREK_PhaserBeamStart
+    {
+        category = Weapon,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_PhaserBeamStart.wav,
+            distanceMin = 2,
+            distanceMax = 30,
+            volume = 0.7,
+        }
+    }
+
+    sound TREK_PhaserBeamEnd
+    {
+        category = Weapon,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_PhaserBeamEnd.wav,
+            distanceMin = 2,
+            distanceMax = 30,
+            volume = 0.7,
+        }
+    }
+
     /*  The phaser.
 
         An ordinary build 42 sidearm in every respect except that TREK_Phaser
@@ -288,8 +357,10 @@ module TrekShuttle
         and a deep charge means even a burst fired between two ticks cannot
         empty it.
 
-        WeaponSprite names a vanilla in-hand model, because a pistol shape the
-        game already has is not worth rebuilding.
+        WeaponSprite names the mod's own model (trekweapons.txt,
+        TrekPhaserModel; PHASERS.md 4). It used to borrow vanilla's Handgun03
+        on the reasoning that a pistol shape the game already has was not
+        worth rebuilding -- and a phaser that is visibly an M9 is a pistol.
 
         This comment used to claim a custom one "needs a rigged attachment set
         rather than a static mesh". That is wrong, and it was wrong in a way
@@ -349,7 +420,7 @@ module TrekShuttle
         SwingAmountBeforeImpact = 0.0,
         SwingAnim = Handgun,
         RunAnim = Run_Weapon2,
-        WeaponSprite = Handgun03,
+        WeaponSprite = TrekPhaserModel,
         MaxHitcount = 1,
         Projectilecount = 1,
         PushBackMod = 0.3,
@@ -528,6 +599,155 @@ module TrekShuttle
         Tooltip = Tooltip_TREK_JumjaStick,
     }
 
+    /*  The third course: a dish for every species TRAITS.md names that did
+        not have one, and a second for two that did. Every one is on-screen
+        canon (Memory Alpha, 2026-09-24), except where canon has nothing.
+        TRAITS.md 3.1b is the plan to make each species like its own food;
+        until that is built, these numbers are what everybody gets.  */
+
+    /*  Andorian tuber root (DS9 "Second Sight": Jadzia finishes Sisko's).
+        A high-calorie root from a frozen world, roasted. Keeps like the
+        potato it resembles.  */
+    item TrekAndorianTuber
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.5,
+        Icon = TREK_AndorianTuber,
+        GoodHot = true,
+        DaysFresh = 5,
+        DaysTotallyRotten = 10,
+        HungerChange = -35.0,
+        UnhappyChange = -10,
+        Calories = 700.0,
+        Carbohydrates = 140.0,
+        Lipids = 10.0,
+        Proteins = 12.0,
+        StaticModel = SweetPotato_Ground,
+        WorldStaticModel = SweetPotato_Ground,
+        Tooltip = Tooltip_TREK_AndorianTuber,
+    }
+
+    /*  Oskoid (TNG "Menage a Troi"): the Betazoid delicacy, a dark yellow
+        leaf with purple veins whose own sap keeps it warm. Light, and
+        almost entirely morale.  */
+    item TrekOskoid
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.2,
+        Icon = TREK_Oskoid,
+        DaysFresh = 4,
+        DaysTotallyRotten = 8,
+        HungerChange = -12.0,
+        UnhappyChange = -20,
+        BoredomChange = -10,
+        Calories = 90.0,
+        Carbohydrates = 15.0,
+        Lipids = 2.0,
+        Proteins = 4.0,
+        StaticModel = Kale,
+        WorldStaticModel = Kale,
+        Tooltip = Tooltip_TREK_Oskoid,
+    }
+
+    /*  Wing-slug roll (LD "Shades of Green"): the one Orion food canon
+        has, eaten by the dozen. Slugs, so FoodType = Insect, as the gagh's
+        worms are. A snack, and faintly unpleasant to anyone not raised on
+        them.  */
+    item TrekWingSlugRoll
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.2,
+        Icon = TREK_WingSlugRoll,
+        FoodType = Insect,
+        DaysFresh = 2,
+        DaysTotallyRotten = 4,
+        HungerChange = -15.0,
+        UnhappyChange = 5,
+        Calories = 250.0,
+        Carbohydrates = 20.0,
+        Lipids = 10.0,
+        Proteins = 20.0,
+        StaticModel = Springroll_Ground,
+        WorldStaticModel = Springroll_Ground,
+        Tooltip = Tooltip_TREK_WingSlugRoll,
+    }
+
+    /*  Hasperat (TNG "Preemptive Strike", DS9): a Bajoran wrap in a brine
+        that makes your eyes water. Only good warm, and the positive
+        ThirstChange is the brine -- vanilla uses the same sign for salty
+        food.  */
+    item TrekHasperat
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.4,
+        Icon = TREK_Hasperat,
+        GoodHot = true,
+        DaysFresh = 3,
+        DaysTotallyRotten = 6,
+        HungerChange = -30.0,
+        ThirstChange = 10.0,
+        UnhappyChange = -10,
+        Calories = 550.0,
+        Carbohydrates = 60.0,
+        Lipids = 20.0,
+        Proteins = 25.0,
+        StaticModel = Burrito_Ground,
+        WorldStaticModel = Burrito_Ground,
+        Tooltip = Tooltip_TREK_Hasperat,
+    }
+
+    /*  Rokeg blood pie (TNG "A Matter of Honor", VOY "Day of Honor"): a
+        warrior's feast-day dish, and the most filling thing in the galley.
+        Worf's human mother made it well, so it is not a punishment the way
+        gagh is -- just a lot.  */
+    item TrekRokegPie
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 1.0,
+        Icon = TREK_RokegPie,
+        GoodHot = true,
+        DaysFresh = 3,
+        DaysTotallyRotten = 6,
+        HungerChange = -50.0,
+        UnhappyChange = -5,
+        Calories = 1100.0,
+        Carbohydrates = 70.0,
+        Lipids = 55.0,
+        Proteins = 80.0,
+        StaticModel = PieBlueberry_Ground,
+        WorldStaticModel = PieBlueberry_Ground,
+        Tooltip = Tooltip_TREK_RokegPie,
+    }
+
+    /*  Chadre'kab (VOY "The Raven", "Think Tank"): a Talaxian delicacy,
+        steamed from Neelix's family recipe. The leola stew's counterweight:
+        this one he actually gets right.  */
+    item TrekChadrekab
+    {
+        DisplayCategory = Food,
+        ItemType = base:food,
+        Weight = 0.6,
+        Icon = TREK_Chadrekab,
+        GoodHot = true,
+        DaysFresh = 3,
+        DaysTotallyRotten = 6,
+        HungerChange = -25.0,
+        UnhappyChange = -15,
+        BoredomChange = -5,
+        Calories = 400.0,
+        Carbohydrates = 70.0,
+        Lipids = 8.0,
+        Proteins = 10.0,
+        StaticModel = Squash,
+        WorldStaticModel = Squash,
+        Tooltip = Tooltip_TREK_Chadrekab,
+    }
+
     /*  ------------------------------------------------------------------
         The galley's drinks.
 
@@ -686,6 +906,87 @@ module TrekShuttle
         }
     }
 
+    /*  Andorian ale (ENT "Cease Fire"): blue, served in shots, and Archer's
+        favourite. Stronger than beer and short of wine; LightSkyBlue keeps it
+        apart from the Romulan ale's DeepSkyBlue on the same shelf.  */
+    fluid TrekAndorianAle
+    {
+        ColorReference = LightSkyBlue,
+        DisplayName = Fluid_Name_TrekAndorianAle,
+        Categories
+        {
+            Beverage,
+            Alcoholic,
+        }
+        Properties
+        {
+            fatigueChange = 0.0,
+            HungerChange = -5.0,
+            StressChange = -35.0,
+            ThirstChange = -25.0,
+            UnhappyChange = -30.0,
+            Calories = 200.0,
+            Carbohydrates = 15.0,
+            Lipids = 0.0,
+            Proteins = 0.0,
+            alcohol = 0.12,
+            painReduction = 5.0,
+        }
+    }
+
+    /*  Balso tonic (TNG "The Host"): the one Trill drink canon has, with
+        "mild medicinal qualities". A nerve tonic here: stress and a little
+        pain. The Enterprise's replicators could not make it, and neither can
+        this one (C.ReplicatorBlocked).  */
+    fluid TrekBalsoTonic
+    {
+        ColorReference = Aquamarine,
+        DisplayName = Fluid_Name_TrekBalsoTonic,
+        Categories
+        {
+            Beverage,
+        }
+        Properties
+        {
+            fatigueChange = 0.0,
+            HungerChange = 0.0,
+            StressChange = -40.0,
+            ThirstChange = -20.0,
+            UnhappyChange = -15.0,
+            Calories = 30.0,
+            Carbohydrates = 7.0,
+            Lipids = 0.0,
+            Proteins = 0.0,
+            painReduction = 10.0,
+        }
+    }
+
+    /*  Data's "semi-organic nutrient suspension in a silicon-based liquid
+        medium" (TNG "Deja Q"). It keeps an android's biofunctions
+        lubricated, and it will keep a human going too -- miserably.
+        TRAITS.md 3.1a is where it stops being a joke.  */
+    fluid TrekNutrientSuspension
+    {
+        ColorReference = OldLace,
+        DisplayName = Fluid_Name_TrekNutrientSuspension,
+        Categories
+        {
+            Beverage,
+        }
+        Properties
+        {
+            fatigueChange = 0.0,
+            HungerChange = -20.0,
+            StressChange = 0.0,
+            ThirstChange = -15.0,
+            UnhappyChange = 20.0,
+            Calories = 300.0,
+            Carbohydrates = 40.0,
+            Lipids = 10.0,
+            Proteins = 15.0,
+        }
+    }
+
     /*  The vessels. Each borrows a vanilla mesh -- a mug is a mug and the
         game has five of them -- so the only new art is the inventory icon and
         its fluid mask. The Fluids block is a whitelist: without it the
@@ -797,6 +1098,86 @@ module TrekShuttle
             Fluids
             {
                 fluid = TrekBloodwine:1.0,
+            }
+        }
+    }
+
+    item TrekAndorianAle
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        Weight = 0.6,
+        Icon = TREK_AndorianAle,
+        StaticModel = BeerBottleImported,
+        WorldStaticModel = BeerBottleImported,
+        FillFromDispenserSound = GetWaterFromDispenserGlass,
+        FillFromTapSound = GetWaterFromTapGlass,
+        Tags = base:glass;base:glassbottle,
+        Tooltip = Tooltip_TREK_AndorianAle,
+        component FluidContainer
+        {
+            ContainerName = BottleBeer,
+            Capacity = 0.5,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromBottleGlass,
+            Fluids
+            {
+                fluid = TrekAndorianAle:1.0,
+            }
+        }
+    }
+
+    item TrekBalsoTonic
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        Weight = 0.4,
+        Icon = TREK_BalsoTonic,
+        StaticModel = GrenadineBottle,
+        WorldStaticModel = GrenadineBottle,
+        FillFromDispenserSound = GetWaterFromDispenserGlass,
+        FillFromTapSound = GetWaterFromTapGlass,
+        Tags = base:glass;base:glassbottle,
+        Tooltip = Tooltip_TREK_BalsoTonic,
+        component FluidContainer
+        {
+            ContainerName = BottleGlass,
+            Capacity = 0.3,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromBottleGlass,
+            Fluids
+            {
+                fluid = TrekBalsoTonic:1.0,
+            }
+        }
+    }
+
+    item TrekNutrientSuspension
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        Weight = 0.4,
+        Icon = TREK_NutrientSuspension,
+        StaticModel = Sportsbottle,
+        WorldStaticModel = Sportsbottle,
+        FillFromDispenserSound = GetWaterFromDispenser,
+        FillFromTapSound = GetWaterFromTap,
+        Tooltip = Tooltip_TREK_NutrientSuspension,
+        component FluidContainer
+        {
+            ContainerName = SportsBottle,
+            Capacity = 0.3,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromBottlePlastic,
+            Fluids
+            {
+                fluid = TrekNutrientSuspension:1.0,
             }
         }
     }
@@ -1176,6 +1557,99 @@ module TrekShuttle
 
         is3D, unlike the instruments: he is a thing that happens in a room
         rather than in your hands, and everybody in the cabin should hear it.  */
+    /*  The ship's power coming on and going out (ENERGY.md 8.5), generated by
+        tools/gen_power.py. Not 3D: the whole ship is the source, and each
+        client plays it for its own players aboard or in her seats.  */
+    sound TREK_PowerUp
+    {
+        category = Item,
+        loop = false,
+        is3D = false,
+        clip
+        {
+            file = media/sound/TREK_PowerUp.wav,
+            volume = 0.8,
+        }
+    }
+
+    sound TREK_PowerDown
+    {
+        category = Item,
+        loop = false,
+        is3D = false,
+        clip
+        {
+            file = media/sound/TREK_PowerDown.wav,
+            volume = 0.8,
+        }
+    }
+
+    /*  The power bus (ENERGY.md 9). The engine plays <prefix>Loop while it
+        runs and <prefix>Starting/Stopping on every toggle; the bus's sprite
+        is given the prefix TrekBus, so these replace a petrol generator's
+        hum and clunk with a faint core hum and silence. The power-up and
+        power-down sounds already say the rest.  */
+    sound TrekBusLoop
+    {
+        category = Object,
+        loop = true,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_BusHum.wav,
+            distanceMax = 8,
+            volume = 0.15,
+        }
+    }
+
+    sound TrekBusStarting
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_BusQuiet.wav,
+            volume = 0.0,
+        }
+    }
+
+    sound TrekBusStopping
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_BusQuiet.wav,
+            volume = 0.0,
+        }
+    }
+
+    sound TrekBusFailedToStart
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_BusQuiet.wav,
+            volume = 0.0,
+        }
+    }
+
+    sound TrekBusBackfire
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_BusQuiet.wav,
+            volume = 0.0,
+        }
+    }
+
     sound TREK_EmhAppear
     {
         category = Item,
@@ -1682,4 +2156,238 @@ module TrekShuttle
             rotate = -11.7984 87.0744 -81.8605,
         }
     }
+
+    /*  The six holo fragments (LORE.md 1c, COMMS.md 6.3). One mesh and texture
+        from tools/gen_fragment.py, six icons with their numbers on them.
+        Losable like anything carried, which is the point: a fragment is
+        permanent only once Shepard has put it on tape.  */
+    item TrekFragment1
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 1,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment1,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    item TrekFragment2
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 2,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment2,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    item TrekFragment3
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 3,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment3,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    item TrekFragment4
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 4,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment4,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    item TrekFragment5
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 5,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment5,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    item TrekFragment6
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Holo Fragment 6,
+        DisplayCategory = Junk,
+        Icon = TREK_Fragment6,
+        Weight = 0.2,
+        WorldStaticModel = TrekFragmentModel,
+        Tooltip = Tooltip_TREK_Fragment,
+    }
+
+    model TrekFragmentModel
+    {
+        mesh = TREK_Fragment,
+        texture = TREK_Fragment,
+        scale = 1.0,
+    }
+
+    /*  ------------------------------------------------------------------
+        What a species looks like (TRAITS.md 2.4). Hidden clothing items the
+        server lays on a character as body visuals, exactly as vanilla's
+        stubble is: never in an inventory, never dropped or taken off, saved
+        with the character's HumanVisual. An overlay is one per sex, because
+        the two bodies' texture atlases differ; a mesh is one item carrying
+        both sexes' models. The textures, models, clothing XMLs
+        and GUID rows are all generated by tools/gen_species.py.
+        ------------------------------------------------------------------ */
+
+    item TrekLook_trill_M
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_trill_M,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_trill_F
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_trill_F,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_bajoran_M
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_bajoran_M,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_bajoran_F
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_bajoran_F,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_betazoid_M
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_betazoid_M,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_betazoid_F
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_betazoid_F,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_klingon_M
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_klingon_M,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_klingon_F
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_klingon_F,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_talaxian_M
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_talaxian_M,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_talaxian_F
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_talaxian_F,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_exborg_M
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_exborg_M,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_exborg_F
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_exborg_F,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_vulcanears
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_vulcanears,
+        WorldRender = false,
+        hidden = true,
+    }
+
+    item TrekLook_antennae
+    {
+        DisplayCategory = Appearance,
+        ItemType = base:clothing,
+        BodyLocation = base:zeddmg,
+        ClothingItem = TrekLook_antennae,
+        WorldRender = false,
+        hidden = true,
+    }
+
 }

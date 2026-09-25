@@ -129,14 +129,15 @@ end
 ---------------------------------------------------------------------------
 --- Whether the ship can hear a distress call at all.
 ---
---- **This is the one line cold start (ROADMAP2 1.6) changes.** Today it is a
---- ship that has been boarded -- the cabin exists -- with dilithium in the
---- core; when commissioning exists it becomes "commissioned", and nothing
---- else in this file has to move.
+--- **The one line cold start changed** (ENERGY.md 10.4): a ship that has
+--- been boarded -- the cabin exists -- and has been commissioned. Not "has
+--- dilithium": the channel and the calls work dark (3.2, decided 2026-09-24),
+--- so a ship that ran its reserve down still hears, and a cold ship that has
+--- never had power does not. A commissioned start is commissioned from the
+--- first moment, so for it this is "boarded", as it always was.
 function M.hearing()
     local s = U.state()
-    if not s.built then return false end
-    return TREK.Power.reserve() > 0 or TREK.Power.crystals() > 0
+    return s.built == true and s.commissioned == true
 end
 
 --- Where the crew are, for a call to be measured from. The first player with
@@ -457,6 +458,8 @@ local function lose(contact, now)
     U.log("ensign %s: %s's life signs have stopped", contact.id,
           tostring(contact.name))
     Net.toAll("ensignLost", { name = contact.name, why = "time" })
+    -- Shepard says the name out loud (COMMS.md 6.2).
+    if TREK.CommsServer then TREK.CommsServer.event("lost", contact.name) end
 end
 
 --- Places, beacons, times out and tidies up. Authority only, every game
@@ -595,6 +598,10 @@ Net.onServer("rescueEnsign", function(player, args)
           tostring(who), tostring(contact.name), contact.id, learned)
     Net.toAll("ensignRescued", { name = contact.name, by = who,
                                  learned = learned })
+    -- The channel knows who came up, by name (COMMS.md 6.2).
+    if TREK.CommsServer then TREK.CommsServer.event("rescued", contact.name) end
+    -- And the rescuer's service record does (TRAITS.md 3.3).
+    if TREK.TraitsServer then U.try("traits.rescue", TREK.TraitsServer.onRescue, player) end
 end)
 
 ---------------------------------------------------------------------------

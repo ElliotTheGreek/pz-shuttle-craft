@@ -2,10 +2,13 @@
 
     Three items live on top of this file: the hypospray, the medical tricorder
     and the tricorder (TREK_MedKit.lua for the menus, the panel and the
-    sweep; TREK_Server.lua for the lock override). What is *here* is the part
-    with no side effects of its own -- finding a carried instrument, treating
-    a body, and deciding what counts as a lock -- because each of those is
-    needed on more than one side.
+    sweep). What is *here* is the part with no side effects of its own --
+    finding a carried instrument and treating a body -- because each of those
+    is needed on more than one side.
+
+    The tricorder used to carry a lock override, and it is gone (2026-09-24):
+    nothing a Starfleet crew carries picks a lock. A phaser defeats one by
+    taking the door out of its frame (PHASERS.md 7).
 
     It is a shared file, so it has no isClient/isServer guard and loads
     everywhere. Nothing in it runs by itself.
@@ -594,121 +597,6 @@ function Med.publish(character)
         end) then sent = sent + 1 end
     end
     return sent
-end
-
----------------------------------------------------------------------------
--- Locks
----------------------------------------------------------------------------
--- What the tricorder will and will not open, and the second half is the
--- important one.
---
--- **A padlock is not opened, and neither is anything inside somebody else's
--- safehouse.** Both of those are another player's property. A mod that picks
--- them is a griefing tool on every server that installs it, and a server
--- owner has no setting to turn that off because they would first have to
--- know it was there. Key locks on the map's own doors are the feature; other
--- people's front doors are not.
---
--- The lookup lives in shared/ because both sides need it and they must agree:
--- the client asks it to decide whether to offer the option, and the server
--- asks it again before doing anything, because a client is a request and
--- never a fact.
-
---- The locked object on a square, or nil and a reason.
----
---- `username` is whose safehouse rights to judge by; pass nil to skip that
---- check (single player has no safehouses to speak of, and the server passes
---- the asking player's name).
-function Med.lockOn(sq, username)
-    if not sq then return nil, "nosquare" end
-
-    if username then
-        local ok, safe = pcall(function()
-            return SafeHouse.isSafeHouse(sq, username, true)
-        end)
-        if not ok then
-            U.warnOnce("med.safehouse", tostring(safe))
-            return nil, "safehouse"
-        end
-        if safe then return nil, "safehouse" end
-    end
-
-    local found, why = nil, "nolock"
-    U.eachObject(sq, function(o)
-        local door = instanceof(o, "IsoDoor")
-        local thump = instanceof(o, "IsoThumpable")
-        local window = instanceof(o, "IsoWindow")
-        if not (door or thump or window) then return end
-
-        local locked = U.try("med.isLocked", function() return o:isLocked() end) == true
-        if not locked and (door or thump) then
-            locked = U.try("med.isLockedByKey", function()
-                return o:isLockedByKey()
-            end) == true
-        end
-        if not locked then return end
-
-        -- A padlock is somebody's own lock, fitted by hand. Refused, and the
-        -- reason is carried back so the menu can say so rather than simply
-        -- not appearing -- an option that silently is not there teaches a
-        -- player that the mod is broken.
-        if thump then
-            local padlocked = U.try("med.isLockedByPadlock", function()
-                return o:isLockedByPadlock()
-            end) == true
-            if padlocked then
-                why = "padlock"
-                return
-            end
-        end
-
-        found = o
-        return false
-    end)
-
-    if found then return found, nil end
-    return nil, why
-end
-
---- Opens a lock the engine is prepared to open, and tells every client.
----
---- **The sync is not automatic and it is not symmetric.** `setLockedByKey(b)`
---- calls `setLockedByKey(b, true)`, which fires `IsoDoor.sync()` itself --
---- but only when `!GameServer.server`. Run on a server, the branch is skipped
---- and no packet is sent at all, so a door unlocked by the authority would
---- stay shut on every client's screen. `obj:sync()` is the explicit call that
---- covers both: on a server it broadcasts to every connection, in single
---- player it is a no-op with nobody to tell.
----
---- Returns true when the object reports itself unlocked afterwards -- read
---- back, as everything else here is.
-function Med.unlock(obj)
-    if not obj then return false end
-
-    local keySet = U.try("med.setLockedByKey", function()
-        if obj.setLockedByKey then obj:setLockedByKey(false) end
-        return true
-    end)
-    local lockSet = U.try("med.setIsLocked", function()
-        obj:setIsLocked(false)
-        return true
-    end)
-    if keySet ~= true or lockSet ~= true then return false end
-
-    local stillLocked = U.try("med.isLocked", function()
-        return obj:isLocked()
-    end)
-    local stillKeyed = U.try("med.isLockedByKey", function()
-        if obj.isLockedByKey then return obj:isLockedByKey() end
-        return false
-    end)
-    if stillLocked ~= false or stillKeyed ~= false then return false end
-
-    local synced = U.try("med.lockSync", function()
-        obj:sync()
-        return true
-    end)
-    return synced == true
 end
 
 return Med

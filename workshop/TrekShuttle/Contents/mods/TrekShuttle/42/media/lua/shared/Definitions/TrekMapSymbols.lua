@@ -3,5 +3,6 @@
 -- Registered exactly as vanilla registers its own ninety-two symbols, in
 -- media/lua/shared/Definitions/MapSymbolDefinitions.lua. A symbol id that
 -- nothing registered draws nothing at all, with no warning anywhere.
+MapSymbolDefinitions.getInstance():addTexture("TrekContactClue", "media/ui/TrekMap/TrekContactClue.png", "Locations")
 MapSymbolDefinitions.getInstance():addTexture("TrekContactDilithium", "media/ui/TrekMap/TrekContactDilithium.png", "Locations")
 MapSymbolDefinitions.getInstance():addTexture("TrekContactPersonnel", "media/ui/TrekMap/TrekContactPersonnel.png", "Locations")

@@ -397,10 +397,12 @@ function TREKReplicatorWindow:render()
     local cx = SIDE + PAD
     local cw = self.width - cx - PAD
     local off = R.isOff()
+    -- A dark ship's replicator is OFFLINE (ENERGY.md 6): no buttons that all
+    -- fail, and one word saying why.
+    local dark = TREK.Power.dark()
 
     -- The reserve.
     local energy = math.floor(R.energy())
-    local frac = energy / C.PowerMax
     H.pill(self, cx, self.energyY + 3, 30, 10, P.gold, true, false)
     self:drawText(string.upper(getText("IGUI_TREK_RepEnergyHeader")), cx + 38,
                   self.energyY, P.gold[1], P.gold[2], P.gold[3], 1, UIFont.Small)
@@ -409,13 +411,7 @@ function TREKReplicatorWindow:render()
                        self.width - PAD, self.energyY,
                        P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
 
-    self:drawRect(cx, self.barY, cw, 12, 0.55, 0.02, 0.03, 0.08)
-    local fill = R.isFree() and cw or math.floor(cw * frac)
-    if fill > 0 then
-        local c = (frac > 0.25 or R.isFree()) and P.gold or P.red
-        self:drawRect(cx, self.barY, fill, 12, 0.95, c[1], c[2], c[3])
-    end
-    self:drawRectBorder(cx, self.barY, cw, 12, 0.6, P.blue[1], P.blue[2], P.blue[3])
+    H.powerBar(self, cx, self.barY, cw, 12, { free = R.isFree() })
 
     -- What the bar actually is: the crystal in the chamber, and what is left
     -- behind it. A player who cannot see the spares cannot tell "nearly out"
@@ -464,10 +460,10 @@ function TREKReplicatorWindow:render()
         -- Live when the reserve covers it **or** there is a crystal to load:
         -- the ship swaps one in by itself, so greying the button on a low
         -- reserve would refuse something that would have worked.
-        self.makeBtn.enable = not off
+        self.makeBtn.enable = not off and not dark
             and (cost <= R.energy() or (self.spares or 0) > 0)
     end
-    self.scanBtn.enable = not off
+    self.scanBtn.enable = not off and not dark
 
     if #self.list.items == 0 then
         local why = (self.knownOnly and self.needle == "")
@@ -481,6 +477,9 @@ function TREKReplicatorWindow:render()
 
     if off then
         self:drawText(getText("IGUI_TREK_RepOff"), cx, self.height - BOTH - 42,
+                      P.red[1], P.red[2], P.red[3], 1, UIFont.Small)
+    elseif dark then
+        self:drawText(getText("IGUI_TREK_RepOffline"), cx, self.height - BOTH - 42,
                       P.red[1], P.red[2], P.red[3], 1, UIFont.Small)
     end
 
@@ -684,6 +683,8 @@ function M.fillMenu(playerIndex, context, worldobjects, test)
     local why = nil
     if R.isOff() then
         why = "IGUI_TREK_RepOff"
+    elseif TREK.Power.dark() then
+        why = "IGUI_TREK_RepOffline"
     elseif not R.inReachOf(player) then
         why = "IGUI_TREK_RepFar"
     end
@@ -728,7 +729,7 @@ end
 function M.fillInventoryMenu(playerIndex, context, items)
     local player = U.player(playerIndex)
     if not player then return end
-    if R.isOff() or not R.inReachOf(player) then return end
+    if R.isOff() or TREK.Power.dark() or not R.inReachOf(player) then return end
 
     local seen = {}
     for _, item in ipairs(selectedItems(items)) do

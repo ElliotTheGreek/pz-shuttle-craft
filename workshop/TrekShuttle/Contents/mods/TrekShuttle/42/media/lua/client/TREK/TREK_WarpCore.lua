@@ -127,6 +127,27 @@ end
 
 Events.OnPreFillWorldObjectContextMenu.Add(W.fillMenu)
 
+--- The galley's power bus is a generator, and vanilla offers a whole
+--- Generator submenu for one -- Info, Turn off, Add fuel, Fix, **Take**. This
+--- fires after vanilla has gathered what was clicked and before it builds the
+--- menu (ISWorldObjectContextMenu.createMenu), so taking the bus out of what
+--- was gathered takes the submenu with it (ENERGY.md V7). Anybody else's
+--- generator is left alone.
+function W.hideBus(playerNum, context, worldobjects, test)
+    local fetch = ISWorldObjectContextMenu and ISWorldObjectContextMenu.fetchVars
+    local gen = fetch and fetch.generator
+    if not gen then return end
+    local ours = U.try("busIsOurs", function()
+        local md = gen:getModData()
+        if md and md.TREK == C.PowerBusTag then return true end
+        local sq = gen:getSquare()
+        return sq ~= nil and U.isInterior(sq:getX(), sq:getY())
+    end)
+    if ours == true then fetch.generator = nil end
+end
+
+Events.OnPreFillWorldObjectContextMenu.Add(W.hideBus)
+
 ---------------------------------------------------------------------------
 -- What the server says back
 ---------------------------------------------------------------------------

@@ -31,3 +31,23 @@ option TrekShuttle.FlightHeight = {
     type = enum, numValues = 6, default = 4,
     page = TrekShuttle, translation = TrekShuttle.FlightHeight, valueTranslation = TrekShuttle.FlightHeight,
 }
+
+option TrekShuttle.CommsFirstDay = {
+    type = enum, numValues = 5, default = 4,
+    page = TrekShuttle, translation = TrekShuttle.CommsFirstDay, valueTranslation = TrekShuttle.CommsFirstDay,
+}
+
+option TrekShuttle.StartState = {
+    type = enum, numValues = 2, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.StartState, valueTranslation = TrekShuttle.StartState,
+}
+
+option TrekShuttle.WildDilithium = {
+    type = enum, numValues = 3, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.WildDilithium, valueTranslation = TrekShuttle.WildDilithium,
+}
+
+option TrekShuttle.PhaserCutting = {
+    type = enum, numValues = 3, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.PhaserCutting, valueTranslation = TrekShuttle.PhaserCutting,
+}

@@ -108,11 +108,18 @@ end
 --- and step aside as the ship comes in. `exemptShuttle` ignores the shuttle
 --- herself, for setting a flying ship down on the ground beneath her.
 --- "unloaded" is reported only when every bad square was unloaded.
+---
+--- The hull's own squares are skipped only while she is **standing** on them.
+--- A flying ship's recorded position follows her, so skipping them in the air
+--- skipped the whole footprint under her, and the pilot's own "set her down"
+--- answered "clear" over a roof, a fence or a car -- found by the emergency
+--- landing's test (ENERGY.md 7.1), which asks the same question.
 function W.roomToLand(cx, cy, z, exempt, exemptShuttle)
     local blocked, first = 0, nil
+    local standing = U.state().flying ~= true
     for _, d in ipairs(C.footprintOffsets()) do
         local x, y = cx + d[1], cy + d[2]
-        local skip = W.hullCovers(x, y, z)
+        local skip = (standing and W.hullCovers(x, y, z))
                      or (exempt and exempt.x == x and exempt.y == y)
         if not skip then
             local ok, why = W.squareIsClear(U.square(x, y, z, false), exemptShuttle)

@@ -255,7 +255,7 @@ function TREKCopyPadd:isValid()
     return self.padd ~= self.target and Pd.isPadd(self.target)
            and Pd.inHand(self.character, self.padd)
            and Pd.inHand(self.character, self.target)
-           and Pd.count(self.padd) > 0
+           and (Pd.count(self.padd) + #Pd.tapes(self.padd)) > 0
 end
 
 function TREKCopyPadd:start()
@@ -277,9 +277,12 @@ function TREKCopyPadd:perform()
 end
 
 function TREKCopyPadd:complete()
+    -- Books and transcripts in one action (PADD.md 12.7): handing somebody a
+    -- copy is handing them everything the PADD reads.
     local n = Pd.merge(self.padd, self.target)
-    if n > 0 then sync(self.character, self.target) end
-    U.log("padd: copied %d title(s) onto another PADD", n)
+    local t = Pd.mergeTapes(self.padd, self.target)
+    if n + t > 0 then sync(self.character, self.target) end
+    U.log("padd: copied %d title(s) and %d transcript(s) onto another PADD", n, t)
     return true
 end
 
@@ -304,7 +307,8 @@ function TREKErasePadd:new(character, padd)
 end
 
 function TREKErasePadd:isValid()
-    return Pd.inHand(self.character, self.padd) and Pd.count(self.padd) > 0
+    return Pd.inHand(self.character, self.padd)
+           and (Pd.count(self.padd) + #Pd.tapes(self.padd)) > 0
 end
 
 function TREKErasePadd:start()
@@ -328,6 +332,179 @@ function TREKErasePadd:complete()
 end
 
 function TREKErasePadd:getDuration()
+    return self.maxTime
+end
+
+---------------------------------------------------------------------------
+-- Transcribe a tape onto the PADD (PADD.md 12.3)
+---------------------------------------------------------------------------
+-- The tape stays what it is; the PADD gains a text copy, keyed by the
+-- recording id. **Any tape** -- the author's call (2026-09-24), reversing the
+-- spec's "only a tape you have watched to the end": a PADD is a way to read a
+-- tape instead of sitting in front of the television, and reading it
+-- (TREKReadTape, below) does to you exactly what watching it would, once.
+TREKTranscribePadd = ISBaseTimedAction:derive("TREKTranscribePadd")
+
+function TREKTranscribePadd:new(character, padd, tape)
+    local o = ISBaseTimedAction.new(self, character)
+    o.character = character
+    o.padd = padd
+    o.tape = tape
+    o.stopOnWalk = true
+    o.stopOnRun = true
+    o.maxTime = U.try("padd.instant", function() return character:isTimedActionInstant() end)
+                and 1 or math.max(1, math.floor(C.PaddTranscribeTicks
+                    * (TREK.Traits and TREK.Traits.paddFactor(character) or 1)))
+    return o
+end
+
+function TREKTranscribePadd:isValid()
+    if not Pd.inHand(self.character, self.padd) then return false end
+    local id = Pd.recordingOf(self.tape)
+    if not id or Pd.hasTape(self.padd, id) then return false end
+    return Pd.canReach(self.character, self.tape)
+end
+
+function TREKTranscribePadd:start()
+    holdPadd(self)
+    if not isServer() then
+        U.try("padd.chirp", function()
+            self.character:playSoundLocal("TREK_TricorderChirp")
+        end)
+    end
+end
+
+function TREKTranscribePadd:stop()
+    ISBaseTimedAction.stop(self)
+end
+
+function TREKTranscribePadd:perform()
+    local id = Pd.recordingOf(self.tape)
+    if id then note(self.character, "IGUI_TREK_PaddTranscribedNote", Pd.tapeTitle(id)) end
+    ISBaseTimedAction.perform(self)
+end
+
+function TREKTranscribePadd:complete()
+    local id = Pd.recordingOf(self.tape)
+    if id and Pd.addTape(self.padd, id) then
+        sync(self.character, self.padd)
+        U.log("padd: transcribed %s (%d transcripts)", id, #Pd.tapes(self.padd))
+    end
+    return true
+end
+
+function TREKTranscribePadd:getDuration()
+    return self.maxTime
+end
+
+---------------------------------------------------------------------------
+-- Read a transcript
+---------------------------------------------------------------------------
+-- Reading a tape off the PADD does what watching it does: every line's
+-- effects -- boredom, stress, a training tape's skill XP up to the sandbox's
+-- media cut-off, a recipe -- applied by **vanilla's own interpreter**,
+-- `ISRadioInteractions.checkPlayer`, the function the television reaches
+-- through OnDeviceText. That matters three ways:
+--
+--   * it records each line as heard (`addKnownMediaLine`) before it applies
+--     anything, so a line pays once per character **whether it was heard on
+--     the television or read here** -- neither route can farm the other;
+--   * it keeps the XP cut-off, the halos and the per-code debounce the
+--     engine gives a tape;
+--   * called with no source square (-1, -1, -1) it skips the indoors check,
+--     which only means anything for a screen in a room.
+--
+-- The debounce is thirty ticks per code, so the lines are applied one at a
+-- time as the read goes on, paced like a television, rather than all in the
+-- last tick where every BOR after the first would be swallowed. On the
+-- authority only: a tape's effects land on the server's copy of a player,
+-- exactly as the television's do in multiplayer.
+TREKReadTape = ISBaseTimedAction:derive("TREKReadTape")
+
+--- The television's own pacing (DeviceData.updateMediaPlaying: a line is on
+--- screen for length / 10 * 60 frames), clamped, then the PADD's speed.
+function Pd.tapeTicks(id)
+    local rec = type(RecMedia) == "table" and RecMedia[id]
+    if type(rec) ~= "table" then return 1 end
+    local total = 0
+    for _, ln in ipairs(rec.lines or {}) do
+        local len = #(getText(ln.text) or "")
+        total = total + math.max(C.PaddTapeLineMin, math.min(C.PaddTapeLineMax, len * 6))
+    end
+    return math.max(1, math.floor(total / C.PaddReadSpeed))
+end
+
+function TREKReadTape:new(character, padd, tape)
+    local o = ISBaseTimedAction.new(self, character)
+    o.character = character
+    o.padd = padd
+    o.tape = tape
+    o.stopOnWalk = false
+    o.stopOnRun = true
+    o.forceProgressBar = true
+    o.applied = 0
+    o.maxTime = U.try("padd.instant", function() return character:isTimedActionInstant() end)
+                and 1 or Pd.tapeTicks(tape)
+    return o
+end
+
+function TREKReadTape:isValid()
+    return Pd.inHand(self.character, self.padd) and Pd.hasTape(self.padd, self.tape)
+end
+
+function TREKReadTape:start()
+    holdPadd(self)
+    U.try("padd.reading", function() self.character:setReading(true) end)
+end
+
+--- Applies lines up to `upto`, in order, each once.
+function TREKReadTape:applyTo(upto)
+    if isClient() then return end
+    local rec = type(RecMedia) == "table" and RecMedia[self.tape]
+    if type(rec) ~= "table" then return end
+    local lines = rec.lines or {}
+    local ri = U.try("padd.radio", function() return ISRadioInteractions:getInstance() end)
+    if not ri then return end
+    while self.applied < math.min(upto, #lines) do
+        self.applied = self.applied + 1
+        local ln = lines[self.applied]
+        U.try("padd.tapeLine", function()
+            ri.checkPlayer(self.character, ln.text, ln.codes or "", -1, -1, -1,
+                           getText(ln.text))
+        end)
+    end
+end
+
+-- The client runs update() too, on its own copy of the action. The guard
+-- is in applyTo alone -- one guard where the effects are applied, rather than
+-- two that cover for each other and hide from a mutation (DEV_GUIDE).
+function TREKReadTape:update()
+    local rec = type(RecMedia) == "table" and RecMedia[self.tape]
+    local n = rec and #(rec.lines or {}) or 0
+    self:applyTo(math.floor(n * self:getJobDelta()))
+end
+
+function TREKReadTape:stop()
+    U.try("padd.reading", function() self.character:setReading(false) end)
+    ISBaseTimedAction.stop(self)
+end
+
+function TREKReadTape:perform()
+    U.try("padd.reading", function() self.character:setReading(false) end)
+    note(self.character, "IGUI_TREK_PaddFinished", Pd.tapeTitle(self.tape))
+    ISBaseTimedAction.perform(self)
+end
+
+function TREKReadTape:complete()
+    -- Everything left. Not math.huge: Kahlua has no such field (pz_sim.lua
+    -- removes it for that reason), and a nil compare throws on the last tick.
+    self:applyTo(1000000)
+    U.log("padd: %s read the transcript of %s",
+          tostring(TREK.Ship and TREK.Ship.usernameOf(self.character)), tostring(self.tape))
+    return true
+end
+
+function TREKReadTape:getDuration()
     return self.maxTime
 end
 

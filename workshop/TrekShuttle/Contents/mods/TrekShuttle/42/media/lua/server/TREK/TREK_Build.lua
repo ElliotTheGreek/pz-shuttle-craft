@@ -145,6 +145,25 @@ end
 ---------------------------------------------------------------------------
 -- The refit migration
 ---------------------------------------------------------------------------
+--- Every container an object has. U.containerOf answers the first only, and
+--- a fridge is two: the fridge and its freezer. Anything that empties an
+--- object has to walk them all or it destroys what was in the freezer.
+local function containersOf(obj)
+    local out = {}
+    local n = U.try("containerCount", function() return obj:getContainerCount() end)
+    if type(n) == "number" and n > 0 then
+        for i = 0, n - 1 do
+            local c = U.try("containerAt", function() return obj:getContainerByIndex(i) end)
+            if c then table.insert(out, c) end
+        end
+        return out
+    end
+    local c = U.containerOf(obj)
+    if c then table.insert(out, c) end
+    return out
+end
+B.containersOf = containersOf
+
 --- Spills a container's contents onto the transporter pad.
 ---
 --- The ship is meant to be lived in and what is in a locker is the player's,
@@ -156,27 +175,32 @@ end
 --- would reset a hypospray's doses and a magazine's rounds, which is the
 --- quiet half of losing it. AddWorldInventoryItem's (InventoryItem, f, f, f)
 --- overload is what vanilla's own scenarios use.
+--- **Every** container, not the first: a fridge is a fridge and a freezer,
+--- and walking only the first destroyed what was in the freezer.
 local function spillToPad(obj)
-    local container = U.containerOf(obj)
-    if not container then return 0 end
+    local containers = containersOf(obj)
+    if #containers == 0 then return 0 end
 
     local px, py = at(C.Landing.x, C.Landing.y)
     local pad = U.square(px, py, C.CabinZ, false)
     if not pad then return 0 end
 
     local doomed = {}
-    U.try("spill:list", function()
-        local items = container:getItems()
-        if not items then return end
-        for i = 0, items:size() - 1 do
-            local it = items:get(i)
-            if it then table.insert(doomed, it) end
-        end
-    end)
+    for _, container in ipairs(containers) do
+        U.try("spill:list", function()
+            local items = container:getItems()
+            if not items then return end
+            for i = 0, items:size() - 1 do
+                local it = items:get(i)
+                if it then table.insert(doomed, { item = it, from = container }) end
+            end
+        end)
+    end
 
     local spilled = 0
     local join = U.batch("spill.toPad")
-    for _, item in ipairs(doomed) do
+    for _, entry in ipairs(doomed) do
+        local item, container = entry.item, entry.from
         -- The closure returns true on purpose: U.batch's join hands back
         -- whatever the call returned, and a function returning nothing is
         -- indistinguishable from one that failed.
@@ -192,6 +216,7 @@ local function spillToPad(obj)
     end
     return spilled
 end
+B.spillToPad = spillToPad
 
 --- Removes what the old, larger cabin left standing outside the new hull.
 ---
@@ -649,6 +674,77 @@ local function stockTapes(obj)
     return held
 end
 
+--- Tapes the channel has issued (TREK_CommsServer.issueTape), put on the
+--- shelf. Returns how many went on.
+---
+--- The issue record is written when the story gets there, wherever the crew
+--- are; the tape reaches the shelf the next time the cabin is loaded. That is
+--- the ghost hull's pattern run the other way: write it down, do it when the
+--- ground is there. And it reaches an existing save, because the shelf is
+--- found by its tag rather than stocked when it was created.
+---
+--- Each tape is read back off the container before it leaves the pending
+--- list. A full shelf drops what it is handed without a word, and a tape that
+--- never landed must stay owed rather than be marked delivered.
+function B.deliverTapes()
+    local Cm = TREK.Comms
+    if not Cm then return 0 end
+    local d = Cm.store()
+    local pending = d.pendingTapes
+    if type(pending) ~= "table" or #pending == 0 then return 0 end
+    if not U.state().built or not B.cabinLoaded() then return 0 end
+
+    local shelf = nil
+    for _, entry in ipairs(L.tiles) do
+        if entry.tag == "tapes" then
+            local x, y = at(entry.x, entry.y)
+            local sq = U.square(x, y, C.CabinZ, false)
+            shelf = sq and U.findSprite(sq, entry.sprite)
+        end
+    end
+    local container = shelf and U.containerOf(shelf)
+    if not container then
+        U.warnOnce("tapes:noShelf", "tapes are owed and there is no tape shelf to put them on")
+        return 0
+    end
+    local media = U.try("recordedMedia", function()
+        return getZomboidRadio():getRecordedMedia()
+    end)
+    if not media then return 0 end
+
+    local delivered, keep = 0, {}
+    for _, id in ipairs(pending) do
+        local data = U.try("tapes.data", function() return media:getMediaData(id) end)
+        if not data then
+            -- Nothing registered under the id: a blank tape is worse than
+            -- none, and this is the two generators disagreeing, so it is loud
+            -- and it is not retried for ever.
+            U.log("WARN issued tape %s has no recording; dropped", tostring(id))
+        else
+            local item = U.try("tapes.item", function() return instanceItem(C.TapeItem) end)
+            local landed = false
+            if item then
+                U.try("tapes.label", function() item:setRecordedMediaData(data) end)
+                U.try("tapes.add", function() container:AddItem(item) end)
+                landed = U.try("tapes.check", function() return container:contains(item) end) == true
+                if landed and isServer() then
+                    U.try("tapes.send", function() sendAddItemToContainer(container, item) end)
+                end
+            end
+            if landed then
+                delivered = delivered + 1
+                U.log("tape: %s is on the shelf", tostring(id))
+            else
+                U.warnOnce("tapes:full", "the tape shelf is full; issued tapes wait")
+                table.insert(keep, id)
+            end
+        end
+    end
+    d.pendingTapes = keep
+    Cm.publish()
+    return delivered
+end
+
 local SPECIALS = {
     tapes   = { stock = stockTapes },
     phasers = { items = { C.PhaserItem }, copies = function() return C.PhaserCount end },
@@ -860,6 +956,179 @@ local function placeDevice(sq, entry)
     return obj, true
 end
 
+---------------------------------------------------------------------------
+-- The galley made real (ENERGY.md section 9)
+---------------------------------------------------------------------------
+-- A fridge cools and a stove heats only when its square has power, and the
+-- only power the engine knows off the town grid is a running generator in the
+-- chunk. So the ship keeps one the crew never see -- the power bus -- and
+-- vanilla's own code does the cooling and the cooking. V5-V8 are the bytecode.
+
+--- Moves every item from one object's containers into another's, container
+--- by container. The live InventoryItem, never its id: a new one would reset
+--- whatever it carries (DEV_GUIDE, the refit migration). Returns moved, left.
+local function moveContents(from, to)
+    local src, dst = containersOf(from), containersOf(to)
+    local moved, left = 0, 0
+    for i, c in ipairs(src) do
+        local target = dst[i] or dst[1]
+        local items = {}
+        U.try("moveList", function()
+            local list = c:getItems()
+            for k = 0, list:size() - 1 do table.insert(items, list:get(k)) end
+        end)
+        for _, item in ipairs(items) do
+            local ok = target and U.try("moveItem", function()
+                c:Remove(item)
+                if target:AddItem(item) then return true end
+                c:AddItem(item)
+                return false
+            end) == true
+            if ok then moved = moved + 1 else left = left + 1 end
+        end
+    end
+    return moved, left
+end
+
+--- Builds the oven or the microwave as the engine's IsoStove.
+---
+--- The class is decided by what built the object, not by its sprite (DEV_GUIDE,
+--- *A sprite is not the object the engine builds from it*): an IsoObject
+--- wearing an oven's picture is a cupboard. Vanilla's runtime route is
+--- ISMoveableSpriteProps.lua:2162 -- IsoStove.new(cell, square, sprite), then
+--- the containers, which **must exist before it is added**: IsoStove.addToWorld
+--- returns early without one, and a stove that is never processed never heats.
+---
+--- An older build's plain object is replaced, and what the crew had in it is
+--- moved across, live, before the old one goes. If the new one cannot be
+--- added, everything goes back.
+local function placeStove(sq, entry)
+    if not sq then return nil, false end
+    local existing = U.findSprite(sq, entry.sprite)
+    if existing and instanceof(existing, "IsoStove") then return existing, false end
+
+    local obj = U.try("IsoStove.new", function()
+        return IsoStove.new(getCell(), sq, getSprite(entry.sprite))
+    end)
+    if not obj then
+        U.warnOnce("stove:" .. tostring(entry.tag),
+                   "could not build an IsoStove; the " .. tostring(entry.tag)
+                   .. " stays a cupboard")
+        if existing then return existing, false end
+        return place(sq, entry.sprite, entry.tag, function(o) prepareContainer(o, entry) end)
+    end
+    U.try("tagObject", function() obj:getModData().TREK = entry.tag end)
+    if prepareContainer(obj, entry) == false then
+        U.log("WARN stove: the %s has no container; not placed", tostring(entry.tag))
+        return existing, false
+    end
+
+    local moved = 0
+    if existing then moved = moveContents(existing, obj) end
+    if not addSynced(sq, obj) then
+        if existing then moveContents(obj, existing) end
+        return existing, false
+    end
+    if existing then
+        removeSynced(sq, existing)
+        U.log("stove: the %s is a real stove now (%d item(s) moved across)",
+              tostring(entry.tag), moved)
+    end
+    return obj, true
+end
+
+--- The power bus on its square, or nil.
+function B.powerBus()
+    local x, y = at(C.PowerBusSpot.x, C.PowerBusSpot.y)
+    local sq = U.square(x, y, C.CabinZ, false)
+    if not sq then return nil, nil end
+    local found = nil
+    U.eachObject(sq, function(o)
+        if found then return end
+        if instanceof(o, "IsoGenerator") then found = o end
+    end)
+    return found, sq
+end
+
+--- Gives the bus's sprite the ship's own sound prefix, in this process. A
+--- sprite property, so RecalcProperties (which clears the *square's*) never
+--- touches it; set in every process, because every client plays the loop.
+function B.quietBus()
+    return TREK.Power.quietBus()
+end
+
+-- Said once: a server with exterior generators disabled has a dead galley,
+-- because the cabin is no building and its squares are "exterior" (V6).
+local exteriorNoted = false
+
+--- Places the bus if it is missing, bills what it burned, refuels and mends
+--- it, and switches it to match the ship: on while there is power, off when
+--- she is dark. Runs as a build phase, every game hour and on every change of
+--- power. Returns the bus.
+---
+--- `bill` charges the fuel it burned since the last refill -- every hour it
+--- was running, including any the engine caught up on after a long absence.
+function B.servicePowerBus(bill)
+    local s = U.state()
+    if s.built ~= true and bill then return nil end
+    local gen, sq = B.powerBus()
+    if not sq then return nil end
+    B.quietBus()
+
+    if not gen then
+        local item = U.try("busItem", function() return instanceItem(C.PowerBusItem) end)
+        if not item then
+            U.log("WARN power bus: %s could not be made; the galley has no power",
+                  C.PowerBusItem)
+            return nil
+        end
+        -- Fuel and condition on the item first: the constructor adds itself to
+        -- the square and sends itself to clients at once (V5, bci 68-78), so
+        -- the first packet has to be right. No second transmit.
+        U.try("busItemSetup", function()
+            item:setCondition(100)
+            item:getModData().fuel = 10.0
+        end)
+        gen = U.try("IsoGenerator.new", function()
+            return IsoGenerator.new(item, getCell(), sq)
+        end)
+        if not gen then
+            U.log("WARN power bus: IsoGenerator.new failed; the galley has no power")
+            return nil
+        end
+        U.try("busTag", function()
+            gen:getModData().TREK = C.PowerBusTag
+            gen:transmitModData()
+        end)
+        U.try("busConnect", function() gen:setConnected(true) end)
+        U.log("power bus: placed at %d,%d", C.PowerBusSpot.x, C.PowerBusSpot.y)
+    end
+
+    local max = U.try("busMax", function() return gen:getMaxFuel() end) or 10
+    local fuel = U.try("busFuel", function() return gen:getFuel() end) or max
+    if bill and max - fuel > 0.0001 then
+        TREK.Energy.energize(nil, "galley", (max - fuel) * C.FuelToEnergy,
+                             { partial = true, silent = true })
+    end
+    if fuel < max then U.try("busRefuel", function() gen:setFuel(max) end) end
+    U.try("busMend", function()
+        if gen:getCondition() < 100 then gen:setCondition(100) end
+    end)
+
+    local want = not TREK.Power.dark()
+    if U.try("busOn", function() return gen:isActivated() end) ~= want then
+        U.try("busSwitch", function() gen:setActivated(want) end)
+        U.log("power bus: %s", want and "on" or "off -- the galley is dark")
+    end
+
+    if not exteriorNoted and SandboxVars and SandboxVars.AllowExteriorGenerator == false then
+        exteriorNoted = true
+        U.log("power bus: this server has AllowExteriorGenerator off, so the galley "
+              .. "cannot be powered -- the cabin's squares count as exterior")
+    end
+    return gen
+end
+
 --- Places the furniture authored in BuildingEd. An appliance and its counter
 --- may share a square, so layering is intentional and nothing is claimed.
 local function furnishAuthoredInterior()
@@ -870,6 +1139,8 @@ local function furnishAuthoredInterior()
             local isWater = C.WaterTags[entry.tag]
             if entry.device then
                 placeDevice(sq, entry)
+            elseif C.StoveTags[entry.tag] then
+                placeStove(sq, entry)
             elseif wantsContainer(entry) then
                 local obj, made = place(sq, entry.sprite, entry.tag, function(o)
                     prepareContainer(o, entry)
@@ -1279,6 +1550,19 @@ end
 function B.refillWater()
     if not U.state().built then return 0, 0 end
     local wet, dry = 0, 0
+    -- **A dark ship's pumps are off** (ENERGY.md 8.3): no pressure, so the
+    -- fixture's store is emptied rather than merely left to run down. When
+    -- the power comes back the next minute's pass fills it again.
+    -- `emptyFluid` syncs itself on a server, as addFluid does.
+    if TREK.Power.dark() then
+        eachWaterFixture(function(o)
+            if waterCapacity(o) > 0 and (U.try("waterHave", function()
+                    return o:getFluidAmount() end) or 0) > 0 then
+                U.try("drainWater", function() o:emptyFluid() end)
+            end
+        end)
+        return 0, 0
+    end
     eachWaterFixture(function(o)
         if topUp(o) then wet = wet + 1 else dry = dry + 1 end
     end)
@@ -1345,6 +1629,12 @@ B.GalleyItems = {
     "TrekShuttle.TrekLeolaStew",
     "TrekShuttle.TrekPlomeekSoup",
     "TrekShuttle.TrekJumjaStick",
+    "TrekShuttle.TrekAndorianTuber",
+    "TrekShuttle.TrekOskoid",
+    "TrekShuttle.TrekWingSlugRoll",
+    "TrekShuttle.TrekHasperat",
+    "TrekShuttle.TrekRokegPie",
+    "TrekShuttle.TrekChadrekab",
     -- The drinks. Each arrives full: the vessel's FluidContainer carries
     -- InitialPercentMin/Max, so instanceItem hands back a full mug or bottle
     -- rather than empty glass. If one of these comes through empty, the fill
@@ -1353,6 +1643,9 @@ B.GalleyItems = {
     "TrekShuttle.TrekEarlGreyCup",
     "TrekShuttle.TrekRomulanAle",
     "TrekShuttle.TrekBloodwine",
+    "TrekShuttle.TrekAndorianAle",
+    "TrekShuttle.TrekBalsoTonic",
+    "TrekShuttle.TrekNutrientSuspension",
     -- Not galley, and here anyway: an existing save never sees new loot, and
     -- this is the only route to a new item that does not cost a fresh world.
     -- The bat'leth is the first custom in-hand model this mod has, so it is
@@ -1432,7 +1725,10 @@ function B.buildCabin()
         -- is what puts him back, and it runs in both directions so a rebuild
         -- with him dismissed does not stand him up again.
         { "emh",            B.serviceEMH },
+        -- The galley's generator: placed, fuelled, and on or off with the ship.
+        { "powerBus", function() B.servicePowerBus(false) end },
         { "stockReport", function() B.stockReport() end },
+        { "deliverTapes",   B.deliverTapes },
         { "clearMargin",    clearSurroundings },
     }
     for _, phase in ipairs(phases) do

@@ -33,6 +33,7 @@ require "TREK/TREK_Replicator"
 require "TREK/TREK_Probes"
 require "TREK/TREK_EMH"
 require "TREK/TREK_Build"
+require "TREK/TREK_Energy"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -198,11 +199,158 @@ local function prepareVehicle(vehicle, id)
     U.try("vehicleRepair", function() vehicle:repair() end)
     U.try("vehicleHotwire", function() vehicle:cheatHotwire(true, false) end)
     U.try("vehicleTag", function() vehicle:getModData().TREKShipId = id end)
-    S.refuel(vehicle)
+    -- After repair(), which fills the tank and charges the battery for
+    -- nothing (ENERGY.md V4): a dark ship has to come out of it flat.
+    S.powerVehicle(vehicle)
 end
 
---- The ship never runs dry: its tank is topped up whenever it falls below
---- half. The same call vanilla's own refuelling command makes.
+--- True while the vehicle's own parts should say the ship has power. The
+--- emergency landing keeps her engine alive with nothing charged
+--- (ENERGY.md 7.1).
+local function vehiclePowered()
+    return not TREK.Power.dark() or U.state().emergency == true
+end
+
+--- Sets the battery's charge, writing only when it changed. The charge lives
+--- in the part's item and rides transmitPartUsedDelta, not part mod data
+--- (ENERGY.md V3; vanilla's VehicleUtils.chargeBattery).
+local function chargeBattery(vehicle, level)
+    U.try("vehicleBattery", function()
+        local part = vehicle:getPartById("Battery")
+        local item = part and part:getInventoryItem()
+        if not item then return end
+        if math.abs((item:getCurrentUsesFloat() or 0) - level) < 0.01 then return end
+        item:setUsedDelta(level)
+        if isServer() then vehicle:transmitPartUsedDelta(part) end
+    end)
+end
+
+--- The ship's power, in the vehicle's own parts (ENERGY.md 4.2). The engine
+--- already obeys them, so nothing of ours is in the ignition path:
+---
+---   * powered: the battery full and the tank topped up whenever it falls
+---     below half -- the ship never runs dry;
+---   * dark: the battery flat, which vanilla refuses to start on with its own
+---     message and sound, and the tank empty, which stalls an engine that is
+---     already running. `shutOff` as well, because a flat battery only stops
+---     a *start* (V3), and the stall waits for the engine's next check.
+function S.powerVehicle(vehicle)
+    if not vehicle then return end
+    if vehiclePowered() then
+        chargeBattery(vehicle, 1.0)
+        S.refuel(vehicle)
+        return
+    end
+    chargeBattery(vehicle, 0)
+    U.try("vehicleDrain", function()
+        local tank = vehicle:getPartById("GasTank")
+        if not tank or tank:getContainerContentAmount() <= 0 then return end
+        tank:setContainerContentAmount(0)
+        if isServer() then vehicle:transmitPartModData(tank) end
+    end)
+    if U.try("vehicleRunning", function() return vehicle:isEngineRunning() end) == true then
+        U.try("vehicleShutOff", function() vehicle:shutOff() end)
+        U.log("power: the shuttle's engine is shut down -- the ship is dark")
+    end
+end
+
+--- Mends crash damage while the shields are up and there is power
+--- (ENERGY.md 5.2), charged per condition point, silently.
+---
+--- On the server, because that is where collision damage is applied: a
+--- client's crash only sends vehicle/crash, and part conditions travel
+--- server to client with no driver check, so a condition set here reaches the
+--- driver and stays (V4). Vanilla's own fixPart is the shape: setCondition,
+--- the item's stats, then transmitPartCondition and transmitPartItem, and the
+--- vehicle's stats once at the end. **Never vehicle:repair()**: it refills the
+--- tank and recharges the battery for nothing.
+---
+--- The tank and the battery are skipped: those are power, not damage. When
+--- the reserve runs out part-way, a part is mended only as far as what was
+--- paid for, and the ship is dark. Shields down, or dark, and the damage
+--- stays: she is an ordinary damaged vehicle.
+---
+--- It does not heal the crew. Crash damage hurts the occupants as well, and
+--- no part repair undoes that.
+---
+--- There is no separate dark check, and that is deliberate: a dark ship's
+--- partial payment is always nothing, so nothing is mended. A guard that
+--- could never change the outcome was deleted when a mutation said so.
+function S.shieldRepair(vehicle)
+    if not U.shieldsUp() then return 0 end
+    local count = U.try("partCount", function() return vehicle:getPartCount() end) or 0
+    local mended = 0
+    for i = 0, count - 1 do
+        local part = U.try("partAt", function() return vehicle:getPartByIndex(i) end)
+        local id = part and U.try("partId", function() return part:getId() end)
+        if id and id ~= "GasTank" and id ~= "Battery" then
+            local cond = U.try("partCond", function() return part:getCondition() end) or 100
+            if cond < 100 then
+                local cost = (100 - cond) * C.RepairCostPerPoint
+                local _, paid = TREK.Energy.energize(nil, "repair", cost,
+                    { partial = true, silent = true, noCommit = true })
+                paid = paid or 0
+                local to = math.min(100, cond + math.floor(paid / C.RepairCostPerPoint + 1e-6))
+                if to > cond then
+                    U.try("partMend", function()
+                        part:setCondition(to)
+                        local item = part:getInventoryItem()
+                        if item then
+                            part:doInventoryItemStats(item, part:getMechanicSkillInstaller())
+                        end
+                        if isServer() then
+                            vehicle:transmitPartCondition(part)
+                            if item then vehicle:transmitPartItem(part) end
+                        end
+                    end)
+                    mended = mended + (to - cond)
+                end
+                if TREK.Power.dark() then break end
+            end
+        end
+    end
+    if mended > 0 then
+        U.try("partStats", function()
+            vehicle:updatePartStats()
+            vehicle:updateBulletStats()
+        end)
+        Ship.commit()
+        U.log("shields: %d point(s) of damage mended", mended)
+    end
+    return mended
+end
+
+-- Whether each shuttle's engine was running at the last pass, by ship id.
+-- Server-local and transient: a restart finds the engine off, which is what
+-- a world load does to it anyway.
+local engineWas = {}
+
+--- Charges the engine's start, on its false-to-true edge (ENERGY.md 4.2).
+---
+--- Watched rather than requested: the engine's state is decided on the
+--- server and sent to clients (V3), so this machine sees the start for itself
+--- and no client has to report it. Charged to the driver, with the note --
+--- starting her is a thing they did. A dark ship never gets this far: the
+--- flat battery refused the start.
+function S.engineEdge(vehicle)
+    local id = V.idOf(vehicle) or 0
+    local running = U.try("engineRunning", function()
+        return vehicle:isEngineRunning()
+    end) == true
+    local was = engineWas[id] == true
+    engineWas[id] = running
+    if running and not was then
+        local driver = U.try("engineDriver", function() return vehicle:getDriver() end)
+        TREK.Energy.energize(driver, "engine", C.EngineStartCost, { partial = true })
+        return true
+    end
+    return false
+end
+
+--- The ship never runs dry while she has power: her tank is topped up
+--- whenever it falls below half. The same call vanilla's own refuelling
+--- command makes. Only S.powerVehicle's powered branch calls it, which is
+--- what keeps a dark ship dry; a guard here as well could never fire.
 function S.refuel(vehicle)
     U.try("vehicleRefuel", function()
         local tank = vehicle:getPartById("GasTank")
@@ -558,7 +706,21 @@ function S.serviceVehicle()
             s.pilotGrace = nil
         else
             s.pilotGrace = (s.pilotGrace or 0) + 1
-            if s.pilotGrace >= C.FlightPilotGrace then
+            -- **A dark ship cannot go back up** (ENERGY.md 7.2). She comes
+            -- down where there is room instead, which S.serviceEmergency does
+            -- once her ground is loaded; until somebody is near her she waits.
+            if s.pilotGrace >= C.FlightPilotGrace and TREK.Power.dark() then
+                if s.emergency ~= true then
+                    s.emergency = true
+                    Ship.commit()
+                end
+            elseif s.pilotGrace >= C.FlightPilotGrace then
+                -- Going back up is a recall, and costs one (ENERGY.md 3.5).
+                -- Partial and silent: nobody asked for it, and a ship too low
+                -- to pay still must not hang in the sky for ever. What a
+                -- dark ship does instead is ENERGY.md section 7.
+                TREK.Energy.energize(nil, "recall", C.RecallCost,
+                                     { partial = true, silent = true, noCommit = true })
                 S.endFlight("nobody is aboard her", true)
                 return
             end
@@ -567,10 +729,28 @@ function S.serviceVehicle()
 
     if found then
         s.missingChecks = nil
-        S.refuel(found)
+        S.powerVehicle(found)
+        S.engineEdge(found)
+        S.shieldRepair(found)
+        if S.serviceEmergency(found) then return end
         local x = math.floor(found:getX())
         local y = math.floor(found:getY())
         local changed = false
+
+        -- **The odometer** (ENERGY.md 4.3): the distance since the last pass,
+        -- billed per tile, dearer in the air. It rides the commit this pass
+        -- already makes when she has moved, so driving adds no commit of its
+        -- own. A jump is not a journey: a respawn, a landing move or a
+        -- teleport is ignored rather than billed.
+        if s.x and s.y and (x ~= s.x or y ~= s.y) then
+            local d = math.sqrt(U.dist2(x, y, s.x, s.y))
+            if d <= C.OdometerMaxJump then
+                local rate = s.flying and C.AirCostPerTile or C.GroundCostPerTile
+                TREK.Energy.energize(nil, s.flying and "fly" or "drive",
+                                     d * rate, { partial = true, silent = true,
+                                                 noCommit = true })
+            end
+        end
 
         -- s.z is the ground the ship stands on, and stays that way even when
         -- the ship is three levels above it. Letting the flying z in here is
@@ -593,6 +773,11 @@ function S.serviceVehicle()
 
         if changed then Ship.commit() end
         return
+    end
+
+    if s.flying and s.emergency == true then
+        -- Her vehicle is not loaded, so nobody is near her: she waits for them.
+        S.serviceEmergency(nil)
     end
 
     -- A ship in the air is not a ship that has gone missing. The vehicle can
@@ -741,13 +926,19 @@ end)
 --- A client asks to move its character a long way: a beam, the hatch, or the
 --- trip to a landing site. The client does the moving -- only it can, for an
 --- ordinary player -- and the server decides whether it may.
+--
+-- `energy` is what the move costs the ship (ENERGY.md 4.1), and `check` is
+-- what it must be able to afford without paying it here: take-her-down is
+-- checked for the landing and charged once, at the land. The hatch is a door
+-- and costs nothing, which is how a dark crew gets out; `recover` is a
+-- failure path and never charged.
 local MOVES = {
-    beamUp   = { cost = 1, access = true },
+    beamUp   = { cost = 1, access = true, energy = "BeamCost" },
     hatchIn  = { cost = 1, access = true },
-    descend  = { cost = 1, need = 2, access = true },
+    descend  = { cost = 1, need = 2, access = true, check = "LandCost" },
     -- Leaving is never refused for access: nobody is trapped aboard because
     -- the owner took them off the crew.
-    beamDown = { cost = 1 },
+    beamDown = { cost = 1, energy = "BeamCost" },
     hatchOut = { cost = 1 },
     -- The way home from a landing with no room; paid for when it was taken.
     recover  = { cost = 0 },
@@ -767,10 +958,29 @@ Net.onServer("move", function(player, args)
         return
     end
 
+    -- **Energy is checked before the transporter charge and paid after it**,
+    -- so neither refusal costs the other: a ship too short of power to beam
+    -- keeps the player's charge, and a transporter still recharging keeps the
+    -- ship's power. `kind` in the denial drops the client's waiting move.
+    local energy = rule.energy and C[rule.energy] or 0
+    local need = math.max(energy, rule.check and C[rule.check] or 0)
+    -- The emergency descent from orbit is free (ENERGY.md 7.3): the ship takes
+    -- herself down with the crew, and the only thing she has is no power.
+    if kind == "descend" and U.state().emergency ~= nil then need = 0 end
+    if need > 0 and not TREK.Power.canPay(need) then
+        TREK.Energy.energize(player, kind, need, { kind = kind })
+        return
+    end
+
     local ok, value = S.spendCharge(player, rule.cost, rule.need)
     if not ok then
         deny(player, "recharging", { secs = value, kind = kind })
         return
+    end
+    -- Silent: the transporter's own "energizing" note carries the cost, and a
+    -- halo note holds one line, so a second would hide it.
+    if energy > 0 then
+        TREK.Energy.energize(player, kind, energy, { silent = true })
     end
     if rule.access then claim(player) end
 
@@ -802,7 +1012,14 @@ Net.onServer("move", function(player, args)
         s.flightHold = C.FlightBoardingChecks
     end
 
-    Net.toClient(player, "moveGranted", { kind = kind, token = args.token })
+    -- Every kind that takes somebody apart and puts them back together:
+    -- a descent is a beam to the landing site (TRAITS.md 3.4).
+    if TREK.TraitsServer and (kind == "beamUp" or kind == "beamDown" or kind == "descend") then
+        U.try("traits.beam", TREK.TraitsServer.onBeam, player, kind)
+    end
+
+    Net.toClient(player, "moveGranted", { kind = kind, token = args.token,
+                                          cost = energy > 0 and energy or nil })
 end)
 
 --- A client found room to land around itself and asks for the ship there.
@@ -820,9 +1037,44 @@ Net.onServer("land", function(player, args)
         return
     end
 
+    -- Checked before and charged after (ENERGY.md 4.1): a landing that is
+    -- refused costs nothing. A refusal for power goes as a landingRefused
+    -- rather than a denial, because a take-her-down has already beamed the
+    -- player to the site, and that reply is what beams them home.
+    --
+    -- An emergency landing (ENERGY.md 7.2, 7.3) is free. A dark ship still in
+    -- the air is taken out of flight first -- S.land refuses a hovering ship
+    -- with crew aboard, which is exactly this ship -- but only once the site
+    -- is known to be clear, so a refusal never drops her where she hangs.
+    local s = U.state()
+    local emergency = s.emergency ~= nil
+    if not emergency and not TREK.Power.canPay(C.LandCost) then
+        Net.toClient(player, "landingRefused", {
+            why = "noPower", x = x, y = y, z = z,
+            need = C.LandCost, have = math.floor(TREK.Power.reserve()),
+        })
+        return
+    end
+    if emergency and s.flying then
+        local clear, cwhy, cblocked = W.roomToLand(x, y, z, W.exemptFor(player))
+        if not clear then
+            Net.toClient(player, "landingRefused",
+                         { why = cwhy, blocked = cblocked, x = x, y = y, z = z })
+            return
+        end
+        S.endFlight("emergency landing")
+    end
+
     local ok, why, blocked = S.land(x, y, z, player)
     if ok then
         claim(player)
+        if emergency then
+            U.state().emergency = nil
+            Ship.commit()
+            U.log("power: the emergency landing is down at %d,%d,%d", x, y, z)
+        else
+            TREK.Energy.energize(player, "land", C.LandCost)
+        end
         Net.toClient(player, "landed", { x = x, y = y, z = z })
     else
         Net.toClient(player, "landingRefused",
@@ -832,8 +1084,15 @@ end)
 
 Net.onServer("recall", function(player)
     if not mayUse(player) then return end
+    -- A dark ship cannot go up: a landed one stays landed, and says why.
+    local s = U.state()
+    if s.landed and not TREK.Power.canPay(C.RecallCost) then
+        TREK.Energy.energize(player, "recall", C.RecallCost)
+        return
+    end
     local ok, why = S.recall()
     if ok then
+        TREK.Energy.energize(player, "recall", C.RecallCost)
         Net.toClient(player, "recalled", {})
     elseif why then
         deny(player, why)
@@ -867,6 +1126,12 @@ Net.onServer("takeoff", function(player)
     local _, driving = drivenBy(player)
     if not driving then
         deny(player, "notPilot")
+        return
+    end
+    -- Checked here and spent at `airborne`, once she is really up, so a
+    -- climb that gives up costs nothing (ENERGY.md 4.4).
+    if not TREK.Power.canPay(C.TakeoffCost) then
+        TREK.Energy.energize(player, "takeoff", C.TakeoffCost)
         return
     end
     claim(player)
@@ -903,6 +1168,10 @@ Net.onServer("airborne", function(player, args)
     -- which spot they have already cleared, and this is simply overwritten by
     -- the next flight.
     s.skyAt = { x = s.x, y = s.y, level = level }
+    -- Partial: if the ship went dark between the take-off and now, she is
+    -- airborne and dark, which is ENERGY.md section 7's case, not this one's.
+    TREK.Energy.energize(player, "takeoff", C.TakeoffCost,
+                         { partial = true, noCommit = true })
     Ship.commit()
     U.log("shuttle airborne at %d,%d level %d, flown by %s",
           s.x, s.y, level, s.pilot)
@@ -956,6 +1225,9 @@ Net.onServer("touchdown", function(player, args)
     s.level = nil
     s.pilotGrace = nil
     s.skyAt = nil
+    -- An emergency landing ends here (ENERGY.md 7.4): she is an ordinary dark
+    -- ship on the ground, and the next vehicle pass flattens her battery.
+    s.emergency = nil
     s.landed = true
     s.everLanded = true
     s.x, s.y, s.z = x, y, z
@@ -1255,6 +1527,47 @@ Net.onServer("setShields", function(player, args)
     Ship.commit()
 end)
 
+-- username -> ms of the last shield report taken from them.
+local shieldReports = {}
+
+--- What a client's shields pushed (ENERGY.md 5.1), charged silently.
+---
+--- **The count is the client's word**, and there is no checking it: the
+--- server does not simulate the zombies a client owns, so a push it did not
+--- see is a push it cannot count. What it can check is everything around the
+--- number -- one report per player per window, at most C.ShieldReportMax in
+--- it, shields up, the ship landed and lit, and the reporter standing within
+--- reach of the field on the server's own copy of them. A modified client can
+--- still under-report and get cheaper shields; it cannot drain a shared ship.
+---
+--- Not gated on the crew list: a stranger standing by her is shielded by
+--- her, and it is her power that did it.
+Net.onServer("shieldDraw", function(player, args)
+    if not alive(player) then return end
+    local n = int(args.n)
+    if not n or n < 1 then return end
+    if n > C.ShieldReportMax then n = C.ShieldReportMax end
+    local s = U.state()
+    if not s.landed or s.flying or s.shields == false or TREK.Power.dark() then return end
+
+    local name = Ship.usernameOf(player)
+    local now = getTimestampMs()
+    local last = shieldReports[name]
+    -- A little slack under the window: the client's clock and this one are
+    -- not the same clock.
+    if last and now - last < C.ShieldReportSecs * 1000 * 0.8 then return end
+
+    local px = U.try("shieldX", function() return player:getX() end)
+    local py = U.try("shieldY", function() return player:getY() end)
+    if not px or not py then return end
+    local reach = C.FieldRadius + 30
+    if U.dist2(px, py, s.x, s.y) > reach * reach then return end
+
+    shieldReports[name] = now
+    TREK.Energy.energize(nil, "shields", n * C.ShieldPushCost,
+                         { partial = true, silent = true })
+end)
+
 Net.onServer("setCrew", function(player, args)
     if not alive(player) then return end
     if not Ship.canManageCrew(player) then
@@ -1268,83 +1581,6 @@ Net.onServer("setCrew", function(player, args)
     if name == s.owner then return end
     s.crew[name] = (args.on == true) or nil
     Ship.commit()
-end)
-
----------------------------------------------------------------------------
--- The tricorder's lock override
----------------------------------------------------------------------------
--- A lock is world state, so the server opens it and tells everyone. The
--- client looked first, but only so it could offer the option: it is asked
--- again here, from scratch, because a client is a request and never a fact.
---
--- **This is deliberately not gated on the ship's access rules.** The
--- tricorder is an item somebody is carrying, not the shuttle, and a crew
--- list is about who may fly her. What it *is* gated on is carrying the
--- tricorder at all, a range the server measures itself, and a cooldown --
--- without the range bound a crafted command is a master key for the map.
---
--- What it will not open is in TREK_Medical.lockOn: a padlock, or anything
--- inside a safehouse this player is not a member of. Both are another
--- player's property, and a mod that picks them is a griefing tool on every
--- server that installs it.
-local unlockCooling = {}   -- username -> millisecond stamp of the last override
-
-local function unlockDenied(player, why)
-    Net.toClient(player, "unlocked", { ok = false, why = why })
-end
-
-Net.onServer("unlock", function(player, args)
-    if not alive(player) then return end
-
-    local x, y, z = position(args)
-    if not x then return end
-
-    local name = Ship.usernameOf(player)
-    local now = getTimestampMs()
-    local last = unlockCooling[name]
-    if last and now - last < C.UnlockCooldownMs then
-        unlockDenied(player, "cooling")
-        return
-    end
-
-    if not TREK.Medical.carries(player, C.TricorderType, C.TricorderItem) then
-        unlockDenied(player, "notool")
-        return
-    end
-
-    -- Measured on the server's own copy of where the player is, not on
-    -- anything the command carried.
-    local px = U.try("unlock.px", function() return player:getX() end)
-    local py = U.try("unlock.py", function() return player:getY() end)
-    local pz = U.try("unlock.pz", function() return math.floor(player:getZ()) end)
-    if not px or not py or pz ~= z
-       or U.dist2(px, py, x + 0.5, y + 0.5) > C.UnlockRange * C.UnlockRange then
-        unlockDenied(player, "far")
-        return
-    end
-
-    -- An unloaded chunk is "cannot tell yet", not "nothing there".
-    local sq = U.square(x, y, z, false)
-    if not sq then
-        unlockDenied(player, "unloaded")
-        return
-    end
-
-    local obj, why = TREK.Medical.lockOn(sq, name)
-    if not obj then
-        unlockDenied(player, why or "nolock")
-        return
-    end
-
-    -- The cooldown is spent on the attempt that reached a real lock, not on
-    -- the ones that were refused: a player who clicked a padlock should not
-    -- be locked out of the tool for twenty seconds for it.
-    unlockCooling[name] = now
-
-    local opened = TREK.Medical.unlock(obj)
-    Net.toClient(player, "unlocked", { ok = opened, why = opened and nil or "stuck" })
-    U.log("tricorder: %s override at %d,%d,%d -> %s",
-          name, x, y, z, opened and "open" or "refused")
 end)
 
 ---------------------------------------------------------------------------
@@ -1444,6 +1680,9 @@ local function materialise(player, id, count)
         local ok = join(function()
             local item = instanceItem(id)
             if not item then return false end
+            -- A Klingon can tell (TRAITS.md 3.1b). Set before it is sent, so
+            -- the client's copy carries it too.
+            item:getModData()[C.ReplicatedKey] = true
             inv:AddItem(item)
             if isServer() then sendAddItemToContainer(inv, item) end
             return true
@@ -1461,6 +1700,11 @@ local function atReplicator(player)
     if not mayUse(player) then return false end
     if Rep.isOff() then
         deny(player, "repOff")
+        return false
+    end
+    -- Scanning costs nothing, but the machine that scans is dark too.
+    if TREK.Power.dark() then
+        deny(player, "repOffline")
         return false
     end
     if not Rep.inReachOf(player) then
@@ -1505,8 +1749,12 @@ Net.onServer("replicate", function(player, args)
     -- units and the dearest thing in the game is fifteen hundred, so if a
     -- spare exists the swap always covers the cost. The only real failure is
     -- having none.
+    --
+    -- Checked before and paid after, because what is charged is what really
+    -- landed in the player's hands. Silent: the `replicated` note below says
+    -- what it cost, and a halo note holds one line, so a second would hide it.
     local cost = Rep.cost(row, count)
-    if not TREK.Power.afford(cost) then
+    if not TREK.Power.canPay(cost) then
         deny(player, "repNoCrystal",
              { need = cost, have = math.floor(TREK.Power.reserve()) })
         return
@@ -1515,7 +1763,8 @@ Net.onServer("replicate", function(player, args)
     local made = materialise(player, row.id, count)
     local spent = Rep.cost(row, made)
     s.repAt = now
-    if spent > 0 then TREK.Power.spend(spent) end
+    TREK.Energy.energize(player, "replicate", spent,
+                         { silent = true, noCommit = true })
     Ship.commit()
 
     Net.toClient(player, "replicated", {
@@ -1599,7 +1848,19 @@ Net.onServer("loadCrystal", function(player)
     end
 
     TREK.Power.addCrystals(1)
+    -- **A dark ship burns it at once** (ENERGY.md 3.3). A spare is normally
+    -- burned lazily, by the next charge that needs it -- but a dark ship has
+    -- to come back on the moment the crystal goes in, because that is the
+    -- payoff the cold start is built around.
+    --
+    -- Keyed on the core being empty rather than on `s.dark`: an empty core
+    -- with this crystal as its only spare *is* the dark ship, and one with
+    -- other spares loses nothing by burning now (less than a unit, V1).
+    if TREK.Power.reserve() < 1 then
+        TREK.Power.burnCrystal()
+    end
     Ship.commit()
+    TREK.Energy.powerChanged()
     Net.toClient(player, "crystalLoaded",
                  { crystals = TREK.Power.crystals() })
     U.log("core: %s loaded a crystal; %d spare(s) aboard",
@@ -1753,15 +2014,14 @@ local function patientFor(player, args)
 end
 
 --- Spends the treatment's power. Returns true when the ship could pay.
+--- Silent when it pays: `emhTreated` is the note, and it says what he did.
 local function spendTreatment(player)
-    local cost = EMH.treatCost()
-    if not TREK.Power.afford(cost) then
-        deny(player, "emhNoPower")
-        return false
+    if TREK.Power.canPay(EMH.treatCost()) then
+        return TREK.Energy.energize(player, "emhTreat", EMH.treatCost(),
+                                    { silent = true })
     end
-    TREK.Power.spend(cost)
-    Ship.commit()
-    return true
+    return TREK.Energy.energize(player, "emhTreat", EMH.treatCost(),
+                                { why = "emhNoPower" })
 end
 
 --- Treats a body. **Supplies are infinite; power is not.**
@@ -1840,6 +2100,11 @@ Net.onServer("emhSummon", function(player)
     if not atEMH(player) then return end
     local s = U.state()
     if s.emh ~= true then
+        -- Projecting him costs power; putting him away is free (ENERGY.md 6).
+        if not TREK.Energy.energize(player, "emhProject", C.EmhProjectCost,
+                                    { why = "emhNoPower", noCommit = true }) then
+            return
+        end
         s.emh = true
         Ship.commit()
     end
@@ -2108,6 +2373,54 @@ function S.serviceCures()
     return done
 end
 
+--- The ship has gone dark (ENERGY.md 6). The projection needs power to exist
+--- at all, so he goes out; and a cure that is running **fails** -- the
+--- author's decision, 2026-09-24: "PZ is a fiercely realistic simulator".
+---
+--- The twelve hours aboard are the Doctor keeping the patient under
+--- treatment. With him gone the patient stays infected, the crystal that paid
+--- for it is gone with no refund, and the crew are told plainly. It has to be
+--- delivered: a cure that ends in silence reads as a bug.
+function S.failCures(why)
+    local s = U.state()
+    local changed = false
+    if s.emh ~= nil then
+        s.emh = nil
+        changed = true
+    end
+    local cures = EMH.cures()
+    local names = {}
+    for name in pairs(cures) do table.insert(names, name) end
+    for _, name in ipairs(names) do
+        cures[name] = nil
+        offShip[name] = nil
+        changed = true
+        Net.toAll("emhCureFailed", { who = name })
+        U.log("emh: %s -- the cure for %s has failed; still infected, crystal lost",
+              tostring(why), name)
+    end
+    if changed then Ship.commit() end
+    U.try("serviceEMH", B.serviceEMH)
+    return #names
+end
+
+TREK.Energy.onPowerDown(function() S.failCures("main power lost") end)
+
+-- The galley's power bus follows the ship at once (ENERGY.md 9): off when she
+-- goes dark, so the fridge and the stoves go with the lights, and on again
+-- when she comes back. Only while the cabin is loaded: that is where it is.
+local function busFollows()
+    if B.cabinCurrent() and B.cabinLoaded() then B.servicePowerBus(true) end
+end
+TREK.Energy.onPowerDown(busFollows)
+TREK.Energy.onPowerUp(busFollows)
+
+-- Every game hour: bill what the bus burned, refuel and mend it. The engine
+-- burns fuel hourly too, so this is the same cadence as the thing it pays for.
+Events.EveryHours.Add(function()
+    U.try("powerBus", busFollows)
+end)
+
 ---------------------------------------------------------------------------
 -- Long-range probes
 ---------------------------------------------------------------------------
@@ -2239,12 +2552,10 @@ Net.onServer("buildProbe", function(player, args)
         return
     end
 
-    local cost = C.ProbeCost
-    -- afford() burns a spare crystal when the reserve is short, which is the
-    -- whole reason a crystal is worth carrying; spend() then takes the units.
-    if not TREK.Power.afford(cost) or not TREK.Power.spend(cost) then
-        deny(player, "probeNoPower",
-             { need = cost, have = math.floor(TREK.Power.reserve()) })
+    -- The ledger burns a spare crystal when the reserve is short, which is
+    -- the whole reason a crystal is worth carrying.
+    if not TREK.Energy.energize(player, "probe", C.ProbeCost,
+                                { why = "probeNoPower", noCommit = true }) then
         return
     end
 
@@ -2322,11 +2633,13 @@ local function placeContact(contact)
         return true
     end
 
+    -- A crystal, or a clue's fragment: the contact says which.
+    local what = contact.item or C.DilithiumItem
     local item = U.try("contactCrystal", function()
-        return best:AddWorldInventoryItem(C.DilithiumItem, 0.5, 0.5, 0.0)
+        return best:AddWorldInventoryItem(what, 0.5, 0.5, 0.0)
     end)
     if not item then
-        U.log("WARN contact %s: the crystal could not be created", contact.id)
+        U.log("WARN contact %s: %s could not be created", contact.id, what)
         return false
     end
 
@@ -2338,8 +2651,8 @@ local function placeContact(contact)
     -- No longer a guess: the ship knows exactly where it put it.
     contact.approximate = false
     contact.status = "investigated"
-    U.log("contact %s: a crystal is on the ground at %d,%d",
-          contact.id, contact.x, contact.y)
+    U.log("contact %s: %s is on the ground at %d,%d",
+          contact.id, what, contact.x, contact.y)
     return true
 end
 
@@ -2353,7 +2666,9 @@ local function crystalTaken(contact)
         for i = 0, items:size() - 1 do
             local o = items:get(i)
             local it = o and o.getItem and o:getItem()
-            if it and it:getFullType() == C.DilithiumItem then return true end
+            if it and it:getFullType() == (contact.item or C.DilithiumItem) then
+                return true
+            end
         end
         return false
     end)
@@ -2375,7 +2690,8 @@ function S.serviceContacts()
             changed = true
             U.log("contact %s at %d,%d is outside the world; retired",
                   contact.id, contact.x, contact.y)
-        elseif contact.kind == "dilithium" and not Probes.isResolved(contact.status) then
+        elseif (contact.kind == "dilithium" or contact.kind == "clue")
+               and not Probes.isResolved(contact.status) then
             if not contact.placed then
                 -- No proximity pre-check. There was one -- skip contacts no
                 -- player is near -- and it could not be observed from
@@ -2397,6 +2713,36 @@ function S.serviceContacts()
         Probes.prune()
         Probes.publish()
     end
+end
+
+--- Which fragment a probe finds, or nil for a crystal. Authority only.
+---
+--- A fragment is owed while it is not on tape and no live contact already
+--- points at one. **Not** "while nobody has picked it up": a fragment lost on
+--- a body, or burned in a house, is a fragment a later probe can find again
+--- -- he made more than one copy of everything, which is the kind of man he
+--- was (LORE.md 1c). So the chain cannot be soft-locked by losing one, and a
+--- death on the way home costs time rather than the story.
+function S.clueFor()
+    local Cm = TREK.Comms
+    if not Cm then return nil end
+    local d = Cm.store()
+    if not d.flags.met then return nil end
+    local live = {}
+    for _, c in ipairs(Probes.contacts()) do
+        if c.kind == "clue" and not Probes.isResolved(c.status) and c.fragment then
+            live[c.fragment] = true
+        end
+    end
+    local owed = {}
+    for n = 1, 6 do
+        if not (d.converted or {})[n] and not live[n] then table.insert(owed, n) end
+    end
+    if #owed == 0 then return nil end
+    local roll = U.try("clueRoll", function() return ZombRand(100) end) or 100
+    if roll >= math.floor(C.ProbeClueShare * 100) then return nil end
+    local pick = U.try("cluePick", function() return ZombRand(#owed) end) or 0
+    return owed[pick + 1]
 end
 
 --- Advances the probe and reports what it found. Authority only.
@@ -2423,15 +2769,19 @@ function S.serviceProbe()
     -- how it read the first time anybody played it. ROADMAP2 1.6 wants a
     -- guaranteed opening for the cold start anyway; this is the honest
     -- minimum of it, and every probe after the first is a fair roll.
+    --
+    -- And never more than C.ProbeDryLimit empty ones in a row: the first
+    -- cold-start play drew four, which is a campaign stalled on luck.
     local s = U.state()
     local found
-    if not s.probeEverFound then
+    if not s.probeEverFound or (s.probeDry or 0) >= C.ProbeDryLimit then
         found = true
     else
         found = (U.try("probeRoll", function()
             return ZombRand(100)
         end) or 0) < math.floor(C.ProbeFindChance * 100)
     end
+    s.probeDry = found and 0 or (s.probeDry or 0) + 1
 
     if found then
         -- A long-range fix is a region, not a square. The spread is what the
@@ -2447,7 +2797,21 @@ function S.serviceProbe()
         -- endpoint itself rather than reporting a square nobody can reach.
         local cx, cy = done.x + scatter(), done.y + scatter()
         if not U.inWorld(cx, cy) then cx, cy = done.x, done.y end
-        local contact = Probes.addContact("dilithium", cx, cy, 0, done.id, true)
+        -- The third result: a holo fragment's site, once Shepard has been
+        -- met and while any of the six is still owed. Never the first probe
+        -- of a save -- that one is the crystal the ship needs.
+        local clue = s.probeEverFound and S.clueFor and S.clueFor()
+        local contact
+        if clue then
+            contact = Probes.addContact("clue", cx, cy, 0, done.id, true)
+            if contact then
+                contact.fragment = clue
+                contact.item = C.FragmentItems[clue]
+                if TREK.CommsServer then TREK.CommsServer.event("clue") end
+            end
+        else
+            contact = Probes.addContact("dilithium", cx, cy, 0, done.id, true)
+        end
         if contact then
             U.log("probe %s reports %s at %d,%d", done.id, contact.kind,
                   contact.x, contact.y)
@@ -2514,6 +2878,173 @@ Net.onServer("debug", function(player, args)
 end)
 
 ---------------------------------------------------------------------------
+-- The emergency landing (ENERGY.md section 7)
+---------------------------------------------------------------------------
+-- The author's rule: "with no power the fallback is no beaming, but as soon
+-- as there is room to land, it lands with no damage." Ground is only loaded
+-- around a player, and the server builds only where one is standing, so an
+-- emergency landing happens where the crew are. Each case follows from that.
+--
+-- `s.emergency` is published: `true` for a dark ship in the air (7.1, 7.2),
+-- "descend" for a dark ship overhead with crew in her cabin (7.3). It clears
+-- at touchdown, or when the power comes back.
+
+-- The server's own search for somewhere to put her down (7.2), resumed each
+-- vehicle pass. Server-local: a restart simply searches again.
+local emergencySearch = nil
+-- When the crew were last asked to take her down from orbit (7.3).
+local descendAskedAt = nil
+
+--- The first living player standing in the cabin, or nil.
+local function firstAboard()
+    for _, p in ipairs(U.players()) do
+        if U.isInteriorPlayer(p) and alive(p) then return p end
+    end
+    return nil
+end
+
+--- Takes her down with the first of the crew aboard (ENERGY.md 7.3). It is
+--- the helm's own take-her-down (T.descend) run on their machine, free, and a
+--- *landing* in the story as in the code -- not a transporter beam. Approved
+--- by the author, 2026-09-24: it is the one place the ship moves the crew
+--- without being asked, and the only way the engine lets her land where
+--- nobody is standing.
+---
+--- **In orbit** it goes to where that crewman beamed up from. **Hovering**,
+--- with nobody at her controls and nobody near her, it goes to the ground
+--- beneath her: her ground is not loaded, so the server cannot search it
+--- (7.2), the hatch is shut in flight and a dark ship does not beam, so
+--- without this her crew would be sealed in a ship that waited for ever for
+--- somebody to come near. The crew arrive standing beside her.
+---
+--- Asked at most once every C.EmergencyDescendRetryMs, unless `now`: the
+--- crewman's machine may be busy, or the landing may have found no room and
+--- beamed them back aboard.
+function S.emergencyDescend(now)
+    local s = U.state()
+    if not TREK.Power.dark() then return false end
+    local airborne = s.flying == true
+    if s.landed and not airborne then return false end
+    local p = firstAboard()
+    if not p then return false end
+    local clock = getTimestampMs()
+    if not now and descendAskedAt and clock - descendAskedAt < C.EmergencyDescendRetryMs then
+        return false
+    end
+    if not airborne and s.emergency ~= "descend" then
+        s.emergency = "descend"
+        Ship.commit()
+    end
+    descendAskedAt = clock
+    local args = {}
+    if airborne then args = { x = s.x, y = s.y, z = s.z or 0 } end
+    Net.toClient(p, "emergencyDescend", args)
+    U.log("power: asking %s's machine to take her down %s", Ship.usernameOf(p),
+          airborne and "from the air, beneath her" or "from orbit")
+    return true
+end
+
+--- The moment the ship goes dark: which emergency, if any, this is.
+function S.beginEmergency()
+    local s = U.state()
+    emergencySearch = nil
+    if s.flying then
+        s.emergency = true
+        Ship.commit()
+        Net.toAll("emergency", {})
+        U.log("power: dark in the air -- emergency landing")
+        return "hover"
+    end
+    if not s.landed and firstAboard() then
+        Net.toAll("emergency", {})
+        S.emergencyDescend(true)
+        return "descend"
+    end
+    return nil
+end
+
+TREK.Energy.onPowerDown(function() S.beginEmergency() end)
+TREK.Energy.onPowerUp(function()
+    local s = U.state()
+    emergencySearch = nil
+    if s.emergency ~= nil then
+        s.emergency = nil
+        Ship.commit()
+        U.log("power: back before she was down -- the emergency is over")
+    end
+end)
+
+--- Every vehicle pass during an emergency in the air. Returns true when it
+--- set her down (and the rest of the pass should stop).
+---
+--- 7.1, **a pilot in the seat**: nothing here. Their machine owns her
+--- physics, keeps her engine alive at a crawl and asks for the ordinary
+--- touchdown the moment the footprint below is clear.
+---
+--- 7.2, **nobody in the seat**: the server searches round her for a clear
+--- footprint, sliced and only while her ground is loaded, and sets her down
+--- there through S.land -- a clean spawn, so no damage. Nothing clear, and it
+--- keeps looking. Her ground not loaded means nobody is near her: with crew in
+--- the cabin, one of them takes her down beneath her (S.emergencyDescend);
+--- with nobody aboard at all, she waits for somebody to come.
+function S.serviceEmergency(vehicle)
+    local s = U.state()
+    if s.emergency ~= true or not s.flying then return false end
+    if vehicle and U.try("emergencyDriver", function() return vehicle:getDriver() end) then
+        emergencySearch = nil
+        return false
+    end
+    local x, y = s.x, s.y
+    if vehicle then
+        x = math.floor(vehicle:getX())
+        y = math.floor(vehicle:getY())
+    end
+    if not x or not U.chunkLoaded(x, y, 0) then
+        S.emergencyDescend()
+        return false
+    end
+
+    if not emergencySearch or emergencySearch.x ~= x or emergencySearch.y ~= y then
+        emergencySearch = { x = x, y = y, z = 0, cursor = 0 }
+    end
+    local sq = W.searchSlice(emergencySearch)
+    if not sq then return false end
+
+    local tx, ty = sq:getX(), sq:getY()
+    emergencySearch = nil
+    s.emergency = nil
+    S.endFlight("emergency landing")
+    local ok, why = S.land(tx, ty, 0, nil)
+    if not ok then
+        -- The ground changed between the search and the landing. She is out
+        -- of the air now and the next pass looks again from wherever she is.
+        s.emergency = true
+        Ship.commit()
+        U.log("WARN power: the emergency landing at %d,%d was refused (%s)",
+              tx, ty, tostring(why))
+        return false
+    end
+    Net.toAll("emergencyLanded", { x = tx, y = ty, z = 0 })
+    U.log("power: emergency landing at %d,%d with nobody at the controls", tx, ty)
+    return true
+end
+
+--- Once a game minute: a dark ship still in orbit with crew aboard, whose
+--- descent has not happened, is asked again. The flag is cleared once she is
+--- down or the power is back.
+function S.serviceEmergencyDescend()
+    local s = U.state()
+    if s.landed or not TREK.Power.dark() then
+        if s.emergency == "descend" then
+            s.emergency = nil
+            Ship.commit()
+        end
+        return false
+    end
+    return S.emergencyDescend()
+end
+
+---------------------------------------------------------------------------
 -- Timers
 ---------------------------------------------------------------------------
 -- Every tick while anyone is waiting: they are standing over nothing until the
@@ -2549,6 +3080,7 @@ Events.EveryOneMinute.Add(function()
     -- Contacts become crystals only when somebody goes and looks, so this
     -- runs wherever the players are rather than only near the ship.
     U.try("serviceContacts", S.serviceContacts)
+    U.try("emergencyDescend", S.serviceEmergencyDescend)
     if B.cabinCurrent() and B.cabinLoaded() then
         -- Nobody can drain the tap faster than a game minute refills it.
         U.try("refillWater", B.refillWater)

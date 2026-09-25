@@ -379,9 +379,16 @@ function F.speedStep()
     return math.max(1, math.min(#C.FlightSpeedSteps, math.floor(n)))
 end
 
---- The top speed that step means.
+--- The top speed that step means -- or a glide, during an emergency
+--- landing (ENERGY.md 7.1): a dark ship is not flown, she is set down.
 function F.speed()
-    return C.FlightSpeedSteps[F.speedStep()] or C.FlightSpeedSteps[1]
+    local want = C.FlightSpeedSteps[F.speedStep()] or C.FlightSpeedSteps[1]
+    if Ship.get().emergency == true then return math.min(want, C.EmergencyGlideSpeed) end
+    -- A helm officer at the controls gets more out of her (TRAITS.md 3.2).
+    -- The machine flying her is the pilot's, so the pilot is player 0 here;
+    -- the anti-cheat ceiling still applies on top.
+    if TREK.Traits then want = want * TREK.Traits.helmFactor(U.player(0)) end
+    return want
 end
 
 --- Asks the server to change it. Every client applies it when the new state
@@ -900,7 +907,41 @@ function F.guardCap()
     return guard.capped
 end
 
+-- The pilot's half of the emergency landing (ENERGY.md 7.1).
+local emergency = { tick = 0, askedAt = nil, capped = false }
+-- Ticks between looks at the ground below, and how long to wait for the
+-- server to answer before looking again.
+local EMERGENCY_LOOK = 30
+local EMERGENCY_WAIT = 300
+
+--- A dark ship in the air with this player at her controls: she is held to a
+--- glide, and the moment the footprint below her is clear she asks for the
+--- ordinary touchdown -- the carried descent, not a fall, so no damage. Her
+--- engine is kept alive by the server (the tank and battery stay while
+--- `s.emergency` is set) and nothing is charged. Steering toward clear
+--- ground is the whole of the pilot's control.
+local function serviceEmergency(vehicle, x, y)
+    local player = U.player(0)
+    if not F.isPilot(player) then return end
+    if not emergency.capped then
+        emergency.capped = true
+        F.applySpeed(vehicle)
+        U.log("emergency: holding her to a glide of %s", tostring(F.speed()))
+    end
+    emergency.tick = emergency.tick + 1
+    if emergency.askedAt and emergency.tick - emergency.askedAt < EMERGENCY_WAIT then return end
+    if emergency.tick % EMERGENCY_LOOK ~= 0 then return end
+    local ok = W.roomToLand(x, y, 0, nil, true)
+    if not ok then return end
+    emergency.askedAt = emergency.tick
+    U.log("emergency: clear ground under her at %d,%d -- setting her down", x, y)
+    Core.send(player, "touchdown", { x = x, y = y, z = 0 })
+end
+
 local function serviceFlight()
+    if Ship.get().emergency ~= true then
+        emergency.tick, emergency.askedAt, emergency.capped = 0, nil, false
+    end
     if not F.flying() then
         recover.count, recover.at, recover.gaveUp = 0, nil, false
         guard.capped, guard.lastX, guard.dirX, guard.dirY = nil, nil, 0, 0
@@ -953,6 +994,9 @@ local function serviceFlight()
 
     if ownsPhysics(vehicle) then
         U.try("guard", serviceGuard, vehicle, level, U.player(0))
+        if s.emergency == true then
+            U.try("emergency", serviceEmergency, vehicle, x, y)
+        end
     end
 
     holdTick = holdTick + 1
