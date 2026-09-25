@@ -46,3 +46,8 @@ option TrekShuttle.WildDilithium = {
     type = enum, numValues = 3, default = 1,
     page = TrekShuttle, translation = TrekShuttle.WildDilithium, valueTranslation = TrekShuttle.WildDilithium,
 }
+
+option TrekShuttle.PhaserCutting = {
+    type = enum, numValues = 3, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.PhaserCutting, valueTranslation = TrekShuttle.PhaserCutting,
+}

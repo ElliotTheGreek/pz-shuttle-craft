@@ -221,7 +221,9 @@ function instanceItem(id)
                  -- is what makes a dropped item pick its own angle below.
                  worldXRotation = 0, worldYRotation = 0, worldZRotation = -1,
                  getFullType = function(self) return self.fullType end,
-                 getModData = function(self) return self.modData end }
+                 getModData = function(self) return self.modData end,
+                 -- A weapon's reach, which the phaser's bolt is drawn to.
+                 getMaxRange = function(self) return self.maxRange or 18 end }
 
     -- The clothing half. `getClothingItem()` is how the mod asks the engine
     -- whether a garment's GUID actually resolved, and the honest answer for
@@ -2129,8 +2131,12 @@ function PlayerMT:getStats()
 end
 
 function PlayerMT:getInventory() return self.inventory end
-function PlayerMT:getPrimaryHandItem() return nil end
-function PlayerMT:getSecondaryHandItem() return nil end
+-- Settable, because the phaser's cut is refused on the server unless the
+-- phaser is really in a hand there (PHASERS.md 7). Nothing else asked, so
+-- they used to answer nil for ever.
+function PlayerMT:getPrimaryHandItem() return self.primary end
+function PlayerMT:getSecondaryHandItem() return self.secondary end
+function PlayerMT:setPrimaryHandItem(item) self.primary = item end
 function PlayerMT:setHaloNote(text)
     table.insert(SIM.notes, { player = self.name, text = text })
 end
@@ -2507,6 +2513,16 @@ function PlayerMT:playSound(name)
 end
 function PlayerMT:playSoundLocal(name)
     table.insert(SIM.sounds, { player = self.name, name = name, local_ = true })
+    -- A handle, as BaseCharacterSoundEmitter.playSoundImpl returns one: the
+    -- phaser's hum is a loop, and a loop with no handle can never be stopped.
+    SIM.soundHandle = (SIM.soundHandle or 0) + 1
+    SIM.soundsByHandle = SIM.soundsByHandle or {}
+    SIM.soundsByHandle[SIM.soundHandle] = name
+    return SIM.soundHandle
+end
+SIM.soundsStopped = {}
+function PlayerMT:stopOrTriggerSound(handle)
+    table.insert(SIM.soundsStopped, (SIM.soundsByHandle or {})[handle] or handle)
 end
 
 --- A sound played at a square: where it came from, and which runtime played
@@ -2857,7 +2873,26 @@ local function derivable(name)
     function cls:setVisible(v) self.visible = v end
     function cls:addChild(c) c.parent = self; table.insert(self.children, c) end
     function cls:getWidth() return self.width end
-    function cls:drawTextureScaled() end
+    -- The phaser's sparks, recorded; everything else drawn this way is not.
+    function cls:drawTextureScaled(tex, x, y, w, h, a, r, g, b)
+        if tex and tex.path and tex.path:find("Phaser") then
+            SIM.sprites = SIM.sprites or {}
+            table.insert(SIM.sprites, { tex = tex.path, x = x, y = y, w = w, h = h,
+                                        r = r, g = g, b = b })
+        end
+    end
+    -- Four corners: the phaser's beam is a quad from the emitter to the
+    -- target. Recorded whole, so a test can ask where it runs and in what
+    -- colour -- a beam drawn at the wrong end, or orange where the core
+    -- should be white, is the thing only a render would otherwise show.
+    function cls:drawTextureAllPoint(tex, tlx, tly, trx, try, brx, bry, blx, bly,
+                                     r, g, b, a)
+        SIM.quads = SIM.quads or {}
+        table.insert(SIM.quads, { tex = tex and tex.path,
+                                  tl = { tlx, tly }, tr = { trx, try },
+                                  br = { brx, bry }, bl = { blx, bly },
+                                  r = r, g = g, b = b, a = a })
+    end
     function cls:drawTexture() end
     function cls:drawRect() end
     function cls:drawRectBorder() end
@@ -3645,6 +3680,10 @@ function SIM.serverAction(typeName, args, count)
         return false
     end
     action:start()
+    -- NetTimedAction.start reads `serverStart` off the action and calls it
+    -- (bci 8-38): the server's own hook, which the phaser uses to tell every
+    -- client its beam is on. It was not modelled until the phaser needed it.
+    if action.serverStart then action:serverStart() end
     SIM.stepAction(action)
     action:complete()
     table.insert(SIM.actionsDone, typeName)
@@ -3870,3 +3909,89 @@ function SIM.generatorHours(n, draw)
 end
 
 ISWorldObjectContextMenu.fetchVars = ISWorldObjectContextMenu.fetchVars or {}
+
+
+---------------------------------------------------------------------------
+-- Phasers (PHASERS.md 7)
+---------------------------------------------------------------------------
+-- Trees, door leaves, barricades and the handful of character calls the cut
+-- makes. Modelled on the bytecode where it matters:
+--
+--   * IsoTree.toppleTree **returns at once on a client** (bci 0-6) and on the
+--     authority removes the tree with transmitRemoveItemFromSquare and drops
+--     the logs. So a client that tried to fell a tree itself does nothing
+--     here, as it would there;
+--   * buildUtil lives in server/ -- present on every machine, used by the
+--     authority -- and answers a double door's other leaves.
+SIM.felled = {}
+
+function SIM.tree(x, y, z)
+    local sq = SIM.rawSquare(x, y, z)
+    local o = SIM.object("e_americanholly_1_3", "IsoTree")
+    o.square = sq
+    table.insert(sq.objects, o)
+    return o
+end
+
+function ObjectMT:toppleTree(character)
+    if isClient() then return end
+    local sq = self.square
+    if not sq then return end
+    sq:transmitRemoveItemFromSquare(self)
+    table.insert(SIM.felled, { x = sq.x, y = sq.y, z = sq.z,
+                               by = character and character.name })
+end
+
+function ObjectMT:getObjectIndex()
+    if not self.square then return -1 end
+    for i, v in ipairs(self.square.objects) do
+        if v == self then return i - 1 end
+    end
+    return -1
+end
+function ObjectMT:isDoor() return self.door == true end
+function ObjectMT:getBarricadeOnSameSquare() return self.barricadeSame end
+function ObjectMT:getBarricadeOnOppositeSquare() return self.barricadeOpposite end
+
+--- Something standing on a square, with a class instanceof reports.
+function SIM.put(x, y, z, sprite, class)
+    local sq = SIM.rawSquare(x, y, z)
+    local o = SIM.object(sprite, class)
+    o.square = sq
+    table.insert(sq.objects, o)
+    return o
+end
+
+buildUtil = buildUtil or {}
+function buildUtil.getDoubleDoorObjects(o) return o.leaves or {} end
+function buildUtil.getGarageDoorObjects(o) return o.garage or {} end
+
+function PlayerMT:getOnlineID() return self.onlineID or -1 end
+function PlayerMT:getForwardDirectionX() return self.fwdX or 1 end
+function PlayerMT:getForwardDirectionY() return self.fwdY or 0 end
+function PlayerMT:faceThisObject(o) self.facing = o end
+function PlayerMT:shouldBeTurning() return false end
+
+function getPlayerByOnlineID(id)
+    for _, p in ipairs(SIM.players) do
+        if p.onlineID == id then return p end
+    end
+    return nil
+end
+
+-- Vanilla's own helpers the phaser's menu reaches for: draw the tool the way
+-- the chop draws the axe, and walk up to something. Recorded, and the walk
+-- really moves the player, so a cut that had to close the distance first is
+-- measured from where they end up.
+SIM.equipped = {}
+function ISWorldObjectContextMenu.equip(player, current, item, primary)
+    if primary ~= false then player.primary = item else player.secondary = item end
+    table.insert(SIM.equipped, item)
+end
+luautils = luautils or {}
+SIM.walks = {}
+function luautils.walkAdj(player, sq)
+    player.x, player.y = sq.x + 1.5, sq.y + 0.5
+    table.insert(SIM.walks, { x = sq.x, y = sq.y })
+    return true
+end

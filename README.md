@@ -22,11 +22,11 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Fly it like a truck** | The landed shuttle is a vehicle with four seats. Get in as you would a car, pick a seat on its chart, switch seats, drive. No seat has a door, so nothing can bite you in one. |
 | **Take her up** | From the pilot's seat, **Shuttlecraft ▸ Take her up**. She rises smoothly to her hover height -- five storeys by default, set on the sandbox page -- and hovers, and she flies by *driving*, so the throttle, the steering, the seat chart and a controller all work exactly as they do on the ground. Her shadow on the street below marks exactly where she will come down. Pick a flight speed at the helm, and **Set her down below** when you are there. Up or down and nothing in between: there is one flight height, and anything taller than it is a wall she slows to a stop in front of. The crew can go aft to the cabin in flight and come back; she waits where you left her. While she is up the hatch is shut, so the transporter is the way off her — and once the last of you has beamed down she goes back up, ready to be called down again. |
 | **Never stranded** | If there is not enough room at the destination you are beamed straight back aboard with the reason. A failed landing never leaves you on foot a hundred miles from the ship. |
-| **Phasers** | Four in a locker beside the pad. The charge never runs down, they never jam and they never wear out — and they are far quieter than a firearm, which is most of the point. |
+| **Phasers** | Four in a locker beside the pad, with their own model. The charge never runs down, they never jam and they never wear out, and they are far quieter than a firearm, which is most of the point. Every shot is a visible orange bolt. Right-click a tree to **cut it down** or a door to **cut through it** in a few seconds, with a beam everybody nearby sees and hears. A beam defeats any lock, padlocks included, because the door stops being there. Somebody else's safehouse door is refused, and the sandbox can limit cutting to trees or switch it off. |
 | **A hypospray** | One dose puts right bleeding, deep wounds, infected cuts, burns, fractures, pain and stiffness — everywhere on your body at once. It will not touch a bite. Six doses, and the ship replicates more while you are aboard; out in the field, what you are carrying is what you have. |
 | **A dermal regenerator** | Run it over the skin and the skin closes: lacerations, scratches, deep wounds and burns, with the stitches and the dressing that were holding them together. No bandage needed, and no charge to run out of. It will not mend a broken bone, touch an infected wound, or close over a piece of glass. |
 | **A medical tricorder** | Reads a body the way a surgeon would, whether or not you have ever held a scalpel. On yourself, or — with their say-so — on a crewmate. |
-| **A tricorder** | A sensor sweep out to forty tiles, drawn as a contact plot with you at the centre, and a lock override that talks most electronic locks open. Not padlocks, and not inside somebody's safehouse. It reads dilithium too, out to twenty tiles and through the walls of whatever it is shut in — and **from a seat in the shuttle it reads the ground below you**, which is how you pick a town worth landing at. |
+| **A tricorder** | A sensor sweep out to forty tiles, drawn as a contact plot with you at the centre, It reads dilithium too, out to twenty tiles and through the walls of whatever it is shut in — and **from a seat in the shuttle it reads the ground below you**, which is how you pick a town worth landing at. |
 | **Distress calls** | Once the ship has been boarded and has dilithium, it starts hearing them: a chime and a note -- *a Starfleet ensign is down, 320 tiles NE*. Answer at the sensor console, aboard. Declining or ignoring one costs nothing, and another comes later. |
 | **The downed ensign** | Accept and the clock starts: three game days. A mark goes on the map, the tricorder finds them within forty tiles as a blue cross, and they are sitting on the ground, doubled over, in uniform, their combadge chirping -- and drawing in the dead from the surrounding block. Right-click to **Examine** them, or to **Beam them to safety** from within three tiles: the replicator learns three new patterns and you are handed a small supply. Too late, and the signal stops. |
 | **PADDs** | A Starfleet tablet that holds digital copies of books, with no limit. Carry one to a school or a library, right-click a book (or a whole shelf's worth selected in the loot panel) and **Load onto PADD** -- the book stays where it was. Right-click the PADD to **read** any of them, as often as you like, **five times faster** than paper, with the same skill multipliers, recipes and comfort. Copy a library to another PADD; lose the PADD and you lose the books, recover it and they come back. Two in the armoury; the replicator makes blank ones. |
@@ -207,7 +207,8 @@ engine facts it rests on.
 | `tools/preview_model.py` | Software renderer for `.x` meshes — check a model without launching the game. Auto-fits the frame, so a five-tile hull is as viewable as a one-tile box. |
 | `tools/gen_shuttle.py` | Hull texture, mesh and inventory icon. |
 | `tools/gen_helm.py` | The helm console prop, no longer placed in the cabin. |
-| `tools/gen_phaser.py` | Phaser inventory icon. |
+| `tools/gen_phaser.py` | The phaser: mesh, icon, review sheet and its four sounds (from the bake `tools/bake_phaser.py` makes). |
+| `tools/gen_phaser_beam.py` | The phaser's beam strip and spark, and their review sheet. |
 | `tools/gen_medical.py` | The hypospray, tricorder and regenerator sounds. (Their icons come from the Gemini toolkit; the originals are in `design/art/medical/`.) |
 | `tools/gen_replicator.py` | The replicator — mesh, texture and materialisation sound — and the two renders it was judged on, into `design/art/replicator/`. |
 | `tools/gen_dilithium.py` | The dilithium crystal's inventory icon, into `design/art/dilithium/`. |
@@ -304,12 +305,9 @@ interior plus `TREK_InteriorLayout.lua`.
   mod cannot declare one, so the item names a real vanilla type to be sure it
   fires. Since the charge is restored far faster than it can be spent, none of
   your own ammunition is ever touched — but reloading it by hand would use it.
-- **The phaser looks like a pistol in your hands**, because it borrows a
-  vanilla in-hand model; the inventory icon is the mod's own. That was once
-  written here as a limitation — "in-hand weapon models need a rigged
-  attachment set" — and it is simply not true: a weapon model is a plain
-  static mesh, which is how the four blades have their own. Rebuilding a
-  pistol shape the game already has has just never been worth it.
+- **The phaser doesn't fit a holster yet.** It has no `AttachmentType`, so it
+  goes in a hand or a bag. One line would make it fit every vanilla holster
+  (`PHASERS.md`).
 - **Changing a loot list does not restock a cabin that already exists.** The
   ship is meant to be lived in, so a rebuild never refills a container. Use
   `TREK_Rebuild()`, or a fresh world.

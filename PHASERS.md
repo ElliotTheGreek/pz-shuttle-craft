@@ -1,12 +1,21 @@
 # Phasers — a tool, not a pistol
 
-**Status (2026-09-24): the art is built; the behaviour is not.** The model,
-its icon, the beam and spark textures, and all four sounds are made, checked
-and deployed (sections 4 to 6). The phaser in a hand and its new firing sound
-are the only parts a player can see yet; the beam overlay and cutting (5, 7)
-are unbuilt, and section 8's engine questions come first. When it's built,
-this becomes the working guide for the phaser, in the shape
-`PHOTON_TORPEDOS.md` and `REPLICATOR.md` use.
+**Status (2026-09-24): built; the art is seen in game, the behaviour is not.**
+The model, icon, beam and spark textures, sounds, the beam overlay, per-shot
+bolts, and cutting trees and doors are all built, tested (single player and a
+server with two clients) and mutation-checked. The author has seen the model
+in the hand and on the ground and heard the lower pulse (2026-09-24). **The
+beam, the bolts and cutting have not been in a game yet.** The tricorder's
+lock override is removed. Still open: section 9's phase 6 needs nothing new if
+the engine fires the shot event for other players as its bytecode says, and
+only a two-machine game can confirm that.
+
+| File | What |
+|---|---|
+| `shared/TREK/TREK_PhaserCut.lua` | the rules (`PC.refusal`), the tree and door world changes, and the timed action `TREKPhaserCut` |
+| `client/TREK/TREK_PhaserFX.lua` | the overlay: cutting beams, per-shot bolts, the hum, the light; `TREK_PhaserFX()` on the console |
+| `client/TREK/TREK_Phaser.lua` | the charge sweep, and the right-click: *Cut down with phaser*, *Cut through with phaser* |
+| sandbox *Phaser cutting* | Trees and doors (default) / Trees only / Off |
 
 `DEV_GUIDE.md`'s *Rules that exist because they were broken* and
 `MULTIPLAYER.md` apply to every line of it. The four that matter most here:
@@ -350,35 +359,45 @@ way round them), and anything the sandbox switches off.
 The verify-first phase. Each answer goes into this section with the tool that
 gave it, as `ENERGY.md` section 3 does.
 
-1. **What fells a tree on the server, completely?** Disassemble
-   `IsoTree.WeaponHit` and whatever it calls when health reaches zero
-   (`tools/javadis.py`). Does it drop logs, sync, play the fall, and does it
-   need a `HandWeapon` whose `TreeDamage` is set? If so, can the phaser item
-   carry `TreeDamage` and be passed in, repeatedly or once with the health
-   set to 1 as `ISChopTreeAction:start` does in debug? Find a **non-admin,
-   non-debug** call site.
-2. **What does the sledgehammer's `complete()` need?** It reads the
-   sledgehammer off the character. Can the destruction helpers
-   (`sledgeDestroy`, `buildUtil.getDoubleDoorObjects`,
-   `getGarageDoorObjects`) be called directly from our action's `complete()`
-   on the server, and do they sync (`transmitRemoveItemFromSquare`)?
-3. **Can a timed action with no vanilla animation run at all?** The action
-   anim decides the pose. Use `Aim`, or the handgun's aim pose. Find which
-   action anims exist and which one reads as "holding a pistol out".
-4. **`DrawTextureAngle`**: which way is angle zero, degrees or radians, and
-   does it stretch a texture along one axis or only rotate it? If only
-   rotate, tile segments.
-5. **The sustained sound**: `playSound` returns a handle that `stopSound`
-   takes on a character's emitter. Is that true on a client for a sound at a
-   *world* position (the target) rather than the player? Is `loop = true`
-   honoured by a script sound played that way?
-6. **Seeing the shot for bolts**: `OnWeaponSwing` / `OnWeaponHitCharacter`.
-   Which fires on the shooter's client for a firearm, and what does it give
-   for the target? Other players' bolts need a relay, so it has to be a
-   server event or a small command.
-7. **`isoToScreenX/Y` for another player's position** on a client, and
-   whether a hand-height offset in screen pixels scales with zoom (it does
-   for the torpedo; confirm the constant).
+**All answered, 2026-09-24.** The engine facts the code rests on; don't
+re-derive them.
+
+1. **What fells a tree.** `IsoTree.WeaponHit` subtracts the weapon's
+   `TreeDamage` and calls `toppleTree(character)` at zero. `toppleTree`
+   **returns at once on a client** (bci 0-6); on the authority it removes the
+   tree with `transmitRemoveItemFromSquare`, plays `FallingTree` to everybody
+   (`PlayWorldSoundServer`), drops the logs through
+   `AddWorldInventoryItem` (which transmits on a server), and puts the stump
+   down. So the phaser calls `tree:toppleTree(player)` in `complete()` and
+   skips only the counting down. `IsoTree` is exposed (vanilla calls
+   `WeaponHit` on it from `ISChopTreeAction`), so its public methods are
+   reachable.
+2. **What breaks a door.** `ISDestroyStuffAction:complete()`'s authority path:
+   barricades on both sides, every leaf through
+   `buildUtil.getDoubleDoorObjects` / `getGarageDoorObjects`, then
+   `transmitRemoveItemFromSquare`. `buildUtil` is in `server/`, so it loads on
+   a server and in single player, which is where `complete()` runs. The
+   break sound is the sledgehammer's: `character:playSound("BreakDoor")`.
+3. **The pose.** `setActionAnim("BlowTorch")`, a tool held out and aimed at
+   the work, with the phaser as the hand model. **To be judged in game.**
+4. **Drawing a stretched, turned strip.** `DrawTextureAngle` only rotates.
+   `ISUIElement:drawTextureAllPoint(tex, tl, tr, br, bl, r, g, b, a)` draws
+   a texture on **any four corners**, so the beam is a quad from emitter to
+   target with no angles and no tiling.
+5. **The hum.** `playSound` may go over the network; `playSoundLocal` is
+   `emitter.playSoundImpl`, local only, and returns a handle that
+   `stopOrTriggerSound` takes. Every client plays the hum itself when it
+   hears "beam on", on the shooter's own character, so nobody hears it twice.
+6. **The shot.** `OnWeaponSwingHitPoint(character, weapon)` (vanilla's own
+   `ISReloadWeaponAction.onShoot` uses it) fires on a shot, and
+   `zombie.network.fields.hit.Player.attack` fires it for **other players'**
+   shots on each client too, so bolts need no relay.
+   `OnWeaponHitCharacter` shortens a bolt to what it hit.
+7. **The server's hooks on a timed action.** `NetTimedAction.start` reads
+   `serverStart` off the action and calls it; the class also names
+   `serverStop`. They are how every client learns the beam is on or off.
+   Single player never calls them; `start()` and Net.toAll cover it there.
+
 8. ~~**Hotbar icon**~~ **Answered (2026-09-24, from the item script):** the
    phaser has **no** `AttachmentType`, so vanilla's hotbar never draws it and
    the 32x32 rule doesn't apply. Its icon stays **64x64**, like every other
@@ -398,15 +417,15 @@ line in this file saying what was done.
    baked, fitted to vanilla's M9, `WeaponSprite = TrekPhaserModel`, icon at
    64x64 vetted against the set. Two mutations, both caught: a wrong model
    name, and the texture missing from disk.
-3. **The beam renderer.** Art **done 2026-09-24** (section 5, with the
-   drawing recipe). Still to build: the overlay, the light, and bolts on the
-   shooter's own shots first.
-4. **Trees.** The action, the server side, the relay, the loop sound, the
+3. **The beam renderer. Done 2026-09-24**: `TREK_PhaserFX.lua`, drawn to the
+   sheet's recipe, with the light at the cut and a grace timer so a lost
+   "beam off" can't leave a beam burning. Bolts on every phaser shot.
+4. **Trees. Done 2026-09-24.** The action, the server side, the relay, the loop sound, the
    noise, the sandbox option. `tests/test_multiplayer.py`: single player and
    server plus two clients. The tree is gone on **every** client, the
    non-shooter got "beam on" and "beam off", a client can't fell a tree
    directly, out of range is refused, and a phaser not in hand is refused.
-5. **Doors.** The same, plus double and garage doors, barricades, locked,
+5. **Doors. Done 2026-09-24, and the override removed.** The same, plus double and garage doors, barricades, locked,
    key-locked and padlocked doors all falling alike, and the safehouse
    refusal. A test for each refusal's words (`deny()` reasons must have text).
    **And remove the tricorder's lock override** in the same pass: the menu
@@ -416,7 +435,14 @@ line in this file saying what was done.
    tests, and the text in `MEDICAL_SET.md`, `README.md` and `DEV_GUIDE.md`.
    `test_multiplayer.py` already fails on a command with no handler, which
    catches a half-removal.
-6. **Other people's bolts.** Relay each shot's bolt to nearby clients.
+6. **Other people's bolts.** Probably free: the engine fires the shot event
+   for remote players (8.6). Only a two-machine game can confirm it; build a
+   relay only if it doesn't.
+   **Nineteen mutations, one at a time, all caught** -- one only after a test
+   was written for it: `complete()`'s own re-check looked redundant behind
+   `isValid()`, and isn't, because a tree or door can go while the beam is on
+   it (somebody else gets there first). That is *two guards that cover each
+   other*, answered with a test that removes the target mid-cut.
 7. **Docs.** This file becomes the working guide; failure signatures and
    *Current state* in `DEV_GUIDE.md`; the README's feature list.
 

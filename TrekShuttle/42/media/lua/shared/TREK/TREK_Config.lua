@@ -696,6 +696,63 @@ C.PhaserInterval = 30
 C.PhaserRack  = { x = 3, y = 0 }
 C.PhaserCount = 4
 
+-- Cutting (PHASERS.md 7). A phaser held on a tree fells it; held on a door,
+-- it burns the door out of its frame, whatever was locking it. The action is
+-- TREKPhaserCut (shared/TREK/TREK_PhaserCut.lua); the world change is the
+-- server's, in complete().
+--
+-- How far away the cutter may stand, in tiles, measured by the server from
+-- where it thinks they are. A phaser is a ranged tool -- nobody walks up and
+-- presses it against the bark -- but not a sniper's: far enough to stand
+-- clear of a falling tree, near enough that the beam reads as aimed.
+C.PhaserCutRange = 5
+-- Action lengths, in the timed-action units vanilla's own use (the axe's
+-- chop is paced by its animation; these are simply "quick", per the author).
+C.PhaserTreeTime = 180
+C.PhaserDoorTime = 120
+-- The noise a cut makes at the target, as WorldSoundManager.addSound takes
+-- it: radius and volume. The axe's tree hit is 20 and 20; a phaser hums
+-- rather than thuds, so a little quieter, and far below a gunshot.
+C.PhaserCutNoise = { radius = 14, volume = 14 }
+-- How often the cut makes that noise, in game ticks of the action.
+C.PhaserCutNoiseEvery = 30
+
+-- The beam as the overlay draws it. The numbers are tools/gen_phaser_beam.py's
+-- recipe, which is the picture design/art/ui/phaser_beam_sheet.png was judged
+-- on: change one there, change it here, and look at the sheet again.
+C.PhaserTint      = { r = 1.00, g = 0.47, b = 0.16 }   -- (255, 120, 40)
+C.PhaserBeamPx    = 16      -- strip thickness at zoom 1
+C.PhaserCorePass  = 0.42    -- the untinted core, as a fraction of that
+C.PhaserCoreAlpha = 0.9
+C.PhaserSparkPx   = 32
+C.PhaserImpact    = 1.7     -- spark at the target, x PhaserSparkPx
+C.PhaserMuzzle    = 0.55    -- flare at the emitter, x PhaserSparkPx
+-- Where on a standing character the beam leaves from, in levels above their
+-- feet (a level is ~2.44 m, so this is about chest height), and how far
+-- ahead of them toward the target, in tiles.
+C.PhaserHandZ     = 0.45
+C.PhaserHandAhead = 0.35
+-- A shot's bolt, and how long a cutting beam may go unconfirmed before a
+-- client drops it by itself -- so a lost "beam off" is a flicker, not a
+-- beam left burning for the rest of the session.
+C.PhaserBoltMs    = 120
+C.PhaserBeamGraceMs = 2500
+C.PhaserLight = { r = 1.0, g = 0.55, b = 0.2, radius = 3 }
+
+-- Sandbox: what a phaser may cut. An absent value is the feature as designed.
+C.PhaserCutAll   = 1
+C.PhaserCutTrees = 2
+C.PhaserCutNone  = 3
+
+function C.phaserCutting()
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.PhaserCutting
+    end)
+    v = ok and tonumber(v) or nil
+    if v == C.PhaserCutTrees or v == C.PhaserCutNone then return v end
+    return C.PhaserCutAll
+end
+
 ---------------------------------------------------------------------------
 -- The medical set
 ---------------------------------------------------------------------------
@@ -791,13 +848,6 @@ C.CrystalScanRadius = 20
 -- reports "close" before it reports "thirteen metres".
 C.SweepBands = { 0.33, 0.66 }
 
--- The lock override. Range in tiles from the player to the lock, and the
--- cooldown between overrides in milliseconds, held per player on the server.
---
--- The range is small because the server validates it and a client is a
--- request, never a fact: without a bound, a crafted command unlocks the map.
-C.UnlockRange       = 2
-C.UnlockCooldownMs  = 20000
 
 ---------------------------------------------------------------------------
 -- Sprites
@@ -1182,7 +1232,7 @@ C.LegacyReplicatorTag = "replicator"
 
 -- How close you have to stand, in tiles. Measured on the server against its
 -- own copy of where the player is, because a client is a request and never a
--- fact -- the same reason C.UnlockRange exists.
+-- fact -- the same reason C.PhaserCutRange is measured on the server.
 C.ReplicatorRange = 2
 
 -- How far around the berth a right-click still finds the machine, in squares.

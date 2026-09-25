@@ -11,7 +11,7 @@ is the list to work through the first time it is carried in.
 | **Hypospray** | injected: an infected cut, pain, stiffness, fractures, and the open wounds too. Six doses, refilled aboard. |
 | **Dermal regenerator** | skin: lacerations, scratches, deep wounds, bleeding, burns, and the stitches and dressing over them. Free. |
 | **Medical tricorder** | vanilla's health panel with every Doctor gate open, on you or — with their consent — on somebody else. |
-| **Tricorder** | a sliced sensor sweep drawn as a contact plot, and a lock override that asks the server. |
+| **Tricorder** | a sliced sensor sweep drawn as a contact plot. (It had a lock override until 2026-09-24; see *The lock override is gone* below.) |
 
 `DEV_GUIDE.md` is the general one and its *Rules that exist because they were
 broken* still apply here. `MULTIPLAYER.md` is the client/server split.
@@ -67,21 +67,18 @@ tricorder, sensor sweep             (client only)
   OnTick -> M.serviceSweep: C.SweepPerTick contacts a tick, banded by range
       done -> M.lastSweep -> window:onSweepDone -> the plot draws
 
-tricorder, lock override            (client asks, SERVER opens)
-
-  right-click a locked door -> M.fillWorldMenu
-      Med.lockOn(sq, username)   offered; a padlock is shown GREYED with a reason
-  -> M.onOverride -> Core.send("unlock", {x, y, z})
-
-  server  Net.onServer("unlock")
-          alive / sane numbers / cooldown / tricorder really in THEIR inventory
-          / within C.UnlockRange of where the SERVER thinks they are / chunk loaded
-          Med.lockOn(sq, name)   asked again, from scratch
-          Med.unlock(obj)        clears the flags AND calls obj:sync()
-          Net.toClient("unlocked", {ok, why})
-
-  client  Net.onClient("unlocked") -> note, or the reason it was refused
 ```
+
+**The lock override is gone (2026-09-24).** The tricorder used to talk
+electronic locks open. The author's rule is that nothing a Starfleet crew
+carries picks a lock; a phaser defeats any lock by taking the door out of its
+frame instead (`PHASERS.md` 7). The menu option, the `unlock` command and its
+handler, `Med.lockOn` / `Med.unlock`, `C.UnlockRange` /
+`C.UnlockCooldownMs`, the eight `IGUI_TREK_Override*` strings and their tests
+were all removed. `medical()` now checks that a tricorder offers nothing at a
+locked door. The engine fact the override taught is still worth keeping:
+`setLockedByKey` syncs only when it is **not** on the server
+(`DEV_GUIDE.md`, *A setter's own sync may be one-sided*).
 
 Three orderings in there are deliberate and easy to break:
 
@@ -101,9 +98,8 @@ Three orderings in there are deliberate and easy to break:
 | File | What it holds |
 |---|---|
 | `shared/TREK/TREK_Config.lua` | every constant — section *The medical set* |
-| `shared/TREK/TREK_Medical.lua` | `Med.TREATMENTS`, `Med.SKIN`, `Med.treatWith`, doses, `Med.lockOn` / `Med.unlock`. No side effects; loads everywhere |
+| `shared/TREK/TREK_Medical.lua` | `Med.TREATMENTS`, `Med.SKIN`, `Med.treatWith`, doses. No side effects; loads everywhere |
 | `client/TREK/TREK_MedKit.lua` | the menus, both panels, the sweep job, dose refills, the `ISMedicalCheckAction` wrapper |
-| `server/TREK/TREK_Server.lua` | the `unlock` handler — the only place a lock is opened |
 | `server/TREK/TREK_Build.lua` | `SPECIALS.medkit` — what the sick-bay locker is guaranteed |
 | `shared/TREK/TREK_InteriorLayout.lua` | `special = "medkit"` on the locker at 5,1 |
 | `media/scripts/trekshuttle.txt` | the four `item` blocks and three `sound` blocks |
@@ -369,13 +365,10 @@ does **not** touch the injected half, a bite, the infection, or a bitten limb's
 bandage; it skips a wound with glass while still treating the rest and says so;
 it works for ever; the health panel opens at doctor level with
 `ISHealthPanel.cheat` still false; the sweep is sliced, banded and rate-limited;
-and the lock override is a server command that refuses a padlock, a safehouse,
-a target out of range, and a second try inside the cooldown.
+and a tricorder offers nothing at a locked door.
 
-`medical_multiplayer()` adds the two-client half: a player carrying no
-tricorder is refused by the server, the one carrying it is not, the lock is
-synced, **the asking client never writes the lock itself**, and scanning
-another player asks their permission before any panel opens.
+`medical_multiplayer()` adds the two-client half: scanning another player
+asks their permission before any panel opens.
 
 `tests/test_helm.py` drives `TREKTricorderWindow` the way it drives the helm —
 several frames, every draw checked against the panel bounds, contacts placed
@@ -460,10 +453,8 @@ Nothing here has been seen in the game. In the order worth checking:
    The panel is vanilla's and should already work on a pad; that is the claim.
 5. **The sensor sweep**, somewhere with zombies in view: do the blips agree
    with what is actually around you, and does the framerate survive a horde.
-6. **The lock override** on an ordinary locked house door, then on a padlocked
-   one, which must refuse and say why.
-7. **Two players**: the override from a client seen by the other machine; a
-   scan requested and accepted; the refusal for a player carrying no tricorder.
+6. ~~The lock override~~: removed 2026-09-24.
+7. **Two players**: a scan requested and accepted.
 
 Item 7 belongs to the two-player session pinned in `ROADMAP.md`.
 

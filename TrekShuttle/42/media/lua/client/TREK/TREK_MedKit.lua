@@ -972,41 +972,6 @@ function M.openSweep(player)
 end
 
 ---------------------------------------------------------------------------
--- The tricorder: the lock override
----------------------------------------------------------------------------
--- A lock is world state, so the server opens it. The client looks first only
--- so it can offer the option and explain a refusal in the menu rather than
--- in silence; the server looks again before it touches anything, because a
--- client is a request and never a fact.
-
-function M.onOverride(_, player, x, y, z)
-    Core.send(player, "unlock", { x = x, y = y, z = z })
-end
-
--- Why the server said no, in the player's own words. A refusal that arrives
--- as nothing at all is indistinguishable from a mod that is broken.
-local UNLOCK_TEXT = {
-    padlock   = "IGUI_TREK_OverridePadlock",
-    safehouse = "IGUI_TREK_OverrideSafehouse",
-    cooling   = "IGUI_TREK_OverrideCooling",
-    far       = "IGUI_TREK_OverrideFar",
-    notool    = "IGUI_TREK_OverrideNoTool",
-}
-
-TREK.Net.onClient("unlocked", function(args)
-    local player = U.player(0)
-    if not player then return end
-    if args.ok then
-        U.try("unlock.sound", function()
-            player:playSoundLocal("TREK_TricorderChirp")
-        end)
-        note(player, "IGUI_TREK_OverrideDone")
-        return
-    end
-    warnNote(player, UNLOCK_TEXT[args.why] or "IGUI_TREK_OverrideFailed")
-end)
-
----------------------------------------------------------------------------
 -- Menus
 ---------------------------------------------------------------------------
 --- The items in a context menu selection, flattened.
@@ -1128,13 +1093,16 @@ function M.onScanOther(_, player, other)
     end
 end
 
---- The world menu: the lock override, and scanning somebody else.
+--- The world menu: scanning somebody else.
 ---
 --- On OnFillWorldObjectContextMenu rather than the Pre- event the rest of the
---- mod uses, and for the opposite reason: a locked door and another player
---- are both things the base game already considers interactable, so the later
---- event fires on them, and these options belong beside vanilla's own rather
---- than above them.
+--- mod uses: another player is something the base game already considers
+--- interactable, so the later event fires on them, and this belongs beside
+--- vanilla's own options rather than above them.
+---
+--- The tricorder's lock override used to live here too. It is gone
+--- (2026-09-24): nothing a Starfleet crew carries picks a lock, and a phaser
+--- takes the door out of its frame instead (PHASERS.md 7).
 function M.fillWorldMenu(playerNum, context, worldobjects, test)
     local player = U.player(playerNum)
     if not player then return end
@@ -1146,45 +1114,20 @@ function M.fillWorldMenu(playerNum, context, worldobjects, test)
     end
     if not sq then return end
 
-    local username = U.try("menu.username", function() return player:getUsername() end)
-
-    local lock, lockWhy = nil, nil
-    if Med.carries(player, C.TricorderType, C.TricorderItem) then
-        lock, lockWhy = Med.lockOn(sq, username)
-    end
-
     -- Scanning somebody else exists only where there is somebody else: a
     -- client connected to a server. Single player never offers it.
     local patient = nil
     if isClient() and Med.carries(player, C.MedTricorderType, C.MedTricorderItem) then
         patient = otherPlayerOn(sq, player)
     end
-
-    local offerLock = lock ~= nil or lockWhy == "padlock"
-    if not offerLock and not patient then return end
+    if not patient then return end
     if test then return ISWorldObjectContextMenu.setTest() end
 
-    if offerLock then
-        local option = context:addOption(getText("IGUI_TREK_Override"), worldobjects,
-                                         M.onOverride, player,
-                                         sq:getX(), sq:getY(), sq:getZ())
-        if not lock then
-            -- A padlock is refused, and it says so in the menu. Hiding the
-            -- option would leave the player guessing whether the tricorder
-            -- can do this at all.
-            option.notAvailable = true
-            option.toolTip = ISWorldObjectContextMenu.addToolTip()
-            option.toolTip.description = getText("IGUI_TREK_OverridePadlock")
-        end
-    end
-
-    if patient then
-        local name = U.try("menu.otherName", function()
-            return patient:getDisplayName()
-        end) or "?"
-        context:addOption(getText("IGUI_TREK_MedScanOther", name), worldobjects,
-                          M.onScanOther, player, patient)
-    end
+    local name = U.try("menu.otherName", function()
+        return patient:getDisplayName()
+    end) or "?"
+    context:addOption(getText("IGUI_TREK_MedScanOther", name), worldobjects,
+                      M.onScanOther, player, patient)
 end
 
 Events.OnFillWorldObjectContextMenu.Add(M.fillWorldMenu)

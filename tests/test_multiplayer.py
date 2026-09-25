@@ -30,6 +30,7 @@ engine call that threw.
 
     python tests/test_multiplayer.py
 """
+import json
 import os
 import re
 import sys
@@ -3645,123 +3646,24 @@ def medical():
     for _ in range(40):
         rt.run("TREK.MedKit.serviceSweep()")
 
-    # --- the lock: the client asks, the server opens ------------------------
-    # Pumped rather than nudged: the simulation streams chunks at the rate the
-    # engine does, and a square whose chunk has not arrived is "cannot tell
-    # yet" rather than "nothing there" -- which the server correctly refuses.
-    rt.run(f"TREK.Util.teleport({P}, 1200, 1200, 0)")
-    net.pump(60)
+    # --- and no lock override ------------------------------------------------
+    # The tricorder used to open locked doors. It does not (2026-09-24): the
+    # author's rule is that nothing a Starfleet crew carries picks a lock, and
+    # a phaser takes the door out of its frame instead (PHASERS.md 7). A
+    # tricorder in the pocket must offer nothing at a locked door.
     rt.run('door = SIM.lock(1201, 1200, 0, "IsoDoor")')
-    net.pump(2)
-
-    def cooled():
-        """Runs the clock past the override cooldown.
-
-        Without this the next three refusals all pass for the wrong reason:
-        the cooldown from the successful override above is still running, so
-        a safehouse check, a range check and a padlock check that had all been
-        deleted would still look like they were working.
-        """
-        net.clock += int(C("UnlockCooldownMs")) + 1000
-
-    def world_menu():
-        rt.run("""
-            lockMenu = SIM.contextMenu()
-            TREK.MedKit.fillWorldMenu(0, lockMenu, { door }, false)
-        """)
-        return str(rt.eval("lockMenu:labels()"))
-
-    check(text("IGUI_TREK_Override") in world_menu(),
-          "medical: a tricorder in your pocket offers no way to open a locked door")
-
-    rt.run("SIM.synced = {}")
-    rt.run(f'lockMenu:click("{text("IGUI_TREK_Override")}")')
-    net.pump(4)
-    check(rt.eval("door:isLocked()") is False,
-          "medical: the override left the door locked")
-    check(rt.eval("#SIM.synced") >= 1,
-          "medical: the lock was opened and never synced. setLockedByKey only "
-          "fires its own sync when NOT on a server, so a door opened by the "
-          "authority stays shut on every client's screen without an explicit "
-          "obj:sync()")
-
-    # --- what it will not open ----------------------------------------------
-    rt.run('padlocked = SIM.lock(1202, 1200, 0, "IsoThumpable", { padlock = true })')
-    rt.run(f"TREK.Util.teleport({P}, 1202, 1201, 0)")
-    net.pump(4)
-    rt.run("TREK.Util.state().unlockAt = nil")
     rt.run("""
-        padMenu = SIM.contextMenu()
-        TREK.MedKit.fillWorldMenu(0, padMenu, { padlocked }, false)
+        lockMenu = SIM.contextMenu()
+        TREK.MedKit.fillWorldMenu(0, lockMenu, { door }, false)
     """)
-    option = rt.eval(
-        '(function() '
-        '  local o = padMenu:find(getText("IGUI_TREK_Override")) '
-        '  if not o then return "absent" end '
-        '  if o.notAvailable == true then return "greyed" end '
-        '  return "live" '
-        'end)()')
-    check(str(option) == "greyed",
-          f"medical: a padlocked door's override option is {option!r}. It must "
-          f"be shown and greyed: hidden, a player cannot tell the tricorder "
-          f"from a broken mod; live, the mod picks other people's padlocks")
-
-    cooled()
-    rt.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 1202, y = 1200, z = 0 })")
-    net.pump(4)
-    check(rt.eval("padlocked:isLocked()") is True,
-          "medical: the server opened a PADLOCK. That is another player's own "
-          "lock, fitted by hand, and a mod that picks them is a griefing tool "
-          "on every server that installs it")
-
-    rt.run('safeDoor = SIM.lock(1210, 1210, 0, "IsoDoor")')
-    rt.run('SIM.safehouse(1205, 1205, 1215, 1215, { "someone_else" })')
-    rt.run(f"TREK.Util.teleport({P}, 1210, 1209, 0)")
-    net.pump(20)
-    cooled()
-    rt.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 1210, y = 1210, z = 0 })")
-    net.pump(4)
-    check(rt.eval("safeDoor:isLocked()") is True,
-          "medical: the server opened a door inside somebody else's safehouse")
-
-    # --- range and cooldown, both measured on the server --------------------
-    # Six tiles away, not a hundred: far enough to be out of C.UnlockRange and
-    # near enough that its chunk is loaded. A distant one would be refused for
-    # being unloaded instead, and the range bound would never be reached.
-    rt.run('farDoor = SIM.lock(1210, 1203, 0, "IsoDoor")')
-    cooled()
-    rt.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 1210, y = 1203, z = 0 })")
-    net.pump(4)
-    check(rt.eval("farDoor:isLocked()") is True,
-          "medical: the server opened a lock six tiles from the player, well "
-          "outside C.UnlockRange. "
-          "The bound is the whole difference between a tool and a map-wide "
-          "master key, because the target arrives from a client")
-
-    rt.run("SIM.safehouses = {}")
-    rt.run('firstDoor = SIM.lock(1211, 1210, 0, "IsoDoor")')
-    rt.run('nextDoor = SIM.lock(1212, 1210, 0, "IsoDoor")')
-    rt.run(f"TREK.Util.teleport({P}, 1211, 1209, 0)")
-    net.pump(20)
-    cooled()
-    rt.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 1211, y = 1210, z = 0 })")
-    net.pump(4)
-    check(rt.eval("firstDoor:isLocked()") is False,
-          "medical: the override that the cooldown check is built on did not "
-          "work, so the cooldown below proves nothing")
-    rt.run(f"TREK.Util.teleport({P}, 1212, 1209, 0)")
-    net.pump(4)
-    rt.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 1212, y = 1210, z = 0 })")
-    net.pump(4)
-    check(rt.eval("nextDoor:isLocked()") is True,
-          "medical: two overrides in a row, with no cooldown between them")
+    check(str(rt.eval("lockMenu:labels()")).strip() == "",
+          "medical: a tricorder offered something at a locked door; the lock "
+          "override is gone and nothing should come back in its place")
 
     print("medical: the ship carries the set, a dose treats everything but a "
           "bite and the infection, an empty one says so, the ship alone refills "
           "it, the health panel opens at doctor level without the debug global, "
-          "the sweep is sliced and banded, and the lock override is a server "
-          "command that refuses a padlock, a safehouse, a distant target and a "
-          "second try inside the cooldown")
+          "the sweep is sliced and banded, and a tricorder opens no locks")
 
 
 def rep_energy(rt):
@@ -5506,12 +5408,11 @@ def replicator_multiplayer():
 
 
 def medical_multiplayer():
-    """The medical set with two clients: who may open a lock, and who is asked.
+    """The medical set with two clients: who is asked before a scan.
 
-    Both halves of this are things single player cannot show. A client has no
-    business writing a lock, and a player without the tool has no business
-    opening one even if their client asks nicely -- so the request is made from
-    a client that is carrying nothing and the server is expected to say no.
+    Single player cannot show it: scanning somebody else exists only where
+    there is somebody else. (This section used to test the tricorder's lock
+    override too; the override is gone, 2026-09-24, PHASERS.md 7.)
     """
     net = Net("mp", clients=("owner", "stranger"))
     server = net.server
@@ -5562,30 +5463,6 @@ def medical_multiplayer():
             end
         """)
 
-    # --- a client that is carrying nothing is refused ----------------------
-    stranger.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 2000, y = 2001, z = 0 })")
-    net.pump(4)
-    check(server.eval("mpDoor:isLocked()") is True,
-          "medical: the server opened a lock for a player carrying no tricorder. "
-          "A client is a request, never a fact -- the tool has to be checked "
-          "where the player's inventory really is")
-
-    # --- and the one with the tool is not -----------------------------------
-    server.run("SIM.synced = {}")
-    owner.run("TREK.Core.send(SIM.players[1], 'unlock', { x = 2000, y = 2001, z = 0 })")
-    net.pump(4)
-    check(server.eval("mpDoor:isLocked()") is False,
-          "medical: the server refused an override from the player who is "
-          "carrying the tricorder")
-    check(server.eval("#SIM.synced") >= 1,
-          "medical: the server opened the lock without syncing it to anyone")
-
-    # --- a client never writes a lock itself ---------------------------------
-    check(owner.eval("mpDoor:isLocked()") is True,
-          "medical: the asking client unlocked its own copy of the door. A lock "
-          "is world state; the client asks and the server's sync is what "
-          "changes it")
-
     # --- scanning somebody else asks them first ------------------------------
     owner.run('SIM.players[1].inventory:AddItem(instanceItem(TREK.Config.MedTricorderItem))')
     owner.run("SIM.medicalRequests = {}")
@@ -5609,9 +5486,8 @@ def medical_multiplayer():
         for w in rt.warnings():
             fail(f"medical multiplayer: {w}")
 
-    print("medical multiplayer: the server checks the tool in the asking "
-          "player's own inventory, syncs the lock it opens, never lets a client "
-          "write one, and asks a player before reading their body")
+    print("medical multiplayer: a player is asked before anybody reads their "
+          "body")
 
 
 def emh_multiplayer():
@@ -10124,7 +10000,8 @@ def cold_start():
           "cold start: the captain could not step out of a commissioned ship")
     rt.run("TREK.Server.serviceVehicle()")
     check(rt.eval(f"{v} ~= nil and SIM.startEngine({v})") == "started",
-          "cold start: a commissioned ship's engine would not start")
+          "cold start: a commissioned ship's engine would not start")
+
     # Commissioned, she is the crew's: sent up, she stays up.
     rt.run(f"TREK.Menu.onRecall(nil, {P})")
     net.pump(60)
@@ -10649,6 +10526,361 @@ def energy_multiplayer():
           "reaches both machines as a flag and a note")
 
 
+def phaser_present(rt, x, y, z, cls):
+    """True while an object of this class stands on the square, here."""
+    return bool(rt.eval(f"""(function()
+        for _, o in ipairs(SIM.rawSquare({x}, {y}, {z}).objects) do
+            if o.class == "{cls}" then return true end
+        end
+        return false
+    end)()"""))
+
+
+def phaser_menu(rt, var, x, y, z, cls):
+    """Right-clicks the object of this class on a square, the way a player
+    does: the world menu, built by the mod's own handler."""
+    rt.run(f"""
+        local target = nil
+        for _, o in ipairs(SIM.rawSquare({x}, {y}, {z}).objects) do
+            if o.class == "{cls}" then target = o end
+        end
+        {var} = SIM.contextMenu()
+        TREK.Phaser.fillWorldMenu(0, {var}, {{ target }}, false)
+    """)
+
+
+def phaser_labels(rt, var):
+    """The menu's labels, as the one string labels() gives back."""
+    return str(rt.eval(f"{var}:labels()"))
+
+
+def phaser():
+    """Cutting with a phaser, single player: the menu, the tree, every kind of
+    door, the refusals, and the beam as it is drawn.
+
+    Driven through the right-click menu for the reason the torpedo and the
+    medical set give: a build nobody could reach the feature in would pass a
+    test that called the action itself.
+    """
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('cutter', 1000.5, 1000.5, 0)")
+    net.start()
+    net.pump(2)
+    P = "SIM.players[1]"
+    TREE = '"IGUI_TREK_PhaserCutTree"'
+    DOOR = '"IGUI_TREK_PhaserCutDoor"'
+
+    rt.run("""
+        felledTree = SIM.tree(1003, 1000, 0)
+        lockedDoor = SIM.lock(1000, 1003, 0, "IsoDoor")
+        padlocked = SIM.lock(1002, 1003, 0, "IsoThumpable", { padlock = true })
+        padlocked.door = true
+    """)
+
+    # --- no phaser, no option ------------------------------------------------
+    phaser_menu(rt, "m0", 1003, 1000, 0, "IsoTree")
+    check("IGUI_TREK_PhaserCutTree" not in phaser_labels(rt, "m0"),
+          "phaser: a player carrying no phaser was offered to cut a tree")
+
+    # --- a phaser in a pocket is enough to be offered it ---------------------
+    rt.run(f'{P}.inventory:AddItem(instanceItem(TREK.Config.PhaserItem))')
+    phaser_menu(rt, "m1", 1003, 1000, 0, "IsoTree")
+    check("IGUI_TREK_PhaserCutTree" in phaser_labels(rt, "m1"),
+          "phaser: a player with a phaser was not offered to cut down a tree")
+    check("IGUI_TREK_PhaserCutDoor" not in phaser_labels(rt, "m1"),
+          "phaser: a tree offered to be cut through as a door")
+
+    # --- the cut: drawn, heard, felled, noisy ---------------------------------
+    rt.run("SIM.sounds = {}; SIM.soundsStopped = {}; SIM.worldSounds = {}")
+    rt.run(f"m1:click({TREE})")
+    check(int(rt.eval("#SIM.equipped")) == 1,
+          "phaser: choosing the cut did not draw the phaser from the pocket")
+    check(rt.eval(f"TREK.PhaserCut.inHand({P}) ~= nil") is True,
+          "phaser: the phaser is not in a hand after choosing the cut")
+    rt.run("SIM.runActions()")
+    check(not phaser_present(rt, 1003, 1000, 0, "IsoTree"),
+          "phaser: the tree is still standing after the cut")
+    check(int(rt.eval("#SIM.felled")) == 1,
+          "phaser: the tree was removed some other way than toppleTree, so "
+          "no logs and no stump")
+    check("TREKPhaserCut" in [str(x) for x in rt.eval("SIM.actionsDone").values()],
+          "phaser: the cut never ran as a timed action")
+    heard = [str(rt.eval(f"SIM.sounds[{i}].name")) for i in
+             range(1, int(rt.eval("#SIM.sounds")) + 1)]
+    for name in ("TREK_PhaserBeamStart", "TREK_PhaserBeam", "TREK_PhaserBeamEnd"):
+        check(name in heard, f"phaser: the cut never played {name}")
+    stopped = [str(x) for x in rt.eval("SIM.soundsStopped").values()]
+    check("TREK_PhaserBeam" in stopped,
+          "phaser: the beam's hum was started and never stopped -- a loop "
+          "with no stop hums for ever")
+    check(int(rt.eval("#SIM.worldSounds")) >= 1,
+          "phaser: cutting a tree made no noise a zombie could hear")
+    check(int(rt.eval("TREK.PhaserFX.count()")) == 0,
+          "phaser: a beam is still burning after the cut finished")
+
+    # --- the beam as it is drawn: the sheet's recipe --------------------------
+    rt.run(f"""
+        SIM.quads = {{}}; SIM.sprites = {{}}
+        TREK.PhaserFX.beamOn(TREK.PhaserCut.beamArgs({P}, 1003, 1000, 0, "tree", 2500))
+        SIM.renderFrame()
+    """)
+    quads = int(rt.eval("#SIM.quads"))
+    check(quads == 2, f"phaser: a beam drew {quads} strips; it is two -- the "
+          "tinted glow and the white core over it")
+    if quads == 2:
+        T = rt.eval("TREK.Config.PhaserTint")
+        check(abs(float(rt.eval("SIM.quads[1].g")) - float(T.g)) < 1e-6 and
+              float(rt.eval("SIM.quads[2].g")) == 1.0,
+              "phaser: the beam's passes are not tinted glow then white core; "
+              "a tint multiplies, so one tinted draw has no white middle")
+        # It must end at the tree, not start there.
+        ex = float(rt.eval("isoToScreenX(0, 1003.5, 1000.5, 0.3)"))
+        ey = float(rt.eval("isoToScreenY(0, 1003.5, 1000.5, 0.3)"))
+        mx = (float(rt.eval("SIM.quads[1].tr[1]")) + float(rt.eval("SIM.quads[1].br[1]"))) / 2
+        my = (float(rt.eval("SIM.quads[1].tr[2]")) + float(rt.eval("SIM.quads[1].br[2]"))) / 2
+        check(abs(mx - ex) < 1 and abs(my - ey) < 1,
+              "phaser: the beam's far end is not on the tree")
+    check(int(rt.eval("#SIM.sprites")) >= 2,
+          "phaser: the beam drew no flare at the emitter or spark at the cut")
+    net.clock += int(rt.eval("TREK.Config.PhaserBeamGraceMs")) + 50
+    rt.run("TREK.PhaserFX.service()")
+    check(int(rt.eval("TREK.PhaserFX.count()")) == 0,
+          "phaser: a beam nobody confirmed kept burning past its grace -- a "
+          "lost 'beam off' would leave it on for the session")
+
+    # --- a door, locked by key: the lock is never consulted -------------------
+    phaser_menu(rt, "m2", 1000, 1003, 0, "IsoDoor")
+    check("IGUI_TREK_PhaserCutDoor" in phaser_labels(rt, "m2"),
+          "phaser: a locked door was not offered to be cut through")
+    rt.run(f"m2:click({DOOR}); SIM.runActions()")
+    check(not phaser_present(rt, 1000, 1003, 0, "IsoDoor"),
+          "phaser: a key-locked door survived the phaser")
+
+    # --- a padlocked door goes the same way ------------------------------------
+    phaser_menu(rt, "m3", 1002, 1003, 0, "IsoThumpable")
+    rt.run(f"m3:click({DOOR}); SIM.runActions()")
+    check(not phaser_present(rt, 1002, 1003, 0, "IsoThumpable"),
+          "phaser: a padlocked door survived the phaser; a beam defeats any lock")
+
+    # --- a double door, barricaded: every leaf and both barricades -------------
+    rt.run("""
+        leafA = SIM.put(1004, 1003, 0, "fixtures_doors_02_0", "IsoDoor")
+        leafB = SIM.put(1005, 1003, 0, "fixtures_doors_02_1", "IsoDoor")
+        leafA.leaves = { leafA, leafB }
+        leafA.barricadeSame = SIM.put(1004, 1003, 0, "carpentry_01_8", "IsoBarricade")
+        leafA.barricadeOpposite = SIM.put(1004, 1002, 0, "carpentry_01_9", "IsoBarricade")
+    """)
+    phaser_menu(rt, "m4", 1004, 1003, 0, "IsoDoor")
+    rt.run(f"m4:click({DOOR}); SIM.runActions()")
+    check(not phaser_present(rt, 1005, 1003, 0, "IsoDoor"),
+          "phaser: a double door's other leaf was left standing")
+    check(not phaser_present(rt, 1004, 1003, 0, "IsoBarricade") and
+          not phaser_present(rt, 1004, 1002, 0, "IsoBarricade"),
+          "phaser: the barricades outlived the door they were nailed across")
+
+    # --- somebody else's safehouse is refused, and says why --------------------
+    rt.run("""
+        SIM.safehouse(1010, 1000, 1014, 1004, { "owner" })
+        safeDoor = SIM.lock(1011, 1001, 0, "IsoDoor")
+    """)
+    rt.run(f"{P}.x, {P}.y = 1011.5, 1000.5")
+    phaser_menu(rt, "m5", 1011, 1001, 0, "IsoDoor")
+    opt = "m5:find(\"IGUI_TREK_PhaserCutDoor\")"
+    check(rt.eval(f"{opt} and {opt}.notAvailable") is True,
+          "phaser: a stranger's safehouse door was offered as cuttable")
+    check(str(rt.eval(f"{opt} and {opt}.toolTip.description")) ==
+          "IGUI_TREK_PhaserSafehouse",
+          "phaser: a refused safehouse door does not say why")
+    rt.run("ISTimedActionQueue.add(TREKPhaserCut:new(SIM.players[1], 1011, 1001, 0, 'door')); "
+           "SIM.runActions()")
+    check(phaser_present(rt, 1011, 1001, 0, "IsoDoor"),
+          "phaser: the cut went through a stranger's safehouse door anyway")
+
+    # --- too far: the menu walks them up first ---------------------------------
+    rt.run(f"{P}.x, {P}.y = 1000.5, 1000.5; farTree = SIM.tree(1020, 1000, 0)")
+    phaser_menu(rt, "m6", 1020, 1000, 0, "IsoTree")
+    rt.run(f"SIM.walks = {{}}; m6:click({TREE}); SIM.runActions()")
+    check(int(rt.eval("#SIM.walks")) == 1,
+          "phaser: a tree out of range was cut without walking up to it")
+    check(not phaser_present(rt, 1020, 1000, 0, "IsoTree"),
+          "phaser: the far tree was not cut after walking to it")
+    rt.run("nearTree = SIM.tree(1022, 1000, 0)")
+    phaser_menu(rt, "m7", 1022, 1000, 0, "IsoTree")
+    rt.run(f"SIM.walks = {{}}; m7:click({TREE}); SIM.runActions()")
+    check(int(rt.eval("#SIM.walks")) == 0,
+          "phaser: a tree within range made the cutter walk up to it; a "
+          "phaser cuts from a distance")
+
+    # --- and the action itself refuses a distance the menu did not close ------
+    rt.run("SIM.tree(1040, 1000, 0); "
+           "ISTimedActionQueue.add(TREKPhaserCut:new(SIM.players[1], 1040, 1000, 0, 'tree')); "
+           "SIM.runActions()")
+    check(phaser_present(rt, 1040, 1000, 0, "IsoTree"),
+          "phaser: a tree twenty tiles away was cut without anybody walking there")
+
+    # --- the sandbox ------------------------------------------------------------
+    rt.run("SandboxVars.TrekShuttle.PhaserCutting = TREK.Config.PhaserCutTrees; "
+           "sandDoor = SIM.lock(1001, 999, 0, 'IsoDoor'); sandTree = SIM.tree(1002, 999, 0)")
+    rt.run(f"{P}.x, {P}.y = 1000.5, 1000.5")
+    phaser_menu(rt, "m8", 1001, 999, 0, "IsoDoor")
+    opt = "m8:find(\"IGUI_TREK_PhaserCutDoor\")"
+    check(rt.eval(f"{opt} and {opt}.notAvailable") is True,
+          "phaser: 'Trees only' still offered to cut through a door")
+    rt.run("ISTimedActionQueue.add(TREKPhaserCut:new(SIM.players[1], 1001, 999, 0, 'door')); "
+           "SIM.runActions()")
+    check(phaser_present(rt, 1001, 999, 0, "IsoDoor"),
+          "phaser: 'Trees only' let the action cut a door anyway")
+    rt.run("SandboxVars.TrekShuttle.PhaserCutting = TREK.Config.PhaserCutNone; "
+           "ISTimedActionQueue.add(TREKPhaserCut:new(SIM.players[1], 1002, 999, 0, 'tree')); "
+           "SIM.runActions()")
+    check(phaser_present(rt, 1002, 999, 0, "IsoTree"),
+          "phaser: cutting switched off still felled a tree")
+    rt.run("SandboxVars.TrekShuttle.PhaserCutting = nil")
+
+    # --- a shot draws a bolt, and the bolt goes -------------------------------
+    rt.run(f"""
+        SIM.quads = {{}}
+        SIM.fire("OnWeaponSwingHitPoint", {P}, TREK.PhaserCut.inHand({P}))
+        SIM.renderFrame()
+    """)
+    check(int(rt.eval("#TREK.PhaserFX.bolts")) == 1,
+          "phaser: a shot drew no bolt -- it still looks like a bullet")
+    check(int(rt.eval("#SIM.quads")) == 2, "phaser: a shot's bolt was not drawn")
+    net.clock += int(rt.eval("TREK.Config.PhaserBoltMs")) + 20
+    rt.run("TREK.PhaserFX.service()")
+    check(int(rt.eval("#TREK.PhaserFX.bolts")) == 0,
+          "phaser: a bolt outlived its moment")
+    rt.run(f"""SIM.fire("OnWeaponSwingHitPoint", {P}, instanceItem("Base.Pistol"))""")
+    check(int(rt.eval("#TREK.PhaserFX.bolts")) == 0,
+          "phaser: an ordinary pistol drew a phaser bolt")
+
+    # --- the target goes while the beam is on it --------------------------------
+    # isValid() is checked before the action starts, so complete()'s own
+    # re-check can look redundant -- and a mutation deleting it passed until
+    # this was written. It is not: somebody else can fell the tree or break the
+    # door during the seconds the beam is on it, and complete() must then say
+    # so rather than try to topple nothing.
+    rt.run(f"""
+        {P}.x, {P}.y = 1000.5, 1000.5
+        SIM.notes = {{}}
+        goneTree = SIM.tree(1001, 1001, 0)
+        local step = SIM.stepAction
+        SIM.stepAction = function(a)
+            step(a)
+            goneTree.square:transmitRemoveItemFromSquare(goneTree)
+        end
+        ISTimedActionQueue.add(TREKPhaserCut:new({P}, 1001, 1001, 0, 'tree'))
+        SIM.runActions()
+        SIM.stepAction = step
+    """)
+    check(any("IGUI_TREK_PhaserNoTarget" in n for n in rt.notes()),
+          "phaser: a tree that went during the cut was not reported as gone "
+          "-- complete() has to check again what it is about to cut")
+    check(int(rt.eval("TREK.PhaserFX.count()")) == 0,
+          "phaser: the beam stayed on after its target disappeared")
+
+    ig_ui = json.load(open(os.path.join(ROOT, "TrekShuttle", "42", "media", "lua",
+                                        "shared", "Translate", "EN", "IG_UI.json"),
+                           encoding="utf-8"))
+    for key in ("IGUI_TREK_PhaserCutTree", "IGUI_TREK_PhaserCutDoor",
+                "IGUI_TREK_PhaserNoTarget", "IGUI_TREK_PhaserCutOff",
+                "IGUI_TREK_PhaserNotHeld", "IGUI_TREK_PhaserTooFar",
+                "IGUI_TREK_PhaserSafehouse"):
+        check(key in ig_ui, f"phaser: {key} has no words behind it")
+    for w in rt.warnings():
+        fail(f"phaser: {w}")
+    print("phaser: the menu offers a cut to anybody carrying one; a tree is "
+          "toppled with its logs, a key-locked, padlocked, double and "
+          "barricaded door all come down; the beam is drawn glow-then-core "
+          "from the hand to the target, hums and stops, and goes by itself; "
+          "a safehouse, the sandbox and distance are refused; a shot draws a bolt")
+
+
+def phaser_multiplayer():
+    """A cut on a server with two clients: the server fells it, both
+    clients lose it, the watcher sees and hears the beam, and a client that
+    lies about its hand or a safehouse is refused where it counts."""
+    net = Net("mp", clients=("cutter", "watcher"))
+    srv = net.server
+    cutter, watcher = net.clients["cutter"], net.clients["watcher"]
+    srv.run("SIM.player('cutter', 2000.5, 2000.5, 0).onlineID = 1; "
+            "SIM.player('watcher', 2004.5, 2000.5, 0).onlineID = 2")
+    cutter.run("SIM.player('cutter', 2000.5, 2000.5, 0).onlineID = 1; "
+               "SIM.player('watcher', 2004.5, 2000.5, 0).onlineID = 2")
+    watcher.run("SIM.player('watcher', 2004.5, 2000.5, 0).onlineID = 2; "
+                "SIM.player('cutter', 2000.5, 2000.5, 0).onlineID = 1")
+    net.start()
+    for rt in net.all():
+        rt.run("mpTree = SIM.tree(2002, 2002, 0); mpDoor = SIM.lock(2000, 2003, 0, 'IsoDoor')")
+    # The phaser is in the cutter's hand on the server as well: the server
+    # holds every player's inventory, and it is the copy the cut believes.
+    for rt in (srv, cutter):
+        rt.run("""
+            local me = SIM.players[1]
+            for _, p in ipairs(SIM.players) do if p.name == 'cutter' then me = p end end
+            local ph = instanceItem(TREK.Config.PhaserItem)
+            me.inventory:AddItem(ph)
+            me.primary = ph
+        """)
+    net.pump(4)
+    watcher.run("SIM.sounds = {}")
+
+    phaser_menu(cutter, "mm", 2002, 2002, 0, "IsoTree")
+    cutter.run('mm:click("IGUI_TREK_PhaserCutTree"); SIM.runActions()')
+    net.pump(6)
+    check("TREKPhaserCut" in [str(x) for x in srv.eval("SIM.actionsDone").values()],
+          "phaser mp: the server never ran the cut -- the action has to be "
+          "rebuilt there by its class name")
+    for name, rt in (("server", srv), ("cutter", cutter), ("watcher", watcher)):
+        check(not phaser_present(rt, 2002, 2002, 0, "IsoTree"),
+              f"phaser mp: the tree still stands on the {name}'s machine")
+    check(int(cutter.eval("SIM.clientWorldEdit or 0")) == 0,
+          "phaser mp: the cutter's client edited the world itself")
+    heard = [str(watcher.eval(f"SIM.sounds[{i}].name")) for i in
+             range(1, int(watcher.eval("#SIM.sounds")) + 1)]
+    check("TREK_PhaserBeam" in heard,
+          "phaser mp: the watcher never heard the beam -- serverStart is how "
+          "anybody but the cutter learns it is on")
+    check("TREK_PhaserBeamEnd" in heard,
+          "phaser mp: the watcher's beam was never turned off")
+    check(int(watcher.eval("TREK.PhaserFX.count()")) == 0,
+          "phaser mp: the watcher is left with a beam burning")
+    local_only = all(watcher.eval(f"SIM.sounds[{i}].local_") for i in
+                     range(1, int(watcher.eval("#SIM.sounds")) + 1)
+                     if str(watcher.eval(f"SIM.sounds[{i}].name")).startswith("TREK_Phaser"))
+    check(local_only, "phaser mp: the beam's sounds were played through the "
+          "network path; every machine plays its own, locally, or they double")
+
+    # --- a client that says it holds a phaser, and does not ------------------
+    srv.run("for _, p in ipairs(SIM.players) do if p.name == 'cutter' then p.primary = nil end end")
+    phaser_menu(cutter, "mn", 2000, 2003, 0, "IsoDoor")
+    cutter.run('mn:click("IGUI_TREK_PhaserCutDoor"); SIM.runActions()')
+    net.pump(6)
+    check(phaser_present(srv, 2000, 2003, 0, "IsoDoor"),
+          "phaser mp: the server cut a door for a player with no phaser in "
+          "hand. A client is a request, never a fact")
+
+    # --- a safehouse the client does not know about ---------------------------
+    srv.run("for _, p in ipairs(SIM.players) do if p.name == 'cutter' then "
+            "p.primary = p.inventory.items[1] end end; "
+            "SIM.safehouse(1999, 2002, 2001, 2004, { 'watcher' })")
+    phaser_menu(cutter, "mo", 2000, 2003, 0, "IsoDoor")
+    cutter.run('mo:click("IGUI_TREK_PhaserCutDoor"); SIM.runActions()')
+    net.pump(6)
+    check(phaser_present(srv, 2000, 2003, 0, "IsoDoor"),
+          "phaser mp: the server cut through a safehouse door because the "
+          "asking client did not know it was one")
+
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"phaser mp: {w}")
+    print("phaser mp: the server fells the tree and it goes on both clients; "
+          "the watcher sees and hears the beam on and off, locally; a client "
+          "with no phaser in hand, or ignorant of a safehouse, is refused on "
+          "the server")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -10662,7 +10894,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
-            transcripts_multiplayer, multiplayer)
+            transcripts_multiplayer, phaser, phaser_multiplayer, multiplayer)
 
 
 def main():

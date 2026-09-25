@@ -106,14 +106,6 @@
     "IGUI_TREK_SweepFar": "Far",
     "IGUI_TREK_SweepBusy": "The tricorder is still processing the last sweep",
     "IGUI_TREK_MedJoypadHint": "A sweep   B close",
-    "IGUI_TREK_Override": "Override the lock",
-    "IGUI_TREK_OverrideDone": "Lock disengaged",
-    "IGUI_TREK_OverrideFailed": "The tricorder cannot open this one",
-    "IGUI_TREK_OverridePadlock": "A padlock is not an electronic lock. Somebody fitted that by hand",
-    "IGUI_TREK_OverrideSafehouse": "The tricorder will not open somebody's safehouse",
-    "IGUI_TREK_OverrideCooling": "The tricorder is still recalibrating",
-    "IGUI_TREK_OverrideFar": "Too far from the lock",
-    "IGUI_TREK_OverrideNoTool": "You are not carrying a tricorder",
     "IGUI_TREK_SkinUse": "Run the dermal regenerator",
     "IGUI_TREK_SkinClosed": "Dermal regenerator: %1",
     "IGUI_TREK_SkinNothing": "No open wounds to close",
@@ -390,5 +382,12 @@
     "IGUI_TREK_FragmentShelf": "On the shelf. Transcribe it there to read it here.",
     "IGUI_TREK_CommsRingingBody": "The Adirondack is hailing this PADD. Press Answer to take the call.",
     "IGUI_TREK_Contact_clue": "Holo signature: %1 tiles %2",
-    "IGUI_TREK_SweepClue": "Holo signature"
+    "IGUI_TREK_SweepClue": "Holo signature",
+    "IGUI_TREK_PhaserCutTree": "Cut down with phaser",
+    "IGUI_TREK_PhaserCutDoor": "Cut through with phaser",
+    "IGUI_TREK_PhaserNoTarget": "There is nothing there to cut.",
+    "IGUI_TREK_PhaserCutOff": "This server does not let a phaser cut that.",
+    "IGUI_TREK_PhaserNotHeld": "Hold the phaser to cut with it.",
+    "IGUI_TREK_PhaserTooFar": "Too far away to cut that.",
+    "IGUI_TREK_PhaserSafehouse": "That door belongs to somebody else's safehouse."
 }
