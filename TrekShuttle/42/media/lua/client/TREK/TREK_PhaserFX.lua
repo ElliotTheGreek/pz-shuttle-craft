@@ -233,17 +233,30 @@ end
 
 local Overlay = ISUIElement:derive("TREKPhaserOverlay")
 
+--- **One pixel, in the corner -- not the whole screen.**
+---
+--- The first build made this a screen-sized element, the way the torpedo's
+--- overlay is, and it broke the game the moment the first beam was drawn:
+--- no world right-click and no aiming, for the rest of the session (the
+--- author, 2026-09-24). The torpedo gets away with it because its overlay
+--- exists only while somebody is at the controls, in a seat, where the world
+--- is not being clicked on; this one stays up.
+---
+--- The engine's "is the mouse over the UI" is UIManager.isOverElement, and
+--- it is **purely geometric**: visible, then the mouse inside the element's
+--- rectangle (bci 23-187). It never calls the Lua isMouseOver, so overriding
+--- that in Lua -- which this file did -- changes nothing. What does work is a
+--- rectangle the mouse is never in. Drawing is not clipped to it: every draw
+--- here is placed by absolute screen coordinates from isoToScreenX/Y, and an
+--- ISUIElement's draws are only clipped inside a stencil.
 function Overlay:new()
-    local o = ISUIElement.new(self, 0, 0,
-        U.try("screenW", function() return getCore():getScreenWidth() end) or 800,
-        U.try("screenH", function() return getCore():getScreenHeight() end) or 600)
+    local o = ISUIElement.new(self, 0, 0, 1, 1)
     o.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
     return o
 end
 
--- Never captures the mouse: a beam is drawn over the game, not in front of it.
 function Overlay:onMouseDown() return false end
-function Overlay:isMouseOver() return false end
+function Overlay:onRightMouseDown() return false end
 
 --- One beam, the sheet's recipe: glow, core, muzzle flare, impact spark.
 function Overlay:drawBeam(num, zoom, wx0, wy0, wz0, wx1, wy1, wz1, flicker, impact)

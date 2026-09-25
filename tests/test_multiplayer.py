@@ -10649,6 +10649,16 @@ def phaser():
           "phaser: a beam nobody confirmed kept burning past its grace -- a "
           "lost 'beam off' would leave it on for the session")
 
+    # --- and it must never stand between the player and the world -----------
+    # A screen-sized overlay swallowed every world right-click and all aiming
+    # from the first beam on, and only the game showed it (2026-09-24).
+    rt.run(f"TREK.PhaserFX.beamOn(TREK.PhaserCut.beamArgs({P}, 1003, 1000, 0, 'tree', 2500))")
+    for mx, my in ((960, 540), (200, 900), (1700, 120)):
+        check(rt.eval(f"SIM.uiUnderMouse({mx}, {my})") is None,
+              f"phaser: the beam overlay covers the screen at {mx},{my}; the "
+              "world gets no right-click and no aiming while it is up")
+    rt.run("TREK.PhaserFX.beamOff({ key = TREK.PhaserCut.beamKey(SIM.players[1]) })")
+
     # --- a door, locked by key: the lock is never consulted -------------------
     phaser_menu(rt, "m2", 1000, 1003, 0, "IsoDoor")
     check("IGUI_TREK_PhaserCutDoor" in phaser_labels(rt, "m2"),

@@ -1642,6 +1642,29 @@ weapon.
 `tools/bladekit.py` holds the shared machinery -- section lists extruded up the
 Y axis, the common texture sheet, the icon rendered from the finished mesh.
 
+### An overlay that covers the screen takes the world's mouse away
+
+**New in this mod, with the phaser's beam, and it was found in play within
+minutes.** The beam is drawn on an ISUIElement, and the first version was
+screen-sized, like the torpedo's. From the first shot on, the player could not
+right-click anything in the world or aim, for the rest of the session. Nothing
+was logged and every test passed.
+
+- **The engine's "mouse is over the UI" is geometry, not Lua.**
+  `UIManager.isOverElement` asks whether the element is visible and the mouse
+  is inside its rectangle (bci 23-187). It never calls a Lua `isMouseOver`,
+  so overriding that in Lua does nothing, and the torpedo overlay's comment
+  saying otherwise was never tested.
+- **The torpedo got away with it by accident.** Its overlay exists only while
+  somebody is at the controls, in a seat, where nobody clicks on the world.
+  The phaser's stays up.
+- **The fix is a rectangle the mouse is never in.** The phaser's overlay is
+  1x1 in the corner. Its draws aren't clipped to it, because every draw is
+  placed by absolute screen coordinates.
+- `pz_sim`'s `SIM.uiUnderMouse(x, y)` applies the engine's rule, and
+  `phaser()` fails if the beam overlay covers the screen. Any new
+  world-drawing overlay should get the same check.
+
 ### An image-to-3D mesh is a hollow shell until a picture says otherwise
 
 **New in this mod, with the phaser.** TRELLIS's output looked like a phaser
@@ -2341,6 +2364,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A channel line shows as `Print_Text_TREK_COMM_...`** | `Print_Text.json` is out of step with the tree: run `tools/gen_comms.py`. `tests/test_comms.py` fails when they disagree. |
 | **Reading a tape off the PADD relieves boredom once and then nothing** | The lines are being applied faster than vanilla's thirty-tick debounce. See *An effect the engine debounces has to be paced*. |
 | **A tape the story issued never reaches the shelf** | It is owed until the cabin is loaded -- `comms: the ship has been issued ...` and later `tape: ... is on the shelf`. A full shelf keeps it owed and says so once. |
+| **No world right-click and no aiming, suddenly, and nothing in the log** | A UI element as big as the screen is up. The engine treats the mouse as "over the UI" by the element's rectangle alone, whatever its Lua `isMouseOver` says. See *An overlay that covers the screen takes the world's mouse away*. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
 ---

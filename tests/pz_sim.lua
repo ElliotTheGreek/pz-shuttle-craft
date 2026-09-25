@@ -3995,3 +3995,24 @@ function luautils.walkAdj(player, sq)
     table.insert(SIM.walks, { x = sq.x, y = sq.y })
     return true
 end
+
+--- The engine's "is the mouse over the UI", as UIManager.isOverElement asks
+--- it: an element on screen, not hidden, whose rectangle holds the point. It
+--- is purely geometric -- it never calls a Lua isMouseOver -- and while it
+--- answers yes the world gets no right-click and no aiming. The phaser's first
+--- overlay was screen-sized and took both away from the author for the rest
+--- of a session (2026-09-24), with every test passing, because nothing here
+--- asked. Returns the element in the way, or nil.
+function SIM.uiUnderMouse(mx, my)
+    for _, e in ipairs(SIM.uiElements or {}) do
+        if e.onScreen and e.visible ~= false then
+            local x, y = e.x or 0, e.y or 0
+            local w, h = e.width or 0, e.height or 0
+            if x >= 0 and y >= 0 and mx >= x and my >= y
+               and mx < x + w and my < y + h then
+                return e
+            end
+        end
+    end
+    return nil
+end
