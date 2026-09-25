@@ -1,0 +1,63 @@
+phaser_baked.json / phaser_baked.png -- the phaser's in-hand model and texture.
+
+These two files are the vendored source: tools/gen_phaser.py reads them and
+needs no network and no package beyond PIL and numpy. They were made once by
+tools/bake_phaser.py from an image-to-3D raw, which is NOT committed (18 MB;
+.gitignore) and is recorded here instead. Re-running the pipeline below gives
+a *different* phaser, not the same one again.
+
+  concept    design/art/weapons/phaser/concept_34_raw.jpg (three-quarter,
+             the one used) and concept_side_raw.jpg (profile, for reference),
+             Gemini Image toolkit, gemini-3-pro-image-preview, 2026-09-24
+  model      fal-ai/trellis-2 (TRELLIS v2, image-to-3D), via the fal.ai
+             FlowDot toolkit
+  request    01a0d5a9-9c04-7110-b6e3-c2229d4be73f
+  seed       1701
+  settings   texture_size 1024, ss_sampling_steps 20, slat_sampling_steps 20
+  raw        trellis2_raw.glb, 17893872 bytes, 473509 faces; downloaded from
+             https://v3b.fal.media/files/b/0aabc479/Z8aho_WnReb8dDOkoSwVE_trellis2_97e44f88d2f14ea29e90d0fd3899117b.glb
+             (fal's CDN; it may not live for ever -- keep the local copy)
+
+Also generated from the same concept and seed, and rejected: fal-ai/trellis
+(v1), request 01a0d5a9-9da8-7e20-acb7-054253991784, 8444 faces. Its shape was
+as good, but it invented a cyan lens on the back and orange speckle on the
+grip, and v2's geometry was cleaner. Both texture faults would have been
+painted out by the bake anyway; v2 won on geometry.
+
+The concept prompt (three-quarter view), in full:
+
+  Product design render of an original fictional late-24th-century starship
+  crew's handheld energy phaser pistol, three-quarter view from the
+  front-left and slightly above, the whole object centered and fully in
+  frame with generous margin, on a plain pure white seamless background,
+  soft even studio lighting, no shadow on the floor, no text, no logos, no
+  insignia, no hands. Design: compact and sleek, about the size of a TV
+  remote with a pistol grip. The upper body is a smooth tapered wedge in
+  matte warm-grey/off-white composite, narrowing toward the front, ending in
+  a slightly recessed round emitter lens that glows soft orange. A satin
+  black pistol grip angles down and back under the rear of the body, with
+  subtle finger ridges. A thin dark grey seam runs along the flank, a small
+  row of four tiny blue indicator lights on the side, and a small dark
+  rectangular setting control on top near the back. Rounded edges, clean
+  readable silhouette, simple large shapes, game-asset style, physically
+  plausible.
+
+What the raw needed, all of it done by tools/bake_phaser.py and all of it
+found on design/art/weapons/phaser/phaser_sheet.png rather than in the
+numbers (PHASERS.md 4 has the story):
+
+  - it is a hollow shell with a dark inner skin a millimetre inside the
+    outer one, plus 1,046 loose scraps; decimated as it stood, the inner
+    skin showed through as black triangles all over the body. Rebuilt from
+    a filled volume (voxels, marching cubes) into one closed skin;
+  - its texture is darker than the concept, lit, and has TRELLIS's own
+    inventions (a dark emitter, an orange patch on the back); repainted
+    per texel in the concept's palette, the emitter found by geometry;
+  - true to the concept it is 0.041 across, twice vanilla's M9; slimmed to
+    0.030, inside vanilla's pistol bracket;
+  - it is fitted grip-to-grip onto vanilla's M9 (the mesh behind Handgun03),
+    so Handgun03's own hand and ground attachments fit it.
+
+The four blue indicator lights in the concept did not survive TRELLIS at all
+(the bake finds no blue in the raw's texture). At the size a phaser is drawn
+in a hand they would be one pixel. Not painted in; say so if they are wanted.

@@ -1642,6 +1642,29 @@ weapon.
 `tools/bladekit.py` holds the shared machinery -- section lists extruded up the
 Y axis, the common texture sheet, the icon rendered from the finished mesh.
 
+### An image-to-3D mesh is a hollow shell until a picture says otherwise
+
+**New in this mod, with the phaser.** TRELLIS's output looked like a phaser
+in every quick render and was, in fact, two skins: the outside, and a dark
+inner one a millimetre inside it, joined at the openings, with 1,046 loose
+scraps floating between them. Decimated as it stood, the inner skin poked
+through and the body came out covered in black triangles.
+
+- **Two cheap fixes failed**, and both are worth not repeating: dropping the
+  loose bodies (the inner skin is joined to the outer, so it is not a
+  separate body) and re-orienting faces (a hollow shell has two honest
+  outsides). What works is rebuilding the surface from a **filled volume**:
+  voxels, close, fill, marching cubes, then decimate. One closed skin by
+  construction. `tools/bake_phaser.py`, `remesh()`.
+- **A review renderer can lie too.** The first sheet was painter's-style and
+  drew interior scraps over the skin, so it could not tell a mesh fault from
+  a drawing fault. The phaser's sheet uses a z-buffer that culls back faces,
+  as the engine does. *The simulation has to be as unkind as the engine*,
+  applied to pictures.
+- **At held size a weapon reads by silhouette and colour blocks.** A
+  generator's soft, lit texture is repainted per texel in a small palette
+  taken from the concept. `PHASERS.md` 4 has the whole loop.
+
 ### A weapon model is a static mesh, and Y is up
 
 **This one hid four weapons behind a wrong comment for months.** The phaser's
@@ -2143,7 +2166,9 @@ Meshes and textures are **generated, never hand-authored**:
 ```sh
 python tools/gen_shuttle.py TrekShuttle/42
 python tools/gen_helm.py    TrekShuttle/42   # the deleted helm console prop
-python tools/gen_phaser.py  TrekShuttle/42
+python tools/bake_phaser.py                      # the phaser mesh+texture from its TRELLIS raw (once; pip deps)
+python tools/gen_phaser.py  TrekShuttle/42       # the phaser: mesh, icon, review sheet, four sounds
+python tools/gen_phaser_beam.py TrekShuttle/42   # the beam strip and spark, and their sheet
 python tools/gen_batleth.py TrekShuttle/42   # mesh, texture and icon
 python tools/gen_mekleth.py TrekShuttle/42        # and lirpa, ushaantor
 python tools/meshbbox.py --vanilla spear          # measure vanilla, or ours

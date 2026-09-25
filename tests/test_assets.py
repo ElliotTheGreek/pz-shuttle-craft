@@ -647,11 +647,10 @@ else:
     if ammo and f"AmmoType = {ammo.group(1)}," not in vanilla:
         failures.append(f"phaser AmmoType {ammo.group(1)} is not used by any "
                         f"vanilla weapon, so it probably does not resolve")
-    sprite = re.search(r"WeaponSprite\s*=\s*(\w+)\s*,", body)
-    if sprite and not re.search(r"model\s+%s\s*\n?\s*\{" % sprite.group(1),
-                                vanilla):
-        failures.append(f"phaser WeaponSprite {sprite.group(1)} is not a "
-                        f"vanilla weapon model")
+    # The phaser used to borrow vanilla's Handgun03 and this demanded a
+    # vanilla model. It has its own now (PHASERS.md 4); every WeaponSprite,
+    # the phaser's included, goes through the general check below -- a mod
+    # model in `module Base`, or a vanilla one.
     for key in ("SwingAnim", "RunAnim"):
         if not re.search(key + r"\s*=", body):
             failures.append(f"phaser has no {key}; it will not animate")

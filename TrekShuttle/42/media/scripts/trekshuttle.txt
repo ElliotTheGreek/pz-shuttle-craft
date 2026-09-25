@@ -291,6 +291,52 @@ module TrekShuttle
         }
     }
 
+    /*  The cutting beam (PHASERS.md 6): a one-second hum that wraps
+        seamlessly, and the tails either side of it. All three are written by
+        tools/gen_phaser.py at one shared level, so the start hands over to
+        the loop without a jump. Whoever starts the loop owns stopping it.  */
+    sound TREK_PhaserBeam
+    {
+        category = Weapon,
+        loop = true,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_PhaserBeam.wav,
+            distanceMin = 2,
+            distanceMax = 30,
+            volume = 0.7,
+        }
+    }
+
+    sound TREK_PhaserBeamStart
+    {
+        category = Weapon,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_PhaserBeamStart.wav,
+            distanceMin = 2,
+            distanceMax = 30,
+            volume = 0.7,
+        }
+    }
+
+    sound TREK_PhaserBeamEnd
+    {
+        category = Weapon,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_PhaserBeamEnd.wav,
+            distanceMin = 2,
+            distanceMax = 30,
+            volume = 0.7,
+        }
+    }
+
     /*  The phaser.
 
         An ordinary build 42 sidearm in every respect except that TREK_Phaser
@@ -311,8 +357,10 @@ module TrekShuttle
         and a deep charge means even a burst fired between two ticks cannot
         empty it.
 
-        WeaponSprite names a vanilla in-hand model, because a pistol shape the
-        game already has is not worth rebuilding.
+        WeaponSprite names the mod's own model (trekweapons.txt,
+        TrekPhaserModel; PHASERS.md 4). It used to borrow vanilla's Handgun03
+        on the reasoning that a pistol shape the game already has was not
+        worth rebuilding -- and a phaser that is visibly an M9 is a pistol.
 
         This comment used to claim a custom one "needs a rigged attachment set
         rather than a static mesh". That is wrong, and it was wrong in a way
@@ -372,7 +420,7 @@ module TrekShuttle
         SwingAmountBeforeImpact = 0.0,
         SwingAnim = Handgun,
         RunAnim = Run_Weapon2,
-        WeaponSprite = Handgun03,
+        WeaponSprite = TrekPhaserModel,
         MaxHitcount = 1,
         Projectilecount = 1,
         PushBackMod = 0.3,

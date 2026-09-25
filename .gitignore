@@ -27,3 +27,8 @@ console.txt
 *.log
 /.flowdot
 .mcp.json
+
+# The phaser's image-to-3D raw: 18 MB, read only by tools/bake_phaser.py,
+# never by a build. tools/assets/trek_phaser/SOURCE.txt says where it came
+# from; the small bake beside it is what is committed.
+tools/assets/trek_phaser/*_raw.glb
