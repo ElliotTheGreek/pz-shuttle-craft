@@ -4137,3 +4137,61 @@ function ISEatFoodAction.complete(self)
     table.insert(SIM.eaten, self.item and self.item.fullType)
     return true
 end
+
+---------------------------------------------------------------------------
+-- A character's HumanVisual (TRAITS.md 2.4)
+---------------------------------------------------------------------------
+-- The looks resolve like the uniforms: only an item this table declares hands
+-- back an ItemVisual, as the engine's addBodyVisualFromItemType returns null
+-- for an item with no ClothingItem behind it.
+for _, kind in ipairs({ "trill", "bajoran", "betazoid", "klingon", "talaxian", "exborg" }) do
+    for _, sex in ipairs({ "M", "F" }) do
+        SIM.clothing["TrekShuttle.TrekLook_" .. kind .. "_" .. sex] = {
+            texture = "body\trek\\" .. kind .. "_" .. sex:lower() }
+    end
+end
+for _, kind in ipairs({ "vulcanears", "antennae" }) do
+    SIM.clothing["TrekShuttle.TrekLook_" .. kind] = { texture = "clothes\trek\\" .. kind .. "1" }
+end
+
+function PlayerMT:isFemale() return self.female == true end
+function PlayerMT:resetModelNextFrame() self.modelResets = (self.modelResets or 0) + 1 end
+function PlayerMT:getHumanVisual()
+    if self.hv then return self.hv end
+    local owner = self
+    local hv = { bodyVisuals = {}, skinIndex = 0, skinName = nil }
+    function hv:getSkinTextureIndex() return self.skinIndex end
+    function hv:setSkinTextureIndex(i) self.skinIndex = i end
+    function hv:setSkinTextureName(n) self.skinName = n end
+    -- The engine's rule: a name set wins; otherwise the five-tone list.
+    function hv:getSkinTexture()
+        if self.skinName then return self.skinName end
+        return (owner.female and "FemaleBody0" or "MaleBody0") .. (self.skinIndex + 1)
+    end
+    function hv:hasBodyVisualFromItemType(id)
+        for _, v in ipairs(self.bodyVisuals) do if v.itemType == id then return true end end
+        return false
+    end
+    function hv:addBodyVisualFromItemType(id)
+        if not (SIM.clothing and SIM.clothing[id]) then return nil end
+        local v = { itemType = id, textureChoice = 0 }
+        function v:setTextureChoice(i) self.textureChoice = i end
+        function v:getTextureChoice() return self.textureChoice end
+        table.insert(self.bodyVisuals, v)
+        return v
+    end
+    function hv:removeBodyVisualFromItemType(id)
+        for i, v in ipairs(self.bodyVisuals) do
+            if v.itemType == id then table.remove(self.bodyVisuals, i) return v end
+        end
+    end
+    self.hv = hv
+    return hv
+end
+
+--- What was sent: the server's copy of a visual reaching the other machines.
+SIM.humanVisualsSent = {}
+function sendHumanVisual(player)
+    if isClient() then SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1 end
+    table.insert(SIM.humanVisualsSent, player.name)
+end

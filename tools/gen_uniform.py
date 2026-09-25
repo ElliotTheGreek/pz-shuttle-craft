@@ -702,8 +702,18 @@ def write_clothing(root, made):
             fh.write("\n".join(lines) + "\n")
         rows.append((f"media/clothing/clothingItems/{stem}.xml", guid))
 
+    # Merge, never overwrite: tools/gen_species.py writes rows into the same
+    # file, and a regenerated uniform must not orphan a species' look.
+    import re
+    guid_file = os.path.join(root, "media", "fileGuidTable.xml")
+    mine = {p for p, _ in rows}
+    kept = []
+    if os.path.isfile(guid_file):
+        kept = [(p, g) for p, g in re.findall(r"<path>(.*?)</path>\s*<guid>(.*?)</guid>",
+                                              open(guid_file, encoding="utf-8").read(), re.S)
+                if p not in mine]
     table = ['<?xml version="1.0" encoding="utf-8"?>', "<fileGuidTable>"]
-    for path, guid in rows:
+    for path, guid in kept + rows:
         table += ["\t<files>", f"\t\t<path>{path}</path>",
                   f"\t\t<guid>{guid}</guid>", "\t</files>"]
     table.append("</fileGuidTable>")

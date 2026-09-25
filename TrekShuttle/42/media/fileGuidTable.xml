@@ -1,6 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
 <fileGuidTable>
 	<files>
+		<path>media/clothing/clothingItems/TrekLook_trill_M.xml</path>
+		<guid>965ed75a-defa-5663-93c5-660e6f9de621</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_bajoran_M.xml</path>
+		<guid>07271e56-7fa7-5f96-be99-0fc0c53e3adb</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_betazoid_M.xml</path>
+		<guid>3abbaf69-7149-5256-9393-83f633aef9d8</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_klingon_M.xml</path>
+		<guid>fc59ebce-d7f3-5714-8b39-78fb7156ec1f</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_talaxian_M.xml</path>
+		<guid>d84e6781-38e6-512f-a1d9-cf40426a8212</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_exborg_M.xml</path>
+		<guid>1bf0c139-b40d-5a7d-9afb-39e71bd31101</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_trill_F.xml</path>
+		<guid>10d7d90b-6bec-56fb-a607-5ad0b49d039f</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_bajoran_F.xml</path>
+		<guid>1b6ab5e3-7dea-52e2-94bb-6df3bd4e2867</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_betazoid_F.xml</path>
+		<guid>7ddf4a21-ac57-559b-9ca5-83960dbfff88</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_klingon_F.xml</path>
+		<guid>5e5da873-98e4-50ed-bf6a-5e9f3ccd72ef</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_talaxian_F.xml</path>
+		<guid>dd6fb853-548c-5afc-ba61-62e9ef270138</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_exborg_F.xml</path>
+		<guid>c48895fd-0aa2-5009-b395-faeffc52c996</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_vulcanears.xml</path>
+		<guid>09e07425-8971-5fa8-acbe-bf27bdddf6ec</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekLook_antennae.xml</path>
+		<guid>d772bf33-3a21-542a-b3dd-225c504fb7e7</guid>
+	</files>
+	<files>
 		<path>media/clothing/clothingItems/TrekUniformDutyCommand.xml</path>
 		<guid>5c9b1bda-76be-5835-9b2a-75d8f6c597a3</guid>
 	</files>

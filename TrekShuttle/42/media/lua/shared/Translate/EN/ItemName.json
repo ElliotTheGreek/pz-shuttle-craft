@@ -54,5 +54,19 @@
     "TrekShuttle.TrekFragment3": "Holo Fragment 3",
     "TrekShuttle.TrekFragment4": "Holo Fragment 4",
     "TrekShuttle.TrekFragment5": "Holo Fragment 5",
-    "TrekShuttle.TrekFragment6": "Holo Fragment 6"
+    "TrekShuttle.TrekFragment6": "Holo Fragment 6",
+    "TrekShuttle.TrekLook_trill_M": "Trill Spots",
+    "TrekShuttle.TrekLook_trill_F": "Trill Spots",
+    "TrekShuttle.TrekLook_bajoran_M": "Bajoran Nose Ridges",
+    "TrekShuttle.TrekLook_bajoran_F": "Bajoran Nose Ridges",
+    "TrekShuttle.TrekLook_betazoid_M": "Betazoid Eyes",
+    "TrekShuttle.TrekLook_betazoid_F": "Betazoid Eyes",
+    "TrekShuttle.TrekLook_klingon_M": "Klingon Brow Ridges",
+    "TrekShuttle.TrekLook_klingon_F": "Klingon Brow Ridges",
+    "TrekShuttle.TrekLook_talaxian_M": "Talaxian Mottling",
+    "TrekShuttle.TrekLook_talaxian_F": "Talaxian Mottling",
+    "TrekShuttle.TrekLook_exborg_M": "Borg Ocular Implant",
+    "TrekShuttle.TrekLook_exborg_F": "Borg Ocular Implant",
+    "TrekShuttle.TrekLook_vulcanears": "Vulcan Ears",
+    "TrekShuttle.TrekLook_antennae": "Andorian Antennae"
 }

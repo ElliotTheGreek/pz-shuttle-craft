@@ -11355,6 +11355,115 @@ def traits_multiplayer():
           "matches it and nobody else's changes; a client decides nothing")
 
 
+def worn_looks(rt, who=1):
+    n = int(rt.eval(f"#SIM.players[{who}]:getHumanVisual().bodyVisuals"))
+    return [str(rt.eval(f"SIM.players[{who}]:getHumanVisual().bodyVisuals[{i}].itemType"))
+            for i in range(1, n + 1)]
+
+
+def species_look():
+    """What a species looks like (TRAITS.md 2.4), on a server with a client.
+
+    The server dresses the character and sends the visual; the check is the
+    set of body visuals, the skin name and the texture choice, for every
+    species, both sexes, and a change of species -- the look has to follow,
+    not only arrive."""
+    net = Net("mp", ["tuvok"])
+    srv, cli = net.server, net.clients["tuvok"]
+    for rt in net.all():
+        rt.run("SIM.player('tuvok', 5000.5, 5000.5, 0).onlineID = 1")
+    net.start()
+    P = "SIM.players[1]"
+    looks = srv.eval("TREK.Appearance.LOOKS")
+    species = sorted(str(k) for k in looks.keys())
+    check(len(species) == 10, f"look: {len(species)} species have a look, not 10")
+
+    def dress(path, female=False, tone=0, fresh=True):
+        # A fresh character, unless the point is what an old look leaves.
+        srv.run(f"{P}.traits = {{}}; {P}.female = {str(female).lower()}; "
+                f"{'{P}.hv = nil; '.format(P=P) if fresh else ''}"
+                f"{P}:getHumanVisual().skinIndex = {tone}")
+        if path:
+            srv.run(f"SIM.giveTrait({P}, '{path}')")
+        srv.run("SIM.humanVisualsSent = {}")
+        srv.run(f"TREK.Appearance.apply({P})")
+
+    for path in species:
+        look = srv.eval(f"TREK.Appearance.LOOKS['{path}']")
+        for female in (False, True):
+            dress(path, female, tone=2)
+            sex = "F" if female else "M"
+            want = []
+            if look["overlay"]:
+                want.append(f"TrekShuttle.TrekLook_{look['overlay']}_{sex}")
+            if look["mesh"]:
+                want.append(f"TrekShuttle.TrekLook_{look['mesh']}")
+            got = worn_looks(srv)
+            check(sorted(got) == sorted(want),
+                  f"look: a {'female' if female else 'male'} {path} wears {got}, not {want}")
+            skin = srv.eval(f"{P}:getHumanVisual().skinName")
+            if look["skin"]:
+                check(skin == f"TREK_{look['skin']}_{sex}3",
+                      f"look: a {path}'s skin is {skin}, not TREK_{look['skin']}_{sex}3 "
+                      f"(tone 3 of 5)")
+            else:
+                check(skin is None, f"look: a {path} was given the skin {skin}")
+            if look["mesh"]:
+                choice = srv.eval(f"(function() for _, v in ipairs({P}:getHumanVisual().bodyVisuals) "
+                                  f"do if v.itemType:find('{look['mesh']}') then return v.textureChoice "
+                                  f"end end end)()")
+                check(choice == 2, f"look: a {path}'s {look['mesh']} is texture {choice}, "
+                      f"not the character's own tone (2)")
+            check(srv.eval("#SIM.humanVisualsSent") == 1,
+                  f"look: a {path}'s look was changed and never sent -- nobody else "
+                  f"would see it")
+
+    # A change of species takes the old look off; a human wears nothing of ours.
+    dress("andorian")
+    dress("trill", fresh=False)
+    check(worn_looks(srv) == ["TrekShuttle.TrekLook_trill_M"],
+          f"look: an Andorian turned Trill still wears {worn_looks(srv)}")
+    check(srv.eval(f"{P}:getHumanVisual().skinName") is None,
+          "look: an Andorian turned Trill is still blue")
+    dress("orion")
+    dress(None, fresh=False)
+    check(worn_looks(srv) == [] and srv.eval(f"{P}:getHumanVisual().skinName") is None,
+          "look: a character with no species kept this mod's look")
+    # Nothing to change: nothing sent.
+    srv.run("SIM.humanVisualsSent = {}")
+    srv.run(f"TREK.Appearance.apply({P})")
+    check(srv.eval("#SIM.humanVisualsSent") == 0,
+          "look: a look already right was sent again -- every ten minutes, to everybody")
+    # Somebody else's skin is theirs.
+    srv.run(f"{P}:getHumanVisual().skinName = 'OtherMod_Skin'")
+    srv.run(f"TREK.Appearance.apply({P})")
+    check(srv.eval(f"{P}:getHumanVisual().skinName") == "OtherMod_Skin",
+          "look: another mod's skin was cleared")
+
+    # The ten-minute service and first sight both dress.
+    srv.run(f"{P}:getHumanVisual().skinName = nil; {P}.traits = {{}}; {P}.modData = {{}}")
+    srv.run(f"SIM.giveTrait({P}, 'vulcan')")
+    srv.fire("EveryOneMinute")
+    check(worn_looks(srv) == ["TrekShuttle.TrekLook_vulcanears"],
+          f"look: first sight of a Vulcan dressed them in {worn_looks(srv)}")
+    srv.run(f"{P}:getHumanVisual().bodyVisuals = {{}}")
+    srv.fire("EveryTenMinutes")
+    check(worn_looks(srv) == ["TrekShuttle.TrekLook_vulcanears"],
+          "look: a Vulcan whose ears were lost did not get them back in ten minutes")
+
+    # The client never dresses anybody.
+    check(cli.eval("TREK.Appearance") is None, "look: the server's half loaded on a client")
+    check(int(cli.eval("SIM.clientWorldEdit or 0")) == 0, "look: a client sent a visual")
+
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"look: {w}")
+    print("look: ten species, both sexes -- the right overlays and meshes, the "
+          "recoloured skin at the character's own tone, sent once; a change of "
+          "species strips the old look; another mod's skin is left alone; first "
+          "sight and the ten-minute pass both dress")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -11368,7 +11477,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
-            transcripts_multiplayer, phaser, phaser_multiplayer, traits, traits_multiplayer,
+            transcripts_multiplayer, phaser, phaser_multiplayer, traits, traits_multiplayer, species_look,
             multiplayer)
 
 
