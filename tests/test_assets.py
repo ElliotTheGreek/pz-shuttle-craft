@@ -850,17 +850,29 @@ ig = json.load(open(os.path.join(TR, "IG_UI.json"), encoding="utf-8"))
 names = json.load(open(os.path.join(TR, "ItemName.json"), encoding="utf-8"))
 tips = json.load(open(os.path.join(TR, "Tooltip.json"), encoding="utf-8"))
 
-# UI.json only overrides vanilla strings -- the intro's "THIS IS HOW YOU DIED"
-# becomes "THIS WAS YOUR AWAY MISSION". An override whose key vanilla does not
-# have changes nothing and reports nothing, so every key must exist in the
-# game's own UI.json.
+# UI.json holds two things. Overrides of vanilla strings -- the intro's "THIS
+# IS HOW YOU DIED" becomes "THIS WAS YOUR AWAY MISSION" -- whose key must exist
+# in the game's own UI.json, or the override changes nothing and says nothing.
+# And the traits' and professions' names, which vanilla keeps in UI.json too:
+# exactly the keys trek_traits.txt names, and no others.
+TRAITS_TXT = os.path.join(MOD, "media", "scripts", "trek_traits.txt")
+traits_script = open(TRAITS_TXT, encoding="utf-8").read() if os.path.isfile(TRAITS_TXT) else ""
+trait_ui_keys = set(re.findall(r"^\s*(?:UIName|UIDescription)\s*=\s*(\w+)\s*,",
+                               traits_script, re.M))
 ui_override = os.path.join(TR, "UI.json")
+ui_mod = {}
 if os.path.isfile(ui_override):
     vanilla_ui = json.load(open(os.path.join(PZ, "lua", "shared", "Translate", "EN", "UI.json"),
                                 encoding="utf-8"))
-    for key in json.load(open(ui_override, encoding="utf-8")):
-        if key not in vanilla_ui:
-            failures.append(f"UI.json overrides {key}, which vanilla does not have")
+    ui_mod = json.load(open(ui_override, encoding="utf-8"))
+    for key in ui_mod:
+        if key not in vanilla_ui and key not in trait_ui_keys:
+            failures.append(f"UI.json overrides {key}, which vanilla does not have "
+                            f"and no trait or profession names")
+for key in sorted(trait_ui_keys):
+    if key not in ui_mod:
+        failures.append(f"trek_traits.txt names {key}, which UI.json does not have -- "
+                        f"the creation screen would show the raw key")
 
 for key in ig:
     if not key.startswith("IGUI_"):
@@ -1035,6 +1047,106 @@ if os.path.isfile(dilithium_lua) and os.path.isfile(proc):
     checked_dists = len(places)
 else:
     checked_dists = 0
+
+# --- traits and professions (TRAITS.md) ----------------------------------
+# The registry, the script and the files the engine goes looking for by path.
+# Each is a way for a trait to exist on paper and do nothing in game.
+REG = os.path.join(MOD, "media", "registries.lua")
+reg_src = open(REG, encoding="utf-8").read() if os.path.isfile(REG) else ""
+_traits_block = re.search(r"R\.Traits = traits\(\{(.*?)\}\)", reg_src, re.S)
+reg_traits = set(re.findall(r'"(\w+)"', _traits_block.group(1))) if _traits_block else set()
+_profs_block = re.search(r"for _, path in ipairs\(\{(.*?)\}\) do", reg_src, re.S)
+reg_profs = set(re.findall(r'"(\w+)"', _profs_block.group(1))) if _profs_block else set()
+script_traits = set(re.findall(r"^\s*character_trait_definition trek:(\w+)\s*$", traits_script, re.M))
+script_profs = set(re.findall(r"^\s*character_profession_definition trek:(\w+)\s*$", traits_script, re.M))
+# A floor on both sides: a pattern that stopped matching would compare two
+# empty sets and pass (DEV_GUIDE: a check against an empty set).
+if len(reg_traits) < 20 or len(script_traits) < 20:
+    failures.append(f"traits: only {len(reg_traits)} registered and {len(script_traits)} "
+                    f"scripted -- a pattern here has stopped matching")
+for t in sorted(reg_traits ^ script_traits):
+    where = "registries.lua" if t in reg_traits else "trek_traits.txt"
+    failures.append(f"traits: trek:{t} is in {where} only -- an unregistered id stops "
+                    f"the scripts loading, an unscripted one is a trait nobody can have")
+if len(reg_profs) < 5 or len(script_profs) < 5:
+    failures.append(f"traits: only {len(reg_profs)} professions registered and "
+                    f"{len(script_profs)} scripted -- a pattern stopped matching")
+for t in sorted(reg_profs ^ script_profs):
+    failures.append(f"traits: profession trek:{t} is registered or scripted but not both")
+
+VAN_TRAITS = open(os.path.join(PZ, "scripts", "generated", "characters", "character_traits.txt"),
+                  encoding="utf-8").read()
+VAN_PROFS = open(os.path.join(PZ, "scripts", "generated", "characters", "character_professions.txt"),
+                 encoding="utf-8").read()
+van_trait_ids = set(m.strip() for m in re.findall(r"character_trait_definition base:([\w ]+?)\s*$",
+                                                   VAN_TRAITS, re.M))
+van_prof_ids = set(re.findall(r"character_profession_definition base:(\w+)", VAN_PROFS))
+# The engine drops the namespace for a trait's icon and a profession's
+# creation-screen clothing, so a path vanilla uses would borrow vanilla's.
+for t in sorted(script_traits & van_trait_ids):
+    failures.append(f"traits: trek:{t} shares its path with base:{t} -- the icon lookup "
+                    f"(trait_<path>.png) would find vanilla's")
+for t in sorted(script_profs & (van_prof_ids | van_trait_ids)):
+    failures.append(f"traits: profession trek:{t} shares its path with vanilla -- "
+                    f"ClothingSelectionDefinitions[{t}] would be vanilla's")
+for ref in re.findall(r"(?:GrantedTraits|MutuallyExclusiveTraits)\s*=\s*([^,\n]+),", traits_script):
+    for t in ref.split(";"):
+        ns, _, path = t.strip().partition(":")
+        if ns == "base" and path not in van_trait_ids:
+            failures.append(f"traits: trek_traits.txt names base:{path}, which vanilla does not have")
+        elif ns == "trek" and path not in script_traits:
+            failures.append(f"traits: trek_traits.txt names trek:{path}, which is not defined")
+van_perks = set(re.findall(r"(\w+)=\d", " ".join(re.findall(r"XPBoosts = ([^,\n]+)",
+                                                             VAN_TRAITS + VAN_PROFS))))
+# And every perk vanilla's own Lua names as Perks.X: LongBlade is a real perk
+# no vanilla trait or profession happens to boost.
+PERK_REF = re.compile(r"\bPerks\.(\w+)")
+for _lua in glob.glob(os.path.join(PZ, "lua", "**", "*.lua"), recursive=True):
+    van_perks |= set(PERK_REF.findall(open(_lua, encoding="utf-8", errors="ignore").read()))
+if len(van_perks) < 15:
+    failures.append(f"traits: only {len(van_perks)} vanilla perks found -- the pattern stopped matching")
+for ref in re.findall(r"XPBoosts\s*=\s*([^,\n]+),", traits_script):
+    for perk in re.findall(r"(\w+)=\d", ref):
+        if perk not in van_perks:
+            failures.append(f"traits: XPBoosts names {perk}, which no vanilla trait or "
+                            f"profession boosts -- check it is a real perk id")
+
+
+def png_dims(path):
+    with open(path, "rb") as f:
+        head = f.read(24)
+    return struct.unpack(">II", head[16:24])
+
+
+for t in sorted(script_traits):
+    icon = os.path.join(MOD, "media", "ui", "Traits", f"trait_{t}.png")
+    if not os.path.isfile(icon):
+        failures.append(f"traits: no media/ui/Traits/trait_{t}.png -- trek:{t} would "
+                        f"draw vanilla's generic icon")
+    elif png_dims(icon) != (18, 18):
+        failures.append(f"traits: trait_{t}.png is {png_dims(icon)}, not vanilla's 18x18")
+for name in re.findall(r"IconPathName\s*=\s*(\w+)\s*,", traits_script):
+    icon = os.path.join(MOD, "media", "textures", f"{name}.png")
+    if not os.path.isfile(icon):
+        failures.append(f"traits: no media/textures/{name}.png for a profession's icon")
+    elif png_dims(icon) != (64, 64):
+        failures.append(f"traits: {name}.png is {png_dims(icon)}, not vanilla's 64x64")
+
+# The uniforms each profession offers must be real items, and every
+# profession must offer one.
+PC = os.path.join(MOD, "media", "lua", "shared", "Definitions", "TREK_ProfessionClothing.lua")
+if os.path.isfile(PC):
+    pc = open(PC, encoding="utf-8").read()
+    offered = dict(re.findall(r"^\s*(\w+)\s*=\s*\"(Command|Operations|Science)\"", pc, re.M))
+    for div in set(offered.values()):
+        for kind in ("Duty", "Dress"):
+            if f"TrekUniform{kind}{div}" not in mod_items:
+                failures.append(f"traits: TREK_ProfessionClothing offers TrekUniform{kind}{div}, "
+                                f"which is not a mod item")
+    for prof in sorted(script_profs - set(offered)):
+        failures.append(f"traits: profession {prof} offers no uniform on the creation screen")
+else:
+    failures.append("traits: shared/Definitions/TREK_ProfessionClothing.lua is missing")
 
 print(f"checked {checked_sprites} sprite names and {checked_items} item ids, "
       f"{len(mod_items)} mod items, {len(mod_models)} models, "

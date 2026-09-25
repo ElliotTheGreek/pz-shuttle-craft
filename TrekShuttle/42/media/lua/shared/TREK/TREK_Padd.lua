@@ -385,6 +385,8 @@ function Pd.readTicks(character, entry)
             time = time * 0.9
         end
     end)
+    -- A holo-historian is at home in an archive (TRAITS.md 3.4).
+    if TREK.Traits then time = time * TREK.Traits.paddFactor(character) end
     return math.max(1, math.floor(math.max(time, 1) / C.PaddReadSpeed))
 end
 

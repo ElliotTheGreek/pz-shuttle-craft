@@ -600,6 +600,8 @@ Net.onServer("rescueEnsign", function(player, args)
                                  learned = learned })
     -- The channel knows who came up, by name (COMMS.md 6.2).
     if TREK.CommsServer then TREK.CommsServer.event("rescued", contact.name) end
+    -- And the rescuer's service record does (TRAITS.md 3.3).
+    if TREK.TraitsServer then U.try("traits.rescue", TREK.TraitsServer.onRescue, player) end
 end)
 
 ---------------------------------------------------------------------------

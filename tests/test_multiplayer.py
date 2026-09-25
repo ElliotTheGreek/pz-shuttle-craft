@@ -118,6 +118,12 @@ class Runtime:
         # symbol id nothing registered draws nothing at all -- so leaving it
         # out would have made the map tests pass against symbols the game
         # would never have had.
+        #
+        # media/registries.lua first, as ModRegistries.init runs it before
+        # any script or Lua: every trait id the mod asks about is made there.
+        reg = os.path.join(ROOT, "TrekShuttle", "42", "media", "registries.lua")
+        if os.path.exists(reg):
+            self.lua.execute(open(reg, encoding="utf-8").read())
         for m in definitions():
             self.lua.execute(f'require "{m}"')
         # The game loads shared, then client, then server, in every process.
@@ -10891,6 +10897,464 @@ def phaser_multiplayer():
           "the server")
 
 
+def trait_stat(rt, stat, who=1):
+    return float(rt.eval(f"SIM.players[{who}]:getStats():get(CharacterStat.{stat})") or 0)
+
+
+def give_trait(rt, path, who=1):
+    rt.run(f"SIM.giveTrait(SIM.players[{who}], '{path}')")
+
+
+def has_trait(rt, path, who=1):
+    return rt.eval(f"SIM.players[{who}]:hasTrait(TREK_Registries.Traits['{path}'])") is True
+
+
+def eat(rt, item_id, who=1, replicated=False, food_type=None, fraction=1.0):
+    """Runs vanilla's eating action's complete() on this runtime, as the engine
+    does on the server, and returns the eater's unhappiness change."""
+    before = trait_stat(rt, "UNHAPPINESS", who)
+    rt.run(f"""
+        local it = instanceItem('{item_id}')
+        {"it:getModData()[TREK.Config.ReplicatedKey] = true" if replicated else ""}
+        {f"it.foodType = '{food_type}'" if food_type else ""}
+        ISEatFoodAction.complete({{ character = SIM.players[{who}], item = it,
+                                    percentage = {fraction} }})
+    """)
+    return trait_stat(rt, "UNHAPPINESS", who) - before
+
+
+def fresh_traits(rt, who=1):
+    rt.run(f"SIM.players[{who}].traits = {{}}; "
+           f"SIM.players[{who}]:getStats():set(CharacterStat.UNHAPPINESS, 50)")
+
+
+def traits():
+    """Species, divisions and rank (TRAITS.md), in single player.
+
+    What can be checked here, and why each check is shaped the way it is:
+
+      * **the registry is the engine's order.** Every id is made in
+        media/registries.lua, which runs first; a trait passed by name, or a
+        table that looks like one, is not the registered object and answers
+        false -- as in the game.
+      * **the table** (3.1b): the verdict is taken against a stat that starts
+        at 50, so a penalty and a comfort both have room to move and a verdict
+        that did nothing cannot hide as "already at the limit".
+      * **once per character** is checked twice: the kit arrives, and a second
+        pass does not hand it over again.
+      * **every timed effect** is asked with the trait and without it, so a
+        pass that applied to everybody would fail.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('crew', 1000.5, 1000.5, 0)")
+    net.start()
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+
+    # --- the registry --------------------------------------------------------
+    reg = rt.eval("(function() local n = 0 for _ in pairs(TREK_Registries.Traits) do "
+                  "n = n + 1 end return n end)()")
+    check(int(reg or 0) == 27, f"traits: {reg} traits registered, not 27")
+    prof = rt.eval("(function() local n = 0 for _ in pairs(TREK_Registries.Professions) "
+                   "do n = n + 1 end return n end)()")
+    check(int(prof or 0) == 7, f"traits: {prof} professions registered, not 7")
+    check(rt.eval("TREK_Registries.Traits.vulcan.id") == "trek:vulcan",
+          "traits: the Vulcan is not registered as trek:vulcan")
+    check(rt.eval("TREK.Traits.species(SIM.players[1])") is None,
+          "traits: a character with no species is not human")
+    rt.run(f"{P}.traits = {{ vulcan = true, ['trek:vulcan'] = true }}")
+    check(rt.eval(f"TREK.Traits.has({P}, 'vulcan')") is False,
+          "traits: a trait given by name counted -- hasTrait takes the object")
+    rt.run(f"{P}.traits = {{}}")
+
+    # --- exclusions both ways ------------------------------------------------
+    rt.run("""
+        local R = TREK_Registries.Traits
+        SIM.traitDefs = {}
+        SIM.weak = setmetatable({ id = 'base:weak' }, getmetatable(R.vulcan))
+        SIM.traitDef(SIM.weak, {})
+        SIM.traitDef(R.vulcan, { SIM.weak })
+    """)
+    n = rt.eval("TREK.Traits.symmetrise()")
+    check(int(n or 0) >= 1 and rt.eval("#SIM.traitDefs[SIM.weak].excl") == 1,
+          "traits: a Vulcan excludes Weak and Weak does not exclude the Vulcan -- "
+          "Weak then Vulcan would stack")
+
+    # --- the table (3.1b) -----------------------------------------------------
+    fresh_traits(rt)
+    check(abs(eat(rt, "TrekShuttle.TrekGagh")) < 1e-9,
+          "traits: a human's gagh was judged -- humans have no preferences")
+    give_trait(rt, "vulcan")
+    d = eat(rt, "TrekShuttle.TrekPlomeekSoup")
+    check(abs(d - C("FoodHomeUnhappy")) < 1e-6,
+          f"traits: a Vulcan's plomeek soup moved unhappiness by {d}, not "
+          f"{C('FoodHomeUnhappy')}")
+    d = eat(rt, "Base.Steak", food_type="Meat")
+    check(abs(d - C("FoodMeatUnhappy")) < 1e-6,
+          f"traits: a Vulcan's steak moved unhappiness by {d}, not {C('FoodMeatUnhappy')}")
+    d = eat(rt, "TrekShuttle.TrekRokegPie")
+    want = C("FoodForeignUnhappy") + C("FoodMeatUnhappy")
+    check(abs(d - want) < 1e-6,
+          f"traits: a Vulcan's rokeg blood pie moved unhappiness by {d}, not {want} "
+          f"(foreign and an animal)")
+    d = eat(rt, "Base.Apple", food_type="Fruits")
+    check(abs(d) < 1e-9, f"traits: a Vulcan's apple moved unhappiness by {d}")
+    d = eat(rt, "TrekShuttle.TrekPlomeekSoup", fraction=0.5)
+    check(abs(d - C("FoodHomeUnhappy") / 2) < 1e-6,
+          f"traits: half a bowl counted as {d}, not half of the whole")
+
+    fresh_traits(rt)
+    give_trait(rt, "klingon")
+    d = eat(rt, "TrekShuttle.TrekGagh")
+    check(d < 0, f"traits: a Klingon's own gagh moved unhappiness by {d}")
+    d = eat(rt, "TrekShuttle.TrekGagh", replicated=True)
+    want = C("FoodHomeUnhappy") + C("FoodReplicatedUnhappy")
+    check(abs(d - want) < 1e-6,
+          f"traits: a Klingon's replicated gagh moved unhappiness by {d}, not {want}")
+    fresh_traits(rt)
+    give_trait(rt, "trill")
+    check(abs(eat(rt, "TrekShuttle.TrekGagh")) < 1e-9,
+          "traits: a Trill minded foreign food")
+    fresh_traits(rt)
+    give_trait(rt, "android")
+    check(abs(eat(rt, "TrekShuttle.TrekGagh", replicated=True)) < 1e-9,
+          "traits: an android tasted something")
+    fresh_traits(rt)
+    give_trait(rt, "realfoodonly")
+    check(abs(eat(rt, "Base.Apple", replicated=True) - C("FoodReplicatedUnhappy")) < 1e-6,
+          "traits: Real Food Only did not mind a replicated apple")
+    check(abs(eat(rt, "Base.Apple")) < 1e-9,
+          "traits: Real Food Only minded a real apple")
+    rt.run("SIM.notes = {}")
+    eat(rt, "Base.Apple", replicated=True)
+    check(any("IGUI_TREK_FoodReplicated" in n for n in rt.notes()),
+          f"traits: a replicated meal said {rt.notes()}")
+
+    # --- once per character: kit, rank, past hosts ---------------------------
+    fresh_traits(rt)
+    rt.run(f"{P}.modData = {{}}")
+    for t in ("sf_security", "trill"):
+        give_trait(rt, t)
+    rt.run("SIM.randQueue = {}; SIM.xpGiven = {}; SIM.notes = {}")
+    rt.fire("EveryOneMinute")
+    check(carrying(rt, "TrekShuttle.TrekPhaser") == 1,
+          f"traits: security reported with {carrying(rt, 'TrekShuttle.TrekPhaser')} "
+          f"phasers, not 1")
+    check(has_trait(rt, "rank_ensign"), "traits: a Starfleet officer reported unranked")
+    hosts = int(rt.eval("#SIM.xpGiven"))
+    perks = {str(rt.eval(f"SIM.xpGiven[{i}].perk")) for i in range(1, hosts + 1)}
+    check(hosts == int(C("TrillHosts")) and len(perks) == hosts,
+          f"traits: a Trill's past hosts gave {hosts} grant(s) in {perks}")
+    check(any("IGUI_TREK_TrillHosts" in n for n in rt.notes()),
+          f"traits: the past hosts were not named: {rt.notes()}")
+    rt.fire("EveryOneMinute")
+    check(carrying(rt, "TrekShuttle.TrekPhaser") == 1,
+          "traits: the kit was handed over twice")
+    check(int(rt.eval("#SIM.xpGiven")) == hosts,
+          "traits: the past hosts were paid twice")
+
+    fresh_traits(rt)
+    rt.run(f"{P}.modData = {{}}")
+    give_trait(rt, "sf_command")
+    rt.fire("EveryOneMinute")
+    check(has_trait(rt, "rank_ltjg") and not has_trait(rt, "rank_ensign"),
+          "traits: command did not report as a lieutenant (j.g.)")
+
+    # --- rank from rescues ----------------------------------------------------
+    fresh_traits(rt)
+    rt.run(f"{P}.modData = {{ TREKTraitsRev = TREK.Config.TraitsInitRev }}")
+    rt.run(f"TREK.TraitsServer.onRescue({P})")
+    check(has_trait(rt, "rank_ensign"), "traits: a first rescue gave no field commission")
+    for _ in range(2):
+        rt.run(f"TREK.TraitsServer.onRescue({P})")
+    check(has_trait(rt, "rank_ltjg") and not has_trait(rt, "rank_ensign"),
+          "traits: three rescues did not make a lieutenant (j.g.), or left the old pip")
+    check(int(rt.eval("(TREK.Traits.rank(SIM.players[1]))")) == 2,
+          "traits: rank() does not read the rank back")
+
+    # --- the transporter ------------------------------------------------------
+    fresh_traits(rt)
+    rt.run(f"{P}.modData = {{ TREKTraitsRev = TREK.Config.TraitsInitRev }}")
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 1004, 1000, 0)")
+    net.pump(40)
+    s0 = trait_stat(rt, "STRESS")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "traits, beaming up"):
+        return
+    check(abs(trait_stat(rt, "STRESS") - s0) < 1e-9,
+          "traits: a beam without the phobia cost stress")
+    give_trait(rt, "transporterphobia")
+    rt.run(f"TREK.Transport.beamDown({P})")
+    net.pump(180)
+    check(abs(trait_stat(rt, "STRESS") - s0 - C("PhobiaStress")) < 1e-6,
+          f"traits: a phobic beam moved stress by {trait_stat(rt, 'STRESS') - s0}")
+    check(trait_stat(rt, "PANIC") >= C("PhobiaPanic"),
+          "traits: a phobic beam caused no panic")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+
+    # --- the replicator stamps what it makes ---------------------------------
+    fresh_traits(rt)
+    energy_state(rt, C("PowerMax"), 1)
+    stand_at(rt, net, int(C("ReplicatorSpot").x) + 1, int(C("ReplicatorSpot").y))
+    net.clock += int(C("ReplicatorCooldownMs")) + 500
+    # The ration pack, because it is one of the mod's items the harness's
+    # catalogue declares; what is checked is the machine, not the dish.
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'TrekShuttle.TrekRationPack', count = 1 }})")
+    net.pump(4)
+    stamped = rt.eval(f"""(function()
+        for _, it in ipairs({P}.inventory.items) do
+            if it.fullType == 'TrekShuttle.TrekRationPack' and it.modData[TREK.Config.ReplicatedKey] then
+                return it:getModData()[TREK.Config.ReplicatedKey] == true
+            end
+        end end)()""")
+    check(stamped is True, "traits: a replicated dish carries no mark -- a Klingon "
+          "could not tell")
+
+    # --- an engineer aboard ---------------------------------------------------
+    energy_state(rt, 1000, 0)
+    rt.run("TREK.Power.pay(100)")
+    plain = 1000 - float(rt.eval("TREK.Power.reserve()"))
+    give_trait(rt, "sf_engineering")
+    energy_state(rt, 1000, 0)
+    rt.run("TREK.Power.pay(100)")
+    eng = 1000 - float(rt.eval("TREK.Power.reserve()"))
+    check(plain == 100 and abs(eng - 100 * C("EngineeringFactor")) < 1e-6,
+          f"traits: 100 units cost {plain} without an engineer aboard and {eng} with")
+    fresh_traits(rt)
+    energy_state(rt, C("PowerMax"), 1)
+
+    # --- the android ----------------------------------------------------------
+    rt.run(f"{P}.modData = {{}}")
+    give_trait(rt, "android")
+    rt.run(f"{P}:getStats():set(CharacterStat.HUNGER, 0.5)")
+    rt.fire("EveryOneMinute")
+    charge = lambda: float(rt.eval("TREK.TraitsServer.charge(SIM.players[1])"))
+    c1 = charge()
+    check(trait_stat(rt, "HUNGER") == 0, "traits: an android got hungry")
+    check(99 < c1 < 100, f"traits: a minute left an android at {c1}")
+    for _ in range(60):
+        rt.fire("EveryOneMinute")
+    drained = c1 - charge()
+    check(abs(drained - C("AndroidDrainPerHour")) < 0.05,
+          f"traits: an hour drained {drained}, not {C('AndroidDrainPerHour')}")
+    rt.run(f"{P}.modData[TREK.Config.AndroidChargeKey] = 50; {P}.asleep = true")
+    r0 = float(rt.eval("TREK.Power.reserve()"))
+    for _ in range(60):
+        rt.fire("EveryOneMinute")
+    gained = charge() - 50
+    spent = r0 - float(rt.eval("TREK.Power.reserve()"))
+    check(gained > 5, f"traits: an hour asleep aboard charged an android {gained}")
+    check(abs(spent - (gained + C("AndroidDrainPerHour")) * C("AndroidChargeCost")) < 1,
+          f"traits: the charge cost the ship {spent} for {gained} points")
+    rt.run(f"{P}.asleep = false; {P}.modData[TREK.Config.AndroidChargeKey] = 0.01; "
+           "SIM.notes = {}")
+    rt.fire("EveryOneMinute")
+    check(trait_stat(rt, "FATIGUE") >= C("AndroidFlatFatigue") - 1e-9,
+          "traits: a flat android is not exhausted")
+    check(any("IGUI_TREK_AndroidFlat" in n for n in rt.notes()), f"traits: a flat android said {rt.notes()}")
+    fresh_traits(rt)
+
+    # --- every ten minutes ----------------------------------------------------
+    def ten(path):
+        fresh_traits(rt)
+        rt.run(f"{P}:getStats():set(CharacterStat.STRESS, 0.5); "
+               f"{P}:getStats():set(CharacterStat.BOREDOM, 50); "
+               "SIM.worldSounds = {}; SIM.notes = {}")
+        if path:
+            give_trait(rt, path)
+        rt.fire("EveryTenMinutes")
+        return trait_stat(rt, "STRESS"), trait_stat(rt, "UNHAPPINESS")
+
+    stand_at(rt, net, 3, 0)
+    s, u = ten(None)
+    check(s == 0.5 and u == 50, f"traits: nobody's ten minutes moved stress {s}, unhappiness {u}")
+    s, u = ten("bajoran")
+    check(s < 0.5 and u < 50, f"traits: a Bajoran's faith left stress {s}, unhappiness {u}")
+    rt.run("TREK.Util.state().flying = true")
+    s, u = ten("spacesick")
+    check(s > 0.5 and u > 50, f"traits: spacesick in flight left stress {s}, unhappiness {u}")
+    rt.run("TREK.Util.state().flying = false")
+    s, u = ten("spacesick")
+    check(s == 0.5, "traits: spacesick on the ground")
+    ten("orion")
+    check(int(rt.eval("#SIM.worldSounds")) == 0, "traits: an Orion's scent drew the dead "
+          "from inside the cabin")
+
+    # Out on the ground, for the scent and the hum.
+    rt.run(f"TREK.Transport.beamDown({P})")
+    net.pump(180)
+    ten("orion")
+    check(int(rt.eval("#SIM.worldSounds")) == 1
+          and rt.eval("SIM.worldSounds[1].radius") == C("OrionScentRadius"),
+          "traits: an Orion on the ground left no scent")
+    ten(None)
+    check(int(rt.eval("#SIM.worldSounds")) == 0, "traits: a human left a scent")
+    rt.run(f"""
+        SIM.zombies = {{}}
+        for i = 1, TREK.Config.BorgHumCount do
+            table.insert(SIM.zombies, {{ x = {P}.x + 3, y = {P}.y,
+                getX = function(self) return self.x end,
+                getY = function(self) return self.y end }})
+        end
+    """)
+    ten("exborg")
+    check(any("IGUI_TREK_BorgHum" in n for n in rt.notes()), f"traits: the hum said {rt.notes()}")
+    ten("exborg")
+    check(not any("IGUI_TREK_BorgHum" in n for n in rt.notes()), "traits: the hum repeated inside the hour")
+    rt.run("SIM.zombies = {}")
+
+    # A Talaxian beside you.
+    rt.run("SIM.player('neelix', SIM.players[1].x + 1, SIM.players[1].y, SIM.players[1].z)")
+    b0 = 50
+    fresh_traits(rt)
+    rt.run(f"{P}:getStats():set(CharacterStat.BOREDOM, {b0})")
+    rt.fire("EveryTenMinutes")
+    alone = trait_stat(rt, "BOREDOM")
+    give_trait(rt, "talaxian", who=2)
+    rt.fire("EveryTenMinutes")
+    check(alone == b0 and trait_stat(rt, "BOREDOM") < b0,
+          f"traits: boredom {alone} alone and {trait_stat(rt, 'BOREDOM')} beside a Talaxian")
+
+    # A Betazoid and the live rescue.
+    fresh_traits(rt)
+    give_trait(rt, "betazoid")
+    rt.run(f"""
+        local store = TREK.Probes.store()
+        table.insert(store.contacts, {{ id = 'test:1', kind = 'downedPersonnel',
+            status = 'reported', deadline = 1e9, ex = {P}.x + 40, ey = {P}.y - 40, ez = 0 }})
+        SIM.notes = {{}}
+    """)
+    rt.fire("EveryTenMinutes")
+    check(any("IGUI_TREK_Empath" in n for n in rt.notes()),
+          f"traits: a Betazoid forty tiles from the rescue sensed nothing: {rt.notes()}")
+
+    # --- factors other files ask for ------------------------------------------
+    fresh_traits(rt)
+    check(rt.eval(f"TREK.Traits.sweepRadius({P})") == C("SweepRadius"),
+          "traits: a tricorder reads further for somebody who is not science")
+    give_trait(rt, "sf_science")
+    check(rt.eval(f"TREK.Traits.sweepRadius({P})") == C("SweepRadius") * C("ScienceSweepFactor"),
+          "traits: a science officer's tricorder reads no further")
+    give_trait(rt, "sf_helm")
+    check(rt.eval(f"TREK.Traits.helmFactor({P})") == C("HelmSpeedFactor"),
+          "traits: a helm officer flies no faster")
+    give_trait(rt, "holohistorian")
+    check(rt.eval(f"TREK.Traits.paddFactor({P})") == C("HistorianTimeFactor"),
+          "traits: a holo-historian reads no faster")
+
+    # --- the uniforms on the creation screen ----------------------------------
+    for path in ("starfleet_command", "starfleet_helm", "starfleet_engineer",
+                 "starfleet_security", "starfleet_medical", "starfleet_science",
+                 "survey_specialist"):
+        item = rt.eval(f"ClothingSelectionDefinitions['{path}'] and "
+                       f"ClothingSelectionDefinitions['{path}'].Female.Boilersuit.items[1]")
+        check(item is not None and str(item).startswith("TrekShuttle.TrekUniformDuty"),
+              f"traits: {path} offers no duty uniform on the creation screen ({item})")
+
+    for w in rt.warnings():
+        fail(f"traits: {w}")
+    print("traits: 27 traits and 7 professions registered, exclusions made two-way; "
+          "the table judges home, foreign, meat and replicated food and leaves humans, "
+          "Trill and androids alone; kits, past hosts and starting rank once; rank "
+          "from rescues; the phobia on a beam; the replicator's mark; an engineer's "
+          "discount; an android's charge; faith, company, spacesickness, the scent, "
+          "the hum and the empath each for their own; the uniforms offered")
+
+
+def traits_multiplayer():
+    """The same effects on a server with two clients: the server decides and
+    the owning client's copy is changed to match -- and nobody else's."""
+    net = Net("mp", ["kira", "odo"])
+    srv, kira, odo = net.server, net.clients["kira"], net.clients["odo"]
+    for rt in net.all():
+        rt.run("SIM.player('kira', 3000.5, 3000.5, 0).onlineID = 1; "
+               "SIM.player('odo', 3004.5, 3000.5, 0).onlineID = 2")
+    net.start()
+
+    def who(rt, name):
+        return f"(function() for _, p in ipairs(SIM.players) do if p.name == '{name}' then return p end end end)()"
+
+    def stat(rt, name, s):
+        return float(rt.eval(f"{who(rt, name)}:getStats():get(CharacterStat.{s})") or 0)
+
+    for rt in net.all():
+        rt.run(f"local k, o = {who(rt, 'kira')}, {who(rt, 'odo')}; "
+               "SIM.giveTrait(k, 'bajoran'); "
+               "k:getStats():set(CharacterStat.STRESS, 0.5); "
+               "o:getStats():set(CharacterStat.STRESS, 0.5)")
+    for rt in net.all():
+        rt.fire("EveryTenMinutes")
+    net.pump(4)
+    check(stat(srv, "kira", "STRESS") < 0.5, "traits mp: the server did not ease the Bajoran")
+    check(abs(stat(kira, "kira", "STRESS") - stat(srv, "kira", "STRESS")) < 1e-9,
+          "traits mp: the Bajoran's own client does not match the server -- the "
+          "adjustment was not sent to its owner")
+    check(stat(kira, "kira", "STRESS") < 0.5 and stat(odo, "odo", "STRESS") == 0.5,
+          "traits mp: an effect for one player landed on the other's machine")
+    check(stat(odo, "kira", "STRESS") == 0.5,
+          "traits mp: a client changed somebody else's stats")
+
+    # A meal on the server, mirrored to the eater.
+    srv.run(f"""
+        local p = {who(srv, 'odo')}
+        SIM.giveTrait(p, 'klingon')
+        p:getStats():set(CharacterStat.UNHAPPINESS, 50)
+        p:getStats():set(CharacterStat.STRESS, 0.5)
+        local it = instanceItem('TrekShuttle.TrekGagh')
+        it:getModData()[TREK.Config.ReplicatedKey] = true
+        ISEatFoodAction.complete({{ character = p, item = it, percentage = 1 }})
+    """)
+    odo.run(f"local p = {who(odo, 'odo')}; p:getStats():set(CharacterStat.UNHAPPINESS, 50); "
+            "p:getStats():set(CharacterStat.STRESS, 0.5)")
+    net.pump(4)
+    # Home cooking and a replicator's mark cancel on unhappiness (-15, +15);
+    # the comfort's stress is what shows the meal was judged at all.
+    check(abs(stat(odo, "odo", "STRESS") - stat(srv, "odo", "STRESS")) < 1e-9
+          and stat(odo, "odo", "STRESS") < 0.5,
+          "traits mp: the Klingon's client never heard about the replicated gagh")
+    check(any("IGUI_TREK_FoodReplicated" in n for n in odo.notes()),
+          f"traits mp: the Klingon's client said {odo.notes()}")
+
+    # A client's own eating does nothing: complete() is the server's.
+    kira.run(f"""
+        local p = {who(kira, 'kira')}
+        p:getStats():set(CharacterStat.UNHAPPINESS, 50)
+        SIM.giveTrait(p, 'realfoodonly')
+        local it = instanceItem('Base.Apple')
+        it:getModData()[TREK.Config.ReplicatedKey] = true
+        ISEatFoodAction.complete({{ character = p, item = it, percentage = 1 }})
+    """)
+    check(stat(kira, "kira", "UNHAPPINESS") == 50,
+          "traits mp: a client judged a meal itself")
+
+    # A promotion: the server's trait set, synced, and a note to the rescuer.
+    srv.run(f"TREK.TraitsServer.onRescue({who(srv, 'kira')})")
+    net.pump(4)
+    check(srv.eval(f"{who(srv, 'kira')}:hasTrait(TREK_Registries.Traits.rank_ensign)") is True,
+          "traits mp: the server's copy was not commissioned")
+    synced = [str(srv.eval(f"SIM.syncedFields[{i}].who")) for i in
+              range(1, int(srv.eval("#SIM.syncedFields")) + 1)]
+    check("kira" in synced, "traits mp: a rank change was never sent with sendSyncPlayerFields")
+    check(any("IGUI_TREK_Promoted" in n for n in kira.notes()),
+          f"traits mp: the rescuer's client said {kira.notes()}")
+    check(not any("IGUI_TREK_Promoted" in n for n in odo.notes()),
+          "traits mp: somebody else was told about the promotion")
+
+    # A client never grants XP: the engine's addXp does nothing there.
+    kira.run("SIM.xpGiven = {}; TREK.Traits.adjust(SIM.players[1], { add = { STRESS = 1 } })")
+    check(kira.eval("TREK.TraitsServer") is None,
+          "traits mp: the server's half loaded on a client")
+
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"traits mp: {w}")
+    print("traits mp: the server eases, judges and promotes; the owner's client "
+          "matches it and nobody else's changes; a client decides nothing")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -10904,7 +11368,8 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
-            transcripts_multiplayer, phaser, phaser_multiplayer, multiplayer)
+            transcripts_multiplayer, phaser, phaser_multiplayer, traits, traits_multiplayer,
+            multiplayer)
 
 
 def main():

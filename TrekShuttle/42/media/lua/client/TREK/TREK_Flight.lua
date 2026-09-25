@@ -384,6 +384,10 @@ end
 function F.speed()
     local want = C.FlightSpeedSteps[F.speedStep()] or C.FlightSpeedSteps[1]
     if Ship.get().emergency == true then return math.min(want, C.EmergencyGlideSpeed) end
+    -- A helm officer at the controls gets more out of her (TRAITS.md 3.2).
+    -- The machine flying her is the pilot's, so the pilot is player 0 here;
+    -- the anti-cheat ceiling still applies on top.
+    if TREK.Traits then want = want * TREK.Traits.helmFactor(U.player(0)) end
     return want
 end
 

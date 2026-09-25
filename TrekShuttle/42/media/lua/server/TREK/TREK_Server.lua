@@ -1012,6 +1012,12 @@ Net.onServer("move", function(player, args)
         s.flightHold = C.FlightBoardingChecks
     end
 
+    -- Every kind that takes somebody apart and puts them back together:
+    -- a descent is a beam to the landing site (TRAITS.md 3.4).
+    if TREK.TraitsServer and (kind == "beamUp" or kind == "beamDown" or kind == "descend") then
+        U.try("traits.beam", TREK.TraitsServer.onBeam, player, kind)
+    end
+
     Net.toClient(player, "moveGranted", { kind = kind, token = args.token,
                                           cost = energy > 0 and energy or nil })
 end)
@@ -1674,6 +1680,9 @@ local function materialise(player, id, count)
         local ok = join(function()
             local item = instanceItem(id)
             if not item then return false end
+            -- A Klingon can tell (TRAITS.md 3.1b). Set before it is sent, so
+            -- the client's copy carries it too.
+            item:getModData()[C.ReplicatedKey] = true
             inv:AddItem(item)
             if isServer() then sendAddItemToContainer(inv, item) end
             return true

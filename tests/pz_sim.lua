@@ -222,6 +222,12 @@ function instanceItem(id)
                  worldXRotation = 0, worldYRotation = 0, worldZRotation = -1,
                  getFullType = function(self) return self.fullType end,
                  getModData = function(self) return self.modData end,
+                 -- A food's FoodType, which is what makes a steak meat to a
+                 -- Vulcan (TRAITS.md 3.1b). Nil for anything else, as the
+                 -- engine's Food answers for an untyped food.
+                 getFoodType = function(self)
+                     return self.foodType or (SIM.foodTypes and SIM.foodTypes[self.fullType])
+                 end,
                  -- A weapon's reach, which the phaser's bolt is drawn to.
                  getMaxRange = function(self) return self.maxRange or 18 end }
 
@@ -4015,4 +4021,119 @@ function SIM.uiUnderMouse(mx, my)
         end
     end
     return nil
+end
+
+---------------------------------------------------------------------------
+-- Traits, professions and registries (TRAITS.md)
+---------------------------------------------------------------------------
+-- The engine runs media/registries.lua before any script or Lua loads; the
+-- harness does the same (test_multiplayer.Runtime.load). A registered trait is
+-- an object, not a string, and `hasTrait` compares objects -- so a trait
+-- passed by name, or a table built to look like one, answers false here as
+-- it would in the game.
+local TraitMT = {}
+TraitMT.__index = TraitMT
+function TraitMT:getName() return (self.id:match(":(.*)$")) or self.id end
+function TraitMT:toString() return self.id end
+TraitMT.__tostring = function(self) return self.id end
+
+SIM.registered = { traits = {}, professions = {} }
+function CharacterTrait.register(id)
+    if id:match("^base:") then error("Default namespace 'base' is not allowed!", 2) end
+    if SIM.registered.traits[id] then error("duplicate trait " .. id, 2) end
+    local o = setmetatable({ id = id }, TraitMT)
+    SIM.registered.traits[id] = o
+    return o
+end
+CharacterProfession = CharacterProfession or {}
+function CharacterProfession.register(id)
+    if id:match("^base:") then error("Default namespace 'base' is not allowed!", 2) end
+    local o = setmetatable({ id = id }, TraitMT)
+    SIM.registered.professions[id] = o
+    return o
+end
+
+-- Definitions exist only when a test puts them there: the harness does not
+-- read scripts. What it can check is that the mod makes both directions of
+-- whatever exclusion it is handed.
+SIM.traitDefs = {}
+CharacterTraitDefinition = {}
+function CharacterTraitDefinition.getCharacterTraitDefinition(id)
+    return SIM.traitDefs[id]
+end
+function CharacterTraitDefinition.setMutualExclusive(a, b)
+    for _, pair in ipairs({ { a, b }, { b, a } }) do
+        local def = SIM.traitDefs[pair[1]]
+        if def then
+            local have = false
+            for _, x in ipairs(def.excl) do if x == pair[2] then have = true end end
+            if not have then table.insert(def.excl, pair[2]) end
+        end
+    end
+end
+function SIM.traitDef(id, excl)
+    local def = { excl = excl or {} }
+    function def:getMutuallyExclusiveTraits() return jlist(self.excl) end
+    SIM.traitDefs[id] = def
+    return def
+end
+
+--- The character's trait set, with the engine's add/remove/get.
+function PlayerMT:getCharacterTraits()
+    self.traits = self.traits or {}
+    local owner = self
+    return {
+        add = function(_, t) owner.traits[t] = true end,
+        remove = function(_, t) owner.traits[t] = nil end,
+        get = function(_, t) return owner.traits[t] == true end,
+    }
+end
+function SIM.giveTrait(player, path)
+    player:getCharacterTraits():add(TREK_Registries.Traits[path])
+end
+
+function PlayerMT:isAsleep() return self.asleep == true end
+
+-- The stats the traits touch. The store in getStats() already takes any key.
+for _, name in ipairs({ "UNHAPPINESS", "STRESS", "BOREDOM", "PANIC",
+                        "ENDURANCE", "FATIGUE" }) do
+    CharacterStat[name] = CharacterStat[name] or name
+end
+
+-- Perks with the XP each level takes, which is what a Trill's past host is
+-- paid in. getXp1..getXp10 are separate methods in the engine, not a lookup.
+local XP_TABLE = { 75, 150, 300, 750, 1500, 3000, 4500, 6000, 7500, 9000 }
+for _, name in ipairs({ "Cooking", "Doctor", "Electricity", "Mechanics",
+                        "MetalWelding", "Woodwork", "Tailoring", "Farming",
+                        "Fishing", "Trapping", "PlantScavenging", "Aiming",
+                        "Reloading", "SmallBlade", "LongBlade", "Axe",
+                        "SmallBlunt", "Blunt", "Spear", "Nimble", "Sneak",
+                        "Lightfoot", "Maintenance" }) do
+    local perk = Perks[name] or { name = name }
+    perk.getName = function(self) return self.name end
+    for i, xp in ipairs(XP_TABLE) do
+        perk["getXp" .. i] = function() return xp end
+    end
+    Perks[name] = perk
+end
+
+--- addXp's cousin without the multiplier. On a client the engine does
+--- nothing at all (LuaManager$GlobalObject.addXp checks GameClient.client),
+--- and the stub says so rather than recording a grant that never happens.
+SIM.xpGiven = {}
+function addXpNoMultiplier(player, perk, amount)
+    if isClient() then return end
+    table.insert(SIM.xpGiven, { who = player.name, perk = perk.name, xp = amount })
+end
+
+--- An item's food type, for the Vulcan's table.
+SIM.foodTypes = SIM.foodTypes or {}
+
+--- Vanilla's eating action, as far as the mod can see it: complete() is where
+--- Eat() runs, on the server and in single player.
+ISEatFoodAction = ISEatFoodAction or {}
+function ISEatFoodAction.complete(self)
+    SIM.eaten = SIM.eaten or {}
+    table.insert(SIM.eaten, self.item and self.item.fullType)
+    return true
 end

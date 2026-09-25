@@ -361,8 +361,8 @@ end
 local sweep = nil     -- { player, list, n, i, contacts, counts, radius2 }
 
 --- 1, 2 or 3: close, middle or far, by the fractions in C.SweepBands.
-local function band(dist)
-    local r = C.SweepRadius
+local function band(dist, r)
+    r = r or C.SweepRadius
     if dist <= r * C.SweepBands[1] then return 1 end
     if dist <= r * C.SweepBands[2] then return 2 end
     return 3
@@ -423,6 +423,9 @@ function M.startSweep(player)
 
     sweep = {
         player = player,
+        -- A science officer reads further (TRAITS.md 3.2). Held on the sweep
+        -- so the plot, the bands and the fixes all agree on it.
+        radius = TREK.Traits and TREK.Traits.sweepRadius(player) or C.SweepRadius,
         list = list,
         n = n,
         i = 0,
@@ -555,7 +558,7 @@ local function personnelFix(sw)
     if z < sw.zBottom or z > sw.zTop then return nil end
     local dx, dy = x + 0.5 - sw.x, y + 0.5 - sw.y
     local dist = math.sqrt(dx * dx + dy * dy)
-    if dist > C.SweepRadius then return nil end
+    if dist > (sw.radius or C.SweepRadius) then return nil end
     return { dx = dx, dy = dy, dist = math.floor(dist + 0.5),
              compass = U.compass(sw.x, sw.y, x + 0.5, y + 0.5),
              name = m.name }
@@ -573,7 +576,7 @@ local function clueFix(sw)
            and (c.z or 0) >= sw.zBottom and (c.z or 0) <= sw.zTop then
             local dx, dy = c.x + 0.5 - sw.x, c.y + 0.5 - sw.y
             local dist = math.sqrt(dx * dx + dy * dy)
-            if dist <= C.SweepRadius and (not best or dist < best.dist) then
+            if dist <= (sw.radius or C.SweepRadius) and (not best or dist < best.dist) then
                 best = { dx = dx, dy = dy, dist = dist, n = c.fragment,
                          compass = U.compass(sw.x, sw.y, c.x + 0.5, c.y + 0.5) }
             end
@@ -592,7 +595,7 @@ function M.serviceSweep()
             contacts = sweep.contacts,
             counts = sweep.counts,
             total = sweep.total,
-            radius = C.SweepRadius,
+            radius = sweep.radius or C.SweepRadius,
             crystals = sweep.crystals,
             crystalTotal = sweep.crystalTotal,
             crystalRadius = C.CrystalScanRadius,
@@ -621,7 +624,7 @@ function M.serviceSweep()
 
     local join = U.batch("sweep.classify")
     local done = 0
-    local radius = C.SweepRadius
+    local radius = sweep.radius or C.SweepRadius
     while sweep.i < sweep.n and done < C.SweepPerTick do
         local i = sweep.i
         sweep.i = i + 1
@@ -634,7 +637,7 @@ function M.serviceSweep()
             local dx, dy = z:getX() - sweep.x, z:getY() - sweep.y
             local dist = math.sqrt(dx * dx + dy * dy)
             if dist > radius then return end
-            local b = band(dist)
+            local b = band(dist, radius)
             sweep.counts[b] = sweep.counts[b] + 1
             sweep.total = sweep.total + 1
             table.insert(sweep.contacts, { dx = dx, dy = dy, band = b })

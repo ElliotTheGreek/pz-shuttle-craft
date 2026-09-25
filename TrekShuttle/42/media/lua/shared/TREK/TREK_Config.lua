@@ -2026,4 +2026,113 @@ function C.commsFirstDay()
     return days
 end
 
+---------------------------------------------------------------------------
+-- Traits: species, divisions and rank (TRAITS.md)
+---------------------------------------------------------------------------
+-- The ids are registered in media/registries.lua and read through
+-- TREK.Traits; what each one *does* is tuned here. Stat scales are the
+-- engine's: unhappiness, boredom and panic run 0-100, stress, endurance,
+-- fatigue, hunger and thirst 0-1 (vanilla's own debug sliders say so).
+
+-- Raised when the first-sighting pass learns something new, so a character
+-- made under an older one gets the new part and nothing twice.
+C.TraitsInitRev = 1
+
+-- Whose food is whose (TRAITS.md 3.1b). Only the galley's dishes: Kentucky's
+-- food is nobody's, and neutral for everybody. The drinks are fluids and
+-- are never "eaten", so they are not here.
+C.SpeciesFood = {
+    ["TrekShuttle.TrekPlomeekSoup"]    = "vulcan",
+    ["TrekShuttle.TrekGagh"]           = "klingon",
+    ["TrekShuttle.TrekRokegPie"]       = "klingon",
+    ["TrekShuttle.TrekAndorianTuber"]  = "andorian",
+    ["TrekShuttle.TrekOskoid"]         = "betazoid",
+    ["TrekShuttle.TrekJumjaStick"]     = "bajoran",
+    ["TrekShuttle.TrekHasperat"]       = "bajoran",
+    ["TrekShuttle.TrekChadrekab"]      = "talaxian",
+    ["TrekShuttle.TrekLeolaStew"]      = "talaxian",
+    ["TrekShuttle.TrekWingSlugRoll"]   = "orion",
+}
+-- A whole meal's worth; a part eaten scales it.
+C.FoodHomeUnhappy     = -15      -- its own species' dish
+C.FoodHomeStress      = -0.10
+C.FoodForeignUnhappy  = 10       -- somebody else's
+C.FoodMeatUnhappy     = 15       -- a Vulcan and anything that was an animal
+C.FoodReplicatedUnhappy = 15     -- Real Food Only, and any Klingon
+-- FoodType values that were an animal. Insect is here for the gagh and
+-- the wing-slugs.
+C.MeatFoodTypes = { Meat = true, Poultry = true, Fish = true, Seafood = true,
+                    Beef = true, Sausage = true, Insect = true, Game = true }
+-- Mod data the replicator stamps on what it makes: a Klingon can tell.
+C.ReplicatedKey = "TREKReplicated"
+
+-- Transporter phobia, per beam.
+C.PhobiaStress  = 0.25
+C.PhobiaPanic   = 40
+C.PhobiaUnhappy = 5
+
+-- Every ten game minutes.
+C.BajoranStress   = -0.02
+C.BajoranUnhappy  = -1
+C.TalaxianRange   = 6              -- tiles
+C.TalaxianBoredom = -2
+C.TalaxianUnhappy = -2
+C.SpacesickStress  = 0.04
+C.SpacesickUnhappy = 2
+
+-- Orion pheromones: a small world sound where they stand, as a noise draws
+-- the dead. Never aboard: the cabin is not on the map the dead walk.
+C.OrionScentRadius = 12
+C.OrionScentVolume = 12
+
+-- Liberated Borg: the hum. At least this many of the dead within the radius,
+-- at most once an hour of game time.
+C.BorgHumRadius = 20
+C.BorgHumCount  = 15
+C.BorgHumEveryHours = 1
+
+-- Betazoid: senses the live rescue within this range, a direction and no
+-- more, at most every half hour.
+C.EmpathRange = 120
+C.EmpathEveryHours = 0.5
+
+-- Trill: past hosts, one level each, rolled once.
+C.TrillHosts = 3
+C.TrillPerks = { "Cooking", "Doctor", "Electricity", "Mechanics", "MetalWelding",
+                 "Woodwork", "Tailoring", "Farming", "Fishing", "Trapping",
+                 "PlantScavenging", "Aiming", "Reloading", "SmallBlade",
+                 "LongBlade", "Axe", "SmallBlunt", "Blunt", "Spear", "Nimble",
+                 "Sneak", "Lightfoot", "Maintenance" }
+
+-- The android (TRAITS.md 3.1a). Charge is a percentage. Full to flat is a day
+-- and a half of game time; asleep aboard it fills at ten points an hour, and
+-- each point is paid for out of the ship's reserve.
+C.AndroidChargeKey      = "TREKCharge"
+C.AndroidDrainPerHour   = 100 / 36
+C.AndroidChargePerHour  = 10
+C.AndroidChargeCost     = 2       -- reserve units per point
+C.AndroidLowCharge      = 25      -- below this: tired and slow
+C.AndroidFlatFatigue    = 0.95    -- at nothing: exhausted
+C.AndroidLowFatigue     = 0.6
+C.AndroidNotes          = { 50, 25, 10, 0 }
+
+-- Divisions. What each reports for duty with, handed over once.
+C.DivisionKit = {
+    sf_security = { "TrekShuttle.TrekPhaser" },
+    sf_medical  = { "TrekShuttle.TrekHypospray" },
+    sf_science  = { "TrekShuttle.TrekTricorder" },
+    sf_survey   = { "TrekShuttle.TrekPADD" },
+}
+C.HelmSpeedFactor     = 1.2       -- sf_helm at the controls
+C.EngineeringFactor   = 0.9       -- what the ship spends, with sf_engineering aboard
+C.ScienceSweepFactor  = 1.5       -- sf_science's tricorder
+C.HistorianTimeFactor = 0.75      -- holohistorian on a PADD
+
+-- Rank (TRAITS.md 3.3), lowest first, and the rescues each one takes.
+-- Everybody starts unranked; a Starfleet profession reports as an ensign,
+-- and Command as a lieutenant (j.g.).
+C.Ranks = { "rank_ensign", "rank_ltjg", "rank_lt", "rank_ltcmdr", "rank_cmdr" }
+C.RankRescues = { 1, 3, 5, 8, 11 }
+C.RescuesKey = "TREKRescues"
+
 return C

@@ -412,6 +412,10 @@ function P.pay(cost, partial)
     if isClient() then return 0 end
     if type(cost) ~= "number" or cost ~= cost or cost <= 0 then return 0 end
     if not partial and not P.canPay(cost) then return 0 end
+    -- An engineer aboard makes a crystal go further (TRAITS.md 3.2). Here
+    -- rather than at each charge, because every charge comes through here,
+    -- and energize reports what this returns -- so the note says the truth.
+    if TREK.Traits then cost = cost * TREK.Traits.powerFactor() end
 
     local s = U.state()
     local have = P.reserve()

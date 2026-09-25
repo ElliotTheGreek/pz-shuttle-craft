@@ -389,5 +389,17 @@
     "IGUI_TREK_PhaserCutOff": "This server does not let a phaser cut that.",
     "IGUI_TREK_PhaserNotHeld": "Hold the phaser to cut with it.",
     "IGUI_TREK_PhaserTooFar": "Too far away to cut that.",
-    "IGUI_TREK_PhaserSafehouse": "That door belongs to somebody else's safehouse."
+    "IGUI_TREK_PhaserSafehouse": "That door belongs to somebody else's safehouse.",
+    "IGUI_TREK_FoodHome": "A taste of home.",
+    "IGUI_TREK_FoodForeign": "Not what you were raised on.",
+    "IGUI_TREK_FoodMeat": "That was an animal.",
+    "IGUI_TREK_FoodReplicated": "Replicated. You can tell.",
+    "IGUI_TREK_Promoted": "Field promotion: %1",
+    "IGUI_TREK_TrillHosts": "Your past hosts remember: %1",
+    "IGUI_TREK_AndroidLow": "Charge at %1 percent",
+    "IGUI_TREK_AndroidFlat": "Charge exhausted -- rest aboard the shuttle",
+    "IGUI_TREK_AndroidFull": "Fully charged",
+    "IGUI_TREK_BorgHum": "The hum: a great many of them, close by",
+    "IGUI_TREK_Empath": "Someone is in pain, to the %1",
+    "IGUI_TREK_Phobia": "Every atom of you, taken apart..."
 }

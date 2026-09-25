@@ -1,0 +1,424 @@
+/*  Shuttlecraft -- traits and professions (TRAITS.md).
+
+    Every id here is registered in media/registries.lua; a block naming an
+    unregistered id stops the scripts loading.
+
+    Costs are vanilla's scale: a species costs roughly what its granted
+    vanilla traits and boosts would cost bought one at a time, less what its
+    drawback is worth. XPBoosts and GrantedTraits are the engine's own and
+    need no code; everything else a trait does is a hasTrait() in
+    TREK_Traits.lua or TREK_TraitsServer.lua.  */
+
+module TrekShuttle
+{
+    /*  Three times human strength, a disciplined calm and a reader's mind (3.1).
+        Meat is the price, and it is charged at the table, not here: TREK_Traits
+        reads FoodType when a Vulcan eats.  */
+    character_trait_definition trek:vulcan
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:vulcan,
+        Cost = 8,
+        UIName = UI_trait_trek_vulcan,
+        UIDescription = UI_trait_trek_vulcanDesc,
+        XPBoosts = Strength=2,
+        GrantedTraits = base:brave;base:fastreader,
+        MutuallyExclusiveTraits = trek:klingon;trek:andorian;trek:betazoid;trek:trill;trek:bajoran;trek:talaxian;trek:orion;trek:android;trek:exborg;base:weak;base:feeble;base:stout;base:strong;base:cowardly;base:agoraphobic;base:claustrophobic;base:desensitized;base:slowreader;base:illiterate,
+    }
+
+    /*  Redundant everything and a warrior's appetite. Replicated food is an
+        insult, charged when it is eaten (TREK_Traits.onEat).  */
+    character_trait_definition trek:klingon
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:klingon,
+        Cost = 7,
+        UIName = UI_trait_trek_klingon,
+        UIDescription = UI_trait_trek_klingonDesc,
+        XPBoosts = Strength=1;LongBlade=1,
+        GrantedTraits = base:thickskinned;base:heartyappetite,
+        MutuallyExclusiveTraits = trek:vulcan;trek:andorian;trek:betazoid;trek:trill;trek:bajoran;trek:talaxian;trek:orion;trek:android;trek:exborg;base:thinskinned;base:lighteater;base:weak;base:feeble,
+    }
+
+    /*  The antennae hear what a human cannot, and an ice world's child shrugs
+        off weather. The blue skin and the antennae are TRAITS.md 2.4.  */
+    character_trait_definition trek:andorian
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:andorian,
+        Cost = 6,
+        UIName = UI_trait_trek_andorian,
+        UIDescription = UI_trait_trek_andorianDesc,
+        XPBoosts = SmallBlade=1,
+        GrantedTraits = base:keenhearing;base:outdoorsman,
+        MutuallyExclusiveTraits = trek:vulcan;trek:klingon;trek:betazoid;trek:trill;trek:bajoran;trek:talaxian;trek:orion;trek:android;trek:exborg;base:hardofhearing;base:deaf,
+    }
+
+    /*  An empath: senses a downed crewmate in pain before any tricorder does
+        (TREK_TraitsServer, empath).  */
+    character_trait_definition trek:betazoid
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:betazoid,
+        Cost = 3,
+        UIName = UI_trait_trek_betazoid,
+        UIDescription = UI_trait_trek_betazoidDesc,
+        XPBoosts = Doctor=1,
+        MutuallyExclusiveTraits = trek:vulcan;trek:klingon;trek:andorian;trek:trill;trek:bajoran;trek:talaxian;trek:orion;trek:android;trek:exborg,
+    }
+
+    /*  Joined: three past hosts, three skills, rolled once when the character
+        is first seen (TREK_TraitsServer, pastHosts). Never minds foreign food.  */
+    character_trait_definition trek:trill
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:trill,
+        Cost = 5,
+        UIName = UI_trait_trek_trill,
+        UIDescription = UI_trait_trek_trillDesc,
+        MutuallyExclusiveTraits = trek:vulcan;trek:klingon;trek:andorian;trek:betazoid;trek:bajoran;trek:talaxian;trek:orion;trek:android;trek:exborg,
+    }
+
+    /*  A resistance childhood and a faith that steadies: stress and
+        unhappiness ease a little every ten minutes.  */
+    character_trait_definition trek:bajoran
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:bajoran,
+        Cost = 4,
+        UIName = UI_trait_trek_bajoran,
+        UIDescription = UI_trait_trek_bajoranDesc,
+        XPBoosts = Sneak=1;Aiming=1,
+        GrantedTraits = base:outdoorsman,
+        MutuallyExclusiveTraits = trek:vulcan;trek:klingon;trek:andorian;trek:betazoid;trek:trill;trek:talaxian;trek:orion;trek:android;trek:exborg,
+    }
+
+    /*  The galley's best friend, and a morale officer: crewmates near a
+        Talaxian shed boredom and unhappiness faster.  */
+    character_trait_definition trek:talaxian
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:talaxian,
+        Cost = 2,
+        UIName = UI_trait_trek_talaxian,
+        UIDescription = UI_trait_trek_talaxianDesc,
+        XPBoosts = Cooking=2;PlantScavenging=1,
+        GrantedTraits = base:cook2;base:heartyappetite,
+        MutuallyExclusiveTraits = trek:vulcan;trek:klingon;trek:andorian;trek:betazoid;trek:trill;trek:bajoran;trek:orion;trek:android;trek:exborg;base:cook;base:lighteater,
+    }
+
+    /*  A smuggler's hands. The pheromones are the price: the dead follow the
+        scent (TREK_TraitsServer, scent).  */
+    character_trait_definition trek:orion
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:orion,
+        Cost = 3,
+        UIName = UI_trait_trek_orion,
+        UIDescription = UI_trait_trek_orionDesc,
+        XPBoosts = Nimble=1;Sneak=1;Lightfoot=1,
+        GrantedTraits = base:burglar,
+        MutuallyExclusiveTraits = trek:vulcan;trek:klingon;trek:andorian;trek:betazoid;trek:trill;trek:bajoran;trek:talaxian;trek:android;trek:exborg,
+    }
+
+    /*  Strong, fearless, a quick study -- and it runs on the ship's power,
+        not on food (TRAITS.md 3.1a). Hunger and thirst are held at nothing;
+        a charge runs down instead, and only the ship refills it.  */
+    character_trait_definition trek:android
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:android,
+        Cost = 12,
+        UIName = UI_trait_trek_android,
+        UIDescription = UI_trait_trek_androidDesc,
+        XPBoosts = Strength=2,
+        GrantedTraits = base:fastlearner;base:brave;base:nightvision;base:clumsy;base:fastreader,
+        MutuallyExclusiveTraits = trek:vulcan;trek:klingon;trek:andorian;trek:betazoid;trek:trill;trek:bajoran;trek:talaxian;trek:orion;trek:exborg;base:weak;base:feeble;base:stout;base:strong;base:slowlearner;base:crafty;base:cowardly;base:agoraphobic;base:claustrophobic;base:desensitized;base:graceful;base:slowreader;base:illiterate;base:heartyappetite;base:lighteater;base:highthirst;base:lowthirst;base:smoker;trek:realfoodonly,
+    }
+
+    /*  An ocular implant that sees in the dark, and a hum in the head when a
+        great many of the dead are near. It never touches a bite (TRAITS.md 1).  */
+    character_trait_definition trek:exborg
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:exborg,
+        Cost = 3,
+        UIName = UI_trait_trek_exborg,
+        UIDescription = UI_trait_trek_exborgDesc,
+        GrantedTraits = base:nightvision,
+        MutuallyExclusiveTraits = trek:vulcan;trek:klingon;trek:andorian;trek:betazoid;trek:trill;trek:bajoran;trek:talaxian;trek:orion;trek:android,
+    }
+
+    /*  Barclay's affliction (TNG "Realm of Fear"): every beam costs stress and
+        a moment's panic.  */
+    character_trait_definition trek:transporterphobia
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:transporterphobia,
+        Cost = -2,
+        UIName = UI_trait_trek_transporterphobia,
+        UIDescription = UI_trait_trek_transporterphobiaDesc,
+    }
+
+    /*  Sisko's father's rule: anything out of a replicator leaves you unhappy.  */
+    character_trait_definition trek:realfoodonly
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:realfoodonly,
+        Cost = -1,
+        UIName = UI_trait_trek_realfoodonly,
+        UIDescription = UI_trait_trek_realfoodonlyDesc,
+        MutuallyExclusiveTraits = trek:android,
+    }
+
+    /*  Fine on the ground, miserable in the air: the shuttle in flight wears
+        on the nerves.  */
+    character_trait_definition trek:spacesick
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:spacesick,
+        Cost = -2,
+        UIName = UI_trait_trek_spacesick,
+        UIDescription = UI_trait_trek_spacesickDesc,
+    }
+
+    /*  Four years at the Academy: a little of what the ship needs.  */
+    character_trait_definition trek:starfleetacademy
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:starfleetacademy,
+        Cost = 3,
+        UIName = UI_trait_trek_starfleetacademy,
+        UIDescription = UI_trait_trek_starfleetacademyDesc,
+        XPBoosts = Electricity=1;Aiming=1,
+    }
+
+    /*  Reads and transcribes on a PADD a quarter faster.  */
+    character_trait_definition trek:holohistorian
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:holohistorian,
+        Cost = 2,
+        UIName = UI_trait_trek_holohistorian,
+        UIDescription = UI_trait_trek_holohistorianDesc,
+    }
+
+    /*  Command division. Reports with a field rank of lieutenant, junior grade.  */
+    character_trait_definition trek:sf_command
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:sf_command,
+        Cost = 0,
+        UIName = UI_trait_trek_sf_command,
+        UIDescription = UI_trait_trek_sf_commandDesc,
+    }
+
+    /*  Command division, at the helm: the shuttle is faster with you flying her.  */
+    character_trait_definition trek:sf_helm
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:sf_helm,
+        Cost = 0,
+        UIName = UI_trait_trek_sf_helm,
+        UIDescription = UI_trait_trek_sf_helmDesc,
+    }
+
+    /*  Operations division. While you are aboard, a crystal goes further.  */
+    character_trait_definition trek:sf_engineering
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:sf_engineering,
+        Cost = 0,
+        UIName = UI_trait_trek_sf_engineering,
+        UIDescription = UI_trait_trek_sf_engineeringDesc,
+    }
+
+    /*  Operations division. Reports for duty with a phaser.  */
+    character_trait_definition trek:sf_security
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:sf_security,
+        Cost = 0,
+        UIName = UI_trait_trek_sf_security,
+        UIDescription = UI_trait_trek_sf_securityDesc,
+    }
+
+    /*  Sciences division. Reports for duty with a hypospray.  */
+    character_trait_definition trek:sf_medical
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:sf_medical,
+        Cost = 0,
+        UIName = UI_trait_trek_sf_medical,
+        UIDescription = UI_trait_trek_sf_medicalDesc,
+    }
+
+    /*  Sciences division. Reports for duty with a tricorder, and reads further
+        with it.  */
+    character_trait_definition trek:sf_science
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:sf_science,
+        Cost = 0,
+        UIName = UI_trait_trek_sf_science,
+        UIDescription = UI_trait_trek_sf_scienceDesc,
+    }
+
+    /*  Sciences division, cultural survey. Reports for duty with a PADD.  */
+    character_trait_definition trek:sf_survey
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:sf_survey,
+        Cost = 0,
+        UIName = UI_trait_trek_sf_survey,
+        UIDescription = UI_trait_trek_sf_surveyDesc,
+    }
+
+    /*  Rank (TRAITS.md 3.3). Profession traits nobody is granted at
+        creation: the server adds and removes them.  */
+    character_trait_definition trek:rank_ensign
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:rank_ensign,
+        Cost = 0,
+        UIName = UI_trait_trek_rank_ensign,
+        UIDescription = UI_trait_trek_rank_ensignDesc,
+    }
+
+    character_trait_definition trek:rank_ltjg
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:rank_ltjg,
+        Cost = 0,
+        UIName = UI_trait_trek_rank_ltjg,
+        UIDescription = UI_trait_trek_rank_ltjgDesc,
+    }
+
+    character_trait_definition trek:rank_lt
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:rank_lt,
+        Cost = 0,
+        UIName = UI_trait_trek_rank_lt,
+        UIDescription = UI_trait_trek_rank_ltDesc,
+    }
+
+    character_trait_definition trek:rank_ltcmdr
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:rank_ltcmdr,
+        Cost = 0,
+        UIName = UI_trait_trek_rank_ltcmdr,
+        UIDescription = UI_trait_trek_rank_ltcmdrDesc,
+    }
+
+    character_trait_definition trek:rank_cmdr
+    {
+        IsProfessionTrait = true,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:rank_cmdr,
+        Cost = 0,
+        UIName = UI_trait_trek_rank_cmdr,
+        UIDescription = UI_trait_trek_rank_cmdrDesc,
+    }
+
+    /*  The professions (TRAITS.md 3.2). Each grants its division trait; the
+        uniforms it may wear are offered on the creation screen by
+        shared/Definitions/TREK_ProfessionClothing.lua.  */
+    character_profession_definition trek:starfleet_command
+    {
+        CharacterProfession = trek:starfleet_command,
+        Cost = -4,
+        UIName = UI_prof_trek_starfleet_command,
+        IconPathName = profession_trek_starfleet_command,
+        GrantedTraits = trek:sf_command,
+        XPBoosts = Aiming=2;Fitness=1;Nimble=1;Doctor=1,
+    }
+
+    character_profession_definition trek:starfleet_helm
+    {
+        CharacterProfession = trek:starfleet_helm,
+        Cost = -2,
+        UIName = UI_prof_trek_starfleet_helm,
+        IconPathName = profession_trek_starfleet_helm,
+        GrantedTraits = trek:sf_helm,
+        XPBoosts = Aiming=1;Nimble=2;Mechanics=2,
+    }
+
+    character_profession_definition trek:starfleet_engineer
+    {
+        CharacterProfession = trek:starfleet_engineer,
+        Cost = -6,
+        UIName = UI_prof_trek_starfleet_engineer,
+        IconPathName = profession_trek_starfleet_engineer,
+        GrantedTraits = trek:sf_engineering,
+        XPBoosts = Electricity=4;Mechanics=2;MetalWelding=1,
+    }
+
+    character_profession_definition trek:starfleet_security
+    {
+        CharacterProfession = trek:starfleet_security,
+        Cost = -6,
+        UIName = UI_prof_trek_starfleet_security,
+        IconPathName = profession_trek_starfleet_security,
+        GrantedTraits = trek:sf_security,
+        XPBoosts = Aiming=3;Reloading=1;SmallBlade=1;Fitness=1,
+    }
+
+    character_profession_definition trek:starfleet_medical
+    {
+        CharacterProfession = trek:starfleet_medical,
+        Cost = -4,
+        UIName = UI_prof_trek_starfleet_medical,
+        IconPathName = profession_trek_starfleet_medical,
+        GrantedTraits = trek:sf_medical,
+        XPBoosts = Doctor=5;SmallBlade=1,
+    }
+
+    character_profession_definition trek:starfleet_science
+    {
+        CharacterProfession = trek:starfleet_science,
+        Cost = -2,
+        UIName = UI_prof_trek_starfleet_science,
+        IconPathName = profession_trek_starfleet_science,
+        GrantedTraits = trek:sf_science,
+        XPBoosts = Electricity=1;PlantScavenging=2;Doctor=1;Trapping=1,
+    }
+
+    character_profession_definition trek:survey_specialist
+    {
+        CharacterProfession = trek:survey_specialist,
+        Cost = 0,
+        UIName = UI_prof_trek_survey_specialist,
+        IconPathName = profession_trek_survey_specialist,
+        GrantedTraits = trek:sf_survey;trek:holohistorian,
+        XPBoosts = PlantScavenging=1;Trapping=1;Cooking=1;Tailoring=1,
+    }
+
+}

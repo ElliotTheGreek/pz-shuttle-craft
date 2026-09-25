@@ -353,7 +353,8 @@ function TREKTranscribePadd:new(character, padd, tape)
     o.stopOnWalk = true
     o.stopOnRun = true
     o.maxTime = U.try("padd.instant", function() return character:isTimedActionInstant() end)
-                and 1 or C.PaddTranscribeTicks
+                and 1 or math.max(1, math.floor(C.PaddTranscribeTicks
+                    * (TREK.Traits and TREK.Traits.paddFactor(character) or 1)))
     return o
 end
 
