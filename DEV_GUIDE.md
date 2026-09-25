@@ -2180,6 +2180,36 @@ This shell mangles quoted heredocs: an apostrophe in a comment or a `\n` in a
 string will break or corrupt the file. Use `Write`/`Edit` for Lua, or a Python
 script for surgical patches.
 
+The same goes for Python *inside* a heredoc that writes paths: a `\t` in
+`clothes\trek` became a tab in a generated clothing XML, and a `\b` in a regex
+became a backspace byte in a test. Write the script to a file first.
+
+### A namespaced id is not namespaced everywhere
+
+**New in this mod, with the traits (TRAITS.md).** Build 42.13's registry makes
+a trait `trek:vulcan`, and most of the engine keeps the whole id. Two lookups
+drop the namespace and keep only the path:
+
+- a trait's icon is `media/ui/Traits/trait_<path>.png`
+  (`CharacterTraitDefinition.<init>`, bci 99-111);
+- a profession's creation-screen clothing is
+  `ClothingSelectionDefinitions[profession:getName()]`, which is the path.
+
+So `trek:engineer` would have drawn vanilla's engineer outfits on the creation
+screen, with no error anywhere. Every path the mod registers is unique on its
+own (`starfleet_engineer`), and `tests/test_assets.py` fails on any that
+matches a vanilla trait or profession.
+
+Two neighbours of the same rule:
+
+- **A registered trait is an object.** `hasTrait` takes the registered
+  `CharacterTrait`, not a string. The simulation's `hasTrait` compares
+  objects too, so a trait passed by name answers false in both.
+- **An id assembled from parts is invisible to a static check.** The item and
+  translation checks read literal ids out of the Lua. Write the ids out whole,
+  as `TREK_Appearance.A.OVERLAY` and `TREK_ProfessionClothing`'s `UNIFORM`
+  do.
+
 ---
 
 ## Things that are true about the assets
