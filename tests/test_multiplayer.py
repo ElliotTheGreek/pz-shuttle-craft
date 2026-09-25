@@ -11464,6 +11464,81 @@ def species_look():
           "sight and the ten-minute pass both dress")
 
 
+def creation_look():
+    """The species on the creation screen: picking one dresses the avatar's
+    SurvivorDesc -- the object the character is then made from -- and
+    un-picking it takes the look off again. Vanilla's screens are stood in
+    for by the few fields and methods the mod reads."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('newcomer', 100.5, 100.5, 0)")
+    net.start()
+    rt.run("""
+        SIM.redraws = 0
+        -- The desc is character-shaped where the mod looks: a HumanVisual
+        -- and a sex. A SIM player gives both.
+        MainScreen = { instance = { desc = SIM.players[1] } }
+        CharacterCreationMain = {
+            instance = { avatarPanel = { setSurvivorDesc = function() SIM.redraws = SIM.redraws + 1 end } },
+        }
+        function CharacterCreationMain:initClothing() end
+        function CharacterCreationMain:onSkinColorPicked(c)
+            MainScreen.instance.desc:getHumanVisual():setSkinTextureIndex(c)
+        end
+        function CharacterCreationMain:onGenderSelected(f) MainScreen.instance.desc.female = f end
+        CharacterCreationProfession = { instance = { listboxTraitSelected = { items = {} } } }
+        function CharacterCreationProfession:addTrait(def)
+            table.insert(self.listboxTraitSelected.items, { item = def })
+        end
+        function CharacterCreationProfession:removeTrait(i)
+            table.remove(self.listboxTraitSelected.items, i or 1)
+        end
+        function SIM.defOf(path)
+            local id = TREK_Registries.Traits[path]
+            return { getType = function() return id end }
+        end
+        TREK.CreationLook.wrap()
+        -- Instances find their methods on the class, as vanilla's derive does,
+        -- so the wrapped methods are the ones called.
+        SIM.prof = setmetatable(CharacterCreationProfession.instance,
+                                { __index = CharacterCreationProfession })
+        SIM.main = setmetatable(CharacterCreationMain.instance,
+                                { __index = CharacterCreationMain })
+    """)
+
+    def worn():
+        n = int(rt.eval("#SIM.players[1]:getHumanVisual().bodyVisuals"))
+        return [str(rt.eval(f"SIM.players[1]:getHumanVisual().bodyVisuals[{i}].itemType"))
+                for i in range(1, n + 1)]
+
+    skin = lambda: rt.eval("SIM.players[1]:getHumanVisual().skinName")
+
+    rt.run("SIM.prof:addTrait(SIM.defOf('vulcan'))")
+    check(worn() == ["TrekShuttle.TrekLook_vulcanears"],
+          f"creation: picking Vulcan dressed the avatar in {worn()}")
+    check(int(rt.eval("SIM.redraws")) >= 1, "creation: the avatar was never redrawn")
+    rt.run("SIM.prof:removeTrait(1)")
+    check(worn() == [], f"creation: un-picking Vulcan left {worn()} on the avatar")
+
+    rt.run("SIM.prof:addTrait(SIM.defOf('andorian'))")
+    check(skin() == "TREK_Andorian_M1", f"creation: an Andorian's avatar skin is {skin()}")
+    rt.run("SIM.main:onSkinColorPicked(3)")
+    check(skin() == "TREK_Andorian_M4",
+          f"creation: a darker tone picked after the species left the skin at {skin()}")
+    rt.run("SIM.main:onGenderSelected(true)")
+    check(skin() == "TREK_Andorian_F4",
+          f"creation: changing sex left the skin at {skin()}")
+    # Picking something that is not a species changes nothing.
+    rt.run("SIM.prof.listboxTraitSelected.items = {}; SIM.players[1].hv = nil")
+    rt.run("SIM.prof:addTrait(SIM.defOf('transporterphobia'))")
+    check(worn() == [] and skin() is None, "creation: a non-species trait changed the avatar")
+
+    for w in rt.warnings():
+        fail(f"creation: {w}")
+    print("creation: picking a species dresses the avatar and un-picking undresses it; "
+          "the skin follows a tone and a sex chosen afterwards")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -11477,7 +11552,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
-            transcripts_multiplayer, phaser, phaser_multiplayer, traits, traits_multiplayer, species_look,
+            transcripts_multiplayer, phaser, phaser_multiplayer, traits, traits_multiplayer, species_look, creation_look,
             multiplayer)
 
 
