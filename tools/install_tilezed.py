@@ -29,8 +29,10 @@ import shutil
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SHEET = "trek_adirondack_01"
-SRC = os.path.join(ROOT, "design", "tiles", "2x", SHEET + ".png")
+SHEET = "trek_adirondack_01"          # structure: walls, floors, doors
+FURN = "trek_adirondack_02"           # furniture, rendered from models
+SHEETS = (SHEET, FURN)
+SRCDIR = os.path.join(ROOT, "design", "tiles", "2x")
 TOOLS = os.environ.get(
     "PZ_MODDING_TOOLS",
     r"D:/SteamLibrary/steamapps/common/Project Zomboid Modding Tools")
@@ -42,11 +44,22 @@ def t(i):
     return "%s_%03d" % (SHEET, i)
 
 
-TILESET = """tileset
-{
-    file = %s
-    size = 8,8
-    tile
+def f(i):
+    return "%s_%03d" % (FURN, i)
+
+
+def rows_of(sheet):
+    from PIL import Image
+    return Image.open(os.path.join(SRCDIR, sheet + ".png")).size[1] // 256
+
+
+def tileset_block(sheet):
+    """A sheet's Tilesets.txt entry. Its size follows the PNG, which grows."""
+    extra = DOOR_ENUMS if sheet == SHEET else ""
+    return "tileset\n{\n    file = %s\n    size = 8,%d\n%s}\n" % (sheet, rows_of(sheet), extra)
+
+
+DOOR_ENUMS = """    tile
     {
         xy = 0,4
         meta-enum = DoorW
@@ -56,8 +69,7 @@ TILESET = """tileset
         xy = 1,4
         meta-enum = DoorN
     }
-}
-""" % SHEET
+"""
 
 
 def wall_entry(w, n, nw, se):
@@ -88,9 +100,21 @@ def wall_piece(layer, w, n):
 # The wall display hangs on a wall; the viewport replaces one, which is what
 # vanilla's `layer = Walls` furniture does (a wall section drawn in the wall's
 # own slot), so a viewport can go anywhere along a bulkhead.
+def two_square(w_head, w_foot, n_head, n_foot):
+    """A piece two squares long, laid out as vanilla's bed is: W runs along x
+    and N along y, head first (furniture_bedding_01_002/003, _001/000)."""
+    return ("    furniture\n    {\n"
+            "        entry\n        {\n            orient = W\n"
+            "            0,0 = %s\n            1,0 = %s\n        }\n"
+            "        entry\n        {\n            orient = N\n"
+            "            0,0 = %s\n            0,1 = %s\n        }\n"
+            "    }\n" % (f(w_head), f(w_foot), f(n_head), f(n_foot)))
+
+
 FURNITURE = ("group\n{\n    label = Starfleet - Adirondack\n"
              + wall_piece("WallFurniture", 40, 41)
              + wall_piece("Walls", 16, 17)
+             + two_square(0, 1, 2, 3)
              + "}\n")
 GROUP_RE = re.compile(r"group\n\{\n    label = Starfleet - Adirondack\n.*?\n\}\n", re.S)
 
@@ -113,25 +137,38 @@ def write(path, text):
 
 def main():
     check = "--check" in sys.argv
-    for p in (SRC, TILES, CONF):
+    if not check and os.name == "nt":
+        import subprocess
+        running = subprocess.run(["tasklist"], capture_output=True, text=True).stdout
+        if "TileZed.exe" in running:
+            sys.exit("TileZed is running: close it (and BuildingEd) first, or it may "
+                     "write its own copy of the config back over this one on exit.")
+    for p in [os.path.join(SRCDIR, s + ".png") for s in SHEETS] + [TILES, CONF]:
         if not os.path.exists(p):
             sys.exit("missing: %s" % p)
     report = []
 
-    dst = os.path.join(TILES, SHEET + ".png")
-    report.append("png: %s" % ("would copy" if check else "copied") + " -> " + dst)
-    if not check:
-        shutil.copy2(SRC, dst)
-
-    path = os.path.join(CONF, "Tilesets.txt")
-    text = read(path)
-    if "file = %s\n" % SHEET in text:
-        report.append("Tilesets.txt: already has %s" % SHEET)
-    else:
-        report.append("Tilesets.txt: adding %s" % SHEET)
+    for sheet in SHEETS:
+        dst = os.path.join(TILES, sheet + ".png")
+        report.append("png: %s -> %s" % ("would copy" if check else "copied", dst))
         if not check:
-            backup(path)
-            write(path, text.rstrip("\n") + "\n" + TILESET)
+            shutil.copy2(os.path.join(SRCDIR, sheet + ".png"), dst)
+
+    # Our tileset entries are ours outright: replaced, so a sheet that has grown
+    # a row reaches the editor with its new size.
+    path = os.path.join(CONF, "Tilesets.txt")
+    text = orig = read(path)
+    for sheet in SHEETS:
+        block = tileset_block(sheet)
+        rx = re.compile(r"tileset\n\{\n    file = %s\n.*?\n\}\n" % re.escape(sheet), re.S)
+        if block in text:
+            report.append("Tilesets.txt: %s up to date" % sheet)
+            continue
+        report.append("Tilesets.txt: %s %s" % ("refreshing" if rx.search(text) else "adding", sheet))
+        text = rx.sub("", text).rstrip("\n") + "\n" + block
+    if text != orig and not check:
+        backup(path)
+        write(path, text)
 
     path = os.path.join(CONF, "BuildingTiles.txt")
     text = read(path)
