@@ -2,7 +2,7 @@
 -- Do not edit: change a section in BuildingEd, compose, and generate again.
 local L = {}
 -- Changes whenever anything placed changes; a deck built by another is brought up to date.
-L.rev = 196358556
+L.rev = 93050128
 L.W, L.H = 20, 25
 L.pitch = 108
 L.deckFloor = "trek_adirondack_01_25"
@@ -738,6 +738,8 @@ L.tubes = {
       { 50, -13, "trek_adirondack_02_64", "f", "lounge_chair" },
     },
     clutter = { { 47, -13, "Base.BeerEmpty" }, { 47, -12, "Base.BeerEmpty" }, { 51, -12, "Base.BeerCanEmpty" }, { 50, -14, "Base.BeerEmpty" }, { 49, -13, "Base.CardDeck" }, { 49, -13, "Base.PokerChips" }, { 49, -12, "Base.BeerCanEmpty" }, { 51, -13, "Base.BeerEmpty" } },
+    legacy = { { 83, -14 }, { 84, -14 }, { 85, -14 }, { 86, -14 }, { 87, -14 }, { 83, -13 }, { 84, -13 }, { 85, -13 }, { 86, -13 }, { 87, -13 }, { 83, -12 }, { 84, -12 }, { 85, -12 }, { 86, -12 }, { 87, -12 }, { 83, -11 }, { 84, -11 }, { 85, -11 }, { 86, -11 }, { 87, -11 }, { 83, -10 }, { 84, -10 }, { 85, -10 }, { 86, -10 }, { 87, -10 } },
+    legacy_at = { 84, -9 },
   },
   {
     from = 2, to = 3, name = "Jefferies Tube 2-3",
@@ -2136,6 +2138,8 @@ L.tubes = {
       { 64, -11, "trek_adirondack_02_64", "f", "lounge_chair" },
     },
     clutter = { { 61, -11, "Base.BeerEmpty" }, { 61, -10, "Base.BeerEmpty" }, { 65, -10, "Base.BeerCanEmpty" }, { 64, -12, "Base.BeerEmpty" }, { 63, -11, "Base.CardDeck" }, { 63, -11, "Base.PokerChips" }, { 63, -10, "Base.BeerCanEmpty" }, { 65, -11, "Base.BeerEmpty" } },
+    legacy = { { 64, -8 }, { 65, -8 }, { 66, -8 } },
+    legacy_at = { 63, -7 },
   },
   {
     from = 4, to = 5, name = "Jefferies Tube 4-5",
@@ -2890,6 +2894,8 @@ L.tubes = {
       { 74, -11, "trek_adirondack_02_64", "f", "lounge_chair" },
     },
     clutter = { { 71, -11, "Base.BeerEmpty" }, { 71, -10, "Base.BeerEmpty" }, { 75, -10, "Base.BeerCanEmpty" }, { 74, -12, "Base.BeerEmpty" }, { 73, -11, "Base.CardDeck" }, { 73, -11, "Base.PokerChips" }, { 73, -10, "Base.BeerCanEmpty" }, { 75, -11, "Base.BeerEmpty" } },
+    legacy = { { 61, -15 }, { 62, -15 }, { 63, -15 }, { 64, -15 }, { 65, -15 }, { 61, -14 }, { 62, -14 }, { 63, -14 }, { 64, -14 }, { 65, -14 }, { 61, -13 }, { 62, -13 }, { 63, -13 }, { 64, -13 }, { 65, -13 }, { 61, -12 }, { 62, -12 }, { 63, -12 }, { 64, -12 }, { 65, -12 }, { 61, -11 }, { 62, -11 }, { 63, -11 }, { 64, -11 }, { 65, -11 } },
+    legacy_at = { 62, -10 },
   },
 }
 L.decks = {

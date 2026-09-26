@@ -12274,6 +12274,61 @@ def jefferies():
     end)()""")
     check(int(doors) == 1, f"jefferies: the hideout has {doors} working hatches, not 1")
 
+    # --- a save built with the first, smaller hideouts -------------------------------
+    # Its old room, where the tube no longer reaches: a crate of ours with the
+    # player's own bottle in it, an empty on the floor, the floor itself. And a
+    # chair of ours on one of the tube's own squares where the layout has none.
+    legacy = rt.eval("""(function()
+        local A = TREK.Adirondack
+        local tb = A.Layout.tubes[1]
+        if not tb.legacy then return nil end
+        local p = tb.legacy[#tb.legacy]
+        local x, y = A.at(tb.from, p[1], p[2])
+        local sq = SIM.rawSquare(x, y, A.Z)
+        if not sq:getFloor() then sq:addFloor("trek_adirondack_01_25") end
+        local crate = IsoObject.new(sq, "trek_adirondack_02_132", "")
+        crate.modData.TREK = "adk"
+        SIM.containerSprites["trek_adirondack_02_132"] = true
+        crate:createContainersFromSpriteProperties()
+        crate:getContainer():AddItem(instanceItem("Base.Whiskey"))
+        sq:transmitAddObjectToSquare(crate, -1)
+        sq:AddWorldInventoryItem("Base.BeerEmpty", 0.5, 0.5, 0.0)
+        -- A stray on the tube's own grating, nowhere in the layout.
+        local q = tb.path[20]
+        local qx, qy = A.at(tb.from, q[1], q[2])
+        local chair = IsoObject.new(SIM.rawSquare(qx, qy, A.Z), "trek_adirondack_02_62", "")
+        chair.modData.TREK = "adk"
+        SIM.rawSquare(qx, qy, A.Z):transmitAddObjectToSquare(chair, -1)
+        local at = tb.legacy_at
+        local ax, ay = A.at(tb.from, at[1], at[2])
+        return x, y, qx, qy, ax, ay
+    end)()""")
+    check(legacy is not None, "jefferies: tube 1 carries no record of where its old hideout stood")
+    if legacy:
+        lx_, ly_, qx, qy, ax, ay = [int(v) for v in legacy]
+        rt.run(f"SIM.players[1].x, SIM.players[1].y = {ax} + 0.5, {ay} + 0.5")
+        net.pump(4)
+        # As a save built before the change loads: nothing yet stripped or refitted.
+        rt.run("TREK.AdirondackServer.state().legacy[1] = nil; TREK.AdirondackServer.forgetTubeRefit()")
+        rt.run("TREK.AdirondackServer.buildTube(1)")
+        left = rt.eval(f"""(function() local sq = SIM.rawSquare({lx_}, {ly_}, TREK.Adirondack.Z)
+            return #sq.objects, sq:getFloor() ~= nil, sq:getWorldObjects():size() end)()""")
+        check(int(left[0]) == 0 and left[1] is False and int(left[2]) == 0,
+              f"jefferies: the old hideout is still standing where the tube no longer goes: {left}")
+        back = rt.eval(f"""(function() local sq = SIM.rawSquare({ax}, {ay}, TREK.Adirondack.Z)
+            local got = {{}}
+            local w = sq:getWorldObjects()
+            for i = 0, w:size() - 1 do table.insert(got, w:get(i):getItem():getFullType()) end
+            return table.concat(got, ";") end)()""")
+        check("Base.Whiskey" in str(back) and "Base.BeerEmpty" in str(back),
+              f"jefferies: the old hideout's things were not handed back on the tube: {back}")
+        stray = rt.eval(f"""(function() for _, o in ipairs(SIM.rawSquare({qx}, {qy}, TREK.Adirondack.Z).objects) do
+            if o.sprite == "trek_adirondack_02_62" or (o.getSprite and o:getSprite():getName() == "trek_adirondack_02_62")
+            then return true end end return false end)()""")
+        check(stray is False, "jefferies: a fitting of ours the layout no longer wants was left in the tube")
+        again = rt.eval("TREK.AdirondackServer.stripLegacy(1)")
+        check(int(again) == 0, f"jefferies: the old hideout was taken down twice ({again})")
+
     # --- the lift, for somebody who cannot abide it ----------------------------------
     adk_visit(net, rt, 2)
     fresh_traits(rt)

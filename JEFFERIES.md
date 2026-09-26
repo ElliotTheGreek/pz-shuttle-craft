@@ -98,6 +98,16 @@ The server, `TREK_AdirondackServer.lua`:
   who has climbed over a wall does not put back somebody crawling.
 - `A.crawling` is true on a crawlway and false in a hideout.
 
+**A layout change is refitted in place.** On every square a tube owns, the
+server takes away anything of ours the layout no longer puts there (never a
+container with something in it), once per square per session, and then adds
+what is missing. And where an older layout put something the tube no longer
+reaches -- the first, smaller hideouts stood elsewhere -- the generator writes
+the old squares down as the tube's `legacy`, and the server strips them as
+they load: walls, floor, fittings, with anything in the crates and on the
+floor handed back on the tube where the old side crawl left it. Once, ever
+(`AS.state().legacy`).
+
 ## 4. The crawl
 
 `TREK_AdirondackClient.lua`, `AC.serviceCrawl`, on every update of the

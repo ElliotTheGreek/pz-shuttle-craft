@@ -106,6 +106,39 @@ def hideout_site(path, n):
     return random.Random(4077 + n).choice(sites)
 
 
+def legacy_site(path, n):
+    """Where the first hideouts stood (commit a1098c9): four by three, on a
+    straight run of eight. **Written down because nothing that walks the new
+    shape would ever visit it** (DEV_GUIDE: *Write the old extent down*) --
+    a save built with them has their walls, floors and crates standing there,
+    joined to nothing, until the server strips them."""
+    sites = []
+    for i in range(len(path) // 5, len(path) - 8):
+        x, y = path[i]
+        cols = [p for p in path if x - 3 <= p[0] <= x + 4]
+        if cols and all(p[1] == y for p in cols) and y <= BAND[1] and len(cols) == 8:
+            sites.append(i)
+    return random.Random(4077 + n).choice(sites) if sites else None
+
+
+def legacy_squares(path, n, owned):
+    """Every square the first hideout off tube n put anything on -- its side
+    crawl, its room and the ring its walls stood on -- that the tube does not
+    own now. The path square it left from is not among them: that is the tube."""
+    i = legacy_site(path, n)
+    if i is None:
+        return [], None
+    x, y = path[i]
+    x0, y0 = x - 1, y - 5
+    out = set()
+    for yy in range(y0, y):
+        for xx in range(x0, x0 + 5):
+            out.add((xx, yy))
+    out -= set(owned)
+    out -= set(path)
+    return sorted(out, key=lambda p: (p[1], p[0])), (x, y)
+
+
 def piece(index, name, facing):
     """The squares of one piece of furniture, facing one way: [(dx, dy, sprite)]."""
     return [(dx, dy, S2 % i) for dx, dy, i in index[name]["facings"][facing]]
@@ -253,6 +286,7 @@ def build(decks, W, H, index, pitch=DECK_PITCH):
             t["clutter"] = h["clutter"]
         tubes.append(t)
 
+
     check(tubes, decks, pitch)
 
     for t in tubes:
@@ -272,6 +306,14 @@ def build(decks, W, H, index, pitch=DECK_PITCH):
             if deck_room(*p) or p in decks[n]["floors"] or (p[0] - pitch, p[1]) in decks[n + 1]["floors"]:
                 continue
             t["floors"].setdefault(p, UNDER_WALL)
+
+    # Where the first hideouts stood: everything there that the tube does not
+    # own now, walls and floors included, or a square would be stripped and
+    # rebuilt on every pass.
+    for t in tubes:
+        if t["n"] in HIDEOUTS:
+            owned = set(t["squares"]) | set(t["floors"]) | {(o[0], o[1]) for o in t["objects"]}
+            t["legacy"], t["legacy_at"] = legacy_squares(t["path"], t["n"], owned)
 
     # The hatches, on the decks' own corridor walls: a doorway where the wall
     # was, and the hatch in it.

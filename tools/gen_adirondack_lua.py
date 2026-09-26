@@ -254,6 +254,11 @@ def main():
             body.append("      { %d, %d, %s, %s%s }," % (x, y, q(spr), q(k), tail))
         body.append("    },")
         body.append("    clutter = { %s }," % ", ".join('{ %d, %d, %s }' % (x, y, q(i)) for x, y, i in t["clutter"]))
+        if t.get("legacy"):
+            # Where an older layout's hideout stood (gen_adirondack_tubes.legacy_squares):
+            # stripped by the server, what was in it handed back at `legacy_at`.
+            body.append("    legacy = { %s }," % sq(t["legacy"]))
+            body.append("    legacy_at = { %d, %d }," % t["legacy_at"])
         body.append("  },")
     body.append("}")
     body.append("L.decks = {")

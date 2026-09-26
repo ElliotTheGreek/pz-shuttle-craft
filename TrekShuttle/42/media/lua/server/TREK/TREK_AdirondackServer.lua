@@ -68,6 +68,7 @@ function AS.state()
     s.decks = s.decks or {}
     s.fit = s.fit or {}
     s.clutter = s.clutter or {}
+    s.legacy = s.legacy or {}
     return s
 end
 
@@ -371,6 +372,134 @@ end
 ---------------------------------------------------------------------------
 -- The Jefferies tubes
 ---------------------------------------------------------------------------
+--- Moves the live items in an object's containers, or a world item, onto a
+--- square: what a player keeps is never ours to throw out, and moving the
+--- item rather than its id keeps a hypospray's doses (TREK_Build.spillToPad).
+local function handBack(obj, dest)
+    local moved = 0
+    if instanceof(obj, "IsoWorldInventoryObject") then
+        local item = U.try("handBack.item", function() return obj:getItem() end)
+        if item and removeSynced(obj:getSquare(), obj) then
+            if U.try("handBack.drop", function() return dest:AddWorldInventoryItem(item, 0.5, 0.5, 0.0) end) then
+                moved = moved + 1
+            end
+        end
+        return moved
+    end
+    local list = TREK.Build and TREK.Build.containersOf and TREK.Build.containersOf(obj) or {}
+    for _, c in ipairs(list) do
+        local items = {}
+        U.try("handBack.list", function()
+            local all = c:getItems()
+            for i = 0, all:size() - 1 do table.insert(items, all:get(i)) end
+        end)
+        for _, it in ipairs(items) do
+            if U.try("handBack.move", function()
+                c:Remove(it)
+                if dest:AddWorldInventoryItem(it, 0.5, 0.5, 0.0) then return true end
+                c:AddItem(it)
+                return false
+            end) then moved = moved + 1 end
+        end
+    end
+    return moved
+end
+
+--- Takes away what an older layout's hideout left standing where the tube no
+--- longer reaches (L.tubes[t].legacy, gen_adirondack_tubes.legacy_squares):
+--- walls, floor, fittings. Anything in its crates, and anything lying on its
+--- floor, is handed back on the tube at `legacy_at`, where its side crawl
+--- used to leave. Square by square as they load; each is done once, ever.
+function AS.stripLegacy(t)
+    local tube = L.tubes and L.tubes[t]
+    if not tube or not tube.legacy then return 0 end
+    local done = AS.state().legacy
+    done[t] = done[t] or {}
+    local k = tube.from
+    local dx, dy = A.at(k, tube.legacy_at[1], tube.legacy_at[2])
+    if not U.chunkLoaded(dx, dy, A.Z) then return 0 end
+    local dest = U.square(dx, dy, A.Z, false)
+    if not dest or not dest:getFloor() then return 0 end
+    local stripped = 0
+    for i, p in ipairs(tube.legacy) do
+        if not done[t][i] then
+            local x, y = A.at(k, p[1], p[2])
+            if U.chunkLoaded(x, y, A.Z) then
+                local sq = U.square(x, y, A.Z, false)
+                if sq then
+                    local doomed = {}
+                    U.eachObject(sq, function(o) table.insert(doomed, o) end)
+                    for _, o in ipairs(doomed) do
+                        if instanceof(o, "IsoWorldInventoryObject") then
+                            handBack(o, dest)
+                        elseif tagOf(o) == TAG or o == sq:getFloor() then
+                            handBack(o, dest)
+                            if removeSynced(sq, o) then stripped = stripped + 1 end
+                        end
+                    end
+                end
+                done[t][i] = true
+            end
+        end
+    end
+    if stripped > 0 then
+        U.log("Adirondack %s: an old hideout taken down, %d pieces", tube.name, stripped)
+    end
+    return stripped
+end
+
+-- Tube squares already refitted this session at this layout: "t:x,y" -> rev.
+local refitted = {}
+
+--- Brings what stands on a tube's own squares into line with the layout, in
+--- place: anything of ours the layout no longer puts there is taken away --
+--- unless it is a container with something in it -- the way a deck does it.
+--- Once per square per session; the builder then adds what is missing.
+local function refitTube(t, tube, want)
+    local k = tube.from
+    for sqKey, here in pairs(want) do
+        if refitted[t .. ":" .. sqKey] ~= L.rev then
+            local lx, ly = sqKey:match("^(-?%d+),(-?%d+)$")
+            local x, y = A.at(k, tonumber(lx), tonumber(ly))
+            if U.chunkLoaded(x, y, A.Z) then
+                refitted[t .. ":" .. sqKey] = L.rev
+                local sq = U.square(x, y, A.Z, false)
+                if sq then
+                    local doomed = {}
+                    U.eachObject(sq, function(o)
+                        if tagOf(o) == TAG and not entryFor(here, o) and not holdsAnything(o) then
+                            table.insert(doomed, o)
+                        end
+                    end)
+                    for _, o in ipairs(doomed) do removeSynced(sq, o) end
+                end
+            end
+        end
+    end
+end
+
+--- Forgets which tube squares have been refitted: what a fresh load of the
+--- save does, since the record is kept for the session only.
+function AS.forgetTubeRefit()
+    refitted = {}
+end
+
+local tubeWant = {}   -- t -> "lx,ly" -> { sprite -> entry }
+
+local function wantedInTube(t, tube)
+    if tubeWant[t] then return tubeWant[t] end
+    local out = {}
+    for _, f in ipairs(tube.floors) do
+        out[f[1] .. "," .. f[2]] = out[f[1] .. "," .. f[2]] or {}
+    end
+    for _, o in ipairs(tube.objects) do
+        local key = o[1] .. "," .. o[2]
+        out[key] = out[key] or {}
+        out[key][o[3]] = o
+    end
+    tubeWant[t] = out
+    return out
+end
 --- Builds whatever of tube t is loaded and not yet there. Idempotent and
 --- partial by design: returns how much it placed, and how many of the tube's
 --- floors it could not reach yet.
@@ -379,6 +508,8 @@ function AS.buildTube(t)
     if not tube then return 0, 0 end
     local k = tube.from
     local made, waiting = 0, 0
+    U.try("adk.tubeRefit", refitTube, t, tube, wantedInTube(t, tube))
+    U.try("adk.tubeLegacy", AS.stripLegacy, t)
     for _, f in ipairs(tube.floors) do
         local x, y = A.at(k, f[1], f[2])
         if U.chunkLoaded(x, y, A.Z) then
