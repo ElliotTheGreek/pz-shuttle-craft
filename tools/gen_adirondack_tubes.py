@@ -98,8 +98,8 @@ def hideout_site(path, n):
     sites = []
     for i in range(len(path) // 5, len(path) - 8):
         x, y = path[i]
-        cols = [p for p in path if x - 3 <= p[0] <= x + 4]
-        if cols and all(p[1] == y for p in cols) and y <= BAND[1] and len(cols) == 8:
+        cols = [p for p in path if x - 3 <= p[0] <= x + 5]
+        if cols and all(p[1] == y for p in cols) and y <= BAND[1] and len(cols) == 9:
             sites.append(i)
     if not sites:
         raise SystemExit("tube %d has no straight run long enough for a hideout" % n)
@@ -115,8 +115,13 @@ def hideout(path, i, index):
     """The side crawl, the room, its fittings and what was left lying about."""
     x, y = path[i]
     branch = [(x, y - 1), (x, y - 2)]
-    x0, y0 = x - 1, y - 5
-    room = [(x0 + dx, y0 + dy) for dy in range(3) for dx in range(4)]
+    # Five across and four deep, from the back wall: the stash along the wall,
+    # an aisle in front of it -- every crate and the shelf can be walked up to,
+    # which the first, three-deep room did not allow (the chairs stood in the
+    # only row in front of them) -- then the table between its two chairs,
+    # then the row the hatch opens onto.
+    x0, y0 = x - 1, y - 6
+    room = [(x0 + dx, y0 + dy) for dy in range(4) for dx in range(5)]
     fittings = []
 
     def put(name, facing, px, py, stash=None):
@@ -125,18 +130,18 @@ def hideout(path, i, index):
             fittings.append((px + dx, py + dy, s, stash or name, kind))
 
     put("cargo_crate", "W", x0, y0, "stash_crate")
-    put("bottle_shelf", "N", x0 + 2, y0, "stash_shelf")
-    put("cargo_crate", "E", x0 + 3, y0, "stash_crate")
-    put("lounge_table", "W", x0 + 2, y0 + 1)
-    put("lounge_chair", "W", x0 + 1, y0 + 1)
-    put("lounge_chair", "E", x0 + 3, y0 + 1)
     put("wall_sconce", "N", x0 + 1, y0)
+    put("bottle_shelf", "N", x0 + 2, y0, "stash_shelf")
+    put("cargo_crate", "E", x0 + 4, y0, "stash_crate")
+    put("lounge_chair", "W", x0 + 1, y0 + 2)
+    put("lounge_table", "W", x0 + 2, y0 + 2)
+    put("lounge_chair", "E", x0 + 3, y0 + 2)
     # What the night watch left: bottles and cans on the deck, the cards on
     # the table. Placed once, as world items (TREK_AdirondackServer).
-    clutter = [(x0, y0 + 1, "Base.BeerEmpty"), (x0, y0 + 2, "Base.BeerEmpty"),
-               (x0 + 3, y0 + 2, "Base.BeerCanEmpty"), (x0 + 2, y0 + 2, "Base.BeerEmpty"),
-               (x0 + 2, y0 + 1, "Base.CardDeck"), (x0 + 2, y0 + 1, "Base.PokerChips"),
-               (x0 + 1, y0 + 2, "Base.BeerCanEmpty"), (x0 + 3, y0 + 1, "Base.BeerEmpty")]
+    clutter = [(x0, y0 + 2, "Base.BeerEmpty"), (x0, y0 + 3, "Base.BeerEmpty"),
+               (x0 + 4, y0 + 3, "Base.BeerCanEmpty"), (x0 + 3, y0 + 1, "Base.BeerEmpty"),
+               (x0 + 2, y0 + 2, "Base.CardDeck"), (x0 + 2, y0 + 2, "Base.PokerChips"),
+               (x0 + 2, y0 + 3, "Base.BeerCanEmpty"), (x0 + 4, y0 + 2, "Base.BeerEmpty")]
     return dict(branch=branch, room=room, door=(x, y - 2), fittings=fittings, clutter=clutter)
 
 

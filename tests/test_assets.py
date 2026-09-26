@@ -1106,6 +1106,34 @@ try:
 except SystemExit as e:
     failures.append("gen_adirondack_tubes.check refused a sound tube: %s" % e)
 
+# --- a hideout can be walked round ---------------------------------------
+# From its hatch, over squares with no furniture standing on them, somebody
+# has to be able to reach a square beside every crate and the shelf. The
+# first hideout was three deep, and the chairs stood in the only row in front
+# of the stash: found in play, not by any check.
+_index = json.load(open(os.path.join(ROOT, "design", "tiles", "trek_adirondack_02.json")))
+for _n in TUBES.HIDEOUTS:
+    _path = TUBES.route(_n, 20, 25, TUBES.DECK_PITCH)
+    _h = TUBES.hideout(_path, TUBES.hideout_site(_path, _n), _index)
+    _room = set(_h["room"])
+    _blocked = set()
+    for x, y, _s, what, _k in _h["fittings"]:
+        base = {"stash_crate": "cargo_crate", "stash_shelf": "bottle_shelf"}.get(what, what)
+        if _index[base]["layer"] != "WallFurniture":
+            _blocked.add((x, y))
+    _start = (_h["door"][0], _h["door"][1] - 1)
+    _seen, _todo = {_start}, [_start]
+    while _todo:
+        cx, cy = _todo.pop()
+        for q in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+            if q in _room and q not in _blocked and q not in _seen:
+                _seen.add(q)
+                _todo.append(q)
+    for x, y, _s, what, _k in _h["fittings"]:
+        if what.startswith("stash"):
+            if not any(q in _seen for q in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1))):
+                failures.append(f"hideout off tube {_n + 1}: nobody can get to the {what} at {x},{y}")
+
 # --- the loot tables the crystal is seeded into -------------------------
 # server/Items/TrekDilithium.lua names vanilla distribution tables by string.
 # A name that was right in build 41 and renamed since does not throw and does

@@ -23,10 +23,13 @@ is how the ship is put together; this file is the part of her you crawl.
   no running. Out of it you stand up, and you are sneaking only if you were
   when you went in.
 - **Three hideouts**, off tubes 1-2, 3-4 and 4-5: a two-square side crawl, a
-  hatch, and a small room where the off-watch crew drink. Two crates and a
-  shelf of the good stuff (Romulan ale, whiskey, bloodwine...), a table, two
-  chairs, a light, and the empties and the cards they left lying about. You
-  stand up in a hideout.
+  hatch, and a room five across and four deep where the off-watch crew
+  drink. Two crates and a shelf of the good stuff (Romulan ale, whiskey,
+  bloodwine...) along the back wall with an aisle in front of them, a table
+  and two chairs, a light, and the empties and the cards they left lying
+  about. You stand up in a hideout. (The first one was three deep and the
+  chairs stood in the only row in front of the stash; `tests/test_assets.py`
+  now walks every hideout from its hatch to every crate.)
 - **Turbolift Phobia**, a negative trait (+2 points): every lift ride is
   instant dread -- stress, panic and misery -- and the lift's menu says so
   before you choose. The tubes cost the phobic nothing.

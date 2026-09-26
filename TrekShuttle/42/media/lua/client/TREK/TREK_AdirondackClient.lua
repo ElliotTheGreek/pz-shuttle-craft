@@ -96,7 +96,8 @@ local function lightDeck(k)
         if tube.from == k or tube.to == k then
             local spots = {}
             for i = 1, #tube.path, C.TubeLampEvery do table.insert(spots, tube.path[i]) end
-            if tube.hideout then table.insert(spots, tube.hideout[6]) end
+            -- Over the table: the middle of the hideout's third row.
+            if tube.hideout then table.insert(spots, tube.hideout[13]) end
             for _, p in ipairs(spots) do
                 local key = "t" .. tube.from .. "," .. p[1] .. "," .. p[2]
                 if not lamps[key] then
