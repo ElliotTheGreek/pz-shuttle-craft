@@ -4545,6 +4545,16 @@ package.preload["Farming/SFarmingSystem"] = function()
         if prop and p.nbOfGrow >= prop.harvestLevel then p.hasVegetable = true end
         p.nbOfGrow = p.nbOfGrow + 1
     end
+    --- Vanilla's harvest, as far as the tray cares: a crop that grows back
+    --- goes back to a middle stage, any other is left a harvested stub.
+    function SFarmingSystem:harvest(p)
+        local prop = farming_vegetableconf.props[p.typeOfSeed]
+        if prop and prop.growBack then
+            p.nbOfGrow, p.hasVegetable = prop.growBack, false
+        else
+            p.state = "harvested"
+        end
+    end
     -- The part that hurts crops indoors: every plant loses 10 a pass.
     function SFarmingSystem:changeHealth()
         for _, p in ipairs(self.plants) do

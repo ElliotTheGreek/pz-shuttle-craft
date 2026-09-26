@@ -12483,6 +12483,26 @@ def farming():
     end)()""")
     check(still is True, "farming: rebuilding the deck cleared a growing crop")
 
+    # Harvesting an annual clears its tray at once, ready to sow; a bush
+    # (tea, bergamot, coffee) stays and grows back.
+    rt.run("TREK.Farm.wrapHarvest()")
+    out = str(rt.eval(f"""(function()
+        local annual, bush
+        for _, t in ipairs(TREK.Farm.trays({k})) do
+            local p = SFarmingSystem.instance:getLuaObjectAt(t[1], t[2], TREK.Adirondack.Z)
+            if p and p.hasVegetable and p.typeOfSeed == "TrekHasperatPepper" then annual = p end
+            if p and p.hasVegetable and p.typeOfSeed == "TrekBergamot" then bush = p end
+        end
+        if not annual or not bush then return "missing" end
+        SFarmingSystem.instance:harvest(annual, SIM.players[1])
+        SFarmingSystem.instance:harvest(bush, SIM.players[1])
+        local now = SFarmingSystem.instance:getLuaObjectAt(annual.x, annual.y, annual.z)
+        local tea = SFarmingSystem.instance:getLuaObjectAt(bush.x, bush.y, bush.z)
+        return tostring(now and now.state) .. "/" .. tostring(tea == bush and tea.state)
+    end)()"""))
+    check(out == "plow/seeded", f"farming: after harvest the annual's tray and the bush are {out}, "
+                                f"not plow/seeded")
+
     # Harvested: the tray is ready again within the hour.
     rt.run("farmPlant.state = 'harvested'")
     hours(rt, 1)
@@ -12528,6 +12548,10 @@ def farming():
         return "none"
     end)()"""))
     check(stove == "IsoStove/true", f"farming: the galley range is {stove}")
+    # And a cupboard beside it with something to cook in.
+    ware = farm_items(rt, 2, "galley_cupboard")
+    for thing in ("Base.Pot", "Base.Bowl", "Base.Mugl", "Base.KitchenKnife", "Base.Tortilla"):
+        check(thing in ware, f"farming: the galley cupboard has no {thing}")
 
     for w in rt.warnings():
         fail(f"farming: {w}")

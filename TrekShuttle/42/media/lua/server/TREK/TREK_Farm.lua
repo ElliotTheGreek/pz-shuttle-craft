@@ -199,6 +199,27 @@ function F.stockBay(k)
     return planted
 end
 
+-- **Harvest clears the tray at once.** Vanilla leaves a harvested annual as
+-- a stub until somebody digs it out; aboard her, the tray is cleared and
+-- primed the moment the harvest is taken, ready to sow again (the hourly
+-- pass did it too, but an hour of stub read as a harvest that failed).
+-- Perennials -- tea, bergamot, coffee -- regrow in place and are left alone.
+local harvestWrapped = false
+function F.wrapHarvest()
+    if harvestWrapped or not SFarmingSystem or not SFarmingSystem.harvest then return false end
+    local original = SFarmingSystem.harvest
+    SFarmingSystem.harvest = function(self, plant, player, ...)
+        local a, b, c = original(self, plant, player, ...)
+        if plant and F.onShip(plant) and DONE[plant.state] then
+            local sq = U.square(plant.x, plant.y, plant.z, false)
+            if sq then U.try("farm.reprime", F.primeTray, sq) end
+        end
+        return a, b, c
+    end
+    harvestWrapped = true
+    return true
+end
+
 -- **The greenhouse rule.** Vanilla's health pass takes health off a plant
 -- indoors unless its room is a greenhouse, and in winter and bad months off
 -- one it thinks is outdoors; our deck has no rooms, and may count as either.
@@ -385,6 +406,7 @@ end
 function F.hourly()
     F.ensure()
     F.wrapHealth()
+    F.wrapHarvest()
     F.tendAll()
     local AS = TREK.AdirondackServer
     for k = 1, #L.decks do
@@ -403,9 +425,11 @@ end)
 
 Events.OnGameStart.Add(function()
     U.try("farm.wrap", F.wrapHealth)
+    U.try("farm.wrapHarvest", F.wrapHarvest)
 end)
 Events.OnServerStarted.Add(function()
     U.try("farm.wrap", F.wrapHealth)
+    U.try("farm.wrapHarvest", F.wrapHarvest)
 end)
 
 return F

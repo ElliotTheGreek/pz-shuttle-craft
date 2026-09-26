@@ -192,9 +192,27 @@
    <tile x="0" y="0" name="trek_adirondack_02_194" />
   </entry>
  </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_199" />
+   <tile x="0" y="1" name="trek_adirondack_02_200" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_201" />
+   <tile x="1" y="0" name="trek_adirondack_02_202" />
+  </entry>
+  <entry orient="E">
+   <tile x="0" y="0" name="trek_adirondack_02_203" />
+   <tile x="0" y="1" name="trek_adirondack_02_204" />
+  </entry>
+  <entry orient="S">
+   <tile x="0" y="0" name="trek_adirondack_02_205" />
+   <tile x="1" y="0" name="trek_adirondack_02_206" />
+  </entry>
+ </furniture>
  <user_tiles />
  <used_tiles>1 2 3 4 5</used_tiles>
- <used_furniture>0 1 2 3 4 5 6 7 8 9 10 11 12 13 14</used_furniture>
+ <used_furniture>0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15</used_furniture>
  <room Name="Lounge" InternalName="livingroom" Color="90 110 170" InteriorWall="2" InteriorWallTrim="0" Floor="3" GrimeFloor="0" GrimeWall="0" />
  <room Name="Galley" InternalName="kitchen" Color="170 160 130" InteriorWall="2" InteriorWallTrim="0" Floor="4" GrimeFloor="0" GrimeWall="0" />
  <floor>
@@ -262,5 +280,6 @@
   <object type="furniture" FurnitureTiles="11" orient="W" x="11" y="9" />
   <object type="furniture" FurnitureTiles="13" orient="N" x="15" y="10" />
   <object type="furniture" FurnitureTiles="14" orient="E" x="15" y="3" />
+  <object type="furniture" FurnitureTiles="15" orient="E" x="15" y="5" />
  </floor>
 </building>

@@ -277,6 +277,12 @@ OBJECTS += [
     flat("grow_light", "hydroponics", "A long slim wall-mounted grow light "
          "panel in a light-grey frame, glowing a soft pink-violet.",
          u=(0.1, 0.9), v=(0.2, 0.35), use={"light": True}),
+    # The cookware cupboard: a galley counter to look at (its mesh is a copy
+    # of galley_counter's, tools/assets/adirondack/galley_cupboard.glb), and a
+    # piece of its own so it can hold the pots rather than the food.
+    m("galley_cupboard", "galley", "A galley kitchen counter unit: beige "
+      "cabinet doors, a charcoal worktop, a thin amber light strip under the "
+      "top.", 2, 1, 0.95, facings="WNES", use={"container": "counter"}),
 ]
 
 

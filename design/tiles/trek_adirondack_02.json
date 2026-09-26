@@ -718,6 +718,63 @@
    "container": "counter"
   }
  },
+ "galley_cupboard": {
+  "area": "galley",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     203
+    ],
+    [
+     0,
+     1,
+     204
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     201
+    ],
+    [
+     1,
+     0,
+     202
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     205
+    ],
+    [
+     1,
+     0,
+     206
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     199
+    ],
+    [
+     0,
+     1,
+     200
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "counter"
+  }
+ },
  "galley_range": {
   "area": "galley",
   "facings": {

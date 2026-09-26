@@ -2,7 +2,7 @@
 -- Do not edit: change a section in BuildingEd, compose, and generate again.
 local L = {}
 -- Changes whenever anything placed changes; a deck built by another is brought up to date.
-L.rev = 256031603
+L.rev = 132497277
 L.W, L.H = 20, 25
 L.pitch = 32
 L.deckFloor = "trek_adirondack_01_25"
@@ -1206,6 +1206,8 @@ L.decks = {
       { 14, 9, "trek_adirondack_02_80", "c", "stasis_unit", "E" },
       { 18, 10, "trek_adirondack_02_133", "c", "cargo_crate", "S" },
       { 18, 3, "trek_adirondack_02_193", "c", "galley_range", "W" },
+      { 18, 5, "trek_adirondack_02_203", "c", "galley_cupboard", "W" },
+      { 18, 6, "trek_adirondack_02_204", "c", "galley_cupboard", "W" },
       { 4, 11, "trek_adirondack_02_8", "f", "bed_double", "S" },
       { 4, 12, "trek_adirondack_02_9", "f", "bed_double", "S" },
       { 5, 11, "trek_adirondack_02_10", "f", "bed_double", "S" },

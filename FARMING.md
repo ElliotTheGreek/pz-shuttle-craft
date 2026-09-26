@@ -337,6 +337,21 @@ The crops are sown and grown with vanilla's own `seed()` and `growPlant()`, so
 they are plants like any other. A tray a player has already sown is left
 alone.
 
+**Harvest.**
+- **Annuals** (plomeek, leola root, Andorian tuber, hasperat): the tray is
+  cleared and primed the moment the harvest is taken, ready to sow again.
+- **Bushes** (tea, bergamot, coffee): they stay and grow back from a middle
+  stage.
+- A harvested or trampled stub is drawn as the tray's bare soil.
+
+**The galley:**
+- **The sink** is a real sink: `waterPiped`, with the ship's water store
+  behind it.
+- **The cupboard** (`galley_cupboard`, beside the range) holds everything
+  the recipes need that isn't grown: pots, a saucepan, a pan, a roasting pan,
+  a baking tray, a kettle, bowls, mugs, a knife, a mortar and pestle,
+  utensils, an oven mitt and tortillas.
+
 **The bay runs itself.** Every hour the ship does all of this to each plant
 aboard her:
 - waters it full;

@@ -103,6 +103,16 @@ for crop, _, _ in crop_rows:
         if not row or len(re.findall(r'"', row.group(1))) != 16:
             fail("%s's %s table is not eight sprites long" % (crop, table))
 
+# --- sinks are sinks: vanilla offers fill and wash only at waterPiped ---------------------
+defs = PACK.read_tiledefs(PACK.TILES)
+index02 = json.load(open(os.path.join(ROOT, "design", "tiles", "trek_adirondack_02.json")))
+for piece in ("galley_sink", "wash_basin"):
+    for squares in index02[piece]["facings"].values():
+        for _, _, i in squares:
+            props = defs["trek_adirondack_02"]["tiles"][i]
+            if "waterPiped" not in props:
+                fail("%s (trek_adirondack_02_%d) is not a sink: no waterPiped" % (piece, i))
+
 if failures:
     print("%d PROBLEM(S):" % len(failures))
     for f in failures:

@@ -192,6 +192,9 @@ A.Stock = {
     seed_locker     = { items = "seeds", copies = 5 },
     potting_bench   = { items = "garden", copies = 1 },
     worm_tank       = { items = "worms", copies = 3 },
+    -- The galley's cookware (FARMING.md 3): everything the from-scratch
+    -- recipes need that is not grown.
+    galley_cupboard = { items = "cookware", copies = 1 },
 }
 
 --- The item lists A.Stock names. A function, because C is filled in order
@@ -212,6 +215,14 @@ function A.stockItems(name)
                  "Base.Bowl", "Base.KitchenKnife" }
     end
     if name == "worms" then return { "TrekShuttle.TrekSerpentWorm" } end
+    if name == "cookware" then
+        return { "Base.Pot", "Base.Pot", "Base.Saucepan", "Base.Pan", "Base.RoastingPan",
+                 "Base.BakingTray", "Base.Kettle", "Base.Bowl", "Base.Bowl", "Base.Bowl",
+                 "Base.Bowl", "Base.Bowl", "Base.Bowl", "Base.Mugl", "Base.Mugl", "Base.Mugl",
+                 "Base.Mugl", "Base.KitchenKnife", "Base.MortarPestle", "Base.Spoon", "Base.Fork",
+                 "Base.Ladle", "Base.Spatula", "Base.OvenMitt", "Base.Tortilla", "Base.Tortilla",
+                 "Base.Tortilla", "Base.Tortilla" }
+    end
     return nil
 end
 

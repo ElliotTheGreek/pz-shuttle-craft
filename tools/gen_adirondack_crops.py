@@ -150,7 +150,7 @@ def main():
         entry = {"sprite": [add(t) for t in healthy]}
         for kind, (colour, amount, desat) in TINTS.items():
             entry[kind] = [add(tint(t, colour, amount, desat)) for t in healthy]
-        entry["trampled"] = list(entry["dead"])
+        entry["trampled"] = None     # the tray's soil, filled in below
         index[prop] = entry
         rows.append((prop, healthy))
         print("rendered", prop)
@@ -159,6 +159,11 @@ def main():
     # Vanilla's plowed-earth sprite is drawn at floor level, beside the tray
     # rather than in it; TREK_Farm swaps this in after it plows a tray.
     index["_soil"] = add(soil_tile())
+    # Harvested and trampled show the tray's bare soil: vanilla draws a
+    # harvested plant from its trampled table, and a tinted whole plant there
+    # read as a harvest that took nothing (second play-test).
+    for prop, _ in rows:
+        index[prop]["trampled"] = [index["_soil"]] * 8
 
     n_rows = (len(tiles) + 7) // 8
     sheet = Image.new("RGBA", (CW * 8, CH * n_rows), (0, 0, 0, 0))

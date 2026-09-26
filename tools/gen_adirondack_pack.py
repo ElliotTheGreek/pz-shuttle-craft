@@ -317,6 +317,13 @@ def sheet02_props(defs, index):
                 else:
                     base = dict(table)
                     base.pop("IsTable", None)
+                if use.get("water"):
+                    # What makes vanilla treat an object as a sink -- fill,
+                    # wash, drink (fixtures_sinks_01's own properties). The
+                    # water itself is the store the builder gives it
+                    # (TREK_AdirondackServer, addWaterStore).
+                    base.update({"waterPiped": "", "waterAmount": "20", "waterMaxAmount": "20",
+                                 "IsTableTop": "", "Material3": "Sink"})
                 if name == "transporter_pad":
                     # You arrive standing on it: a raised dais, not an obstacle.
                     for k in ("solidtrans", "solid", "BlocksPlacement"):
