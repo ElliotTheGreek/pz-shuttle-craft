@@ -60,8 +60,12 @@ PREVIEW_OFFSET = (0, 0)
 TITLE = "Star Trek: Starfleet Shuttlecraft (Build 42)"
 # The listing text lives in workshop/description.txt, one paragraph line per
 # line, so it can be edited without touching this script.
+# workshop/guide.txt is the long version, for a Steam guide linked from it.
 DESCRIPTION = (ROOT / "workshop" / "description.txt").read_text(
     encoding="utf-8").splitlines()
+
+# Steam refuses or truncates a Workshop description longer than this.
+DESCRIPTION_LIMIT = 8000
 
 
 def png_dimensions(path):
@@ -154,6 +158,11 @@ def validate(package):
     for field in ("version=", "title=", "description=", "tags=", "visibility="):
         if field not in text:
             raise SystemExit("workshop.txt is missing " + field)
+    length = len("\n".join(DESCRIPTION))
+    if length > DESCRIPTION_LIMIT:
+        raise SystemExit(f"workshop/description.txt is {length} characters; "
+                         f"Steam allows {DESCRIPTION_LIMIT}")
+    print("description", length, "of", DESCRIPTION_LIMIT, "characters")
     staged = published_id(text)
     if WORKSHOP_ID and staged != WORKSHOP_ID:
         raise SystemExit("workshop.txt does not carry id=" + WORKSHOP_ID +

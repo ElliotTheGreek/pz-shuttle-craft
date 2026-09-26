@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The outfit the Adirondack's crew are spawned in (TREK_Crew, K.Outfit):
+     empty. Every client dresses them from the TREK_Crew mod data. -->
+<outfitManager>
+	<m_MaleOutfits>
+		<m_Name>TrekCrewBase</m_Name>
+		<m_Guid>fcbff925-d6ad-54a8-8df8-d1623baf4620</m_Guid>
+		<m_Top>false</m_Top>
+		<m_Pants>false</m_Pants>
+		<m_AllowPantsHue>false</m_AllowPantsHue>
+		<m_AllowTopTint>false</m_AllowTopTint>
+		<m_AllowTShirtDecal>false</m_AllowTShirtDecal>
+	</m_MaleOutfits>
+	<m_FemaleOutfits>
+		<m_Name>TrekCrewBase</m_Name>
+		<m_Guid>ab41b3b9-af24-5fb4-a604-fbefbedff954</m_Guid>
+		<m_Top>false</m_Top>
+		<m_Pants>false</m_Pants>
+		<m_AllowPantsHue>false</m_AllowPantsHue>
+		<m_AllowTopTint>false</m_AllowTopTint>
+		<m_AllowTShirtDecal>false</m_AllowTShirtDecal>
+	</m_FemaleOutfits>
+</outfitManager>

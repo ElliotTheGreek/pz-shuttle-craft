@@ -30,6 +30,7 @@ require "TREK/TREK_Transport"
 require "TREK/TREK_Travel"
 require "TREK/TREK_Probes"
 require "TREK/TREK_Power"
+require "TREK/TREK_AdirondackClient"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -208,6 +209,9 @@ local function aboardMenu(context, player, worldobjects, test)
     if s.flying or s.landed then
         menu:addOption(getText("IGUI_TREK_ToCockpit"), worldobjects, M.onToCockpit, player)
     end
+    -- The U.S.S. Adirondack, by the shuttle's own transporter.
+    menu:addOption(getText("IGUI_TREK_BeamToAdirondack"), worldobjects,
+                   TREK.AdirondackClient.onBeamTo, player)
     menu:addOption(getText("IGUI_TREK_BookmarkHere"), worldobjects,
                    M.onBookmarkHere, player)
     menu:addOption(getText("IGUI_TREK_Sensors"), worldobjects, M.onSensors,
@@ -249,6 +253,11 @@ local function onPreFill(playerIndex, context, worldobjects, test)
 
     if U.isInteriorPlayer(player) then
         return aboardMenu(context, player, worldobjects, test)
+    end
+    -- Aboard the Adirondack her own menu replaces the ground one: there is
+    -- no calling the shuttle down onto a deck in the void.
+    if TREK.Adirondack.onShip(player) then
+        return TREK.AdirondackClient.menu(context, player, worldobjects, test)
     end
 
     local sq = clickedSquare(playerIndex, context, player)

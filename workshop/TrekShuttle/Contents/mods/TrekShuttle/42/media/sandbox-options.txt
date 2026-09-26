@@ -51,3 +51,8 @@ option TrekShuttle.PhaserCutting = {
     type = enum, numValues = 3, default = 1,
     page = TrekShuttle, translation = TrekShuttle.PhaserCutting, valueTranslation = TrekShuttle.PhaserCutting,
 }
+
+option TrekShuttle.HydroponicsWater = {
+    type = enum, numValues = 2, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.HydroponicsWater, valueTranslation = TrekShuttle.HydroponicsWater,
+}

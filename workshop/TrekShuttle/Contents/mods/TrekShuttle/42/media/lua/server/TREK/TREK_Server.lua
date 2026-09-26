@@ -34,6 +34,7 @@ require "TREK/TREK_Probes"
 require "TREK/TREK_EMH"
 require "TREK/TREK_Build"
 require "TREK/TREK_Energy"
+require "TREK/TREK_Adirondack"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -942,13 +943,31 @@ local MOVES = {
     hatchOut = { cost = 1 },
     -- The way home from a landing with no room; paid for when it was taken.
     recover  = { cost = 0 },
+    -- The U.S.S. Adirondack (TREK_Adirondack.lua). Out from the shuttle's
+    -- pad is the shuttle's transporter, and costs what a beam costs; back is
+    -- the Adirondack's, and costs the ship nothing. The lift is a walk.
+    -- `from` is where the player must be standing to ask.
+    toAdirondack   = { cost = 1, access = true, energy = "BeamCost", from = "shuttle" },
+    fromAdirondack = { cost = 1, from = "adirondack" },
+    turbolift      = { cost = 0, from = "adirondack" },
 }
+
+--- True when the player is where a move of this kind may start.
+local function movesFrom(player, where)
+    if not where then return true end
+    if where == "shuttle" then return U.isInteriorPlayer(player) end
+    return TREK.Adirondack ~= nil and TREK.Adirondack.onShip(player)
+end
 
 Net.onServer("move", function(player, args)
     local kind = args.kind
     local rule = MOVES[kind]
     if not rule or not alive(player) then return end
     if rule.access and not mayUse(player) then return end
+    if not movesFrom(player, rule.from) then
+        deny(player, "wrongPlace", { kind = kind })
+        return
+    end
     local s = U.state()
     -- The ramp only exists when she is on the ground. While she is flying the
     -- hatch is three levels up, and walking into it would be a walk into open
@@ -1014,7 +1033,8 @@ Net.onServer("move", function(player, args)
 
     -- Every kind that takes somebody apart and puts them back together:
     -- a descent is a beam to the landing site (TRAITS.md 3.4).
-    if TREK.TraitsServer and (kind == "beamUp" or kind == "beamDown" or kind == "descend") then
+    if TREK.TraitsServer and (kind == "beamUp" or kind == "beamDown" or kind == "descend"
+                              or kind == "toAdirondack" or kind == "fromAdirondack") then
         U.try("traits.beam", TREK.TraitsServer.onBeam, player, kind)
     end
 

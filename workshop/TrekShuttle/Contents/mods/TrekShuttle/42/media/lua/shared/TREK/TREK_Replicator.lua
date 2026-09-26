@@ -96,6 +96,10 @@ end
 --- copy of where the player is: a client is a request, never a fact.
 function R.inReach(x, y, z)
     if not x or not y then return false end
+    -- Any of the Adirondack's, which all run off her core.
+    if TREK.Adirondack and TREK.Adirondack.nearMachine("replicator", x, y, z, C.ReplicatorRange + 1) then
+        return true
+    end
     local ox, oy = R.spot()
     if not ox then return false end
     if not U.isAboard(x, y, z) then return false end

@@ -57,6 +57,13 @@ TREK.WarpCoreUI = W
 --- all three fixtures: no fixture's menu squares may contain another
 --- fixture's own square, or the transporter pad.
 function W.isCore(x, y, z)
+    if TREK.Adirondack and TREK.Adirondack.clickedMachine("warp_core", x, y, z, 1) then
+        return true
+    end
+    return W.isCabinCore(x, y, z)
+end
+
+function W.isCabinCore(x, y, z)
     if not x or not y then return false end
     if math.floor(z or 0) ~= C.CabinZ then return false end
     for _, spot in ipairs(C.CoreMenuSpots) do
@@ -81,14 +88,15 @@ end
 function W.fillMenu(playerNum, context, worldobjects, test)
     local player = U.player(playerNum)
     if not player then return end
-    if not U.isInteriorPlayer(player) then return end
+    if not U.isInteriorPlayer(player) and not TREK.Adirondack.onShip(player) then return end
     if not TREK.Ship.canUse(player) then return end
 
     local x, y, z = U.clickedSquare(playerNum, context, player)
     if not W.isCore(x, y, z) then return end
     if test then return ISWorldObjectContextMenu.setTest() end
 
-    local spares = P.crystals()
+    -- The shuttle's spares, or the Adirondack's: the core you are standing at.
+    local spares = P.crystals(P.poolOf(player))
     local carried = U.try("core.carried", function()
         local inv = player:getInventory()
         local list = inv and inv:getAllTypeRecurse(C.DilithiumType)

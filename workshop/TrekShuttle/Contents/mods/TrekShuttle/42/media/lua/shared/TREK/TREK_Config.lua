@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.8.0"
+C.Version   = "1.9.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -1570,7 +1570,9 @@ C.EnsignGivenNames = {
     F = { "Amara", "Ines", "Yuki", "Soraya", "Maren", "Priya", "Talia",
           "Nadia", "Esme", "Ruth" },
 }
-C.EnsignSurnames = { "Okafor", "Vance", "Tamura", "Reyes", "Lindqvist",
+-- Not Okafor: that is the Section 31 commander's name (COMMS.md), and an
+-- ensign sharing it reads as a clue that is not one.
+C.EnsignSurnames = { "Okonkwo", "Vance", "Tamura", "Reyes", "Lindqvist",
                      "Haddad", "Castellan", "Novak", "Achebe", "Moreau",
                      "Sato", "Brennan", "Kowalczyk", "Ferreira" }
 
@@ -1843,6 +1845,14 @@ C.Loot.food = {
 -- so this is the blade rack -- all four together, because a crew who keep a
 -- bat'leth keep the rest of the set and one alien weapon among the pistols
 -- read as a souvenir where four read as an armoury. There are no pistols now.
+-- The Adirondack's bar (TREK_Adirondack.lua, A.Stock): the drinks off the
+-- food list, and nothing to eat.
+C.Loot.drinks = {
+    "TrekShuttle.TrekRaktajinoMug", "TrekShuttle.TrekEarlGreyCup",
+    "TrekShuttle.TrekRomulanAle", "TrekShuttle.TrekBloodwine",
+    "TrekShuttle.TrekAndorianAle", "TrekShuttle.TrekBalsoTonic",
+}
+
 C.Loot.weapons = {
     "TrekShuttle.TrekBatleth", "TrekShuttle.TrekMekleth",
     "TrekShuttle.TrekLirpa", "TrekShuttle.TrekUshaanTor",

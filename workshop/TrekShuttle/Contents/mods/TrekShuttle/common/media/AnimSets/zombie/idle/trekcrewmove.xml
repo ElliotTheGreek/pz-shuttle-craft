@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A crew member walking along its own route (TREK_CrewClient, walk()): the
+     body stays in the idle state -- the engine's pathfinder is never asked,
+     because it does not know the Adirondack's walls -- and is moved square by
+     square, so the walk is played here. Two conditions, so it outranks the
+     standing idle while TrekMove is set. -->
+<animNode>
+	<m_Name>TrekCrewMove</m_Name>
+	<m_AnimName>Bob_Walk</m_AnimName>
+	<m_deferredBoneAxis>Y</m_deferredBoneAxis>
+	<m_SpeedScale>0.95</m_SpeedScale>
+	<m_BlendTime>0.25</m_BlendTime>
+	<m_Looped>true</m_Looped>
+	<m_Conditions>
+		<m_Name>TrekCrew</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>true</m_Value>
+	</m_Conditions>
+	<m_Conditions>
+		<m_Name>TrekMove</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>true</m_Value>
+	</m_Conditions>
+</animNode>

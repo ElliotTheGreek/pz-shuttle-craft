@@ -49,5 +49,9 @@
     "Sandbox_TrekShuttle.PhaserCutting_tooltip": "Held on a tree, a phaser fells it in a few seconds; held on a door, it burns the door out of its frame whatever is locking it. Trees and doors is the phaser as designed. Trees only keeps it as a woodsman's tool and leaves every lock to keys and crowbars. Off makes it a sidearm and nothing more. Safehouse doors a player does not belong to are refused either way.",
     "Sandbox_TrekShuttle.PhaserCutting_option1": "Trees and doors",
     "Sandbox_TrekShuttle.PhaserCutting_option2": "Trees only",
-    "Sandbox_TrekShuttle.PhaserCutting_option3": "Off"
+    "Sandbox_TrekShuttle.PhaserCutting_option3": "Off",
+    "Sandbox_TrekShuttle.HydroponicsWater": "Hydroponics tend themselves",
+    "Sandbox_TrekShuttle.HydroponicsWater_tooltip": "Crops in the Adirondack's hydroponic trays are watered and kept free of pests and disease by the ship: plant them and harvest them. Off, they need tending like any other crop. Crops planted in the ground are never tended.",
+    "Sandbox_TrekShuttle.HydroponicsWater_option1": "Yes",
+    "Sandbox_TrekShuttle.HydroponicsWater_option2": "No"
 }
