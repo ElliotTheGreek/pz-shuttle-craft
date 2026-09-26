@@ -293,6 +293,27 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
   - Aboard her, the right-click menu has *Beam back to the shuttle*, and the
     *Turbolift* inside a lift car.
 - **Kept on the deck**: a step over a wall is put back, the same way the cabin does it.
+- **Doors** go in with `AddSpecialObject` + `transmitCompleteItemToClients`,
+  because a closed door only blocks from the square's special-objects list.
+  The server opens a door for anyone within about 1.7 squares of it and
+  closes it once nobody is near, both through `ToggleDoor`. The tile's
+  `DoorSound = TrekDoor` makes the engine play `TrekDoorOpen`/`Close` on
+  every client (the sounds come from tools/gen_door_sound.py).
+- **Seats and beds** have entries in `common/media/seating.txt`, which is
+  written by gen_adirondack_pack.py from the vanilla tile each piece stands
+  in for. Build 42 reads seat positions from that file, never from tile
+  properties, and only from a mod's `common/media` folder.
+- **Her machines**: the replicators, warp core and EMH station are found by
+  piece name (`A.machines`), so the existing menus and server checks answer
+  for them.
+- **Her power**: her own store, `s.adk`, starts with 50 crystals. A command
+  from a player standing aboard her runs against it (`TREK_Net`, which
+  wraps the handler in `Power.using("adk", ...)`), so nothing she does bills
+  the shuttle.
+- **Stock and water**: containers are stocked by piece (`A.Stock`), and sinks
+  get a water store that is topped up every game minute. An older deck is
+  repaired in place (`AS.FIT`) without touching anything a player has put in
+  a locker.
 - **Tile properties** are copied from vanilla tiles that do the same job
   (gen_adirondack_pack.py's docstring), never `lightswitch` or `CustomItem`.
 
@@ -300,12 +321,12 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
 
 1. **First play-test**: do the pack and tiledef load, do the doors open, do
    the walls block, is the lighting enough.
-2. **Sliding doors** that open as you walk up, with the sound.
-3. **Crew.** Starfleet NPCs are dressed, calmed zombies spawned by the server
+2. **Crew.** Starfleet NPCs are dressed, calmed zombies spawned by the server
    with `addZombiesInOutfit` -- no debug or admin gate (checked in the
    bytecode), a vanilla call site in the tutorial, and the whole of the
    Bandits mod built on it. `ENSIGN.md` section 3 says otherwise and is wrong
    on this point. Our own small crew system or a dependency on Bandits is the
    open decision.
+3. Posters, original art only: no real actors' likenesses.
 4. Art: the plant, the transporter pad, the plaque's IP check, the tan
    viewports and door frames, a two-storey warp core.

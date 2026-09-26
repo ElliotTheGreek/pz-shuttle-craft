@@ -106,7 +106,15 @@ Events.OnClientCommand.Add(function(module, cmd, player, args)
         U.warnOnce("unknownCommand:" .. tostring(cmd), "unknown command " .. tostring(cmd))
         return
     end
-    U.try("command:" .. tostring(cmd), handler, player, args or {})
+    -- A player standing aboard the Adirondack is served by her warp core,
+    -- not the shuttle's (TREK_Power, "Two ships, two stores"), for the
+    -- length of this one command.
+    local pool = TREK.Power and TREK.Power.poolOf and TREK.Power.poolOf(player)
+    if pool == "adk" then
+        U.try("command:" .. tostring(cmd), TREK.Power.using, "adk", handler, player, args or {})
+    else
+        U.try("command:" .. tostring(cmd), handler, player, args or {})
+    end
 end)
 
 Events.OnServerCommand.Add(function(module, cmd, args)

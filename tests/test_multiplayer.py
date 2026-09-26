@@ -191,6 +191,19 @@ APPLY = r"""
             end
             if d.fluid then o.fluid = { capacity = d.fluid.capacity, amount = d.fluid.amount } end
             table.insert(sq.objects, o)
+            if d.special then
+                o.north, o.closedSprite, o.open = d.north, d.sprite, false
+                sq.special = sq.special or {}
+                table.insert(sq.special, o)
+            end
+        elseif op == "door" then
+            for _, o in ipairs(sq.special or {}) do
+                if o.closedSprite == d.sprite then
+                    o.open = d.open
+                    local base, n = d.sprite:match("^(.*)_(%d+)$")
+                    o.spriteName = d.open and (base .. "_" .. (tonumber(n) + 2)) or d.sprite
+                end
+            end
         elseif op == "floor" then
             local f = SIM.object(d.sprite)
             f.isFloor, f.square = true, sq
@@ -11565,8 +11578,12 @@ def adk_deck(rt, k):
             if sq:getFloor() then floors = floors + 1 end
             for _, o in ipairs(sq.objects) do
                 if o.modData.TREK == "adk" then placed = placed + 1 end
-                if o.class == "IsoDoor" then doors = doors + 1 end
                 if o.container then containers = containers + 1 end
+            end
+            -- A door counts only where the engine looks for one: a door
+            -- outside the special-objects list is one you walk through.
+            for _, o in ipairs(sq.special or {{}}) do
+                if o.class == "IsoDoor" then doors = doors + 1 end
             end
         end end
         local wantDoors, wantC = 0, 0
@@ -11598,6 +11615,231 @@ def adk_check_deck(rt, k, label):
     check(doors == want_d, f"{label}: deck {k} has {doors} working doors, the layout {want_d}")
     check(containers == want_c, f"{label}: deck {k} has {containers} containers, the layout {want_c}")
     check(floors == want_f, f"{label}: deck {k} has {floors} floors, the layout {want_f}")
+
+
+def adk_goto(rt, k, lx, ly):
+    """Stands the (single-player) player on deck k at lx, ly."""
+    rt.run(f"""(function()
+        local x, y = TREK.Adirondack.at({k}, {lx}, {ly})
+        local p = SIM.players[1]
+        p.x, p.y, p.z, p.lastZ = x + 0.5, y + 0.5, TREK.Adirondack.Z, TREK.Adirondack.Z
+    end)()""")
+
+
+def adk_visit(net, rt, k):
+    """Walks the player to deck k's lift car and waits for the deck to be there."""
+    lx, ly, _ = rt.eval(f"TREK.Adirondack.liftSpot({k})")
+    rt.run(f"SIM.players[1].x, SIM.players[1].y = {lx} + 0.5, {ly} + 0.5")
+    net.pump(150)
+    check(rt.eval("TREK.AdirondackClient.busy()") is False and adk_where(rt) == k,
+          f"adirondack: never settled on deck {k}")
+
+
+def adk_beside(rt, k, x, y):
+    """Stands the player on the nearest square inside her walls beside x, y."""
+    lx, ly = rt.eval(f"""(function()
+        local A = TREK.Adirondack
+        for r = 1, 3 do
+            for dx = -r, r do for dy = -r, r do
+                if A.inside({k}, {x} + dx, {y} + dy) then return {x} + dx, {y} + dy end
+            end end
+        end
+    end)()""")
+    adk_goto(rt, k, int(lx), int(ly))
+
+
+def adk_piece(rt, piece):
+    """(deck, x, y) of the first square of a piece, from the layout."""
+    k, x, y = rt.eval(f"""(function()
+        for k, d in ipairs(TREK.Adirondack.Layout.decks) do
+            for _, o in ipairs(d.objects) do
+                if o[5] == "{piece}" then return k, o[1], o[2] end
+            end
+        end
+    end)()""")
+    return int(k), int(x), int(y)
+
+
+def adk_items(rt, piece):
+    """Every item in every container of a piece aboard her, as full types."""
+    got = rt.eval(f"""(function()
+        local A, out = TREK.Adirondack, {{}}
+        for k, d in ipairs(A.Layout.decks) do
+            for _, o in ipairs(d.objects) do
+                if o[5] == "{piece}" then
+                    local x, y = A.at(k, o[1], o[2])
+                    for _, obj in ipairs(SIM.rawSquare(x, y, A.Z).objects) do
+                        if obj.container then
+                            for _, it in ipairs(obj.container.items) do
+                                table.insert(out, it.fullType)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return table.concat(out, ";")
+    end)()""")
+    return [x for x in str(got or "").split(";") if x]
+
+
+def adk_machines(net, rt, P):
+    """Her replicators, core and Doctor: interactable, and on her own power."""
+    # Her store, before anybody has used it: a full core, fifty crystals.
+    check(int(rt.eval("TREK.Power.crystals('adk')")) == 50,
+          f"adirondack: she sails with {rt.eval('TREK.Power.crystals(\'adk\')')} crystals, not 50")
+    shuttle_before = float(rt.eval("TREK.Power.reserve('shuttle')"))
+    shuttle_crystals = int(rt.eval("TREK.Power.crystals('shuttle')"))
+
+    # The replicator: its menu, and a ration made on her power.
+    k, x, y = adk_piece(rt, "replicator")
+    adk_visit(net, rt, k)
+    adk_beside(rt, k, x, y)
+    check(rt.eval(f"TREK.Replicator.inReachOf({P})") is True,
+          "adirondack: standing at her replicator is not standing at a replicator")
+    held = carrying(rt, "TrekShuttle.TrekRationPack")
+    before = float(rt.eval("TREK.Power.reserve('adk')"))
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'TrekShuttle.TrekRationPack', count = 1 }})")
+    net.pump(4)
+    check(carrying(rt, "TrekShuttle.TrekRationPack") == held + 1,
+          "adirondack: her replicator made nothing")
+    check(float(rt.eval("TREK.Power.reserve('adk')")) < before,
+          "adirondack: the ration cost her core nothing")
+    check(float(rt.eval("TREK.Power.reserve('shuttle')")) == shuttle_before
+          and int(rt.eval("TREK.Power.crystals('shuttle')")) == shuttle_crystals,
+          "adirondack: her replicator billed the shuttle")
+
+    # The warp core: in reach where it stands, and the menu there.
+    k, x, y = adk_piece(rt, "warp_core")
+    adk_visit(net, rt, k)
+    adk_beside(rt, k, x, y)
+    check(rt.eval(f"TREK.Power.inReachOf({P})") is True,
+          "adirondack: standing at her warp core is not standing at a core")
+    check(rt.eval(f"TREK.WarpCoreUI.isCore(TREK.Adirondack.at({k}, {x}, {y}))") is not None,
+          "adirondack: a right-click on her core is not a click on a core")
+
+    # The Doctor: always projecting at her station, nothing to summon.
+    k, x, y = adk_piece(rt, "emh_station")
+    adk_visit(net, rt, k)
+    adk_beside(rt, k, x, y)
+    check(rt.eval(f"TREK.EMH.inReachOf({P})") is True,
+          "adirondack: standing at her EMH station is out of his reach")
+    check(rt.eval(f"TREK.EMH.isUp({P})") is True, "adirondack: her Doctor needs summoning")
+    check(rt.eval(f"TREK.EMH.refusal({P})") is None,
+          f"adirondack: the Doctor refuses at her station: {rt.eval(f'TREK.EMH.refusal({P})')}")
+
+
+def adk_fittings(net, rt, P, pdeck):
+    """Stocked lockers, running water, and doors that open as you come."""
+    med = adk_items(rt, "medical_cabinet") + adk_items(rt, "medical_cart")
+    check(any(i in med for i in ("TrekShuttle.TrekHypospray", "TrekShuttle.TrekDermalRegen",
+                                 "TrekShuttle.TrekMedTricorder")),
+          f"adirondack: sickbay's cabinets hold {med}")
+    strays = [i for i in med if i not in [str(x) for x in rt.eval("TREK.Config.Loot.medical").values()]]
+    check(not strays, f"adirondack: sickbay stocked with {strays}")
+
+    # Every deck, then what is in her lockers and her sinks.
+    for k in range(1, 5):
+        adk_visit(net, rt, k)
+    adk_visit(net, rt, pdeck)
+    for piece, want in (("stasis_unit", "food"), ("bottle_shelf", "drinks"),
+                        ("display_shelf", "weapons")):
+        got = adk_items(rt, piece)
+        allowed = [str(x) for x in rt.eval(f"TREK.Config.Loot.{want}").values()]
+        check(got and all(i in allowed for i in got),
+              f"adirondack: the {piece} holds {got}, not {want}")
+    check(any("Uniform" in i for i in adk_items(rt, "wardrobe")),
+          "adirondack: no uniforms in the quarters' wardrobes")
+    check("TrekShuttle.TrekPADD" in adk_items(rt, "desk"), "adirondack: no PADD on a desk")
+    wet = rt.eval("""(function()
+        local A, n, dry = TREK.Adirondack, 0, 0
+        for k, d in ipairs(A.Layout.decks) do
+            for _, o in ipairs(d.objects) do
+                if o[5] and A.Water[o[5]] then
+                    local x, y = A.at(k, o[1], o[2])
+                    for _, obj in ipairs(SIM.rawSquare(x, y, A.Z).objects) do
+                        if obj.spriteName == o[3] then
+                            if obj.fluid and obj.fluid.amount > 0 then n = n + 1 else dry = dry + 1 end
+                        end
+                    end
+                end
+            end
+        end
+        return n, dry
+    end)()""")
+    check(int(wet[0]) > 0 and int(wet[1]) == 0,
+          f"adirondack: {wet[0]} sinks with water, {wet[1]} without")
+
+    # A door on the arrival deck: shut, it blocks; walk up and it opens; walk
+    # away and it shuts again.
+    # From the pad, the door furthest from it -- one nobody is near.
+    px, py, _, _ = rt.eval("TREK.Adirondack.padSpot()")
+    rt.run(f"SIM.players[1].x, SIM.players[1].y = {px} + 0.5, {py} + 0.5")
+    rt.run("for _ = 1, 200 do SIM.fire('OnTick', 0) end")
+    dx, dy, north = rt.eval(f"""(function()
+        local L, best, bd = TREK.Adirondack.Layout, nil, -1
+        for _, o in ipairs(L.decks[{pdeck}].objects) do
+            if o[4] == "dW" or o[4] == "dN" then
+                local d = (o[1] - L.pad.x) ^ 2 + (o[2] - L.pad.y) ^ 2
+                if d > bd then best, bd = o, d end
+            end
+        end
+        return best[1], best[2], best[4] == "dN"
+    end)()""")
+    dx, dy = int(dx), int(dy)
+    wx, wy = rt.eval(f"TREK.Adirondack.at({pdeck}, {dx}, {dy})")
+    check(rt.eval(f"SIM.doorBlocks({wx}, {wy}, TREK.Adirondack.Z)") is True,
+          "adirondack: a closed door is not in the way")
+    adk_goto(rt, pdeck, dx, dy)
+    for _ in range(3):
+        rt.fire("OnTick", 0)
+        rt.run("for _ = 1, 9 do SIM.fire('OnTick', 0) end")
+    check(rt.eval(f"SIM.doorBlocks({wx}, {wy}, TREK.Adirondack.Z)") is False,
+          "adirondack: the door did not open for somebody standing in it")
+    px, py, _, _ = rt.eval("TREK.Adirondack.padSpot()")
+    rt.run(f"SIM.players[1].x, SIM.players[1].y = {px} + 0.5, {py} + 0.5")
+    rt.run("for _ = 1, 200 do SIM.fire('OnTick', 0) end")
+    check(rt.eval(f"SIM.doorBlocks({wx}, {wy}, TREK.Adirondack.Z)") is True,
+          "adirondack: the door stayed open after everybody walked away")
+
+
+def adk_refit(net, rt, k):
+    """A deck built by the first release -- doors outside the special list,
+    lockers built empty -- is put right on the next visit, and nothing a
+    player has put in a locker is touched."""
+    rt.run(f"""(function()
+        local A = TREK.Adirondack
+        local done = {{}}
+        for _, o in ipairs(A.Layout.decks[{k}].objects) do
+            local x, y = A.at({k}, o[1], o[2])
+            local sq = SIM.rawSquare(x, y, A.Z)
+            if (o[4] == "dW" or o[4] == "dN") and not done.door then
+                sq.special = {{}}
+                done.door = true
+            elseif o[5] == "medical_cabinet" and not done.med then
+                for _, obj in ipairs(sq.objects) do
+                    if obj.container then obj.container.items = {{}}; obj.modData.TREKStock = nil end
+                end
+                done.med = true
+            elseif o[5] == "medical_cart" and not done.mine then
+                for _, obj in ipairs(sq.objects) do
+                    if obj.container then
+                        obj.container.items = {{ instanceItem("Base.Hammer") }}
+                        obj.modData.TREKStock = nil
+                    end
+                end
+                done.mine = true
+            end
+        end
+        TREK.AdirondackServer.state().fit[{k}] = 1
+    end)()""")
+    rt.run(f"TREK.AdirondackServer.buildDeck({k})")
+    adk_check_deck(rt, k, "adirondack (refit)")
+    check("Base.Hammer" in adk_items(rt, "medical_cart"),
+          "adirondack: the refit threw out what a player had put in a locker")
+    med = adk_items(rt, "medical_cabinet")
+    check(any(i.startswith("TrekShuttle.") for i in med),
+          f"adirondack: the refit left an empty cabinet empty: {med}")
 
 
 def adirondack():
@@ -11633,6 +11875,12 @@ def adirondack():
     check(rt.eval("TREK.Util.isInteriorPlayer(SIM.players[1])") is False,
           "adirondack: the Adirondack counts as the shuttle's cabin")
     adk_check_deck(rt, int(pdeck), "adirondack")
+    adk_fittings(net, rt, P, int(pdeck))
+    adk_refit(net, rt, int(pdeck))
+    adk_machines(net, rt, P)
+    px, py, _, _ = rt.eval("TREK.Adirondack.padSpot()")
+    rt.run(f"SIM.players[1].x, SIM.players[1].y = {px} + 0.5, {py} + 0.5")
+    net.pump(2)
 
     labels = adk_menu(rt)
     check("IGUI_TREK_BeamToShuttle" in labels and "IGUI_TREK_CallDown" not in labels,

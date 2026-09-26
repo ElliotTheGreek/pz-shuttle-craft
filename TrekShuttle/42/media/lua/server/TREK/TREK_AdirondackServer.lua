@@ -4,13 +4,28 @@
     somebody is standing there, because nothing may be built into a chunk that
     is not loaded, and a deck is built whole and at once when it is.
 
-    Every object is finished first and then sent with transmitAddObjectToSquare,
-    so every client gets the same object, containers and all. Everything placed
-    is tagged `adk` in its mod data. That tag is what a clearing pass leaves
-    alone and what an update after a layout change looks at: an object tagged
-    `adk` standing where the layout no longer puts it is taken away -- unless
-    it is a container with something in it, which is left where it is. What a
-    player keeps in a locker is never ours to throw out.
+    Every object is finished first -- a locker stocked, a sink given its
+    water -- and then sent, so every client gets the same object with what is
+    in it. Everything placed is tagged `adk` in its mod data. That tag is what
+    a clearing pass leaves alone and what an update after a layout change looks
+    at: an object tagged `adk` standing where the layout no longer puts it is
+    taken away -- unless it is a container with something in it, which is left
+    where it is. What a player keeps in a locker is never ours to throw out.
+
+    **Doors are special objects.** A closed IsoDoor blocks only from the
+    square's special-objects list (IsoGridSquare.testCollideSpecialObjects ->
+    IsoDoor.TestCollide), and transmitAddObjectToSquare never puts anything
+    there -- AddTileObject does not. So a door goes in with AddSpecialObject
+    and is sent with transmitCompleteItemToClients, which carries the
+    "special" flag so every client registers it too. Vanilla's own doors do
+    exactly this (ISWoodenDoor.lua:20,27). The first build sent doors the
+    other way, and you could walk straight through them.
+
+    **And they open for you.** A closed door with a player within reach of
+    it opens; an open one with nobody near and nothing in the doorway closes.
+    Through ToggleDoor, the engine's own path: it swaps the sprite, recalcs
+    the squares, syncs every client and plays the tile's DoorSound -- the
+    shoosh, TrekDoorOpen / TrekDoorClose.
 
     A deck is current when `decks[k] == L.rev`. The state is server mod data,
     never transmitted: a client learns a deck is ready from `adkReady`, and
@@ -25,6 +40,7 @@ require "TREK/TREK_Net"
 require "TREK/TREK_Adirondack"
 
 TREK = TREK or {}
+local C = TREK.Config
 local U = TREK.Util
 local Net = TREK.Net
 local A = TREK.Adirondack
@@ -34,15 +50,21 @@ local AS = {}
 TREK.AdirondackServer = AS
 
 local TAG = "adk"
+-- Bumped when what an existing object needs changes (doors registered,
+-- containers stocked, sinks with water): a deck built by an older one is
+-- repaired in place on the next visit, without anything being rebuilt.
+AS.FIT = 2
 
 function AS.state()
     local s = ModData.getOrCreate(A.StateKey)
     s.decks = s.decks or {}
+    s.fit = s.fit or {}
     return s
 end
 
 function AS.deckCurrent(k)
-    return AS.state().decks[k] == L.rev
+    local s = AS.state()
+    return s.decks[k] == L.rev and s.fit[k] == AS.FIT
 end
 
 ---------------------------------------------------------------------------
@@ -73,31 +95,77 @@ local function removeSynced(sq, obj)
     end) == true
 end
 
-local function hasSprite(sq, sprite)
-    return U.findSprite(sq, sprite) ~= nil
-end
-
 local function holdsAnything(o)
-    local c = U.containerOf(o)
-    if not c then return false end
-    return (U.try("items", function() return c:getItems():size() end) or 0) > 0
+    return (U.itemCount(o) or 0) > 0
 end
 
---- Makes one layout object: a door is an IsoDoor (it opens), a container has
---- its inventory made from the sprite before it is sent, and the rest are
---- plain objects whose sprite properties do the work -- walls block, tables
---- are tables, beds are beds.
-local function make(sq, sprite, kind)
-    local obj
-    if kind == "dW" or kind == "dN" then
-        obj = U.try("IsoDoor.new", function()
+local function isDoorKind(kind) return kind == "dW" or kind == "dN" end
+
+local function isSpecial(sq, obj)
+    return U.try("specialObjects", function()
+        return sq:getSpecialObjects():contains(obj)
+    end) == true
+end
+
+--- A water store of its own, full: vanilla's addWaterContainer, as the
+--- cabin's galley sink has (TREK_Build, addWaterStore).
+local function addWaterStore(obj)
+    local f = ComponentType.FluidContainer:CreateComponent()
+    f:setCapacity(C.WaterCapacity)
+    f:addFluid(FluidType.Water, C.WaterCapacity)
+    GameEntityFactory.AddComponent(obj, true, f)
+end
+
+local function waterCapacity(obj)
+    return U.try("fluidCapacity", function() return obj:getFluidCapacity() end) or 0
+end
+
+--- What a container is stocked with, by the piece it is part of (A.Stock).
+--- Returns the number of items put in.
+local function stock(obj, piece)
+    local rule = piece and A.Stock[piece]
+    if not rule then return 0 end
+    local added = 0
+    if rule.loot then
+        local list = C.Loot[rule.loot]
+        if list then
+            added = added + (U.fill(obj, list) or 0)
+        else
+            U.warnOnce("adk.loot:" .. rule.loot, "no C.Loot list named " .. rule.loot)
+        end
+    end
+    if rule.items then
+        local items = A.stockItems(rule.items)
+        if items then
+            local present = U.stockEach(obj, items, rule.copies or 1)
+            for _, n in pairs(present or {}) do added = added + n end
+        end
+    end
+    return added
+end
+
+--- Makes one layout object and sends it, finished. `o` is the layout entry:
+--- { x, y, sprite, kind, piece }.
+local function make(sq, o)
+    local sprite, kind, piece = o[3], o[4], o[5]
+    if isDoorKind(kind) then
+        local door = U.try("IsoDoor.new", function()
+            -- The String constructor: it starts closed and is never locked at
+            -- random (the IsoSprite one rolls against the locked-houses option).
             return IsoDoor.new(getCell(), sq, sprite, kind == "dN")
         end)
-    else
-        obj = U.try("IsoObject.new", function()
-            return IsoObject.new(sq, sprite, "")
-        end)
+        if not door then return false end
+        U.try("tag", function() door:getModData().TREK = TAG end)
+        return U.try("AddSpecialObject", function()
+            sq:AddSpecialObject(door)
+            if isServer() then door:transmitCompleteItemToClients() end
+            return true
+        end) == true
     end
+
+    local obj = U.try("IsoObject.new", function()
+        return IsoObject.new(sq, sprite, "")
+    end)
     if not obj then return false end
     U.try("tag", function() obj:getModData().TREK = TAG end)
     if kind == "c" then
@@ -107,8 +175,33 @@ local function make(sq, sprite, kind)
             -- Explored, or vanilla rolls its own loot into it on first look.
             if c then c:setExplored(true) end
         end)
+        if A.Stock[piece] then
+            U.try("stock:" .. tostring(piece), stock, obj, piece)
+            U.try("stocked", function() obj:getModData().TREKStock = true end)
+        end
+    end
+    if piece and A.Water[piece] then
+        U.try("water:" .. piece, addWaterStore, obj)
     end
     return addSynced(sq, obj)
+end
+
+--- True when an object already standing is not what the layout needs any
+--- more and has nothing in it to lose: a door the engine does not collide
+--- with, a locker that was never stocked, a sink with no water.
+local function needsRefit(sq, obj, o)
+    local kind, piece = o[4], o[5]
+    if isDoorKind(kind) then
+        return not isSpecial(sq, obj) or not instanceof(obj, "IsoDoor")
+    end
+    if kind == "c" and A.Stock[piece] then
+        local md = U.try("md", function() return obj:getModData() end) or {}
+        return md.TREKStock ~= true and not holdsAnything(obj)
+    end
+    if piece and A.Water[piece] then
+        return waterCapacity(obj) <= 0
+    end
+    return false
 end
 
 ---------------------------------------------------------------------------
@@ -125,13 +218,13 @@ function AS.deckLoaded(k)
     return true
 end
 
---- What the layout puts on each square of a deck: key "x,y" -> { sprite -> kind }.
+--- What the layout puts on each square of a deck: key "x,y" -> { sprite -> entry }.
 local function wanted(deck)
     local out = {}
     for _, o in ipairs(deck.objects) do
         local key = o[1] .. "," .. o[2]
         out[key] = out[key] or {}
-        out[key][o[3]] = o[4]
+        out[key][o[3]] = o
     end
     return out
 end
@@ -141,10 +234,8 @@ function AS.buildDeck(k)
     local deck = L.decks[k]
     if not deck or not AS.deckLoaded(k) then return false end
     local want = wanted(deck)
-    local floorAt = {}
-    for _, f in ipairs(deck.floors) do floorAt[f[1] .. "," .. f[2]] = f[3] end
 
-    local cleared, removed, made = 0, 0, 0
+    local cleared, removed, made, refitted = 0, 0, 0, 0
     -- The engine grows wilderness in unmapped cells when a server was not
     -- given the void map; strip the footprint and a margin, on the deck's own
     -- level and on the ground below it, keeping anything tagged and anything
@@ -155,16 +246,19 @@ function AS.buildDeck(k)
             cleared = cleared + U.clearSquare(U.square(x, y, 0, false), true)
             local sq = U.square(x, y, A.Z, false)
             if sq then
-                local key = lx .. "," .. ly
-                local here = want[key] or {}
+                local here = want[lx .. "," .. ly] or {}
                 local doomed = {}
                 U.eachObject(sq, function(o)
                     if instanceof(o, "IsoWorldInventoryObject") then return end
                     if o == sq:getFloor() then return end
                     local tag = tagOf(o)
                     if tag == TAG then
-                        if not here[spriteOf(o)] and not holdsAnything(o) then
+                        local entry = here[spriteOf(o)]
+                        if not entry then
+                            if not holdsAnything(o) then table.insert(doomed, o) end
+                        elseif needsRefit(sq, o, entry) then
                             table.insert(doomed, o)
+                            refitted = refitted + 1
                         end
                     elseif not tag then
                         table.insert(doomed, o)
@@ -177,27 +271,173 @@ function AS.buildDeck(k)
         end
     end
 
-    for key, sprite in pairs(floorAt) do
-        local lx, ly = key:match("(-?%d+),(-?%d+)")
-        local x, y = A.at(k, tonumber(lx), tonumber(ly))
+    for _, f in ipairs(deck.floors) do
+        local x, y = A.at(k, f[1], f[2])
         local sq = U.square(x, y, A.Z, true)
         if sq and not sq:getFloor() then
-            U.try("addFloor", function() sq:addFloor(sprite) end)
+            U.try("addFloor", function() sq:addFloor(f[3]) end)
         end
     end
 
+    U.resetStockCursors()
     for _, o in ipairs(deck.objects) do
         local x, y = A.at(k, o[1], o[2])
         local sq = U.square(x, y, A.Z, true)
-        if sq and not hasSprite(sq, o[3]) then
-            if make(sq, o[3], o[4]) then made = made + 1 end
+        if sq and not U.findSprite(sq, o[3]) then
+            if make(sq, o) then made = made + 1 end
         end
     end
 
-    AS.state().decks[k] = L.rev
-    U.log("Adirondack %s built (rev %d): %d placed, %d taken away, %d cleared",
-          deck.name, L.rev, made, removed, cleared)
+    local s = AS.state()
+    s.decks[k], s.fit[k] = L.rev, AS.FIT
+    U.log("Adirondack %s built (rev %d): %d placed, %d refitted, %d taken away, %d cleared",
+          deck.name, L.rev, made, refitted, removed - refitted, cleared)
     return true
+end
+
+---------------------------------------------------------------------------
+-- Water
+---------------------------------------------------------------------------
+--- Tops up every sink on a built, loaded deck. Running water aboard a
+--- starship does not run out.
+function AS.refillWater()
+    local topped = 0
+    for k, deck in ipairs(L.decks) do
+        if AS.state().decks[k] then
+            for _, o in ipairs(deck.objects) do
+                if o[5] and A.Water[o[5]] then
+                    local x, y = A.at(k, o[1], o[2])
+                    if U.chunkLoaded(x, y, A.Z) then
+                        local obj = U.findSprite(U.square(x, y, A.Z, false), o[3])
+                        local cap = obj and waterCapacity(obj) or 0
+                        if cap > 0 then
+                            U.try("adk.topUp", function()
+                                local have = obj:getFluidAmount() or 0
+                                if have < cap then
+                                    obj:addFluid(FluidType.Water, cap - have)
+                                    topped = topped + 1
+                                end
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return topped
+end
+
+---------------------------------------------------------------------------
+-- Doors that open as you walk up
+---------------------------------------------------------------------------
+-- Squares from a door's own edge, measured from the middle of the doorway.
+local OPEN_REACH = 1.7
+local CLOSE_CLEAR = 2.3
+-- Ticks a door stays open at the least, so it never flutters.
+local HOLD_TICKS = 40
+
+local doorList = nil   -- { { k, x, y, north } }
+local openSince = {}   -- "k,x,y" -> tick opened
+
+local function doors()
+    if doorList then return doorList end
+    doorList = {}
+    for k, deck in ipairs(L.decks) do
+        for _, o in ipairs(deck.objects) do
+            if isDoorKind(o[4]) then
+                table.insert(doorList, { k, o[1], o[2], o[4] == "dN", o[3] })
+            end
+        end
+    end
+    return doorList
+end
+
+local function doorOn(sq, sprite)
+    local found = nil
+    U.try("adk.findDoor", function()
+        local list = sq:getSpecialObjects()
+        for i = 0, list:size() - 1 do
+            local o = list:get(i)
+            if instanceof(o, "IsoDoor") and tagOf(o) == TAG then found = o return end
+        end
+    end)
+    return found
+end
+
+local function nearest(players, cx, cy)
+    local best, bd = nil, nil
+    for _, p in ipairs(players) do
+        local d = U.dist2(p.x, p.y, cx, cy)
+        if not bd or d < bd then best, bd = p, d end
+    end
+    return best, bd and math.sqrt(bd) or nil
+end
+
+local function clearDoorway(door)
+    local busy = U.try("adk.doorway", function()
+        local n = door:getSquare():getMovingObjects():size()
+        local other = door:getOppositeSquare()
+        if other then n = n + other:getMovingObjects():size() end
+        return n
+    end)
+    return (busy or 0) == 0
+end
+
+local doorTick = 0
+function AS.serviceDoors()
+    doorTick = doorTick + 1
+    -- Who is aboard her, and where: once, for every door.
+    local aboard = {}
+    for _, p in ipairs(U.players()) do
+        local x = U.try("px", function() return p:getX() end)
+        local y = U.try("py", function() return p:getY() end)
+        local z = U.try("pz", function() return p:getZ() end)
+        local dead = U.try("dead", function() return p:isDead() end)
+        if x and dead == false then
+            local k = A.locate(x, y, z)
+            if k then
+                aboard[k] = aboard[k] or {}
+                table.insert(aboard[k], { p = p, x = x, y = y })
+            end
+        end
+    end
+    local any = false
+    for _ in pairs(aboard) do any = true break end
+    if not any then return 0 end
+
+    local moved = 0
+    for _, d in ipairs(doors()) do
+        local k, lx, ly, north = d[1], d[2], d[3], d[4]
+        local here = aboard[k]
+        if here then
+            local x, y = A.at(k, lx, ly)
+            -- The middle of the doorway: a W door is the west edge of its
+            -- square, an N door the north edge.
+            local cx, cy = x, y + 0.5
+            if north then cx, cy = x + 0.5, y end
+            local who, dist = nearest(here, cx, cy)
+            if dist then
+                local sq = U.square(x, y, A.Z, false)
+                local door = sq and doorOn(sq, d[5])
+                if door then
+                    local key = k .. "," .. lx .. "," .. ly
+                    local open = U.try("isOpen", function() return door:IsOpen() end) == true
+                    if not open and dist <= OPEN_REACH then
+                        U.try("adk.open", function() door:ToggleDoor(who.p) end)
+                        openSince[key] = doorTick
+                        moved = moved + 1
+                    elseif open and dist > CLOSE_CLEAR
+                           and doorTick - (openSince[key] or 0) >= HOLD_TICKS / 10
+                           and clearDoorway(door) then
+                        U.try("adk.close", function() door:ToggleDoor(who.p) end)
+                        openSince[key] = nil
+                        moved = moved + 1
+                    end
+                end
+            end
+        end
+    end
+    return moved
 end
 
 ---------------------------------------------------------------------------
@@ -245,6 +485,11 @@ Events.OnTick.Add(function()
     if tick < 10 then return end
     tick = 0
     U.try("adk.serviceWaiting", serviceWaiting)
+    U.try("adk.serviceDoors", AS.serviceDoors)
+end)
+
+Events.EveryOneMinute.Add(function()
+    U.try("adk.refillWater", AS.refillWater)
 end)
 
 return AS

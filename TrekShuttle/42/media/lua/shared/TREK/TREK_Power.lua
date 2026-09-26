@@ -226,14 +226,73 @@ end)
 -- the whole arrangement: the machine that removes the need to loot has a
 -- leash that can only be found out in the world.
 
+---------------------------------------------------------------------------
+-- Two ships, two stores
+---------------------------------------------------------------------------
+-- The shuttle's store is the ship state itself (`s.power`, `s.crystals`,
+-- `s.dark`), as it always was. The U.S.S. Adirondack has her own, `s.adk`,
+-- in the same state so it is published with it: her warp core serves all of
+-- her, every replicator and the Doctor's station, and she sails with
+-- A.StartCrystals in it.
+--
+-- Every function below takes an optional `pool` last: "shuttle" or "adk".
+-- Left out, it is P.current -- which the server sets for the length of a
+-- command from a player standing aboard her (TREK_Net) -- and failing that
+-- the shuttle. Nothing that runs on its own (the hover drain, the shields,
+-- the odometer) ever sets it, so nothing the shuttle does can bill her.
+P.current = nil
+
+function P.pool(pool)
+    return pool or P.current or "shuttle"
+end
+
+--- Which store serves a player where they are standing.
+function P.poolOf(player)
+    if player and TREK.Adirondack and TREK.Adirondack.onShip(player) then return "adk" end
+    return "shuttle"
+end
+
+--- Runs fn with P.current set, and puts it back however fn ends.
+function P.using(pool, fn, ...)
+    local was = P.current
+    P.current = pool
+    local ok, a, b, c = pcall(fn, ...)
+    P.current = was
+    if not ok then error(a, 0) end
+    return a, b, c
+end
+
+--- The table one store lives in.
+local function box(pool)
+    local s = U.state()
+    if P.pool(pool) ~= "adk" then return s end
+    if type(s.adk) ~= "table" then
+        -- A client that has not been sent hers yet reads an empty one: the
+        -- reserve full, no spares, and not dark.
+        if isClient() then return {} end
+        s.adk = { power = C.PowerMax,
+                  crystals = TREK.Adirondack and TREK.Adirondack.StartCrystals or 50 }
+    end
+    return s.adk
+end
+P.box = box
+
+--- Her dark flag, kept beside her numbers for clients to read. The
+--- shuttle's is published by TREK_Energy along with the notes that go with it.
+local function settle(pool)
+    if P.pool(pool) == "adk" and not isClient() then
+        box(pool).dark = P.computeDark(pool)
+    end
+end
+
 --- What is left of the crystal in the chamber, 0..C.PowerMax.
 ---
 --- A missing value reads as **full**, for the client's sake: a client's copy
 --- of the ship is whatever the server last sent, and before the first one
 --- arrives there is no number at all. Reading that as empty would grey the
 --- replicator's button on a machine that has simply not been told yet.
-function P.reserve()
-    local e = U.state().power
+function P.reserve(pool)
+    local e = box(pool).power
     if type(e) ~= "number" then return C.PowerMax end
     if e < 0 then return 0 end
     if e > C.PowerMax then return C.PowerMax end
@@ -287,29 +346,30 @@ end
 --- a missing value and deliberately so: a reserve that reads empty would grey
 --- a button on a client that has not been told yet, while spares that read
 --- full would offer a crystal the ship does not have.
-function P.crystals()
-    local n = U.state().crystals
+function P.crystals(pool)
+    local n = box(pool).crystals
     if type(n) ~= "number" or n < 0 then return 0 end
     return math.floor(n)
 end
 
 --- Puts crystals in. Authority only; the caller commits.
-function P.addCrystals(n)
+function P.addCrystals(n, pool)
     if isClient() then return false end
     n = math.floor(n or 0)
     if n <= 0 then return false end
-    local s = U.state()
-    s.crystals = P.crystals() + n
+    box(pool).crystals = P.crystals(pool) + n
+    settle(pool)
     return true
 end
 
 --- Takes one out, without burning it: the player is having it back.
 --- Authority only; the caller commits.
-function P.takeCrystal()
+function P.takeCrystal(pool)
     if isClient() then return false end
-    local have = P.crystals()
+    local have = P.crystals(pool)
     if have <= 0 then return false end
-    U.state().crystals = have - 1
+    box(pool).crystals = have - 1
+    settle(pool)
     return true
 end
 
@@ -320,12 +380,13 @@ end
 --- crystal: a fresh one replaces what was left rather than stacking on top of
 --- it. Anything still in the old one is lost, which is why the swap only
 --- happens when the reserve cannot cover what is being asked for.
-function P.burnCrystal()
+function P.burnCrystal(pool)
     if isClient() then return false end
-    if not P.takeCrystal() then return false end
-    U.state().power = C.PowerMax
-    U.log("power: a dilithium crystal is in the core -- reserve %d units, "
-          .. "%d spare(s) left", C.PowerMax, P.crystals())
+    if not P.takeCrystal(pool) then return false end
+    box(pool).power = C.PowerMax
+    settle(pool)
+    U.log("power: a dilithium crystal is in the %s core -- reserve %d units, "
+          .. "%d spare(s) left", P.pool(pool), C.PowerMax, P.crystals(pool))
     return true
 end
 
@@ -340,6 +401,10 @@ function P.inReachOf(player)
     local y = U.try("core.py", function() return player:getY() end)
     local z = U.try("core.pz", function() return player:getZ() end)
     if not x or not y then return false end
+    -- Her core serves all of her; standing at it is standing at the core.
+    if TREK.Adirondack and TREK.Adirondack.nearMachine("warp_core", x, y, z, C.CoreRange + 1) then
+        return true
+    end
     if not U.isAboard(x, y, z) then return false end
     local cx, cy = U.at(P.chamberSpot())
     return U.dist2(x, y, cx + 0.5, cy + 0.5) <= C.CoreRange * C.CoreRange
@@ -347,9 +412,9 @@ end
 
 --- True when the ship can pay `cost`, swapping in a crystal if it has to.
 --- Authority only: it may consume one.
-function P.afford(cost)
+function P.afford(cost, pool)
     cost = cost or 0
-    if cost <= P.reserve() then return true end
+    if cost <= P.reserve(pool) then return true end
     if isClient() then return false end
     -- Never burn a crystal for something a fresh one could not cover either.
     -- Nothing in the game costs that much today -- the dearest replication is
@@ -357,20 +422,21 @@ function P.afford(cost)
     -- numbers are both tunable, and the failure this prevents is eating a
     -- player's crystal and still refusing them.
     if cost > C.PowerMax then return false end
-    if not P.burnCrystal() then return false end
-    return cost <= P.reserve()
+    if not P.burnCrystal(pool) then return false end
+    return cost <= P.reserve(pool)
 end
 
 --- Spends from the reserve. The caller commits.
-function P.spend(n)
+function P.spend(n, pool)
     if isClient() then return false end
-    local s = U.state()
+    local s = box(pool)
     if type(n) ~= "number" or n ~= n or n <= 0 or n > C.PowerMax then
         return false
     end
-    local left = P.reserve() - n
+    local left = P.reserve(pool) - n
     if left < 0 then left = 0 end
     s.power = left
+    settle(pool)
     return true
 end
 
@@ -383,16 +449,16 @@ end
 
 --- The most one charge can take: what is left, plus one fresh crystal if
 --- there is a spare to burn. A charge never burns two.
-function P.available()
-    local more = P.crystals() > 0 and C.PowerMax or 0
-    return P.reserve() + more
+function P.available(pool)
+    local more = P.crystals(pool) > 0 and C.PowerMax or 0
+    return P.reserve(pool) + more
 end
 
 --- True when the ship could pay `cost` now.
-function P.canPay(cost)
+function P.canPay(cost, pool)
     cost = cost or 0
     if cost <= 0 then return true end
-    return cost <= P.available()
+    return cost <= P.available(pool)
 end
 
 --- Pays `cost`, burning a spare if the reserve runs out part-way. Authority
@@ -408,36 +474,38 @@ end
 --- ship goes dark. That is for the continuous drains (a shield that has half
 --- a push left still pushes). Without it a charge the ship cannot cover pays
 --- nothing at all.
-function P.pay(cost, partial)
+function P.pay(cost, partial, pool)
     if isClient() then return 0 end
     if type(cost) ~= "number" or cost ~= cost or cost <= 0 then return 0 end
-    if not partial and not P.canPay(cost) then return 0 end
+    if not partial and not P.canPay(cost, pool) then return 0 end
     -- An engineer aboard makes a crystal go further (TRAITS.md 3.2). Here
     -- rather than at each charge, because every charge comes through here,
     -- and energize reports what this returns -- so the note says the truth.
     if TREK.Traits then cost = cost * TREK.Traits.powerFactor() end
 
-    local s = U.state()
-    local have = P.reserve()
+    local s = box(pool)
+    local have = P.reserve(pool)
     if cost <= have then
         s.power = have - cost
+        settle(pool)
         return cost
     end
     -- Run the old crystal dry, then burn a fresh one for the rest.
     s.power = 0
     local paid = have
-    if P.burnCrystal() then
-        local rest = math.min(cost - paid, P.reserve())
-        s.power = P.reserve() - rest
+    if P.burnCrystal(pool) then
+        local rest = math.min(cost - paid, P.reserve(pool))
+        s.power = P.reserve(pool) - rest
         paid = paid + rest
     end
+    settle(pool)
     return paid
 end
 
 --- True when the ship's own numbers say it has no power at all: less than one
 --- unit left and no spare to burn.
-function P.computeDark()
-    return P.reserve() < 1 and P.crystals() == 0
+function P.computeDark(pool)
+    return P.reserve(pool) < 1 and P.crystals(pool) == 0
 end
 
 --- True when the ship is dark.
@@ -450,12 +518,12 @@ end
 ---
 --- ROADMAP2 says *never infer a campaign from a low reserve*: this is the
 --- ship's power, and nothing about the story reads it.
-function P.dark()
+function P.dark(pool)
     if isClient() then
-        local d = U.state().dark
+        local d = box(pool).dark
         if d ~= nil then return d == true end
     end
-    return P.computeDark()
+    return P.computeDark(pool)
 end
 
 return P

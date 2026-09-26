@@ -769,7 +769,48 @@ function IsoDoor.new(_cell, _sq, sprite, north)
     local name = type(sprite) == "table" and sprite.name or sprite
     local o = SIM.object(name, "IsoDoor")
     o.north = north == true
+    o.closedSprite = name
+    o.open = false
     return o
+end
+
+--- A door. The engine's IsoDoor swaps to the sprite two along when it opens
+--- (IsoSprite.getSprite(mgr, name, 2)), and **collides only from the
+--- square's special-objects list** -- which is what SIM.doorBlocks asks, so a
+--- door added the wrong way is a door a test can walk through.
+function ObjectMT:IsOpen() return self.open == true end
+function ObjectMT:isNorth() return self.north == true end
+local function doorToggle(self)
+    self.open = not self.open
+    local base, n = self.closedSprite:match("^(.*)_(%d+)$")
+    self.spriteName = self.open and (base .. "_" .. (tonumber(n) + 2)) or self.closedSprite
+    SIM.doorToggles = (SIM.doorToggles or 0) + 1
+    if isServer() and self.square then
+        py_replicate("door", { x = self.square.x, y = self.square.y, z = self.square.z,
+                               sprite = self.closedSprite, open = self.open })
+    end
+end
+--- ToggleDoorActual returns at once for a nil character (the bytecode's
+--- first test), so a test that closes a door with nobody passed sees it stay.
+function ObjectMT:ToggleDoor(chr)
+    if not chr then return end
+    doorToggle(self)
+end
+function ObjectMT:ToggleDoorSilent() doorToggle(self) end
+function ObjectMT:getOppositeSquare()
+    if not self.square then return nil end
+    local sq = self.square
+    if self.north then return SIM.rawSquare(sq.x, sq.y - 1, sq.z) end
+    return SIM.rawSquare(sq.x - 1, sq.y, sq.z)
+end
+
+--- True when a closed door stands in the way on this square's edge.
+function SIM.doorBlocks(x, y, z)
+    local sq = SIM.rawSquare(x, y, z)
+    for _, o in ipairs(sq.special or {}) do
+        if o.class == "IsoDoor" and not o.open then return true end
+    end
+    return false
 end
 
 --- A television, which is a different Java class from the sprite that draws
@@ -1064,6 +1105,35 @@ function SquareMT:AddTileObject(o)
     if isClient() then SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1 end
 end
 
+--- Objects the engine collides with and finds doors among. Only
+--- AddSpecialObject puts anything here; transmitAddObjectToSquare does not.
+function SquareMT:AddSpecialObject(o)
+    o.square = self
+    table.insert(self.objects, o)
+    self.special = self.special or {}
+    table.insert(self.special, o)
+    if isClient() then SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1 end
+end
+function SquareMT:getSpecialObjects()
+    self.special = self.special or {}
+    local list = jlist(self.special)
+    local t = self.special
+    list.contains = function(_, v)
+        for _, x in ipairs(t) do if x == v then return true end end
+        return false
+    end
+    return list
+end
+--- Sends the whole object, and whether it is special, to every client.
+function ObjectMT:transmitCompleteItemToClients()
+    if not isServer() or not self.square then return end
+    local d = describe(self)
+    d.x, d.y, d.z = self.square.x, self.square.y, self.square.z
+    d.special = true
+    d.north = self.north
+    py_replicate("object", d)
+end
+
 function SquareMT:transmitAddObjectToSquare(o)
     o.square = self
     table.insert(self.objects, o)
@@ -1082,6 +1152,9 @@ function SquareMT:transmitRemoveItemFromSquare(o)
     end
     for i, v in ipairs(self.worldObjects) do
         if v == o then table.remove(self.worldObjects, i) break end
+    end
+    for i, v in ipairs(self.special or {}) do
+        if v == o then table.remove(self.special, i) break end
     end
     if isServer() then
         py_replicate("remove", { x = self.x, y = self.y, z = self.z, sprite = o.spriteName,

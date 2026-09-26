@@ -438,8 +438,9 @@ function TREKEMHWindow:render()
     -- that is what the cure costs, and the reserve because that is what a
     -- treatment costs -- a player who cannot see either cannot tell "he
     -- refused me" from "the ship is flat".
-    local spares = TREK.Power.crystals()
-    local reserve = math.floor(TREK.Power.reserve())
+    local pool = TREK.Power.poolOf(self.player)
+    local spares = TREK.Power.crystals(pool)
+    local reserve = math.floor(TREK.Power.reserve(pool))
     local sc = spares > 0 and P.lilac or P.red
     self:drawText(getText("IGUI_TREK_EmhReserve", tostring(reserve),
                           tostring(C.PowerMax)),
@@ -482,7 +483,7 @@ function TREKEMHWindow:render()
             local found = self:found()
             if found and not found.infected then
                 cureWhy = "emhNotInfected"
-            elseif TREK.Power.crystals() < C.EmhCureCrystals then
+            elseif TREK.Power.crystals(TREK.Power.poolOf(self.player)) < C.EmhCureCrystals then
                 cureWhy = "emhNoCrystal"
             elseif row and E.cureDue(row.name) then
                 cureWhy = "emhCuring"
@@ -691,7 +692,7 @@ function M.open(player)
     -- Opening is what brings him up, if he is not already standing. The panel
     -- is the way in and the way out: `emhSummon` here, `emhDismiss` on the
     -- button, and closing the window does neither.
-    if not E.isUp() then
+    if not E.isUp(player) then
         says("IGUI_TREK_EmhGreeting")
         Core.send(player, "emhSummon", {})
     end
@@ -727,7 +728,7 @@ end
 function M.fillMenu(playerIndex, context, worldobjects, test)
     local player = U.player(playerIndex)
     if not player then return end
-    if not U.isInteriorPlayer(player) then return end
+    if not U.isInteriorPlayer(player) and not TREK.Adirondack.onShip(player) then return end
     if not TREK.Ship.canUse(player) then return end
 
     local x, y, z = U.clickedSquare(playerIndex, context, player)

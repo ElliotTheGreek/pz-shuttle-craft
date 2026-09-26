@@ -111,4 +111,98 @@ function A.liftSpot(k)
     return x, y, A.Z
 end
 
+---------------------------------------------------------------------------
+-- Her machines
+---------------------------------------------------------------------------
+-- The pieces that are machines rather than furniture, by the name the layout
+-- gives them. Every square of a multi-square piece counts.
+A.Machines = { replicator = true, warp_core = true, emh_station = true }
+
+local machineSquares = nil   -- kind -> { { k, x, y }, ... }
+
+function A.machines(kind)
+    if not machineSquares then
+        machineSquares = {}
+        for k, deck in ipairs(L.decks) do
+            for _, o in ipairs(deck.objects) do
+                local what = o[5]
+                if what and A.Machines[what] then
+                    machineSquares[what] = machineSquares[what] or {}
+                    table.insert(machineSquares[what], { k, o[1], o[2] })
+                end
+            end
+        end
+    end
+    return machineSquares[kind] or {}
+end
+
+--- True when x, y, z is aboard her and within `range` squares of any square
+--- of a machine of this kind. The server measures the same way the menu does.
+function A.nearMachine(kind, x, y, z, range)
+    if not x or not y then return false end
+    local k = A.locate(x, y, z)
+    if not k then return false end
+    local r2 = range * range
+    for _, m in ipairs(A.machines(kind)) do
+        if m[1] == k then
+            local mx, my = A.at(k, m[2], m[3])
+            if U.dist2(x, y, mx + 0.5, my + 0.5) <= r2 then return true end
+        end
+    end
+    return false
+end
+
+--- For a right-click: a clicked square on (or `margin` squares round) one.
+function A.clickedMachine(kind, x, y, z, margin)
+    if not x or not y then return false end
+    local k = A.locate(x, y, z)
+    if not k then return false end
+    x, y = math.floor(x), math.floor(y)
+    for _, m in ipairs(A.machines(kind)) do
+        if m[1] == k then
+            local mx, my = A.at(k, m[2], m[3])
+            if math.abs(x - mx) <= margin and math.abs(y - my) <= margin then return true end
+        end
+    end
+    return false
+end
+
+---------------------------------------------------------------------------
+-- What her lockers hold
+---------------------------------------------------------------------------
+-- By the piece the container is part of. `loot` is a C.Loot list filled to
+-- the usual fraction; `items` are put in `copies` of each. A piece not listed
+-- starts empty: somewhere for the crew's own things.
+A.Stock = {
+    medical_cabinet = { loot = "medical" },
+    medical_cart    = { loot = "medical" },
+    galley_counter  = { loot = "food" },
+    stasis_unit     = { loot = "food" },
+    bar_straight    = { loot = "drinks" },
+    bar_corner      = { loot = "drinks" },
+    bottle_shelf    = { loot = "drinks" },
+    wardrobe        = { items = "uniforms", copies = 1 },
+    desk            = { items = "desk", copies = 1 },
+    ready_room_desk = { items = "desk", copies = 1 },
+    display_shelf   = { loot = "weapons" },
+    cargo_crate     = { items = "engineering", copies = 2 },
+    antigrav_cart   = { items = "dilithium", copies = 2 },
+}
+
+--- The item lists A.Stock names. A function, because C is filled in order
+--- and some of these are defined further down TREK_Config than this file loads.
+function A.stockItems(name)
+    if name == "uniforms" then return C.UniformIssue end
+    if name == "desk" then return { C.PaddItem, "TrekShuttle.TrekTricorder" } end
+    if name == "engineering" then return { C.PhaserItem, "TrekShuttle.TrekTricorder" } end
+    if name == "dilithium" then return { C.DilithiumItem } end
+    return nil
+end
+
+-- Pieces with running water: a store of their own, kept full.
+A.Water = { galley_sink = true, wash_basin = true }
+
+-- Crystals in her core the first time anybody asks.
+A.StartCrystals = 50
+
 return A

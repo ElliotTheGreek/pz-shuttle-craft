@@ -274,7 +274,7 @@ function TREKReplicatorWindow:refreshRows()
     -- How many spares are in the chamber. Read here rather than in render:
     -- it walks a container, and refreshRows runs when the panel opens and
     -- whenever the server answers, which is every moment it can change.
-    self.spares = TREK.Power.crystals()
+    self.spares = TREK.Power.crystals(TREK.Power.poolOf(self.player))
 end
 
 --- The row the player has picked, whatever kind it is.
@@ -399,10 +399,12 @@ function TREKReplicatorWindow:render()
     local off = R.isOff()
     -- A dark ship's replicator is OFFLINE (ENERGY.md 6): no buttons that all
     -- fail, and one word saying why.
-    local dark = TREK.Power.dark()
+    -- Whichever ship this machine is in: the shuttle's, or the Adirondack's.
+    local pool = TREK.Power.poolOf(self.player)
+    local dark = TREK.Power.dark(pool)
 
     -- The reserve.
-    local energy = math.floor(R.energy())
+    local energy = math.floor(TREK.Power.reserve(pool))
     H.pill(self, cx, self.energyY + 3, 30, 10, P.gold, true, false)
     self:drawText(string.upper(getText("IGUI_TREK_RepEnergyHeader")), cx + 38,
                   self.energyY, P.gold[1], P.gold[2], P.gold[3], 1, UIFont.Small)
@@ -461,7 +463,8 @@ function TREKReplicatorWindow:render()
         -- the ship swaps one in by itself, so greying the button on a low
         -- reserve would refuse something that would have worked.
         self.makeBtn.enable = not off and not dark
-            and (cost <= R.energy() or (self.spares or 0) > 0)
+            and (cost <= TREK.Power.reserve(TREK.Power.poolOf(self.player))
+                 or (self.spares or 0) > 0)
     end
     self.scanBtn.enable = not off and not dark
 
@@ -652,6 +655,9 @@ end
 local BERTH_MARGIN = C.ReplicatorMenuMargin
 
 local function isBerth(x, y, z)
+    if TREK.Adirondack and TREK.Adirondack.clickedMachine("replicator", x, y, z, BERTH_MARGIN) then
+        return true
+    end
     local ox, oy = R.spot()
     if not ox then return false end
     if z ~= C.CabinZ then return false end
@@ -666,7 +672,7 @@ end
 function M.fillMenu(playerIndex, context, worldobjects, test)
     local player = U.player(playerIndex)
     if not player then return end
-    if not U.isInteriorPlayer(player) then return end
+    if not U.isInteriorPlayer(player) and not TREK.Adirondack.onShip(player) then return end
 
     local x, y, z = U.clickedSquare(playerIndex, context, player)
     if not x or not isBerth(x, y, z) then return end
@@ -683,7 +689,7 @@ function M.fillMenu(playerIndex, context, worldobjects, test)
     local why = nil
     if R.isOff() then
         why = "IGUI_TREK_RepOff"
-    elseif TREK.Power.dark() then
+    elseif TREK.Power.dark(TREK.Power.poolOf(player)) then
         why = "IGUI_TREK_RepOffline"
     elseif not R.inReachOf(player) then
         why = "IGUI_TREK_RepFar"
@@ -729,7 +735,7 @@ end
 function M.fillInventoryMenu(playerIndex, context, items)
     local player = U.player(playerIndex)
     if not player then return end
-    if R.isOff() or TREK.Power.dark() or not R.inReachOf(player) then return end
+    if R.isOff() or TREK.Power.dark(TREK.Power.poolOf(player)) or not R.inReachOf(player) then return end
 
     local seen = {}
     for _, item in ipairs(selectedItems(items)) do

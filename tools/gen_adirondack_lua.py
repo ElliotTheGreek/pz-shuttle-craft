@@ -59,6 +59,17 @@ def main():
             return ""
         return dict(ship["entries"][idx - 1][1]).get(enum, "")
 
+    # Which piece of furniture each sprite is part of (bed, replicator,
+    # medical_cabinet...): the name the Lua decides behaviour by -- what a
+    # container is stocked with, which squares answer as a replicator.
+    with open(os.path.join(ROOT, "design", "tiles", "trek_adirondack_02.json")) as f:
+        index = COMP.json.load(f)
+    piece = {}
+    for pname, rec in index.items():
+        for squares in rec["facings"].values():
+            for _, _, i in squares:
+                piece["trek_adirondack_02_%d" % i] = pname
+
     names = {}
     for z, fl in enumerate(ship["floors"]):
         for rid in {v for row in fl["grid"] for v in row if v}:
@@ -92,7 +103,7 @@ def main():
                             replaced.add((x + dx, y + dy, orient))
                         elif "container" in p:
                             kind = "c"
-                        objs.append((x + dx, y + dy, sprite, kind))
+                        objs.append((x + dx, y + dy, sprite, kind, piece.get(sprite, "")))
 
         structure = []
         extra_floor = set()
@@ -146,9 +157,7 @@ def main():
     # The pad: every square of the platform, and the arrival is the one
     # nearest the room's middle, so nobody materialises against a wall.
     pz = layout["pad"]["z"]
-    pad_squares = [(x, y) for x, y, s, k in decks[pz]["objs"]
-                   if s.startswith("trek_adirondack_02") and "transporter_pad" in
-                   (props[s].get("CustomName", "").lower().replace(" ", "_"))]
+    pad_squares = [(o[0], o[1]) for o in decks[pz]["objs"] if o[4] == "transporter_pad"]
     if not pad_squares:
         raise SystemExit("no transporter pad squares on deck z%d" % pz)
     pad = max(pad_squares, key=lambda p: (p[1], -abs(p[0] - layout["pad"]["x"])))
@@ -200,10 +209,12 @@ def main():
         for (x, y), s in sorted(d["floors"].items(), key=lambda kv: (kv[0][1], kv[0][0])):
             body.append("      { %d, %d, %s }," % (x, y, q(s)))
         body.append("    },")
-        body.append("    -- x, y, sprite, kind: w wall, dW/dN door, f furniture, c container.")
+        body.append("    -- x, y, sprite, kind (w wall, dW/dN door, f furniture, c container), piece.")
         body.append("    objects = {")
-        for x, y, s, k in d["structure"] + d["objs"]:
-            body.append("      { %d, %d, %s, %s }," % (x, y, q(s), q(k)))
+        for o in d["structure"] + d["objs"]:
+            x, y, s, k = o[:4]
+            what = o[4] if len(o) > 4 and o[4] else None
+            body.append("      { %d, %d, %s, %s%s }," % (x, y, q(s), q(k), (", " + q(what)) if what else ""))
         body.append("    },")
         body.append("  },")
     out.extend(body)

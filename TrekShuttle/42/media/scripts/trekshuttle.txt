@@ -1572,6 +1572,45 @@ module TrekShuttle
         }
     }
 
+    /* The Adirondack's doors (tools/gen_door_sound.py). The door tiles say
+       DoorSound = TrekDoor, and the engine plays TrekDoor + Open / Close /
+       Blocked itself when a door toggles, on every client. */
+    sound TrekDoorOpen
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_DoorOpen.wav,
+            volume = 0.7,
+        }
+    }
+
+    sound TrekDoorClose
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_DoorClose.wav,
+            volume = 0.6,
+        }
+    }
+
+    sound TrekDoorBlocked
+    {
+        category = Object,
+        loop = false,
+        is3D = true,
+        clip
+        {
+            file = media/sound/TREK_DoorClose.wav,
+            volume = 0.3,
+        }
+    }
+
     sound TREK_PowerDown
     {
         category = Item,

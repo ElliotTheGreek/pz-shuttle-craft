@@ -1843,6 +1843,14 @@ C.Loot.food = {
 -- so this is the blade rack -- all four together, because a crew who keep a
 -- bat'leth keep the rest of the set and one alien weapon among the pistols
 -- read as a souvenir where four read as an armoury. There are no pistols now.
+-- The Adirondack's bar (TREK_Adirondack.lua, A.Stock): the drinks off the
+-- food list, and nothing to eat.
+C.Loot.drinks = {
+    "TrekShuttle.TrekRaktajinoMug", "TrekShuttle.TrekEarlGreyCup",
+    "TrekShuttle.TrekRomulanAle", "TrekShuttle.TrekBloodwine",
+    "TrekShuttle.TrekAndorianAle", "TrekShuttle.TrekBalsoTonic",
+}
+
 C.Loot.weapons = {
     "TrekShuttle.TrekBatleth", "TrekShuttle.TrekMekleth",
     "TrekShuttle.TrekLirpa", "TrekShuttle.TrekUshaanTor",

@@ -64,6 +64,9 @@ end
 --- it from overlapping anything else's own square.
 function E.isStation(x, y, z)
     if not x or not y then return false end
+    if TREK.Adirondack and TREK.Adirondack.clickedMachine("emh_station", x, y, z, 1) then
+        return true
+    end
     if math.floor(z or 0) ~= C.CabinZ then return false end
     for _, spot in ipairs(C.EmhMenuSpots) do
         local sx, sy = U.at(spot[1], spot[2])
@@ -82,6 +85,9 @@ end
 --- of where the player is standing; a client is a request, never a fact.
 function E.inReach(x, y, z)
     if not x or not y then return false end
+    if TREK.Adirondack and TREK.Adirondack.nearMachine("emh_station", x, y, z, C.EmhRange + 1) then
+        return true
+    end
     if not U.isAboard(x, y, z) then return false end
     local sx, sy = U.at(E.station())
     return U.dist2(x, y, sx + 0.5, sy + 0.5) <= C.EmhRange * C.EmhRange
@@ -122,7 +128,10 @@ function E.isOff() return E.mode() == C.EmhOff end
 --- Ship state, so every client sees the same figure. Cleared on a world
 --- reload (TREK_Server's OnInitGlobalModData), because a hologram does not
 --- survive one and clearing it deletes the whole class of stale-flag bug.
-function E.isUp()
+function E.isUp(player)
+    -- Aboard the Adirondack her station is always projecting him: there is
+    -- nothing to summon, and nothing to stand up in the shuttle's cabin.
+    if player and TREK.Adirondack and TREK.Adirondack.onShip(player) then return true end
     return TREK.Ship.get().emh == true
 end
 
@@ -148,6 +157,7 @@ end
 function E.aboardForCure(player)
     if not player then return false end
     if U.isInteriorPlayer(player) then return true end
+    if TREK.Adirondack and TREK.Adirondack.onShip(player) then return true end
     local vehicle = U.try("emh.vehicle", function() return player:getVehicle() end)
     return vehicle ~= nil and TREK.Vehicle ~= nil and TREK.Vehicle.isShuttle(vehicle) == true
 end
@@ -183,9 +193,13 @@ end
 function E.patients(asking)
     local out = {}
     local mine = asking and TREK.Ship.usernameOf(asking) or nil
+    -- Everyone aboard the ship the asker is in: the shuttle's cabin, or the
+    -- Adirondack.
+    local adk = asking ~= nil and TREK.Adirondack ~= nil and TREK.Adirondack.onShip(asking)
     for _, p in ipairs(U.players()) do
         local alive = U.try("emh.alive", function() return p:isDead() end) == false
-        if alive and U.isInteriorPlayer(p) then
+        local here = (adk and TREK.Adirondack.onShip(p)) or (not adk and U.isInteriorPlayer(p))
+        if alive and here then
             local name = TREK.Ship.usernameOf(p)
             local row = { player = p, name = name, own = (name == mine) or nil }
             if row.own then table.insert(out, 1, row) else table.insert(out, row) end
@@ -234,7 +248,7 @@ function E.refusal(player)
     if not E.inReachOf(player) then return "emhFar" end
     -- A dark ship cannot project him at all (ENERGY.md 6). Published as a
     -- flag, so a client's panel greys with the ship's own answer.
-    if TREK.Power.dark() then
+    if TREK.Power.dark(TREK.Power.poolOf(player)) then
         return "emhNoPower"
     end
     return nil

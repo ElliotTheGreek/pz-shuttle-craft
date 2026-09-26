@@ -66,6 +66,22 @@ mod_items = set(re.findall(r"^\s*item\s+([A-Za-z0-9_]+)\s*$", script, re.M))
 mod_models = set(re.findall(r"^\s*model\s+([A-Za-z0-9_]+)", script, re.M))
 mod_icons = set(re.findall(r"^\s*Icon\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.M))
 
+# Somewhere to sit: every chair, sofa and bed of ours has a seating entry,
+# in common/media -- the only folder SeatingManager.init() reads a mod's from.
+_seating = os.path.join(ROOT, "TrekShuttle", "common", "media", "seating.txt")
+if os.path.isdir(os.path.join(MOD, "media")) and glob.glob(os.path.join(MOD, "media", "*.tiles")):
+    if not os.path.isfile(_seating):
+        mod_tile_problems.append("no common/media/seating.txt: every chair sits you on the floor beside it")
+    else:
+        _seats = _PACK.vanilla_seats(_seating).get("trek_adirondack_02", {})
+        _index = json.load(open(os.path.join(ROOT, "design", "tiles", "trek_adirondack_02.json")))
+        for _piece, _rec in _index.items():
+            _use = _rec.get("use", {})
+            if _use.get("seat") or "bed" in _use:
+                for _sq in _rec["facings"].values():
+                    for _x, _y, _i in _sq:
+                        if _i not in _seats:
+                            mod_tile_problems.append("seating.txt has no entry for %s (trek_adirondack_02_%d)" % (_piece, _i))
 failures, checked_sprites, checked_items = list(mod_tile_problems), 0, 0
 
 # The mod's vehicle scripts. "Base.TrekShuttleCraft" is a vehicle, not an item.
