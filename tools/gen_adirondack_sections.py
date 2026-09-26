@@ -55,7 +55,7 @@ SECTIONS = {}
 
 SECTIONS["transporter"] = dict(
     title="Transporter Room", size=(8, 7),
-    rooms=[room("Transporter Room", "hall", DECK, 0, 0, 7, 6, "150 170 200")],
+    rooms=[room("Transporter Room", "trektransporter", DECK, 0, 0, 7, 6, "150 170 200")],
     doors=[("W", 0, 5)],
     furniture=[
         ("transporter_pad", "N", 2, 0),

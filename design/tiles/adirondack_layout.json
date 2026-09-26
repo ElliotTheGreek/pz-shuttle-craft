@@ -1,0 +1,79 @@
+{
+ "turbolifts": [
+  {
+   "deck": "Deck 4",
+   "z": 0,
+   "x": 1,
+   "y": 1,
+   "description": "Main Engineering"
+  },
+  {
+   "deck": "Deck 3",
+   "z": 1,
+   "x": 1,
+   "y": 1,
+   "description": "Transporter Room, Sickbay"
+  },
+  {
+   "deck": "Deck 2",
+   "z": 2,
+   "x": 1,
+   "y": 1,
+   "description": "Lounge, Habitat"
+  },
+  {
+   "deck": "Deck 1",
+   "z": 3,
+   "x": 1,
+   "y": 1,
+   "description": "Bridge"
+  }
+ ],
+ "decks": [
+  {
+   "deck": "Deck 4",
+   "z": 0,
+   "sections": [
+    "Adirondack_MainEngineering.tbx"
+   ],
+   "description": "Main Engineering"
+  },
+  {
+   "deck": "Deck 3",
+   "z": 1,
+   "sections": [
+    "Adirondack_TransporterRoom.tbx",
+    "Adirondack_Sickbay.tbx"
+   ],
+   "description": "Transporter Room, Sickbay"
+  },
+  {
+   "deck": "Deck 2",
+   "z": 2,
+   "sections": [
+    "Adirondack_Lounge_Galley.tbx",
+    "Adirondack_HabitatDeck.tbx"
+   ],
+   "description": "Lounge, Habitat"
+  },
+  {
+   "deck": "Deck 1",
+   "z": 3,
+   "sections": [
+    "Adirondack_Bridge_ReadyRoom.tbx"
+   ],
+   "description": "Bridge"
+  }
+ ],
+ "spine_x": 3,
+ "pad": {
+  "z": 1,
+  "x": 6,
+  "y": 0
+ },
+ "size": [
+  20,
+  25
+ ],
+ "floors": 4
+}
