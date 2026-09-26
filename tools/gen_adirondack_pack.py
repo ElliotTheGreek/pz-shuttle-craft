@@ -294,14 +294,14 @@ def sheet02_props(defs, index):
                 elif use.get("stove"):
                     # A real oven's properties (IsoType IsoStove, container
                     # stove): the galley range is placed as an IsoStove
-                    # (FARMING.md 3), so everything vanilla cooks in an oven
+                    # (FARMING.md), so everything vanilla cooks in an oven
                     # works in it.
                     base = vanilla(defs, "appliances_cooking_01", 4)
                     for k in ("GroupName", "CustomName", "Facing", "IsMoveAble", "PickUpLevel",
                               "PickUpTool", "PickUpWeight", "PlaceTool"):
                         base.pop(k, None)
                 elif use.get("tray"):
-                    # A raised planter a crop grows on (FARMING.md 6.1):
+                    # A raised planter a crop grows on (FARMING.md):
                     # walked round, not sat on or stood on; nothing else may
                     # be placed on it, and never the vegetation flags, which
                     # vanilla farming reads as weeds.

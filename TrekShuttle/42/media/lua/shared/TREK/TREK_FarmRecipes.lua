@@ -1,4 +1,4 @@
---[[ Shuttlecraft -- what the hydroponics recipes run (FARMING.md 3).
+--[[ Shuttlecraft -- what the hydroponics recipes run (FARMING.md).
 
     `OnCreate` in a craftRecipe names a global function, called on whichever
     machine performs the recipe -- the server, on a server (vanilla's
@@ -14,7 +14,7 @@ local U = TREK.Util
 
 -- How hot a freshly brewed mug comes out: the engine's item heat, where 1.0
 -- is room temperature and cooking raises it. NOT YET SEEN IN GAME whether a
--- fluid mug's heat does anything when drunk (FARMING.md 9.4).
+-- fluid mug's heat does anything when drunk (FARMING.md).
 local BREWED_HEAT = 1.8
 
 --- Earl Grey and raktajino come off the recipe hot.

@@ -9,7 +9,7 @@
       * **the crops** -- registered here, with the sprite tables
         tools/gen_adirondack_crops.py renders (TREK_FarmSprites);
       * **the trays** -- vanilla's dig menu refuses anything above ground, but
-        its server `plow` does not (FARMING.md 8), so the server primes every
+        its server `plow` does not (FARMING.md), so the server primes every
         hydroponic tray itself, and primes it again after a harvest;
       * **the greenhouse rule** -- vanilla kills crops indoors unless their
         room is a greenhouse, and a runtime deck has no rooms. Any plant on
@@ -344,7 +344,7 @@ function F.serviceDehydrators(k)
 end
 
 ---------------------------------------------------------------------------
--- The worm tank (FARMING.md 4)
+-- The worm tank (FARMING.md)
 ---------------------------------------------------------------------------
 F.Worm = "TrekShuttle.TrekSerpentWorm"
 F.WormCap = 20

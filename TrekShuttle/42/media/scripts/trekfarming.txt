@@ -189,7 +189,7 @@ module TrekShuttle
         Tooltip = Tooltip_TREK_HasperatDried,
     }
 
-    /*  Serpent worms: the one animal aboard (FARMING.md 4). They breed in a
+    /*  Serpent worms: the one animal aboard (FARMING.md). They breed in a
         worm tank that is fed scraps, and five of them in a bowl are gagh. */
     item TrekSerpentWorm
     {

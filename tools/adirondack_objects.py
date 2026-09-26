@@ -287,7 +287,7 @@ OBJECTS += [
 
 
 def crop(name, prompt):
-    """A crop (FARMING.md 2): one mesh of the mature plant, rendered at every
+    """A crop (FARMING.md): one mesh of the mature plant, rendered at every
     growth stage by tools/gen_adirondack_crops.py -- not a piece of furniture."""
     return dict(name=name, area="crop", kind="crop", prompt=prompt)
 

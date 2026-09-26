@@ -1,390 +1,419 @@
-# FARMING.md — hydroponics aboard the Adirondack
+# Hydroponics developer guide
 
-Grow alien crops in hydroponic trays aboard her, raise serpent worms in a tank,
-and cook the species dishes from scratch: Earl Grey from a tea bush, Raktajino
-from Klingon beans, plomeek soup, leola root stew, hasperat, roasted Andorian
-tuber and live gagh.
+Deck 5 of the U.S.S. Adirondack is a working farm. Seven alien and Earth crops
+grow in hydroponic trays that the ship tends by itself. What they yield is
+dried, ground, brewed and cooked into the species dishes the mod already had.
+A tank of serpent worms breeds when it is fed, and five of them in a bowl are
+gagh. Deck 2's galley has a real stove, a sink and a cupboard of cookware.
 
-The design rests on two research passes (2026-09-25), both summarised in
-§8, and on one decision: **use vanilla's farming and crafting, not our own.**
-- **Farming.** Vanilla farming works on any square once the server has
-  plowed it, even though its dig menu refuses our deck. That gives us
-  growth, watering, disease, harvest, seeds, save/load and multiplayer
-  sync for nothing.
-- **Cooking.** Build 42's crafting already has what these dishes need:
-  drying racks, the mortar and pestle, evolved soups, and craftRecipes that
-  pick up mod recipes automatically.
+**The one design decision everything rests on: the crops are vanilla's.**
+- **Crops.** All seven are vanilla crop types, and trays are primed with
+  vanilla's own server `plow`. Vanilla's menus sow, water, cure and harvest
+  them; its global object system grows them, saves them and syncs them in
+  multiplayer.
+- **Cooking.** It is vanilla crafting: `craftRecipe`s, stoves, pots, the
+  mortar and pestle.
 
----
+What this mod adds is only what vanilla cannot know about a starship: where
+the trays are, that the ship tends them, and how to draw a crop standing in a
+tray.
 
-## 1. The loop
-
-```
- seed locker ──► hydroponic tray ──► harvest ──► produce ──┬──► cook (stove / soup pot)
-      ▲                 │  water, time                     ├──► dry (herb rack) ──► brew / grind
-      └── seeds back ◄──┘  (seeding stage)                 └──► eat raw
- worm tank ──► feed scraps ──► serpent worms breed ──► gagh
-```
-
-**Why it matters to the player:**
-- **Real food, not replicated.** Homegrown food carries no "replicated" mark.
-  Klingons and *Real Food Only* characters take the replicated penalty
-  (TRAITS.md). Real food is the cure, and this is the only place it grows.
-- **Species comfort.** Every dish is somebody's home food (`C.SpeciesFood`).
-  A Vulcan who grows plomeek and cooks the soup eats better than the
-  replicator can make them eat.
-- **Something to do aboard her** that is not fighting. Tend the trays, check
-  on the worms, cook in the galley.
+This guide describes the system as it is. The original plan, with its research
+notes, is commit `8f885bc`.
 
 ---
 
-## 2. The crops
+## Quick verification (in game)
 
-Seven crops, defined as vanilla crop types (`farming_vegetableconf.props`), with
-Trek seeds, produce and sprites of their own.
+1. Beam to the Adirondack, then take the turbolift to Deck 5.
+2. **The bay is already planted:**
+   - the front row has one of each crop, ready to harvest;
+   - the middle row has one of each still growing;
+   - the back row is empty, showing soil.
+3. **Harvest** a front-row plomeek (right-click the tray).
+   - Its tray should empty to soil at once.
+   - Harvest a front-row tea bush: it should stay, smaller, and grow back.
+4. **Sow** a back-row tray. Take seeds from the Botany Lab's seed locker,
+   then right-click the tray and choose Plowed Land, then Sow. The seedling
+   should stand *in* the tray.
+5. **Cook.** On Deck 2's galley:
+   - fill a pot at the sink;
+   - craft a Pot of Plomeek;
+   - put the pot in the range and turn it on;
+   - craft Serve Plomeek Soup, with bowls from the galley cupboard.
 
-| Crop (prop) | Species | Harvest | Kind | Used for |
+Confirmed in game on 2026-09-26: steps 2 to 5 (for step 3, the harvest
+itself).
+
+---
+
+## Where everything lives
+
+| File | What it is |
+|---|---|
+| `lua/shared/TREK/TREK_FarmCrops.lua` | The seven crops, `F.register()`, `F.onShip()` and `F.ensure()` (see engine facts). Shared, because vanilla's sow menu reads the crop table on the client. |
+| `lua/shared/TREK/TREK_FarmSprites.lua` | **GENERATED.** Each crop's five sprite tables, and `TREK_FarmSoil`. |
+| `lua/server/TREK/TREK_Farm.lua` | Everything else, and only on the server: priming, pre-planting, the harvest and health wrappers, tending, the dehydrator, the worm tank, the hourly pass. |
+| `lua/client/TREK/TREK_FarmClient.lua` | Calls `F.ensure()` just before vanilla builds the sow menu. |
+| `lua/shared/TREK/TREK_FarmRecipes.lua` | `TREKFarm_HotDrink`, the `OnCreate` both brews name. |
+| `media/scripts/trekfarming.txt` | 22 items (seeds, produce, processed ingredients, the serpent worm, two stew pots) and 21 recipes. |
+| `lua/shared/TREK/TREK_Adirondack.lua` | `A.Stock` / `A.stockItems`: what the seed lockers, potting benches, worm tanks and galley cupboard hold. `A.Water`: which pieces are sinks. |
+| `lua/server/TREK/TREK_AdirondackServer.lua` | The galley range as an `IsoStove`, `AS.servicePowerBus`, and the deck builder's rule that leaves plants alone. |
+| `Translate/EN/Farming.json` | The crop names, `Farming_<Crop>`, which vanilla's info window needs. |
+| `Translate/EN/Recipes.json` | The recipe names. |
+| `ItemName.json`, `Tooltip.json` | The item names and tooltips. |
+| `Sandbox.json`, `sandbox-options.txt` | `TrekShuttle.HydroponicsWater`, shown as *Hydroponics tend themselves*. |
+
+**Generators, in the order to run them after a change:**
+
+| Tool | Makes |
+|---|---|
+| `tools/gen_adirondack_crops.py` | The growth sprites, rendered from each crop's mesh: sheet `trek_adirondack_03`, `TREK_FarmSprites.lua`, and `design/art/adirondack/crops_sheet.png` |
+| `tools/gen_adirondack_furniture.py` | Sheet `02`, including the hydroponics furniture and `galley_cupboard` |
+| `tools/gen_adirondack_pack.py` | The texture pack and tiledef, with every sheet's properties (trays, sinks, the stove, crop stages) |
+| `tools/gen_adirondack_sections.py hydroponics lounge` | The Deck 5 and galley BuildingEd sections |
+| `tools/compose_adirondack.py`, then `tools/gen_adirondack_lua.py` | The ship, and the layout the server builds from |
+| `tools/gen_farm_icons.py` | The item icons, keyed from the Gemini raws in `design/art/food/farm/`. Each raw is first cropped to its magenta panel, because Gemini sometimes paints the magenta as a panel inside a bigger picture. |
+| `tools/install_tilezed.py` | The pieces, in BuildingEd's *Starfleet – Hydroponics* and *Starfleet – Galley* groups. TileZed must be closed. |
+| `tools/deploy_windows.py` | Deploy before any in-game test |
+
+---
+
+## The crops
+
+| Crop (prop) | Seed → produce | Hours a stage | Yield | Kind |
 |---|---|---|---|---|
-| `TrekTeaBush` | Earth | tea leaves | perennial (`growBack`) | Earl Grey |
-| `TrekBergamot` | Earth | bergamot fruit | perennial | Earl Grey, its zest |
-| `TrekKlingonCoffee` | Klingon | coffee cherries → beans | perennial | Raktajino |
-| `TrekPlomeek` | Vulcan | plomeek | annual | plomeek soup |
-| `TrekLeolaRoot` | Talaxian | leola root | annual, root crop | leola root stew |
-| `TrekAndorianTuber` | Andorian | tuber | annual, root crop | roasted Andorian tuber |
-| `TrekHasperatPepper` | Bajoran | hasperat peppers | annual | hasperat |
+| `TrekTeaBush` | `TrekTeaSeed` → `TrekTeaLeaves` | 96 | 4–7 | bush, grows back to stage 4 |
+| `TrekBergamot` | `TrekBergamotSeed` → `TrekBergamot` | 120 | 2–4 | bush, grows back to stage 4 |
+| `TrekKlingonCoffee` | `TrekKlingonCoffeeSeed` → `TrekKlingonCoffeeCherries` | 108 | 4–7 | bush, grows back to stage 4 |
+| `TrekPlomeek` | `TrekPlomeekSeed` → `TrekPlomeek` | 72 | 2–4 | annual |
+| `TrekLeolaRoot` | `TrekLeolaSeed` → `TrekLeolaRoot` | 84 | 2–4 | annual |
+| `TrekAndorianTuber` | `TrekAndorianTuberSeed` → `TrekAndorianTuberRaw` | 84 | 2–3 | annual |
+| `TrekHasperatPepper` | `TrekHasperatSeed` → `TrekHasperatPeppers` | 72 | 3–6 | annual |
 
-The **Jumja stick** (Bajoran) and the **Orion wing-slug** are good later
-additions: a jumja tree tapped for sap, and a second husbandry tank.
+Settings every crop shares:
+- **Stages.** Eight, as vanilla's vegetables have. Stage 5 is ready to
+  harvest and stage 6 is fully grown with seed. Past 6, the crop rots.
+- **No seasons.** `sowMonth` is every month; there are no bad, risk or best
+  months.
+- **No weather or pests.** `coldHardy` and `isHouseplant`, and proof against
+  aphids, flies and slugs.
 
-**The settings every crop gets:**
-- `sowMonth` all year round. A ship has no seasons.
-- `coldHardy = true`. The world's temperature is global, and a Kentucky
-  winter would otherwise reach a starship.
-- `isHouseplant = true`, and no bad or risk months.
-- Growth times from vanilla analogues: tea from the herb table, root crops from
-  potatoes and carrots, peppers from bell peppers.
-- The perennials (tea, bergamot, coffee) use `growBack`: harvest them and they
-  regrow from a middle stage instead of dying back to a stub.
+Timings scale with vanilla's sandbox *Farming speed*, like any crop.
+
+**Seeds** come from:
+- a fully grown plant, at harvest;
+- the `TrekSeeds<Crop>` recipes (produce and a knife);
+- the seed lockers;
+- the replicator, like any mod item. What grows from a replicated seed is
+  real food.
+
+**Real food matters.** Homegrown produce carries no replicated mark.
+Klingons and *Real Food Only* characters are penalised for replicated food
+(TRAITS.md), and every dish is some species' comfort food
+(`C.SpeciesFood`).
 
 ---
 
-## 3. The recipes
+## The trays
 
-Every step uses a vanilla mechanism. New pieces are marked **new**.
+`hydro_tray` is a piece of furniture: 21 of them, in three rows of seven on
+Deck 5.
 
-| Dish (item already in the mod) | Chain |
+- **Priming.** A tray is primed by the server calling
+  `SFarmingSystem.instance:plow(sq)`, which makes a vanilla "Plowed Land"
+  plot on the tray's square. It happens when the deck is built, and in the
+  hourly pass for any tray that has nothing on it.
+- **Sowing and harvest** are vanilla's own menus on that plot.
+- **After harvest:**
+  - An annual's tray is cleared and primed *at once*, by `F.wrapHarvest`
+    around `SFarmingSystem.harvest`.
+  - A bush is left to grow back (`growBack = 4`).
+- **Dead or rotten** plants are cleared and the tray primed in the next
+  hourly pass. `F.primeTray` treats harvested, destroyed, dead and rotten
+  alike.
+- **Starting planted.** `F.stockBay`, once per world (`farmStocked` in the
+  Adirondack's state), sows `F.StartRows`:
+  - the front row at stage 5;
+  - the middle row at stages 2–4;
+  - using vanilla's own `seed()` and `growPlant()`.
+
+  It sows only trays still waiting, so a tray a player has planted is never
+  touched.
+- **Not movable.** Trays cannot be disassembled or scrapped. Taking one apart
+  would take its crop with it.
+
+### How a crop is drawn in a tray
+
+`tools/gen_adirondack_crops.py` renders each crop's TRELLIS mesh of the mature
+plant (its concept and mesh are in the ledger, `tools/adirondack_jobs.py`).
+Every tile is 128×256 and the plant stands on `TRAY_TOP` (0.47), the height of
+the tray's growing medium.
+
+| Table | What it is |
 |---|---|
-| **Earl Grey** (`TrekEarlGreyCup`) | tea leaves → *herb drying rack* (`Tags = DryingRackHerb`) → dried tea. Bergamot fruit → *knife* → bergamot zest, which can also be dried. **new** craftRecipe `BrewEarlGrey`: a mug of water + dried tea + zest → `TrekEarlGreyCup`, which arrives filled with the mod's existing `TrekEarlGrey` fluid. An `OnCreate` sets it hot. The dried tea also gets `EvolvedRecipe = HotDrink:5`, so vanilla's *Prepare Beverage* works as a fallback. |
-| **Raktajino** (`TrekRaktajinoMug`) | coffee cherries → *rack* → dried beans → roasted: cookable, in an oven → *mortar and pestle* or *stone quern* → ground Klingon coffee. **new** `BrewRaktajino`: a water mug + grounds → `TrekRaktajinoMug`. A second recipe tagged `CoffeeMachine` lets vanilla coffee makers brew it too. |
-| **Plomeek Soup** (`TrekPlomeekSoup`) | plomeek has `EvolvedRecipe = Soup:15`, `EvolvedRecipeName = Plomeek`. A pot of water + plomeek on the stove names itself "Plomeek Soup", then *Divide into bowls*. |
-| **Leola Root Stew** (`TrekLeolaStew`) | **new** craftRecipe: a pot + water + 3 leola root → `TrekLeolaStewPot` (cookable, like vanilla's `WaterPotRice`) → stove → divide into bowls. A fixed recipe, so the name cannot collapse into "Vegetables Stew". |
-| **Hasperat** (`TrekHasperat`) | hasperat peppers (can be dried on the rack for a hotter version) + a vanilla tortilla or flatbread → **new** `MakeHasperat` (`AnySurfaceCraft;Cooking`). |
-| **Roasted Andorian tuber** (`TrekAndorianTuber`) | the raw tuber is `IsCookable` (like a potato). Put it in the oven. |
-| **Gagh** (`TrekGagh`) | live serpent worms (the worm tank, §4) + a bowl → **new** `ServeGagh`. Gagh is served live, so there is no cooking step. |
+| `sprite` | the mesh at eight scales, `STAGE_SCALE` (0.16 → 1.0), with stages 7 and 8 lightly tinted: seeding, then going over |
+| `unhealthy`, `dying`, `dead` | the same renders, tinted yellow, brown and grey |
+| `trampled` | the tray's bare soil, eight times. Vanilla draws harvested and destroyed plants from this table. |
+| `_soil` / `TREK_FarmSoil` | a disc of dark growing medium at the top of the tray |
 
-**How players learn these:**
-- Recipes are learned from a **Starfleet botany PADD** (`LearnedRecipes`),
-  found in the hydroponics lab. Cooking skill auto-learns them too
-  (`AutoLearnAny = Cooking:3`).
-- The crew's talk in hydroponics hints at them.
-
-**The galley needs a heat source.** Her galley has counters and a sink but
-nothing to cook on. We add a **galley range**: a Starfleet sprite
-that is a real stove, powered the way the shuttle's oven is (TREK_Build's
-`placeStove` and the power bus). The same galley also gets a mortar and
-pestle and a drying rack. See open question 1.
+The crop tiles carry only `BlocksPlacement`:
+- **never `attachedFloor`,** or they would draw at floor level beneath the
+  tray;
+- **never the vegetation flags,** which vanilla reads as weeds.
 
 ---
 
-## 4. The worm tank (gagh)
+## The bay runs itself
 
-Serpent worms are the one animal aboard. The tank borrows vanilla composting's
-own breeding, where fresh worms in a composter never rot and multiply as waste
-composts (`IsoCompost.update`). But that is hard-coded to `Base.Worm`, so the
-tank is our own:
-- **The object:** a Starfleet worm tank. It is a tagged container on the
-  deck, holding our item **`TrekSerpentWorm`**.
-- **The rule:** a server `EveryHours` hook runs over the tanks on built decks.
-  A tank with at least 2 serpent worms and some food waste in it (rotten
-  food, scraps, meat) consumes some of the waste and adds a worm, up to a
-  cap. A tank with no food lets its worms go hungry, then lose one a day.
-  The tank never rots its worms.
-- **The start:** the tanks start with 3 worms, so the loop runs from day one.
-  Worms can be taken out and put in any tank.
-- **Gagh:** `ServeGagh` takes 5 serpent worms and a bowl. Klingons love it.
-  Everybody else takes the foreign-dish penalty, and the crew's talk has
-  opinions.
+Every game hour (`F.hourly`, on the server):
 
----
-
-## 5. Where it goes: Deck 5, Hydroponics
-
-A new deck in the lift's list, built by the same pipeline as the others
-(ITEMS.md §5.2). Later work can join it: the armoury, the Jefferies tubes
-(winding crawlspaces, with a hidden area reachable only through them), and
-the captain's quarters and labs.
-
-| Room | What is in it |
+| Step | What it does |
 |---|---|
-| **Hydroponics Bay** (the big one) | rows of **hydroponic trays** under **grow-light panels**, a water feed point (a sink), a potting bench |
-| **Botany Lab** | a **seed locker** (stocked with seeds of all seven), a **dehydrator** (the drying rack), a mortar and pestle on the bench, the botany PADD, a science station |
-| **Serpent Tank Room** | two or three **worm tanks**, cool and dim, Klingon script on the wall |
-| **Arboretum corner** | a few Earth and alien trees and a bench: somewhere to sit, and a place for the crew's quiet scenes |
+| `F.ensure()` | puts the crops back if they were wiped (see engine facts) |
+| `F.wrapHealth()`, `F.wrapHarvest()` | installs the two wrappers, once |
+| `F.tendAll()` | every live plant **aboard her** is watered full and has its pests and disease cleared. Sandbox *Hydroponics tend themselves* turns it off. |
+| `F.primeDeck(k)`, `F.stockBay(k)` | trays primed, and the bay stocked once |
+| `F.serviceDehydrators(k)`, `F.serviceWormTanks(k)` | see the next section |
 
-The galley range (§3) goes on Deck 2's galley, where the cooking already is.
+**The greenhouse rule** (`F.wrapHealth`) is a wrapper around vanilla's
+`SFarmingSystem.changeHealth`. A plant aboard her keeps any health that pass
+would take. The deck has no rooms, so vanilla would otherwise see it as
+indoors (`KillInsideCrops`) or as outdoors in winter.
+
+"Aboard her" means `F.onShip(plant)`, which is `A.locate` on the plant's
+square. **The same crops planted in the ground below get none of this.**
+There they are ordinary vanilla crops and need watering, weeding and curing.
 
 ---
 
-## 6. What has to be built
+## The dehydrator and the worm tank
 
-### 6.1 Art (the ITEMS.md §5.2 pipeline)
+Both are server hooks on the containers of one piece of furniture, on every
+built deck. Neither is something vanilla does.
 
-**New furniture**, each a manifest entry, concept, mesh, render and tiles:
+**The dehydrator** (`F.Dry`, `F.DryHours = 12`):
+- An item of a type in `F.Dry` gains one hour of drying for each game hour
+  it spends inside.
+- At 12 hours it is replaced by its dried form:
+  - tea leaves become dried tea;
+  - coffee cherries become coffee beans;
+  - hasperat peppers become dried hasperat.
+- Vanilla herb drying racks dry the same three, through the
+  `TrekDry*` recipes tagged `DryingRackHerb`.
 
-| Piece | Size | Facings | Use |
-|---|---|---|---|
-| `hydro_tray` | 1×1 | 1 | the planter: a raised tray. **A crop grows on its square.** |
-| `grow_light` | wall | W/N | light (look only) |
-| `seed_locker` | 1×1 | W/N | container, stocked with seeds |
-| `potting_bench` | 2×1 | W/N | counter container, stocked with tools and the mortar |
-| `dehydrator` | 1×1 | W/N | the drying rack; see open question 2 |
-| `worm_tank` | 2×1 | W/N | container (the gagh tank) |
-| `galley_range` | 1×1 | WNES | a real stove |
-| `arboretum_tree`, `alien_shrub` | 1×1 | 1 | look only |
+**The worm tank** (`F.WormCap = 20`, `F.WormBreedHours = 6`,
+`F.WormStarveHours = 24`):
+- **Feeding.** Any food item in the tank is feed, found by
+  `instanceof(it, "Food")` or `IsFood()`.
+- **Breeding.** With at least two worms and some food, every 6 hours one
+  food item is eaten and one `TrekSerpentWorm` is born, up to 20.
+- **Starving.** With no food for 24 hours, one worm dies. A tank never goes
+  below two, so it can always recover.
+- **Never rotting.** Worms in a tank have their age reset every hour, as
+  vanilla's composter does for its worms.
+- **Starting stock.** Each tank starts with three worms (`A.Stock`).
 
-**Crop growth sprites.** Vanilla uses 8 growth stages plus unhealthy, dying,
-dead and trampled sprites. To keep the art affordable:
-- **One mesh per crop** (a Gemini concept of the mature plant, then TRELLIS),
-  rendered at **stage scales**: 0.2, 0.3, 0.45, 0.6, 0.75, 0.9, 1.0, and
-  1.0 with fruit or flowers tinted in. The same plant visibly grows, which
-  reads better than eight separate drawings.
-- **Unhealthy, dying and dead** are the same render tinted yellow, brown and
-  grey. **Trampled** reuses dead.
-- The sprites are drawn to sit **in** the tray, so no `attachedFloor`.
-  Their tile properties are only `BlocksPlacement`, and never the
-  vegetation flags, which vanilla reads as weeds.
+---
 
-That is 7 crops × 11 sprites, about 80 tiles in a new sheet,
-`trek_adirondack_03`. This is the biggest art job so far, and all of it is
-automated.
+## Recipes (`media/scripts/trekfarming.txt`)
 
-### 6.2 Items (the ITEMS.md §5.1 pipeline)
+None of them has to be learned: anybody can cook from scratch. All of them
+appear in the crafting window automatically.
 
-| Kind | Items |
+| Dish | How it is made |
 |---|---|
-| Seeds (7) | `TrekTeaSeed`, `TrekBergamotSeed`, `TrekKlingonCoffeeSeed`, `TrekPlomeekSeed`, `TrekLeolaSeed`, `TrekAndorianTuberSeed`, `TrekHasperatSeed`. Each has a seed-packet pair, like vanilla's `PutSeedsInPacket`. |
-| Produce (7) | tea leaves, bergamot, coffee cherries, plomeek, leola root, raw Andorian tuber, hasperat peppers. Food with `FoodType`, `DaysFresh`, `EvolvedRecipe` and `IsCookable` as §3 needs. |
-| Processed (6) | dried tea, bergamot zest, dried coffee beans, roasted beans, ground Klingon coffee, dried hasperat peppers |
-| Husbandry (1) | `TrekSerpentWorm` |
-| Pots and learning (2) | `TrekLeolaStewPot`, a Starfleet botany PADD |
+| **Earl Grey** (`TrekEarlGreyCup`) | Dry the tea leaves (dehydrator or herb rack). Zest a bergamot (`TrekZestBergamot`, with a knife; makes 3). **`TrekBrewEarlGrey`**: a mug holding 0.2 of water, the dried tea and a zest make the mod's Earl Grey mug. |
+| **Raktajino** (`TrekRaktajinoMug`) | Dry the coffee cherries into beans. Roast the beans in an oven (they are cookable). Grind them with a mortar and pestle (`TrekGrindKlingonCoffee`, three *cooked* beans). **`TrekBrewRaktajino`**: a mug holding water, and the grounds. |
+| **Plomeek soup** (`TrekPlomeekSoup`) | **`TrekMakePlomeekPot`**: a pot holding 1.0 of water, and three plomeek. Cook it in a stove. **`TrekServePlomeek`**: the cooked pot and three bowls make three soups and give the pot back. |
+| **Leola root stew** (`TrekLeolaStew`) | The same, with `TrekMakeLeolaStewPot` and `TrekServeLeolaStew`. |
+| **Hasperat** (`TrekHasperat`) | **`TrekMakeHasperat`**: a tortilla and two peppers, fresh or dried. |
+| **Roasted Andorian tuber** (`TrekAndorianTuber`) | Cook the raw tuber in an oven. Then **`TrekPlateAndorianTuber`**. |
+| **Gagh** (`TrekGagh`) | **`TrekServeGagh`**: five serpent worms and a bowl. |
 
-**Icons** for all of them come from the existing icon pipeline.
-**Translations:** item names go in `ItemName.json`. A new
-`Translate/EN/Farming.json` gets `Farming_<Crop>` for each crop, and
-`Recipes.json` gets the recipe names.
-
-### 6.3 Code
-
-- **`server/TREK/TREK_Farm.lua`** (loads on both sides, as vanilla's
-  farming config does):
-  - **Registration.** Registers the seven props with all five sprite
-    tables. `MOFarming` indexes all five and throws on a missing one.
-  - **Trays.** A tray is ready to plant when the server has plowed it
-    (`SFarmingSystem.instance:plow(sq)`). The deck builder primes every
-    tray, and **Prime tray** in a tray's right-click menu re-primes one
-    after a harvest, through a server command. Vanilla's own sow, water,
-    harvest and cure then work on it in single player and multiplayer.
-  - **The greenhouse rule.** Vanilla kills indoor crops unless their room is
-    a greenhouse, and our deck has no rooms. A thin wrap of
-    `SFarmingSystem.changeHealth` treats a plant on an Adirondack tray as
-    a greenhouse: no indoor penalty, no rain, no winter.
-  - **Hydroponic feed.** Trays are topped up with water every game hour, so
-    tending means harvesting and replanting, not carrying water.
-    Sandbox: *Hydroponics water themselves* (on by default).
-- **The deck builder must not eat the crops.** `AS.buildDeck` strips every
-  untagged object from deck squares, and a vanilla plant object is
-  untagged. It must skip anything carrying farming mod data (`state`,
-  `nbOfGrow`, `health`), or a rebuild wipes the bay.
-- **Worm tanks:** the hourly breeding hook (§4), in `TREK_AdirondackServer`
-  alongside the water top-up.
-- **Recipes:** `media/scripts/trekfarming.txt` (module TrekShuttle, full
-  `Base.` names, `base:` tags). `OnCreate` Lua goes in `lua/server` or
-  `lua/shared`, and sends `sendItemStats` on a server.
-- **Stock:** the seed locker (`A.Stock`) gets seeds of all seven. The potting
-  bench gets a trowel, a watering can and a mortar and pestle.
-- **Crew:** the new place tag `hydroponics` gets scenes and barks written in
-  `design/crew/hydroponics.txt`: botanists fussing over the plomeek, a
-  Klingon checking on the worms, arguments over whether homegrown tea is
-  worth the tray space.
-
-### 6.4 Tests
-
-- **Static:** every crop prop has all five sprite tables of equal length,
-  every sprite is in the pack, every seed and produce item resolves, and
-  every recipe input and output resolves (`test_assets.py`).
-- **The simulation:**
-  - The deck builds with its trays primed.
-  - A rebuild keeps a planted crop.
-  - The greenhouse rule holds.
-  - The worm tank breeds with food and starves without it.
-  - A recipe run produces its dish.
-
-  The sim does not have vanilla's farming system, so the farming half is
-  checked by calling our hooks with a stub. The real proof is the game.
+**How the recipes are written:**
+- **Fixed recipes, not evolved soups.** The pots and serve steps are
+  `craftRecipe`s rather than vanilla's evolved soups for two reasons. An
+  evolved soup renames itself from its ingredients ("Vegetables Soup" once
+  anything else goes in). And it would not produce the mod's own dish items,
+  which are what `C.SpeciesFood` recognises.
+  - Plomeek and leola root still carry `EvolvedRecipe`, so they work in
+    vanilla soups and stews too.
+  - Dried tea carries `HotDrink`.
+- **Hot drinks.** Both brews name `OnCreate = TREKFarm_HotDrink`. It sets the
+  made mug's item heat to 1.8, and on a server it sends `sendItemStats`.
+  - An `OnCreate` is `function(craftRecipeData, character)`; the made items
+    come from `craftRecipeData:getAllCreatedItems()`.
+  - It runs where the recipe is performed (the server, on a server), so it
+    lives in `shared/`.
+- **Syntax.**
+  - Tags take vanilla's `base:` prefix: `tags[base:sharpknife]`,
+    `tags[base:coffeemaker]` (mugs), `tags[base:mortarpestle]`.
+  - A fluid input is a `-fluid N categories[Water] mode:mixture` line
+    directly after the item that holds it.
+  - A cooked input needs `flags[IsCookedFoodItem]`.
 
 ---
 
-## 7. Phases
+## The galley (Deck 2)
 
-1. **One crop, end to end: tea to Earl Grey.** The tray, priming, the
-   greenhouse rule, the tea crop and its sprites, drying on a vanilla rack
-   placed by hand, and the brew recipe. This proves every unknown in §9 on
-   the cheapest crop, before paying for seven sets of art.
-2. **The other six crops,** their items and recipes, and the galley range.
-3. **Deck 5:** the section, the furniture, the stock and the botany PADD.
-4. **The worm tank** and gagh.
-5. **The crew's hydroponics talk.**
-
----
-
-## 8. What the research found
-
-This is the evidence behind the design, from the game's own Lua and bytecode.
-
-**Farming:**
-- **Dig menu.** `ISFarmingMenu.canDigHereSquare` refuses z > 0 and
-  non-dirt, but only in the client menu. `SFarmingSystem:plow(sq)` and
-  `seed()` accept any square.
-- **Crop format.** A crop is a `farming_vegetableconf.props` entry: seed,
-  produce, `timeToGrow` hours per stage, water, `harvestLevel`,
-  `fullGrown`, months and yield. The sow menu lists every prop
-  automatically.
-- **Sprites.** Growth sprites are any names, picked by stage and health
-  (`getSpriteName`). The plowed state is hard-coded to vanilla's
-  `vegetation_farming_01_1`: soil in the tray.
-- **Indoors.** Health loses 1 every 2 hours indoors with `KillInsideCrops`
-  unless the room is a greenhouse or the prop is `isHouseplant`. Cold under
-  10°C hurts unless `coldHardy`.
-- **Outdoors.** Our deck has no RoomDefs and may count as *outside*, which
-  brings rain, winter and bad months. Hence §6.3's wrap.
-- **Multiplayer.** A plant is a server global object (`gos_farming.bin`)
-  that ticks every 10 minutes whether or not its chunk is loaded, and is
-  synced by vanilla.
-- **Worms.** The composter breeds `Base.Worm` (hard-coded), and worms in it
-  never rot.
-- **No planters.** No vanilla planter grows crops.
-
-**Crafting:**
-- **Recipes.** A `craftRecipe` in our own module shows in the crafting UI
-  automatically. `Tags` binds a recipe to a workstation (`DryingRackHerb`,
-  `Stone_Quern`, `CoffeeMachine`). `NeedToBeLearn` with `AutoLearnAny` or a
-  `LearnedRecipes` item gates it.
-- **Hot drinks.** Vanilla hot tea and coffee are an evolved `HotDrink` food
-  heated afterwards, not fluids. The mod's own `TrekEarlGrey` and
-  `TrekRaktajino` fluids are kept by a recipe that outputs the pre-filled
-  mug.
-- **Soups.** The evolved-soup name is built from the ingredients, so
-  "Plomeek Soup" comes for free when plomeek is the only one.
-- **Drying.** Drying on a rack is any craftRecipe tagged `DryingRackHerb`.
-  `time` is in game-seconds; 86400 is one day.
-- **Multiplayer.** Handcrafting runs on the server (`ISHandcraftAction`);
-  outputs sync by themselves.
-
----
-
-## 9. Open questions (the first play-test of phase 1 answers most)
-
-1. **The galley range.** Can a runtime Starfleet sprite be a working stove,
-   as the shuttle's oven is, powered by a bus? Or is the honest answer a
-   vanilla oven sprite in her galley? Phase 2 decides.
-2. **Drying aboard.** Vanilla drying racks are *entities* built by the
-   player. Can the server place one, as the dehydrator, or do we ship a
-   `dehydrate` handcraft recipe that takes a game-day of wait? Phase 1 uses
-   a hand-built vanilla rack and finds out.
-3. **Inside or outside.** Is `sq:isOutside()` true on her deck? The wrap
-   covers either answer, but it decides whether rain reaches the trays.
-4. **The heat of a mug.** Does `setItemHeat` on a fluid mug make the Earl
-   Grey hot when drunk, or is "hot" only in the name?
-5. **Seeds from the replicator.** Allowed? It makes the trays reachable
-   without the seed locker, and replicated seeds still grow **real** food.
-   Recommended yes.
-
----
-
-## 10. As built (2026-09-26)
-
-Every phase in §7 is done in one pass.
-
-| What | Where |
+| Piece | What it is |
 |---|---|
-| Crop registration | `shared/TREK/TREK_FarmCrops.lua` (it loads on clients too, for the sow menu) |
-| Growth sprites | `shared/TREK/TREK_FarmSprites.lua` (GENERATED) |
-| Trays, the greenhouse rule, tending, the dehydrator, the worm tank | `server/TREK/TREK_Farm.lua` |
-| Items and the 21 recipes | `media/scripts/trekfarming.txt` |
-| Growth stages | `tools/gen_adirondack_crops.py` → sheet `trek_adirondack_03` (224 stage tiles and the tray's soil) |
-| Furniture | `tools/adirondack_objects.py`, appended to sheet `02` so every existing tile keeps its number: `hydro_tray`, `seed_locker`, `potting_bench`, `dehydrator`, `worm_tank`, `galley_range`, `arboretum_tree`, `alien_shrub`, `grow_light` |
-| Icons | `tools/gen_farm_icons.py`. It crops each raw to its magenta panel first, because Gemini sometimes paints the magenta as a panel inside a bigger picture. |
-| Deck 5 | `SECTIONS["hydroponics"]` and `DECKS` in `compose_adirondack.py`. The decks are ordered by deck number, never by storey, so Deck 5 stands east of Deck 4 and nothing already built moves. |
-| The galley range | on Deck 2, an `IsoStove`, powered by an invisible generator on its own square and billed to her warp core (`AS.servicePowerBus`) |
-| Tests | `tests/test_farming.py` (static: every recipe item and tag, every crop's items and sprites) and `farming()` in `tests/test_multiplayer.py` (the loop, in the sim) |
+| `galley_range` | Placed as an `IsoStove` (`make()` in the deck builder), with a vanilla oven's tile properties. **A pot goes *in* it and cooks while it is on;** vanilla stoves have no separate hob. It needs power. |
+| The power bus | `AS.servicePowerBus(k)` puts an invisible `IsoGenerator` **on the range's own square**. It is refuelled every hour, the fuel billed to her warp core (`Power.using("adk", ...)`), and switched off if she goes dark. |
+| `galley_sink`, and every `wash_basin` | Real sinks. Their tiles carry vanilla's `waterPiped` / `waterAmount` properties, which make vanilla offer fill, wash and drink. Behind that is the water store the builder gives every `A.Water` piece, topped up by `refillWater`. |
+| `galley_cupboard` | A piece of its own so it can be stocked separately; its mesh is a copy of `galley_counter.glb`. It holds 2 pots, a saucepan, a pan, a roasting pan, a baking tray, a kettle, 6 bowls, 4 mugs, a kitchen knife, a mortar and pestle, a spoon, fork, ladle and spatula, an oven mitt and 4 tortillas. |
 
-**The bay is a working farm when you arrive** (`F.stockBay`, once per world):
-- the front row has one of each crop, ready to harvest;
-- the middle row has one of each still growing;
-- the back row is empty, for you to sow.
+Deck 5's **Botany Lab** has:
+- two seed lockers, 5 seeds of every crop in each;
+- a potting bench;
+- the dehydrator, a replicator, a desk and a science display.
 
-The crops are sown and grown with vanilla's own `seed()` and `growPlant()`, so
-they are plants like any other. A tray a player has already sown is left
-alone.
+The **bay** has:
+- a second potting bench;
+- a wash basin;
+- grow lights;
+- an arboretum corner, with a tree, shrubs and a chair.
 
-**Harvest.**
-- **Annuals** (plomeek, leola root, Andorian tuber, hasperat): the tray is
-  cleared and primed the moment the harvest is taken, ready to sow again.
-- **Bushes** (tea, bergamot, coffee): they stay and grow back from a middle
-  stage.
-- A harvested or trampled stub is drawn as the tray's bare soil.
+Each potting bench holds a hand shovel, a watering can, a mortar and pestle,
+a pot, a bowl and a kitchen knife.
 
-**The galley:**
-- **The sink** is a real sink: `waterPiped`, with the ship's water store
-  behind it.
-- **The cupboard** (`galley_cupboard`, beside the range) holds everything
-  the recipes need that isn't grown: pots, a saucepan, a pan, a roasting pan,
-  a baking tray, a kettle, bowls, mugs, a knife, a mortar and pestle,
-  utensils, an oven mitt and tortillas.
+The **Serpent Tank Room** has two worm tanks.
 
-**The bay runs itself.** Every hour the ship does all of this to each plant
-aboard her:
-- waters it full;
-- clears any pests and disease;
-- restores any health it lost to being "indoors" or out of season.
+---
 
-A harvested or dead tray is cleared and primed again within the hour. The
-crew only sow and harvest. The same crops planted **in the ground** in
-Kentucky are ordinary vanilla crops and need ordinary care.
+## Engine facts this depends on
 
-Sandbox *Hydroponics tend themselves* (on by default) turns the tending off.
+Every one of these cost a play-test, or was read out of vanilla's own code.
+Check this list before changing anything.
 
-**Decided:**
-- Seeds come out of the replicator like any mod item. What grows from them
-  is real food.
-- Recipes are not gated: anybody can cook from scratch.
+1. **Vanilla wipes the crop table when its farming config loads.**
+   - `farming_vegetableconf.lua` resets `props` and the sprite tables, and it
+     can load after our registration. The first play-test's sow menu was
+     empty for exactly this reason.
+   - Hence `F.ensure()`: idempotent, and called at file load, `OnGameBoot`,
+     `OnGameStart`, `OnInitGlobalModData`, `OnServerStarted`, every hour,
+     and just before `ISFarmingMenu.doSeedMenu`.
+   - **Never register the crops once and trust it.**
+2. **The dig menu refuses our deck; the server's `plow` does not.**
+   `ISFarmingMenu.canDigHereSquare` wants z = 0 and natural dirt, but it is a
+   client menu check. `SFarmingSystem:plow(sq)` and `seed()` work on any
+   square, which is why trays are primed by the server.
+3. **A plowed plot's sprite is hard-coded.**
+   - `farming_vegetableconf.getSpriteName` answers `vegetation_farming_01_1`
+     for a plowed plot. Vanilla resets every plant's sprite from it on its
+     checks, so setting a sprite once is undone within minutes.
+   - `F.ensure()` wraps `getSpriteName` so that a plowed plot aboard her
+     answers `TREK_FarmSoil`.
+4. **Vanilla draws a harvested plant from its `trampled` table.** Ours is
+   bare soil. A tinted whole plant there read as a harvest that took nothing.
+5. **The deck builder strips untagged objects from every deck square.**
+   - A vanilla plant is untagged. `AS.buildDeck` skips any object whose mod
+     data has `typeOfSeed` or `nbOfGrow`, and any `IsoGenerator`.
+   - **Anything new that vanilla places on a deck needs the same exemption,**
+     or the next rebuild deletes it.
+6. **Indoor and outdoor are unanswerable on a runtime deck.** It has no
+   RoomDefs. The greenhouse rule is what makes the question moot, so do not
+   remove it because the crops are `isHouseplant`.
+7. **Every sprite table is required.** `MOFarming` indexes all five tables
+   for every crop and throws on a missing one.
+8. **Sheet `02` is append-only.**
+   - A built deck names its tiles by index, so a new piece goes at the *end*
+     of `OBJECTS` in `tools/adirondack_objects.py`.
+   - After regenerating, check that no existing piece's tile index has moved.
+   - Crops are `kind = "crop"` in the manifest and are skipped there; their
+     sheet is `03`.
+9. **Decks are ordered by number, never by storey.** Sorting by storey put
+   Deck 5 first, which would have moved every deck already built in a save
+   (`gen_adirondack_lua.py`).
+10. **A sink needs vanilla's properties on its tile.** A water store alone
+    gives no fill or wash options; `waterPiped` is what vanilla's menus look
+    for.
 
-**Confirmed in game (2026-09-26):**
-- Sowing a tray through vanilla's own menu, five storeys up.
-- Harvesting a ready crop.
-- A pot of plomeek made at the counter, cooked in the galley range with the
-  bus powering it, and served into three bowls.
+---
 
-The range is a vanilla stove: a pot goes *in* it, as a container, and cooks
-while it is on. There is no separate hob to set it on, in vanilla either.
+## Adding a crop
 
-**Only the game can show:**
-1. Crops standing *in* the trays at the right height (`TRAY_TOP`).
-4. The drinks arriving hot (`TREKFarm_HotDrink` is named in the recipes but
-   not written yet; see below).
-5. A dried item keeping its count through the dehydrator.
+1. **Concept and mesh.**
+   - A Gemini concept of the mature plant, alone, on a mound of dark growing
+     medium, with no pot.
+   - A TRELLIS mesh from it (seed 1701).
+   - Add `crop("crop_<name>", ...)` to the end of
+     `tools/adirondack_objects.py`, and record both in the ledger
+     (`tools/adirondack_jobs.py set ...`, then `fetch`).
+2. **Sprites.** Add a row to `CROPS` in `tools/gen_adirondack_crops.py` (the
+   prop name, the mesh, the mature height and the spread), then run it.
+3. **Items.** In `trekfarming.txt`, add a seed (`Tags = base:isseed`), the
+   produce, and a `TrekSeeds<Crop>` recipe. Then:
+   - names in `ItemName.json`;
+   - tooltips in `Tooltip.json`;
+   - icons through `tools/gen_farm_icons.py`.
+4. **Registration.** Add the crop to `F.Crops` in `TREK_FarmCrops.lua`, and
+   add `Farming_<Prop>` to `Farming.json`.
+5. **Stock.** Add the seed to the `seeds` list in `A.stockItems`. To have it
+   pre-planted, add it to `F.StartRows` (a row holds seven).
+6. **Build.** Run `tests/test_farming.py` and `tests/test_multiplayer.py`,
+   then `tools/gen_adirondack_pack.py`, then deploy.
 
-**The brewed drinks arrive hot.** `TREKFarm_HotDrink`
-(`shared/TREK/TREK_FarmRecipes.lua`) is the `OnCreate` for both brews, and it
-sets the mug's item heat. Whether that heat does anything when drunk is item 4
-above.
+## Adding a recipe
+
+1. Write a `craftRecipe` in `trekfarming.txt`: module `TrekShuttle`, with
+   full `Base.` / `TrekShuttle.` names and `base:` tags.
+2. Give it a name in `Recipes.json`.
+3. If it names an `OnCreate`, define that global function in `lua/shared/`.
+4. Run `tests/test_farming.py`. It fails on any unknown item or tag, a
+   missing name, or an `OnCreate` that no Lua file defines.
+
+---
+
+## Symptom map
+
+| What you see | Why, and where to look |
+|---|---|
+| **Sow submenu empty** | The crop table was wiped after we registered (engine fact 1). Is `F.ensure()` still hooked, and does `TREK_FarmClient` still wrap `doSeedMenu`? |
+| **Brown furrows at the foot of a tray** | Vanilla's plowed sprite (fact 3). Is the `getSpriteName` wrapper installed, and does `F.onShip` find the plant? |
+| **A plant still standing after harvest** | A bush grows back; that is by design. If it is an annual: is `F.wrapHarvest` installed, and does the `trampled` table point at the soil? |
+| **Crops gone after a deck rebuild** | The builder's plant exemption (fact 5) |
+| **Crops losing health, or dying, aboard her** | The greenhouse rule (`F.wrapHealth`) |
+| **Crops drying out aboard her** | *Hydroponics tend themselves* is off, or `F.tendAll` is not reaching them (`F.onShip`) |
+| **A crop floats above, or sinks into, its tray** | `TRAY_TOP` in `gen_adirondack_crops.py`. Change it, then re-render. |
+| **The range will not heat** | The power bus: an `IsoGenerator` on the range's square, activated, and her store not dark. Is the range an `IsoStove`? A refit replaces one that is not. |
+| **No fill or wash at a sink** | Its tile needs `waterPiped` (fact 10; `test_farming.py` checks), and its object needs a water store (`A.Water`) |
+| **The dehydrator does nothing** | Only the three types in `F.Dry` dry, and only on a built deck, in the hourly pass |
+| **Worms not breeding** | They need at least two worms and some food, in the tank, for six game hours |
+| **Empty seed locker in an old world** | Containers are stocked once, when they are built. A world whose deck was built before a stock change keeps what it had. |
+
+---
+
+## Tests
+
+**`tests/test_farming.py`** (static):
+- every item and tag a recipe names exists;
+- every recipe has a name, and every `OnCreate` is defined;
+- every crop names real items, has its `Farming.json` name, and has five
+  sprite tables of eight whose pictures are in the pack;
+- the sinks carry `waterPiped`.
+
+**`farming()` in `tests/test_multiplayer.py`** (the simulation):
+- the crops are registered, and put back after vanilla wipes the table;
+- the bay starts 7 ready, 7 growing and 7 empty;
+- an empty tray shows soil while a plot in the ground shows furrows;
+- the lockers, benches and tanks are stocked;
+- tending, and the greenhouse rule;
+- a crop in the ground below is left alone;
+- a crop survives a rebuild;
+- an annual's tray re-primes at harvest while a bush grows back;
+- the dehydrator dries, and the tank breeds and starves;
+- the range is an `IsoStove` with a bus, and the cupboard holds cookware.
+
+The simulation stands in for vanilla farming with a small stub
+(`tests/pz_sim.lua`). It proves our hooks, not vanilla's growth, which only
+the game shows.
+
+**Still unconfirmed in game:**
+1. The height of a growing crop in its tray (`TRAY_TOP`).
+2. The brewed drinks' heat: does `setItemHeat` on a fluid mug do anything when
+   it is drunk?
+3. The dehydrator, and whether a dried stack keeps its count.
+4. The worm tank breeding.
+5. The galley sink offering fill and wash.

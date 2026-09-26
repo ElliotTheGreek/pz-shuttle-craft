@@ -166,7 +166,7 @@ local function make(sq, o)
 
     local obj
     if piece == "galley_range" then
-        -- A real stove (FARMING.md 3), the way the shuttle's oven is one
+        -- A real stove (FARMING.md), the way the shuttle's oven is one
         -- (TREK_Build.placeStove), powered by the deck's bus (servicePowerBus).
         obj = U.try("IsoStove.new", function()
             return IsoStove.new(getCell(), sq, getSprite(sprite))

@@ -1,4 +1,4 @@
-"""The hydroponics item icons (FARMING.md 6.2): keyed from Gemini raws.
+"""The hydroponics item icons (FARMING.md): keyed from Gemini raws.
 
     python tools/gen_farm_icons.py
 

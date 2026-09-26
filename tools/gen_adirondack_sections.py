@@ -134,12 +134,12 @@ SECTIONS["lounge"] = dict(
            ("galley_counter", "N", 13, 4), ("galley_counter", "S", 13, 5),
            ("stasis_unit", "W", 11, 8), ("stasis_unit", "W", 11, 9),
            ("replicator", "N", 15, 0) if False else ("cargo_crate", "N", 15, 10),
-           # A real stove (FARMING.md 3), against the east bulkhead.
+           # A real stove (FARMING.md), against the east bulkhead.
            ("galley_range", "E", 15, 3),
            # Pots, pans, bowls, mugs and knives, beside the range.
            ("galley_cupboard", "E", 15, 5)]))
 
-# Deck 5 (FARMING.md 5): the hydroponics bay under its grow lights, the botany
+# Deck 5 (FARMING.md): the hydroponics bay under its grow lights, the botany
 # lab, and the serpent tank room. Three rows of seven trays with an aisle
 # either side of every row, so every tray can be reached.
 SECTIONS["hydroponics"] = dict(

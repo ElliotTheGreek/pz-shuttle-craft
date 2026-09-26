@@ -192,7 +192,7 @@ A.Stock = {
     seed_locker     = { items = "seeds", copies = 5 },
     potting_bench   = { items = "garden", copies = 1 },
     worm_tank       = { items = "worms", copies = 3 },
-    -- The galley's cookware (FARMING.md 3): everything the from-scratch
+    -- The galley's cookware (FARMING.md): everything the from-scratch
     -- recipes need that is not grown.
     galley_cupboard = { items = "cookware", copies = 1 },
 }

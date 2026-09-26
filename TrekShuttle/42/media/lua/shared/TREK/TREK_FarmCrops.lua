@@ -1,4 +1,4 @@
---[[ Shuttlecraft -- the hydroponics crops, registered (FARMING.md 2).
+--[[ Shuttlecraft -- the hydroponics crops, registered (FARMING.md).
 
     The seven crops as vanilla crop types in `farming_vegetableconf.props`,
     with the sprite tables tools/gen_adirondack_crops.py renders. Shared,
@@ -15,7 +15,7 @@ local F = TREK.Farm or {}
 TREK.Farm = F
 
 ---------------------------------------------------------------------------
--- The crops (FARMING.md 2)
+-- The crops (FARMING.md)
 ---------------------------------------------------------------------------
 -- Hours per growth stage, and what comes off at harvest. Faster than
 -- vanilla's fields: a hydroponics bay under grow lights.
