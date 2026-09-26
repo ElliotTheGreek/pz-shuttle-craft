@@ -363,6 +363,17 @@ end
 ---
 --- Deliberately preserves anything the mod tagged and anything lying on the
 --- ground, so both clearing passes are safe to repeat as chunks stream in.
+--- True for a star-field floor of the void map: trek_adirondack_01_48..63.
+function U.isSpace(o)
+    local name = U.try("spaceSprite", function()
+        local spr = o:getSprite()
+        return spr and spr:getName()
+    end)
+    if type(name) ~= "string" then return false end
+    local i = tonumber(name:match("^trek_adirondack_01_(%d+)$"))
+    return i ~= nil and i >= 48 and i <= 63
+end
+
 function U.clearSquare(sq, removeFloor)
     if not sq then return 0 end
     local doomed = {}
@@ -372,6 +383,10 @@ function U.clearSquare(sq, removeFloor)
         -- Dropped items and the world models we place as items live here too;
         -- stripping those would eat the helm and anything a player put down.
         if instanceof(o, "IsoWorldInventoryObject") then return end
+        -- Space: the void map's star floors (tools/gen_void_map.py). Every
+        -- clearing pass strips the ground under the ships, and without this
+        -- each one would punch a black hole in the starfield round them.
+        if U.isSpace(o) then return end
         if not removeFloor then
             local floor = U.try("floor", function() return sq:getFloor() end)
             if floor and o == floor then return end

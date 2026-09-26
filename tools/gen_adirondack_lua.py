@@ -29,13 +29,18 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import compose_adirondack as COMP  # noqa: E402
 import gen_adirondack_pack as PACK  # noqa: E402
+import gen_adirondack_tubes as TUBES  # noqa: E402
 
 ROOT = COMP.ROOT
 OUT = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua", "shared", "TREK",
                    "TREK_AdirondackLayout.lua")
-# Squares between one deck's west edge and the next one's. Wide enough that no
-# wall of one deck is ever on a square the next one clears.
-DECK_PITCH = 32
+# Squares between one deck's west edge and the next one's. **Far enough that
+# no deck is ever drawn from another.** The engine loads at most 19 chunks of
+# 8 around a player (IsoChunkMap.CalcChunkWidth), 79 squares from the edge of
+# the player's chunk, and draws nothing it has not loaded; at 32 the next deck
+# was twelve squares off and in plain view. At 108 the gap is 88. The Jefferies
+# tubes cross it (gen_adirondack_tubes.py).
+DECK_PITCH = TUBES.DECK_PITCH
 DECK_FLOOR = "trek_adirondack_01_25"
 
 
@@ -178,6 +183,11 @@ def main():
                 raise SystemExit("the turbolift cars do not line up: %s vs %s" % (box, lift_room))
             lift_room = box
 
+    # The Jefferies tubes (gen_adirondack_tubes.py, JEFFERIES.md): they put
+    # their hatches on the decks' corridor walls, so before anything is written.
+    tubes = TUBES.build([decks[z] for z in order], W, H, index)
+    span = TUBES.span(tubes, W, H, len(order))
+
     # --- write --------------------------------------------------------------------------
     def q(s):
         return '"%s"' % s.replace("\\", "\\\\").replace('"', '\\"')
@@ -217,8 +227,36 @@ def main():
         out.append("  { name = %s, internal = %s, place = %s }," % (
             q(r["Name"]), q(r.get("InternalName", "")), q(place(r))))
     out.append("}")
-    out.append("L.decks = {")
     body = []
+    # Every tube in the frame of its own deck (`from`): x runs on past that
+    # deck's east edge into the gap. `path` is the crawlway from the outgoing
+    # hatch; `crawl` every square one crawls on; `hideout` the room off it
+    # where one stands; `clutter` what lies on its floor, placed once.
+    sq = lambda pts: ", ".join("{ %d, %d }" % (x, y) for x, y in pts)
+    body.append("L.span = { x0 = %d, y0 = %d, x1 = %d, y1 = %d }" % span)
+    body.append("L.tubes = {")
+    for t in tubes:
+        n = t["n"] + 1
+        body.append("  {")
+        body.append("    from = %d, to = %d, name = %s," % (n, n + 1, q("Jefferies Tube %d-%d" % (n, n + 1))))
+        body.append("    path = { %s }," % sq(t["path"]))
+        body.append("    crawl = { %s }," % sq(t["crawl"]))
+        if t["hideout"]:
+            body.append("    hideout = { %s }," % sq(t["hideout"]))
+        body.append("    floors = {")
+        for (x, y), f in sorted(t["floors"].items(), key=lambda kv: (kv[0][1], kv[0][0])):
+            body.append("      { %d, %d, %s }," % (x, y, q(f)))
+        body.append("    },")
+        body.append("    objects = {")
+        for o in t["objects"]:
+            x, y, spr, k = o[:4]
+            tail = (", " + q(o[4])) if len(o) > 4 else ""
+            body.append("      { %d, %d, %s, %s%s }," % (x, y, q(spr), q(k), tail))
+        body.append("    },")
+        body.append("    clutter = { %s }," % ", ".join('{ %d, %d, %s }' % (x, y, q(i)) for x, y, i in t["clutter"]))
+        body.append("  },")
+    body.append("}")
+    body.append("L.decks = {")
     for n, z in enumerate(order, start=1):
         d = decks[z]
         info = by_z.get(z, {})
@@ -248,8 +286,8 @@ def main():
             body.append("      { %d, %d, %s, %s%s }," % (x, y, q(s), q(k), tail))
         body.append("    },")
         body.append("  },")
+    body.append("}")
     out.extend(body)
-    out.append("}")
     digest = hashlib.sha1("\n".join(body).encode()).hexdigest()
     out.insert(3, "-- Changes whenever anything placed changes; a deck built by another is brought up to date.")
     out.insert(4, "L.rev = %d" % (int(digest[:7], 16)))

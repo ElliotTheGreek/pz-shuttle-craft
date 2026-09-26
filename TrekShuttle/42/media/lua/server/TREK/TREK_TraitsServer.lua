@@ -359,6 +359,15 @@ function S.onBeam(player, kind)
     T.note(player, "IGUI_TREK_Phobia", nil, 255, 170, 90)
 end
 
+--- A turbolift ride granted to this character (TREK_Server's move handler):
+--- instant dread for the phobic, the moment the doors close.
+function S.onLift(player)
+    if not T.has(player, "turboliftphobia") then return end
+    T.adjust(player, { add = { STRESS = C.LiftPhobiaStress, PANIC = C.LiftPhobiaPanic,
+                               UNHAPPINESS = C.LiftPhobiaUnhappy } })
+    T.note(player, "IGUI_TREK_LiftPhobia", nil, 255, 120, 90)
+end
+
 ---------------------------------------------------------------------------
 -- Timers
 ---------------------------------------------------------------------------

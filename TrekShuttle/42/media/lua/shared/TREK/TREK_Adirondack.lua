@@ -13,6 +13,11 @@
     They stand on the cabin's level, C.CabinZ, for the cabin's reasons: nothing
     that grows or walks on the ground below can reach them, and the arrival
     hold that keeps a player up there until the deck exists is already proven.
+
+    **Jefferies tubes join them** (JEFFERIES.md): a crawlway from each deck's
+    corridor to the next one's, across the gap, over the stars. A tube square
+    belongs to the deck it leaves from -- `locate` answers that deck, with an
+    lx that runs on past its east edge -- and counts as inside her walls.
 ]]
 
 require "TREK/TREK_Config"
@@ -55,12 +60,76 @@ function A.at(k, lx, ly)
     return x + lx, y + ly
 end
 
+---------------------------------------------------------------------------
+-- Jefferies tubes
+---------------------------------------------------------------------------
+-- World square "x,y" -> { t = tube index, k = its deck, lx, ly, crawl, hideout }.
+local tubeIndex = nil
+
+local function key(x, y) return x .. "," .. y end
+
+function A.tubeIndex()
+    if tubeIndex then return tubeIndex end
+    tubeIndex = {}
+    for t, tube in ipairs(L.tubes or {}) do
+        local k = tube.from
+        local function mark(list, what)
+            for _, p in ipairs(list or {}) do
+                local x, y = A.at(k, p[1], p[2])
+                local e = tubeIndex[key(x, y)] or { t = t, k = k, lx = p[1], ly = p[2] }
+                e[what] = true
+                tubeIndex[key(x, y)] = e
+            end
+        end
+        mark(tube.crawl, "crawl")
+        mark(tube.hideout, "hideout")
+    end
+    return tubeIndex
+end
+
+--- The tube a square is in: the index entry, or nil. At the ship's level only.
+function A.tubeAt(x, y, z)
+    if not x or not y then return nil end
+    if z and math.floor(z) ~= A.Z then return nil end
+    return A.tubeIndex()[key(math.floor(x), math.floor(y))]
+end
+
+-- World squares a tube puts anything on -- its floors, and the walls it stands
+-- on squares outside itself: "x,y" -> tube index.
+local tubeOwned = nil
+
+--- The tube that owns a square, or nil. A deck's own clearing leaves these
+--- alone, or it would take a tube's walls for strays.
+function A.tubeOwns(x, y)
+    if not tubeOwned then
+        tubeOwned = {}
+        for t, tube in ipairs(L.tubes or {}) do
+            for _, list in ipairs({ tube.floors, tube.objects }) do
+                for _, o in ipairs(list) do
+                    local wx, wy = A.at(tube.from, o[1], o[2])
+                    tubeOwned[key(wx, wy)] = t
+                end
+            end
+        end
+    end
+    return tubeOwned[key(math.floor(x), math.floor(y))]
+end
+
+--- True on a square one crawls on: a tube's crawlway, not a hideout.
+function A.crawling(x, y, z)
+    local e = A.tubeAt(x, y, z)
+    return e ~= nil and e.crawl == true
+end
+
 --- Which deck a square is on, and where on it: k, lx, ly. Anywhere in the
---- deck's box and its margin counts, at the ship's level only.
+--- deck's box and its margin counts, at the ship's level only; a tube square
+--- is on the deck its tube leaves from.
 function A.locate(x, y, z)
     if not x or not y then return nil end
     if z and math.floor(z) ~= A.Z then return nil end
     x, y = math.floor(x), math.floor(y)
+    local e = A.tubeIndex()[key(x, y)]
+    if e then return e.k, e.lx, e.ly end
     local m = A.Margin
     for k = 1, #L.decks do
         local dx, dy = A.deckOrigin(k)
@@ -88,9 +157,12 @@ function A.roomAt(k, lx, ly)
     return rid and rid > 0 and L.rooms[rid] or nil
 end
 
---- True on a square that is inside the ship's walls.
+--- True on a square that is inside the ship's walls: a room, or a tube.
 function A.inside(k, lx, ly)
-    return A.roomAt(k, lx, ly) ~= nil
+    if A.roomAt(k, lx, ly) ~= nil then return true end
+    if not L.decks[k] then return false end
+    local x, y = A.at(k, lx, ly)
+    return A.tubeIndex()[key(x, y)] ~= nil
 end
 
 function A.inLift(x, y, z)
@@ -195,6 +267,10 @@ A.Stock = {
     -- The galley's cookware (FARMING.md): everything the from-scratch
     -- recipes need that is not grown.
     galley_cupboard = { items = "cookware", copies = 1 },
+    -- The hideouts off the Jefferies tubes (JEFFERIES.md): what the off-watch
+    -- crew keep where the first officer will not look.
+    stash_crate     = { items = "stash", copies = 1 },
+    stash_shelf     = { items = "stash_shelf", copies = 1 },
 }
 
 --- The item lists A.Stock names. A function, because C is filled in order
@@ -215,6 +291,15 @@ function A.stockItems(name)
                  "Base.Bowl", "Base.KitchenKnife" }
     end
     if name == "worms" then return { "TrekShuttle.TrekSerpentWorm" } end
+    if name == "stash" then
+        return { "TrekShuttle.TrekRomulanAle", "TrekShuttle.TrekRomulanAle", "Base.Whiskey",
+                 "Base.Vodka", "Base.BeerBottle", "Base.BeerBottle", "Base.BeerBottle",
+                 "Base.CigarettePack", "Base.Dice", "Base.CardDeck" }
+    end
+    if name == "stash_shelf" then
+        return { "TrekShuttle.TrekBloodwine", "TrekShuttle.TrekAndorianAle", "Base.Rum",
+                 "Base.Scotch", "Base.BeerBottle" }
+    end
     if name == "cookware" then
         return { "Base.Pot", "Base.Pot", "Base.Saucepan", "Base.Pan", "Base.RoastingPan",
                  "Base.BakingTray", "Base.Kettle", "Base.Bowl", "Base.Bowl", "Base.Bowl",

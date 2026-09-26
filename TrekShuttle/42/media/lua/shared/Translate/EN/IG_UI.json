@@ -410,5 +410,7 @@
     "IGUI_TREK_TurboliftTo": "Turbolift: %1",
     "IGUI_TREK_AdkDeck": "%1: %2",
     "IGUI_TREK_AdkLostLock": "The Adirondack's transporter lost its lock; back to the shuttle",
-    "IGUI_TREK_WrongPlace": "Not from here"
+    "IGUI_TREK_WrongPlace": "Not from here",
+    "IGUI_TREK_LiftPhobia": "The doors close. The walls are too close...",
+    "IGUI_TREK_LiftPhobiaWarn": "(you hate these things)"
 }

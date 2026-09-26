@@ -111,7 +111,8 @@ straight through.
 
 **Decks are joined by turbolifts**, which are a small room and a right-click
 ("Deck 4, main engineering"), the same kind of move the transporter already
-makes. Stairs work too, and a Jefferies tube ladder is a nice extra.
+makes -- **and by Jefferies tubes** you crawl through from one deck's corridor
+to the next, across the gap between them. `JEFFERIES.md` is their guide.
 
 **Sliding doors open by themselves** (Starfleet doors "shoosh"). A vanilla
 door has a closed and an open sprite and `IsoDoor` has `ToggleDoor` /
@@ -281,8 +282,16 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
 - **Where**: void cell 97,40, offset 16, on the cabin's level (`C.CabinZ`).
 - **Decks side by side, not stacked.** A runtime building has no RoomDefs, so
   the engine would draw every deck above over the one you stand on. Deck 1
-  (the bridge) is westmost, and each next deck is 32 squares east. The lift
-  cars occupy the same squares on every deck, so a ride keeps your spot in the car.
+  (the bridge) is westmost, and each next deck is 108 squares east -- beyond
+  the 79 squares the engine loads round a player, so no deck is ever drawn
+  from another. The lift cars occupy the same squares on every deck, so a ride
+  keeps your spot in the car.
+- **Jefferies tubes cross the gaps** (`JEFFERIES.md`): a crawlway from each
+  corridor's west wall to the next deck's, built by the server as it loads,
+  with three crew hideouts off them.
+- **Space all round** (`JEFFERIES.md` 5): the void map, now in
+  `common/media/maps` where the engine actually reads it, is a starfield under
+  her and black beyond.
 - **Built per deck, on demand**: the server builds a deck when a player
   arrives on it and its chunks are loaded (`TREK_AdirondackServer.lua`).
   Everything placed is tagged `adk`; a layout change updates a deck in place

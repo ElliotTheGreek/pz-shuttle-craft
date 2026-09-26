@@ -30,7 +30,7 @@ R.Traits = traits({
     "talaxian", "orion", "android", "exborg",
     -- Anyone may take these (3.4).
     "transporterphobia", "realfoodonly", "spacesick", "starfleetacademy",
-    "holohistorian",
+    "holohistorian", "turboliftphobia",
     -- What a Starfleet profession carries (3.2). Profession traits: never in
     -- the pickable lists.
     "sf_command", "sf_helm", "sf_engineering", "sf_security", "sf_medical",

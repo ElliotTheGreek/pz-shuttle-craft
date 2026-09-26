@@ -1008,46 +1008,103 @@ for art in ("seatui/trekshuttle_base_small.png", "mechanic overlay/trekshuttle_b
         failures.append(f"media/ui/vehicles/{art} is missing (python tools/gen_vehicle_assets.py)")
 
 # --- the void map ------------------------------------------------------
-# Empty map cells around the interior cell keep the world generator out, so
-# the space outside the cabin is black. Each file is read back in the build 42
-# format tools/gen_void_map.py writes; a malformed lot fails to load in game
-# and the wilderness comes back, silently.
+# Mapped cells around the cabin and the Adirondack keep the world generator
+# out; their ground is star-field floor, and past that nothing. Each file is
+# read back in the build 42 format tools/gen_void_map.py writes; a malformed
+# lot fails to load in game and the wilderness comes back, silently.
+#
+# **And it has to be in common/media/maps.** The engine looks there first and
+# skips the mod entirely when that folder is missing (MapGroups.createGroups),
+# so a map in 42/media/maps is never loaded -- which is where this one sat,
+# unread, for every release before 1.9.
 import struct
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+import gen_void_map as VOID  # noqa: E402
 cfg = open(os.path.join(MOD, "media", "lua", "shared", "TREK", "TREK_Config.lua"),
            encoding="utf-8").read()
-cell = re.search(r"C\.InteriorCell\s*=\s*\{\s*x\s*=\s*(\d+),\s*y\s*=\s*(\d+)", cfg)
 void = re.search(r'C\.VoidMap\s*=\s*"([^"]+)"', cfg)
-if not cell or not void:
-    failures.append("TREK_Config.lua: C.InteriorCell or C.VoidMap not found")
+common = os.path.join(ROOT, "TrekShuttle", "common")
+if not void:
+    failures.append("TREK_Config.lua: C.VoidMap not found")
 else:
-    cx, cy = int(cell.group(1)), int(cell.group(2))
-    mapdir = os.path.join(MOD, "media", "maps", void.group(1))
+    if os.path.isdir(os.path.join(MOD, "media", "maps")):
+        failures.append("media/maps is under 42/: the engine never reads a mod's map from there "
+                        "(python tools/gen_void_map.py moves it to common/)")
+    mapdir = os.path.join(common, "media", "maps", void.group(1))
     info = os.path.join(mapdir, "map.info")
     if not os.path.isfile(info):
-        failures.append(f"media/maps/{void.group(1)}/map.info is missing "
+        failures.append(f"common/media/maps/{void.group(1)}/map.info is missing "
                         f"(python tools/gen_void_map.py)")
     elif "lots=Muldraugh, KY" not in open(info, encoding="utf-8").read():
         failures.append("the void map's map.info does not group it with Muldraugh, KY")
-    # Two rings: from the cabin's height one ring left trees in view.
-    for dx in range(-2, 3):
-        for dy in range(-2, 3):
-            x, y = cx + dx, cy + dy
-            try:
-                h = open(os.path.join(mapdir, f"{x}_{y}.lotheader"), "rb").read()
-                p = open(os.path.join(mapdir, f"world_{x}_{y}.lotpack"), "rb").read()
-                c = open(os.path.join(mapdir, f"chunkdata_{x}_{y}.bin"), "rb").read()
-            except OSError:
-                failures.append(f"void map cell {x},{y} is missing a file")
-                continue
-            ok = (h[:4] == b"LOTH" and struct.unpack_from("<ii", h, 4) == (1, 1)
-                  and len(h) == 12 + len(b"invisible_01_0\n") + 24 + 1024
-                  and p[:4] == b"LOTP" and struct.unpack_from("<ii", p, 4) == (1, 1024)
-                  and len(p) == 12 + 8 * 1024 + 8 * 1024
-                  and struct.unpack_from("<q", p, 12)[0] == 12 + 8 * 1024
-                  and struct.unpack_from("<ii", p, 12 + 8 * 1024) == (-1, 64)
-                  and c == b"\x00\x01" + bytes(1024))
-            if not ok:
-                failures.append(f"void map cell {x},{y} is not a well-formed empty cell")
+    box = VOID.space_box()
+    want_cells = VOID.cells(box)
+    stars_seen = 0
+    for x, y in want_cells:
+        try:
+            h = open(os.path.join(mapdir, f"{x}_{y}.lotheader"), "rb").read()
+            p = open(os.path.join(mapdir, f"world_{x}_{y}.lotpack"), "rb").read()
+            c = open(os.path.join(mapdir, f"chunkdata_{x}_{y}.bin"), "rb").read()
+        except OSError:
+            failures.append(f"void map cell {x},{y} is missing a file (python tools/gen_void_map.py)")
+            continue
+        names = h[12:].split(b"\n")[:len(VOID.STARS)]
+        ok = (h[:4] == b"LOTH" and struct.unpack_from("<ii", h, 4) == (1, len(VOID.STARS))
+              and [n.decode() for n in names] == VOID.STARS
+              and p[:4] == b"LOTP" and struct.unpack_from("<ii", p, 4) == (1, 1024)
+              and c == b"\x00\x01" + bytes(1024))
+        if not ok:
+            failures.append(f"void map cell {x},{y} has a malformed header")
+            continue
+        # Walk every chunk: it must account for exactly 64 squares, and every
+        # tile it names must be one of the header's.
+        offs = struct.unpack_from("<1024q", p, 12)
+        for i, o in enumerate(offs):
+            end = offs[i + 1] if i + 1 < 1024 else len(p)
+            n, at = 0, o
+            while at < end:
+                count = struct.unpack_from("<i", p, at)[0]
+                if count == -1:
+                    n += struct.unpack_from("<i", p, at + 4)[0]
+                    at += 8
+                else:
+                    named = struct.unpack_from("<%di" % count, p, at + 4)[1:]
+                    if any(not (0 <= t < len(VOID.STARS)) for t in named):
+                        failures.append(f"void map cell {x},{y} chunk {i} names a tile it does not have")
+                        break
+                    stars_seen += 1
+                    n += 1
+                    at += 4 * (count + 1)
+            if n != 64:
+                failures.append(f"void map cell {x},{y} chunk {i} holds {n} squares, not 64")
+                break
+    # Floor, not ceiling: the starfield has to cover both ships and their view.
+    area = (box[2] - box[0] + 1) * (box[3] - box[1] + 1)
+    if stars_seen != area:
+        failures.append(f"the void map has {stars_seen} star squares; its box needs {area}")
+    for name in VOID.STARS:
+        if name not in tiles:
+            failures.append(f"star tile {name} has no picture or no properties in the pack")
+
+# --- the Jefferies tubes' own guard --------------------------------------
+# A tube is walled only where it meets something that is not itself, so two
+# legs of one tube that touch get no wall between them. The generator refuses
+# that; this proves the refusal is there, on a route that doubles back.
+import gen_adirondack_tubes as TUBES  # noqa: E402
+_grid = [[0] * 4 for _ in range(4)]
+_decks = [dict(grid=_grid), dict(grid=_grid)]
+_bad = [(-1, -3), (0, -3), (1, -3), (1, -4), (0, -4)]       # (0,-4) beside (0,-3)
+_tube = dict(n=0, squares=_bad, open={frozenset(p) for p in zip(_bad, _bad[1:])})
+try:
+    TUBES.check([_tube], _decks, 100)
+    failures.append("gen_adirondack_tubes.check accepted a tube that touches itself")
+except SystemExit:
+    pass
+_good = [(-1, -3), (0, -3), (1, -3), (1, -4), (1, -5)]
+try:
+    TUBES.check([dict(n=0, squares=_good, open={frozenset(p) for p in zip(_good, _good[1:])})], _decks, 100)
+except SystemExit as e:
+    failures.append("gen_adirondack_tubes.check refused a sound tube: %s" % e)
 
 # --- the loot tables the crystal is seeded into -------------------------
 # server/Items/TrekDilithium.lua names vanilla distribution tables by string.

@@ -60,5 +60,7 @@
     "UI_prof_trek_starfleet_security": "Starfleet Security Officer",
     "UI_prof_trek_starfleet_medical": "Starfleet Medical Officer",
     "UI_prof_trek_starfleet_science": "Starfleet Science Officer",
-    "UI_prof_trek_survey_specialist": "Cultural Survey Specialist"
+    "UI_prof_trek_survey_specialist": "Cultural Survey Specialist",
+    "UI_trait_trek_turboliftphobia": "Turbolift Phobia",
+    "UI_trait_trek_turboliftphobiaDesc": "A box in a shaft, and the doors close. Every turbolift ride is instant dread: stress, panic and misery. The Jefferies tubes go everywhere the lift does, if you do not mind crawling."
 }

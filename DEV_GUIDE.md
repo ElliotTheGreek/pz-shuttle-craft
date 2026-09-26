@@ -1454,18 +1454,58 @@ which is black outside, and that mod's answer is the right one: it ships a map
 whose cells are **empty**. A mapped cell is never generated, and a map cell
 with no tiles renders as nothing.
 
-`tools/gen_void_map.py` writes `media/maps/TrekShuttle`: the interior cell and
-two rings of cells around it (5x5; one ring left trees in view from the
-cabin's height) as empty cells (the format is documented in the script;
-the output is byte-identical to the RV's empty cells). `tests/test_assets.py`
-reads every file back. If `C.InteriorCell` ever moves, regenerate.
+`tools/gen_void_map.py` writes `common/media/maps/TrekShuttle`: every cell
+round the cabin and the Adirondack, their ground a starfield within sight of
+either ship and empty beyond (the format is documented in the script).
+`tests/test_assets.py` reads every file back, chunk by chunk. If the cabin or
+the Adirondack ever moves, regenerate.
 
-- Single player (`Map=DEFAULT`) and the in-game Host settings add a mod's map
-  folders automatically. A dedicated server's `.ini` must list it:
+- **The map has to be under `common/`, and for every release before 1.9 it
+  was not.** `MapGroups.createGroups` looks for a mod's `common/media/maps`
+  first and, when that folder is missing, skips the mod without ever looking
+  in `42/media/maps`. So the map shipped, the tests passed, and no
+  single-player game ever loaded it: every save's `mods.txt` said
+  `maps { }`, and **the mod's own log said so every session** -- `the
+  'TrekShuttle' map is not loaded`. The grass round the Adirondack was
+  reported as a bug; it had been there since the first cabin. See *A check
+  that nobody reads is a log line* below.
+- Single player (`Map=DEFAULT`) and the in-game Host settings then add it by
+  themselves. A dedicated server's `.ini` must list it:
   `Map=TrekShuttle;Muldraugh, KY`. The server logs whether it is loaded.
 - A map only affects cells never visited: an existing save that already
   generated the cabin's surroundings keeps them. The runtime clearing stays as
   the fallback for that case.
+
+### A check that nobody reads is a log line
+
+**New in this mod, and it hid the void map for its whole life.**
+`S.checkVoidMap` was written to catch exactly one failure -- the map not
+loading -- and it did, in every session, in `console.txt`, as a `NOTICE`.
+Nobody grepped for `NOTICE`; the failure signatures told a reader to look for
+`WARN`. And the sentence it printed was about a *server's* `Map=` setting, so
+anybody who did read it in single player would have concluded it did not
+apply to them.
+
+- **Log a broken invariant as a `WARN`** if the reader is meant to act on it,
+  and say what to do *in the setup they are in*.
+- **When a feature "never worked", read its own diagnostic first.** It is
+  cheaper than any theory, and here it was one line.
+
+### Never find a door by its sprite
+
+**New in this mod.** `IsoDoor.ToggleDoor` swaps an open door's sprite for the
+one two along (`IsoSprite.getSprite(mgr, name, 2)`), so any code that looks
+for "the door" by its closed sprite finds it only while it is shut. The
+Adirondack's builders did exactly that: the Jefferies tube builder, which runs
+every thirty ticks, put a **second** hatch into every open one, and a deck
+rebuild took an open door for a stray and swapped it for a shut one. Both look
+for *our door on that edge* now -- tagged, an `IsoDoor`, `getNorth()` matching
+-- and the test opens a hatch and rebuilds round it.
+
+The general shape is *A sprite is not the object the engine builds from it*
+turned round: **an object's picture is state, not identity.** Anything that
+changes how something looks -- a door, a stove switched on, a crop growing --
+cannot be found again by the look.
 
 ### The interior is authored in BuildingEd, not in the code
 
@@ -2240,6 +2280,8 @@ python tools/gen_fragment.py TrekShuttle/42       # the six holo fragments: mesh
 python tools/gen_tapes.py   TrekShuttle/42        # every tape: RecMedia and Recorded_Media.json
 python tools/gen_comms.py   TrekShuttle/42        # the channel: the tree and Print_Text.json (refuses a bad tree)
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
+python tools/gen_void_map.py                      # space round the cabin and the Adirondack (common/media/maps)
+python tools/preview_tubes.py                     # the Jefferies tubes: overview and a render of each
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
 ```
@@ -2332,7 +2374,11 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **"You are not on this shuttle's crew"** | Sandbox *Who may use the shuttle* is *Owner and crew*. The owner or an admin adds crew from the aboard menu. |
 | **Stuck on the pad, then put back outside** | The server never reported the cabin ready. Look for `[TREK] cabin ready` in the server's log and `arrival tick` lines on the client. |
 | **The phaser runs out** | The sweep is not seeing it. `TREK_Phaser()` reports how many it found; zero while one is in your hands means the inventory lookup is wrong. |
-| **Grass, trees or zombies outside the cabin** | The void map is not loaded (server log: `the 'TrekShuttle' map is not loaded` -- add it to `Map=`), or the save visited that area before the map existed. Test in a new world. |
+| **Grass, trees or zombies outside the cabin or the Adirondack** | The void map is not loaded (log: `the 'TrekShuttle' map is not loaded`). In single player the map is not under `common/media/maps` -- the engine never reads it from `42/`; on a server, add it to `Map=`. Or the save generated those cells before the map was loaded: test in a new world. |
+| **Another deck in view from this one** | `DECK_PITCH` has come down below the engine's load radius (79 squares from the player's chunk). See `JEFFERIES.md` 5. |
+| **Standing up in a Jefferies tube, or crawling in a corridor** | `TrekCrawl` is not being set or cleared (`AC.serviceCrawl`), or the AnimSets nodes are not loading -- `media/AnimSets/player/movement/trekCrawl.xml` must be in the mod. |
+| **Two doors in one doorway, or an open door that shuts itself on a rebuild** | Something looked for a door by its sprite. See *Never find a door by its sprite*. |
+| **Held still halfway along a Jefferies tube** | The server has not built that stretch yet: it builds a tube only as its chunks load, every 30 ticks while anybody is aboard. `Adirondack Jefferies Tube N-M: ... placed` in the log. |
 | **Two shuttles** | Something was removed at a position whose chunk was not loaded, and the failure was read as success. `TREK_Ghosts()` lists hulls known to be pending and forces a sweep. |
 | **The shuttle "flies" but is drawn on the ground** | Its z is not its physics height. `BaseVehicle.update()` zeroes a vehicle's z every tick and restores the level only where a floor exists under its centre square — so the sky plane is not being laid. `grep "sky plane" console.txt`. See *A vehicle's altitude is a floor, not a height*. |
 | **The shuttle flies and ploughs through fences** | Same cause. Collision resolves at `getZ()`, which is 0 without a floor. |
@@ -2990,6 +3036,16 @@ never called while she was calling. Fixed within the hour; the harness checks it
 Still to see: a whole call answered, the spine over a real week, a tape read for
 its XP, a fragment found by a probe, and two players on one channel.
 
+**The 2026-09-26 Jefferies tubes** (`JEFFERIES.md`): a crawlway from every
+deck of the Adirondack to the next, across the gap and over a starfield, built
+by the server as it loads; three crew hideouts off them; Turbolift Phobia; and
+the decks spread to 108 apart so none is ever seen from another. It found that
+the void map had never loaded in single player (*A check that nobody reads is
+a log line*) and a door bug in both of her builders (*Never find a door by its
+sprite*). Eighteen mutations, one pass at a time, all caught -- two only after
+the test learned to hold the run key and to check the rebuilt door was the
+same door. **Needs a new world, and none of it has been seen in game.**
+
 **Next up** is `ROADMAP.md`'s step 7: publishing -- or `ROADMAP2.md` 1.6, the
 cold start, if it is to ship with the ensign. Everything else on the roadmap
 is built; what is left is playing it. Four systems have never been in a game at
@@ -3047,6 +3103,12 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_CommsTree.lua        the dialogue tree
 TrekShuttle/42/media/lua/server/TREK/TREK_CommsServer.lua      the channel's authority: scheduler, call, holder, conversion
 TrekShuttle/42/media/lua/shared/Translate/EN/Print_Text.json   every channel line (generated)
 content/tapes/*.json, content/comms/*.json                     every tape and every call, as written (content/README.md)
+TrekShuttle/42/media/lua/shared/TREK/TREK_Adirondack.lua      the Adirondack: where she is, her tubes, her machines, her stock
+TrekShuttle/42/media/lua/server/TREK/TREK_AdirondackServer.lua her decks and tubes built, doors, water, power bus
+TrekShuttle/42/media/lua/client/TREK/TREK_AdirondackClient.lua moving about her: beams, the lift, the crawl, lamps
+TrekShuttle/42/media/AnimSets/player/*/trekCrawl*.xml          the crawl in a Jefferies tube (vanilla's Bob_Crawl)
+TrekShuttle/common/media/maps/TrekShuttle/                     the void map: space (generated; must be under common/)
+tools/gen_adirondack_tubes.py                                  the Jefferies tubes' routes, walls, hatches, hideouts
 tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network
 ```
 

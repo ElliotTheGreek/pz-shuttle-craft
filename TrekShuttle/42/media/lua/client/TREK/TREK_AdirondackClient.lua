@@ -14,6 +14,12 @@
 
     And while anybody is aboard her, the same rule as the cabin: somebody off
     the deck (over a wall, into the black) is put back, never left to fall.
+
+    **The Jefferies tubes are walked, not ridden** (JEFFERIES.md): nobody is
+    moved. In a tube's crawlway the player's own character crawls -- vanilla's
+    Bob_Crawl, which no vanilla state plays, through the mod's AnimSets node
+    keyed on the TrekCrawl variable -- held to a sneak and never a run; out of
+    it, their own sneak is given back as it was.
 ]]
 
 if isServer() then return end
@@ -84,6 +90,24 @@ local function lightDeck(k)
         end
     end
     local c = C.CabinLight
+    -- And the tubes that leave or reach this deck: a lamp every few squares
+    -- of crawlway and one over each hideout's table.
+    for _, tube in ipairs(L.tubes or {}) do
+        if tube.from == k or tube.to == k then
+            local spots = {}
+            for i = 1, #tube.path, C.TubeLampEvery do table.insert(spots, tube.path[i]) end
+            if tube.hideout then table.insert(spots, tube.hideout[6]) end
+            for _, p in ipairs(spots) do
+                local key = "t" .. tube.from .. "," .. p[1] .. "," .. p[2]
+                if not lamps[key] then
+                    local x, y = A.at(tube.from, p[1], p[2])
+                    lamps[key] = U.try("light.add", function()
+                        return cell:addLamppost(x, y, A.Z, c[1], c[2], c[3], c[4])
+                    end)
+                end
+            end
+        end
+    end
     for ly = 1, L.H - 1, 4 do
         for lx = 1, L.W - 1, 4 do
             local key = k .. "," .. lx .. "," .. ly
@@ -259,9 +283,45 @@ local function checkAboard(player)
     U.note(player, getText("IGUI_TREK_NoWayOut"), 255, 170, 90)
 end
 
+---------------------------------------------------------------------------
+-- Crawling
+---------------------------------------------------------------------------
+-- username -> { sneaking = what it was before the tube }, while in one.
+local crawlers = {}
+
+--- On a tube's crawlway: down on all fours, at a sneak, never a run. Off it:
+--- up again, and sneaking only if they were before they went in. Only this
+--- client's own character, which is the only one a client may touch.
+function AC.serviceCrawl(player)
+    local who = U.try("username", function() return player:getUsername() end) or "?"
+    local st = crawlers[who]
+    if A.crawling(player:getX(), player:getY(), player:getZ()) then
+        if not st then
+            st = { sneaking = player:isSneaking() == true }
+            crawlers[who] = st
+        end
+        player:setVariable("TrekCrawl", true)
+        if not player:isSneaking() then player:setSneaking(true) end
+        player:setRunning(false)
+        player:setSprinting(false)
+        return true
+    elseif st then
+        crawlers[who] = nil
+        player:setVariable("TrekCrawl", false)
+        player:setSneaking(st.sneaking)
+    end
+    return false
+end
+
+function AC.isCrawling(player)
+    local who = player and U.try("username", function() return player:getUsername() end)
+    return who ~= nil and crawlers[who] ~= nil
+end
+
 Events.OnPlayerUpdate.Add(function(player)
     if not player or not player:isLocalPlayer() or player:isDead() then return end
     U.try("adk.checkAboard", checkAboard, player)
+    U.try("adk.crawl", AC.serviceCrawl, player)
 end)
 
 ---------------------------------------------------------------------------
@@ -286,7 +346,12 @@ function AC.menu(context, player, worldobjects, test)
 
     local inLift = A.inLift(player:getX(), player:getY(), player:getZ())
     if inLift then
-        local liftSub = menu:addOption(getText("IGUI_TREK_Turbolift"), worldobjects, nil)
+        local label = getText("IGUI_TREK_Turbolift")
+        -- The phobic are told before they choose, not only after (TRAITS.md 4.3).
+        if TREK.Traits and TREK.Traits.has(player, "turboliftphobia") then
+            label = label .. " " .. getText("IGUI_TREK_LiftPhobiaWarn")
+        end
+        local liftSub = menu:addOption(label, worldobjects, nil)
         local lift = ISContextMenu:getNew(menu)
         menu:addSubMenu(liftSub, lift)
         for j, d in ipairs(L.decks) do

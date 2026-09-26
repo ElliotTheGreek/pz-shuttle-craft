@@ -1037,6 +1037,9 @@ Net.onServer("move", function(player, args)
                               or kind == "toAdirondack" or kind == "fromAdirondack") then
         U.try("traits.beam", TREK.TraitsServer.onBeam, player, kind)
     end
+    if TREK.TraitsServer and kind == "turbolift" then
+        U.try("traits.lift", TREK.TraitsServer.onLift, player)
+    end
 
     Net.toClient(player, "moveGranted", { kind = kind, token = args.token,
                                           cost = energy > 0 and energy or nil })
@@ -3311,8 +3314,9 @@ function S.checkVoidMap()
         U.log("void map '%s' is loaded", C.VoidMap)
     else
         U.log("NOTICE: the '%s' map is not loaded, so the space outside the cabin " ..
-              "will show wilderness. Add it before the base map in the server's Map " ..
-              "setting, e.g. Map=%s;Muldraugh, KY", C.VoidMap, C.VoidMap)
+              "will show wilderness. On a server, add it before the base map in the " ..
+              "Map setting, e.g. Map=%s;Muldraugh, KY. In single player the mod's " ..
+              "common/media/maps folder was not found (JEFFERIES.md 5).", C.VoidMap, C.VoidMap)
     end
 end
 

@@ -790,6 +790,8 @@ end
 --- door added the wrong way is a door a test can walk through.
 function ObjectMT:IsOpen() return self.open == true end
 function ObjectMT:isNorth() return self.north == true end
+-- The engine's own getter (IsoDoor.getNorth); isNorth above is the sim's.
+function ObjectMT:getNorth() return self.north == true end
 local function doorToggle(self)
     self.open = not self.open
     local base, n = self.closedSprite:match("^(.*)_(%d+)$")
@@ -2204,6 +2206,22 @@ function PlayerMT:isDead() return self.dead end
 function PlayerMT:getModData() return self.modData end
 function PlayerMT:getPlayerNum() return 0 end
 function PlayerMT:isLocalPlayer() return SIM_ROLE ~= "server" end
+-- Animation variables and the movement stance (the Jefferies tubes' crawl).
+-- Stored, so a test reads back what was set rather than trusting the call.
+function PlayerMT:setVariable(name, value)
+    self.animVars = self.animVars or {}
+    self.animVars[name] = value
+end
+function PlayerMT:getVariableBoolean(name)
+    return self.animVars ~= nil and self.animVars[name] == true
+end
+function PlayerMT:clearVariable(name) if self.animVars then self.animVars[name] = nil end end
+function PlayerMT:setSneaking(b) self.sneaking = b == true end
+function PlayerMT:isSneaking() return self.sneaking == true end
+function PlayerMT:setRunning(b) self.running = b == true end
+function PlayerMT:isRunning() return self.running == true end
+function PlayerMT:setSprinting(b) self.sprinting = b == true end
+function PlayerMT:isSprinting() return self.sprinting == true end
 function PlayerMT:getRole()
     local admin = self.admin
     return { hasAdminPower = function() return admin end }

@@ -561,6 +561,7 @@ can tell.
 | Spacesick | -2 | aboard in flight: stress and unhappiness every ten minutes |
 | Starfleet Academy | 3 | Electrical +1, Aiming +1 |
 | Holo-historian | 2 | PADD reading and transcription a quarter faster |
+| Turbolift Phobia | -2 | each turbolift ride: stress +0.35, panic +60, unhappiness +10, and a warning in the lift's menu. The Jefferies tubes cost nothing (`JEFFERIES.md` 6) |
 
 ### 4.4 Divisions
 

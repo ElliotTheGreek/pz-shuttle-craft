@@ -37,7 +37,7 @@ RAW = os.path.join(ROOT, "design", "art", "traits")
 
 GENERATED = ["vulcan", "klingon", "andorian", "betazoid", "trill", "bajoran",
              "talaxian", "orion", "android", "exborg", "transporterphobia",
-             "realfoodonly", "spacesick", "starfleetacademy", "holohistorian"]
+             "realfoodonly", "spacesick", "starfleetacademy", "holohistorian", "turboliftphobia"]
 PROFESSIONS = ["starfleet_command", "starfleet_helm", "starfleet_engineer",
                "starfleet_security", "starfleet_medical", "starfleet_science",
                "survey_specialist"]

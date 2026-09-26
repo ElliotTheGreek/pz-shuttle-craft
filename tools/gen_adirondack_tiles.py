@@ -33,11 +33,22 @@ The sheet's layout mirrors industry_01 so the BuildingEd entries read the same:
  24 carpet  25 deck         floors
  32 door W  33 door N  34 W open  35 N open     (sliding: open is the frame)
  40 panel on a W wall  41 panel on a N wall
+
+and the Jefferies tubes (JEFFERIES.md), from their own raws
+(design/art/adirondack/tube_*_raw.jpg):
+  4 W  5 N  6 NW  7 SE      the tube's walls
+ 12 W-door  13 N-door       tube walls with a doorway
+ 26                         the crawlway grating
+ 36 hatch W  37 N  38 W open  39 N open    (open: the leaf gone, the dark tube behind)
+ 48..63                     space: sixteen star fields, the void map's ground
+                            (tools/gen_void_map.py scatters them)
 """
+import math
 import os
+import random
 import sys
 
-from PIL import Image, ImageStat
+from PIL import Image, ImageDraw, ImageStat
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ART = os.path.join(ROOT, "design", "art", "adirondack")
@@ -199,6 +210,151 @@ def preview(tiles, path):
     canvas.save(path)
 
 
+# --- the Jefferies tubes and space -----------------------------------------
+
+TUBE_WALLS = {4: (0, ("W",)), 5: (1, ("N",)), 6: (2, ("W", "N")), 7: (3, ("W",)),
+              12: (10, ("W",)), 13: (11, ("N",))}
+STARS = range(48, 64)
+# Where the hatch's leaf sits in tube_hatch_raw.jpg, as fractions of the
+# image: measured off the raw, the recess inside its dark frame.
+HATCH_LEAF = (0.20, 0.625, 0.80, 0.935)
+
+
+def open_hatch(tex):
+    """The hatch with its leaf swung away: the dark of the tube behind it,
+    lit a little at the top as a tube is by its guide lights."""
+    out = tex.copy()
+    w, h = out.size
+    x0, y0, x1, y1 = (int(HATCH_LEAF[0] * w), int(HATCH_LEAF[1] * h),
+                      int(HATCH_LEAF[2] * w), int(HATCH_LEAF[3] * h))
+    d = ImageDraw.Draw(out)
+    for y in range(y0, y1):
+        t = (y - y0) / max(1, y1 - y0)
+        v = int(34 - 22 * t)
+        d.line([(x0, y), (x1, y)], fill=(v + 6, v + 3, v))
+    return out
+
+
+def star_tile(mask, seed):
+    """One square of space: black, with stars scattered inside the floor
+    diamond. Drawn in screen space, not projected: a star projected onto the
+    ground plane would come out squashed two to one."""
+    rnd = random.Random(seed)
+    out = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
+    m = mask.load()
+    px = out.load()
+    for y in range(CH):
+        for x in range(CW):
+            if m[x, y]:
+                px[x, y] = (1, 1, 3, 255)
+    inside = [(x, y) for y in range(CH) for x in range(CW) if m[x, y]]
+    xs = [p[0] for p in inside]
+    ys = [p[1] for p in inside]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+
+    def dot(cx, cy, r, colour, peak):
+        for y in range(int(cy - r - 2), int(cy + r + 3)):
+            for x in range(int(cx - r - 2), int(cx + r + 3)):
+                if not (0 <= x < CW and 0 <= y < CH) or not m[x, y]:
+                    continue
+                d = math.hypot(x - cx, y - cy)
+                a = max(0.0, 1.0 - d / (r + 0.8)) ** 1.6 * peak
+                if a <= 0.01:
+                    continue
+                r0, g0, b0, _ = px[x, y]
+                px[x, y] = (min(255, int(r0 + colour[0] * a)), min(255, int(g0 + colour[1] * a)),
+                            min(255, int(b0 + colour[2] * a)), 255)
+
+    tints = [(255, 255, 255), (200, 215, 255), (255, 236, 200), (255, 210, 190), (190, 230, 255)]
+    for _ in range(rnd.randint(5, 11)):
+        for _ in range(40):
+            cx, cy = rnd.uniform(x0 + 3, x1 - 3), rnd.uniform(y0 + 2, y1 - 2)
+            if m[int(cx), int(cy)]:
+                break
+        roll = rnd.random()
+        if roll < 0.7:
+            dot(cx, cy, 0.9, rnd.choice(tints), rnd.uniform(0.45, 0.8))
+        elif roll < 0.95:
+            dot(cx, cy, 1.4, rnd.choice(tints), rnd.uniform(0.8, 1.0))
+        else:
+            # A bright one, with a short cross of light.
+            c = rnd.choice(tints)
+            dot(cx, cy, 2.0, c, 1.0)
+            for k in range(1, 5):
+                for sx, sy in ((k, 0), (-k, 0), (0, k), (0, -k)):
+                    dot(cx + sx, cy + sy * 0.6, 0.4, c, 0.5 / k)
+    return out
+
+
+def tube_wall_texture():
+    """The tube's wall, turned to run along the tube. The raw was painted as
+    a shaft wall -- its circuit strip and panel seams running up and down --
+    and a crawlway is horizontal: turned a quarter, the strip and the seams run
+    the length of the tube. Scaled to the face's height and cut from the middle,
+    every wall section is the same slice, so the horizontal lines meet their
+    neighbours' at every joint."""
+    turned = raw("tube_wall").transpose(Image.ROTATE_270)
+    w = int(turned.width * 216 / turned.height)
+    turned = turned.resize((w, 216), Image.LANCZOS)
+    x0 = (w - 72) // 2
+    return turned.crop((x0, 0, x0 + 72, 216))
+
+
+def tube_tiles(tiles):
+    tube = tube_wall_texture()
+    tcap = cornice(raw("tube_wall"))
+    for i, (src, sides) in TUBE_WALLS.items():
+        tiles[i] = face_tile(tube, mask_of("industry_01", src), sides, tcap)
+    floor_mask = mask_of("floors_interior_tilesandwood_01", 18)
+    grating = crop_frac(raw("tube_floor"), 0.22).resize((128, 128), Image.LANCZOS)
+    tiles[26] = floor_tile(grating, floor_mask)
+
+    hatch = raw("tube_hatch").resize((64, 180), Image.LANCZOS)
+    opened = open_hatch(raw("tube_hatch")).resize((64, 180), Image.LANCZOS)
+    for side, closed, idx in (("W", 0, 36), ("N", 1, 37)):
+        m = mask_of("fixtures_doors_01", closed)
+        tiles[idx] = inset_tile(hatch, m, side)
+        tiles[idx + 2] = inset_tile(opened, m, side)
+
+    for n, i in enumerate(STARS):
+        tiles[i] = star_tile(floor_mask, 1701 + n)
+
+
+def tube_preview(tiles, path):
+    """A stretch of zig-zag tube over a field of stars, as the game stacks
+    them: space on the ground, the tube four storeys above it."""
+    W, H = 9, 9
+    ox, oy = 64 * H + 32, 40
+    canvas = Image.new("RGBA", (64 * (W + H) + 128, 32 * (W + H) + 320), (0, 0, 0, 255))
+
+    def put(t, tx, ty):
+        canvas.alpha_composite(tiles[t], (ox + (tx - ty) * 64 - 64, oy + (tx + ty) * 32))
+
+    rnd = random.Random(7)
+    for ty in range(H):
+        for tx in range(W):
+            put(rnd.choice(list(STARS)), tx, ty)
+    path_sq = [(5, 1), (4, 1), (3, 1), (2, 1), (2, 2), (2, 3), (3, 3), (4, 3), (5, 3), (5, 4), (5, 5)]
+    cells = set(path_sq)
+    for tx, ty in path_sq:
+        put(26, tx, ty)
+    for ty in range(H + 1):
+        for tx in range(W + 1):
+            here = (tx, ty) in cells
+            west = here != ((tx - 1, ty) in cells)
+            north = here != ((tx, ty - 1) in cells)
+            if (tx, ty) == (6, 1) and west:
+                put(12, tx, ty)
+                put(36, tx, ty)
+            elif west and north:
+                put(6, tx, ty)
+            elif west:
+                put(4, tx, ty)
+            elif north:
+                put(5, tx, ty)
+    canvas.save(path)
+
+
 def main():
     wall = raw("wall").resize((72, 216), Image.LANCZOS)
     view = raw("viewport").resize((72, 216), Image.LANCZOS)
@@ -246,6 +402,8 @@ def main():
         m = mask_of("industry_01", wall_i)
         tiles[idx] = inset_tile(panel, m, side, urange=(0.2, 0.8), vrange=(0.2, 0.52))
 
+    tube_tiles(tiles)
+
     sheet = Image.new("RGBA", (CW * COLS, CH * ROWS), (0, 0, 0, 0))
     for i, t in tiles.items():
         sheet.paste(t, ((i % COLS) * CW, (i // COLS) * CH))
@@ -253,6 +411,7 @@ def main():
     out = os.path.join(OUT, SHEET + ".png")
     sheet.save(out)
     preview(tiles, os.path.join(ART, "room_preview.png"))
+    tube_preview(tiles, os.path.join(ART, "tube_preview.png"))
     for i in sorted(tiles):
         bb = tiles[i].split()[3].getbbox()
         if bb is None:

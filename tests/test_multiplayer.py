@@ -10983,7 +10983,7 @@ def traits():
     # --- the registry --------------------------------------------------------
     reg = rt.eval("(function() local n = 0 for _ in pairs(TREK_Registries.Traits) do "
                   "n = n + 1 end return n end)()")
-    check(int(reg or 0) == 27, f"traits: {reg} traits registered, not 27")
+    check(int(reg or 0) == 28, f"traits: {reg} traits registered, not 28")
     prof = rt.eval("(function() local n = 0 for _ in pairs(TREK_Registries.Professions) "
                    "do n = n + 1 end return n end)()")
     check(int(prof or 0) == 7, f"traits: {prof} professions registered, not 7")
@@ -11284,7 +11284,7 @@ def traits():
 
     for w in rt.warnings():
         fail(f"traits: {w}")
-    print("traits: 27 traits and 7 professions registered, exclusions made two-way; "
+    print("traits: 28 traits and 7 professions registered, exclusions made two-way; "
           "the table judges home, foreign, meat and replicated food and leaves humans, "
           "Trill and androids alone; kits, past hosts and starting rank once; rank "
           "from rescues; the phobia on a beam; the replicator's mark; an engineer's "
@@ -11589,7 +11589,9 @@ def adk_deck(rt, k):
         local placed, doors, containers, floors = 0, 0, 0, 0
         for lx = -2, L.W + 2 do for ly = -2, L.H + 2 do
             local x, y = A.at({k}, lx, ly)
-            local sq = SIM.rawSquare(x, y, A.Z)
+            -- A tube's squares beside the deck are the tube's, not the deck's.
+            local sq = A.tubeOwns(x, y) and {{ objects = {{}}, getFloor = function() end }}
+                       or SIM.rawSquare(x, y, A.Z)
             if sq:getFloor() then floors = floors + 1 end
             for _, o in ipairs(sq.objects) do
                 if o.modData.TREK == "adk" then placed = placed + 1 end
@@ -11941,7 +11943,10 @@ def adirondack():
     adk_machines(net, rt, P)
     px, py, _, _ = rt.eval("TREK.Adirondack.padSpot()")
     rt.run(f"SIM.players[1].x, SIM.players[1].y = {px} + 0.5, {py} + 0.5")
-    net.pump(2)
+    # From another deck, a hundred squares and more away: its ground has to
+    # stream in round them, and they are held on the spot until it has.
+    net.pump(150)
+    check(rt.eval("TREK.AdirondackClient.busy()") is False, "adirondack: still held on the pad")
 
     labels = adk_menu(rt)
     check("IGUI_TREK_BeamToShuttle" in labels and "IGUI_TREK_CallDown" not in labels,
@@ -12034,6 +12039,352 @@ def adirondack_multiplayer():
     print("adirondack multiplayer: the server builds her once, both crew see the same deck, "
           "and a lift ride asked for from elsewhere is refused")
 
+
+# --- the Jefferies tubes (JEFFERIES.md) ---------------------------------------------
+
+def tube_at(rt, t, i, which="path"):
+    """World square of item i of tube t's `which` list."""
+    x, y = rt.eval(f"""(function()
+        local A = TREK.Adirondack
+        local tb = A.Layout.tubes[{t}]
+        local p = tb.{which}[{i}]
+        return A.at(tb.from, p[1], p[2])
+    end)()""")
+    return int(x), int(y)
+
+
+def tube_len(rt, t, which="path"):
+    return int(rt.eval(f"#(TREK.Adirondack.Layout.tubes[{t}].{which} or {{}})"))
+
+
+def crawl_to(net, rt, x, y, who=1, settle=3):
+    """Puts the player on a square the way a crawl would reach it, and waits
+    out any hold while its floor is built. True when they are still there."""
+    rt.run(f"SIM.players[{who}].x, SIM.players[{who}].y = {x} + 0.5, {y} + 0.5")
+    net.pump(settle)
+    for _ in range(40):
+        if rt.eval("TREK.AdirondackClient.busy()") is False:
+            break
+        net.pump(10)
+    px, py, _ = pos(rt, who)
+    return (int(px), int(py)) == (x, y)
+
+
+def crawling(rt, who=1):
+    P = f"SIM.players[{who}]"
+    return (rt.eval(f"TREK.AdirondackClient.isCrawling({P})") is True,
+            rt.eval(f"{P}:getVariableBoolean('TrekCrawl')") is True,
+            rt.eval(f"{P}:isSneaking()") is True)
+
+
+def tube_built(rt, t):
+    """(floors there, floors wanted, tagged objects there, objects wanted) for tube t."""
+    return rt.eval(f"""(function()
+        local A = TREK.Adirondack
+        local tb = A.Layout.tubes[{t}]
+        local floors, objs = 0, 0
+        for _, f in ipairs(tb.floors) do
+            local x, y = A.at(tb.from, f[1], f[2])
+            if SIM.rawSquare(x, y, A.Z):getFloor() then floors = floors + 1 end
+        end
+        local seen = {{}}
+        for _, o in ipairs(tb.objects) do
+            local x, y = A.at(tb.from, o[1], o[2])
+            local sq = SIM.rawSquare(x, y, A.Z)
+            local found = false
+            for _, obj in ipairs(sq.objects) do
+                if obj.sprite == o[3] or (obj.getSprite and obj:getSprite():getName() == o[3]) then found = true end
+            end
+            for _, obj in ipairs(sq.special or {{}}) do
+                if obj.sprite == o[3] or (obj.getSprite and obj:getSprite():getName() == o[3]) then found = true end
+            end
+            if found then objs = objs + 1 end
+        end
+        return floors, #tb.floors, objs, #tb.objects
+    end)()""")
+
+
+def hideout_items(rt, t):
+    """(items on the hideout's floor, clutter entries, crate contents as full types)."""
+    got = rt.eval(f"""(function()
+        local A = TREK.Adirondack
+        local tb = A.Layout.tubes[{t}]
+        local floor, stash = 0, {{}}
+        for _, p in ipairs(tb.hideout) do
+            local x, y = A.at(tb.from, p[1], p[2])
+            local sq = SIM.rawSquare(x, y, A.Z)
+            floor = floor + sq:getWorldObjects():size()
+            for _, obj in ipairs(sq.objects) do
+                if obj.container then
+                    for _, it in ipairs(obj.container.items) do table.insert(stash, it.fullType) end
+                end
+            end
+        end
+        return floor, #tb.clutter, table.concat(stash, ";")
+    end)()""")
+    return int(got[0]), int(got[1]), [x for x in str(got[2] or "").split(";") if x]
+
+
+def jefferies():
+    """Crawl from one deck to the next through a Jefferies tube: nobody moved,
+    the tube built round the crawler as it loads, down on all fours the whole
+    way and on their feet again at the far end. A hideout off the tube with
+    its crates and its empties, once. And the lift, for the phobic."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('solo', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run(ADK_SETUP)
+    rt.run("""for _, tb in ipairs(TREK.Adirondack.Layout.tubes) do
+        for _, o in ipairs(tb.objects) do
+            if o[4] == "c" then SIM.containerSprites[o[3]] = true end
+        end
+    end""")
+    P = "SIM.players[1]"
+    to_adirondack(net, rt, P)
+    if died(rt, "jefferies, beaming across"):
+        return
+    adk_visit(net, rt, 1)
+
+    ntubes = int(rt.eval("#TREK.Adirondack.Layout.tubes"))
+    check(ntubes == int(rt.eval("#TREK.Adirondack.Layout.decks")) - 1,
+          f"jefferies: {ntubes} tubes for {rt.eval('#TREK.Adirondack.Layout.decks')} decks")
+    # Every tube leaves one deck and reaches the next, and none is short.
+    for t in range(1, ntubes + 1):
+        check(tube_len(rt, t) > 80, f"jefferies: tube {t} is only {tube_len(rt, t)} squares")
+
+    # The hatch out of deck 1: a real door, on the corridor's west wall.
+    hx, hy = [int(v) for v in rt.eval("TREK.Adirondack.at(1, 0, 3)")]
+    door = rt.eval(f"""(function() local sq = SIM.rawSquare({hx}, {hy}, TREK.Adirondack.Z)
+        for _, o in ipairs(sq.special or {{}}) do if o.class == "IsoDoor" then return true end end
+        return false end)()""")
+    check(door is True, "jefferies: deck 1's tube hatch is not a working door")
+
+    # Into the corridor beside the hatch, not sneaking; then the whole crawl.
+    check(crawl_to(net, rt, hx, hy), "jefferies: could not stand at deck 1's hatch")
+    rt.run(f"{P}:setSneaking(false)")
+    net.pump(2)
+    n = tube_len(rt, 1)
+    lost = None
+    for i in range(1, n + 1):
+        x, y = tube_at(rt, 1, i)
+        # Somebody holding the run key the whole way: no running in a tube.
+        rt.run(f"{P}:setRunning(true)")
+        if not crawl_to(net, rt, x, y):
+            lost = (i, (x, y), pos(rt))
+            break
+        if died(rt, f"jefferies, square {i} of the tube"):
+            return
+        if i in (1, n // 2, n):
+            c = crawling(rt)
+            check(all(c), f"jefferies: square {i} of the tube is not a crawl (crawling, variable, "
+                          f"sneaking) = {c}")
+        check(rt.eval(f"{P}:isRunning()") is False, f"jefferies: running at square {i} of the tube")
+    check(lost is None, f"jefferies: put back mid-tube: {lost}")
+    if lost:
+        return
+    fl, fw, ob, ow = tube_built(rt, 1)
+    check(fl == fw and ob == ow,
+          f"jefferies: tube 1 built {fl} of {fw} floors and {ob} of {ow} fittings after a crawl")
+
+    # Out at the far end, through deck 2's hatch into its corridor.
+    ex, ey = [int(v) for v in rt.eval("TREK.Adirondack.at(2, 0, 5)")]
+    check(crawl_to(net, rt, ex, ey), "jefferies: could not climb out into deck 2's corridor")
+    check(adk_where(rt) == 2, f"jefferies: out of the tube on deck {adk_where(rt)}, not 2")
+    c = crawling(rt)
+    check(c == (False, False, False),
+          f"jefferies: still down on all fours in deck 2's corridor (crawling, variable, sneaking) = {c}")
+
+    # A door somebody has walked up to is open, and looks it: a rebuild of its
+    # deck must neither take it for a stray nor put a second one beside it.
+    rt.run(f"""(function()
+        local sq = SIM.rawSquare({ex}, {ey}, TREK.Adirondack.Z)
+        for _, o in ipairs(sq.special or {{}}) do
+            if o.class == "IsoDoor" and not o.open then o:ToggleDoor(SIM.players[1]) end
+            if o.class == "IsoDoor" then hatchBefore = o end
+        end
+        TREK.AdirondackServer.state().decks[2] = nil
+        TREK.AdirondackServer.buildDeck(2)
+    end)()""")
+    hatches = rt.eval(f"""(function() local n = 0
+        for _, o in ipairs(SIM.rawSquare({ex}, {ey}, TREK.Adirondack.Z).special or {{}}) do
+            if o.class == "IsoDoor" then n = n + 1 end
+        end return n end)()""")
+    check(int(hatches) == 1, f"jefferies: an open hatch rebuilt into {hatches} doors")
+    same = rt.eval(f"""(function()
+        for _, o in ipairs(SIM.rawSquare({ex}, {ey}, TREK.Adirondack.Z).special or {{}}) do
+            if o.class == "IsoDoor" then return rawequal(o, hatchBefore) and o.open end
+        end end)()""")
+    check(same is True, "jefferies: a rebuild took an open hatch for a stray and put a shut one in its place")
+
+    # A second pass over a built tube places nothing.
+    made = rt.eval("TREK.AdirondackServer.buildTube(1)")[0]
+    check(int(made) == 0, f"jefferies: building tube 1 again placed {made}")
+
+    # A player who was sneaking when they went in is sneaking when they come out.
+    rt.run(f"{P}:setSneaking(true)")
+    x1, y1 = tube_at(rt, 1, n)
+    crawl_to(net, rt, x1, y1)
+    crawl_to(net, rt, ex, ey)
+    check(rt.eval(f"{P}:isSneaking()") is True, "jefferies: a sneak worn into the tube was taken off")
+    rt.run(f"{P}:setSneaking(false)")
+
+    # --- the hideout off tube 1 ---------------------------------------------------
+    if int(rt.eval("#(TREK.Adirondack.Layout.tubes[1].hideout or {})")) == 0:
+        fail("jefferies: tube 1 has no hideout")
+        return
+    # The side crawl, from where it leaves the tube; then the room.
+    site = rt.eval("""(function()
+        local tb = TREK.Adirondack.Layout.tubes[1]
+        local b = tb.crawl[#tb.path + 1]
+        for i, p in ipairs(tb.path) do
+            if p[1] == b[1] and p[2] == b[2] + 1 then return i end
+        end
+    end)()""")
+    for i in range(int(site) - 3, int(site) + 1):
+        crawl_to(net, rt, *tube_at(rt, 1, i))
+    for i in (n + 1, n + 2):
+        check(crawl_to(net, rt, *tube_at(rt, 1, i, "crawl")),
+              f"jefferies: put back on the side crawl to the hideout ({i})")
+    hx2, hy2 = tube_at(rt, 1, 6, "hideout")
+    check(crawl_to(net, rt, hx2, hy2), "jefferies: could not get into the hideout")
+    c = crawling(rt)
+    check(c[0] is False and c[1] is False, f"jefferies: crawling in the hideout, where one stands: {c}")
+    net.pump(40)
+    on_floor, clutter, stash = hideout_items(rt, 1)
+    check(on_floor == clutter, f"jefferies: {on_floor} things on the hideout's floor, the layout {clutter}")
+    check("TrekShuttle.TrekRomulanAle" in stash and "Base.Whiskey" in stash,
+          f"jefferies: the hideout's crates hold {stash}")
+    rt.run("TREK.AdirondackServer.buildTube(1)")
+    net.pump(40)
+    again, _, _ = hideout_items(rt, 1)
+    check(again == on_floor, f"jefferies: the empties were put down again: {on_floor} -> {again}")
+    doors = rt.eval("""(function()
+        local A, n = TREK.Adirondack, 0
+        local tb = A.Layout.tubes[1]
+        for _, o in ipairs(tb.objects) do
+            if o[4] == "dN" then
+                local x, y = A.at(tb.from, o[1], o[2])
+                for _, d in ipairs(SIM.rawSquare(x, y, A.Z).special or {}) do
+                    if d.class == "IsoDoor" then n = n + 1 end
+                end
+            end
+        end
+        return n
+    end)()""")
+    check(int(doors) == 1, f"jefferies: the hideout has {doors} working hatches, not 1")
+
+    # --- the lift, for somebody who cannot abide it ----------------------------------
+    adk_visit(net, rt, 2)
+    fresh_traits(rt)
+    s0 = trait_stat(rt, "STRESS")
+    rt.run(f"TREK.AdirondackClient.ride({P}, 3)")
+    net.pump(200)
+    check(adk_where(rt) == 3, f"jefferies: the lift left the player on deck {adk_where(rt)}")
+    check(abs(trait_stat(rt, "STRESS") - s0) < 1e-9, "jefferies: a lift ride without the phobia cost stress")
+    labels = adk_menu(rt)
+    check("IGUI_TREK_LiftPhobiaWarn" not in labels, "jefferies: the lift warns somebody with no phobia")
+    give_trait(rt, "turboliftphobia")
+    labels = adk_menu(rt)
+    check("IGUI_TREK_LiftPhobiaWarn" in labels, f"jefferies: the phobic are not warned at the lift: {labels}")
+    rt.run(f"TREK.AdirondackClient.ride({P}, 2)")
+    net.pump(200)
+    check(abs(trait_stat(rt, "STRESS") - s0 - float(rt.eval("TREK.Config.LiftPhobiaStress"))) < 1e-6,
+          f"jefferies: a phobic ride moved stress by {trait_stat(rt, 'STRESS') - s0}")
+    check(trait_stat(rt, "PANIC") >= float(rt.eval("TREK.Config.LiftPhobiaPanic")),
+          "jefferies: a phobic ride caused no dread")
+    # And the tubes cost them nothing: no dread for a crawl.
+    s1, p1 = trait_stat(rt, "STRESS"), trait_stat(rt, "PANIC")
+    crawl_to(net, rt, *[int(v) for v in rt.eval("TREK.Adirondack.at(2, 0, 3)")])
+    crawl_to(net, rt, *tube_at(rt, 2, 1))
+    crawl_to(net, rt, *tube_at(rt, 2, 2))
+    check(trait_stat(rt, "STRESS") <= s1 + 1e-9, "jefferies: a crawl frightened the lift-phobic")
+
+    # --- space ---------------------------------------------------------------------
+    # A clearing pass takes grass and leaves the stars.
+    kept = rt.eval("""(function()
+        local sq = SIM.rawSquare(900, 900, 0)
+        sq:addFloor("trek_adirondack_01_50")
+        return TREK.Util.clearSquare(sq, true), sq:getFloor() ~= nil
+    end)()""")
+    check(kept[1] is True, "jefferies: a clearing pass took a star floor")
+
+    for w in rt.warnings():
+        fail(f"jefferies: {w}")
+    print(f"jefferies: {ntubes} tubes; crawled all {n} squares of the first, built round the crawler as it "
+          f"loaded, on all fours at a sneak and up again at deck 2 with the sneak given back; the hideout "
+          f"with its hatch, its stash and {clutter} empties put down once; the lift-phobic warned and dreading; "
+          f"the stars survive a clearing")
+
+
+def jefferies_multiplayer():
+    """Alice crawls; the server builds; Bob sees the tube, and only Alice's
+    own client puts her on all fours."""
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    srv.run("SIM.player('alice', 2000.5, 2000.5, 0); SIM.player('bob', 2003.5, 2000.5, 0)")
+    A.run("SIM.player('alice', 2000.5, 2000.5, 0)")
+    B.run("SIM.player('bob', 2003.5, 2000.5, 0)")
+    net.start()
+    for rt in net.all():
+        rt.run(ADK_SETUP)
+    P = "SIM.players[1]"
+    for c in (A, B):
+        c.run(f"TREK.Transport.beamUp({P})")
+    net.pump(220)
+    for c in (A, B):
+        c.run(f"TREK.AdirondackClient.beamTo({P})")
+    net.pump(320)
+    if died(A, "jefferies mp, beaming across") or died(B, "jefferies mp, beaming across"):
+        return
+
+    def both_to(x, y):
+        for c in (A, B):
+            c.run(f"SIM.players[1].x, SIM.players[1].y = {x} + 0.5, {y} + 0.5")
+        srv.run(f"for _, p in ipairs(SIM.players) do p.x, p.y = {x} + 0.5, {y} + 0.5 end")
+        net.pump(4)
+        for _ in range(40):
+            if A.eval("TREK.AdirondackClient.busy()") is False and B.eval("TREK.AdirondackClient.busy()") is False:
+                break
+            net.pump(10)
+
+    k = int(srv.eval("TREK.Adirondack.Layout.pad.deck"))
+    t = k if k < int(srv.eval("#TREK.Adirondack.Layout.decks")) else k - 1
+    hx, hy = [int(v) for v in srv.eval(f"TREK.Adirondack.at({t}, 0, 3)")]
+    both_to(hx, hy)
+    for i in range(1, 13):
+        x, y = tube_at(srv, t, i)
+        # Alice crawls in; Bob waits at the hatch.
+        A.run(f"SIM.players[1].x, SIM.players[1].y = {x} + 0.5, {y} + 0.5")
+        srv.run(f"SIM.players[1].x, SIM.players[1].y = {x} + 0.5, {y} + 0.5")
+        net.pump(4)
+        for _ in range(20):
+            if A.eval("TREK.AdirondackClient.busy()") is False:
+                break
+            net.pump(10)
+    x, y = tube_at(srv, t, 12)
+    ax, ay, _ = pos(A)
+    check((int(ax), int(ay)) == (x, y), f"jefferies mp: alice was put back in the tube, at {pos(A)}")
+    check(crawling(A)[1] is True, "jefferies mp: alice's own client did not put her on all fours")
+    check(B.eval("TREK.AdirondackClient.isCrawling(SIM.players[1])") is False,
+          "jefferies mp: bob's client put bob on all fours at the hatch")
+    floors = srv.eval(f"""(function() local A = TREK.Adirondack local tb = A.Layout.tubes[{t}]
+        local n = 0
+        for i = 1, 12 do local p = tb.path[i] local x, y = A.at(tb.from, p[1], p[2])
+            if SIM.rawSquare(x, y, A.Z):getFloor() then n = n + 1 end end
+        return n end)()""")
+    seen = B.eval(f"""(function() local A = TREK.Adirondack local tb = A.Layout.tubes[{t}]
+        local n = 0
+        for i = 1, 12 do local p = tb.path[i] local x, y = A.at(tb.from, p[1], p[2])
+            if SIM.rawSquare(x, y, A.Z):getFloor() then n = n + 1 end end
+        return n end)()""")
+    check(int(floors) == 12 and int(seen) == 12,
+          f"jefferies mp: the tube's first 12 floors: server {floors}, bob {seen}")
+    for name, rt in (("server", srv), ("alice", A), ("bob", B)):
+        for w in rt.warnings():
+            fail(f"jefferies mp ({name}): {w}")
+    print("jefferies multiplayer: the server builds the tube as alice crawls it, bob sees it, "
+          "and only alice's own client puts her on all fours")
 
 
 # --- the Adirondack's crew (CREW.md) ------------------------------------------------
@@ -12575,7 +12926,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, traits, traits_multiplayer, species_look, creation_look,
-            adirondack, adirondack_multiplayer, crew, crew_multiplayer, farming, multiplayer)
+            adirondack, adirondack_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming, multiplayer)
 
 
 def main():

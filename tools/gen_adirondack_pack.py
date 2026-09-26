@@ -62,7 +62,10 @@ SHEETS = ["trek_adirondack_01", "trek_adirondack_02", "trek_adirondack_03"]
 TILEDEF_NUMBER = 7461
 PAGE = 2048
 CW, CH = 128, 256
-NEVER = {"lightswitch", "streetlight", "CustomItem", "PaintingType", "IsPaintable"}
+NEVER = {"lightswitch", "streetlight", "CustomItem", "PaintingType", "IsPaintable",
+         # A climbable ladder at deck height is a climb into the void.
+         "ladderW", "ladderN", "ladderE", "ladderS", "climbSheetW", "climbSheetN",
+         "climbSheetE", "climbSheetS", "climbSheetTopW", "climbSheetTopN"}
 
 
 # --- the formats -----------------------------------------------------------------------------
@@ -249,11 +252,21 @@ def sheet01_props(defs):
             wall(off + k, k, name)
     for i, src in ((10, 10), (11, 11)):
         props[i] = ours(vanilla(defs, "industry_01", src), CustomName="Bulkhead")
+    # The Jefferies tubes (JEFFERIES.md): the same wall geometry, their own look.
+    for k in range(4):
+        wall(4 + k, k, "Jefferies Tube")
+    for i, src in ((12, 10), (13, 11)):
+        props[i] = ours(vanilla(defs, "industry_01", src), CustomName="Jefferies Tube")
     floor = vanilla(defs, "floors_interior_tilesandwood_01", 18)
     for k in ("CanBreak", "IsMoveAble", "PickUpLevel", "PickUpTool", "PickUpWeight", "PlaceTool", "MoveType"):
         floor.pop(k, None)
     props[24] = ours(floor, CustomName="Carpet", Material="Fabric")
     props[25] = ours(floor, CustomName="Deck Plate", Material="Metal")
+    props[26] = ours(floor, CustomName="Crawlway Grating", Material="Metal")
+    # Space: the void map's ground (tools/gen_void_map.py). A floor, so the
+    # engine draws it as one; nothing on it anybody could pick up.
+    for i in range(48, 64):
+        props[i] = ours(floor, CustomName="Space", Material="Metal")
     for i, src in ((32, 0), (33, 1), (34, 2), (35, 3)):
         p = vanilla(defs, "fixtures_doors_01", src)
         p["Material2"] = "Metal"
@@ -262,6 +275,12 @@ def sheet01_props(defs):
         # client (sounds in trekshuttle.txt, tools/gen_door_sound.py).
         p["DoorSound"] = "TrekDoor"
         props[i] = ours(p, CustomName="Sliding Door")
+    for i, src in ((36, 0), (37, 1), (38, 2), (39, 3)):
+        p = vanilla(defs, "fixtures_doors_01", src)
+        p["Material2"] = "Metal"
+        p["MaterialType"] = "Metal_Light"
+        p["DoorSound"] = "TrekDoor"
+        props[i] = ours(p, CustomName="Jefferies Tube Hatch")
     for i, src in ((40, 5), (41, 4)):
         p = vanilla(defs, "security_01", src)
         props[i] = ours(p, CustomName="Wall Display", GroupName="Starfleet")

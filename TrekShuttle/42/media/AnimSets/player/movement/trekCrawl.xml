@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shuttlecraft: crawling in a Jefferies tube (JEFFERIES.md). Vanilla ships
+     Bob_Crawl and plays it nowhere; this node plays it whenever the mod sets
+     the TrekCrawl variable on a player in a tube. Priority 20 is above every
+     vanilla movement node (the highest is 10), so it wins whatever else is
+     true -- sneaking, a weapon in hand, limping (AnimNode.compareSelectionConditions:
+     priority first, then the number of conditions). -->
+<animNode>
+	<m_Name>trekCrawl</m_Name>
+	<m_AnimName>Bob_Crawl</m_AnimName>
+	<m_BlendTime>0.30</m_BlendTime>
+	<m_SpeedScale>0.90</m_SpeedScale>
+	<m_ConditionPriority>20</m_ConditionPriority>
+	<m_Conditions x_name="7e3f1a2c-4b8d-4c61-9a0e-1701d0c0a0a1">
+		<m_Name>TrekCrawl</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>true</m_Value>
+	</m_Conditions>
+</animNode>

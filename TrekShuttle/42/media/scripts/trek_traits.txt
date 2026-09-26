@@ -171,6 +171,19 @@ module TrekShuttle
         UIDescription = UI_trait_trek_transporterphobiaDesc,
     }
 
+    /*  A turbolift is a box on a cable in a shaft three hundred metres deep, or
+        feels like one. Every ride is instant dread; the Jefferies tubes are
+        the way round it (JEFFERIES.md).  */
+    character_trait_definition trek:turboliftphobia
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = trek:turboliftphobia,
+        Cost = -2,
+        UIName = UI_trait_trek_turboliftphobia,
+        UIDescription = UI_trait_trek_turboliftphobiaDesc,
+    }
+
     /*  Sisko's father's rule: anything out of a replicator leaves you unhappy.  */
     character_trait_definition trek:realfoodonly
     {
