@@ -388,3 +388,50 @@ A menu, not a plan. Each line says what it would give the player.
 | Trill and Bolian dishes | food | Trill and ex-Borg players have no home dish in `C.SpeciesFood` yet. |
 | Spare uniforms by rank, science-blue lab coat | clothing | Wardrobes, and dressing the crew NPCs. |
 | Tapes from crew | media | A crew member hands you a personal log. It rhymes with the rescue reward in LORE.md. |
+
+---
+
+## 7. Hydroponics (Deck 5): added 2026-09-26
+
+How it all works is in FARMING.md; this is the inventory.
+
+### Items (`media/scripts/trekfarming.txt`)
+
+| Kind | Items |
+|---|---|
+| **Seeds** | Tea, Bergamot, Klingon Coffee, Plomeek, Leola Root, Andorian Tuber and Hasperat Pepper Seeds (`Trek<Crop>Seed`). Each packet is labelled in its crop's colour. |
+| **Produce** | Tea Leaves, Bergamot, Klingon Coffee Cherries, Plomeek, Leola Root, Raw Andorian Tuber, Hasperat Peppers |
+| **Processed** | Dried Tea Leaves, Bergamot Zest, Klingon Coffee Beans (roast them in an oven), Ground Klingon Coffee, Dried Hasperat Peppers |
+| **Husbandry** | Serpent Worm |
+| **Pots** | Pot of Plomeek, Pot of Leola Root Stew |
+
+**What they make, into the dishes the mod already had:**
+
+| Dish | How |
+|---|---|
+| Earl Grey | dried tea + bergamot zest + a mug of water, brewed hot |
+| Raktajino | dried beans, roasted, ground (mortar and pestle), then brewed |
+| Plomeek soup | 3 plomeek in a pot of water, cooked on a stove, served into 3 bowls |
+| Leola root stew | 3 leola root in a pot of water, cooked on a stove, served into 3 bowls |
+| Hasperat | a tortilla and 2 peppers (fresh or dried) |
+| Roasted Andorian tuber | the raw tuber, cooked in an oven, then plated |
+| Gagh | 5 serpent worms in a bowl |
+
+**Seeds:** collect them from produce with a knife, or harvest them from a
+fully grown plant. The replicator makes them too.
+
+### Furniture
+
+| Piece | Where | Does |
+|---|---|---|
+| hydro_tray ×21 | Hydroponics Bay | a crop grows in it, tended by the ship |
+| grow_light | the bay's walls | look only |
+| seed_locker ×2 | Botany Lab | container: 5 seeds of each crop |
+| potting_bench ×2 | Bay, Botany Lab | container: hand shovel, watering can, mortar and pestle, pot, bowl, kitchen knife |
+| dehydrator | Botany Lab | container: dries tea leaves, coffee cherries and hasperat peppers in 12 game hours |
+| worm_tank ×2 | Serpent Tank Room | container: starts with 3 serpent worms; fed any food, they breed, and unfed they dwindle to 2 |
+| galley_range | Deck 2 galley | a real stove, powered |
+| arboretum_tree, alien_shrub | the bay | look only |
+
+A wash basin, a replicator, a desk and a science display are also in the lab
+and the bay.

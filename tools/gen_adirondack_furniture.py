@@ -237,6 +237,8 @@ def build(only=None):
     for o in A.OBJECTS:
         if only and o["name"] not in only:
             continue
+        if o["kind"] == "crop":
+            continue          # tools/gen_adirondack_crops.py
         if o["kind"] == "flat":
             for f in "WN":
                 add(o["name"], o["area"], "WallFurniture", f, render_flat(o, f), o["use"])

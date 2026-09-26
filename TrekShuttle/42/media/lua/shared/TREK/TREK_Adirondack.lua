@@ -187,6 +187,11 @@ A.Stock = {
     display_shelf   = { loot = "weapons" },
     cargo_crate     = { items = "engineering", copies = 2 },
     antigrav_cart   = { items = "dilithium", copies = 2 },
+    -- Hydroponics (FARMING.md): seeds of every crop, the bench's tools, and
+    -- a tank's founding worms.
+    seed_locker     = { items = "seeds", copies = 5 },
+    potting_bench   = { items = "garden", copies = 1 },
+    worm_tank       = { items = "worms", copies = 3 },
 }
 
 --- The item lists A.Stock names. A function, because C is filled in order
@@ -196,6 +201,17 @@ function A.stockItems(name)
     if name == "desk" then return { C.PaddItem, "TrekShuttle.TrekTricorder" } end
     if name == "engineering" then return { C.PhaserItem, "TrekShuttle.TrekTricorder" } end
     if name == "dilithium" then return { C.DilithiumItem } end
+    if name == "seeds" then
+        return { "TrekShuttle.TrekTeaSeed", "TrekShuttle.TrekBergamotSeed",
+                 "TrekShuttle.TrekKlingonCoffeeSeed", "TrekShuttle.TrekPlomeekSeed",
+                 "TrekShuttle.TrekLeolaSeed", "TrekShuttle.TrekAndorianTuberSeed",
+                 "TrekShuttle.TrekHasperatSeed" }
+    end
+    if name == "garden" then
+        return { "Base.HandShovel", "Base.WateredCan", "Base.MortarPestle", "Base.Pot",
+                 "Base.Bowl", "Base.KitchenKnife" }
+    end
+    if name == "worms" then return { "TrekShuttle.TrekSerpentWorm" } end
     return nil
 end
 

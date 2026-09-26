@@ -34,7 +34,7 @@ LUA = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua", "shared", "TREK", 
 TEXT = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua", "shared", "Translate", "EN", "Print_Text.json")
 PREFIX = "Print_Text_TREK_CREW_"
 
-PLACES = {"bridge", "readyroom", "lounge", "galley", "quarters", "habitat", "transporter",
+PLACES = {"bridge", "readyroom", "lounge", "galley", "quarters", "habitat", "transporter", "hydroponics",
           "sickbay", "engineering", "corridor", "lift", "any"}
 REQUIREMENTS = {"any", "command", "operations", "sciences", "medical", "engineer", "security", "helm"}
 BARKS = {"hello", "outfit", "thanks", "idle", "arrive", "leave"}

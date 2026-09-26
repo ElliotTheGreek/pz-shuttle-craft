@@ -151,8 +151,13 @@ def main():
 
     layout = COMP.json.load(open(COMP.OUT_LAYOUT))
     by_z = {d["z"]: d for d in layout["decks"]}
-    # Deck 1 first: the order the turbolift lists them in, bridge at the top.
-    order = sorted(range(len(decks)), key=lambda z: -z)
+    # By deck number: the order the turbolift lists them in, bridge at the
+    # top, and the order they stand in, west to east. **Never by storey.**
+    # Deck 5 is the fifth storey and the fifth deck; sorting by storey put it
+    # first, which would have moved every deck already built in a save.
+    def number(z):
+        return int(by_z[z]["deck"].split()[-1])
+    order = sorted(range(len(decks)), key=number)
 
     # The pad: every square of the platform, and the arrival is the one
     # nearest the room's middle, so nobody materialises against a wall.
@@ -195,7 +200,9 @@ def main():
             return "lift"
         for key, tag in (("Bridge", "bridge"), ("Ready Room", "readyroom"), ("Lounge", "lounge"),
                          ("Galley", "galley"), ("Quarters", "quarters"), ("Transporter", "transporter"),
-                         ("Sickbay", "sickbay"), ("Medical", "sickbay"), ("Engineering", "engineering")):
+                         ("Sickbay", "sickbay"), ("Medical", "sickbay"), ("Engineering", "engineering"),
+            ("Hydroponics", "hydroponics"), ("Botany", "hydroponics"), ("Serpent", "hydroponics"),
+            ("Deck 5 Corridor", "corridor")):
             if key in name:
                 return tag
         if name == "Corridor":

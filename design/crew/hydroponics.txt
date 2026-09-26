@@ -1,0 +1,1185 @@
+# Hydroponics, Deck 5 (CREW.md 4, FARMING.md 5).
+# The tray bay under the grow lights, the botany lab (seed locker, dehydrator,
+# mortar on the bench), the serpent tank room, and the arboretum corner.
+# Seven crops: tea and bergamot, Klingon coffee, plomeek, leola root,
+# Andorian tuber, hasperat pepper. Homegrown is real food, and real food
+# matters to Klingons and to anyone who can't stomach the replicator.
+#
+# Mentioned, never speakers: Lt. K'teral (engineering) and Crewman Brakk
+# (security), the ship's Klingons; Ensign T'Vess (sciences, Vulcan);
+# Crewman Tobrin (stellar cartography, Talaxian). Invented for this deck.
+
+# ---------------------------------------------------------------------------
+# THE PLOMEEK ARE SULKING
+# ---------------------------------------------------------------------------
+
+scene: hydro_plomeek_sulk
+where: hydroponics
+cast: bot=sciences, tech=any, pass=any
+weight: 3
+
+= start
+bot: Look at them. Just look at them. | Row four is sulking again.
+    | The plomeek are doing it again.
+tech: They look fine to me. | They look like plants, {bot}.
+    | What am I supposed to be seeing?
+bot: The leaves are curling inward. That's plomeek for I am displeased.
+    | See how the leaves fold in? They do that when they're unhappy.
+    | They've gone the colour of old soup. Not the good kind.
+-> diagnose 3, water 2, light 1
+
+= diagnose
+tech: Could be the pH. I topped the feed up this morning.
+    | Nutrient mix? I changed the batch on Tuesday.
+    | Maybe they just don't like it here. Nobody does.
+bot: I checked the pH twice. It's perfect. | Mix is to the decimal.
+    | Don't. They can hear you.
+tech: Then what? | So what's wrong with them?
+bot: Honestly? I think they miss a sky. | I think they want a proper sun.
+    | Plomeek grows on a planet with a hot, heavy sun. We gave them panels.
+tech: The panels are rated for full Vulcan spectrum. | They get twelve hours.
+    | We can't exactly move the ship closer to a star.
+bot: Rated is not the same as liked. | Twelve hours of a lamp is still a lamp.
+-> vulcan 2, light 2, water 1
+
+= water
+tech: Too much water? The trays top themselves up every hour.
+    | Maybe the auto-feed's drowning them.
+bot: That's the other thing. They're used to working for it.
+    | They grow in dry ground. Hourly water spoils them.
+tech: You're telling me the plants are spoiled. | Spoiled. Plants.
+    | So they're sulking because life is too easy.
+bot: I'm telling you they have a temperament. | Some crews are like that too.
+    | Every plant on this deck has a temperament. These have two.
+-> vulcan 2, pass_in 2
+
+= light
+bot: Can we push row four to fourteen hours? | I want more light on them.
+    | Help me reset the panel timers on row four.
+tech: Fourteen hours means the tea gets less. | Then the tea row loses out.
+    | Every hour we give the plomeek comes off somebody else.
+bot: The tea's fine. The tea is always fine. | Tea is a weed with good PR.
+tech: Say that to anyone who drinks it. I dare you. | Don't let command hear you.
+-> pass_in 2, vulcan 1
+
+= vulcan
+bot: T'Vess came down yesterday and looked at them for ten minutes.
+    | Ensign T'Vess stood here and said nothing for a long time.
+tech: And? | What did she say?
+bot: She said, they are adequate. | She said, fascinating. Then she left.
+    | She said her mother's were taller. Then she apologised for saying it.
+tech: That's practically weeping, for her. | Ouch.
+    | That's a glowing review from a Vulcan.
+bot: She hasn't had real plomeek soup since January.
+    | Replicated plomeek tastes of the pattern buffer, she says.
+tech: So we're not growing soup. We're growing somebody's home.
+    | Then we'd better not lose this row.
+-> pass_in 2, hope 2
+
+= pass_in
+pass: Are you two talking to the plants? | What's wrong with the greens?
+    | Is that the plomeek? It looks sad.
+tech: They're sulking. | {bot} says they're sulking.
+    | Row four has feelings.
+pass: Plants don't sulk. | Can I help?
+    | Have you tried playing them music?
+bot: Do not play them music. | We tried music. It made it worse.
+    | Somebody played them Klingon opera in April. They've never recovered.
+pass: Fair. | I'd sulk too.
+-> hope 2, end_early 1
+
+= hope
+bot: Give them a week. They'll come round. | They'll forgive us eventually.
+    | We'll get a harvest. Small, but real.
+tech: And then soup. | Real soup, in a real pot, on the galley range.
+    | Grieg's already asked for the first basket.
+bot: First bowl goes to T'Vess. | First bowl's for whoever's missed it longest.
+tech: Deal. | Agreed.
+    | I'll hold you to that.
+-> close
+
+= end_early
+pass: I'll leave you to it. | Good luck with them.
+bot: Thanks. | Mind the hose.
+-> hope
+
+= close
+bot: Right. Back to it. Row four, you and me. | I'll check them again at twenty-hundred.
+    | Log it: row four, mood poor, prognosis fair.
+tech: I'll get the timers. | Timers first, then I'm getting lunch.
+    | Talk nicely to them. It seems to work for you.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# IS EARL GREY WORTH THE TRAY SPACE
+# ---------------------------------------------------------------------------
+
+scene: hydro_tea_space
+where: hydroponics
+cast: cmd=command, bot=sciences, third=any
+weight: 3
+
+= start
+cmd: Eight trays. Eight whole trays of tea. | How many trays is that tea bush on?
+    | Explain the tea to me, {bot}.
+bot: Six, and it's worth every one of them. | Tea is morale. Morale is a crop.
+    | Before you start: yes. The tea stays.
+cmd: Six trays could be leola root. Real calories. | That's food we could be growing.
+    | We could feed half a deck off six trays of tubers.
+-> calories 2, morale 3, compromise 1
+
+= calories
+bot: We aren't short of calories. We're short of real food.
+    | The replicator does calories. It doesn't do a cup of tea.
+cmd: The replicator does tea. | I've had replicator tea every day since February.
+bot: And how is it? | Do you enjoy it?
+cmd: ... It's hot. | It's fine. | It's brown.
+bot: That's what I thought. | Brown. That's your review. Brown.
+-> morale 2, bergamot 2
+
+= morale
+bot: You know what this ship does first thing every morning?
+    | Ask anyone what they miss first on a bad day.
+third: A proper cup. | Real tea. It's always tea.
+    | Tea. Or coffee. Something that grew.
+bot: There you are. | Thank you, {third}.
+cmd: Anecdote isn't data. | One vote.
+bot: I've got a sign-up sheet with sixty names on it.
+    | The waiting list for the first harvest is longer than the holodeck's.
+cmd: Sixty. | You're joking.
+    | Sixty people signed up for tea?
+bot: Sixty-three. The captain's on it. | Sixty-one, and one of them is Vale.
+-> captain 3, bergamot 1
+
+= captain
+cmd: Captain Vale signed a sign-up sheet. | Vale put her name down for tea?
+bot: Under a false name. I recognised the handwriting.
+    | Third line. She wrote small. I think she was embarrassed.
+third: Good for her. | She's earned it.
+    | I'd give her my place.
+cmd: ... All right. The tea stays. | Fine. Six trays.
+    | I can't take tea off the captain. I'm not a monster.
+-> bergamot 2, close 1
+
+= bergamot
+bot: And while we're here, I want one more tray. For bergamot.
+    | The bergamot tree needs a second tray.
+cmd: What's a bergamot? | Why bergamot?
+    | You said six trays. You didn't say bergamot.
+bot: The orange in Earl Grey. Without it you've just got black tea.
+    | It's a citrus. The zest is what makes it Earl Grey.
+third: You can't have Earl Grey without it. | That's the whole point.
+    | Plain black tea is a tragedy.
+cmd: People drank plain tea for thousands of years.
+    | Surely the replicator can do the orange bit.
+bot: Then it's replicated Earl Grey, and we're back to brown.
+    | Half real is still half replicated.
+-> compromise 2, picard 1
+
+= picard
+third: Picard drank it, didn't he? Earl Grey, hot. Every day.
+    | There's a whole tradition. Captains and Earl Grey.
+cmd: That was over fifty years ago. | That's a history lesson, not a crop plan.
+bot: It's a tradition. Starfleet is traditions with warp drive.
+    | Then we're keeping a tradition. That's worth a tray.
+cmd: Don't quote the history books at me. | I walked into that.
+-> compromise
+
+= compromise
+cmd: One tray for the bergamot. If the plomeek row fails, it's theirs.
+    | Bergamot gets the corner tray. Nothing else.
+    | Seven trays total. Tea and bergamot, and that's final.
+bot: Deal. | Done. You won't regret it.
+    | I'll put your name at the top of the list.
+cmd: Put me in the middle. I don't want to look like I asked.
+    | Don't you dare. Put me behind the captain.
+third: Your secret's safe. | Middle of the list. Got it.
+-> close
+
+= close
+bot: First pot in about three weeks, if the dehydrator behaves.
+    | Three weeks to the first cup. Then the drying.
+cmd: Three weeks. I can wait three weeks. | Let me know the day.
+    | Tell me when. I'll bring my own mug.
+third: Everybody's going to bring their own mug. | There'll be a queue.
+cmd: Carry on. | As you were. Mind the tea.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# THE SERPENT WORM TANKS
+# ---------------------------------------------------------------------------
+
+scene: hydro_worm_tank
+where: hydroponics
+cast: keeper=security, new=any
+weight: 3
+
+= start
+keeper: Lid off. Don't lean over it. | Come here. Meet the tanks.
+    | You're on worm duty with me today, {new}.
+new: Oh. Oh, they're moving. | Why are they all moving?
+    | That smell. What is that smell?
+keeper: They're serpent worms. Moving is the whole point.
+    | Of course they're moving. They're alive. That's how gagh works.
+-> smell 2, feed 3, klingons 2
+
+= smell
+new: Is it supposed to smell like that? | That's the worms?
+keeper: That's the scraps from the galley. The worms smell fine.
+    | That's lunch. Theirs. Last week's leola peelings.
+new: I will never eat leola root again. | Lovely. Thanks.
+keeper: You'll get used to it. | Breathe through your mouth.
+    | It's cleaner than the Jefferies tubes.
+-> feed 2, klingons 1
+
+= feed
+keeper: Scrap bucket. Tip it in the corner, not on them.
+    | Food waste goes in here. They eat it, they breed.
+new: What kind of scraps? | Do they eat anything?
+keeper: Peelings, rotten fruit, meat trimmings. Galley saves it for us.
+    | Anything that's gone off. They love it when it's gone off.
+new: That's... that's the whole cycle? Our leftovers become worms.
+    | So they eat the rubbish and turn into dinner.
+keeper: Waste into food. Best recycler on the ship.
+    | Better than a replicator. No pattern buffer, no ration chit.
+-> count 2, klingons 2, squirm 1
+
+= squirm
+new: One's on my glove. One is on my glove. | It's climbing. Why is it climbing?
+keeper: Hold still. It's curious. | Don't flick it. They bruise.
+new: I don't want it to be curious. | Please get it off.
+keeper: There. Back in the tank. | Got it. Say goodbye.
+new: Goodbye. Forever. | I need a minute.
+-> count 1, klingons 2
+
+= count
+keeper: Count them. We need at least two for them to breed.
+    | Rough count. Tell me if the numbers are down.
+new: I'm not counting worms. | How do you count something that won't stop?
+    | Forty? Fifty? They keep swapping.
+keeper: Roughly. More than last week is all I want to know.
+    | If it's fewer, they're hungry. If it's more, they're happy.
+new: More, I think. | More. Definitely more.
+    | I think there are more. I'm trying not to look.
+-> klingons 2, lunch 1
+
+= klingons
+new: Who actually eats these? | Is this really for the crew?
+keeper: K'teral, in engineering. Brakk on my watch. Anybody who's brave.
+    | Our two Klingons, mostly. And whoever loses a bet.
+keeper: The replicator does gagh. They say it tastes of nothing.
+    | Replicated gagh doesn't wriggle right. Dead, K'teral says.
+new: It's worms. How can it taste of nothing? | Worms are worms, surely.
+keeper: Ask K'teral. She'll tell you for an hour.
+    | To them, food you didn't grow or kill is an insult with a spoon.
+keeper: Since February, they've eaten nothing real. Nothing.
+    | Five months of replicated everything. That wears on a person.
+new: I didn't know. | That's hard.
+    | I just thought they were grumpy.
+keeper: Everyone thinks they're grumpy. They're hungry.
+    | They're homesick through the stomach. Same as the rest of us.
+-> lunch 2, respect 2
+
+= respect
+new: So this matters. | So we're not just keeping worms.
+keeper: We're keeping two people's home cooking alive.
+    | We're keeping K'teral from climbing into the warp core.
+new: All right. I'll count them properly. | Fine. I'll learn to like them.
+keeper: You don't have to like them. Just feed them.
+    | Nobody asks you to eat them. Just don't let them starve.
+-> lunch
+
+= lunch
+keeper: Five worms and a bowl. That's a serving. | Five to a bowl. Remember that.
+new: Please tell me you don't want to try it. | Are you going to eat one?
+keeper: I have. Once. On a dare. | Not before lunch. Maybe after.
+    | Never. But K'teral offered, and it was very kind of her.
+new: How was it? | And?
+keeper: Lively. | It fought back. I respected it.
+    | Like eating a sneeze. I'm told that's the good part.
+new: I'm going to go stand in the tea row for a bit.
+    | I need to go look at a tomato. Any tomato.
+keeper: Wash your gloves. | Lid back on first. | Go on. You did well.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# THE FIRST RAKTAJINO: DRYING, ROASTING AND GRINDING IN THE BOTANY LAB
+# ---------------------------------------------------------------------------
+
+scene: hydro_first_raktajino
+where: hydroponics
+cast: bot=sciences, eng=engineer, third=any
+weight: 3
+
+= start
+bot: Don't touch the dehydrator. The beans are nearly there.
+    | Stand back. First coffee harvest, fully dried.
+    | Look at this. Look at these beans.
+eng: That's our coffee? From the trays? | Those are the Klingon beans?
+    | K'teral sent me down. She said you'd know why.
+bot: Ship-grown Klingon coffee. Three days on the dehydrator.
+    | Picked on Monday, dried till this morning. Ours.
+-> roast 3, cherries 1, grind 1
+
+= cherries
+eng: I thought coffee came off the plant as beans.
+    | Why were they red when I saw them last week?
+bot: They grow as cherries. The bean's the seed inside.
+    | Red cherries. You pick them, split them, dry what's inside.
+eng: I have been drinking coffee for thirty years and didn't know that.
+    | So every cup I've ever had was a dried fruit pit.
+    | That's the least romantic thing I've ever heard.
+bot: Welcome to botany. | Everything's a seed if you look hard enough.
+-> roast
+
+= roast
+bot: Now they need roasting. That's the part I can't do here.
+    | Next is roasting. There's no oven on this deck.
+eng: The galley range. Grieg'll let us use it. | We take them up to the galley.
+    | I rewired that range. It runs off the bus. It'll do it.
+third: How dark do you roast Klingon coffee? | How long does it go in for?
+bot: Dark. Very dark. K'teral says until they look angry.
+    | Longer than you'd think. Until the smell makes you step back.
+    | Until the smoke alarm has an opinion.
+-> grind 2, klingon 2, argue 1
+
+= argue
+third: You shouldn't roast it too dark. It kills the flavour.
+    | Medium roast. Every good coffee is a medium roast.
+eng: Tell that to K'teral. | You want to argue with a Klingon about coffee?
+third: I'm not saying she's wrong. I'm saying there's a spectrum.
+    | Fine. Dark. I just think it's a waste of good beans.
+bot: It's her coffee. It gets roasted her way. | She waited five months.
+third: ... All right. Angry it is. | Fair. Her beans.
+-> grind
+
+= klingon
+eng: You know what she said when the first cherry went red?
+    | K'teral came down here twice a day to look at them. Did you know?
+bot: I know. She stood where you're standing. Didn't say a word.
+    | I noticed. She pretended she was checking the power conduits.
+eng: She said, finally, something on this ship that is honest.
+    | She said, today the ship grows its own blood. Very Klingon.
+third: Honest coffee. | That's a good line. I'm stealing that.
+bot: Replicated raktajino gives her headaches, you know.
+    | She says the replicated stuff is a painting of coffee.
+eng: She's been off it since March. Drinks water. It's been grim.
+    | Five months of water. No wonder engineering's tense.
+-> grind 2, first_cup 2
+
+= grind
+bot: Then the mortar. Grind them by hand. | Mortar and pestle, on the bench.
+    | We grind them here. By hand. Slowly.
+eng: There's a replicator that grinds. | We could just use a grinder.
+bot: We don't have a grinder. We have a mortar and a lot of time.
+    | By hand is how she'd want it.
+third: I'll grind. I need something to hit. | Give it here. I'll do it.
+    | Let me. I've had a week.
+bot: Coarse. Not dust. | Gently. It's coffee, not a Cardassian.
+third: ... That smell. Oh, that smell. | That's real. That's real coffee.
+-> first_cup 3, share 1
+
+= first_cup
+eng: Who gets the first cup? | So who drinks it first?
+bot: K'teral. No question. | Her. She grew it as much as we did.
+    | K'teral. Then the captain. Then whoever's still standing.
+eng: Not the captain? | Vale might want it.
+bot: Vale would give it to K'teral herself. You know she would.
+    | The captain drinks tea. She'll get the tea.
+third: Water, grounds, a mug. That's the whole recipe?
+    | Is that all it takes? Water and grounds?
+bot: Water and grounds. Mug it up. Stir it like it owes you money.
+    | That's it. The rest is ceremony. And a strong stomach.
+-> share 2, end_note 1
+
+= share
+eng: How many cups is this? | How far does one harvest go?
+bot: About twelve. Then we wait for the next crop. | A dozen. Maybe.
+eng: Twelve cups for a hundred and forty people. | That'll cause a riot.
+bot: Which is why it's not going on a sign-up sheet.
+    | Which is why you three never saw this.
+third: Saw what? | I've seen nothing all day.
+-> end_note
+
+= end_note
+eng: I'll take the beans up to the galley. Carefully.
+    | I'll carry them. If I drop them, K'teral will drop me.
+bot: Two hands. And don't stop to talk to anyone. | Mind the lift doors.
+    | Straight there. Tell Grieg it's for K'teral. She'll understand.
+eng: Understood. | Aye.
+    | Don't worry. I've carried warp coils with less care.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# REAL FOOD
+# ---------------------------------------------------------------------------
+
+scene: hydro_real_food
+where: hydroponics
+cast: a=security, b=sciences, c=any
+weight: 2
+
+= start
+a: How much of this is ready to eat? Honestly.
+    | When's the first real harvest? The whole deck's asking.
+    | Is any of this food yet, {b}?
+b: Some. The tubers in a week. The peppers are close.
+    | Not enough to feed the ship. Enough to matter.
+a: That's what I need to hear. | Good. Good.
+-> ration 2, why 3
+
+= ration
+c: We're not short of food. The replicator works.
+    | Why does everybody care so much? We're fed.
+b: We're fed. Rationed, but fed. | Replicator time's rationed, not food.
+a: Fed isn't the same as eating. | There's fed, and there's a meal.
+c: It's the same molecules. | It's identical. It's scanned from the real thing.
+b: Identical on paper. Tell that to K'teral. | Tell Brakk that.
+-> why 2, taste 1
+
+= taste
+c: I honestly can't tell the difference. | I can't taste it.
+a: Lucky you. Some of us can. | Then you're one of the lucky ones.
+b: Some people can. Some traits, some species. The body just knows.
+    | Some folk just can't keep it down. It's not fussiness.
+c: I didn't know that. | Really?
+    | I thought that was a Klingon thing.
+-> why
+
+= why
+a: Brakk's lost weight. You noticed? | Have you seen Brakk lately?
+b: I noticed. He's been eating half portions since spring.
+    | I noticed. So has sickbay.
+a: For a Klingon, replicated food isn't dinner. It's an insult on a plate.
+    | Food you didn't grow, hunt or cook is not food. That's how he puts it.
+c: That's a bit dramatic. | Surely they can put up with it for a while.
+a: It's been six months, {c}. | It's February to now.
+    | You try six months of meals you think are an insult.
+...
+b: It's not just them, either. There are crew who can't face it at all.
+    | There's a line of crew on Dr. Anwar's list. Real Food Only.
+c: Real Food Only? That's a thing? | There's a medical note for it?
+b: Anwar writes them. She's written twelve. | The Doctor calls it a quirk.
+    | Anwar says it's as real as an allergy. She'd know.
+-> anwar 2, plan 2
+
+= anwar
+a: The Doctor and Anwar argued about it for a week.
+    | I heard Anwar and the EMH going at it about that list.
+b: Who won? | And?
+a: Anwar. She usually does. He said, I defer, under protest.
+    | Anwar. He sulked. Well. He changed his hair, which is a sulk.
+c: Can he change his hair? | I didn't know he could sulk.
+b: He can do anything he's programmed to. Sulking is a feature.
+    | He can. He did. It was a statement.
+-> plan
+
+= plan
+a: So where does it go? First harvest. | Who's first in line?
+b: Anwar's list, then Brakk and K'teral, then whoever's on it next.
+    | Real Food Only first. Then the Klingons. Then the rest of us.
+c: Where does that leave me? | Am I on the list?
+b: Near the back. You can eat the replicator. Lucky you.
+    | Behind the worms. They eat the peelings.
+c: Fair. | I'll take it.
+    | That's fair, actually.
+a: I'll tell Brakk. He won't say thank you. He'll mean it.
+    | I'll let Brakk know. He'll pretend he's not pleased.
+-> helping 2, close 1
+
+= helping
+c: Is there anything I can do? | Do you need hands?
+b: Always. Harvest, replant, prime the trays. It's all hands.
+    | Come down on your off-shift. The trays don't plant themselves.
+c: I'll come Thursday. | I'm off tomorrow. I'll be here.
+a: Good. Brakk can teach you to swing a trowel. | Bring gloves.
+-> close
+
+= close
+b: Right. Peppers won't pick themselves. | Back to work, both of you.
+    | I've got a row to thin.
+a: Thanks, {b}. For all of this. | Thank you. Really.
+b: Thank the plants. | Thank me in soup.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# WHAT DOES LEOLA ROOT TASTE OF
+# ---------------------------------------------------------------------------
+
+scene: hydro_leola_root
+where: hydroponics
+cast: a=any, b=any, c=any
+weight: 2
+
+= start
+a: Leola root. Came out of the tray this morning. Smell it.
+    | First leola harvest. Try a bit. Go on.
+    | Somebody tell me what leola root tastes of.
+b: Raw? | You want me to eat it raw?
+    | Why is it that colour?
+a: A sliver. A tiny sliver. | Just try it. For science.
+-> taste 3, refuse 1
+
+= refuse
+b: I'm not eating a raw root off a tray. | Absolutely not.
+a: Coward. | It's clean. I washed it.
+    | Tobrin eats them raw. He says it's traditional.
+b: Tobrin says a lot of things are traditional. | Then give it to Tobrin.
+c: Give it here. I'll do it. | I'll try it. Somebody has to.
+-> taste_c
+
+= taste
+b: ... Fine. | ... All right.
+b: It tastes of... | It's... hm.
+    | That is certainly a flavour.
+a: Of what? | Go on.
+    | What does it taste of?
+b: Soil and pepper. And something sweet at the back. Like a turnip that lied.
+    | Like a parsnip that's been somewhere.
+    | Honestly? Of nothing. Then of everything. Then of soil.
+-> taste_c 2, cartography 2
+
+= taste_c
+c: That's not what it tastes of at all. | No. It's nutty. It's like chestnuts.
+    | It's bitter. Very bitter. Lovely, but bitter.
+a: So nobody agrees. | Three people, three flavours.
+b: Maybe it tastes of whoever eats it. | Maybe that's the point of it.
+-> cartography 2, stew 2
+
+= cartography
+a: Tobrin came down to look at them yesterday.
+    | Crewman Tobrin. From stellar cartography. He cried a bit.
+c: Tobrin cried? At a root? | Over leola root?
+a: Not cried. Went quiet. He said it smelled like his aunt's kitchen.
+    | He said his whole family grows it. Every garden on his homeworld.
+b: That's the thing, isn't it. It doesn't matter what it tastes of.
+    | So what it tastes of doesn't matter. It tastes of home to him.
+c: Exactly. | That's it.
+    | To him it tastes like being somewhere else.
+-> stew 2, history 1
+
+= history
+c: Didn't a Talaxian cook on some old ship feed it to everybody?
+    | There's a famous story. A ship's cook who put it in everything.
+a: Voyager, wasn't it? Before our time. | Something like that. History.
+b: And the crew hated it. | I heard the crew complained for seven years.
+a: Seven years of leola root. That's a real sacrifice.
+    | Every ship has its leola root. Ours is the replicator.
+c: We're not doing that. It goes in one stew. For Tobrin.
+    | Not in everything. Just the stew. Just when he wants it.
+-> stew
+
+= stew
+a: The recipe's three roots, a pot of water, then the range.
+    | Pot, water, three roots, and patience. That's the whole stew.
+b: That's it? No spices? | Nothing else?
+a: Tobrin says you add what you have. Then it's your family's stew.
+    | That's the base. After that, every family argues.
+c: So we'll make a ship's recipe. | Adirondack leola stew.
+    | We should have a ship's version.
+b: With a bit of hasperat pepper. | With some of the tuber. For body.
+    | With whatever grows next to it.
+a: Now we're talking. | That's the spirit.
+-> close 2, again 1
+
+= again
+b: Give me another sliver. | Actually, another bit. I want to be sure.
+c: I thought you hated it. | You said it tasted like a lying turnip.
+b: I said it was interesting. Interesting isn't hate.
+    | It's growing on me. Like it grew on the tray.
+a: Ha. | That's a bad joke.
+    | Terrible. Keep going.
+-> close
+
+= close
+a: I'll take the basket to Tobrin first. | Tobrin gets first pick.
+c: Good. Tell him to cook. We'll all come. | Tell him we'll bring bowls.
+b: I'll bring the peppers. | I'll bring an open mind. A small one.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# THE ANDORIAN TUBER WANTS COLD; THE GROW-LIGHT SCHEDULE
+# ---------------------------------------------------------------------------
+
+scene: hydro_tuber_lights
+where: hydroponics
+cast: ops=operations, bot=sciences, c=any
+weight: 2
+
+= start
+ops: Why is it freezing in this corner? | Why is the corner cold, {bot}?
+    | Somebody's been at the climate controls on Deck 5.
+bot: That was me. The Andorian tubers need it cold.
+    | That's on purpose. Tuber row. They like it cold.
+ops: How cold? | Cold enough to make my ears hurt?
+bot: Four degrees at the roots. Warmer and they go woody.
+    | Near freezing. They sulk if it's warm. Everything here sulks.
+-> power 2, zoran 2, lights 2
+
+= power
+ops: You're chilling one corner and lighting the rest?
+    | That's two climate zones on one deck. On our power budget.
+bot: The core runs the ship. It can run a fridge.
+    | It's a rounding error on the warp core's output.
+ops: Tell Rhel. He counts every rounding error by name.
+    | Rhel has a list of rounding errors. You're on it now.
+bot: Rhel will get roast tuber. He'll forgive me. | He likes tubers.
+-> lights 2, zoran 1
+
+= zoran
+ops: Is this for th'Zoran? | Are these the lieutenant's tubers?
+bot: Partly. She asked if we could. She hasn't asked for anything else.
+    | She brought me the seed data herself. First favour she's ever asked.
+ops: Kess th'Zoran asked for a favour. | th'Zoran? Asked?
+c: Kess th'Zoran asked nicely? | The transporter chief? Nicely?
+bot: She asked bluntly. It's the same thing, for her.
+    | She said, grow these or I'll never forgive you. Which is nice.
+ops: That's a love letter, from her. | Then they had better grow.
+-> lights 2, roast 2
+
+= lights
+c: While we're at it: whoever changed the light schedule, it was me.
+    | Is anyone going to talk about the lights?
+    | Can we talk about the grow-light schedule?
+bot: Oh, it was you. | Here we go.
+ops: What's wrong with the schedule? | The schedule's fine.
+c: Sixteen hours on, eight off. It's too much for the tubers.
+    | The tubers want short days. The plomeek want long ones.
+bot: And the tea wants something in between. And the coffee wants shade.
+    | So nobody's happy. Which is what a schedule is.
+-> fight 2, zones 2
+
+= fight
+ops: Pick one schedule and stick to it. | One schedule. The ship's day.
+bot: One schedule kills half the deck. | Then you lose the tubers.
+c: Then give the tubers a curtain. | Put a shade over the tuber row.
+ops: We don't have curtains. We're a starship. | We are a starship.
+    | A curtain. On a starship.
+c: I've got a shower curtain that's never been used.
+    | Shepard's shuttle has curtains. Nineteen-nineties ones. Floral.
+bot: ... That would actually work. | Floral tubers. Fine.
+-> zones 1, roast 2
+
+= zones
+bot: Or we zone the panels. Short days in the corner, long in row four.
+    | We could zone the lights. Every row its own day.
+ops: That's a lot of reprogramming. | Who's going to do that?
+c: I'll do it. I've got the evenings. | Me. I wrote the first schedule.
+ops: Fine. But log it, so nobody resets it. | Log every change.
+bot: Row four, fourteen hours. Tuber corner, ten. Tea, twelve.
+    | Plomeek long, tubers short, tea in the middle, coffee under shade.
+-> roast
+
+= roast
+c: How do you even cook an Andorian tuber? | Do you boil them?
+bot: Oven. Whole. Like a potato, only blue in the middle.
+    | Roasted. In the skin. The inside goes pale blue.
+ops: Blue. | They're blue inside?
+bot: Faintly. Kess says it's a sign of quality. | It's supposed to be.
+c: Everything Andorian is blue. | That's the most Andorian thing I've heard.
+ops: I'm not saying anything. | I'll keep my opinions to myself.
+-> close
+
+= close
+ops: Keep the corner cold. Keep Rhel happy. | Log the zones.
+    | I'll clear the power draw with Rhel.
+bot: Aye. | I'll bring him a tuber.
+c: Two tubers. He's Bajoran, he'll want hasperat too.
+    | Bring him a bag. It works on everyone.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# SEEDS FROM THE REPLICATOR: IS IT CHEATING
+# ---------------------------------------------------------------------------
+
+scene: hydro_replicated_seeds
+where: hydroponics
+cast: a=sciences, b=any, c=any
+weight: 2
+
+= start
+a: Seed locker's getting low on hasperat. I'll replicate more.
+    | Out of pepper seed. I'm going to have to replicate some.
+    | I'm replicating a new batch of plomeek seed today.
+b: Wait. You can replicate seeds? | Hang on. Replicated seeds?
+    | Isn't that cheating?
+a: Why would it be cheating? | Cheating at what?
+-> cheat 3, grows 2
+
+= cheat
+b: The whole point is real food. And you start it with a replicator?
+    | If it starts in a replicator, surely it's replicated food.
+a: The seed's replicated. The pepper isn't. | The plant's real. It grows.
+b: But it's grown from a copy. | It's a copy, all the way down.
+a: So is every plant. Every seed's a copy of its parent.
+    | Every seed is a copy of something. That's what seeds are.
+-> philosophy 2, klingon 2
+
+= grows
+c: Does it actually grow? A replicated seed? | Do they sprout?
+a: Better than some of the locker stock. It's a clean pattern.
+    | Every one. The replicator doesn't know it's making a seed.
+c: So the pepper that comes off the plant is real. | And the fruit's real?
+a: Real as you. Water, light and a few weeks. The plant does the rest.
+    | As real as anything on the ship. Grown, not printed.
+-> klingon 2, philosophy 1
+
+= philosophy
+c: It's the ship of Theseus. With peppers. | So it's a philosophical pepper.
+b: It's a what? | Don't start.
+c: If you replace every plank of a ship, is it still the same ship?
+    | Old Earth puzzle. Replace every part, is it the same thing?
+a: If it grew, it's real. That's my whole answer. | It grew. That's enough.
+b: That's not a philosophy, that's a gardening rule.
+    | That's not an answer. That's a shrug.
+a: Gardening rules are the best philosophy there is.
+    | Every botanist is a philosopher with dirt under the nails.
+-> klingon 1, anwar 2
+
+= klingon
+b: Would K'teral eat it? | What would Brakk say about that?
+a: I asked K'teral. I did. | I asked. I'm not stupid.
+b: And? | What did she say?
+a: She asked if it bled when you cut it. I said it has juice.
+    | She said a warrior is born of a mother, not of a mother's portrait.
+    | She thought for a long time. Then she said, it grew, it fought. Good.
+c: So the Klingon ruling is yes. | That's a yes, isn't it.
+a: That's a yes, with a threat attached. | I think that was approval.
+-> anwar 2, close 1
+
+= anwar
+c: What about Anwar's list? The real food people.
+    | Does it count for the crew who can't eat replicated?
+a: Anwar tested it. Their bodies don't care where the seed came from.
+    | It's the plant that counts. Anwar signed off on it.
+b: So a seed is where the replicator stops. | The seed's the last copy.
+a: Exactly. After that, it's the sun. Well. The lamps.
+    | After the seed, it's water and light and time. And us.
+-> close
+
+= close
+b: All right. Replicate your seeds. I withdraw the objection.
+    | Fine. It's not cheating. It's just gardening with a head start.
+a: Thank you. | Noted, {b}.
+    | I'll put it in the log. Objection withdrawn.
+c: Can I push the button? | Can I watch it make them?
+a: Come on. It takes about a second. Very anticlimactic.
+    | Sure. Try not to be disappointed. It's a tiny beep.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# THE ARBORETUM BENCH
+# ---------------------------------------------------------------------------
+
+scene: hydro_arboretum_bench
+where: hydroponics
+cast: a=any, b=any
+weight: 2
+
+= start
+a: Mind if I sit? | Room on the bench? | Is this seat taken?
+b: Go ahead. | Sit. | Plenty of room.
+...
+a: It's quiet here. | This is the only quiet place on the ship.
+    | I didn't know about this corner till last week.
+b: That's the point of it. | That's why I come here.
+    | The trees don't ask how you're doing.
+-> county 3, tree 2
+
+= county
+a: I was on the sensor watch in June. | I watched the county on the sensors.
+    | I was on the science station the week the county went dark.
+b: Were you. | So was I, for a bit.
+    | I'm sorry.
+a: Two days. It took two days. | All those life signs. Then fewer.
+b: You don't have to. | I know. I saw some of it.
+...
+a: I keep thinking about the gardens. | The people had gardens.
+    | You could see the gardens from orbit. Rows. Somebody's beans.
+b: I know. | Somebody planted those.
+    | Someone was going to eat those in August.
+-> planting 3, eleven 2
+
+= eleven
+b: And the eleven. Some of them are still down there. Somewhere.
+    | I keep thinking about the team that stayed.
+a: Do you know any of them? | Were you close to any?
+b: One. She kept a garden too. In a tin box on her desk.
+    | One of them. He used to come here and water that fern.
+a: Then we keep it watered. | Then someone keeps it alive.
+b: I do. Every day. | I water it for him. Just in case.
+-> planting 2, quiet 1
+
+= tree
+a: What is that tree, anyway? | Is that one from Earth?
+b: Earth oak. The little one there came from down below.
+    | The small one's an oak. The acorn came up from the surface.
+a: From the county? | From down there?
+b: Shepard brought it up in a coat pocket. Didn't know it was there.
+    | Somebody found it in a pocket after a beam-up. We planted it.
+a: It's growing. | It's actually growing.
+b: Slowly. Oaks are slow. They don't mind. | It's got time.
+-> planting 2, county 2
+
+= planting
+a: Does it feel strange to you? Planting things, now?
+    | Is it strange? Growing food while that's under us?
+b: Some days. Most days it feels like the only thing that makes sense.
+    | No. I think it's the answer to it. As far as there is one.
+a: How do you mean? | Tell me.
+b: Down there, somebody put seeds in the ground in spring. Hoping.
+    | They planted in spring. They didn't get to see it come up.
+b: So we plant. For them as well. | So we keep planting. It's what they did.
+...
+a: I like that. | That's a good reason.
+    | Yes. I think I can do that.
+-> quiet 2, work 2
+
+= quiet
+a: Can I just sit here a while? | Do you mind if I stay?
+b: Stay as long as you like. | That's what the bench is for.
+...
+a: Thanks. | Thank you.
+b: Any time. | I'm here most evenings.
+-> work
+
+= work
+b: I'm on the tray rota at eighteen hundred. Want to come?
+    | They need hands on the replanting. You any good with a trowel?
+a: I've never grown anything. | I don't know anything about plants.
+b: Nobody here did, in February. | You'll learn. They're patient.
+    | Neither did I. The plants teach you.
+a: All right. I'll come. | Eighteen hundred. I'll be there.
+b: Good. Bring gloves. | Good. Water the oak on your way out.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# THE TECH WHO TALKS TO PLANTS
+# ---------------------------------------------------------------------------
+
+scene: hydro_plant_talker
+where: hydroponics
+cast: tech=operations, visitor=any, extra=any
+weight: 2
+
+= start
+tech: Good morning, row two. Who's had a good night? | There we go. Nice and full.
+    | Morning, beautiful. And you. And you.
+visitor: Are you talking to the plants? | Who are you talking to?
+    | Sorry, am I interrupting something?
+tech: Only row two. They're very good listeners. | Every morning. Keeps them honest.
+-> science 2, embarrassed 2, rhel 2
+
+= embarrassed
+tech: I know how it looks. | You don't need to say it. I know.
+visitor: I didn't say anything. | No, no. It's nice.
+tech: My grandmother talked to her tomatoes. She had the best on the street.
+    | My dad sang to his pepper plants. He won a prize once.
+visitor: Did it help? | So it runs in the family.
+tech: It helped him. That's half of it. | It helps someone. Probably me.
+-> science 2, names 2
+
+= science
+visitor: Does it actually work? | Is there any science in that?
+tech: Carbon dioxide from breathing, a bit of vibration. Tiny effect.
+    | Scientifically? Probably very slightly. Emotionally, huge.
+visitor: So it's mostly for you. | So it's for your benefit.
+tech: Mostly for me. The plants don't mind. | Most of it. Is that so bad?
+-> names 2, rhel 1
+
+= rhel
+tech: Rhel talks to the warp core. Nobody laughs at him.
+    | The chief engineer talks to the core. Everyone knows.
+visitor: That's different. | That's the warp core.
+tech: How is it different? He tells it it's doing well. So do I.
+    | It's all the same. You tell a thing you believe in it.
+visitor: When you put it that way. | ... Fair point.
+    | I suppose it is the same.
+-> names 2, extra_in 2
+
+= names
+tech: They've got names, too. That's Admiral. That's Lucky.
+    | That tea bush is called Earl. Obviously.
+    | That hasperat plant is Anger. It earned it.
+visitor: Anger? | Why is it called that?
+tech: Touch a pepper and rub your eye. You'll find out.
+    | Because it bit Ensign Ruiz. Well. The pepper did.
+visitor: Right. Not touching Anger. | Noted.
+-> extra_in 2, gossip 1
+
+= gossip
+tech: They hear everything, you know. Plants. All the gossip.
+    | The trays know more about this ship than the counselor does.
+visitor: What have they heard? | Go on.
+tech: Who's been sneaking coffee cherries. Who cried in the arboretum.
+    | Who's sweet on who. Row three is very indiscreet.
+visitor: And? | Who's sneaking cherries?
+tech: A gardener never tells. | The plants didn't say. I won't either.
+-> extra_in
+
+= extra_in
+extra: Talking to them again? | Morning. Is row two behaving?
+    | Did you tell them about the new feed?
+tech: They're thriving. Tell them yourself. | They're doing well.
+extra: Morning, row two. | Good morning, everyone. Lovely leaves.
+visitor: Oh, now you're doing it too. | It's catching.
+extra: Everybody does it eventually. You'll see.
+    | Spend an hour down here and you'll be doing it too.
+-> close 2, visitor_try 2
+
+= visitor_try
+visitor: ... Hello, plants. | ... You're doing very well, row two.
+tech: There you go. | See? Not so bad.
+extra: Welcome to hydroponics. | Now you're one of us.
+visitor: Don't tell anyone. | This stays between us and row two.
+-> close
+
+= close
+tech: Right, watering done. See you tomorrow, row two.
+    | Rest well, all of you. Back after lunch.
+visitor: Do they answer? | Do they ever say anything back?
+tech: They grow. That's their answer. | Every day. In green.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# LORE: THE SOIL FROM BELOW
+# ---------------------------------------------------------------------------
+
+scene: hydro_soil_samples
+where: hydroponics
+cast: bot=sciences, geo=sciences, cmd=command
+weight: 2
+tags: lore
+
+= start
+bot: Have you looked at the surface soil samples? The survey ones?
+    | Come and see this. The soil cores from February.
+    | I ran the survey soil through the lab again. For the trays.
+geo: The ones from the first survey? | Why would you run those again?
+    | I logged those myself. They're fine.
+bot: I wanted to use them to seed the trays. Mix in real ground.
+    | I thought we could blend in surface soil. Good bacteria.
+-> perfect 3, why_now 1
+
+= why_now
+geo: That soil's been in the locker since February. | It's months old.
+bot: Soil doesn't mind. It was going to waste. | It keeps.
+cmd: Is it safe? After the county? | Anything in it from... June?
+bot: These were taken before. Months before. | February. Well before.
+cmd: Good. | Go on, then.
+-> perfect
+
+= perfect
+bot: It's too good. | It's perfect. That's the problem.
+    | It's textbook soil. Every sample.
+geo: That's not a problem. That's farmland. | Kentucky has good soil.
+bot: Not good. Perfect. The same profile, everywhere they sampled.
+    | Good soil varies. This doesn't. It reads like a reference sample.
+geo: Could be the sampling. We took most of it from farmland.
+    | The team picked tidy sites. That skews it.
+bot: Maybe. That's what I told myself. | Maybe. I'd like it to be that.
+-> dilithium 3, cmd_asks 2
+
+= cmd_asks
+cmd: What are you actually saying, {bot}?
+    | Is this a report, or a feeling?
+bot: A feeling with numbers. | Nothing yet. Just a question.
+    | Nothing I'd put in a log.
+cmd: Then keep it out of the log till you have more than a feeling.
+    | Put numbers on it before you put it in front of the captain.
+bot: Aye. | Understood.
+-> dilithium 2, theories 1
+
+= dilithium
+geo: You know what else is odd? The dilithium traces.
+    | If you want odd, look at the dilithium readings.
+bot: The deposits in the wild ground. | The wild-ground ones?
+geo: Woods, ridges, the back of beyond. Dilithium traces. Plenty.
+    | Out in the woods, it shows up. Little seams.
+geo: Under the towns? Nothing. Not a trace. Never.
+    | Under every town, nothing. Not once.
+cmd: Towns get built on flat, dull ground. That's just geology.
+    | People build where it's easy to build. That's all it is.
+geo: Probably. | That's the sensible answer.
+    | I'd love that to be the answer.
+-> theories 2, drop 2
+
+= theories
+bot: The calendar down there says 1993. The soil says textbook.
+    | A copy of Earth with an old calendar and perfect ground.
+cmd: Don't. | Don't start down that road.
+    | I've heard the Q theory four times this week.
+geo: I'm not saying Q. | Nobody said Q.
+bot: I'm not saying anything. I'm saying the soil is good.
+    | I'm saying somebody made a very good job of a world. Or it's luck.
+cmd: Or it's luck. Let's keep it at luck. | Luck. For now.
+-> drop
+
+= drop
+cmd: Does any of it matter for the trays? | Can you use the soil or not?
+bot: It's excellent for growing. That's the one thing it's sure to be.
+    | Oh, the plants will love it. It's the best soil I've ever held.
+geo: Then use it. And keep the numbers. | Use it. Log it. Quietly.
+...
+bot: The people down there grew good things in it. | They farmed this.
+cmd: They did. Treat it with respect. | Then it's theirs. Be careful with it.
+bot: Always. | I will.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# RARE: THE ESCAPED WORM
+# ---------------------------------------------------------------------------
+
+scene: hydro_escaped_worm
+where: hydroponics
+cast: a=any, sec=security, c=any
+weight: 2
+tags: rare
+
+= start
+a: Nobody move. | Everyone stop. Stop walking.
+    | Don't step on anything. Please.
+sec: What? What is it? | Problem, {a}?
+    | Why is everyone frozen?
+a: One of the serpent worms is out. | There's a worm loose. A gagh worm.
+-> where 3, count 1
+
+= count
+sec: How do you know? | Are you sure?
+a: The count was fifty-two. It's fifty-one. | I counted twice. One's missing.
+sec: You count them? | Who counts worms?
+a: Somebody has to. | K'teral does. And now I do. And it's fifty-one.
+-> where
+
+= where
+sec: Where was it last seen? | When did it go?
+a: Lid was off for ten seconds. Ten. | I turned round for a moment.
+c: Is it the one with the stripe? | Is that it? Under the tea?
+    | Something just moved in the tea row.
+-> tea_row 2, boot 2, false_alarm 1
+
+= false_alarm
+sec: That's a leaf. | That's the hose, {c}.
+c: It moved. | It definitely moved.
+sec: The fans are on. | Everything moves when the fans are on.
+a: Keep looking. | It's still out there.
+-> tea_row 1, boot 2
+
+= tea_row
+sec: Right. Tea row. Everybody in a line. | I'll take the left side.
+c: I'm not touching it. | What do I do if I find it?
+sec: Cup your hands. Gently. It's somebody's dinner.
+    | Scoop. Don't grab. It's more scared than you are.
+c: It is not more scared than me. | I doubt that very much.
+...
+a: There! By the bergamot! | Tray six! It's in tray six!
+sec: Got it. Got it. ... No. | It went under the tray.
+    | It's fast. Why is it so fast?
+a: They're serpent worms. The name's a warning. | They're built for it.
+-> boot 2, climb 1
+
+= climb
+c: It's going up the grow-light cable. | It's climbing the light.
+sec: Worms don't climb. | That's not possible.
+a: These do. | Tell that to the worm.
+sec: I'll get the ladder. | Nobody tell K'teral about this.
+-> boot
+
+= boot
+c: ... Something's in my boot. | Oh no. Oh no, oh no.
+    | {sec}. My boot. There's something in my boot.
+sec: Hold still. Don't stamp. Do not stamp.
+    | Don't move. If you squash it, K'teral kills us all.
+c: It's wriggling. It is actively wriggling. | It's warm. Why is it warm?
+a: Take the boot off. Slowly. Over the tank.
+    | Boot off. Tip it out into the bowl.
+...
+sec: Got it. Back in the tank. | Worm secured. Lid on.
+    | Suspect in custody.
+c: I'm never wearing those boots again. | I need a new foot.
+-> report 2, close 1
+
+= report
+a: Do we log this? | Is this going in a report?
+sec: Security incident, Deck 5. Escaped livestock. No casualties.
+    | I'm logging it as a containment exercise. Successful.
+c: One casualty. My dignity. | My sock is a casualty.
+sec: Your dignity isn't on the manifest. | Noted. Sock lost in action.
+a: And K'teral? | Do we tell K'teral?
+sec: K'teral hears nothing. | We tell her the count was always fifty-two.
+    | She'll think it's funny. That's what I'm afraid of.
+-> close
+
+= close
+a: Lid clips. I'm fitting lid clips today. | New rule. The lid stays on.
+sec: Good. I'll put that in the log too. | Make it two clips.
+c: I'm going to go stand in the tea row and think about my choices.
+    | I'm going to the lift. In socks. Don't look at me.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# BARKS
+# ---------------------------------------------------------------------------
+
+bark: idle
+where: hydroponics
+- Row four's curling again. | Come on, plomeek. Cheer up.
+- pH seven point one. Good. | Feed's clean.
+- Hasperat's nearly ready. Don't touch your eyes.
+- Earl Grey in three weeks. Three weeks.
+- Leaves up. Good tray. | That's it. Reach for the light.
+- Who left the worm tank lid off? | Lid's on. Lid's on.
+- Seed locker's low on tea. I'll replicate some.
+- Tuber corner's at four degrees. Perfect. | Brr.
+- Grow lights cycling. Row two, lights down.
+- Beans are drying. Nobody open the dehydrator.
+- Harvest, replant, prime. Harvest, replant, prime.
+- Scrap bucket for the worms. | Dinner, worms.
+- Somebody's been pinching coffee cherries. | I counted these.
+- Good morning, row two. | You're doing very well.
+- Needs more light. Everything needs more light.
+- Water the oak. Don't forget the oak.
+- Bergamot's flowering. Oh, that smell.
+- Mortar, pestle, patience. | Grind, don't pound.
+
+bark: hello
+where: hydroponics
+- Morning. Mind the hose. | Hi. Watch the trays.
+- Come to see the plants? | Welcome to Deck 5.
+- Careful, that row's just been planted. | Mind your step.
+- Hello. Don't touch the peppers. | Hi. The peppers bite.
+- You here for the tea list? | If it's about the tea, you're on the list.
+- Grab a trowel if you're staying. | Need a job? We have jobs.
+- Afternoon. Smells good down here, doesn't it?
+- Hello. The worms are through there, if you're brave.
+- Evening. The arboretum's quiet, if you need it.
+
+bark: outfit
+where: hydroponics
+- Interesting clothes. Good for gardening, though.
+- Is that from down there? It'd do for the tray bay.
+- You're not in uniform. Mind the soil on it.
+- Nice jacket. You'll want to keep it off the worm tank.
+- Now that looks like proper farm wear.
+- Where'd you get those? They look like somebody's Sunday best.
+- Out of uniform on Deck 5? The plants don't mind.
+
+bark: thanks
+where: hydroponics
+- Thanks for the hands. Tray's done. | Thank you. That saved me an hour.
+- You brought seeds? Thank you. The locker was nearly empty.
+- Thanks for helping with the harvest. | That's a good basket. Thanks.
+- Thank you. K'teral will never say it, so I will.
+- Thanks for feeding the worms. They're grateful. Probably.

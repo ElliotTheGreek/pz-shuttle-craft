@@ -1,4 +1,18 @@
 {
+ "alien_shrub": {
+  "area": "hydroponics",
+  "facings": {
+   "W": [
+    [
+     0,
+     0,
+     196
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
+ },
  "antigrav_cart": {
   "area": "engineering",
   "facings": {
@@ -35,6 +49,20 @@
   "use": {
    "container": "crate"
   }
+ },
+ "arboretum_tree": {
+  "area": "hydroponics",
+  "facings": {
+   "W": [
+    [
+     0,
+     0,
+     195
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {}
  },
  "armchair": {
   "area": "quarters",
@@ -473,6 +501,29 @@
   "layer": "Furniture",
   "use": {}
  },
+ "dehydrator": {
+  "area": "hydroponics",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     186
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     185
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "shelves"
+  }
+ },
  "desk": {
   "area": "quarters",
   "facings": {
@@ -667,6 +718,43 @@
    "container": "counter"
   }
  },
+ "galley_range": {
+  "area": "galley",
+  "facings": {
+   "E": [
+    [
+     0,
+     0,
+     193
+    ]
+   ],
+   "N": [
+    [
+     0,
+     0,
+     192
+    ]
+   ],
+   "S": [
+    [
+     0,
+     0,
+     194
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     191
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "stove": true
+  }
+ },
  "galley_sink": {
   "area": "lounge",
   "facings": {
@@ -705,6 +793,29 @@
    "water": true
   }
  },
+ "grow_light": {
+  "area": "hydroponics",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     198
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     197
+    ]
+   ]
+  },
+  "layer": "WallFurniture",
+  "use": {
+   "light": true
+  }
+ },
  "helm_console": {
   "area": "bridge",
   "facings": {
@@ -739,6 +850,22 @@
   },
   "layer": "Furniture",
   "use": {}
+ },
+ "hydro_tray": {
+  "area": "hydroponics",
+  "facings": {
+   "W": [
+    [
+     0,
+     0,
+     178
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "tray": true
+  }
  },
  "jefferies_hatch": {
   "area": "engineering",
@@ -1001,6 +1128,39 @@
   "layer": "WallFurniture",
   "use": {}
  },
+ "potting_bench": {
+  "area": "hydroponics",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     183
+    ],
+    [
+     1,
+     0,
+     184
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     181
+    ],
+    [
+     0,
+     1,
+     182
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "counter"
+  }
+ },
  "railing": {
   "area": "bridge",
   "facings": {
@@ -1133,6 +1293,29 @@
   },
   "layer": "Furniture",
   "use": {}
+ },
+ "seed_locker": {
+  "area": "hydroponics",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     180
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     179
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "shelves"
+  }
  },
  "sofa": {
   "area": "quarters",
@@ -1567,6 +1750,40 @@
   "layer": "Furniture",
   "use": {
    "water": true
+  }
+ },
+ "worm_tank": {
+  "area": "hydroponics",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     189
+    ],
+    [
+     1,
+     0,
+     190
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     187
+    ],
+    [
+     0,
+     1,
+     188
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "crate",
+   "worms": true
   }
  }
 }

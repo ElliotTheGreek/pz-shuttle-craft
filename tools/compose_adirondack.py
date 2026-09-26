@@ -60,6 +60,7 @@ DECKS = [
     (1, "Deck 3", "Transporter Room, Sickbay", ["Adirondack_TransporterRoom.tbx", "Adirondack_Sickbay.tbx"]),
     (2, "Deck 2", "Lounge, Habitat", ["Adirondack_Lounge_Galley.tbx", "Adirondack_HabitatDeck.tbx"]),
     (3, "Deck 1", "Bridge", ["Adirondack_Bridge_ReadyRoom.tbx"]),
+    (4, "Deck 5", "Hydroponics", ["Adirondack_Hydroponics.tbx"]),
 ]
 
 # Attributes of an object that name a tile_entry (1-based) or a furniture (0-based).

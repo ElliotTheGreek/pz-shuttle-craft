@@ -58,7 +58,7 @@ TILES = os.path.join(MEDIA, "trek_adirondack.tiles")
 VANILLA_DEFS = os.environ.get(
     "PZ_TILEDEFS",
     r"C:/Program Files (x86)/Steam/steamapps/common/ProjectZomboid/media/newtiledefinitions.tiles")
-SHEETS = ["trek_adirondack_01", "trek_adirondack_02"]
+SHEETS = ["trek_adirondack_01", "trek_adirondack_02", "trek_adirondack_03"]
 TILEDEF_NUMBER = 7461
 PAGE = 2048
 CW, CH = 128, 256
@@ -291,6 +291,22 @@ def sheet02_props(defs, index):
                 elif use.get("seat"):
                     base = dict(chair)
                     base["chair" + FACE[facing]] = ""
+                elif use.get("stove"):
+                    # A real oven's properties (IsoType IsoStove, container
+                    # stove): the galley range is placed as an IsoStove
+                    # (FARMING.md 3), so everything vanilla cooks in an oven
+                    # works in it.
+                    base = vanilla(defs, "appliances_cooking_01", 4)
+                    for k in ("GroupName", "CustomName", "Facing", "IsMoveAble", "PickUpLevel",
+                              "PickUpTool", "PickUpWeight", "PlaceTool"):
+                        base.pop(k, None)
+                elif use.get("tray"):
+                    # A raised planter a crop grows on (FARMING.md 6.1):
+                    # walked round, not sat on or stood on; nothing else may
+                    # be placed on it, and never the vegetation flags, which
+                    # vanilla farming reads as weeds.
+                    base = dict(table)
+                    base.pop("IsTable", None)
                 elif "container" in use:
                     base = dict(locker, container=use["container"])
                 else:
@@ -303,6 +319,21 @@ def sheet02_props(defs, index):
                 props[i] = ours(base, CustomName=pretty, GroupName="Starfleet " + rec["area"].title(),
                                 Facing=FACE[facing],
                                 SpriteGridPos=("%d,%d" % (x, y)) if multi else None)
+    return props
+
+
+def sheet03_props(index):
+    """The crop growth sprites: what vanilla's own stage tiles carry, minus
+    attachedFloor -- ours stand up in a tray, not flat on the ground."""
+    props = {}
+    for crop, tables in index.items():
+        if crop == "_soil":
+            # The primed tray's soil: something to see, nothing to block.
+            props[tables] = [("CustomName", "Growing Medium")]
+            continue
+        for table in tables.values():
+            for i in table:
+                props[i] = [("BlocksPlacement", "")]
     return props
 
 
@@ -431,7 +462,10 @@ def main():
     defs = read_tiledefs(VANILLA_DEFS)
     with open(os.path.join(ROOT, "design", "tiles", "trek_adirondack_02.json")) as f:
         index = json.load(f)
-    per_sheet = {SHEETS[0]: sheet01_props(defs), SHEETS[1]: sheet02_props(defs, index)}
+    with open(os.path.join(ROOT, "design", "tiles", "trek_adirondack_03.json")) as f:
+        crops = json.load(f)
+    per_sheet = {SHEETS[0]: sheet01_props(defs), SHEETS[1]: sheet02_props(defs, index),
+                 SHEETS[2]: sheet03_props(crops)}
     tilesets = []
     for k, sheet in enumerate(SHEETS, start=1):
         rows = Image.open(os.path.join(SRC, sheet + ".png")).height // CH

@@ -1,4 +1,11 @@
 {
+ "alien_shrub": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/8e0ef84e-4a1c-4bb3-9794-65b5e4467b96.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd97-1abc-7890-b9f6-c9ce66d386cf",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd97-1abc-7890-b9f6-c9ce66d386cf/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf86b/Q1nFJsIKLmPSYKgBJRiPQ_model.glb"
+ },
  "antigrav_cart": {
   "concept_by": "gemini",
   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/b0d37d31-836d-4ce8-b6ca-7c2d27c85d7f.jpg",
@@ -6,6 +13,13 @@
   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9f-0476-74e2-9146-860b8f01ff7d",
   "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9f-0476-74e2-9146-860b8f01ff7d/status",
   "mesh_url": "https://v3b.fal.media/files/b/0aabe4f7/NXYcTrXycz2q4mmMBEqJ9_model.glb"
+ },
+ "arboretum_tree": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/3b6fc4af-28a1-4399-b259-5b8301930e91.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd97-13cb-71e1-acf2-0a8dea2de1ea",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd97-13cb-71e1-acf2-0a8dea2de1ea/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf86a/UMOSQ8qGEQxsGs1svD4ZB_model.glb"
  },
  "armchair": {
   "concept_by": "gemini",
@@ -101,6 +115,62 @@
   "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9d-fc99-7b73-8a35-c7f20f264267/status",
   "mesh_url": "https://v3b.fal.media/files/b/0aabe4f0/xddPqBX9aO8bGSAq-JwqK_model.glb"
  },
+ "crop_andorian_tuber": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/2cc9b969-153c-42e7-bee9-c30ada5d6192.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd96-7fad-7fb0-a3c5-954caacb98e8",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd96-7fad-7fb0-a3c5-954caacb98e8/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf866/H9iH5_pFh8sM2ETfA8OuP_model.glb"
+ },
+ "crop_bergamot": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/f28278bb-3ac3-462c-9f05-81d9f45ca474.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd95-d6cc-7a12-a960-84a188379540",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd95-d6cc-7a12-a960-84a188379540/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf864/x_kubS_zhKGMN_bdLdi4u_model.glb"
+ },
+ "crop_hasperat": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/5e49e822-fb5e-4709-9ba3-c1e9a7087483.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd96-8489-7923-b1d5-be29e03aab99",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd96-8489-7923-b1d5-be29e03aab99/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf868/IbvOWALp4flKlk2uR8W5t_model.glb"
+ },
+ "crop_klingon_coffee": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/7981e52d-cc95-42c0-ac3f-bd8410850b11.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd95-ddbc-76c2-8ad6-61ed7f27b323",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd95-ddbc-76c2-8ad6-61ed7f27b323/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf864/y3uRodLPYT0VJcQ87oqVu_model.glb"
+ },
+ "crop_leola": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/fcde34c3-946b-44af-b80c-c4a6fa67aded.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd95-e8f9-7810-bdda-af9906f86bfb",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd95-e8f9-7810-bdda-af9906f86bfb/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf865/LccD8RKw57VOQw5Kg3RnH_model.glb"
+ },
+ "crop_plomeek": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/83ceca98-eff2-49e9-8b4b-0ae48242e7ee.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd95-e469-7be1-b089-612697ddd5cb",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd95-e469-7be1-b089-612697ddd5cb/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf865/TJAHP8XnKvG3APL1AgpB2_model.glb"
+ },
+ "crop_tea": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/c8832efd-d1c7-41ee-bbcd-6c0d20d9fc4e.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd95-d2c3-7a91-b338-f6afcf7ee71c",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd95-d2c3-7a91-b338-f6afcf7ee71c/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf868/UtDACJOOFaDn6Q-moRYnY_model.glb"
+ },
+ "dehydrator": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/1c6e0fc9-630e-4be4-b910-2aaa41e7aa1a.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd97-008d-7963-a29e-d1a2a110a81d",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd97-008d-7963-a29e-d1a2a110a81d/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf86a/QJl7Jf1trRDu-DCpYFyyi_model.glb"
+ },
  "desk": {
   "concept_by": "gemini",
   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/f77b197b-b512-4dfe-9228-6c39b2c32e65.jpg",
@@ -139,6 +209,13 @@
   "mesh_request": "01a0daa6-4e41-7ba1-a348-eff6f472fbf6",
   "mesh_url": "https://v3b.fal.media/files/b/0aabe523/7D_N0dtSDddYiGow4JqsI_model.glb"
  },
+ "galley_range": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/2bcb69bb-3175-433a-9bab-12a053a596ff.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd97-0d29-71d0-b49b-e56c07d77f11",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd97-0d29-71d0-b49b-e56c07d77f11/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf86a/sRF2u31ApgUj4mIUvQmWI_model.glb"
+ },
  "galley_sink": {
   "concept_by": "gemini",
   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/478d06a7-c1b3-48d1-b53f-a338988bbb64.jpg",
@@ -147,6 +224,10 @@
   "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9e-6435-7f10-aff8-38fe4322c7d8/status",
   "mesh_url": "https://v3b.fal.media/files/b/0aabe4f3/imjgxQ0NnzkIzSkZQbzJd_model.glb"
  },
+ "grow_light": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/ba8ee5ca-d0dc-4df7-b46f-6d04d060106e.jpg"
+ },
  "helm_console": {
   "concept_by": "gemini",
   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/8e5851d7-acbc-416a-ac5b-e8a56a7493f9.jpg",
@@ -154,6 +235,13 @@
   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9e-9d1e-78c2-a552-da592a246236",
   "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9e-9d1e-78c2-a552-da592a246236/status",
   "mesh_url": "https://v3b.fal.media/files/b/0aabe4f4/jpskfH-XaK95eGYVKaTti_model.glb"
+ },
+ "hydro_tray": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/bd43fb98-c9fa-4fc3-ad7a-9ea4be7ce306.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd96-8bae-7cd0-b483-131794169bd0",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd96-8bae-7cd0-b483-131794169bd0/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf868/MyuLZ_V32G8cDyHrJRaHa_model.glb"
  },
  "jefferies_hatch": {
   "concept_by": "gemini",
@@ -231,6 +319,13 @@
   "concept_by": "gemini",
   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/895621c2-a6b0-4b64-8577-5d4721de12a1.jpg"
  },
+ "potting_bench": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/09d00b94-261a-4073-afa0-01e5021f9c73.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd96-95bf-73a3-b302-e8d019633871",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd96-95bf-73a3-b302-e8d019633871/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf868/672__B2BA8K2EWDwJb3hD_model.glb"
+ },
  "railing": {
   "concept_by": "gemini",
   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/d35c0de9-c81f-4b1d-9135-56ce53b2ec66.jpg",
@@ -258,6 +353,13 @@
   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9e-a9af-7561-81df-f0f7946542e1",
   "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9e-a9af-7561-81df-f0f7946542e1/status",
   "mesh_url": "https://v3b.fal.media/files/b/0aabe4f1/j0ohJ8Vr4mLmdvakNO5AH_model.glb"
+ },
+ "seed_locker": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/583943bd-e3d7-455c-bf19-59c30813245f.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd96-90a0-7610-8fa1-4120bbc7fda2",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd96-90a0-7610-8fa1-4120bbc7fda2/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf868/s9Hw2tvfapRzKpmeBuHJC_model.glb"
  },
  "sofa": {
   "concept_by": "gemini",
@@ -346,5 +448,12 @@
   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9e-3292-7301-a215-aba2c72de508",
   "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9e-3292-7301-a215-aba2c72de508/status",
   "mesh_url": "https://v3b.fal.media/files/b/0aabe4f2/ykBxzr-hYx2eK5hlVwY8E_model.glb"
+ },
+ "worm_tank": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/04e565a4-c291-4d5f-8681-cd28b319267f.jpg",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd97-0660-7e20-ae58-358ce657fcd9",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0dd97-0660-7e20-ae58-358ce657fcd9/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aabf868/t3apjadQNufj2N364lLEJ_model.glb"
  }
 }

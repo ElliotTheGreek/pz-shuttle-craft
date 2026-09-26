@@ -27,6 +27,13 @@
    "x": 1,
    "y": 1,
    "description": "Bridge"
+  },
+  {
+   "deck": "Deck 5",
+   "z": 4,
+   "x": 1,
+   "y": 1,
+   "description": "Hydroponics"
   }
  ],
  "decks": [
@@ -63,6 +70,14 @@
     "Adirondack_Bridge_ReadyRoom.tbx"
    ],
    "description": "Bridge"
+  },
+  {
+   "deck": "Deck 5",
+   "z": 4,
+   "sections": [
+    "Adirondack_Hydroponics.tbx"
+   ],
+   "description": "Hydroponics"
   }
  ],
  "spine_x": 3,
@@ -75,5 +90,5 @@
   20,
   25
  ],
- "floors": 4
+ "floors": 5
 }

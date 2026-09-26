@@ -38,6 +38,7 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Adirondack"
+require "TREK/TREK_Power"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -53,7 +54,7 @@ local TAG = "adk"
 -- Bumped when what an existing object needs changes (doors registered,
 -- containers stocked, sinks with water): a deck built by an older one is
 -- repaired in place on the next visit, without anything being rebuilt.
-AS.FIT = 3
+AS.FIT = 4
 
 function AS.state()
     local s = ModData.getOrCreate(A.StateKey)
@@ -163,7 +164,15 @@ local function make(sq, o)
         end) == true
     end
 
-    local obj = U.try("IsoObject.new", function()
+    local obj
+    if piece == "galley_range" then
+        -- A real stove (FARMING.md 3), the way the shuttle's oven is one
+        -- (TREK_Build.placeStove), powered by the deck's bus (servicePowerBus).
+        obj = U.try("IsoStove.new", function()
+            return IsoStove.new(getCell(), sq, getSprite(sprite))
+        end)
+    end
+    obj = obj or U.try("IsoObject.new", function()
         return IsoObject.new(sq, sprite, "")
     end)
     if not obj then return false end
@@ -193,6 +202,9 @@ local function needsRefit(sq, obj, o)
     local kind, piece = o[4], o[5]
     if isDoorKind(kind) then
         return not isSpecial(sq, obj) or not instanceof(obj, "IsoDoor")
+    end
+    if piece == "galley_range" and not instanceof(obj, "IsoStove") and not holdsAnything(obj) then
+        return true
     end
     if kind == "c" and A.Stock[piece] then
         local md = U.try("md", function() return obj:getModData() end) or {}
@@ -252,6 +264,13 @@ function AS.buildDeck(k)
                     if instanceof(o, "IsoWorldInventoryObject") then return end
                     if o == sq:getFloor() then return end
                     local tag = tagOf(o)
+                    local md = U.try("md.plant", function() return o:getModData() end)
+                    if md and (md.typeOfSeed ~= nil or md.nbOfGrow ~= nil) then
+                        -- A plant in a hydroponic tray: vanilla farming's
+                        -- object, untagged, and never ours to clear.
+                        return
+                    end
+                    if instanceof(o, "IsoGenerator") then return end
                     if tag == TAG then
                         local entry = here[spriteOf(o)]
                         if not entry then
@@ -289,6 +308,8 @@ function AS.buildDeck(k)
     end
 
     U.try("adk.doctor", AS.serviceDoctor, k)
+    if TREK.Farm then U.try("adk.trays", TREK.Farm.primeDeck, k) end
+    U.try("adk.bus", AS.servicePowerBus, k)
 
     local s = AS.state()
     s.decks[k], s.fit[k] = L.rev, AS.FIT
@@ -341,6 +362,63 @@ function AS.serviceDoctor(k)
         end
     end
     return placed
+end
+
+---------------------------------------------------------------------------
+-- The galley's power bus
+---------------------------------------------------------------------------
+-- An oven needs electricity, and a runtime deck is on no grid. The shuttle's
+-- answer (TREK_Build.servicePowerBus) is an invisible generator, fuelled from
+-- the ship's reserve; hers is the same, on the galley range's own square, so
+-- the stove and the stasis units nearby have power, billed to her warp core.
+function AS.servicePowerBus(k)
+    local range = nil
+    for _, o in ipairs(L.decks[k].objects) do
+        if o[5] == "galley_range" then range = o break end
+    end
+    if not range then return nil end
+    local x, y = A.at(k, range[1], range[2])
+    if not U.chunkLoaded(x, y, A.Z) then return nil end
+    local sq = U.square(x, y, A.Z, false)
+    if not sq then return nil end
+    local gen = nil
+    U.eachObject(sq, function(o)
+        if not gen and instanceof(o, "IsoGenerator") then gen = o end
+    end)
+    if not gen then
+        local item = U.try("adk.busItem", function() return instanceItem(C.PowerBusItem) end)
+        if not item then return nil end
+        U.try("adk.busSetup", function()
+            item:setCondition(100)
+            item:getModData().fuel = 10.0
+        end)
+        gen = U.try("adk.busGen", function() return IsoGenerator.new(item, getCell(), sq) end)
+        if not gen then return nil end
+        U.try("adk.busTag", function()
+            gen:getModData().TREK = C.PowerBusTag
+            gen:transmitModData()
+            gen:setConnected(true)
+        end)
+        U.log("Adirondack %s: power bus placed at the galley range", L.decks[k].name)
+    end
+    local P = TREK.Power
+    local max = U.try("adk.busMax", function() return gen:getMaxFuel() end) or 10
+    local fuel = U.try("adk.busFuel", function() return gen:getFuel() end) or max
+    if max - fuel > 0.0001 and TREK.Energy then
+        P.using("adk", function()
+            TREK.Energy.energize(nil, "galley", (max - fuel) * C.FuelToEnergy,
+                                 { partial = true, silent = true })
+        end)
+    end
+    if fuel < max then U.try("adk.busRefuel", function() gen:setFuel(max) end) end
+    U.try("adk.busMend", function()
+        if gen:getCondition() < 100 then gen:setCondition(100) end
+    end)
+    local want = not P.dark("adk")
+    if U.try("adk.busOn", function() return gen:isActivated() end) ~= want then
+        U.try("adk.busSwitch", function() gen:setActivated(want) end)
+    end
+    return gen
 end
 
 ---------------------------------------------------------------------------
@@ -547,6 +625,12 @@ end)
 
 Events.EveryOneMinute.Add(function()
     U.try("adk.refillWater", AS.refillWater)
+end)
+
+Events.EveryHours.Add(function()
+    for k = 1, #L.decks do
+        if AS.state().decks[k] then U.try("adk.busHourly", AS.servicePowerBus, k) end
+    end
 end)
 
 return AS

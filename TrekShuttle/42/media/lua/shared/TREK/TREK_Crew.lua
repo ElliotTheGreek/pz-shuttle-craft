@@ -33,7 +33,7 @@ K.StateKey = "TREK_Crew"
 K.Outfit = "TrekCrewBase"
 
 -- How many are about on a deck while somebody is on it.
-K.Population = { 6, 8, 5, 6 }
+K.Population = { 6, 8, 5, 6, 4 }
 
 ---------------------------------------------------------------------------
 -- Who they are
@@ -79,6 +79,8 @@ K.Jobs = {
       { "operations", "security", 1 } },
     { { "operations", "engineer", 6 }, { "operations", "operations", 2 }, { "sciences", "sciences", 1 },
       { "command", "command", 1 } },
+    -- Deck 5, hydroponics: botanists, and somebody from the galley.
+    { { "sciences", "sciences", 5 }, { "operations", "operations", 2 }, { "sciences", "medical", 1 } },
 }
 
 K.Ranks = { { "Crewman", 4 }, { "Ensign", 5 }, { "Lieutenant", 3 }, { "Petty Officer", 2 },

@@ -103,7 +103,8 @@ def wall_piece(layer, w, n):
 # own slot), so a viewport can go anywhere along a bulkhead.
 AREAS = [("quarters", "Quarters"), ("lounge", "Lounge and Galley"), ("bridge", "Bridge"),
          ("sickbay", "Sickbay"), ("engineering", "Engineering"),
-         ("transporter", "Transporter Room"), ("any", "Wall Art")]
+         ("transporter", "Transporter Room"), ("hydroponics", "Hydroponics"),
+         ("galley", "Galley"), ("any", "Wall Art")]
 
 
 def furniture_blocks(names, index):

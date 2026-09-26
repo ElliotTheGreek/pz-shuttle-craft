@@ -234,6 +234,69 @@ OBJECTS = [
 ]
 
 
+# --- hydroponics (FARMING.md) -----------------------------------------------------
+# Appended, never inserted: the sheet is laid out in this order, and a built
+# deck names its tiles by index, so everything above keeps its number.
+OBJECTS += [
+    m("hydro_tray", "hydroponics", "A single square raised hydroponic planter "
+      "tray: a waist-low box of warm light-grey composite with rounded corners "
+      "and a charcoal base, a thin soft amber light strip around its rim, "
+      "filled almost to the top with dark crumbly growing medium. Empty, "
+      "nothing planted in it.", 1, 1, 0.55, facings="1", use={"tray": True}),
+    m("seed_locker", "hydroponics", "A narrow tall storage cabinet for seed "
+      "packets: warm light-grey panels, a grid of small square drawers each "
+      "with a soft green indicator light, charcoal trim.", 1, 1, 1.9,
+      use={"container": "shelves"}),
+    m("potting_bench", "hydroponics", "A long botanist's potting bench: a "
+      "light-grey composite worktop over charcoal cabinets with doors, a "
+      "small built-in sink basin at one end and a row of empty seed trays on "
+      "the worktop, a slim amber light strip under the edge.", 2, 1, 0.95,
+      use={"container": "counter"}),
+    m("dehydrator", "hydroponics", "A starship food dehydrator cabinet: a "
+      "waist-high light-grey box with a glass front door showing stacked "
+      "mesh drying trays lit a warm amber inside, a small control panel of "
+      "rounded coloured buttons beside the door.", 1, 1, 1.3,
+      use={"container": "shelves"}),
+    m("worm_tank", "hydroponics", "A long low glass-sided terrarium tank on a "
+      "charcoal stand, half filled with dark wet earth, a few fat reddish "
+      "serpent-like worms visible against the glass, a light-grey lid with "
+      "small vents and a dim red indicator light.", 2, 1, 1.1,
+      use={"container": "crate", "worms": True}),
+    m("galley_range", "galley", "A compact starship galley cooking range: a "
+      "light-grey cabinet with a flat black induction cooktop with four "
+      "faintly glowing circles on top, an oven door with a dark glass window "
+      "below, a strip of rounded coloured control buttons.", 1, 1, 0.95,
+      facings="WNES", use={"stove": True}),
+    m("arboretum_tree", "hydroponics", "A small ornamental tree in a round "
+      "light-grey planter: a slender pale trunk and a rounded canopy of "
+      "delicate blue-green leaves with tiny white blossoms.", 1, 1, 2.3,
+      facings="1"),
+    m("alien_shrub", "hydroponics", "A low alien ornamental shrub in a round "
+      "light-grey planter: broad violet and teal leaves in a loose rosette, "
+      "a few glowing pale seed pods.", 1, 1, 1.0, facings="1"),
+    flat("grow_light", "hydroponics", "A long slim wall-mounted grow light "
+         "panel in a light-grey frame, glowing a soft pink-violet.",
+         u=(0.1, 0.9), v=(0.2, 0.35), use={"light": True}),
+]
+
+
+def crop(name, prompt):
+    """A crop (FARMING.md 2): one mesh of the mature plant, rendered at every
+    growth stage by tools/gen_adirondack_crops.py -- not a piece of furniture."""
+    return dict(name=name, area="crop", kind="crop", prompt=prompt)
+
+
+OBJECTS += [
+    crop("crop_tea", "tea bush (Camellia sinensis)"),
+    crop("crop_bergamot", "bergamot orange bush"),
+    crop("crop_klingon_coffee", "Klingon coffee shrub"),
+    crop("crop_plomeek", "Vulcan plomeek"),
+    crop("crop_leola", "Talaxian leola root"),
+    crop("crop_andorian_tuber", "Andorian tuber"),
+    crop("crop_hasperat", "Bajoran hasperat pepper"),
+]
+
+
 def by_name():
     return {o["name"]: o for o in OBJECTS}
 

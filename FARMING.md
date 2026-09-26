@@ -308,3 +308,52 @@ This is the evidence behind the design, from the game's own Lua and bytecode.
 5. **Seeds from the replicator.** Allowed? It makes the trays reachable
    without the seed locker, and replicated seeds still grow **real** food.
    Recommended yes.
+
+---
+
+## 10. As built (2026-09-26)
+
+Every phase in §7 is done in one pass.
+
+| What | Where |
+|---|---|
+| Crop registration | `shared/TREK/TREK_FarmCrops.lua` (it loads on clients too, for the sow menu) |
+| Growth sprites | `shared/TREK/TREK_FarmSprites.lua` (GENERATED) |
+| Trays, the greenhouse rule, tending, the dehydrator, the worm tank | `server/TREK/TREK_Farm.lua` |
+| Items and the 21 recipes | `media/scripts/trekfarming.txt` |
+| Growth stages | `tools/gen_adirondack_crops.py` → sheet `trek_adirondack_03` (224 stage tiles and the tray's soil) |
+| Furniture | `tools/adirondack_objects.py`, appended to sheet `02` so every existing tile keeps its number: `hydro_tray`, `seed_locker`, `potting_bench`, `dehydrator`, `worm_tank`, `galley_range`, `arboretum_tree`, `alien_shrub`, `grow_light` |
+| Icons | `tools/gen_farm_icons.py`. It crops each raw to its magenta panel first, because Gemini sometimes paints the magenta as a panel inside a bigger picture. |
+| Deck 5 | `SECTIONS["hydroponics"]` and `DECKS` in `compose_adirondack.py`. The decks are ordered by deck number, never by storey, so Deck 5 stands east of Deck 4 and nothing already built moves. |
+| The galley range | on Deck 2, an `IsoStove`, powered by an invisible generator on its own square and billed to her warp core (`AS.servicePowerBus`) |
+| Tests | `tests/test_farming.py` (static: every recipe item and tag, every crop's items and sprites) and `farming()` in `tests/test_multiplayer.py` (the loop, in the sim) |
+
+**The bay runs itself.** Every hour the ship does all of this to each plant
+aboard her:
+- waters it full;
+- clears any pests and disease;
+- restores any health it lost to being "indoors" or out of season.
+
+A harvested or dead tray is cleared and primed again within the hour. The
+crew only sow and harvest. The same crops planted **in the ground** in
+Kentucky are ordinary vanilla crops and need ordinary care.
+
+Sandbox *Hydroponics tend themselves* (on by default) turns the tending off.
+
+**Decided:**
+- Seeds come out of the replicator like any mod item. What grows from them
+  is real food.
+- Recipes are not gated: anybody can cook from scratch.
+
+**Only the game can show:**
+1. Crops standing *in* the trays at the right height (`TRAY_TOP`).
+2. Vanilla's own sow, harvest and info menus on a tray square five storeys up.
+3. The range cooking, with the bus powering it.
+4. The drinks arriving hot (`TREKFarm_HotDrink` is named in the recipes but
+   not written yet; see below).
+5. A dried item keeping its count through the dehydrator.
+
+**The brewed drinks arrive hot.** `TREKFarm_HotDrink`
+(`shared/TREK/TREK_FarmRecipes.lua`) is the `OnCreate` for both brews, and it
+sets the mug's item heat. Whether that heat does anything when drunk is item 4
+above.

@@ -255,6 +255,16 @@ function instanceItem(id)
     -- goes into the television and does nothing, with nothing in any log. A
     -- stub that answered a table here would make the tape shelf untestable in
     -- exactly the direction that matters.
+    function it:setAge(v) self.age = v end
+    function it:getAge() return self.age or 0 end
+    --- Whether it is food: the engine's own test (InventoryItem.IsFood). The
+    --- sim has no item scripts, so anything that is plainly a tool is not.
+    function it:IsFood()
+        for _, w in ipairs({ "Seed", "Shovel", "Can", "Mortar", "Pot", "Bowl", "Knife", "Uniform" }) do
+            if self.fullType:find(w) then return false end
+        end
+        return true
+    end
     function it:getMediaData() return self.mediaData end
     function it:setRecordedMediaData(data) self.mediaData = data end
     function it:setRecordedMediaIndexInteger(n) self.mediaIndex = n end
@@ -4452,4 +4462,74 @@ SIM.humanVisualsSent = {}
 function sendHumanVisual(player)
     if isClient() then SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1 end
     table.insert(SIM.humanVisualsSent, player.name)
+end
+
+---------------------------------------------------------------------------
+-- Vanilla farming, enough of it (FARMING.md): the crop tables, and a farming
+-- system whose plots are objects on their squares carrying vanilla's own
+-- mod data, so the deck builder can be seen to leave them alone.
+---------------------------------------------------------------------------
+package.preload["Farming/farming_vegetableconf"] = function()
+    farming_vegetableconf = farming_vegetableconf or {
+        props = {}, sprite = {}, unhealthySprite = {}, dyingSprite = {},
+        deadSprite = {}, trampledSprite = {},
+    }
+    return farming_vegetableconf
+end
+
+package.preload["Farming/SFarmingSystem"] = function()
+    if SFarmingSystem then return SFarmingSystem end
+    local PlantMT = {}
+    PlantMT.__index = PlantMT
+    function PlantMT:isAlive()
+        return self.state ~= "destroyed" and self.state ~= "dead" and self.state ~= "rotten"
+            and self.state ~= "harvested"
+    end
+    function PlantMT:setSpriteName(n) self.spriteName = n; if self.obj then self.obj.spriteName = n end end
+    function PlantMT:saveData()
+        if self.obj then
+            local md = self.obj.modData
+            md.state, md.typeOfSeed, md.nbOfGrow, md.health = self.state, self.typeOfSeed, self.nbOfGrow, self.health
+            md.waterLvl = self.waterLvl
+        end
+        SIM.farmSaves = (SIM.farmSaves or 0) + 1
+    end
+    SFarmingSystem = { plants = {} }
+    function SFarmingSystem:getLuaObjectCount() return #self.plants end
+    function SFarmingSystem:getLuaObjectByIndex(i) return self.plants[i] end
+    function SFarmingSystem:getLuaObjectAt(x, y, z)
+        for _, p in ipairs(self.plants) do
+            if p.x == x and p.y == y and p.z == z then return p end
+        end
+    end
+    function SFarmingSystem:plow(sq)
+        local p = setmetatable({ x = sq.x, y = sq.y, z = sq.z, state = "plow", nbOfGrow = -1,
+                                 typeOfSeed = "none", health = 50, waterLvl = 0,
+                                 spriteName = "vegetation_farming_01_1" }, PlantMT)
+        local obj = SIM.object("vegetation_farming_01_1")
+        obj.square = sq
+        table.insert(sq.objects, obj)
+        p.obj = obj
+        p:saveData()
+        table.insert(self.plants, p)
+        return p
+    end
+    function SFarmingSystem:removePlant(p)
+        for i, q in ipairs(self.plants) do
+            if q == p then table.remove(self.plants, i) break end
+        end
+        if p.obj and p.obj.square then
+            for i, o in ipairs(p.obj.square.objects) do
+                if o == p.obj then table.remove(p.obj.square.objects, i) break end
+            end
+        end
+    end
+    -- The part that hurts crops indoors: every plant loses 10 a pass.
+    function SFarmingSystem:changeHealth()
+        for _, p in ipairs(self.plants) do
+            if p:isAlive() and p.state ~= "plow" then p.health = p.health - 10 end
+        end
+    end
+    SFarmingSystem.instance = SFarmingSystem
+    return SFarmingSystem
 end

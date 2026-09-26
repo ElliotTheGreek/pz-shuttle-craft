@@ -1,0 +1,430 @@
+module TrekShuttle
+{
+    /*  Hydroponics aboard the Adirondack (FARMING.md): seeds, what grows from
+        them, what the dehydrator and the kitchen make of it, and the recipes
+        that end in the species dishes the mod already has -- Earl Grey,
+        raktajino, plomeek soup, leola root stew, hasperat, roasted Andorian
+        tuber and gagh.
+
+        Every step is a vanilla mechanism: crops are vanilla farming crops
+        (server/TREK/TREK_Farm.lua), the pots cook on a stove like vanilla's
+        rice pot, the beans roast in an oven because they are cookable, and
+        the recipes are craftRecipes, which show in the crafting window by
+        themselves. Recipes are not gated: anybody can cook from scratch.
+
+        Icons are generated on magenta and keyed (tools/key_icon.py). */
+
+    /* --- seeds ---------------------------------------------------------- */
+
+    item TrekTeaSeed
+    {
+        DisplayCategory = Gardening, ItemType = base:normal, Weight = 0.02,
+        Icon = TREK_SeedTea, WorldStaticModel = Seeds_Generic, Tags = base:isseed,
+    }
+    item TrekBergamotSeed
+    {
+        DisplayCategory = Gardening, ItemType = base:normal, Weight = 0.02,
+        Icon = TREK_SeedBergamot, WorldStaticModel = Seeds_Generic, Tags = base:isseed,
+    }
+    item TrekKlingonCoffeeSeed
+    {
+        DisplayCategory = Gardening, ItemType = base:normal, Weight = 0.02,
+        Icon = TREK_SeedKlingonCoffee, WorldStaticModel = Seeds_Generic, Tags = base:isseed,
+    }
+    item TrekPlomeekSeed
+    {
+        DisplayCategory = Gardening, ItemType = base:normal, Weight = 0.02,
+        Icon = TREK_SeedPlomeek, WorldStaticModel = Seeds_Generic, Tags = base:isseed,
+    }
+    item TrekLeolaSeed
+    {
+        DisplayCategory = Gardening, ItemType = base:normal, Weight = 0.02,
+        Icon = TREK_SeedLeola, WorldStaticModel = Seeds_Generic, Tags = base:isseed,
+    }
+    item TrekAndorianTuberSeed
+    {
+        DisplayCategory = Gardening, ItemType = base:normal, Weight = 0.02,
+        Icon = TREK_SeedAndorianTuber, WorldStaticModel = Seeds_Generic, Tags = base:isseed,
+    }
+    item TrekHasperatSeed
+    {
+        DisplayCategory = Gardening, ItemType = base:normal, Weight = 0.02,
+        Icon = TREK_SeedHasperat, WorldStaticModel = Seeds_Generic, Tags = base:isseed,
+    }
+
+    /* --- what grows ----------------------------------------------------- */
+
+    item TrekTeaLeaves
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.1,
+        Icon = TREK_TeaLeaves, FoodType = Herb,
+        DaysFresh = 4, DaysTotallyRotten = 8,
+        HungerChange = -1.0, UnhappyChange = 5,
+        Calories = 5.0, Carbohydrates = 1.0, Lipids = 0.0, Proteins = 0.0,
+        WorldStaticModel = Lettuce_Ground,
+        Tooltip = Tooltip_TREK_TeaLeaves,
+    }
+    item TrekBergamot
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.2,
+        Icon = TREK_Bergamot, FoodType = Fruits,
+        DaysFresh = 10, DaysTotallyRotten = 20,
+        HungerChange = -5.0, ThirstChange = -3.0, UnhappyChange = 10,
+        Calories = 40.0, Carbohydrates = 10.0, Lipids = 0.0, Proteins = 1.0,
+        WorldStaticModel = Lemon_Ground,
+        Tooltip = Tooltip_TREK_Bergamot,
+    }
+    item TrekKlingonCoffeeCherries
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.2,
+        Icon = TREK_CoffeeCherries, FoodType = Fruits,
+        DaysFresh = 5, DaysTotallyRotten = 10,
+        HungerChange = -2.0, UnhappyChange = 5,
+        Calories = 20.0, Carbohydrates = 5.0, Lipids = 0.0, Proteins = 0.0,
+        WorldStaticModel = CoffeetreePod_Ground,
+        Tooltip = Tooltip_TREK_CoffeeCherries,
+    }
+    item TrekPlomeek
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.4,
+        Icon = TREK_Plomeek, FoodType = Vegetables,
+        DaysFresh = 6, DaysTotallyRotten = 12,
+        HungerChange = -12.0, ThirstChange = -4.0,
+        Calories = 90.0, Carbohydrates = 18.0, Lipids = 1.0, Proteins = 3.0,
+        IsCookable = true, MinutesToCook = 15, MinutesToBurn = 45,
+        EvolvedRecipe = Soup:12;Stew:12,
+        EvolvedRecipeName = Plomeek,
+        WorldStaticModel = Potato_Ground,
+        Tooltip = Tooltip_TREK_Plomeek,
+    }
+    item TrekLeolaRoot
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.4,
+        Icon = TREK_LeolaRoot, FoodType = Vegetables,
+        DaysFresh = 10, DaysTotallyRotten = 20,
+        HungerChange = -15.0, UnhappyChange = 5,
+        Calories = 120.0, Carbohydrates = 26.0, Lipids = 1.0, Proteins = 3.0,
+        IsCookable = true, MinutesToCook = 20, MinutesToBurn = 50,
+        EvolvedRecipe = Stew:15;Soup:12,
+        EvolvedRecipeName = Leola,
+        WorldStaticModel = Potato_Ground,
+        Tooltip = Tooltip_TREK_LeolaRoot,
+    }
+    item TrekAndorianTuberRaw
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.4,
+        Icon = TREK_AndorianTuberRaw, FoodType = Vegetables,
+        DaysFresh = 12, DaysTotallyRotten = 24,
+        HungerChange = -15.0,
+        Calories = 130.0, Carbohydrates = 28.0, Lipids = 0.0, Proteins = 3.0,
+        IsCookable = true, MinutesToCook = 20, MinutesToBurn = 50,
+        WorldStaticModel = Potato_Ground,
+        Tooltip = Tooltip_TREK_AndorianTuberRaw,
+    }
+    item TrekHasperatPeppers
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.1,
+        Icon = TREK_HasperatPeppers, FoodType = Vegetables,
+        DaysFresh = 8, DaysTotallyRotten = 16,
+        HungerChange = -3.0, UnhappyChange = 5,
+        Calories = 20.0, Carbohydrates = 4.0, Lipids = 0.0, Proteins = 1.0,
+        EvolvedRecipe = Stew:2;Soup:2,
+        WorldStaticModel = PepperHabanero_Ground,
+        Tooltip = Tooltip_TREK_HasperatPeppers,
+    }
+
+    /* --- what the dehydrator and the kitchen make of it ------------------- */
+
+    item TrekTeaDried
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.05,
+        Icon = TREK_TeaDried, FoodType = Tea,
+        DaysFresh = 365, DaysTotallyRotten = 730,
+        HungerChange = -1.0,
+        Calories = 2.0, Carbohydrates = 0.0, Lipids = 0.0, Proteins = 0.0,
+        EvolvedRecipe = HotDrink:5,
+        EvolvedRecipeName = Tea,
+        WorldStaticModel = DriedHerbs_generic,
+        Tooltip = Tooltip_TREK_TeaDried,
+    }
+    item TrekBergamotZest
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.02,
+        Icon = TREK_BergamotZest, FoodType = Fruits,
+        DaysFresh = 30, DaysTotallyRotten = 60,
+        HungerChange = -1.0,
+        Calories = 2.0, Carbohydrates = 0.0, Lipids = 0.0, Proteins = 0.0,
+        WorldStaticModel = Lemon_Ground,
+        Tooltip = Tooltip_TREK_BergamotZest,
+    }
+    item TrekKlingonCoffeeBeans
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.1,
+        Icon = TREK_CoffeeBeans, FoodType = Coffee,
+        DaysFresh = 365, DaysTotallyRotten = 730,
+        HungerChange = -1.0,
+        Calories = 5.0, Carbohydrates = 1.0, Lipids = 0.0, Proteins = 0.0,
+        IsCookable = true, MinutesToCook = 10, MinutesToBurn = 25,
+        WorldStaticModel = ChocolateCoveredCoffeeBeans_Ground,
+        Tooltip = Tooltip_TREK_CoffeeBeans,
+    }
+    item TrekKlingonCoffeeGround
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.1,
+        Icon = TREK_CoffeeGround, FoodType = Coffee,
+        DaysFresh = 365, DaysTotallyRotten = 730,
+        HungerChange = -1.0,
+        Calories = 5.0, Carbohydrates = 1.0, Lipids = 0.0, Proteins = 0.0,
+        WorldStaticModel = ChocolateCoveredCoffeeBeans_Ground,
+        Tooltip = Tooltip_TREK_CoffeeGround,
+    }
+    item TrekHasperatDried
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.05,
+        Icon = TREK_HasperatDried, FoodType = Vegetables,
+        DaysFresh = 365, DaysTotallyRotten = 730,
+        HungerChange = -2.0, UnhappyChange = 5,
+        Calories = 15.0, Carbohydrates = 3.0, Lipids = 0.0, Proteins = 1.0,
+        WorldStaticModel = JalapenoDried,
+        Tooltip = Tooltip_TREK_HasperatDried,
+    }
+
+    /*  Serpent worms: the one animal aboard (FARMING.md 4). They breed in a
+        worm tank that is fed scraps, and five of them in a bowl are gagh. */
+    item TrekSerpentWorm
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 0.05,
+        Icon = TREK_SerpentWorm, FoodType = Insect,
+        DaysFresh = 4, DaysTotallyRotten = 8,
+        HungerChange = -2.0, UnhappyChange = 15,
+        Calories = 20.0, Carbohydrates = 0.0, Lipids = 1.0, Proteins = 4.0,
+        WorldStaticModel = Worm_Ground,
+        Tooltip = Tooltip_TREK_SerpentWorm,
+    }
+
+    /*  The soup and stew pots: made at a counter, cooked on a stove like
+        vanilla's rice pot, then served into bowls as the mod's own dishes. */
+    item TrekPlomeekPot
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 3.0,
+        Icon = Pot_Water, CookingSound = BoilingFood, BadInMicrowave = true,
+        EatType = Pot, GoodHot = true, IsCookable = true,
+        ReplaceOnUse = Base.Pot, MinutesToCook = 30, MinutesToBurn = 70,
+        DaysFresh = 3, DaysTotallyRotten = 6,
+        HungerChange = -60.0, ThirstChange = -30.0, UnhappyChange = -20,
+        Calories = 900.0, Carbohydrates = 130.0, Lipids = 20.0, Proteins = 30.0,
+        StaticModel = CookingPot, WorldStaticModel = CookingPotSoup_Ground,
+        Tags = base:hasmetal,
+        Tooltip = Tooltip_TREK_PlomeekPot,
+    }
+    item TrekLeolaStewPot
+    {
+        DisplayCategory = Food, ItemType = base:food, Weight = 3.0,
+        Icon = Pot_Water, CookingSound = BoilingFood, BadInMicrowave = true,
+        EatType = Pot, GoodHot = true, IsCookable = true,
+        ReplaceOnUse = Base.Pot, MinutesToCook = 40, MinutesToBurn = 80,
+        DaysFresh = 3, DaysTotallyRotten = 6,
+        HungerChange = -75.0, ThirstChange = -20.0, UnhappyChange = -10,
+        Calories = 1100.0, Carbohydrates = 170.0, Lipids = 20.0, Proteins = 30.0,
+        StaticModel = CookingPot, WorldStaticModel = CookingPotSoup_Ground,
+        Tags = base:hasmetal,
+        Tooltip = Tooltip_TREK_LeolaStewPot,
+    }
+
+    /* --- recipes: seeds ------------------------------------------------- */
+
+    craftRecipe TrekSeedsTea
+    {
+        time = 40, Tags = AnySurfaceCraft, category = Farming,
+        inputs { item 1 tags[base:sharpknife] mode:keep flags[IsNotDull], item 2 [TrekShuttle.TrekTeaLeaves], }
+        outputs { item 3 TrekShuttle.TrekTeaSeed, }
+    }
+    craftRecipe TrekSeedsBergamot
+    {
+        time = 40, Tags = AnySurfaceCraft, category = Farming,
+        inputs { item 1 tags[base:sharpknife] mode:keep flags[IsNotDull], item 1 [TrekShuttle.TrekBergamot], }
+        outputs { item 4 TrekShuttle.TrekBergamotSeed, }
+    }
+    craftRecipe TrekSeedsKlingonCoffee
+    {
+        time = 40, Tags = AnySurfaceCraft, category = Farming,
+        inputs { item 1 tags[base:sharpknife] mode:keep flags[IsNotDull], item 2 [TrekShuttle.TrekKlingonCoffeeCherries], }
+        outputs { item 3 TrekShuttle.TrekKlingonCoffeeSeed, }
+    }
+    craftRecipe TrekSeedsPlomeek
+    {
+        time = 40, Tags = AnySurfaceCraft, category = Farming,
+        inputs { item 1 tags[base:sharpknife] mode:keep flags[IsNotDull], item 1 [TrekShuttle.TrekPlomeek], }
+        outputs { item 4 TrekShuttle.TrekPlomeekSeed, }
+    }
+    craftRecipe TrekSeedsLeola
+    {
+        time = 40, Tags = AnySurfaceCraft, category = Farming,
+        inputs { item 1 tags[base:sharpknife] mode:keep flags[IsNotDull], item 1 [TrekShuttle.TrekLeolaRoot], }
+        outputs { item 4 TrekShuttle.TrekLeolaSeed, }
+    }
+    craftRecipe TrekSeedsAndorianTuber
+    {
+        time = 40, Tags = AnySurfaceCraft, category = Farming,
+        inputs { item 1 tags[base:sharpknife] mode:keep flags[IsNotDull], item 1 [TrekShuttle.TrekAndorianTuberRaw], }
+        outputs { item 4 TrekShuttle.TrekAndorianTuberSeed, }
+    }
+    craftRecipe TrekSeedsHasperat
+    {
+        time = 40, Tags = AnySurfaceCraft, category = Farming,
+        inputs { item 1 tags[base:sharpknife] mode:keep flags[IsNotDull], item 2 [TrekShuttle.TrekHasperatPeppers], }
+        outputs { item 4 TrekShuttle.TrekHasperatSeed, }
+    }
+
+    /* --- recipes: drying on a vanilla herb rack (the ship's dehydrator dries
+           the same things by itself, TREK_Farm.lua) ------------------------ */
+
+    craftRecipe TrekDryTea
+    {
+        time = 86400, Tags = DryingRackHerb, category = Farming, overlayStyle = Herb,
+        inputs { item variable[1:20] [TrekShuttle.TrekTeaLeaves], }
+        outputs { item variable[1:20] TrekShuttle.TrekTeaDried, }
+    }
+    craftRecipe TrekDryCoffee
+    {
+        time = 86400, Tags = DryingRackHerb, category = Farming, overlayStyle = Herb,
+        inputs { item variable[1:20] [TrekShuttle.TrekKlingonCoffeeCherries], }
+        outputs { item variable[1:20] TrekShuttle.TrekKlingonCoffeeBeans, }
+    }
+    craftRecipe TrekDryHasperat
+    {
+        time = 86400, Tags = DryingRackHerb, category = Farming, overlayStyle = Herb,
+        inputs { item variable[1:20] [TrekShuttle.TrekHasperatPeppers], }
+        outputs { item variable[1:20] TrekShuttle.TrekHasperatDried, }
+    }
+
+    /* --- recipes: the kitchen ------------------------------------------- */
+
+    craftRecipe TrekZestBergamot
+    {
+        timedAction = SliceFood, time = 60, Tags = AnySurfaceCraft;Cooking, category = Cooking,
+        inputs { item 1 tags[base:sharpknife] mode:keep flags[IsNotDull], item 1 [TrekShuttle.TrekBergamot], }
+        outputs { item 3 TrekShuttle.TrekBergamotZest, }
+    }
+
+    craftRecipe TrekGrindKlingonCoffee
+    {
+        timedAction = MixingMortarPestle, time = 80, Tags = AnySurfaceCraft;Cooking, category = Cooking,
+        inputs
+        {
+            item 1 tags[base:mortarpestle] mode:keep,
+            item 3 [TrekShuttle.TrekKlingonCoffeeBeans] flags[IsCookedFoodItem],
+        }
+        outputs { item 1 TrekShuttle.TrekKlingonCoffeeGround, }
+    }
+
+    craftRecipe TrekBrewEarlGrey
+    {
+        timedAction = MakeCoffee, time = 40, Tags = AnySurfaceCraft;Cooking, category = Cooking,
+        OnCreate = TREKFarm_HotDrink,
+        inputs
+        {
+            item 1 tags[base:coffeemaker] mode:destroy,
+            -fluid 0.2 categories[Water] mode:mixture,
+            item 1 [TrekShuttle.TrekTeaDried],
+            item 1 [TrekShuttle.TrekBergamotZest],
+        }
+        outputs { item 1 TrekShuttle.TrekEarlGreyCup, }
+    }
+
+    craftRecipe TrekBrewRaktajino
+    {
+        timedAction = MakeCoffee, time = 40, Tags = AnySurfaceCraft;Cooking, category = Cooking,
+        OnCreate = TREKFarm_HotDrink,
+        inputs
+        {
+            item 1 tags[base:coffeemaker] mode:destroy,
+            -fluid 0.2 categories[Water] mode:mixture,
+            item 1 [TrekShuttle.TrekKlingonCoffeeGround],
+        }
+        outputs { item 1 TrekShuttle.TrekRaktajinoMug, }
+    }
+
+    craftRecipe TrekMakePlomeekPot
+    {
+        timedAction = MixingBowl, time = 60, Tags = AnySurfaceCraft;Cooking, category = Cooking,
+        inputs
+        {
+            item 1 [Base.Pot] mode:destroy,
+            -fluid 1.0 categories[Water] mode:mixture,
+            item 3 [TrekShuttle.TrekPlomeek],
+        }
+        outputs { item 1 TrekShuttle.TrekPlomeekPot, }
+    }
+
+    craftRecipe TrekServePlomeek
+    {
+        timedAction = MixingBowl, time = 50, Tags = AnySurfaceCraft;Cooking, category = Cooking,
+        inputs
+        {
+            item 1 [TrekShuttle.TrekPlomeekPot] flags[IsCookedFoodItem],
+            item 3 [Base.Bowl],
+        }
+        outputs
+        {
+            item 3 TrekShuttle.TrekPlomeekSoup,
+            item 1 Base.Pot,
+        }
+    }
+
+    craftRecipe TrekMakeLeolaStewPot
+    {
+        timedAction = MixingBowl, time = 60, Tags = AnySurfaceCraft;Cooking, category = Cooking,
+        inputs
+        {
+            item 1 [Base.Pot] mode:destroy,
+            -fluid 1.0 categories[Water] mode:mixture,
+            item 3 [TrekShuttle.TrekLeolaRoot],
+        }
+        outputs { item 1 TrekShuttle.TrekLeolaStewPot, }
+    }
+
+    craftRecipe TrekServeLeolaStew
+    {
+        timedAction = MixingBowl, time = 50, Tags = AnySurfaceCraft;Cooking, category = Cooking,
+        inputs
+        {
+            item 1 [TrekShuttle.TrekLeolaStewPot] flags[IsCookedFoodItem],
+            item 3 [Base.Bowl],
+        }
+        outputs
+        {
+            item 3 TrekShuttle.TrekLeolaStew,
+            item 1 Base.Pot,
+        }
+    }
+
+    craftRecipe TrekPlateAndorianTuber
+    {
+        time = 30, Tags = AnySurfaceCraft;Cooking, category = Cooking,
+        inputs { item 1 [TrekShuttle.TrekAndorianTuberRaw] flags[IsCookedFoodItem], }
+        outputs { item 1 TrekShuttle.TrekAndorianTuber, }
+    }
+
+    craftRecipe TrekMakeHasperat
+    {
+        timedAction = MixingBowl, time = 60, Tags = AnySurfaceCraft;Cooking, category = Cooking,
+        inputs
+        {
+            item 1 [Base.Tortilla],
+            item 2 [TrekShuttle.TrekHasperatPeppers;TrekShuttle.TrekHasperatDried],
+        }
+        outputs { item 1 TrekShuttle.TrekHasperat, }
+    }
+
+    craftRecipe TrekServeGagh
+    {
+        time = 40, Tags = AnySurfaceCraft;Cooking, category = Cooking,
+        inputs
+        {
+            item 5 [TrekShuttle.TrekSerpentWorm],
+            item 1 [Base.Bowl],
+        }
+        outputs { item 1 TrekShuttle.TrekGagh, }
+    }
+}

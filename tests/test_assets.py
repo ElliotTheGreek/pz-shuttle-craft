@@ -57,7 +57,7 @@ MOD_ITEM = re.compile(r"^TrekShuttle\.([A-Za-z0-9_]+)$")
 # report a model that is really there as missing.
 script = "".join(
     open(os.path.join(MOD, "media", "scripts", fn), encoding="utf-8").read()
-    for fn in ("trekshuttle.txt", "trekweapons.txt")
+    for fn in ("trekshuttle.txt", "trekweapons.txt", "trekfarming.txt")
     if os.path.isfile(os.path.join(MOD, "media", "scripts", fn)))
 # Anchored to the end of the line, as the model and fluid patterns are: a real
 # declaration is "item Foo" and nothing else, so prose in a comment that

@@ -58,55 +58,10 @@ PREVIEW_OFFSET = (0, 0)
 # titles strongly and description text weakly: without it, "Star Trek"
 # does not find this item at all.
 TITLE = "Star Trek: Starfleet Shuttlecraft (Build 42)"
-DESCRIPTION = [
-    "A Star Trek Starfleet Type 6 shuttlecraft for Project Zomboid Build 42 -- single player, hosted co-op and dedicated servers.",
-    "",
-    "Beam up to her from anywhere in Kentucky, lay in a course at the LCARS helm, and set her down on any ground with room for her. On a server the whole crew shares one ship.",
-    "",
-    "GETTING ABOARD",
-    "Right-click anywhere and beam up; there is no door to walk to and nothing to carry. Beam back down to the exact spot you left, or anywhere on the map. Or call her down onto a patch of street or field and walk aboard through the rear hatch.",
-    "",
-    "FLYING HER",
-    "The landed shuttle is a vehicle with four seats -- get in as you would a car, pick a seat, switch seats, drive. From the pilot's seat, take her up: she rises smoothly to her hover height -- five storeys by default, set on the sandbox page -- and flies over the town, her shadow on the street below marking exactly where she will set down. She flies by *driving*, so the throttle, the steering and a controller all work exactly as they do on the ground. Up or down and nothing in between, and anything taller than her is a wall she slows to a stop in front of. The pilot fires photon torpedoes: hold right mouse to aim, and the reticle tells you whether she will fire and why not. Set her down again when you are there, or beam off her -- she goes back up by herself and waits to be called down. At the helm, click the map to lay in a course across Kentucky; the map is fully revealed while the helm is open, so you can aim at somewhere you have never been.",
-    "",
-    "THE CABIN",
-    "One compartment, four squares by six: helm consoles and a viewscreen forward, a galley with fridges, ovens and running water that keeps running after the mains shut off, a berth aft, and a starboard row of Starfleet lockers -- an armoury, provisions, engineering stores, survival kit, the phaser locker and sick bay. Everything aboard is stocked.",
-    "",
-    "THE REPLICATOR",
-    "A machine at the aft end of the galley that makes any item in the game -- if the ship holds a pattern for it, and if the reserve covers it. The catalogue is read out of the engine itself, so it covers vanilla items, future patches and other people's mods. Scan what you are carrying and the ship can make that thing for ever.",
-    "",
-    "DILITHIUM",
-    "The ship's power is a crystal burning in the warp core amidships, and nothing refills it for free -- the replicator cannot make one. They turn up where a small, valuable, electrical thing would be: a jeweller's case, a pawn shop, an electronics store, a mechanic's shelf. The ship carries three spares and the tricorder finds more.",
-    "",
-    "THE DOCTOR",
-    "The sick bay's wall station projects an Emergency Medical Hologram. He diagnoses, he treats -- everything the hypospray and the regenerator do between them, plus the glass and the bullets neither will touch -- and his supplies never run out. He is also the only cure in this mod for a zombie bite: one whole dilithium crystal and twelve game hours aboard.",
-    "",
-    "WHAT YOU CARRY",
-    "Phasers whose charge never runs down and that are far quieter than a firearm. A hypospray, a dermal regenerator and a medical tricorder. A tricorder with a forty-tile sensor sweep, a lock override, and a dilithium reading that works from a seat in the shuttle. Photon torpedoes. And four Klingon blades -- bat'leth, mek'leth, lirpa and ushaan-tor.",
-    "",
-    "SPECIES",
-    "Pick one on the traits page -- Vulcan, Klingon, Andorian, Betazoid, Trill, Bajoran, Talaxian, Orion, an android or a liberated Borg -- or none, and be human. Each has its own strengths, its own price and its own look, shown on the creation screen and worn in the world where everybody on the server sees it: pointed ears, a ridged brow, blue skin and antennae, spots, an implant. Every species has its dishes in the galley; its own cooking cheers it up, a Vulcan will not enjoy meat, and a Klingon knows replicated food when they taste it.",
-    "",
-    "STARFLEET PROFESSIONS AND RANK",
-    "Seven professions -- command, helm, engineering, security, medical, science and cultural survey -- each reporting for duty with its skills, its kit and its division's uniform. An engineer makes the dilithium go further; a flight controller gets more out of the shuttle. Every rescue counts towards rank: the first earns a field commission, and the rest take you up to commander. Plus traits anyone can take: transporter phobia, spacesickness, real food only, Starfleet Academy.",
-    "",
-    "SHIELDS",
-    "Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed -- no free experience, no free loot. Raised and lowered at the helm.",
-    "",
-    "FOR SERVER OWNERS",
-    "The mod is server-authoritative: the ship, the cabin, its stores and the hull live on the server and every player sees the same ones. Add its map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY -- so the space outside the cabin is black instead of wilderness with zombies in it. Single player and the in-game Host settings add it for you.",
-    "Six sandbox options on the Shuttlecraft page cover who may use the shuttle, transporter charges, whether torpedo fire spreads, how the replicator is restricted, whether the Doctor is switched on, and how high she hovers (raise it for Louisville's towers).",
-    "",
-    "REQUIREMENTS",
-    "Build 42. The hull needs three tiles by five of clear ground to land, and says so when it has not got them. One shuttle per world.",
-    "",
-    "CREDITS",
-    "Made by Ensign Elliot Mousseau.",
-    "Type 6 shuttle 3D model by octave767, used under CC BY 4.0: https://sketchfab.com/3d-models/star-trek-type-6-shuttle-e2ca902b9115429ab20293617a9d3317",
-    "Additional meshes from the Quaternius Ultimate Spaceships Pack, CC0: https://quaternius.com",
-    "",
-    "This is an unofficial fan mod and is not affiliated with or endorsed by Paramount or The Indie Stone.",
-]
+# The listing text lives in workshop/description.txt, one paragraph line per
+# line, so it can be edited without touching this script.
+DESCRIPTION = (ROOT / "workshop" / "description.txt").read_text(
+    encoding="utf-8").splitlines()
 
 
 def png_dimensions(path):

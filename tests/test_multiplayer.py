@@ -11772,7 +11772,7 @@ def adk_fittings(net, rt, P, pdeck):
     check(not strays, f"adirondack: sickbay stocked with {strays}")
 
     # Every deck, then what is in her lockers and her sinks.
-    for k in range(1, 5):
+    for k in range(1, int(rt.eval("#TREK.Adirondack.Layout.decks")) + 1):
         adk_visit(net, rt, k)
     adk_visit(net, rt, pdeck)
     for piece, want in (("stasis_unit", "food"), ("bottle_shelf", "drinks"),
@@ -12290,6 +12290,219 @@ def crew_multiplayer():
           f"move; both dressed them and heard them")
 
 
+
+# --- hydroponics (FARMING.md) --------------------------------------------------------
+
+def farm_items(rt, k, piece):
+    """Full types in every container of a piece on deck k."""
+    got = rt.eval(f"""(function()
+        local A, out = TREK.Adirondack, {{}}
+        for _, o in ipairs(A.Layout.decks[{k}].objects) do
+            if o[5] == "{piece}" then
+                local x, y = A.at({k}, o[1], o[2])
+                for _, obj in ipairs(SIM.rawSquare(x, y, A.Z).objects) do
+                    if obj.container then
+                        for _, it in ipairs(obj.container.items) do table.insert(out, it.fullType) end
+                    end
+                end
+            end
+        end
+        return table.concat(out, ";")
+    end)()""")
+    return [x for x in str(got or "").split(";") if x]
+
+
+def farm_into(rt, k, piece, item, n=1):
+    """Puts n of an item into the first container of a piece on deck k."""
+    rt.run(f"""(function()
+        local A = TREK.Adirondack
+        for _, o in ipairs(A.Layout.decks[{k}].objects) do
+            if o[5] == "{piece}" then
+                local x, y = A.at({k}, o[1], o[2])
+                for _, obj in ipairs(SIM.rawSquare(x, y, A.Z).objects) do
+                    if obj.container then
+                        for _ = 1, {n} do obj.container:AddItem(instanceItem("{item}")) end
+                        return
+                    end
+                end
+            end
+        end
+    end)()""")
+
+
+def farm_first(rt, k, piece):
+    """The items in the first container of a piece on deck k."""
+    got = rt.eval(f"""(function()
+        local A = TREK.Adirondack
+        for _, o in ipairs(A.Layout.decks[{k}].objects) do
+            if o[5] == "{piece}" then
+                local x, y = A.at({k}, o[1], o[2])
+                for _, obj in ipairs(SIM.rawSquare(x, y, A.Z).objects) do
+                    if obj.container then
+                        local out = {{}}
+                        for _, it in ipairs(obj.container.items) do table.insert(out, it.fullType) end
+                        return table.concat(out, ";")
+                    end
+                end
+            end
+        end
+        return ""
+    end)()""")
+    return [x for x in str(got or "").split(";") if x]
+
+
+def hours(rt, n):
+    for _ in range(n):
+        rt.fire("EveryHours")
+
+
+def farming():
+    """Deck 5 grows food: primed trays, the greenhouse rule, the ship's own
+    water, re-priming after a harvest, a rebuild that spares the crops, the
+    dehydrator, the worm tank, and a galley range that is a stove."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('solo', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run(ADK_SETUP)
+    P = "SIM.players[1]"
+    to_adirondack(net, rt, P)
+    if died(rt, "farming, beaming across"):
+        return
+
+    # The crops are vanilla crop types, all five sprite tables eight long.
+    crops = str(rt.eval("""(function()
+        local out = {}
+        for name in pairs(TREK.Farm.Crops) do
+            local p = farming_vegetableconf.props[name]
+            local ok = p ~= nil
+            for _, t in ipairs({ "sprite", "unhealthySprite", "dyingSprite", "deadSprite", "trampledSprite" }) do
+                ok = ok and farming_vegetableconf[t][name] ~= nil and #farming_vegetableconf[t][name] == 8
+            end
+            table.insert(out, name .. "=" .. tostring(ok))
+        end
+        table.sort(out)
+        return table.concat(out, ",")
+    end)()"""))
+    check("false" not in crops and crops.count("=") == 7, f"farming: crops not registered whole: {crops}")
+
+    k = 5
+    adk_visit(net, rt, k)
+    primed = str(rt.eval(f"""(function()
+        local n, soil = 0, 0
+        for _, t in ipairs(TREK.Farm.trays({k})) do
+            local p = SFarmingSystem.instance:getLuaObjectAt(t[1], t[2], TREK.Adirondack.Z)
+            if p and p.state == "plow" then n = n + 1 end
+            if p and p.spriteName == TREK_FarmSoil then soil = soil + 1 end
+        end
+        return n .. "/" .. soil .. "/" .. #TREK.Farm.trays({k})
+    end)()"""))
+    n, soil, trays = (int(v) for v in primed.split("/"))
+    check(trays == 21 and n == trays and soil == trays,
+          f"farming: {n} of {trays} trays primed, {soil} showing the tray's soil")
+
+    # Stocked: seeds of every crop, the bench's tools, the tanks' worms.
+    seeds = farm_items(rt, k, "seed_locker")
+    for crop in ("Tea", "Bergamot", "KlingonCoffee", "Plomeek", "Leola", "AndorianTuber", "Hasperat"):
+        check(seeds.count(f"TrekShuttle.Trek{crop}Seed") >= 5,
+              f"farming: the seed lockers hold {seeds.count(f'TrekShuttle.Trek{crop}Seed')} {crop} seeds")
+    bench = farm_items(rt, k, "potting_bench")
+    for tool in ("Base.HandShovel", "Base.WateredCan", "Base.MortarPestle", "Base.Pot"):
+        check(tool in bench, f"farming: no {tool} on the potting bench")
+    check(farm_first(rt, k, "worm_tank").count("TrekShuttle.TrekSerpentWorm") == 3,
+          f"farming: a worm tank starts with {farm_first(rt, k, 'worm_tank')}")
+
+    # Sow one; the greenhouse rule and the ship's own water.
+    rt.run(f"""(function()
+        local t = TREK.Farm.trays({k})[1]
+        local p = SFarmingSystem.instance:getLuaObjectAt(t[1], t[2], TREK.Adirondack.Z)
+        p.state, p.typeOfSeed, p.nbOfGrow, p.health, p.waterLvl = "seeded", "TrekPlomeek", 1, 60, 10
+        p:saveData()
+        farmPlant = p
+    end)()""")
+    hours(rt, 1)
+    rt.run("SFarmingSystem.instance:changeHealth()")
+    check(int(rt.eval("farmPlant.health")) == 60,
+          f"farming: a crop aboard her lost health to being indoors ({rt.eval('farmPlant.health')})")
+    check(int(rt.eval("farmPlant.waterLvl")) == 100, "farming: the trays did not water their crop")
+
+    # The bay runs itself: pests and disease cleared by the ship. The same
+    # crop in the ground down in Kentucky is the player's to care for.
+    rt.run("""farmPlant.aphidLvl, farmPlant.mildewLvl = 40, 30
+        local sq = SIM.rawSquare(1000, 1003, 0)
+        groundPlant = SFarmingSystem.instance:plow(sq)
+        groundPlant.state, groundPlant.typeOfSeed, groundPlant.health = "seeded", "TrekPlomeek", 60
+        groundPlant.waterLvl, groundPlant.aphidLvl = 10, 40""")
+    hours(rt, 1)
+    rt.run("SFarmingSystem.instance:changeHealth()")
+    check(int(rt.eval("farmPlant.aphidLvl")) == 0 and int(rt.eval("farmPlant.mildewLvl")) == 0,
+          "farming: the ship did not clear a tray crop's pests")
+    check(int(rt.eval("groundPlant.waterLvl")) == 10 and int(rt.eval("groundPlant.aphidLvl")) == 40
+          and int(rt.eval("groundPlant.health")) < 60,
+          "farming: a crop in the ground below was tended like one in the bay")
+
+    # A rebuild leaves the crop where it is.
+    rt.run(f"TREK.AdirondackServer.state().fit[{k}] = 1; TREK.AdirondackServer.buildDeck({k})")
+    still = rt.eval(f"""(function()
+        local sq = farmPlant.obj.square
+        for _, o in ipairs(sq.objects) do if o == farmPlant.obj then return true end end
+        return false
+    end)()""")
+    check(still is True, "farming: rebuilding the deck cleared a growing crop")
+
+    # Harvested: the tray is ready again within the hour.
+    rt.run("farmPlant.state = 'harvested'")
+    hours(rt, 1)
+    again = rt.eval("""(function()
+        local p = SFarmingSystem.instance:getLuaObjectAt(farmPlant.x, farmPlant.y, farmPlant.z)
+        return p ~= nil and p ~= farmPlant and p.state == "plow"
+    end)()""")
+    check(again is True, "farming: a harvested tray was never primed again")
+
+    # The dehydrator dries tea leaves.
+    farm_into(rt, k, "dehydrator", "TrekShuttle.TrekTeaLeaves", 2)
+    hours(rt, 12)
+    dried = farm_first(rt, k, "dehydrator")
+    check(dried.count("TrekShuttle.TrekTeaDried") == 2 and "TrekShuttle.TrekTeaLeaves" not in dried,
+          f"farming: after 12 hours the dehydrator holds {dried}")
+
+    # The worm tank: fed, it breeds; unfed, it starves -- never below two.
+    farm_into(rt, k, "worm_tank", "TrekShuttle.TrekPlomeek", 1)
+    hours(rt, 6)
+    tank = farm_first(rt, k, "worm_tank")
+    check(tank.count("TrekShuttle.TrekSerpentWorm") == 4 and "TrekShuttle.TrekPlomeek" not in tank,
+          f"farming: a fed tank after 6 hours holds {tank}")
+    hours(rt, 24 * 4)
+    tank = farm_first(rt, k, "worm_tank")
+    check(tank.count("TrekShuttle.TrekSerpentWorm") == 2,
+          f"farming: a hungry tank after 4 days holds {tank.count('TrekShuttle.TrekSerpentWorm')} worms, not 2")
+
+    # Deck 2's galley range is a stove, with a power bus on its square.
+    adk_visit(net, rt, 2)
+    stove = str(rt.eval("""(function()
+        local A = TREK.Adirondack
+        for _, o in ipairs(A.Layout.decks[2].objects) do
+            if o[5] == "galley_range" then
+                local x, y = A.at(2, o[1], o[2])
+                local cls, gen = "?", false
+                for _, obj in ipairs(SIM.rawSquare(x, y, A.Z).objects) do
+                    if obj.spriteName == o[3] then cls = obj.class end
+                    if obj.class == "IsoGenerator" then gen = true end
+                end
+                return cls .. "/" .. tostring(gen)
+            end
+        end
+        return "none"
+    end)()"""))
+    check(stove == "IsoStove/true", f"farming: the galley range is {stove}")
+
+    for w in rt.warnings():
+        fail(f"farming: {w}")
+    print(f"farming: seven crops registered; Deck 5's {trays} trays primed and stocked; a crop "
+          f"kept its health and its water, survived a rebuild, and its tray re-primed after "
+          f"harvest; the dehydrator dried tea; the worms bred and starved; the range is a stove")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -12304,7 +12517,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, traits, traits_multiplayer, species_look, creation_look,
-            adirondack, adirondack_multiplayer, crew, crew_multiplayer, multiplayer)
+            adirondack, adirondack_multiplayer, crew, crew_multiplayer, farming, multiplayer)
 
 
 def main():

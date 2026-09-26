@@ -35,5 +35,20 @@
     "Tooltip_TREK_UniformDress": "Formal dress uniform. Long and heavy, worn for ceremonies rather than away missions. It will keep the cold off and slow you down.",
     "Tooltip_TREK_Tape": "A 20th-century videocassette. The shuttle's television is also its tape player.",
     "Tooltip_TREK_PADD": "Personal Access Display Device. Right-click a book with this on you to load a copy; right-click the PADD to read, copy or erase its library. Reading off a PADD is five times faster than paper.",
-    "Tooltip_TREK_Fragment": "A holo recording, three hundred years old. Hail the Adirondack with it on you: Shepard can put it on tape, where it cannot be lost."
+    "Tooltip_TREK_Fragment": "A holo recording, three hundred years old. Hail the Adirondack with it on you: Shepard can put it on tape, where it cannot be lost.",
+    "Tooltip_TREK_TeaLeaves": "Fresh from the tea bush. Dry them, in the dehydrator or on a herb rack, for Earl Grey.",
+    "Tooltip_TREK_Bergamot": "Too sour to eat. Its zest is what makes Earl Grey Earl Grey.",
+    "Tooltip_TREK_CoffeeCherries": "Dry them to get the beans; roast those in an oven, then grind them.",
+    "Tooltip_TREK_Plomeek": "Three of them in a pot of water, cooked, and served in bowls: plomeek soup.",
+    "Tooltip_TREK_LeolaRoot": "Three in a pot of water, stewed on a stove. Tastes of... leola.",
+    "Tooltip_TREK_AndorianTuberRaw": "Roast it in an oven, then plate it.",
+    "Tooltip_TREK_HasperatPeppers": "Wrap two in a tortilla for hasperat. Dried ones are hotter.",
+    "Tooltip_TREK_TeaDried": "Brew it in a mug of water with bergamot zest: Earl Grey.",
+    "Tooltip_TREK_BergamotZest": "For Earl Grey.",
+    "Tooltip_TREK_CoffeeBeans": "Roast them in an oven, then grind them with a mortar and pestle.",
+    "Tooltip_TREK_CoffeeGround": "A mug of water and this: raktajino.",
+    "Tooltip_TREK_HasperatDried": "Hotter than fresh. For hasperat.",
+    "Tooltip_TREK_SerpentWorm": "Alive. Five in a bowl is gagh. They breed in a worm tank that is fed.",
+    "Tooltip_TREK_PlomeekPot": "Cook it on a stove, then serve it into three bowls.",
+    "Tooltip_TREK_LeolaStewPot": "Cook it on a stove, then serve it into three bowls."
 }

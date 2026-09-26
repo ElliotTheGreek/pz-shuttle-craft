@@ -133,7 +133,38 @@ SECTIONS["lounge"] = dict(
            ("galley_counter", "W", 11, 2),
            ("galley_counter", "N", 13, 4), ("galley_counter", "S", 13, 5),
            ("stasis_unit", "W", 11, 8), ("stasis_unit", "W", 11, 9),
-           ("replicator", "N", 15, 0) if False else ("cargo_crate", "N", 15, 10)]))
+           ("replicator", "N", 15, 0) if False else ("cargo_crate", "N", 15, 10),
+           # A real stove (FARMING.md 3), against the east bulkhead.
+           ("galley_range", "E", 15, 3)]))
+
+# Deck 5 (FARMING.md 5): the hydroponics bay under its grow lights, the botany
+# lab, and the serpent tank room. Three rows of seven trays with an aisle
+# either side of every row, so every tray can be reached.
+SECTIONS["hydroponics"] = dict(
+    title="Hydroponics", size=(16, 14),
+    rooms=[
+        room("Hydroponics Bay", "hydroponics", DECK, 0, 0, 10, 13, "90 150 90"),
+        room("Botany Lab", "hydroponics", DECK, 11, 0, 15, 6, "120 170 120"),
+        room("Serpent Tank Room", "hydroponics", DECK, 11, 7, 15, 13, "140 90 90"),
+    ],
+    doors=[("W", 0, 8), ("W", 11, 5), ("W", 11, 8)],
+    furniture=(
+        [("hydro_tray", "W", x, y) for y in (2, 6, 10) for x in range(2, 9)]
+        + [("grow_light", "N", x, 0) for x in (2, 4, 6, 8)]
+        + [("grow_light", "W", 0, y) for y in (7, 11)]
+        + [("wash_basin", "W", 0, 1), ("potting_bench", "N", 9, 0),
+           ("arboretum_tree", "W", 10, 12), ("alien_shrub", "W", 9, 13),
+           ("alien_shrub", "W", 0, 13), ("lounge_chair", "S", 10, 10),
+           ("wall_sconce", "W", 0, 4)]
+        # the botany lab
+        + [("seed_locker", "N", 12, 0), ("seed_locker", "N", 13, 0),
+           ("dehydrator", "N", 14, 0), ("replicator", "N", 15, 0),
+           ("potting_bench", "W", 11, 1), ("desk", "W", 11, 3), ("desk_chair", "E", 12, 3),
+           ("science_display", "N", 13, 0)]
+        # the serpent tanks
+        + [("worm_tank", "N", 12, 7), ("worm_tank", "W", 11, 10),
+           ("wall_sconce", "N", 14, 7), ("cargo_crate", "N", 15, 13)]
+    ))
 
 SECTIONS["bridge"] = dict(
     title="Bridge and Ready Room", size=(15, 12),
