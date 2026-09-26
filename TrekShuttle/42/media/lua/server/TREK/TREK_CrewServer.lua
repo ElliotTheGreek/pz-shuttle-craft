@@ -42,6 +42,8 @@ TREK.CrewServer = CS
 
 -- ms between one crew member coming aboard a deck and the next.
 CS.SpawnGap = 7000
+-- The share of a deck's crew already at their posts when somebody arrives.
+CS.OnDuty = 0.7
 -- How long somebody stays at a spot, in ms.
 CS.StayMin, CS.StayMax = 25000, 90000
 -- A walk that has not arrived by now is given up.
@@ -61,6 +63,7 @@ CS.SceneReach = 6
 local live = {}          -- id (string) -> { z, e, ... } -- the server's own bookkeeping
 local reserved = {}      -- spot key -> id
 local nextSpawn = {}     -- deck -> ms
+local staffed = {}       -- deck -> true once its on-duty crew are placed
 local nextScene = {}     -- deck -> ms
 local nextIdle = {}      -- deck -> ms
 local running = {}       -- list of scene runs
@@ -177,8 +180,17 @@ local function despawn(m, why)
 end
 CS.despawn = despawn
 
-local function spawn(k)
+local chooseSpot
+
+--- Brings one crew member aboard deck k: out of a lift car, or -- `atPost`
+--- -- already at a spot, as if they had been there all shift.
+local function spawn(k, atPost)
     local lx, ly = K.liftSquare(k)
+    local post = nil
+    if atPost then
+        post = chooseSpot({ e = { deck = k, job = "any" } })
+        if post then lx, ly = post.x, post.y end
+    end
     local x, y = A.at(k, lx, ly)
     local sq = U.square(x, y, A.Z, false)
     if not sq or not U.try("crew.floor", function() return sq:getFloor() ~= nil end) then return nil end
@@ -217,9 +229,20 @@ local function spawn(k)
                 barkAt = now() - rnd(CS.BarkCrewGap) }
     live[id] = m
     K.state().crew[id] = e
-    setStep(m, { k = "stand", x = lx, y = ly, fx = lx + 2, fy = ly + 2 })
-    m.state, m.untilAt = "stay", now() + between(2000, 6000)
-    if rnd(3) == 0 then bark(m, "arrive") end
+    if post then
+        reserved[k .. ":" .. post.x .. "," .. post.y] = id
+        m.target = post
+        if post.kind == "sit" then
+            setStep(m, { k = "sit", x = post.x, y = post.y, face = post.face, fx = post.fx, fy = post.fy })
+        else
+            setStep(m, { k = "stand", x = post.x, y = post.y, fx = post.fx, fy = post.fy })
+        end
+        m.state, m.untilAt = "stay", now() + between(CS.StayMin, CS.StayMax)
+    else
+        setStep(m, { k = "stand", x = lx, y = ly, fx = lx + 2, fy = ly + 2 })
+        m.state, m.untilAt = "stay", now() + between(2000, 6000)
+        if rnd(3) == 0 then bark(m, "arrive") end
+    end
     U.debug("crew: %s (%s, %s) came aboard deck %d", e.name, e.div, e.job, k)
     return m
 end
@@ -239,7 +262,7 @@ local PREFER = {
 
 local function spotKey(k, s) return k .. ":" .. s.x .. "," .. s.y end
 
-local function chooseSpot(m)
+function chooseSpot(m)
     local k = m.e.deck
     local prefer = PREFER[m.e.job] or {}
     local pool, total = {}, 0
@@ -312,7 +335,11 @@ local function serviceMember(m, t)
             arrive(m)
         elseif t - (m.stepAt or t) > CS.WalkLimit then
             if m.leaving then despawn(m, "never reached the lift") return end
-            m.state, m.untilAt = "stay", t
+            -- Never got there: stop where they are and think again, rather
+            -- than walk into the same bulkhead for ever.
+            release(m)
+            setStep(m, { k = "stand", x = lx, y = ly, fx = lx + 1, fy = ly })
+            m.state, m.untilAt = "stay", t + between(3000, 8000)
         end
     elseif m.state == "stay" and t >= (m.untilAt or 0) then
         m.tasks = m.tasks - 1
@@ -617,6 +644,9 @@ function CS.tick()
     lastTick = t
     local on, players = decksWithPlayers()
 
+    for k in pairs(staffed) do
+        if not on[k] then staffed[k] = nil end
+    end
     for _, m in pairs(live) do
         if gone(m) or not on[m.e.deck] then
             despawn(m, gone(m) and "the body is gone" or "nobody is on the deck")
@@ -635,6 +665,15 @@ function CS.tick()
         if TREK.AdirondackServer and TREK.AdirondackServer.deckCurrent(k) then
             local count = 0
             for _, m in pairs(live) do if m.e.deck == k then count = count + 1 end end
+            -- Somebody has just come onto an empty deck: most of its crew are
+            -- already at their posts. The rest come by the lift over time.
+            if count == 0 and not staffed[k] then
+                staffed[k] = true
+                for _ = 1, math.max(1, math.floor((K.Population[k] or 4) * CS.OnDuty)) do
+                    spawn(k, true)
+                end
+                nextSpawn[k] = t + CS.SpawnGap
+            end
             if count < (K.Population[k] or 4) and t >= (nextSpawn[k] or 0) then
                 spawn(k)
                 nextSpawn[k] = t + CS.SpawnGap

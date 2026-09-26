@@ -12037,6 +12037,40 @@ def to_adirondack(net, rt, P):
     net.pump(320)
 
 
+def crew_routes(rt):
+    """Every post on every deck can be walked to from the lift car, through
+    the doorways, and never through a wall or a piece of furniture."""
+    bad = str(rt.eval("""(function()
+        local K, A, L = TREK.Crew, TREK.Adirondack, TREK.Adirondack.Layout
+        local out, n = {}, 0
+        for k = 1, #L.decks do
+            local busy = K.busy(k)
+            for _, s in ipairs(K.spots(k)) do
+                n = n + 1
+                local r = K.route(k, L.lift.x, L.lift.y, s.x, s.y)
+                if not r then
+                    table.insert(out, k .. ":" .. s.x .. "," .. s.y .. " unreachable")
+                else
+                    local px, py = L.lift.x, L.lift.y
+                    for i, p in ipairs(r) do
+                        if not K.canStep(k, px, py, p[1], p[2]) then
+                            table.insert(out, k .. ":" .. p[1] .. "," .. p[2] .. " through a wall")
+                        elseif i < #r and busy[p[1] .. "," .. p[2]] then
+                            table.insert(out, k .. ":" .. p[1] .. "," .. p[2] .. " through furniture")
+                        end
+                        px, py = p[1], p[2]
+                    end
+                end
+            end
+        end
+        return n .. "|" .. table.concat(out, ";")
+    end)()"""))
+    n, _, problems = bad.partition("|")
+    check(int(n) > 40, f"crew: only {n} posts on the whole ship")
+    check(not problems, f"crew: routes wrong: {problems[:400]}")
+    return int(n)
+
+
 def crew():
     """Crew come aboard a deck through its lift while you are on it, dressed
     and quiet, walk to posts, talk to each other, speak to you, shrug off a
@@ -12045,11 +12079,23 @@ def crew():
     rt = net.server
     rt.run("SIM.player('solo', 1000.5, 1000.5, 0)")
     net.start()
+    posts = crew_routes(rt)
     rt.run(ADK_SETUP)
     P = "SIM.players[1]"
     to_adirondack(net, rt, P)
     if died(rt, "crew, beaming across"):
         return
+    # Already at their posts when you arrive: not all waiting in the lift.
+    at_posts = int(rt.eval("""(function()
+        local n = 0
+        for _, z in ipairs(SIM.zombies) do
+            local k, lx, ly = TREK.Adirondack.locate(z.x, z.y)
+            local r = k and TREK.Adirondack.roomAt(k, lx, ly)
+            if r and r.internal ~= "trekturbolift" then n = n + 1 end
+        end
+        return n
+    end)()"""))
+    check(at_posts >= 3, f"crew: {at_posts} crew at their posts when you arrive; the deck looked empty")
     rt.run(CREW_FAST)
     net.pump(400)
     n = crew_count(rt)
@@ -12131,7 +12177,8 @@ def crew():
           f"crew: {crew_count(rt)} entries and {rt.eval('#SIM.zombies')} bodies left behind on an empty deck")
     for w in rt.warnings():
         fail(f"crew: {w}")
-    print(f"crew: {n} came aboard deck {k}, dressed and quiet, went to their posts, "
+    print(f"crew: every one of {posts} posts is reachable from the lifts; "
+          f"{n} came aboard deck {k}, dressed and quiet, went to their posts, "
           f"talked ({len(scene_lines)} scene lines), remarked on an outfit, shrugged off a hit, "
           f"and left with you")
 

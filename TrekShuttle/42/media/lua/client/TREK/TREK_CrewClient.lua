@@ -38,7 +38,6 @@ TREK.CrewClient = CC
 -- Per body, by the object itself: which look and which step this client has
 -- already applied. Weak, so a body the engine drops takes its row with it.
 local looked = setmetatable({}, { __mode = "k" })
-local walking = setmetatable({}, { __mode = "k" })
 local facedSeq = setmetatable({}, { __mode = "k" })
 
 local VOICES = { "FemaleZombieVoiceA", "FemaleZombieVoiceB", "FemaleZombieVoiceC",
@@ -124,41 +123,84 @@ local function atSquare(z, x, y)
     return U.dist2(z:getX(), z:getY(), x + 0.5, y + 0.5) < 0.6 * 0.6
 end
 
+-- The route a body is walking, by the body: { seq, pts, i, at }.
+local routes = setmetatable({}, { __mode = "k" })
+
+--- Stops whatever the engine's own pathfinder may have started. It has no
+--- idea where our walls are (see K.route), and left to itself it walks the
+--- crew into them.
+local function stopEngine(z)
+    U.try("crew.stopEngine", function()
+        local pf = z:getPathFindBehavior2()
+        pf:cancel()
+        pf:reset()
+        z:setPath2(nil)
+    end)
+end
+
+--- Walks a body one tick along its route: our route, our pace, the walking
+--- animation on while it moves (TrekMove, common/media/AnimSets/zombie/idle).
+local function walk(z, e, step)
+    local k = e.deck
+    local r = routes[z]
+    local t = getTimestampMs()
+    if not r or r.seq ~= step.seq then
+        stopEngine(z)
+        local dx, dy = A.at(k, 0, 0)
+        local sx, sy = math.floor(z:getX()) - dx, math.floor(z:getY()) - dy
+        local pts = K.route(k, sx, sy, step.x, step.y) or { { step.x, step.y } }
+        r = { seq = step.seq, pts = pts, i = 1, at = t }
+        routes[z] = r
+    end
+    local pt = r.pts[r.i]
+    if not pt then
+        U.try("crew.halt", function() z:setVariable("TrekMove", false) end)
+        return
+    end
+    local tx, ty = A.at(k, pt[1], pt[2])
+    tx, ty = tx + 0.5, ty + 0.5
+    local dt = math.min(0.1, math.max(0, (t - r.at) / 1000))
+    r.at = t
+    local x, y = z:getX(), z:getY()
+    local ddx, ddy = tx - x, ty - y
+    local d = math.sqrt(ddx * ddx + ddy * ddy)
+    local stepLen = K.WalkSpeed * dt
+    U.try("crew.move", function()
+        z:setVariable("TrekMove", true)
+        if d <= stepLen or d < 0.02 then
+            z:setX(tx) z:setY(ty) z:setLastX(tx) z:setLastY(ty)
+            r.i = r.i + 1
+            local nxt = r.pts[r.i]
+            if nxt then
+                local nx, ny = A.at(k, nxt[1], nxt[2])
+                z:faceLocationF(nx + 0.5, ny + 0.5)
+            end
+        else
+            local nx, ny = x + ddx / d * stepLen, y + ddy / d * stepLen
+            z:setX(nx) z:setY(ny) z:setLastX(nx) z:setLastY(ny)
+            if r.i == 1 or not r.faced then
+                r.faced = true
+                z:faceLocationF(tx, ty)
+            end
+        end
+    end)
+end
+
 local function carryOut(z, e)
     local step = e.step
     if not step then return end
     local k = e.deck
     local x, y = A.at(k, step.x, step.y)
     if step.k == "walk" then
-        if walking[z] ~= step.seq then
-            walking[z] = step.seq
-            U.try("crew.path", function()
-                z:getPathFindBehavior2():pathToLocationF(x + 0.5, y + 0.5, A.Z)
-            end)
-        elseif not atSquare(z, x, y) then
-            local r = U.try("crew.pathUpdate", function() return z:getPathFindBehavior2():update() end)
-            local s = tostring(r)
-            if s == "Succeeded" or s == "Failed" then
-                U.try("crew.pathDone", function()
-                    local pf = z:getPathFindBehavior2()
-                    pf:cancel()
-                    pf:reset()
-                    z:setPath2(nil)
-                end)
-            end
-        end
+        walk(z, e, step)
         return
     end
     -- Arrived: stand or sit, facing the right way.
-    if walking[z] then
-        walking[z] = nil
-        U.try("crew.stop", function()
-            local pf = z:getPathFindBehavior2()
-            pf:cancel()
-            pf:reset()
-            z:setPath2(nil)
-        end)
+    if routes[z] then
+        routes[z] = nil
+        stopEngine(z)
     end
+    U.try("crew.still", function() z:setVariable("TrekMove", false) end)
     if step.k == "sit" then
         local off = K.SitOffset[step.face or "S"] or K.SitOffset.S
         U.try("crew.seat", function()
@@ -187,6 +229,9 @@ function CC.update(z)
     U.try("crew.person", function()
         z:setVariable("TrekCrew", true)
         z:setVariable("TrekSit", step.k == "sit")
+        -- On a copy this machine does not move, the walk shows from the
+        -- step; the owner sets it from the route itself (walk()).
+        if not owner(z) then z:setVariable("TrekMove", step.k == "walk") end
         z:setWalkType("TrekWalk")
         z:setTarget(nil)
         z:setNoTeeth(true)

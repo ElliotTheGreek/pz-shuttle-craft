@@ -306,6 +306,17 @@ These come from the Bandits framework and the bytecode (research of
 2026-09-25):
 - **Simulation.** Each zombie is simulated by one client. The server scripts,
   and the owner walks (`not z:isRemoteZombie()`).
+- **Walking is ours, not the engine's pathfinder** (first play-test,
+  2026-09-25). The pathfinder does not know walls raised at runtime: it left
+  everyone in the lift car, or walked them into bulkheads.
+  - `K.route` finds a way over the deck plan: same room, or through a
+    doorway, and round furniture.
+  - The owner moves the body along it at `K.WalkSpeed`, while `TrekMove`
+    plays the walk animation in the idle state
+    (`AnimSets/zombie/idle/trekcrewmove.xml`).
+  - A walk that has not arrived after `WalkLimit` stops where it is.
+- **On duty.** When somebody steps onto an empty deck, `CS.OnDuty` (70%) of
+  its crew are already at their posts. The rest arrive by lift.
 - **Identity and appearance.**
   - A zombie's packet carries its outfit id and skin index, nothing more.
     Clothes, hair and mod data are applied on each client from our mod data.

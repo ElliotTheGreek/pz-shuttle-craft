@@ -297,8 +297,14 @@ function K.spots(k)
             end
         end
     end
-    spots[k] = out
-    return out
+    -- Only spots somebody can actually walk to from the lift: a corner boxed
+    -- in by furniture is a post nobody would ever reach.
+    local reachable = {}
+    for _, sp in ipairs(out) do
+        if K.route(k, L.lift.x, L.lift.y, sp.x, sp.y) then table.insert(reachable, sp) end
+    end
+    spots[k] = reachable
+    return reachable
 end
 
 --- A lift car square on deck k to come aboard at and leave by.
@@ -308,6 +314,102 @@ function K.liftSquare(k, rnd)
     local ly = L.lift.y0 + rnd(L.lift.y1 - L.lift.y0 + 1)
     return lx, ly
 end
+
+---------------------------------------------------------------------------
+-- Finding the way
+---------------------------------------------------------------------------
+-- **Our own route, not the engine's pathfinder.** The first play-test had
+-- every crew member standing in the lift car for ever: the engine's path
+-- finder has nothing to go on over decks raised at runtime five storeys up,
+-- behind shut sliding doors, and never found a way out. The deck plan is
+-- ours and complete -- which squares are in which room, and where every
+-- doorway is -- so the route is worked out from that, and the owner walks
+-- them along it (TREK_CrewClient).
+--
+-- A step between two squares is open when both are inside the ship and they
+-- are the same room, or a doorway joins them. Furniture is walked round,
+-- except at either end of the route (a seat is where you are going).
+
+local doorEdges = {}
+
+local function edgeKey(ax, ay, bx, by)
+    if ax > bx or (ax == bx and ay > by) then ax, ay, bx, by = bx, by, ax, ay end
+    return ax .. "," .. ay .. ">" .. bx .. "," .. by
+end
+
+local function doors(k)
+    if doorEdges[k] then return doorEdges[k] end
+    local out = {}
+    for _, o in ipairs(L.decks[k].objects) do
+        if o[4] == "dW" then out[edgeKey(o[1] - 1, o[2], o[1], o[2])] = true end
+        if o[4] == "dN" then out[edgeKey(o[1], o[2] - 1, o[1], o[2])] = true end
+    end
+    doorEdges[k] = out
+    return out
+end
+
+local function roomId(k, x, y)
+    local deck = L.decks[k]
+    if x < 0 or y < 0 or x >= L.W or y >= L.H then return 0 end
+    return deck.grid[y + 1][x + 1] or 0
+end
+
+--- True when one can step from a to b (neighbours, orthogonal or diagonal).
+function K.canStep(k, ax, ay, bx, by)
+    local ra, rb = roomId(k, ax, ay), roomId(k, bx, by)
+    if ra == 0 or rb == 0 then return false end
+    if ax ~= bx and ay ~= by then
+        -- Diagonal: only within one room, and only past two open corners.
+        return ra == rb and roomId(k, ax, by) == ra and roomId(k, bx, ay) == ra
+    end
+    return ra == rb or doors(k)[edgeKey(ax, ay, bx, by)] == true
+end
+
+local NEIGHBOURS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
+                     { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } }
+
+--- The squares from (sx, sy) to (tx, ty) on deck k, not counting the start,
+--- or nil when there is no way. Breadth first over at most a deck.
+function K.route(k, sx, sy, tx, ty)
+    if sx == tx and sy == ty then return {} end
+    local busy = K.busy(k)
+    local key = function(x, y) return x .. "," .. y end
+    local from = { [key(sx, sy)] = false }
+    local queue, head = { { sx, sy } }, 1
+    while queue[head] do
+        local cx, cy = queue[head][1], queue[head][2]
+        head = head + 1
+        if cx == tx and cy == ty then
+            local out, k2 = {}, key(tx, ty)
+            local cur = { tx, ty }
+            while cur do
+                table.insert(out, 1, cur)
+                local prev = from[key(cur[1], cur[2])]
+                if not prev or (prev[1] == sx and prev[2] == sy) then break end
+                cur = prev
+            end
+            return out
+        end
+        for _, d in ipairs(NEIGHBOURS) do
+            local nx, ny = cx + d[1], cy + d[2]
+            local nk = key(nx, ny)
+            if from[nk] == nil and K.canStep(k, cx, cy, nx, ny)
+               and (not busy[nk] or (nx == tx and ny == ty)) then
+                -- A diagonal past a piece of furniture would clip it.
+                local clear = d[1] == 0 or d[2] == 0
+                    or (not busy[key(cx + d[1], cy)] and not busy[key(cx, cy + d[2])])
+                if clear then
+                    from[nk] = { cx, cy }
+                    table.insert(queue, { nx, ny })
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- Walking pace, squares a second: an unhurried crewman.
+K.WalkSpeed = 1.15
 
 ---------------------------------------------------------------------------
 -- The talk
