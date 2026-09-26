@@ -277,3 +277,114 @@ Stocking rules:
 | **The wild** | Dilithium Crystals lying in the world (sandbox `WildDilithium`: Plentiful, Scarce or Off) |
 | **Sensor contacts** | The six Holo Fragments, found where a probe's contact leads |
 | **Character creation** | Species looks, worn from the start |
+
+---
+
+## 5. The pipeline: how a new thing gets into the game
+
+Two kinds of new thing, with two pipelines. They meet at the containers.
+
+### 5.1 A new carried item (a food, a tool, a weapon)
+
+1. **Script.** Add an `item` block to `media/scripts/trekshuttle.txt`
+   (`trekweapons.txt` for a weapon, which has to be declared in `module Base`).
+   Copy the nearest existing item. Its type, weight and category follow from
+   what it is.
+2. **Name.** Add `TrekShuttle.<Id>` to `Translate/EN/ItemName.json`. Any
+   tooltip goes in `Tooltip.json`.
+3. **Art.**
+   - The icon, and a world model if it needs one, come from that item's
+     `tools/gen_<thing>.py`.
+   - Every generator writes into `media/textures` and `media/models_X`.
+   - `tools/vet_icons.py` checks icons.
+4. **Behaviour**, if any, goes in the system that owns it:
+   - a species dish goes in `C.SpeciesFood`;
+   - a medical instrument goes in `TREK_Medical.lua`;
+   - anything that must never be replicated goes in `C.ReplicatorBlocked`.
+
+   Every mod item is a replicator pattern from the start, with nothing to do.
+5. **Where it is found.** Add it to a `C.Loot` list, which any container
+   naming that list will then stock, or to an `A.Stock` rule for the
+   Adirondack or a `SPECIALS` rule for the shuttle.
+6. **Check it.**
+   - `python tests/test_assets.py` fails on any id that resolves to nothing.
+   - `python tests/test_stock.py` checks the loot lists.
+   - Update this file's tables.
+
+### 5.2 A new piece of furniture or a room (the Adirondack's world)
+
+Full detail is in ADIRONDACK.md §7–9. In order:
+
+1. **Manifest.** Add an entry to `tools/adirondack_objects.py`, using
+   `m(...)` for a new model, `reuse(...)` for one of the mod's own meshes or
+   `flat(...)` for a picture on a wall. It records:
+   - size in squares and height (a storey is 2.449);
+   - facings (`WN`, `WNES` or `1`);
+   - `use`, which is what the game makes of it: `container`, `bed`, `seat`,
+     `water`, `replicator`, `emh`, `warpcore` or `light`.
+2. **Concept.** A Gemini image, generated through FlowDot with the shared
+   `STYLE` prompt. If it comes back wrong, fix it with `edit-image` rather than
+   regenerating.
+3. **Mesh.** Turn the concept into a mesh with fal TRELLIS (seed 1701).
+   Record both in `tools/adirondack_jobs.py`, then `fetch` them.
+4. **Tiles.** Render every facing into `trek_adirondack_02.png` and its index
+   with `python tools/gen_adirondack_furniture.py`.
+5. **The editor.** Load the tiles into TileZed/BuildingEd with
+   `python tools/install_tilezed.py` (with TileZed closed). The pieces appear
+   under "Starfleet – <area>".
+6. **Rooms.**
+   - Sections are drafted by `gen_adirondack_sections.py` or hand-edited in
+     BuildingEd.
+   - `python tools/compose_adirondack.py` stacks them into the ship.
+   - A new deck is an entry in its `DECKS` list.
+7. **Into the game.**
+   - `python tools/gen_adirondack_pack.py` writes the texture pack, the
+     tiledef and `common/media/seating.txt`. A seat or bed needs a
+     `SEAT_ANALOGS` entry.
+   - `python tools/gen_adirondack_lua.py` writes the layout the server
+     builds from.
+8. **Behaviour.** In `TREK_Adirondack.lua`:
+   - `A.Stock` sets what a container of that piece holds;
+   - `A.Water` makes it a sink;
+   - `A.Machines` makes it a working replicator, warp core or EMH station.
+9. **Check it.** Run `python tests/test_assets.py` and `python
+   tests/test_multiplayer.py`, then `python tools/deploy_windows.py`.
+
+### 5.3 Crew talk
+
+Scenes and barks are plain text in `design/crew/`, compiled by
+`tools/gen_crew_talk.py`. The format, and what the crew know, are in CREW.md.
+
+---
+
+## 6. What to build next: decks and items worth adding
+
+A menu, not a plan. Each line says what it would give the player.
+
+### Decks and rooms
+
+| Deck / room | What is in it | What it gives |
+|---|---|---|
+| **Holodeck** (Deck 2 or 5) | an empty grid room, arch and control panel | Rationed time is a running joke in the crew's talk. Later, a room that re-dresses itself from a few presets (a 1990s diner would be on theme). |
+| **Science labs / stellar cartography** | lab benches, sample lockers, a big wall display of the planet | Where the "wrong details" of the county are catalogued, and where fragments and samples could be handed in. |
+| **Cargo bay and shuttlebay** | crates, antigrav sleds, a second shuttle under repair, a hangar door | Somewhere to land the shuttle *inside* her, and bulk storage. |
+| **Armoury / security office** | weapons locker, brig cell with a forcefield | A proper home for the phasers and blades. The brig is a story hook (Okafor?). |
+| **Arboretum / hydroponics** | planters, grow lights, a pond | Real food growing aboard a rationed ship, and a quiet place for the crew to talk. |
+| **Captain's quarters and observation lounge** | bigger quarters, a long window table | Captain Vale, and the view of the planet at night. |
+| **Jefferies tubes** | narrow crawlspaces between decks | A second way between decks, for when the lifts are out. |
+| **Gym / sparring room** | mats, a bat'leth rack | The sprained-wrist patients come from here. |
+
+### Items
+
+| Item | Kind | Where / why |
+|---|---|---|
+| Combadge | worn accessory | Crew identity. It could replace the PADD as the comms trigger, or chirp on a hail. |
+| Isolinear chips | material | Repair currency for Engineering tasks. |
+| Hydrospanner, plasma torch, engineering kit | tools | The Engineering crates. A player-side repair loop for her systems. |
+| Emergency medkit, cortical stimulator, tricorder variants | medical | More in Sickbay's cabinets. |
+| Holodeck programme chips | media | The holodeck's presets, and loot. |
+| Latinum strips | currency | The crew's poker nights; a trade token with the crew. |
+| Replicator ration chits | token | Makes the crew's rationing real. |
+| Trill and Bolian dishes | food | Trill and ex-Borg players have no home dish in `C.SpeciesFood` yet. |
+| Spare uniforms by rank, science-blue lab coat | clothing | Wardrobes, and dressing the crew NPCs. |
+| Tapes from crew | media | A crew member hands you a personal log. It rhymes with the rescue reward in LORE.md. |

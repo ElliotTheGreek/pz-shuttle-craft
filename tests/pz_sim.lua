@@ -2085,7 +2085,18 @@ function PlayerMT:addReadPrintMedia(id)
 end
 function PlayerMT:setReading(v) self.reading = v end
 function PlayerMT:reportEvent() end
-function PlayerMT:getWornItems() return { getItem = function() return nil end } end
+--- What a player is wearing: `p.worn`, a list of full types a test sets.
+function PlayerMT:getWornItems()
+    local worn = self.worn or {}
+    return {
+        getItem = function() return nil end,
+        size = function() return #worn end,
+        getItemByIndex = function(_, i)
+            local t = worn[i + 1]
+            return t and { getFullType = function() return t end } or nil
+        end,
+    }
+end
 function PlayerMT:isSitOnGround() return false end
 function PlayerMT:isSittingOnFurniture() return false end
 
@@ -2678,6 +2689,164 @@ function SIM.zombie(x, y, z, remote)
     table.insert(SIM.zombies, zed)
     return zed
 end
+
+---------------------------------------------------------------------------
+-- Crew bodies (CREW.md): zombies the mod dresses, walks and gives a voice
+---------------------------------------------------------------------------
+-- What the crew system touches on a zombie, and no more. A body is spawned
+-- on the server by addZombiesInOutfit; in multiplayer it reaches every client
+-- with the same online id, and exactly one client (SIM.ownsZombies) simulates
+-- it -- which is the split build 42 really makes.
+SIM.chat = {}
+SIM.nextZombieId = 100
+
+local ZedMT = {}
+ZedMT.__index = ZedMT
+function ZedMT:getX() return self.x end
+function ZedMT:getY() return self.y end
+function ZedMT:getZ() return self.z end
+function ZedMT:setX(v) self.x = v end
+function ZedMT:setY(v) self.y = v end
+function ZedMT:setLastX() end
+function ZedMT:setLastY() end
+function ZedMT:setTarget() end
+function ZedMT:setStaggerBack() end
+function ZedMT:isRemoteZombie() return self.remote == true end
+function ZedMT:getOnlineID() return self.onlineID or -1 end
+function ZedMT:getModData() return self.modData end
+function ZedMT:isDead() return self.dead == true end
+function ZedMT:isFemale() return self.female == true end
+function ZedMT:getCurrentSquare()
+    if self.removed then return nil end
+    return SIM.rawSquare(math.floor(self.x), math.floor(self.y), math.floor(self.z))
+end
+function ZedMT:setUseless(v) self.useless = v end
+function ZedMT:setNoTeeth(v) self.noTeeth = v end
+function ZedMT:setAvoidDamage(v) self.avoidDamage = v end
+function ZedMT:setWalkType(v) self.walkType = v end
+function ZedMT:setVariable(k, v) self.vars[k] = v end
+function ZedMT:getVariableString(k) return tostring(self.vars[k]) end
+function ZedMT:getDescriptor()
+    local z = self
+    return { setVoicePrefix = function(_, v) z.voice = v end }
+end
+function ZedMT:getEmitter() return { stopSoundByName = function() end, stopAll = function() end } end
+function ZedMT:resetModel() self.resets = (self.resets or 0) + 1 end
+function ZedMT:getWornItems() return { clear = function() end } end
+function ZedMT:getItemVisuals()
+    local z = self
+    return { clear = function() z.visuals = {} end,
+             add = function(_, iv) table.insert(z.visuals, iv.type) end }
+end
+function ZedMT:getHumanVisual()
+    local z = self
+    local hv = {}
+    for _, name in ipairs({ "removeDirt", "removeBlood", "setBlood", "setDirt", "setBeardModel",
+                            "setHairColor", "setBeardColor" }) do
+        hv[name] = function() end
+    end
+    function hv:setSkinTextureName(v) z.skin = v end
+    function hv:getSkinTexture() return z.skin end
+    function hv:getSkinTextureIndex() return 0 end
+    function hv:setHairModel(v) z.hair = v end
+    function hv:hasBodyVisualFromItemType(id) return z.body[id] == true end
+    function hv:addBodyVisualFromItemType(id)
+        z.body[id] = true
+        return { setTextureChoice = function() end }
+    end
+    function hv:removeBodyVisualFromItemType(id) z.body[id] = nil end
+    return hv
+end
+function ZedMT:faceLocationF(x, y) self.facing = { x, y } end
+function ZedMT:setPath2() end
+function ZedMT:getPathFindBehavior2()
+    local z = self
+    z.pf = z.pf or {
+        pathToLocationF = function(_, x, y) z.goal = { x, y } end,
+        -- Straight there at a walk, a tenth of a square a tick: the sim has
+        -- no pathfinder, and the crew's rooms are open floor.
+        update = function()
+            if not z.goal then return "Failed" end
+            local dx, dy = z.goal[1] - z.x, z.goal[2] - z.y
+            local d = math.sqrt(dx * dx + dy * dy)
+            if d < 0.12 then
+                z.x, z.y = z.goal[1], z.goal[2]
+                return "Succeeded"
+            end
+            z.x, z.y = z.x + dx / d * 0.1, z.y + dy / d * 0.1
+            return "Working"
+        end,
+        cancel = function() z.goal = nil end,
+        reset = function() end,
+    }
+    return z.pf
+end
+function ZedMT:addLineChatElement(text) table.insert(SIM.chat, { id = self.onlineID, text = text }) end
+function ZedMT:removeFromWorld() self.removed = true end
+function ZedMT:removeFromSquare()
+    for i, z in ipairs(SIM.zombies) do
+        if z == self then table.remove(SIM.zombies, i) break end
+    end
+end
+
+function SIM.newZed(x, y, z, female, id, remote)
+    local zed = setmetatable({ x = x, y = y, z = z, female = female, onlineID = id,
+                               remote = remote, modData = {}, vars = {}, visuals = {}, body = {} },
+                             ZedMT)
+    table.insert(SIM.zombies, zed)
+    return zed
+end
+
+--- The engine's spawn: one body per call here, in the named outfit. On a
+--- server it reaches every client, with the same online id.
+function addZombiesInOutfit(x, y, z, count, outfit, femaleChance)
+    if SIM.noZombies then return jlist({}) end
+    local female = (femaleChance or 0) >= 50
+    SIM.nextZombieId = SIM.nextZombieId + 1
+    local id = (SIM_ROLE == "sp") and -1 or SIM.nextZombieId
+    local zed = SIM.newZed(x + 0.5, y + 0.5, z, female, id, false)
+    zed.outfit = outfit
+    if SIM_ROLE == "server" then
+        py_replicate("zombie", { id = id, x = zed.x, y = zed.y, z = z, female = female })
+    end
+    return jlist({ zed })
+end
+
+function SIM.findZed(id)
+    for _, z in ipairs(SIM.zombies) do
+        if z.onlineID == id then return z end
+    end
+end
+
+--- "id=x,y;..." for the bodies this machine simulates.
+function SIM.ownedZombies()
+    local out = {}
+    for _, z in ipairs(SIM.zombies) do
+        if z.onlineID and z.onlineID >= 0 and not z.remote then
+            table.insert(out, z.onlineID .. "=" .. z.x .. "," .. z.y)
+        end
+    end
+    return table.concat(out, ";")
+end
+
+function SIM.setZed(id, x, y)
+    local z = SIM.findZed(id)
+    if z then z.x, z.y = x, y end
+end
+
+-- Enough of the item-visual classes for a body to be dressed.
+ItemVisual = { new = function()
+    local iv = {}
+    function iv:setItemType(t) self.type = t end
+    function iv:setClothingItemName() end
+    function iv:setTint() end
+    return iv
+end }
+ImmutableColor = { new = function(r, g, b) return { r = r, g = g, b = b } end }
+BloodBodyPartType = {
+    MAX = { index = function() return 0 end },
+    FromIndex = function() return {} end,
+}
 
 ---------------------------------------------------------------------------
 -- Server options and sandbox

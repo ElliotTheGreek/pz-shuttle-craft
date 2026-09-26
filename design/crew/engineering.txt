@@ -1,0 +1,1244 @@
+# Main Engineering: the warp core, the master systems display, the consoles,
+# the Jefferies tube hatches, the cargo crates and the antigrav cart.
+# Lt. Cmdr. Tovin Rhel is the chief. He is talked about, never a speaker.
+# CREW.md section 4 is the format; section 2 is what these people know.
+
+# ---------------------------------------------------------------------------
+scene: eng_the_ninth
+where: engineering
+cast: a=engineer, b=engineer, c=security
+weight: 3
+
+= start
+a: Ninth of February. I still run it back in my head every shift.
+ | Five months, and I still dream about the ninth of February.
+ | I pulled the February logs again last night. Don't look at me like that.
+b: Everybody does. | You and the whole deck. | You'll wear a groove in your brain.
+a: Warp and impulse, inside ninety seconds, and every lockout was ours.
+ | Both drives, ninety seconds apart. From in here. From this room.
+b: I know. I was under the port console when the board went red.
+ | I remember. I spilled a whole mug of tea on the systems display.
+-> access 3, logs 2, watch 1
+
+= access
+b: Say it, then. You've been circling it for months.
+ | Go on. You're going to say the thing.
+a: It needed command codes and an engineer's hands. Both.
+ | Whoever did it had the codes, and knew exactly where to put them.
+b: That's forty people. Fifty, counting the ones who shouldn't have them.
+ | That's most of this room, {a}. And half the bridge.
+a: I know. I'm on the list. So are you.
+ | I'm aware. I'm on that list. You're on that list.
+b: So is the chief. And Rhel would sooner lose an arm.
+ | So is Rhel, and he'd sooner cut off his own hand.
+-> rhel 2, security 3
+
+= logs
+b: Did security ever get anywhere with the access logs?
+ | What happened with the access logs? Anyone ever say?
+a: The logs are clean. That's the part I can't get past.
+ | Clean. Perfectly clean. Nobody's logs are that clean.
+b: Clean meaning nothing happened, or clean meaning scrubbed?
+ | Clean how? Clean like nobody touched them, or clean like somebody did?
+a: Clean meaning every entry is where it should be, and the ship still died.
+ | Clean like somebody tidied up after themselves and put the chairs back.
+...
+b: I hate that. | That's worse. I think that's worse.
+-> security 3, rhel 1
+
+= watch
+b: You had the watch that night, didn't you? | You were on gamma, weren't you?
+a: Gamma shift. I was eating a sandwich when it went.
+ | I had the watch. Watched the board go red, left to right, like a wave.
+b: That isn't on you. Nobody thinks it is.
+ | Nobody blames the watch, {a}. Nobody ever has.
+a: I know. Most days I even believe it.
+ | Tren says the same thing. I'm working on it. Slowly.
+b: Keep working on it. | Good. Keep seeing her.
+-> security
+
+= rhel
+b: You've seen the chief when somebody brings it up.
+ | You know Rhel took it personally.
+a: He went white. Didn't say a word for a full minute.
+ | He rebuilt a panel so hard he cracked the housing.
+b: It's his ship. Somebody reached into his ship and broke it.
+ | It's his engine. Somebody walked in here and did that to it.
+a: He still checks the intermix seals by hand. Every shift. Himself.
+ | He sleeps down here half the week. Says the core gets lonely.
+-> security
+
+= security
+c: Is this the February meeting? Nobody sent me the agenda.
+ | You two talking about the ninth again? I could hear you from the lift.
+ | Evening. Are we solving the sabotage? I'll take notes.
+b: {c}. Pull up a crate. | Evening, {c}. Just the usual.
+a: Just wondering if your people ever got a name.
+ | Just wondering who security's looking at these days.
+c: If we had a name, you'd know. They'd be in the brig.
+ | Nobody. Which is not quite the same as nothing.
+-> hard 2, kind 2, okafor 1
+
+= hard
+c: What I can tell you: it was inside, it was fast, and it was careful.
+ | It was done by somebody who could walk in here without anybody blinking.
+a: That's all of us. | That's everybody in this room.
+c: Yes. Which is why I'm polite to everybody in this room.
+ | Which is why I don't finish that sentence out loud.
+b: Comforting. Thank you, {c}. | Wonderful. I'll sleep like a baby.
+c: You asked. | Security. We're a delight at parties.
+-> close
+
+= kind
+c: Look. I know it'd be easier if it was somebody. A face.
+ | Listen. A name would feel better. I know it would.
+c: But a wrong name is worse than none. There's a hundred and forty-one of us
+ | But a wrong name is worse than no name. We are a hundred and forty-one
+c: on a ship that can't leave. We don't get to be wrong about each other.
+ | people who can't leave. We don't get to be wrong about each other.
+...
+a: ... Fair. | Yeah. All right. That's fair.
+b: Nobody's accusing anyone, {c}. We're just tired.
+ | We're not pointing fingers. We're just very, very tired.
+-> close
+
+= okafor
+a: What about the Intelligence liaison? Okafor?
+ | People keep saying Okafor's name. Quietly.
+c: People say a lot of things quietly. It's that kind of year.
+ | Cmdr. Okafor has been more help than you'd think. That's all I'll say.
+b: He does look like a man who hasn't slept since February.
+ | He's always in the mess at three in the morning. Staring at tea.
+c: So does the Captain. So do you. Drop it. | So do most of us. Let it go.
+-> close
+
+= close
+c: For what it's worth, the chief's rebuilt every lockout since. Twice.
+ | For what it's worth, nobody's getting into those drives that way again.
+a: Rebuilt them, sure. Nothing left behind them to protect.
+ | Good. Shame there's nothing left behind them to steal.
+c: There's the core. There's the transporter. There's all of you.
+ | There's plenty left, {a}. Air. Light. The pads. Each other.
+...
+b: ... Yeah. | Fair point. | He's right, you know.
+c: Carry on. And lock your consoles when you step away.
+ | Back to it. And lock your stations, both of you. Every time.
+a: Always do. | Every time, since February.
+b: We learned. | Since the ninth, every single time.
+c: Good. I'll be on the rounds. Try to talk about something nicer.
+ | Right. Rounds. Talk about the weather. Oh wait, we haven't got any.
+a: We'll talk about the galley menu. | We'll argue about Grieg's stew instead.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_nursing_the_core
+where: engineering
+cast: a=engineer, b=operations
+weight: 3
+
+= start
+a: Intermix is drifting again. Point oh three.
+ | She's running warm. Look at the matter stream.
+ | Come look at this. No, don't touch it. Just look.
+b: Is that bad? Tell me that's not bad. | That's... within tolerance. Isn't it?
+a: It's within tolerance. It's also not what she did yesterday.
+ | It's fine. It's fine the way a cough is fine.
+b: Should I call the chief? | Do you want me to page anyone?
+a: Not yet. Let me look at her properly first.
+ | No. Stand there and read me numbers. That's all I need.
+-> trim 3, why 2, rhel 1
+
+= trim
+a: I'm going to walk the antimatter flow down. Slowly.
+ | Hand me the injector readout. I'm trimming the flow.
+b: How slowly? | Should I tell the bridge? | Want me to hold the display?
+a: Slowly like you're moving a sleeping cat.
+ | One increment every ten seconds. Read me the chamber pressure.
+b: Pressure's holding. ... Still holding. | Holding. Holding. Still holding.
+a: There. She settles. See the ripple smooth out? | There she is. Good girl.
+-> reserve 2, power 2
+
+= why
+b: Why does she drift at all? We're not going anywhere.
+ | What's she drifting for? It's not like we're at warp.
+a: That's why. A core's built to push. We've had her idling five months.
+ | She was built to run hard. Idle is what's killing her, bit by bit.
+b: Like a horse in a stall. | Like a Klingon on shore leave.
+a: Exactly like that. She wants to run and we won't let her.
+ | Yes, and about as happy. Hand me the readout.
+-> trim
+
+= rhel
+b: Rhel said he'd be down to look at her himself.
+ | Is the chief coming? He'll want to see this.
+a: He was here at oh-four-hundred. He's always here at oh-four-hundred.
+ | The chief's asleep. First time in three days. Nobody wake him.
+b: You're going to do it without him? | You sure you want to do this alone?
+a: He taught me. And he'd want me to try before I woke him.
+ | I've watched him do it forty times. I can do it once.
+-> trim
+
+= reserve
+b: What's that do to the reserve?
+ | How's the reserve looking, after that?
+a: Better than it was. We just stopped wasting a sliver of crystal.
+ | A little better. Every trim buys us a few hours further out.
+b: Hours. | A few hours. You say that like it's a lot.
+a: Out here, it is. Hours add up to days. Days add up to a crystal.
+ | It is a lot. Everything's a lot now. We don't make more crystal.
+-> sit 2, done 1
+
+= power
+b: While you're in there: sickbay wants more power for the lab.
+ | Sickbay's asking for another two percent. For the samples.
+a: Of course they are. | Everyone wants two percent.
+a: Tell Dr. Anwar she can have one, and I'll owe her the other.
+ | Tell them yes. The samples matter. The survivors' samples.
+b: The Doctor will complain that one percent is an insult. | He'll sulk.
+a: The Doctor is a hologram. He can sulk at one percent.
+ | He can sulk in a lower power state.
+-> sit 1, done 2
+
+= sit
+...
+b: You're watching her like she's a patient.
+ | You look like you're sitting with somebody in hospital.
+a: She is a patient. She's the only one on this ship who keeps us all alive.
+ | She is. She's the lights and the air and the transporter. She's everything.
+b: When you put it like that. | Point taken. I'll be nicer to her.
+a: Everybody should be nicer to her. | Tell the others.
+-> done
+
+= done
+a: Log it. Point oh three, trimmed, holding. My name on it.
+ | Put it in the log. And set an alarm for the next check.
+b: Logged. Want coffee? | Logged. I'll bring you a coffee. Real one, if Grieg will.
+a: Please. And stand there a minute longer. I like the company.
+ | Yes. Then come back and watch her with me.
+b: Do you ever think about what she'd be like at warp again?
+ | What was she like? At full warp. Before.
+a: Loud. Bright. She sang. You could feel it in your back teeth.
+ | Beautiful. The whole deck hummed. You could hear it in the lifts.
+b: I only came aboard in December. I barely heard her.
+ | I miss it and I barely remember it.
+a: You'll hear it again. The chief says so, and he doesn't say things.
+ | You will. One day. I'm keeping her ready for it.
+...
+b: Coffee. Right. Back in five. | Five minutes. Don't let her drift.
+a: She won't. Not on my watch. | I've got her. Go.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_dilithium_ledger
+where: engineering
+cast: a=engineer, b=operations, c=command
+weight: 3
+
+= start
+b: Crystal count for the week. You want the good news or the numbers?
+ | I did the dilithium ledger. Sit down first.
+ | Morning. I brought the crystal count. And a biscuit, to soften it.
+a: Numbers. The good news is always a lie. | Just the numbers, {b}.
+b: One in the core. Spares on the rack. And the burn rate hasn't moved.
+ | The core's at about half on the current crystal. Two spares on the rack.
+a: So it's a countdown. | So we are, as always, on a clock.
+-> clock 2, surface 3
+
+= clock
+b: Everything's a countdown. The trick is making it a long one.
+ | It's always been a clock. We just used to have a starbase at the end.
+a: How long, at this rate? | Give me a date.
+b: I'm not giving you a date. Last time I did, it went round the deck.
+ | No dates. Rhel banned dates after someone put one on the mess wall.
+a: Fair. | Wise.
+-> surface
+
+= surface
+a: What came up from the surface this week? | Anything beamed up from below?
+b: One crystal. Transporter room logged it on Tuesday.
+ | One. Somebody down there walked it to a pad and we pulled it up.
+a: Somebody. | Who?
+b: Nobody knows. Th'Zoran says the signal's odd. Never the same place twice.
+ | Kess says don't ask. Whoever it is, bless them.
+-> wild 3, who 1
+
+= wild
+a: Where did they find it? | Was it the same pattern?
+b: Same as always. Open ground. A field off a county road.
+ | Woods, north of one of the towns. Never in the town. Never once.
+a: Never under a town. Not a single one. Has science got anywhere with that?
+ | That's still the strangest thing on this whole survey.
+b: Science says it's statistically absurd, and then they go quiet.
+ | Science has three theories and hates all of them.
+a: Crystals don't care where people put their houses.
+ | Dilithium doesn't know what a town is. It shouldn't.
+b: These seem to. | Apparently here it does.
+-> captain 3, rack 1
+
+= who
+a: I'd like to thank them. Whoever's doing it. | Someone down there's keeping us lit.
+b: The transporter crew wave at the pad every time. Just in case.
+ | Kess leaves the channel open a few seconds longer. In case they say hello.
+a: That's nice. That's very Starfleet. | Good. Somebody should say it.
+-> wild
+
+= captain
+c: Is that the ledger? | Morning. Tell me something I want to hear.
+ | Don't get up. What's the count?
+a: One in, two spares, one up from the surface this week, Captain's aide.
+ | We're holding, {c}. Thanks to someone below.
+c: Holding is good. Holding is the whole job right now.
+ | Good. The Captain will want the surface one flagged.
+b: Flagged. With where it was found. | Already flagged. Open ground, again.
+c: Of course it was. | Naturally. The planet has manners.
+-> ration 2, hope 2
+
+= rack
+a: Walk me to the rack. I want to see them.
+ | Show me the spares. I like to look at them.
+b: They're crystals, {a}. They look like crystals.
+ | They're in a locked box. They look like a locked box.
+a: Humour me. Some people count their money. | I sleep better after.
+-> captain
+
+= ration
+c: The replicator ration stays where it is, then.
+ | We keep the replicator ration. Nobody's going to like hearing it.
+a: Nobody likes it now. They'll dislike it at the same level.
+ | Grieg will be pleased. More people eating her cooking.
+c: I'll tell the Captain. She'll want to see your face when she hears.
+ | I'll pass it up. Keep trimming.
+-> close
+
+= hope
+c: One a week. If that holds, we're not on a clock at all.
+ | If the surface keeps sending, we stop counting down.
+b: If. | That's a big if, {c}.
+c: I know. Let me have it until lunch.
+ | Everything's a big if. Let me have this one.
+a: Until lunch. Then back to the countdown. | Deal.
+-> close
+
+= close
+b: I'll post the numbers. No dates. | Ledger's filed. Biscuit's yours.
+a: Thank you. And thank whoever's down there. | Good work. Both of you.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_jefferies_crawl
+where: engineering
+cast: a=engineer, b=engineer
+weight: 2
+
+= start
+a: Tube seven. Junction box on the second level is throwing faults.
+ | Somebody's got to crawl tube seven. Guess who.
+ | Right. Who wants to go in the tube?
+b: I did the last one. | Not it. | I crawled tube four yesterday. My knees filed a complaint.
+a: Then you can hold my feet. | Fine. You're on the hatch.
+-> hatch 3, argue 1
+
+= argue
+b: Why is it always the tubes? Why is nothing ever broken in a nice wide room?
+ | Nothing ever breaks in a corridor. It's always forty metres into a tube.
+a: Because the designers were cruel. | Because the ship hates us.
+b: I'm writing to the Corps of Engineers. When comms are back.
+ | Put it in the letters we can't send.
+-> hatch
+
+= hatch
+a: Hatch is sticking. | Help me with this. It's jammed again.
+b: On three. One. Two. | Put your shoulder into it.
+...
+a: There. Pass me the light. And the tricorder. And the spanner.
+ | Light. Tricorder. The small spanner, not that one.
+-> crawl
+
+= crawl
+a: I'm in. It's warm. Why is it warm? | Going up. Keep talking to me.
+b: Probably the conduit. | You're fine. You've got two metres before the bend.
+a: Tell me something. Anything. The tubes are too quiet.
+ | Talk to me. I hate how quiet it gets in here.
+b: Grieg's doing a real stew tonight. With actual potatoes from the surface.
+ | Pell Daro bet me the helm would move again before the new year.
+a: Good. Keep going. | That's nice. More of that.
+b: That's all I've got. Rations and gossip. | I'm out. Sing something?
+a: Absolutely not. | Never. ... Hang on.
+a: Found the junction. There's a burn mark. Wasn't here last month.
+ | Junction box. It's scorched. Somebody's going to hear about this.
+b: Scorched how? | Old burn or new?
+-> newburn 2, oldburn 2
+
+= newburn
+a: New. Last week, maybe. A relay's been arcing.
+ | Fresh. A relay arcing every time somebody runs the replicators.
+b: That's the replicator line? | That'll be the galley draw.
+a: Every time Grieg's lot run the big replicator, this goes pop.
+ | So every lunchtime this little box has a small fire.
+b: Can you fix it from in there? | Can you swap it?
+a: I've got a spare. Give me five minutes and no jokes.
+ | Pass up the spare relay. And don't be funny.
+-> joke 1, fix 3
+
+= oldburn
+a: Old. It's been here since February.
+ | Old. Months old. Look at the carbon.
+b: February? | From the ninth?
+a: Could be. Everything on the ninth arced somewhere.
+ | Everything tripped at once that night. This is where it landed.
+b: Then why's it faulting now? | And it's only started faulting now?
+a: Because it's been cooking for five months and nobody crawled up here.
+ | Because we fix what shouts. This one's been whispering.
+-> fix
+
+= joke
+b: How many engineers does it take to change a relay?
+ | Knock knock.
+a: I said no jokes. | I will come down there.
+b: Fine. Silence. Engineering silence. | Sorry. Go on.
+-> fix
+
+= fix
+...
+a: Old relay's out. New one's in. Seating it.
+ | Clipping it in. Tell me when the board goes green.
+b: Board's... amber. ... Green. It's green.
+ | Amber. Hold on. ... Green. You're green.
+a: Good. I'm coming down before this tube eats me.
+ | Coming down. Grab my foot if I slide.
+-> out
+
+= out
+b: You've got soot on your face. | Your whole face is black.
+a: Leave it. It's how they know I did something.
+ | That's my medal. Leave it.
+b: I'll log it. Tube seven, relay, you, very brave.
+ | Logged. You want the shower first, or the galley?
+a: Shower. Then the galley. Then sleep. In that order.
+ | Galley. I'll eat with the soot. It adds flavour.
+b: Shower's on the ration too, remember. Sonic only till Thursday.
+ | Water ration. Sonic shower. Sorry.
+a: Then I'll sonic the soot and keep the dignity. | I'll take the sonic.
+b: I'll tell Grieg to save you a bowl. She likes a tube crawler.
+ | Grieg saves a bowl for anyone who's been up a tube. It's a rule.
+a: Tell her it was tube seven. She'll give me extra.
+ | Tell her I suffered. Tell her I suffered a lot.
+b: Consider it done. Go on. | Go. Before the chief finds you another tube.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_conduit
+where: engineering
+cast: a=engineer, b=engineer, c=operations
+weight: 2
+
+= start
+a: EPS conduit nineteen fused again. | Nineteen's gone again. Third time this week.
+ | Guess which conduit fused.
+b: Nineteen. | No. Don't tell me. Nineteen.
+a: Nineteen. | Nineteen.
+b: I'm running the diagnostic. | Fine. Diagnostic. Again.
+-> diag 3, why 2
+
+= diag
+b: Level three diagnostic, conduit nineteen, run... let me see.
+ | Starting the diagnostic. Look at the counter.
+a: What's the count? | How many does that make?
+b: This is the hundredth. The hundredth time I've run this exact test.
+ | One hundred. We have hit a hundred. On the same conduit.
+a: We should have a cake. | Somebody should get you a certificate.
+b: And it'll say what it said the other ninety-nine times.
+ | It will say nothing is wrong. As it always says.
+-> result
+
+= why
+b: Why does it keep fusing? The load's nowhere near its rating.
+ | It shouldn't fuse. It's carrying a third of what it's rated for.
+a: Because it was in the path on the ninth. It took a surge nobody logged.
+ | Because the whole run got cooked in February. It's tired.
+b: Tired. That's the diagnosis. Tired. | So the conduit has fatigue.
+a: Welcome to the club, conduit. | Join the crew.
+-> diag
+
+= result
+...
+b: Result: nominal. Of course it's nominal. | Nominal. Nothing wrong. Everything's fine.
+a: It fused an hour ago. How is it nominal?
+ | It's lying. The conduit is lying to us.
+-> ops 3, rip 2
+
+= ops
+c: I heard nineteen went again. | Nineteen? I heard you from the lift.
+ | Is that the conduit? The galley lost power to the oven.
+a: It did. The diagnostic says it didn't. | It did, {c}. The test says otherwise.
+c: Then stop testing it and replace it. | Can we just swap the whole run?
+b: With what? We don't have another run. We have what came on board.
+ | We haven't got a spare run. We haven't got a starbase.
+c: The shuttle bay stores might. Or somebody's been hoarding.
+ | Ask the chief. Rhel knows where every bolt on this ship is.
+-> rip 2, rhel 1
+
+= rhel
+a: The chief says he'll bless it. He'll put his hand on it and swear at it.
+ | Rhel said to talk to it nicely. I think he meant it.
+b: Has that ever worked? | Does that work?
+a: Twice. I don't know why. | More often than the diagnostic does.
+-> rip
+
+= rip
+b: Right. We bypass it. Route through eighteen and twenty.
+ | We reroute. Eighteen can carry the load if twenty helps.
+a: That'll run them both warm. | Warm is better than out.
+b: Warm we can live with. Out we can't. | Warm. We watch them.
+a: Doing it. ... Rerouted. Galley has power.
+ | Routing. ... There. Galley's back.
+-> close
+
+= close
+c: I'll tell Grieg. She'll forgive you by dinner.
+ | Galley's back. You're heroes. Briefly.
+ | Thank you. I'll tell the galley. They'll send you something.
+b: Log it. Nineteen, fused, bypassed. Diagnostic one hundred.
+ | Logging it. I'll put a star next to the hundredth.
+a: When we get home I'm framing that conduit. | Next week: a hundred and one.
+c: While I've got you both: the bypass. Does it hold if the pads fire?
+ | One question. Does the reroute take a transporter surge?
+b: Good question. Let me look. ... Yes. With room. | It should. Checking. ... Yes.
+c: Then I'm happy. If the pads go down, everybody on this ship notices.
+ | Good. The pads are the one thing that can't go dark.
+a: The pads get power before anything. Before us. Before the galley.
+ | Transporter first. Always. That's the chief's first rule.
+c: And the second rule? | What's rule two?
+a: Don't stand under the cart. | Talk nicely to the core.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_replicator_budget
+where: engineering
+cast: a=engineer, b=operations, c=sciences
+weight: 2
+
+= start
+b: Replicator allocation. We have to agree it before the Captain does.
+ | Right. Power budget. Who wants to go first?
+ | The replicator schedule. Again. Somebody bring the list.
+a: The core gives what it gives. The pie doesn't get bigger.
+ | Same pie. Same slices. Everybody wants a bigger slice.
+b: I've got eleven requests on this padd. Eleven. | Twelve requests this week.
+a: Read them out. | Go on, then. The top of the list.
+b: More replicator time, more holodeck, more hot water, and a cello.
+ | Hot water, holodeck, the lab, and somebody wants a replicated cello.
+a: A cello? | Somebody asked for what?
+b: For the concert. There's going to be a concert. Apparently.
+ | Lieutenant Tren says music's good for morale. She's not wrong.
+a: Put the cello last. I like the cello, but put it last.
+ | Fine. The cello goes on the list. At the bottom. With love.
+c: Sciences needs its share for the lab. I'll say it now. | Sciences wants lab time.
+-> lab 2, galley 2, holodeck 1
+
+= lab
+c: The survivor samples need cold storage and the sequencers need power.
+ | Every rescued ensign comes up with samples. We can't keep them on ice.
+a: I know. You'll get it. Nobody argues with the lab.
+ | That's fine. That's the one nobody's cutting.
+c: Thank you. I expected more of a fight. | Oh. Good. I had a speech.
+b: Save the speech. The galley's next. | Keep the speech. You'll need it.
+-> galley
+
+= galley
+b: Grieg wants less replicator and more real stoves.
+ | Grieg says real cooking uses less power than people think.
+a: She's right, actually. An oven is cheaper than a replicator per meal.
+ | She's not wrong. A pot of stew beats a hundred replicated bowls.
+c: People want what they want, though. Comfort food. Their own food.
+ | Morale, {a}. People need a taste of home sometimes.
+b: They can have it on their birthday. | One replicated treat a week.
+-> holodeck 2, cut 2
+
+= holodeck
+c: And the holodeck. People are climbing the walls.
+ | The holodeck hours. Tren says they matter. She put it in writing.
+a: The holodeck eats power like nothing else. | A holodeck hour is a lot of crystal.
+b: So is a crewman who hasn't seen a sky in five months.
+ | So is a crewman who breaks down on shift.
+a: ... Fine. Two hours a week, per person, rota. | Point taken. We keep it.
+-> cut
+
+= cut
+a: Then something else has to give. | We need to find the difference somewhere.
+c: Lights in the unused quarters. The lower cargo bay. | The empty labs.
+b: The shuttle bay. It's half heated for no reason.
+ | We heat the whole shuttle bay for one old shuttle and a pile of chairs.
+a: Don't start. You know that's a whole other fight.
+ | Oh, you're brave.
+-> shuttle 1, agree 3
+
+= shuttle
+b: It's Shepard's shuttle. It has a sofa in it. A sofa, {a}.
+ | Lieutenant Shepard's shuttle has a refrigerator. An old one.
+c: It's a field collection. It's the most important survey data we have.
+ | That sofa is ethnography. I will die on this hill.
+a: The sofa stays warm. Next. | We are not freezing the sofa. Next.
+-> agree
+
+= agree
+b: So: lab untouched, holodeck on rota, galley more stoves, lights down.
+ | That's it, then. Lab stays, holodeck rota, stoves, dim the empty decks.
+a: Agreed. The Captain will change one thing just to show she read it.
+ | Agreed. Send it up.
+c: She'll add a coffee exemption. She always does.
+ | I hope she does. We all need it.
+b: Anybody want to argue anything else while we're all in one room?
+ | Last chance. Any other complaints?
+a: The lift on deck three smells of burnt toast.
+ | The sonic showers on deck two are set to scour.
+c: That's not a power issue. | That's for maintenance, not us.
+a: It's an issue. I'm raising it. | Everything's a power issue if you squint.
+b: Noted. Ignored. Meeting over. | Logged under miscellaneous. Goodbye.
+c: Thank you both. Genuinely. That was the nicest one of these we've had.
+ | Thanks. Nobody cried this time. That's progress.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_first_solo
+where: engineering
+cast: a=engineer, b=engineer
+weight: 2
+
+= start
+a: Is that... your first solo repair? | Is it true you're doing the coupling alone?
+ | Chief put you on the coupling by yourself? Congratulations.
+b: Yes. Please don't watch. | It is. I'm fine. I'm totally fine.
+ | He did. I think he forgot I'm new.
+a: He doesn't forget anything. He thinks you're ready.
+ | Rhel doesn't forget. He picked you.
+-> nerves 3, confident 1
+
+= nerves
+b: What if I get it wrong? It's the coupling for the environmental loop.
+ | It's the air, {a}. If I get it wrong, it's the air.
+a: If you get it wrong, the backup takes over and I come and help.
+ | There's a backup. There's always a backup. That's what engineering is.
+b: Right. Backup. | Right. Okay. Right.
+-> start_work 3, pep 1
+
+= pep
+a: Breathe. You know what the chief said to me on my first?
+ | Hey. Look at me. You passed the Academy. This is just a seal.
+b: What? | Go on.
+a: He said: the ship doesn't know you're new. So don't tell her.
+ | He said: if you're scared, you're paying attention. Good.
+b: ... Okay. That actually helps. | Right. Don't tell the ship.
+-> start_work
+
+= confident
+b: Honestly? I've done it in the simulator forty times.
+ | I've read the manual. Twice. I've got this.
+a: Simulator's got nicer lighting. | The manual's never been on this ship.
+b: Oh. | That's... not reassuring.
+-> start_work
+
+= start_work
+b: Isolating the loop. ... Isolated. | Taking it offline. Offline.
+a: Good. Now tell me what you're going to do before you do it.
+ | Talk me through it. Out loud. It helps.
+b: Release the clamps, withdraw the old seal, check the flange for pitting.
+ | Clamps, seal, flange. Then the new seal. Then clamps again.
+a: And? | And what do you check before you close it?
+b: That I haven't left a tool in it. | Alignment marks.
+ | That the new seal isn't upside down.
+a: Good. Go. | Correct. Go on.
+-> mistake 2, clean 2
+
+= mistake
+...
+b: Oh no. | Um. | That's not right.
+a: What? | What's wrong?
+b: The flange is pitted. Badly. The seal won't take.
+ | It's pitted. The manual says replace the flange. We don't have a flange.
+a: Good. You checked. Most people don't. Now: what do you do?
+ | You found it. That's the job. What are your options?
+b: I could... dress it? File the pitting smooth, and double the seal.
+ | Lap it down. Two seals, offset. The way the chief did the aft loop.
+a: That's exactly what I'd do. | You've been watching him. Good.
+-> finish
+
+= clean
+...
+b: Flange is clean. Seal's in. Clamps back on.
+ | Clean flange. Seal seated. Clamping.
+a: Alignment marks? | Tools?
+b: Marks lined up. And I counted every tool. Twice.
+ | All tools out. I counted them back into the case.
+-> finish
+
+= finish
+b: Bringing the loop back up. | Restoring the loop.
+...
+a: Pressure? | Numbers?
+b: Holding. It's holding. | Nominal. It's nominal. Oh, it's nominal.
+a: Congratulations, {b}. You just kept a hundred and forty-one people breathing.
+ | That's it. First solo. You kept the air on.
+b: Don't say it like that! | Can I sit down now?
+a: Sit down. I'll tell the chief. He'll pretend he isn't pleased.
+ | I'll tell Rhel. He'll nod. That's the highest honour he gives.
+b: My hands are shaking. Is that normal? | Why are my hands shaking now?
+a: Completely normal. Mine shook for a week after my first.
+ | That's the adrenaline. It comes after. It always comes after.
+b: What was your first? | Do you remember yours?
+a: A waste reclamation valve on the Ticonderoga. I cried a bit. Don't tell.
+ | A sonic shower on a starbase. Nobody died. The admiral got very clean.
+b: I won't tell. | Your secret's safe.
+...
+a: Go on. Write it up. Put your name on it. Your name, not mine.
+ | Log it yourself. First solo. You'll want to read it back one day.
+b: Yes, {a}. Thank you. Really. | Thank you. For not taking the spanner off me.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_two_schools
+where: engineering
+cast: a=engineer, b=engineer, c=any
+weight: 2
+
+= start
+a: Did you hear Lt. K'teral and Ensign Taval in the forward bay?
+ | Taval and K'teral are at it again. Over the plasma injectors.
+ | You missed it. The Klingon method versus the Vulcan method. Round six.
+b: I heard it from here. Everybody heard it from here.
+ | What was it this time? | Oh no. What happened?
+a: K'teral wants to overdrive the injector and see what breaks.
+ | K'teral says the injector must be tested in battle. Her words.
+-> vulcan 2, klingon 2
+
+= vulcan
+b: And Taval? | Let me guess. Taval had a chart.
+a: Taval said, and I quote: that would be an inefficient use of an injector.
+ | Taval stood very still and said her proposal lacked a hypothesis.
+b: She'll have loved that. | That's the worst thing he could have said.
+a: She said his hypothesis lacked blood. | She said his chart had no honour.
+-> klingon
+
+= klingon
+b: What did K'teral actually say? | How did she put it?
+a: That a system which has never been pushed has never been known.
+ | That you learn nothing from a thing until it screams.
+b: That's... not wrong, actually. | I hate that I agree with her.
+a: No, and Taval said you learn nothing useful from the screaming.
+ | And Taval said you learn it once, and then you need a new injector.
+-> referee
+
+= referee
+c: Are you talking about the injector feud? | Is this the injector thing?
+ | Please tell me someone settled the injector argument.
+b: Nobody settled anything. | It is unsettled. It may never be settled.
+c: I'd put money on the Klingon. Replicator credits.
+ | My money's on the Vulcan. He never gets tired.
+a: No betting. The chief banned betting after the tribble incident.
+ | Rhel said the next person to run a book cleans the tubes for a month.
+-> chief 2, both 2
+
+= chief
+c: What did Rhel say, then? | What does the chief think?
+a: He listened to both of them for ten minutes without moving.
+ | He let them go for a full shift. Then he stood up.
+b: And? | Oh, this is good.
+a: He said: K'teral, you'll overdrive the spare. Taval, you'll log every number.
+ | He said they'd do it together. Her way, his notes.
+c: That's genius. | That's the most Bajoran solution I've ever heard.
+-> end_node
+
+= both
+b: The thing is, they're both right. | They're both good. That's the problem.
+a: They are. K'teral's found three faults nobody else would.
+ | K'teral found the cracked housing on the aft injector by kicking it.
+b: And Taval found the drift in the core readings before anyone.
+ | And Taval's numbers are why we're still lit.
+c: Then lock them in a room together. | Pair them.
+-> chief 2, end_node 1
+
+= end_node
+a: They've been in the forward bay for four hours. | They're in there right now.
+b: Is there shouting? | Should we check on them?
+a: Occasionally. And, once, laughter. | K'teral laughed. Taval raised an eyebrow.
+c: We're going to get a working injector and a very long report.
+ | Best engineering team on the ship, and they'll never admit it.
+b: I heard she brought him bloodwine to celebrate the first test.
+ | Somebody said he brought her tea. Plomeek. She drank it.
+a: And? | Did it go well?
+b: He called it an interesting cultural experience. She called him brave.
+ | She said it tasted of defeat. He said that was the tea's intention.
+c: That's a friendship. That's the start of a real friendship.
+ | Give it a month. They'll be finishing each other's equations.
+...
+a: Right. Back to our own injectors. Nobody overdrive anything.
+ | Back to work. And if you hear a bang, it's science.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_talking_to_her
+where: engineering
+cast: a=engineer, b=any
+weight: 2
+
+= start
+a: Come on, sweetheart. Just a little steadier. There you go.
+ | Easy, now. Easy. Nobody's asking you to go anywhere.
+ | Morning, you. Let's see how you slept.
+b: Are you... talking to the warp core? | Who are you talking to?
+a: Rhel does it. It's catching. | Yes. Don't tell anyone.
+ | The chief says she listens. I'm not sure he's wrong.
+-> sceptic 2, gentle 2
+
+= sceptic
+b: It's a matter-antimatter reaction chamber, {a}.
+ | It's a machine. It doesn't know you're there.
+a: I know what it is. It's also the heart of the ship.
+ | I know. And you talk to your plants.
+b: That's different. The plants are alive. | That's different. Plants grow.
+a: She keeps a hundred and forty-one people alive. That counts for something.
+ | She's the reason the plants are alive.
+-> story 3, plants 1
+
+= plants
+b: My plants are doing very well, actually. The tomatoes especially.
+ | For the record, my basil is thriving. Because I talk to it.
+a: Because you talk to them. | So you admit it works.
+b: ... I walked into that. | I hate you a little.
+-> story
+
+= gentle
+b: What do you say to it? | Does it help?
+a: Mostly I tell her what's going on. The surface. The count.
+ | Mostly I apologise. For February. For leaving her to idle.
+b: You apologise to the core. | For February?
+a: Somebody should. It wasn't her fault. | She didn't choose any of it.
+-> story
+
+= story
+a: The chief sat up with her all night on the ninth. Talked the whole time.
+ | You know Rhel talked her through the ninth? Out loud, all night.
+b: What did he say? | Was it working?
+a: I don't know. It was in Bajoran. But she stabilised at dawn.
+ | Prayers, I think. Or insults. Hard to tell with Bajoran.
+...
+b: ... All right. That's a little bit lovely. | Okay. That's nice. I admit it.
+-> try 2, leave 1
+
+= try
+b: Can I say something to her? | Can I try?
+a: Go on. She likes new voices. | Go ahead. Be polite.
+b: Hi. Thank you for the lights. And the air. And the transporter.
+ | Hello. You're doing very well. We're proud of you.
+ | Thanks for everything. Please don't explode.
+a: See? She's steadier already. | Look at that. Point oh one better.
+b: That's a coincidence. | ... Is it?
+-> leave
+
+= leave
+b: Does she ever answer? | Has she ever said anything back?
+a: Not in words. But you learn her. The sounds she makes before she drifts.
+ | In her way. There's a tick in the housing before she runs warm.
+b: A tick. | What kind of tick?
+a: Listen. ... There. That's her being fine. | Hear that? That's contentment.
+b: I don't hear anything. | That's the ventilation.
+a: Give it five months. You'll hear it. | You will. Give it time.
+...
+a: Don't tell the Vulcans. | Don't tell security. They'll put it in my file.
+b: Your secret's safe with me. And her.
+ | I won't. Goodnight, {a}. Goodnight, core.
+a: Goodnight. Mind the cart on your way out. | Night. She says goodnight too.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_the_one_that_works
+where: engineering
+cast: a=engineer, b=operations, c=engineer
+weight: 2
+
+= start
+b: Transporter's green on every channel. Again.
+ | Transporter room ran a full check. Perfect. Every buffer, every coil.
+ | Guess what's still working perfectly.
+a: Of course it is. | The transporter. It's always the transporter.
+c: The one thing we can't fly with, and it runs like the day it was built.
+ | Warp dead, impulse dead, and the transporter's never been happier.
+-> strange 3, grateful 2
+
+= strange
+a: Doesn't that bother you? | You don't find that odd?
+b: Every day. They took the drives and left the lifeline.
+ | Constantly. Whoever did the ninth knew exactly which to leave alone.
+c: Or they missed it. | Or they didn't care about it.
+a: Nobody who hits warp and impulse in ninety seconds misses the transporter.
+ | Nobody that careful misses anything.
+-> manifold
+
+= grateful
+a: Thank the Prophets for the transporter. The chief says so daily.
+ | Without it we'd be a very well-lit tomb.
+b: Without it nobody gets beamed up. No ensigns. No crystals.
+ | No survivors, no dilithium, no Shepard. Nothing.
+c: I polish the pads myself on Sundays. | I think about that a lot.
+-> manifold
+
+= manifold
+c: Meanwhile, the impulse manifold. | Want to hear about the impulse manifold?
+ | Speaking of dead, I opened the impulse manifold again.
+a: Must I? | No. Yes. Go on.
+c: Six regulators. All six fused. Not burned. Fused. Welded solid.
+ | The flow regulators are fused into the housing. Like they were cast there.
+b: Can they be cut out? | Can you replace them?
+c: I could cut them out. I've nothing to put back. They need a starbase.
+ | We'd need to fabricate new ones, and the replicator can't do that alloy.
+-> fused 2, hope 2
+
+= fused
+a: Fused like a surge would fuse them? | That's not a normal failure.
+c: A surge burns. This is too neat. Every regulator at the same weld point.
+ | A surge would take one, maybe two. This took all six, the same way.
+b: That's horrible. | So it was done on purpose. Precisely.
+c: I'm not saying anything. I'm describing a regulator.
+ | I'm just an engineer describing a part. Draw your own conclusions.
+-> close
+
+= hope
+b: What about the shuttle? Could the shuttle's parts fit?
+ | Could we strip something out of Shepard's shuttle?
+c: Wrong scale. Her impulse is a toy next to ours.
+ | Maybe the alloy, maybe. I asked. Rhel said not yet.
+a: Not yet is better than no. | I'll take not yet.
+-> close
+
+= close
+b: So. Transporter perfect, impulse welded. | So we can beam, and we can't move.
+a: We can beam. We keep beaming. | We work with what they left us.
+-> pads 3, wrap 1
+
+= pads
+b: The pad crew asked me to thank you, by the way. For the last check.
+ | Kess says the pads have never run cleaner. That's you lot.
+c: It's not us. It's her. She was built right. We just keep her dusted.
+ | We barely touch them. They just work. They've always just worked.
+a: Every survivor that comes up comes up through those coils.
+ | Every ensign they bring up, every crystal. All through those pads.
+b: Somebody down there's been sending them. Nobody knows who.
+ | And whoever's down there marking them. We don't know who that is.
+a: Then whoever it is, I hope they know we're grateful.
+ | I hope they're eating well. I hope they're safe.
+-> wrap
+
+= wrap
+...
+c: Back to it. The regulators won't un-weld themselves.
+ | I'll draw up the fabrication specs anyway. Someday.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_shuttle_bay
+where: engineering
+cast: a=engineer, b=command, c=sciences
+weight: 2
+
+= start
+b: The first officer's asked for proposals on the shuttle bay.
+ | Command wants the shuttle bay used for something. Ideas?
+ | Right. The shuttle bay. We're finally having this conversation.
+a: Hydroponics. It's the only open floor we've got that can take the weight.
+ | A second workshop. We're tripping over each other in here.
+c: It's got a shuttle in it. A historically significant shuttle.
+ | Lieutenant Shepard's shuttle is in it. You can't just move her shuttle.
+-> hydro 2, workshop 2
+
+= hydro
+a: Real crops. Real food. Grieg's already drawn a plan.
+ | Hydroponics. Soybeans, potatoes. Less replicator, less crystal.
+b: That's the best argument I've heard all week. | That's sensible.
+c: And the shuttle goes where? | Where does the shuttle go?
+a: The shuttle's been below half the time anyway. | It goes down, where it lives.
+-> shepard
+
+= workshop
+a: We need space to fabricate. The regulators, the conduit runs.
+ | We need somewhere to build parts that aren't the core room.
+b: With what materials? | Build them from what?
+a: From what we salvage. From what comes up the transporter.
+ | Scrap. Surface metal. Anything.
+c: You'd strip the shuttle for parts. Admit it. | You want to cannibalise it.
+a: I'd never. Well. Not all of it. | Only the non-historic bits.
+-> shepard
+
+= shepard
+c: That shuttle is her field station. She spent five months on that planet.
+ | It's a working field station, {a}. With a refrigerator from 1993.
+b: Has anyone asked her? | Has anybody actually asked Lieutenant Shepard?
+a: She's been in with the Doctor since she came up. Nobody's had the nerve.
+ | I tried. She talked for forty minutes about a lamp.
+-> powerbus 3, furniture 2
+
+= furniture
+c: That lamp is period accurate. | The lamp is important.
+a: There's a sofa. There's a television. There is a chair she won't let anyone
+ | It has a sofa, a stove, and a theatre chair that nobody is allowed to
+a: move. Not an inch. | sit in, or even touch.
+b: I'd heard about the chair. | Why the chair?
+c: She's never said. Leave her the chair. | Nobody knows. Leave it be.
+-> powerbus
+
+= powerbus
+a: And have you seen what she did to the power bus? | Her wiring, though.
+b: No. Should I? | Bad?
+a: She hung surface appliances off the shuttle's bus. Through an adapter.
+ | She ran a 1990s refrigerator off a shuttle's EPS. With an adapter she made.
+c: It works. | Does it work?
+a: It works perfectly. That's what upsets me. | It's brilliant and I hate it.
+-> hack 2, decide 2
+
+= hack
+a: The adapter's made out of a toaster and a Starfleet coupling.
+ | Half of it is a surface power strip. Half is a phase regulator.
+c: Historians improvise. | She's a survey specialist. She makes do.
+a: The chief wants to put it in the training manual. As a warning.
+ | Rhel looked at it for a long time and then said, very quietly, clever.
+-> decide
+
+= decide
+b: Here's what I'll take up. Half the bay for hydroponics. The shuttle stays.
+ | Proposal: hydroponics along the port side. The shuttle keeps her corner.
+c: And nobody touches her things. | And the furniture stays in the shuttle.
+a: And I get one bench for fabrication. | Fine. But I want a workbench.
+b: One bench. And ask her, first. Politely. | Agreed. Somebody ask her. Kindly.
+c: I'll ask her. She'll talk to me. We're both from the lab side.
+ | Let me ask. She's had a hard few months. She should hear it from a friend.
+a: Tell her we'll keep her refrigerator running. That might win her over.
+ | Tell her the adapter is safe. Tell her I admire the adapter.
+c: I'll tell her you called it brilliant. | I'll tell her you used the word clever.
+a: I did not say brilliant. | I said it was brilliant and I hated it.
+c: She'll only hear the first half. | I'll leave out the second part.
+...
+b: Proposal to the first officer by end of shift, then.
+ | I'll write it up. Hydroponics, a bench, a shuttle, and a sofa.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_like_a_surgeon
+where: engineering
+cast: a=engineer, b=engineer, c=security
+weight: 2
+tags: lore
+
+= start
+a: I pulled the damage map from the ninth up again.
+ | I've been rebuilding the ninth in the simulator. Step by step.
+b: Why do that to yourself? | Of course you have.
+a: Because it bothers me. Not that it happened. How it happened.
+ | Because it wasn't vandalism. Look at it. Just look.
+-> map
+
+= map
+a: Warp: the intermix controller, and nothing else. Impulse: the regulators.
+ | Two cuts. Only two. Warp controller, impulse regulators.
+b: And the rest of the ship? | And everything else?
+a: Untouched. Life support, the core, the transporter, the replicators.
+ | Not a scratch. Air, power, food, the pads. All of it left for us.
+-> surgeon 3, why 2
+
+= surgeon
+b: It's like somebody who knew exactly how to blind a ship.
+ | Like a surgeon. Cut the nerve, leave the patient breathing.
+a: Yes. That's it. Blind it, don't kill it. | Exactly. Stranded, not dead.
+b: Why would anyone want that? | Who wants a witness that can't leave?
+a: I don't know. That's the bit that keeps me up. | I've got no idea.
+-> theories 3, chief 1
+
+= chief
+b: Have you shown the chief? | Does Rhel know you're doing this?
+a: He built half of it with me. At three in the morning.
+ | He watched it once. Then he went and sat with the core for an hour.
+b: What did he say? | Did he say anything?
+a: Whoever it was, they've been in an engine room before. That's all.
+ | Only that they knew her. Knew her like one of us would.
+-> theories
+
+= why
+b: Maybe they didn't have time for more. | Maybe they got interrupted.
+a: Ninety seconds, and it was over. They weren't rushed. They were finished.
+ | They had time. They used exactly what they needed. Nothing more.
+b: That's a very tidy saboteur. | That's cold.
+-> theories
+
+= theories
+c: I'd be careful putting that in a report. | Is this for the Captain?
+ | You're doing security's job again.
+a: It's just a simulation, {c}. I'm not accusing anyone.
+ | Nobody's being named. I just want to understand it.
+c: Everybody has a theory. Mine changes every week.
+ | You know Shepard thought Section 31. That was her whole theory.
+-> s31 2, q 1, sickbay 1
+
+= s31
+b: Section 31 would know how to blind a ship. | That'd fit, wouldn't it?
+c: It'd fit. A lot of things fit. That's the trouble with this one.
+ | Maybe. But Okafor looked genuinely rattled when she said it.
+a: Rattled how? | You saw that?
+c: Like a man who'd just found out he wasn't the worst thing in the room.
+ | Like somebody who'd been blindsided too. I don't know. Drop it.
+-> close
+
+= q
+b: Some of the science deck say Q. A whole planet from nowhere, why not us?
+ | The Q theory's gaining ground in the science labs.
+c: Sensible people believe it. I'm not sure it explains a fused regulator.
+ | A Q wouldn't need regulators. It'd just snap its fingers.
+a: That's what I keep saying. This was hands. Tools. Knowledge.
+ | Whoever did this held a spanner. I'd bet my rank on it.
+-> close
+
+= sickbay
+b: I heard sickbay found something odd in the samples. From the surface.
+ | Someone in the medical lab said the markers were confusing.
+c: I've heard that too. And I've heard the Doctor say he can support the
+ | Me too. Anwar's been quiet. The Doctor said something about chemistry,
+c: chemistry but not the author. Whatever that means.
+ | and not the author. Nobody knows what he meant.
+a: That's a strange thing for a hologram to say. | That's unsettling.
+-> close
+
+= close
+...
+a: I'll keep it in the simulator. For now. | I'll keep working on it. Quietly.
+b: Quietly is good. | Get some sleep first.
+c: And lock that simulation. Nobody else needs a nightmare.
+ | Send me a copy. Not the Captain. Me.
+a: Why you and not the Captain? | You don't want the Captain to see it?
+c: She's seen it. She saw it the day after. She knows what it looks like.
+ | Because she already knows. She's had her own copy since February.
+b: Then why hasn't she said anything? | And she's never said?
+c: Because saying it doesn't get us anything but scared of each other.
+ | Because a ship this size can't afford to look over its shoulder.
+...
+a: Understood. I'll send it to you. Only you. | All right. Just you.
+b: And then we go and get something to eat. Something real.
+ | And then you sleep. Actual sleep. Not simulator sleep.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: eng_the_cart
+where: engineering
+cast: a=engineer, b=operations
+weight: 1
+tags: rare
+
+= start
+b: Why is the antigrav cart floating by the ceiling?
+ | Has anyone seen the antigrav cart? It was here a minute ago.
+ | Um. {a}? The cart's doing something.
+a: Oh no. | Don't move. Don't touch it.
+a: Somebody set the lift to maximum. With a crate of spare seals on it.
+ | It's stuck on maximum. Again. I told them the dial is backwards.
+-> ladder 2, wait 2, rhel 1
+
+= ladder
+b: I'll get the ladder. | Where's the ladder?
+a: The ladder is on the cart. | We put the ladder on the cart.
+b: Why is the ladder on the cart? | Who put the ladder on the cart?
+a: To reach the cart. Before. When it first did this.
+ | For exactly this situation, which has happened before.
+...
+b: So we need a ladder to reach the ladder. | This is a very good system.
+-> wait 2, rhel 1
+
+= wait
+a: It'll drift down when the charge runs out. About two hours.
+ | The field decays. Give it a couple of hours.
+b: Two hours. Under it. | We just wait under it?
+a: Not under it. Never stand under it. Learn from the ensign.
+ | Beside it. Not under. Ask Ensign Haddad why not under.
+b: What happened to... | Is Haddad all right?
+a: He's fine. It was a crate of socks. He has a lovely story now.
+ | Fine. Mild bruise. He tells it at every meal.
+-> rhel 1, fix 2
+
+= rhel
+b: What if the chief comes in? | Rhel will be here in ten minutes.
+a: Then we tell him it's a test of the ceiling clearance.
+ | Then we salute the cart and hope he doesn't look up.
+b: He'll look up. | He always looks up.
+a: He'll look up, sigh, and go back to talking to the core.
+ | He'll look up and say, in Bajoran, something I won't translate.
+-> fix
+
+= fix
+b: Could we just... tap it down? With the spanner?
+ | What if I throw a coil of cable over it and pull?
+a: Try it. Gently. | Gently. Like a balloon.
+...
+b: It's coming down! It's... going sideways. | Got it. Oh. It's rotating.
+a: Grab the handle! | Handle, handle!
+b: Got it. Got it. We're fine. | Landed. We have landed.
+a: Good. Now nobody tells anyone. | Excellent. Put it in the log as routine.
+b: Routine cart maintenance. | Nothing to report. Nothing whatsoever.
+a: And the dial. Somebody please tape an arrow on the dial.
+ | Label the dial. In big letters. UP means DOWN.
+b: I'll do it now. With the red tape. | Red tape. Big arrow. Done.
+...
+b: Um. {a}. Where's the crate of seals? | Wait. Where did the seals go?
+a: ... Look up. | Oh, no. Look up.
+b: How is the crate still up there? | The crate's still on the ceiling.
+a: It had its own lift plate. Of course it did. | Two hours, then. We wait.
+b: I'll get chairs. | I'll get us both a coffee.
+-> end
+
+# ---------------------------------------------------------------------------
+bark: idle
+where: engineering
+- Come on, come on. Stay green. | Hold, you. Hold. | Easy. Easy now.
+- Point oh two. Better. | Intermix looks happy. For once.
+- Where did I put the hyperspanner? | Who took my spanner? | Spanner. Spanner.
+- Nineteen had better behave today. | If nineteen fuses again, I'm moving out.
+- Recalibrating. Recalibrating. Recalibrating. | Run it again. Run it again.
+- One crystal in, two on the rack. | Count's the same. Good. | Ledger balances.
+- Tube seven. Again. Wonderful. | Who's got the tube schedule?
+- Diagnostic complete. Nominal. Of course. | Nominal. It's always nominal.
+- She's running warm. Just a touch. | Little warm. Nothing to worry about.
+- Don't stand under the cart. | Is the cart on the ceiling again?
+- Seals, gaskets, couplings. Seals, gaskets. | Where's the inventory padd?
+- Someday I'm going to fix the impulse manifold. Someday.
+ | Six regulators. Welded. Every one.
+- The transporter's perfect. Nothing else is. But the transporter's perfect.
+- Good morning, core. | Evening, sweetheart. | Nearly shift change, you.
+- Coffee. I need coffee. Real coffee. | Is there any coffee in this room?
+- The chief's been in since four. Again. | Rhel never sleeps. I'm convinced.
+- Crate of seals. Crate of seals. Where does this go?
+ | Who labelled this crate spares? Everything's spares.
+- EPS load within limits. Barely. | Galley draw's up. Must be lunch.
+- Log that. Log everything. | Did anyone log the trim?
+- Lock your console. Every time. | Console locked. Every time now.
+- Wild ground. Always wild ground. Why? | Never under a town. Not one crystal.
+- Hmm. Hmm. Hmm-hmm. | Humming helps. It helps.
+- Stay lit. Just stay lit. | Keep the lights on, girl.
+
+bark: hello
+where: engineering
+- Watch the conduit. | Mind the cabling. | Careful, it's live.
+- Come to see the core? She's lovely today. | Say hello to the core.
+- Don't touch anything green. | Don't touch the blue one either.
+- Engineering. Who've you come to shout at? | What broke?
+- Hands off the master display, please. | Please don't lean on the display.
+- You look like you need a spanner. | Need a hand with something?
+- If it's the replicator schedule, talk to ops. | It's not the replicator. It's never us.
+- Morning. Mind the cart. | Evening. Mind the cart. | Mind the cart.
+- Chief's in the tubes. Can I help? | Rhel's busy. I'm less busy.
+
+bark: outfit
+where: engineering
+- Hazard gear would be better than whatever that is.
+ | Is that fabric flammable? It looks flammable.
+- You can't wear that near the core. | That's not regulation near the plasma.
+- Did you walk in from the shuttle bay? The historical corner?
+ | Is that from Shepard's shuttle?
+- Sleeves like that catch on things. Mind the conduits.
+ | Tuck that in before it gets caught in something.
+- Are you... supposed to be in Engineering? | Who signed you in?
+- Nice jacket. Keep it away from the injectors. | Is that denim? Down here?
+- That'll be a surface outfit, then. | Did somebody beam you up in that?

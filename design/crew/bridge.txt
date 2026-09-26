@@ -1,0 +1,1443 @@
+# The bridge and the Ready Room (CREW.md 4). Compiled by tools/gen_crew_talk.py.
+
+# ---------------------------------------------------------------------------
+# A helm officer with nothing to steer.
+
+scene: bridge_helm_nothing
+where: bridge
+cast: helm=helm, ops=operations
+weight: 3
+
+= start
+helm: Course plotted. | Course laid in, for the record. | New course, plotted and filed.
+helm: Standard orbit. Same inclination. Same everything.
+    | Standard orbit, same as yesterday. Same as February.
+ops: {helm}, that's the orbit we're already in.
+   | You plotted the course we're on. We are on it.
+   | That's where we are. You plotted where we are.
+-> count 3, sim 2, symbiont 2
+
+= count
+helm: It keeps the hands honest. | A helm officer plots. It's what we do.
+    | If I stop plotting, I'll forget how.
+ops: How many is that today? | What's the count this shift?
+helm: Fourteen. Nine to Earth, three to Bajor, one to a noodle bar on Risa.
+    | Eleven. Two home, one to Risa, eight to places I've never been.
+ops: And the last one? | That's thirteen. What's the other one?
+helm: Round the moon and back. Slingshot. Very pretty.
+    | Nowhere. I just like the sound the console makes.
+ops: Daro does the same thing on alpha shift. You two should compare.
+   | Ensign Daro plots them too. Every morning. Sets a new one every day.
+helm: We do compare. His are better. He's had four lifetimes of practice.
+    | We do. We've got a league table. He's winning.
+-> talk 2, rhel 1
+
+= sim
+ops: Were you in the helm sim again last night? | You flew the sim again.
+helm: Twenty minutes. Kess signed it off. Rationed, like everything.
+    | Half an hour. Holodeck time's rationed, but the sim's cheap.
+ops: What did you fly? | Where'd you go?
+helm: Badlands run. Plasma storms both sides. Lost a nacelle. Kept going.
+    | A nebula approach under fire. Every mark. Twice.
+    | A slow run through the rings of Saturn. No reason. It was nice.
+ops: Show-off. | Of course you did. | Did it help?
+helm: For twenty minutes, the stars moved. | It helped until it stopped.
+-> symbiont 1, talk 2
+
+= symbiont
+ops: What does the symbiont make of all this?
+   | Does your symbiont have an opinion about sitting still?
+helm: It has three. | Three opinions. All at once. All loudly.
+helm: One host says wait. Patience is a skill, she says.
+    | The oldest host says wait. She lived through worse.
+helm: One says get out and push. He was an engineer.
+helm: And the third was a pilot. He just wants to fly.
+    | The third one flew freighters. He's the one who plots the courses.
+...
+ops: And you? | Which of you wins? | And what do you think?
+helm: I think the chair is very comfortable. | I sit here. That's my vote.
+-> talk
+
+= talk
+ops: Nobody's going to take the helm off you for doing nothing, you know.
+   | The captain wouldn't mind if you stood a shift somewhere useful.
+helm: I know. | That's the trouble. Nobody would notice.
+helm: Ops runs the ship. Tactical watches. Science counts. I sit.
+    | Every other station on this bridge has a job. Mine's a museum.
+ops: Somebody has to be ready, {helm}. | The day she moves, you'll be here.
+   | She'll need a pilot the second she can move. That's you.
+-> rhel 2, view 2
+
+= rhel
+ops: Rhel thinks he'll have the thrusters back inside a month.
+   | Engineering says a test fire on the impulse coils. Soon.
+helm: Rhel said that in March. | Rhel says that every month.
+    | Rhel talks to the warp core. I'm not sure it answers.
+ops: He's closer than he was. I've seen the logs.
+   | He's rewired half of deck nine. He means it this time.
+helm: Then I'll be sitting here when he does. | Then I'll keep plotting.
+-> view 1, ready 2
+
+= view
+helm: You know what I miss? Stars moving. | I miss the streaks.
+    | I miss the stars going past. Just that.
+helm: Months of the same horizon. Same county, same weather.
+ops: It's a pretty county. | It could be a worse view.
+...
+helm: It was. | It was a pretty county.
+ops: Yes. | It was.
+-> ready 2, called 2
+
+= ready
+helm: One more, then. For when. | Plotting one more. For when.
+ops: For when. | Save it. We'll want it. | File it with the others.
+-> end
+
+= called
+ops: That's me. Kess wants the power logs. | Ops is calling. Try not to steer.
+   | I'm wanted below. Don't fly off without me.
+helm: I'll steer the coffee. | Aye. Keep the lights on.
+    | I'll try to contain myself.
+-> end
+
+# ---------------------------------------------------------------------------
+# Ops, watching the county on long-range sensors.
+
+scene: bridge_county_sensors
+where: bridge
+cast: ops=operations, sci=sciences
+weight: 3
+
+= start
+ops: Northeast grid's dark again. | Another town went dark last night.
+   | There were lights on the river road yesterday. There aren't now.
+sci: Which one? | Show me. | How many?
+ops: The little one by the river. Three houses had lights. Now none.
+   | Main street. A petrol station and two houses. All out.
+-> lights 3, fire 2, count 2
+
+= lights
+sci: Generators run out. That's all it may be.
+   | Fuel runs out. It doesn't have to mean anything.
+ops: I know. | I know it doesn't. | That's what I tell myself.
+ops: One of them came on every evening at nine. Regular as a chronometer.
+   | There was one that blinked. On, off, on. Like somebody checking.
+sci: You were watching one window? | You've been counting their lights.
+ops: Somebody should. | It's the night watch. What else is there to watch?
+-> window 2, rule 2
+
+= fire
+ops: There's a fire west of the big town. It started an hour ago.
+   | Heat bloom, west side. Something's burning.
+sci: Houses? | Is it spreading?
+ops: A street of them. Nobody's putting it out. | Slowly. Nobody's fighting it.
+sci: There's no fire service left. | There's nobody to call.
+...
+ops: In June, that would have had four trucks on it inside ten minutes.
+   | In June there'd have been sirens. I used to hear them in the audio sweep.
+-> radio 1, window 1, rule 2
+
+= count
+sci: Life signs? | What do the life signs say?
+ops: The same as yesterday, roughly. | Scattered. Fewer. Hard to read.
+ops: And the other readings. The ones that move and aren't alive.
+   | And the others. The ones the sensors can't decide about.
+sci: Don't. Not tonight. | I know. I've seen them.
+   | We call them readings. It helps.
+-> radio 2, rule 1, window 1
+
+= radio
+ops: Do you remember the radio? The county station?
+   | I used to leave the audio sweep on their radio station. Night shift.
+sci: The one with the farm prices? | The call-in show. The man with the dog.
+ops: Farm prices at six. Then a man who played records until midnight.
+   | Swap meet on Saturdays. Somebody always selling a tractor tyre.
+sci: I liked the weather. He was always wrong about the weather.
+   | I knew the jingle. I still know the jingle.
+ops: It went to a recorded message on the thirtieth. Then static.
+   | It played an emergency tone for a day. Then nothing.
+...
+sci: I didn't know his name. | We never even learned his name.
+ops: Shepard might. She'd know. | Shepard will have it written down.
+-> window 2, rule 2
+
+= window
+ops: Somebody's still down there. Somebody's lighting candles in that one.
+   | There's a farmhouse on the ridge. Lamp in the window, every night.
+sci: Alive. Good. Keep watching it. | Then there's somebody. Log it.
+ops: I log it. I don't know who I'm logging it for.
+   | I put it in the log. Every night. Farmhouse, lamp, alive.
+-> rule 2, quiet 2
+
+= rule
+sci: You know what the order says. Observe only.
+   | We observe. That was the whole posting.
+ops: I know what it says. | I've read the order, {sci}.
+ops: I didn't sign up to watch a town go out one window at a time.
+   | Observing was fine when it was market days and radio.
+sci: No. None of us did. | Neither did I.
+sci: For what it's worth, I don't think we could have stopped it.
+   | Two days, {ops}. Nothing we had could have moved that fast.
+ops: I know. It doesn't help as much as it should.
+   | That's what Tren says. I believe it about half the time.
+-> quiet 2, beam 2
+
+= beam
+ops: Somebody down there has been beaming our people up. One at a time.
+   | The transporter room has had a busy month.
+sci: Somebody on the ground's doing what we can't.
+   | Whoever it is, I'd buy them dinner. If I had any replicator credit.
+ops: I'd buy them two. | I'd give them my holodeck time.
+-> quiet
+
+= quiet
+...
+ops: Lamp's on. | There. The lamp's on. | Ridge farmhouse. Lamp's on.
+sci: Good. | Good. That's good. | Log it.
+ops: Logged. | Logged. Farmhouse, lamp, alive.
+-> stay 2, go 2
+
+= stay
+sci: I'll sit with you a while. | I'll take the next hour. Get coffee.
+ops: Thanks, {sci}. | Stay. It's better with two.
+-> end
+
+= go
+sci: Get some sleep after this. You look like I feel.
+   | Don't stay on past shift change. It doesn't help them.
+ops: After the next sweep. | One more pass. Then I'm done.
+-> end
+
+# ---------------------------------------------------------------------------
+# The sabotage diagnostic, for the hundredth time.
+
+scene: bridge_diagnostic
+where: bridge
+cast: sec=security, cmd=command
+weight: 3
+
+= start
+sec: Running the diagnostic again. | Starting the sweep. Level one.
+   | Level one diagnostic. Every system. Again.
+cmd: How many times is that? | Again? | What number is this one?
+sec: A hundred and four. | Hundred and six. I keep a tally on the wall.
+   | Ninety-nine. I want to make it a round hundred before shift ends.
+-> why 3, result 2, joke 1
+
+= why
+cmd: What do you expect it to find that it didn't find last time?
+   | You know it's going to say the same thing.
+sec: Maybe nothing. Maybe the thing it missed.
+   | Whoever did this knew our systems. Knew them better than we do.
+sec: The damage was surgical. Warp, impulse, long-range comms.
+   | They took exactly what we'd need to leave and to call. Nothing else.
+sec: They left us life support. They left the transporters.
+   | They didn't want us dead. They wanted us blind and staying put.
+cmd: That's not a comforting thought. | I've had that thought at three a.m.
+-> feb 2, inside 1, result 2
+
+= feb
+cmd: Where were you, that night? The ninth. | Were you on duty on the ninth?
+sec: Right here. Gamma shift. Coffee in one hand.
+   | Asleep. The red alert woke me. I came up in my socks.
+sec: Every board went amber at once. Then the warp core scrammed.
+   | The lights flickered, the core scrammed, and the helm went dead.
+cmd: I was in the mess. I felt the deck drop. The inertial dampers.
+   | I was in the turbolift. It stopped between decks for ten minutes.
+sec: Ten minutes later we were a space station. | And then it was quiet.
+   | And that was it. No explosion. No enemy. Just stopped.
+cmd: Rhel wept, I heard. | I'll never forget Rhel's face.
+sec: He wasn't the only one. | So did half of engineering.
+-> result 2, inside 1
+
+= joke
+cmd: You could just ask the computer if it did it.
+   | Have you tried asking the ship nicely?
+sec: I have. It said no. | It says there's no record of any sabotage.
+   | It said it was unable to comply. I took it personally.
+cmd: Then it's hiding something. | That's what a guilty computer would say.
+-> why 2, feb 1, result 1
+
+= result
+...
+sec: Sweep complete. | Level one's done. | Here it comes.
+sec: No foreign code. No unlogged access. Nothing.
+   | Clean. Every subsystem clean. Same as the last hundred.
+   | Nothing. Of course nothing.
+cmd: So we know what we knew. | Clean is still an answer.
+-> inside 2, gaps 2
+
+= gaps
+sec: Clean except for the gap. Four minutes on the ninth of February.
+   | Except the logs skip. Four minutes, February ninth. Every time.
+cmd: The same four minutes? | That's in every report, isn't it.
+sec: The same four. Something walked through our systems and wiped its feet.
+   | Every time. Four minutes. The only thing we know is what's missing.
+-> inside 2, ok 1
+
+= inside
+cmd: You think it was somebody aboard. | You're sure it came from inside.
+sec: Everybody thinks so. Nobody wants to say it at dinner.
+   | It came from inside. There's no other way in. I've checked them all.
+cmd: A hundred and forty-one people. You've known most of them for years.
+   | Careful, {sec}. We've got to live with each other up here.
+sec: I know. That's why I run the diagnostic instead of asking questions.
+   | I know. I'd rather accuse a subroutine than a shipmate.
+-> ok 2, rhel 2
+
+= rhel
+cmd: Rhel runs his own every morning. You two should pool results.
+   | Engineering's running the same checks. Talk to Rhel.
+sec: Rhel took it personally. He calls the core her and apologises to it.
+   | We do. He sends me his, I send him mine. Nothing matches anything.
+cmd: He's allowed. It was his ship they broke. | That's Rhel.
+-> ok
+
+= ok
+cmd: Get it in the log and take a break. | Log it and eat something.
+   | File it. Then take ten minutes.
+sec: After the next one. | Starting level two.
+   | Aye. After I queue the next sweep.
+cmd: {sec}. | Of course you are.
+-> end
+
+# ---------------------------------------------------------------------------
+# The science officer's catalogue of wrong details.
+
+scene: bridge_wrong_details
+where: bridge
+cast: sci=sciences, other=any
+weight: 3
+
+= start
+sci: Found another one. | Add it to the list. | Here's today's.
+other: Another what? | Go on, then. | How many is that now?
+sci: Another wrong thing. A difference. | A discrepancy. My list.
+   | Number three hundred and twelve on the list.
+-> street 3, calendar 2, food 2
+
+= street
+sci: There's a town down there with a street called Moonrise Road.
+   | There's a Chestnut Lane on the map where Earth never had one.
+sci: I checked the Federation archive. On Earth, it was never there.
+   | Same bend of river, same town, and the street isn't in Earth's records.
+other: Maybe somebody renamed it. | A different mayor. A different vote.
+sci: That's exactly my point. It grew. Nobody drew it. It grew.
+   | That's the finding. Near-identical where the land decides.
+sci: Wrong wherever people did the deciding.
+   | And wrong in a hundred little ways that people decided.
+-> hodgkin 2, calendar 1
+
+= food
+sci: They have a soda I can't find in any Earth record.
+   | Their cereal mascots are wrong. I have a whole subsection.
+other: You have a subsection on cereal. | You catalogued the cereal.
+sci: Material culture, {other}. It's what Shepard came here for.
+   | Shepard sent me the boxes. She'd want it catalogued properly.
+other: Is that why her shuttle's full of old furniture?
+sci: That's method. She'll tell you so. At length.
+   | Specimens. Every chair of it. Don't call it clutter to her face.
+-> street 1, hodgkin 2
+
+= calendar
+sci: And there's the calendar. | Then there's the date.
+sci: Their calendar says 1993. Ours says 2435.
+other: Well, it's a parallel world. Why shouldn't it be behind?
+sci: Because it runs at Earth's rate. A copy that runs can't lag.
+   | Because it isn't slow. Their year is our year, same length.
+sci: I've checked it four times. So did Shepard. It doesn't add up.
+   | It shouldn't read 1993. And it does. And nobody can say why.
+other: And nobody ever explained Miri either.
+   | You sound like the Miri file. Earth, but it can't be.
+-> hodgkin 1, miri 2
+
+= hodgkin
+other: Isn't this what Hodgkin's Law says? Similar worlds, similar results.
+   | Parallel development. Hodgkin's Law. Page one of the posting brief.
+sci: Hodgkin's Law under laboratory conditions. Same land, same people.
+   | Hodgkin, yes. The best test of it anybody ever ran.
+sci: Except nobody built the laboratory on purpose. Or we don't think so.
+   | Which raises the question of who set up the experiment.
+-> miri 2, done 1
+
+= miri
+sci: The Miri anomaly. Twenty-two sixty-six. Earth's continents.
+   | Kirk's crew found a planet with Earth's cities. Never explained.
+sci: That's the filing category. It has two entries now. Miri, and us.
+   | Starfleet has one folder for this. We're the second thing in it.
+other: And the Q theory? | Half the ship thinks it's Q.
+sci: A respectable theory. I haven't ruled it out.
+   | Sensible people hold it. I'd want more than a hunch.
+-> done 2, dilithium 2
+
+= dilithium
+sci: Here's my favourite. Dilithium.
+   | The best one isn't on the list. It's the dilithium.
+sci: It's in the wild ground. Fields. Woods. Never under a town.
+   | The probes find it in the country and never beneath a street.
+other: Maybe towns just dug it all out. | Maybe they mined it.
+sci: They don't know it exists. They've never mined a gram.
+   | Nobody down there knows what it is. The towns sit on bare rock.
+other: So the ground knew something the towns didn't.
+   | So what does that mean? | That's strange.
+sci: I don't know. That's why it's my favourite.
+   | Nobody knows. I love it.
+-> done
+
+= done
+other: Put it on the list. | Three hundred and thirteen, then.
+   | Add one for me. Scientist who won't sleep.
+sci: Already have. | Filed. I'll bring it up at the briefing.
+   | It's on there. It's on there twice.
+-> end
+
+# ---------------------------------------------------------------------------
+# The Q theory, respectfully argued.
+
+scene: bridge_q_theory
+where: bridge
+cast: sci=sciences, sec=security, cmd=command
+weight: 2
+
+= start
+sec: I'm just saying. A whole planet, right out of the history books.
+   | Say what you like. A copy of Earth doesn't happen by accident.
+sci: Here we go. | You've been talking to the Q people.
+   | Is this the Q thing again?
+-> for 3, against 2
+
+= for
+sec: Who else builds a world? We've got one category for it and it's Q.
+   | It fits everything. Omnipotent, bored, fond of humans. A world. Fits.
+sci: It's a respectable theory. It's on the file. The captain rates it.
+   | I don't dismiss it. People smarter than both of us think it's likely.
+cmd: I've read the file. It's not a bad argument. | It's not crazy.
+-> against 2, cmd_view 2
+
+= against
+sci: My problem's the finish. Q doesn't do half a job.
+   | My trouble is that it's untidy. A Q would make it perfect.
+sci: The street names are wrong. The calendar's wrong.
+   | The dates don't add up. The map's wrong in a hundred places.
+sec: Maybe that's the joke. | That's exactly what Q would do. On purpose.
+sci: An unfalsifiable theory is a comfortable one, {sec}.
+   | If every flaw proves it, nothing can disprove it.
+-> cmd_view 2, uxbridge 2
+
+= uxbridge
+cmd: There's the Uxbridge case. Rana Four. Not a Q.
+   | Don't forget Rana Four. The Uxbridge determination.
+sec: The Douwd? That was one house. | That was a house and a garden.
+cmd: One house we know about. Nobody knows what else his kind can do.
+   | That's the precedent. Something very old, keeping something it lost.
+sci: That's a different question. But it's a good question.
+   | The captain walked away and left it running. That's our order.
+-> cmd_view 1, vote 2
+
+= cmd_view
+cmd: Frankly, I don't care who built it. | Whoever made it, it doesn't matter.
+cmd: What matters is who's down there. They're people. Real people.
+   | They're real. Every one of them. That's the only thing I'm sure of.
+sci: Agreed. | Yes. | No argument.
+sec: No argument. I still think it's Q. | Agreed. Still Q, though.
+-> change 2, vote 1, bet 1
+
+= change
+sci: What would change your mind, {sec}? Honestly.
+   | Here's a test. What evidence would make you drop it?
+sec: A signature. Something a Q wouldn't bother to leave.
+   | A fingerprint. Somebody's tools left lying about.
+sec: Q doesn't need tools. If there are tools, it's someone else.
+   | If whoever made it needed equipment, it wasn't Q.
+sci: The probes keep turning up odd emitter traces. Old ones.
+   | There was a holo-emitter trace last week. Nothing in our database.
+sec: Then keep looking. I'll change my mind when you hand me one.
+   | Could be Q's. Q could leave a joke lying around.
+cmd: Shepard's on it. If there's a thing down there, she'll find it.
+   | Shepard has a theory about those traces. She won't say it yet.
+-> vote 2, bet 1
+
+= bet
+sci: Dinner rations on it? | A week of replicator time says it isn't.
+sec: Done. Who settles it? | Deal. Who's the judge?
+cmd: Whoever reaches Starfleet first. Could be a while.
+   | I'll hold the stakes. Winner gets to leave orbit.
+-> vote
+
+= vote
+...
+sec: It doesn't matter much, does it. Not now.
+   | Whoever it was, they're not here to ask.
+cmd: It matters to the report. It matters to them, one day.
+   | Somebody down there will want to know who made their sky.
+sci: I'll put it in the survey report. Both views. Respectfully.
+   | The report says unknown origin. It'll say it until we know.
+sec: Put Q first. | Spell my name right in the footnote.
+cmd: Back to work, both of you. | Enough philosophy. Stations.
+-> end
+
+# ---------------------------------------------------------------------------
+# The Prime Directive, given what happened below.
+
+scene: bridge_prime_directive
+where: bridge
+cast: sec=security, sci=sciences, cmd=command
+weight: 2
+
+= start
+sec: Can I ask something without being put on report?
+   | Permission to say something unpopular.
+   | I keep coming back to the order.
+cmd: Go on. | Always. Go ahead. | Carefully, {sec}.
+sec: Observe only. We watched. We watched the whole county die.
+   | We were ordered not to interfere. And we didn't. And they died.
+-> defend 2, doubt 2, feel 1
+
+= defend
+sci: The order was right when it was written. Nobody expected this.
+   | Non-interference isn't cowardice. It's a promise not to be gods.
+sci: Uxbridge, the Miri file. It's case law. It was correctly reasoned.
+   | The reasoning was sound. Every word of Shepard's file was true.
+sec: Sound reasoning. Dead county. | Correct. And look.
+-> doubt 2, twodays 2
+
+= doubt
+cmd: I've asked the same question. So has the captain.
+   | You're not the first to say it on this bridge.
+cmd: What could we have done? Warp and impulse were already gone.
+   | We'd lost the ship months before. We didn't have much to give.
+sec: We had transporters. We had a sickbay. | We could have warned them.
+sci: Warned them of what? We didn't know what was coming. Nobody did.
+   | And told them what? We didn't see it coming either.
+-> twodays 2, ground 1, now 1
+
+= feel
+sci: You're angry. | I can hear it. You're angry at the order.
+sec: I'm angry at someone. The order's the only one I can find.
+   | I'm angry at whoever did this. The order's just closer.
+cmd: That's allowed. | Tren would say that's healthy. Probably.
+-> defend 1, doubt 2
+
+= twodays
+sci: It went in two days. Two days, {sec}. The fastest thing I've ever seen.
+   | Forty-eight hours. We couldn't have beamed a hundredth of them up.
+cmd: And into what? A ship that can't leave?
+   | Where would we have put them? We've got a hundred and forty-one bunks.
+sec: I know. I know the numbers. | I've done the sums too.
+-> ground 2, now 2
+
+= ground
+sci: There was talk of going down. All of us. Finding somewhere safe.
+   | Remember the meeting? Isolate on the ground, somewhere remote?
+cmd: I remember. Half the room wanted it. | The captain let everyone speak.
+sec: Why didn't we? | What stopped it?
+cmd: A hundred and forty people walking into their world. Their history.
+   | It breaks the directive worse than anything we'd have fixed.
+sci: And the county wasn't safe. It isn't safe. Not for anybody.
+   | And we'd have been down there with whatever did that.
+sec: So the directive kept us alive. | So we stayed up here and watched.
+cmd: It kept us up here. Whether that's the same as alive, ask me later.
+   | We stayed. I don't know yet if it was right.
+-> now
+
+= now
+cmd: The directive doesn't stop us helping the ones who ask.
+   | The captain's ruled. Anyone who reaches us, we take.
+sci: Whoever's down there beaming people up, we don't turn them away.
+   | Every person on that transporter pad, we took. No hearing.
+sec: That's something. | It's not nothing. | Good.
+-> close 2, shepard 1
+
+= shepard
+sec: Shepard stayed down there because of that order. Did you know?
+   | Shepard argued with the captain about it. On the channel.
+sci: She stayed for the work. She stayed because she's stubborn.
+   | She said it was the only way to understand them. From the ground.
+cmd: And now she's up here arguing with everyone else about it.
+   | She's still arguing. That's how you know she's all right.
+-> close
+
+= close
+...
+cmd: Write it down, {sec}. All of it. Somebody should read it one day.
+   | Put it in a log. When we get home, there'll be an inquiry.
+sec: Aye, sir. | I will. | Somebody should.
+sci: I'll co-sign it. | Put my name on it too.
+-> end
+
+# ---------------------------------------------------------------------------
+# The daily hail into dead long-range comms.
+
+scene: bridge_daily_hail
+where: bridge
+cast: ops=operations, cmd=command
+weight: 3
+
+= start
+ops: Oh-eight-hundred. Hailing Starfleet. | It's time. Sending the hail.
+   | Daily hail, going out now.
+cmd: Carry on. | Go ahead. | Same as always.
+ops: Starfleet Command, this is the Adirondack. Please respond.
+   | Adirondack to any Federation vessel. Please respond.
+-> wait 3, form 1
+
+= form
+ops: I've got the text memorised now. | I don't even read it anymore.
+   | I changed one word today. Please, before respond.
+cmd: Did it help? | Anything different?
+ops: No. But it felt more polite. | No. It felt like it might.
+-> wait
+
+= wait
+...
+ops: Nothing. | No carrier. No echo. | Dead air. Same as ever.
+cmd: How long's the array been dark? | How many days is that?
+ops: A hundred and sixty-some. I stop counting in the morning.
+   | Since February. I count them. I stopped writing them down.
+-> why 2, letters 2, stop 1
+
+= stop
+cmd: You don't have to do it every day. There's no order.
+   | You know the captain never asked you to.
+ops: No. There's no order. | I know. It's mine.
+ops: If the array comes back one morning and nobody was listening...
+   | One day it'll get out. I want to be sitting here when it does.
+cmd: Fair enough. | Then keep sending.
+-> letters 2, why 1
+
+= why
+ops: Rhel says the transmitter's sound. It's the relay path. Just gone.
+   | It's not broken. It's scrambled somewhere past the heliopause.
+cmd: Sabotaged, you mean. | Somebody took it out carefully.
+ops: That's the word everybody uses. | That's what the diagnostics say.
+-> letters 2, answer 1
+
+= answer
+ops: Sometimes I think I hear something. Then it's the carrier hiss.
+   | Some mornings I'd swear something answered. It never has.
+cmd: The mind does that. | Me too. On the late shift.
+ops: Tren says it's normal. Wanting a thing so much you hear it.
+   | I had the computer analyse one. It was a solar flare. Of course.
+-> letters
+
+= letters
+cmd: Did you put anything in the buffer? | Anything to send, if it clears?
+ops: My sister's letter. Forty-one pages. | The whole crew's letters.
+   | Mine, and about a hundred others. Everyone wants to be in the queue.
+cmd: Forty-one pages? | That's a lot of letters.
+ops: She'll want all of it. She'll read every word.
+   | They're all in there, the whole buffer. Waiting.
+-> first 2, close 1, captain 1
+
+= first
+cmd: If a voice did answer one morning. What would you say first?
+   | Suppose somebody answers tomorrow. What's the first thing you say?
+ops: I've practised. Adirondack, alive, hundred-odd aboard, send a tug.
+   | Protocol says ship's status. I think I'd just say hello. Hello!
+ops: Then I'd probably cry on an open channel. | Then I'd yell for the captain.
+cmd: They'd forgive you. | I'd cry too. Don't tell anyone.
+   | I think that would be in the log forever.
+ops: And then I'd ask about the eleven. If they know anything.
+   | Then the list. The eleven. Whoever's still on the ground.
+cmd: They won't. | They wouldn't know. Nobody knows we're here.
+ops: I know. I'd ask anyway. | Still. Somebody has to ask.
+-> captain 1, close 2
+
+= captain
+ops: The captain asks every morning. Before she asks anything else.
+   | The captain comes by after. Doesn't say anything. Just checks.
+cmd: She would. | Of course she does. | That's Vale.
+-> close
+
+= close
+ops: Hail logged. Trying again tomorrow. | Logged. Again tomorrow.
+   | Logged. Oh-eight-hundred, tomorrow.
+cmd: Tomorrow. | We'll try tomorrow. | Good work, {ops}.
+-> end
+
+# ---------------------------------------------------------------------------
+# Shift change handover.
+
+scene: bridge_shift_change
+where: bridge
+cast: off=command, on=any, third=helm
+weight: 3
+
+= start
+on: Relieving you, {off}. | Morning. Here to take over.
+  | I'm your relief. Report?
+off: Oh, thank you. | At last. | You're early. Bless you.
+off: I stand relieved. | You have the watch. | Watch is yours.
+-> report 3, joke 2
+
+= joke
+on: Anything happen? | Tell me something exciting happened.
+off: The ship orbited. Twice. | We went round. Then round again.
+   | Planet's still there. We checked.
+third: I plotted a very good course to nowhere. | I kept us in orbit.
+    | Don't forget, I held a very steady orbit.
+off: {third} held a very steady orbit. | Superb flying, as ever.
+-> report
+
+= report
+off: Replicator queue's backed up on deck four. Somebody wanted cake.
+   | Two coolant alarms in engineering. Rhel says they're fine.
+   | Galley's out of coffee substitute until Grieg says otherwise.
+on: Understood. | Noted. | That's a crisis.
+off: Long-range: nothing. Probe out, coming back in an hour.
+   | Comms: still dark. Sensors: quiet. Transporter: on standby.
+on: And the surface? | Anything from below? | The county?
+off: Two new fires on the east side. The ridge farmhouse lamp came on at ten.
+   | Quiet. One beacon flickered around midnight, then held. Kess has it.
+third: The lamp's still going. I checked twice. | I always check the lamp.
+-> pool 2, ration 2, captain 2, shepard 1
+
+= pool
+third: Before you go. Is the pool still open? | Did you put in for the pool?
+on: What pool? | The pool's still going?
+off: The warp pool. Pick the day Rhel gets the core to take a warp field.
+   | Everyone puts in a ration bar and a date. Closest date takes the lot.
+third: I've got the fourteenth of September. | I said Christmas. Earth's.
+on: That's optimistic. | That's a bleak one.
+off: Grieg has tomorrow. She's had tomorrow every day since March.
+   | Rhel's not allowed in. He'd have an unfair advantage.
+on: Put me down for the first of October. | Put me down for next week.
+off: Done. One ration bar. Pay up. | Noted. I want that bar by noon.
+-> ration 1, captain 2, end_off 1
+
+= ration
+on: Is the holodeck schedule posted? | Did you get my holodeck slot?
+off: Friday. Twenty minutes. Kess was being generous.
+   | Next week. Kess says your last program ran over.
+on: By thirty seconds! | That was one extra lap.
+third: Thirty seconds of a sailing program. It was very nice sailing.
+    | Kess counts seconds. Kess counts everything.
+-> captain 2, end_off 1
+
+= captain
+on: Where's the captain? | Is Vale still up?
+off: Went to her ready room at oh-two-hundred. Hasn't come out.
+   | Walked the decks all night. Said she'd sleep. I don't believe her.
+third: She'll be up. She's always up. | She never sleeps. You know that.
+on: Someone should make her rest. | Has anyone told Tren?
+off: Try it. I'll watch. | Tren tried. She got a very polite no.
+-> end_off 2, shepard 1
+
+= shepard
+off: Shepard came up asking for her shuttle's telemetry. Again.
+   | Oh, and Shepard wants to beam something up off her shuttle again.
+on: For what? | What is it this time?
+off: A lamp. A floor lamp. From nineteen ninety-three. Kess said no.
+   | A cassette deck. She says it's a specimen. I say it's a radio.
+third: We're going to need a bigger shuttle.
+    | Her shuttle's already got a fridge in it. A fridge.
+-> end_off
+
+= end_off
+off: That's everything. Try to stay awake.
+   | That's the watch. It's all yours. Enjoy the view.
+on: Get some sleep. | Go eat. | Go. Before something happens.
+off: Nothing ever happens. | If something happens, don't tell me.
+   | Wake me if we move.
+third: If we move, I'm telling everyone. | We won't. But I'd love it.
+-> end
+
+# ---------------------------------------------------------------------------
+# The captain: respect and worry.
+
+scene: bridge_captain_worry
+where: bridge
+cast: ops=operations, helm=helm
+weight: 2
+
+= start
+ops: Has the captain eaten today? | Did you see Vale this morning?
+   | Anyone seen the captain eat anything?
+helm: Coffee. Two, at least. | She had soup. Some of it.
+    | Not since yesterday, as far as I know.
+ops: That's not food. | That doesn't count. | That's something.
+-> sleep 3, respect 2
+
+= sleep
+helm: She walked deck six at three a.m. I passed her by the lift.
+    | Grieg says she's in the galley at odd hours, just sitting.
+ops: What was she doing? | Did she say anything?
+helm: Checking on people. Knocking on doors. Asking if they were all right.
+    | Said good morning. It was the middle of the night.
+ops: Has she slept since February? | I don't think she's slept since February.
+helm: Properly? No. | I think she sleeps sitting up.
+-> night 2, respect 1, tren 1
+
+= night
+helm: I found her in the transporter room once. Middle of the night.
+    | The transporter chief says she comes down when a beacon's live.
+ops: Waiting? | For a rescue?
+helm: For a beam that was scheduled for noon. She sat there all night.
+    | For anyone. She stands by the pad and waits. Doesn't sit down.
+ops: Did it come? | Did they come up?
+helm: At dawn. Ensign Haddad, off a roof. She was the first face he saw.
+    | Not that night. She went back up to the bridge and said nothing.
+ops: She carries every one of them. | That's the whole job, for her.
+helm: The eleven are on a padd on her desk. Names, last known.
+    | She keeps the eleven on a padd by her chair. Crosses nobody off.
+-> respect 2, tren 1
+
+= tren
+ops: Tren should say something. | Does the counselor know?
+helm: The counselor knows. She's on it. She's on everybody.
+    | Tren has a list. The captain's on it. She's on everyone's list.
+ops: Busy. | Tren is very busy. We're all on her list.
+-> respect 2, help 2
+
+= respect
+ops: She gave her holodeck time to the night shift. All of it.
+   | When the ration board went up, she put herself at the bottom.
+helm: She knows every name aboard. Every one. Hundred and forty-one.
+    | She learned the whole crew roster in a week. Every name.
+ops: She knows the eleven too. By heart. | She still says their names.
+...
+helm: I'd follow her anywhere. | I would too. Wherever.
+ops: We're not going anywhere. | That's lucky, then. We're staying put.
+-> help 2, dry 1
+
+= dry
+helm: Do you know what she said to me yesterday? I told her I was bored.
+    | I asked her once if she was worried. You know what she said?
+ops: What? | Go on.
+helm: Ensign, a ship in orbit is a ship on duty. Then she smiled.
+    | She said, I'm always worried. That's what the pips are for.
+ops: That's her. | Dry as a Vulcan desert.
+-> help
+
+= help
+ops: We should do something. Make it easier for her.
+   | We could take some of the load. The small things.
+helm: Like what? | What would help?
+ops: Be good at our jobs. Not add to the pile.
+   | Run a tidy watch. Don't give her one more thing.
+helm: I can do that. | That, I can manage. | Easy. Mostly.
+-> end_on 2, end_her 1
+
+= end_her
+...
+helm: She's coming. Look busy. | Captain on the bridge.
+ops: I'm always busy. | We are busy. We are extremely busy.
+-> end
+
+= end_on
+helm: Back to it, then. | Right. Tidy watch. | Stations.
+ops: Tidy watch. | Stations.
+helm: And someone take her a sandwich. A real one, from Grieg.
+    | I'll ask Grieg to send up soup. She eats if it's put in front of her.
+ops: Put my name on it. She'll eat it to be polite. | Good plan.
+-> end
+
+# ---------------------------------------------------------------------------
+# Cmdr. Okafor, and the rumours. (lore: hedged, never stated)
+
+scene: bridge_okafor_rumour
+where: bridge
+cast: sec=security, sci=sciences
+weight: 2
+tags: lore
+
+= start
+sec: Okafor was on the bridge again last night. | Did you see Okafor?
+   | Commander Okafor came up for the long-range sensor logs.
+sci: The Intelligence liaison? | The quiet one? | What did he want?
+sec: He didn't say. He never says. | Only the sensor logs. From February.
+-> rumour 3, fair 2
+
+= rumour
+sci: You know what they say about him. | You've heard the talk.
+sec: I've heard it. I don't repeat it. | People say a lot of things.
+sci: They say he's not really Intelligence liaison. They say worse.
+   | Somebody on deck four says Section 31. Whispered, of course.
+sec: Somebody on deck four also says the replicator's haunted.
+   | That's the kind of thing people say when they're scared.
+sci: Shepard thought so. Section 31. She said it on the channel.
+   | Shepard believed it. She's not a fool.
+-> fair 2, shaken 2
+
+= fair
+sec: For what it's worth, he's never been anything but correct.
+   | He's polite. Precise. Pulls a shift like anyone else.
+sci: Correct isn't the same as honest. | That's what worries me.
+sec: No. But it's something. | Not everyone quiet is hiding something.
+-> shaken 2, sickbay 2
+
+= shaken
+sec: I'll tell you what bothered me. He looked shaken.
+   | Here's the thing. He looked rattled. I've never seen him rattled.
+sci: Okafor? | Shaken how?
+sec: Like a man who expected an answer and didn't get one.
+   | Like somebody whose own people had left him out of something.
+sci: If he's what they say, that's worse, isn't it? | That's not better.
+-> denial 2, sickbay 1, drop 1
+
+= denial
+sec: Word is he spoke to Shepard. On the channel. Before she came up.
+   | Somebody in comms says he called Shepard on the surface. In July.
+sci: And? | What did he say? | Saying what?
+sec: That whatever did this blindsided them too. Whoever them is.
+   | That they didn't do it. That they didn't know where it came from.
+sci: He would say that. | That's exactly what they would say.
+sec: That's the thing. If he were lying, why call her at all?
+   | Maybe. But he'd have had every reason to say nothing.
+sci: I hadn't thought of it like that. | That's worse. I don't like that.
+sec: Nobody likes it. It means we don't know who. | Neither do I.
+-> sickbay 2, drop 1
+
+= sickbay
+sci: Did you hear what they're saying in sickbay? | Anwar's been busy.
+sec: I try not to hear sickbay. | What now?
+sci: Confusing markers, in the samples from below. The Doctor's baffled.
+   | Something in the samples doesn't match anything. Half of something.
+sci: He told Anwar, I can support the chemistry.
+    | I cannot support the author.
+sec: What does that even mean? | That sounds like the Doctor.
+sci: I don't know. I don't think he does either.
+   | Nobody knows. That's what's frightening.
+-> drop 2
+
+= drop
+...
+sec: Let's leave it. We don't know. None of us knows.
+   | Rumours don't fix warp drives. Let's leave it.
+sci: You're right. | Fine. For now.
+sci: But I'm keeping my own logs. | I'm still watching the sensor logs.
+sec: Good. So am I. | So is everyone, I think.
+-> end
+
+# ---------------------------------------------------------------------------
+# A probe report arrives.
+
+scene: bridge_probe_report
+where: bridge
+cast: sci=sciences, ops=operations, cmd=command
+weight: 3
+
+= start
+ops: Probe's reporting. | Telemetry coming in. | Probe's landed.
+cmd: What have we got? | Put it up. | On screen.
+sci: Resolving. Give me a second. | Hang on. Long-range fix is rough.
+-> bet 2, wait 2, read 1
+
+= bet
+ops: Ration bar says crystal. | I've got a ration bar on dilithium.
+cmd: We are not gambling on the bridge, {ops}. | Put me down for a survivor.
+ops: Sir. Of course not. Crystal, though. | Noted, sir. Survivor. One bar.
+sci: I'm not taking bets on my own telemetry. It's unethical.
+   | Please stop betting over my shoulder. It makes the numbers nervous.
+-> wait
+
+= wait
+sci: Signal's bouncing off something. Their radio masts, I think.
+   | The atmosphere's full of their old transmitters. Still standing.
+ops: Even dead, that county's loud. | Their masts outlast their stations.
+sci: It's the metal. Miles of it, on poles. Wonderful and infuriating.
+   | Every mast is a mirror. I'm filtering them out, one by one.
+cmd: Take your time. We're not going anywhere. | Easy does it.
+ops: Famous last words on this bridge. | That's the ship's motto now.
+-> read
+
+= read
+...
+sci: There. Got it. | Here it comes. | Fix is resolving.
+-> crystal 3, lifesign 2, clue 1, empty 2
+
+= crystal
+sci: Dilithium trace. Northwest. In a field, of course.
+   | Crystal reading, about four town blocks out. Woodland.
+ops: Wild ground again. | Never in a town. Not once.
+sci: Nobody's explained that. | I'll add it to the list.
+   | Not under a street, not under a farmyard. Always the open ground.
+cmd: How big? | Is it worth the trip?
+sci: A seed crystal. Enough to fill the reserve.
+   | Good sized. The core will be very grateful.
+ops: I win. | That's my ration bar, sir. | Crystal. Pay up, everyone.
+cmd: Nobody bet. We established that. | Tell the shuttle. Rhel will want it.
+-> rhel 2, shuttle 2
+
+= lifesign
+sci: Life sign. One. Human, maybe. Stationary.
+   | A life sign, southeast. Weak but there.
+cmd: One of ours? | Starfleet? | Could it be one of the eleven?
+sci: I can't tell from this range. I'm sorry.
+   | No combadge signal. Could be anybody.
+ops: Anybody's still somebody. | Mark it anyway. Somebody down there.
+sci: It's near a farmhouse. Could be sheltering. Could be hurt.
+   | Not moving. Resting, I hope. Not moving is better than the others.
+cmd: Put it on the map. Whoever's on the ground, they'll see it.
+   | Log it. Our friend on the ground might go.
+-> friend 2, shuttle 1
+
+= friend
+ops: You think they'll go? Whoever it is who keeps answering?
+   | Our friend down there. Do you think they get these fixes?
+cmd: They answered the last three. I don't know who they are.
+   | Somebody's been walking into that county for our people. So, yes.
+sci: I'd like to know who. Just to say thank you.
+   | Transporter room says they never see a face. Just the lock.
+ops: Maybe they'll come up one day. | Maybe they're already aboard.
+cmd: Then we'd owe them a very large dinner. | Then someone buy them a drink.
+-> hope
+
+= clue
+sci: That's odd. It's picked up an emitter. Old. Very old.
+   | Something that isn't theirs. A holo-emitter signature.
+cmd: Ours? | Starfleet? | Federation tech?
+sci: No. Not ours, not theirs. Nothing in the database.
+   | Nothing I can match. It's older than the towns.
+ops: Q? | Is it a Q thing? | The Q people will be thrilled.
+sci: A Q doesn't need a holo-emitter. Somebody did. Somebody with hands.
+   | I'm not saying anything until Shepard's seen it.
+ops: Shepard will want that. | Tell Shepard. She'll lose her mind.
+cmd: Tell Shepard. Quietly. | Send it to the shuttle. And to Shepard.
+-> shuttle 2, hope 1
+
+= empty
+sci: Nothing. The probe's found nothing.
+   | Empty report. Just county.
+ops: A whole probe's worth of reserve on nothing. | That's a probe gone.
+cmd: Empty is still data. | That's a stretch we don't need to search.
+sci: Farmland, a creek, a road with abandoned cars. Nothing we need.
+   | Pines and a quarry. Pretty. Empty.
+ops: Nobody wins the pool, then. | Everybody keeps their ration bars.
+-> another 2
+
+= another
+ops: Fabricate another? | Shall I build another one?
+cmd: Not yet. Let the reserve settle. | Yes. Different bearing.
+sci: I'll suggest a heading. | Northeast. Try northeast.
+   | South. We've never gone south. There's a lot of south.
+cmd: Make it so. | Log the heading. Launch when it's built.
+-> end
+
+= rhel
+ops: Rhel's on the comm already. He heard somehow.
+   | Engineering wants to know if it's real. Rhel's hopeful.
+cmd: Tell him it's real. | Tell him not to start talking to it yet.
+ops: Too late. He's already named it. | He says the core says thank you.
+-> shuttle 1, hope 2
+
+= shuttle
+ops: Sending the fix to the shuttle. | Pushing it to the tricorders.
+sci: Whoever picks it up, good luck to them.
+   | Someone on the ground will see it. They always do.
+-> hope
+
+= hope
+...
+cmd: Good work. | Well done. | Keep them coming.
+sci: Next probe in an hour. | I'll plan the next bearing.
+ops: I'll log it. | Logged. Bearing, range, time.
+cmd: And tell the captain. She likes to hear the good ones first.
+   | Send a note to the ready room. She'll want it before breakfast.
+ops: Aye. | Already sent. She answered in ten seconds. She's awake.
+-> end
+
+# ---------------------------------------------------------------------------
+# Shepard's shuttle, and her field station.
+
+scene: bridge_shepard_shuttle
+where: bridge
+cast: ops=operations, helm=helm
+weight: 2
+
+= start
+ops: Shepard's asked for her shuttle's manifest again. Third time today.
+   | The shuttle's telemetry is in. Shepard wants a copy. Of course.
+   | Shepard's on the comm. She wants to know her shuttle's all right.
+helm: What does she think happened to it? | She's worried about the lamps.
+    | She checks on that shuttle like it's a cat.
+ops: I'm reading her the manifest. Guess what's still on it.
+   | Have you ever read that manifest? Guess what's on it.
+helm: A toaster. | A bicycle. | Another box of tapes.
+ops: Worse. | Close. Worse. | Not even close.
+-> lamp 2, tv 2, chair 2
+
+= lamp
+ops: A floor lamp. Nineteen ninety-three. Three brass arms.
+   | A lamp. The lamp has a fringe on it.
+helm: On a shuttle. A lamp, on a shuttle. | Doesn't a shuttle have lights?
+ops: It's not a lamp, she says. It's a specimen.
+   | It's evidence, apparently. Of a culture.
+helm: Evidence of what? | Of what, exactly?
+ops: Of how they lit a room. She sent me four paragraphs on it.
+   | Lighting as a cultural marker. There's a footnote about fringes.
+-> method 2, visit 1
+
+= tv
+ops: A television. Nineteen ninety-three. With a tape deck.
+   | Tapes. A whole shelf of video tapes. Her handwriting on every one.
+helm: She's got a television on a Starfleet shuttle.
+    | She plays those tapes every night. I hear them on the channel.
+ops: She dubs her own recordings onto magnetic tape. It's what it plays.
+   | Holos, flattened to two dimensions, onto tape. It works, apparently.
+helm: Starfleet history on a box from nineteen ninety-three.
+    | Somebody's favourite recordings, on a tape. That's very her.
+ops: She's a historian. Family histories, mostly. It's a collection.
+   | It's her archive. Fifty-year-old talent nights and all.
+-> method 2, visit 1
+
+= chair
+ops: A chair. A theatre chair. From a cinema.
+   | A reclining chair. The shuttle has a theatre chair in it.
+helm: Where does she put it? | That shuttle is a spaceship, not a living room.
+ops: Next to the fridge. | Next to the oven. She's got an oven.
+helm: She's got an oven. On a shuttle. | Does the oven work?
+ops: It works. She made bread in it. Grieg was jealous for a week.
+   | It works. Rhel wired it. He won't say how.
+-> method 2, visit 1
+
+= visit
+helm: Have you been inside it? The field station?
+    | I went over to the shuttle last week. Have you seen it?
+ops: Once. There's a rug. | Once. It smells like old paper.
+helm: It feels like somebody's house. Like a real house, down there.
+    | You forget you're on a shuttle. Then you look out the window.
+ops: That's the point, I think. | I think that's what she wanted.
+-> method
+
+= method
+helm: The Adirondack called it clutter. | The whole ship calls it clutter.
+ops: Her department calls it method. | She calls it fieldwork.
+   | You can't understand a people from orbit. She says that a lot.
+helm: Well. She's right about that. | That's hard to argue with, now.
+-> argue 2, ninth 2
+
+= argue
+helm: Remember when the captain ordered her up in February?
+    | She refused to come up for months. Months.
+ops: She said she was the only one who knew how this century boils water.
+   | She said somebody had to know how the kettle worked.
+helm: Was she wrong? | And was she wrong?
+ops: No. Annoyingly. | Not at all.
+-> ninth 1, fond 2
+
+= ninth
+ops: Do you remember the ninth? When she finally came up?
+   | I was on the bridge the morning she beamed up. The ninth of July.
+helm: I was in the transporter room. Half the ship was.
+    | I heard the chief say, I've got her. Just that. I've got her.
+ops: She didn't say why. Just that it was time.
+   | She said something about a chair. Somebody moved a chair.
+helm: A chair? | Moved? Moved how?
+ops: I don't know. She didn't explain. She went white when she said it.
+   | That was all. A chair in a different place. She came up that hour.
+-> fond
+
+= fond
+...
+ops: Glad she came up. | I'm glad she came up on the ninth.
+   | We almost lost her. Right at the end.
+helm: So am I. Even with the lamps. | Lamps and all.
+    | She can have all the lamps she likes.
+ops: Send her the manifest? | Shall I forward it to her quarters?
+helm: Send it. She'll want to know the lamps are safe.
+    | Forward it. Tell her the chair's still fine.
+ops: Somebody down there's living in her field station now.
+   | Whoever's down there now, I hope they like lamps.
+helm: Then they've got good taste. | Shepard would say that's the point.
+-> end
+
+# ---------------------------------------------------------------------------
+# The Ready Room: waiting for the captain.
+
+scene: readyroom_waiting
+where: readyroom
+cast: junior=any, cmd=command
+weight: 3
+
+= start
+junior: Is the captain in? I was told to report.
+      | Ensign reporting as ordered. Is Captain Vale here?
+      | Sorry, sir. I was told to report to the ready room.
+cmd: She's on deck nine. She'll be back. | Not yet. Sit down. She'll come.
+   | She's walking the decks. You'll wait. Everyone does.
+-> nerves 3, room 2
+
+= nerves
+junior: Am I in trouble? | Do you know what it's about?
+      | Is this about the replicator? I can explain the replicator.
+cmd: Probably not. What did you do? | I've no idea. What did you do?
+junior: Nothing. I think. I rewrote the holodeck roster a bit.
+      | I made a cake. With rationed credits. Quite a big cake.
+cmd: Then you're in trouble with Kess, not her.
+   | She won't care about that. Kess might.
+-> vale 2, room 2, why 1
+
+= vale
+junior: What's she like? Up close, I mean. I've only seen her on the bridge.
+      | I've never actually spoken to her. What's she like?
+cmd: Quiet. Dry. She'll let a silence run until you fill it.
+   | Tired. Kind. Funnier than she lets on. Don't try to be funny back.
+junior: Should I fill it? | What do I do in the silence?
+cmd: Say what you mean and stop. She respects that.
+   | Wait. She's thinking. She always has something worth waiting for.
+cmd: The first week, she learned every name on the ship. Yours too.
+   | She'll know your name, your division and your home town. She reads.
+junior: That's terrifying. | That's... actually nice. And terrifying.
+-> room 2, why 2
+
+= room
+junior: I've never been in here. It's smaller than I thought.
+      | So this is where she spends all night.
+cmd: She reads reports in here. Writes letters.
+   | This is where she thinks. Mostly at three in the morning.
+junior: Is that a real plant? | There's a lot of padds.
+cmd: A real plant. Shepard beamed it up from the surface.
+   | Every padd's a report. She reads them all. Every one.
+-> why 2, tea 1
+
+= tea
+junior: There's a cold cup of tea on her desk. | Her tea's gone cold.
+cmd: There's always a cold cup of tea on her desk.
+   | She makes it, then forgets it. Every time.
+junior: Should I make her a fresh one? | Could I get her another?
+cmd: That's kind. She'll forget that one too. | She'd like that. Go on.
+-> why
+
+= why
+cmd: Truth is, I think she wants to thank you.
+   | I'd guess she wants to say well done. She does that personally.
+junior: For what? | Me? For what? | What did I do?
+cmd: The diagnostic you caught. The fault in the pattern buffer.
+   | The night on the transporter. You kept the lock when it drifted.
+junior: That was just my job. | Anybody would have.
+cmd: That's what everyone says. She thanks them anyway.
+   | That's why she does it in person.
+-> wait 2
+
+= wait
+...
+junior: How long do we wait? | Should I come back later?
+cmd: As long as it takes. | She'll come. She always does.
+-> arrive 2, called 2
+
+= arrive
+cmd: That'll be her. Stand up straight. | That's her step. Chin up.
+junior: Yes, sir. | Aye. | Right. Straight. Standing.
+-> end
+
+= called
+cmd: Comm from the bridge. She's held up. Come back at fourteen hundred.
+   | She's been called to sickbay. Try again at the end of the shift.
+junior: Aye, sir. Fourteen hundred. | I'll come back. Thank you.
+cmd: And stop worrying. | Relax. You're not in trouble. Probably.
+-> end
+
+# ---------------------------------------------------------------------------
+# The Ready Room: drafting a log nobody will receive.
+
+scene: readyroom_log
+where: readyroom
+cast: cmd=command, sci=sciences
+weight: 2
+
+= start
+cmd: Captain wants the monthly report drafted for her signature.
+   | The log. We said we'd draft it for her.
+   | Monthly report. She's asked us to draft it.
+sci: Addressed to? | To whom? | Who's it going to?
+cmd: Starfleet Command. Same as always. | Command. Same as the others.
+sci: Who won't receive it. | Which won't arrive. Like the last five.
+-> why 2, begin 3
+
+= why
+cmd: It goes in the buffer. When comms come back, it all goes out.
+   | When the array clears, every word of it transmits.
+sci: And they read six months in one sitting. | Poor admiral.
+cmd: They'll want to know. Somebody should have written it down.
+   | Better complete than late. We owe them the whole record.
+-> begin
+
+= begin
+cmd: Stardate, et cetera. Ship status. | Right. Status first.
+sci: Status: Intact, crewed, fed, and going nowhere.
+   | Status: A very expensive orbital platform.
+cmd: She'll say that. Put it more formally.
+   | Let's say: Propulsion remains unavailable.
+sci: Propulsion remains unavailable. Communications remain unavailable.
+-> crew 2, survey 2
+
+= crew
+cmd: Personnel. | Crew status next.
+sci: A hundred and forty-one aboard, less the eleven. Less the ones not up.
+   | A hundred and thirty aboard in February. Plus those beamed up since.
+cmd: Write every rescued name. She'll want them in it.
+   | List them. By name. Every one.
+sci: And the ones still missing? | The ones we haven't heard from?
+cmd: Every name. With the date they were last heard.
+   | Missing, not lost. She said missing. Write missing.
+-> names 2, survey 1, morale 1
+
+= names
+sci: Ensign Novak, beamed up. Ensign Haddad, beamed up.
+   | Ensign Tamura, beamed up. Ensign Sato, beamed up.
+sci: Lieutenant Brennan. Last heard on the twenty-eighth. From a school roof.
+   | Ensign Lindqvist. Last heard the twenty-ninth. Near the river.
+...
+cmd: Keep going. | Put the date. And the place.
+sci: I know them. I had lunch with Lindqvist every Tuesday.
+   | Brennan owes me a chess game. I'm leaving that out.
+cmd: Leave it in. She'd leave it in. | Leave the chess game in.
+-> survey 2, morale 1
+
+= survey
+sci: Survey status. What do I call what happened below?
+   | Surface observations. How do I say it?
+cmd: Say what we saw. Late June. Two days. We don't know the cause.
+   | Just the facts. What we saw from orbit. No theories.
+sci: No theories. Not Section 31, not Q, not anything. Just facts.
+   | Facts. Everybody has a theory. The report doesn't.
+-> morale 2
+
+= morale
+sci: Morale? | Do we put in morale?
+cmd: Good. Considering. | Fair. Tired. Holding.
+sci: The galley makes real bread. Put that in. | Grieg made pie. Mention pie.
+cmd: I'm not reporting the pie to Starfleet Command.
+   | We're not writing pie in a captain's log.
+sci: Somebody should. It was very good pie. | It kept this ship going.
+-> close 2
+
+= close
+...
+cmd: Read it back. | That'll do. Let's read it through.
+sci: It sounds calmer than it was. | It sounds like everything's fine.
+cmd: That's her voice. She makes it sound fine.
+   | That's a captain's log. Calm is the job.
+sci: Into the buffer. | Queued. With the others.
+-> end
+
+# ---------------------------------------------------------------------------
+# The Ready Room: a promotion nobody can file.
+
+scene: readyroom_promotion
+where: readyroom
+cast: cmd=command, other=any
+weight: 2
+
+= start
+cmd: Close the door, {other}. | Come in. Have a seat.
+   | Thank you for coming. Sit.
+other: Sir? | Is something wrong? | Yes, sir.
+cmd: Nothing's wrong. The captain asked me to do this.
+   | Nothing's wrong. Quite the opposite.
+-> news 3, tease 1
+
+= tease
+cmd: Although. There was a report about a cake.
+   | Although we need to talk about the replicator logs.
+other: I can explain the cake. | That was not entirely me.
+cmd: I'm joking. Mostly. | Relax. That's not why you're here.
+-> news
+
+= news
+cmd: You're being promoted. Lieutenant, junior grade.
+   | The captain's put you up for a promotion. Full lieutenant.
+other: I... thank you. | Really? | Me?
+cmd: The rescues. The long nights on the pattern buffer. Everybody saw.
+   | You held a shift together in June when nobody else could.
+-> catch 2, pip 2
+
+= catch
+other: But you can't send it. Comms are down.
+   | Starfleet won't know. It can't be filed.
+cmd: No. It can't. It'll sit in the buffer with everything else.
+   | It's pending. It'll be pending until Command can say yes.
+cmd: On this ship, it's real. The captain signed it herself.
+   | Out there, it's a padd in a queue. In here, you're a lieutenant.
+other: Is that even allowed? Regulations say... | Can she do that?
+cmd: A captain out of contact acts on her own authority. It's allowed.
+   | Starfleet regulations, section twelve. She looked it up. Twice.
+cmd: And if Command objects, they can come up here and say so.
+   | If they want to overrule her, they know where to find us. They don't.
+-> pip 2
+
+= pip
+cmd: This is from her. She had it made in engineering.
+   | The captain wanted you to have this. Rhel machined it.
+other: A pip. | It's a real pip. | He made it by hand?
+cmd: He fussed over it for a week. | Real metal. Don't lose it.
+other: Tell him thank you. Tell her thank you.
+     | I don't know what to say. Thank you.
+-> first 2, family 1
+
+= family
+other: My mother would want to know. | I wish I could tell my family.
+cmd: Write to her. Put it in the buffer. It'll go when it can.
+   | Tell her in a letter. They'll arrive all at once someday.
+other: She'll get it with fifty other letters. | She'll get everything at once.
+cmd: Then she'll have a lot of good news. | Then save the best for the top.
+-> ceremony 1, first 1
+
+= ceremony
+other: Will there be a ceremony? | Do I have to make a speech?
+cmd: In the lounge, Friday. Grieg's baking something. You'll hate it.
+   | The captain wants to do it properly. Lounge. Everyone. Cake.
+other: A real cake? With rations? | Everyone? The whole ship?
+cmd: Everyone who's off shift. We need a reason to stand in a room together.
+   | We don't get many good days up here. We're going to use this one.
+other: I'll try not to cry. | I won't make a speech. I'll say thank you.
+cmd: Cry if you like. Half the lounge will. | That's the best speech there is.
+-> first
+
+= first
+...
+cmd: Congratulations, Lieutenant. | Well done, {other}.
+other: Thank you, sir. | Thank you. Really.
+cmd: Now go. Before I give you more work.
+   | Dismissed. Go and tell somebody.
+-> end
+
+# ---------------------------------------------------------------------------
+# Barks.
+
+bark: idle
+where: bridge
+- Standard orbit. Holding. | Orbit's steady. | Still here.
+- Long-range sensors, sweep forty-one. | Sensors cycling.
+- Hail logged. Again. | Nothing on subspace. Still nothing.
+- Hmm. Coolant pressure's up a point. Rhel will know.
+- Diagnostic running. | Level two, again. | Clean. Of course.
+- Plotting a course. Just to plot one. | New course. Nowhere, fast.
+- Ridge farmhouse. Lamp's on. Good. | There's a light. Good.
+- Fire on the east road. Nobody's fighting it. | Another dark street.
+- Replicator queue is full. Again. | Twenty minutes of holodeck. Friday.
+- Where did I put my coffee? | This coffee is not coffee.
+- Probe's on its way. Hour to go. | Waiting on telemetry.
+- Captain's still in her ready room. | Somebody take her some tea.
+- One hundred and seven diagnostics. Clean. Every one.
+- Hodgkin's Law. Laboratory conditions. Who built the lab?
+- Their calendar says 1993. Ours says 2435. Fine. Fine.
+- Moonrise Road. Not on any Earth map. Adding it.
+- Shuttle telemetry's in. Still full of lamps. | Shepard wants the manifest.
+- Wild ground. Always wild ground. Never a town.
+- Transporter's on standby. | Pattern buffer's clear.
+
+bark: hello
+where: bridge
+- Morning. | Afternoon. | Evening. | Crewman.
+- Didn't see you there. | Oh. Hello. | You're on the roster? Welcome.
+- Watch your step, the carpet's lifting. | Mind the rail.
+- Come to see the view? | Best view on the ship. Nothing moves.
+- Relieving someone? | Is it shift change already?
+- Captain's not here, if you're looking for her.
+- Quiet watch. Enjoy it. | Nothing to report. As usual.
+- Sorry. I'm usually better with faces. | I know you. Don't I?
+- Grab a station, if you like. There's plenty.
+
+bark: outfit
+where: bridge, readyroom
+- That's a strange outfit you have on. | That's not regulation.
+- Is that from down there? | Did you get that from the surface?
+- Nice... jacket. Very period. | Shepard would love that jacket.
+- Is there a uniform shortage I don't know about?
+- Don't let the captain see you in that. Actually, she wouldn't mind.
+- Casual Friday? We don't have casual Friday. Do we?
+- Are you one of Shepard's specimens? She'd love that coat.
+- That's either civilian or very undercover. | Are you undercover?
+- Quartermaster's on deck three. Just saying.

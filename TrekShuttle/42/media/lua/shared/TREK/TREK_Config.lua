@@ -1570,7 +1570,9 @@ C.EnsignGivenNames = {
     F = { "Amara", "Ines", "Yuki", "Soraya", "Maren", "Priya", "Talia",
           "Nadia", "Esme", "Ruth" },
 }
-C.EnsignSurnames = { "Okafor", "Vance", "Tamura", "Reyes", "Lindqvist",
+-- Not Okafor: that is the Section 31 commander's name (COMMS.md), and an
+-- ensign sharing it reads as a clue that is not one.
+C.EnsignSurnames = { "Okonkwo", "Vance", "Tamura", "Reyes", "Lindqvist",
                      "Haddad", "Castellan", "Novak", "Achebe", "Moreau",
                      "Sato", "Brennan", "Kowalczyk", "Ferreira" }
 

@@ -202,6 +202,13 @@ end
 -- Pieces with running water: a store of their own, kept full.
 A.Water = { galley_sink = true, wash_basin = true }
 
+-- Her Doctor stands on the square in front of her EMH station, always: he
+-- is a world model (C.EmhItem) turned to face out from the station. The
+-- model faces south unturned (tools/gen_emh.py); these are the turns for a
+-- station whose Facing is each way. NOT YET SEEN IN GAME -- if he stands
+-- with his back to the room, this table is what to change.
+A.DoctorYaw = { S = 0, E = 90, N = 180, W = 270 }
+
 -- Crystals in her core the first time anybody asks.
 A.StartCrystals = 50
 

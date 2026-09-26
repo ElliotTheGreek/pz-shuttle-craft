@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A crew member seated: the player's sat-in-a-chair pose. Two conditions,
+     so it outranks the standing idle when TrekSit is set. -->
+<animNode>
+	<m_Name>TrekCrewSit</m_Name>
+	<m_AnimName>Bob_SatChair</m_AnimName>
+	<m_deferredBoneAxis>Y</m_deferredBoneAxis>
+	<m_BlendTime>0.40</m_BlendTime>
+	<m_Looped>true</m_Looped>
+	<m_Conditions>
+		<m_Name>TrekCrew</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>true</m_Value>
+	</m_Conditions>
+	<m_Conditions>
+		<m_Name>TrekSit</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>true</m_Value>
+	</m_Conditions>
+</animNode>

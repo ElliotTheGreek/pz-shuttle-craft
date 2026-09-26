@@ -187,10 +187,28 @@ def main():
     out.append("L.lift = { x0 = %d, y0 = %d, x1 = %d, y1 = %d, x = %d, y = %d }"
                % (lift_room + (lift["x"], lift["y"])))
     out.append("L.pad = { deck = %d, x = %d, y = %d }" % (order.index(pz) + 1, pad[0], pad[1]))
+    # The place each room is, for the crew's talk (CREW.md 4.1): which scenes
+    # and barks may play there. By the room's name, which is the author's.
+    def place(r):
+        name, internal = r["Name"], r.get("InternalName", "")
+        if internal == "trekturbolift":
+            return "lift"
+        for key, tag in (("Bridge", "bridge"), ("Ready Room", "readyroom"), ("Lounge", "lounge"),
+                         ("Galley", "galley"), ("Quarters", "quarters"), ("Transporter", "transporter"),
+                         ("Sickbay", "sickbay"), ("Medical", "sickbay"), ("Engineering", "engineering")):
+            if key in name:
+                return tag
+        if name == "Corridor":
+            return "habitat"
+        if "Corridor" in name:
+            return "corridor"
+        raise SystemExit("room %r has no place tag: add it to place() in gen_adirondack_lua.py" % name)
+
     out.append("L.rooms = {")
     for rid in range(1, len(ship["rooms"]) + 1):
         r = ship["rooms"][rid - 1]
-        out.append("  { name = %s, internal = %s }," % (q(r["Name"]), q(r.get("InternalName", ""))))
+        out.append("  { name = %s, internal = %s, place = %s }," % (
+            q(r["Name"]), q(r.get("InternalName", "")), q(place(r))))
     out.append("}")
     out.append("L.decks = {")
     body = []
@@ -209,12 +227,18 @@ def main():
         for (x, y), s in sorted(d["floors"].items(), key=lambda kv: (kv[0][1], kv[0][0])):
             body.append("      { %d, %d, %s }," % (x, y, q(s)))
         body.append("    },")
-        body.append("    -- x, y, sprite, kind (w wall, dW/dN door, f furniture, c container), piece.")
+        body.append("    -- x, y, sprite, kind (w wall, dW/dN door, f furniture, c container), piece, facing.")
         body.append("    objects = {")
         for o in d["structure"] + d["objs"]:
             x, y, s, k = o[:4]
             what = o[4] if len(o) > 4 and o[4] else None
-            body.append("      { %d, %d, %s, %s%s }," % (x, y, q(s), q(k), (", " + q(what)) if what else ""))
+            # A piece's facing, off its tile: where somebody stands to use it,
+            # and which way they sit in it.
+            face = props.get(s, {}).get("Facing") if what else None
+            tail = ""
+            if what:
+                tail = ", " + q(what) + ((", " + q(face)) if face else "")
+            body.append("      { %d, %d, %s, %s%s }," % (x, y, q(s), q(k), tail))
         body.append("    },")
         body.append("  },")
     out.extend(body)

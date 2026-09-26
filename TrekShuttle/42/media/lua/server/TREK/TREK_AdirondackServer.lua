@@ -53,7 +53,7 @@ local TAG = "adk"
 -- Bumped when what an existing object needs changes (doors registered,
 -- containers stocked, sinks with water): a deck built by an older one is
 -- repaired in place on the next visit, without anything being rebuilt.
-AS.FIT = 2
+AS.FIT = 3
 
 function AS.state()
     local s = ModData.getOrCreate(A.StateKey)
@@ -288,11 +288,59 @@ function AS.buildDeck(k)
         end
     end
 
+    U.try("adk.doctor", AS.serviceDoctor, k)
+
     local s = AS.state()
     s.decks[k], s.fit[k] = L.rev, AS.FIT
     U.log("Adirondack %s built (rev %d): %d placed, %d refitted, %d taken away, %d cleared",
           deck.name, L.rev, made, refitted, removed - refitted, cleared)
     return true
+end
+
+---------------------------------------------------------------------------
+-- Her Doctor
+---------------------------------------------------------------------------
+local STEP = { E = { 1, 0 }, W = { -1, 0 }, S = { 0, 1 }, N = { 0, -1 } }
+
+--- Stands exactly one Doctor in front of every EMH station on deck k. He is
+--- always projected aboard her (TREK_EMH, E.isUp). Counted before placing,
+--- because a world item is saved, the way B.serviceEMH does it for the cabin.
+function AS.serviceDoctor(k)
+    local placed = 0
+    for _, o in ipairs(L.decks[k].objects) do
+        if o[5] == "emh_station" then
+            local facing = U.try("stationFacing", function()
+                return getSprite(o[3]):getProperties():get("Facing")
+            end) or "E"
+            local step = STEP[facing] or STEP.E
+            local x, y = A.at(k, o[1] + step[1], o[2] + step[2])
+            local sq = U.square(x, y, A.Z, true)
+            if sq then
+                local have = 0
+                U.try("adk.doctorCount", function()
+                    local items = sq:getWorldObjects()
+                    for i = 0, items:size() - 1 do
+                        local it = items:get(i):getItem()
+                        if it and it:getFullType() == C.EmhItem then have = have + 1 end
+                    end
+                end)
+                if have == 0 then
+                    local item = U.try("adk.doctorPlace", function()
+                        return sq:AddWorldInventoryItem(C.EmhItem, 0.5, 0.5, 0.0)
+                    end)
+                    if item then
+                        U.try("adk.doctorTurn", function()
+                            item:setWorldXRotation(0)
+                            item:setWorldYRotation(0)
+                            item:setWorldZRotation(A.DoctorYaw[facing] or 0)
+                        end)
+                        placed = placed + 1
+                    end
+                end
+            end
+        end
+    end
+    return placed
 end
 
 ---------------------------------------------------------------------------
@@ -399,6 +447,15 @@ function AS.serviceDoors()
                 aboard[k] = aboard[k] or {}
                 table.insert(aboard[k], { p = p, x = x, y = y })
             end
+        end
+    end
+    -- And the crew: a door opens for them too (TREK_CrewServer). ToggleDoor
+    -- takes any character; for a zombie the clients play no sound, and a
+    -- door a crew member opens is usually one somebody is watching anyway.
+    if TREK.CrewServer then
+        for _, b in ipairs(TREK.CrewServer.bodies()) do
+            aboard[b.k] = aboard[b.k] or {}
+            table.insert(aboard[b.k], { p = b.z, x = b.x, y = b.y })
         end
     end
     local any = false

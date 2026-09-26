@@ -1,0 +1,1405 @@
+# The lounge and the galley, Deck 2 (CREW.md 4).
+# Lounge: the bar, the viewports, the card table, the gossip.
+# Galley: Petty Officer Hanna Grieg's kitchen, the stasis units, the washing up.
+
+# ---------------------------------------------------------------------------
+# LOUNGE
+# ---------------------------------------------------------------------------
+
+scene: lounge_bar_tab
+where: lounge
+cast: keep=operations, a=any, b=any
+weight: 3
+
+= start
+keep: Evening. What'll it be? | Bar's open. For a given value of open.
+    | What can I get you two?
+a: What have you got that isn't synthehol? | Surprise me. Something cold.
+    | Whatever's least likely to hurt.
+keep: Synthehol, synthehol, or a raktajino I'd call a war crime.
+    | Synthehol in six colours. Pick a colour.
+-> menu 3, stock 2, water 2
+
+= menu
+keep: Andorian ale, the synthehol kind. It tastes blue. | Balso tonic?
+    | I can do an Andorian ale. It's blue in every sense.
+a: What does blue taste like? | Is the tonic any good?
+    | What does the ale actually taste like?
+keep: Nobody has ever told me. They drink it and go quiet.
+    | Nobody knows. It's a Trill thing. The Trill won't say either.
+b: I'll have the blue one. Put hers on my chit. | Two of the blue, then.
+    | Two. On me.
+keep: Look at you, {b}. Generous. | Big spender. Two blues.
+a: Thanks. I'll get the next one. | I owe you, {b}.
+-> homesick 2, rota 2
+
+= stock
+a: How much real stock is actually left back there, {keep}?
+    | Honest question. Are we running out of everything?
+keep: The real bottles? Gone by April. | Real bottles? You're looking at the last two.
+keep: Grieg took the cooking sherry for a stew. | Grieg needed the brandy for a sauce.
+b: She did not. | That's a crime.
+    | That's a court martial.
+keep: I let her. It was a very good stew. | I let her. I got a bowl out of it.
+a: So the bar is a replicator with a counter in front of it.
+    | So what are we drinking?
+keep: The bar is a replicator ration, me, and the talking.
+    | Replicator ration and conversation. The conversation's free.
+-> homesick 2, rota 1
+
+= water
+a: Just water, actually. Long shift. | Water. I'm on at oh-six-hundred.
+keep: Rough one? | Transporter room again?
+    | Sensors again?
+a: Three hours on a sensor map of a county where nothing moves.
+    | Twelve hours watching an empty map for a life sign.
+b: That'll do it. | Yeah. I stopped looking at that map.
+    | I asked off the sensor rota. I'm not proud of it.
+keep: Water's on the house. So is sitting there. | Stay as long as you like.
+-> homesick 3, rota 1
+
+= homesick
+b: You know what I miss? A bar with a door onto a street.
+    | I miss a bar where you can walk out and it's raining.
+    | I miss bars that close. This one never closes.
+a: Where? | Which bar?
+    | Anywhere in particular?
+b: A place in Lagos. My cousin's. The chairs don't match.
+    | A tiny place in Kyoto. Eight seats. Rain on the window.
+    | A bar on Bajor with a view of nothing. I loved it.
+keep: I had a place like that. In Marseille, when I was a kid.
+    | Everyone has one of those. That's what a bar is for.
+...
+a: I wrote to my brother last night. | I keep writing letters.
+    | I wrote home again. Third one this week.
+b: Where do you send them? | Where do they go?
+a: Into a file called unsent. It's getting long.
+    | Nowhere. The buffer's got them. The buffer's patient.
+-> letters 2, cheer 2
+
+= letters
+keep: Half this ship has that file, you know. | You're not the only one.
+    | I've got one of those files too.
+b: Mine's got forty-one in it. I counted. | I stopped counting mine.
+a: What do you write about? | Do you ever read them back?
+b: Nothing. The food. The view. That I'm fine.
+    | I tell them I'm fine. Then I tell the truth in the next one.
+keep: When comms come back, somebody's getting a long evening.
+    | One day they'll all go out at once. Someone's going to faint.
+a: When. You said when. | I like that you said when.
+keep: I always say when. | Bartender's rules. Always when.
+-> close 1, rota 1
+
+= cheer
+keep: All right. That's enough of that. New rule.
+    | No. Not at my bar. Next topic.
+keep: Everybody names one good thing from today.
+    | One good thing each. Then you can go back to being sad.
+b: Grieg did fresh bread. | The lift didn't stick between decks.
+    | Somebody fixed the shower on Deck 2.
+a: I found a sock I lost in March. | I slept six hours. Six.
+    | {b} bought me a drink.
+keep: See? Practically a holiday. | That's a good day on the Adirondack.
+-> close 2, rota 1
+
+= rota
+b: Is the holodeck free tonight? | Who's got the holodeck after this?
+    | Is there any holodeck left this week?
+keep: Engineering's got it. Rhel's people. They book the beach.
+    | Twenty-minute slots and a waiting list longer than the ship.
+a: The beach again? | They always take the beach.
+keep: They work next to a warp core all day. They want sand.
+    | Let them have the sand. They're keeping us alive.
+b: Fair. | Can't argue with that.
+-> close
+
+= close
+keep: Last call, by the way. Not that it means anything. | Drink up.
+    | I'm shutting the tap for an hour. Replicator needs a rest.
+a: Thanks, {keep}. Really. | Night, {keep}.
+    | Same time tomorrow.
+b: Come on. I'll walk you to the lift. | Come on, before we get philosophical.
+keep: Go on. Sleep. That's an order. | Night, both. Get some sleep.
+    | I'm not in command. Sleep anyway.
+-> end
+
+
+scene: lounge_romulan_ale
+where: lounge
+cast: host=any, guest=any, sec=security
+weight: 2
+
+= start
+host: Don't look. Don't look. Okay, look. | Close the door. Well. Close the imaginary door.
+    | I have something. Keep your voice down.
+guest: Is that... blue? Is that real? | Where did you get that?
+    | That's not synthehol.
+host: Romulan ale. A real bottle. Technically contraband.
+    | Romulan ale. Technically, it's contraband.
+guest: Technically? | How technically?
+-> source 2, sec_arrives 2, pour 1
+
+= source
+host: Some trader's crate on a shakedown cruise. Nobody asked me.
+    | I won it at tongo in 2433 and I've been saving it.
+    | My aunt's retirement present. She said open it in a crisis.
+guest: And this is the crisis? | You picked now?
+host: We've been parked since February. If not now, when?
+    | Stranded, dark, rationed. I think it qualifies.
+guest: Fair point. | It qualifies.
+-> sec_arrives 3, pour 1
+
+= pour
+host: Two glasses. Small ones. It's strong. | Hold it steady.
+guest: It glows. Why does it glow? | Is it meant to be that colour?
+host: Nobody knows. Nobody has ever asked the Romulans.
+    | That's how you know it's the real thing.
+guest: To what? | What do we drink to?
+-> sec_arrives 2, toast 1
+
+= sec_arrives
+sec: Evening. | Evening. What are we drinking?
+    | Is that what I think it is?
+host: Evening, {sec}. Nothing. Water. Blue water.
+    | Oh. Evening, {sec}. It's... medicinal.
+guest: Very blue water. | Doctor's orders.
+sec: The Doctor is a hologram, and he'd have prescribed it in a hypospray.
+    | Romulan ale is a restricted import. You know that.
+    | Blue water. Right.
+host: Technically restricted. | We're a very long way from customs.
+-> strict 1, bargain 3, toast 1
+
+= strict
+sec: I'm supposed to log it. | Regulations say I confiscate it.
+host: Please don't. It's all I brought. | Come on. It's one bottle.
+sec: I'm going to confiscate it. | I'm going to take custody of it.
+    ...
+sec: For about as long as it takes to find a third glass.
+    | Into a glass. Pour me one and I'll consider it confiscated.
+guest: Is that allowed? | That is not how confiscation works.
+sec: I'm security. I say how confiscation works.
+    | I'll put it in the log as destroyed. Which it will be.
+-> toast
+
+= bargain
+sec: Who else knows? | How many people know about this?
+host: Just us. | Us three, now.
+sec: Keep it that way. There's not enough for the whole deck.
+    | Good. If Deck 4 finds out there'll be a riot.
+guest: So you're not... | You're not going to log it?
+sec: Log what? I see blue water. | I've seen nothing all day.
+    | I'm off duty. I'm a civilian. Pour.
+host: I'll get a third glass. | I knew I liked you, {sec}.
+-> toast
+
+= toast
+host: To the Adirondack. | To getting home.
+    | To whoever's still down there.
+guest: To the eleven. | To Captain Vale, who needs a drink more than we do.
+    | To comms coming back.
+sec: To the eleven. | To the ones still down there.
+...
+guest: Oh. Oh, that's strong. | That is not blue water.
+    | My eyes are watering.
+sec: That's how you know. | Worth the paperwork.
+-> talk 2, cork 1
+
+= talk
+host: My aunt said Romulans drink it when they won't say what they feel.
+    | You know they only drink this when something's gone wrong.
+guest: So it's the right drink. | Then we're in the right place.
+sec: I'll tell you what I feel. I miss the stars moving.
+    | I used to stand at a viewport and watch the stars go by.
+    | I'm tired of the same planet in every window.
+host: Same. | Me too.
+    | It's a nice planet. It's just always there.
+...
+guest: Save the rest. For when comms come back. | Cork it. We'll need it again.
+-> cork
+
+= cork
+host: Cork it. Back in the locker. We never saw it.
+    | Back in the locker. Next crisis.
+sec: Saw what? | I'm going back to my rounds. Night.
+    | Goodnight. Drink some water. Real water.
+guest: Night, {sec}. | Thanks, {sec}.
+-> end
+
+
+scene: lounge_talent_night
+where: lounge
+cast: org=any, a=any, b=any
+weight: 2
+
+= start
+org: Right. Talent night. Who's in? | I need acts. Talent night, Friday.
+    | Sign-up sheet. Talent night. Don't all rush.
+a: Is this actually happening? | You're really doing this?
+    | Didn't the last one end with a fire alarm?
+org: Captain Vale approved it. Morale. She used the word morale twice.
+    | It's happening. The captain says we need it.
+-> trivia 2, acts 3
+
+= trivia
+b: Why not a trivia night? Nobody has to sing. | Trivia's safer.
+org: We did trivia. Engineering won every round. | We did trivia in April.
+a: Rhel's team cheated. | They had a Trill. That's six lifetimes of answers.
+    | {b} still hasn't forgiven the dilithium question.
+b: A Trill doesn't count as cheating. | That question was wrong, by the way.
+org: Which is why it's talent this time. | Talent. No symbionts allowed.
+-> acts
+
+= acts
+org: What can you do, {a}? | {a}, you must do something.
+    | Anything. Juggling. Poetry. Owning a pet.
+a: Nothing. I can do nothing. | I can recite the transporter regulations.
+    | I can play spoons. Badly.
+b: {a} can play spoons. I've heard it. | Spoons is a talent.
+org: Spoons is going on the list. | Spoons it is. You're third.
+a: I hate this. | I hate you both.
+-> tape 2, big 2
+
+= tape
+b: Have you seen Shepard's tape? Ten Forward Talent Night?
+    | Did you know Shepard has a tape of a talent night? On the Enterprise.
+org: The fifty-eight-year-old one? Everybody's heard about it.
+    | The one with the trombone. Yes. I've watched it twice.
+a: What's on it? | Is it good?
+b: A commander plays trombone for nine minutes and he's actually good.
+    | Somebody reads a poem to their cat. Eighteen stanzas.
+org: The bar starts serving again partway through. That's how good.
+    | By the end the room is applauding and meaning it.
+a: So the bar is high. | So we're competing with history. Great.
+-> big 2, venue 1
+
+= big
+org: I need a closing act. Something big. | I need a finale.
+b: Ask th'Zoran. I heard she does ushaan forms. | Ask Rhel to sing.
+    | Ask the Doctor. He's been waiting forty years for this.
+org: The Doctor offered. He offered an aria. | Rhel sings to the warp core.
+    | th'Zoran threatened me when I asked.
+a: How long is the aria? | And?
+org: Forty minutes. In Klingon. I said I'd think about it.
+    | I can't put a warp core on stage.
+    | She threatened me very politely.
+-> venue 2, end_list 2
+
+= venue
+a: Where are we even doing it? | Here? In the lounge?
+org: Here. Chairs in rows. The bar stays open. | Here. We clear the tables.
+b: Could we get Shepard's television down here? | Could we borrow her TV?
+    | You know she's got a television in that shuttle.
+org: It runs on tapes. It's four hundred years old. | It needs an adaptor.
+    | It'd need an engineer and a miracle.
+a: So an engineer and a miracle. | We have engineers.
+-> end_list
+
+= end_list
+org: So. Spoons, the aria maybe, and a reading. | So far I have three acts.
+    | That's four acts and a maybe.
+b: Put me down for a reading. | Put me down. I'll think of something.
+    | I'll do a card trick. I know one card trick.
+org: Excellent. Friday, twenty hundred. | Friday. Bring a chair.
+a: I'm going to be sick. | I'll practise. Somewhere nobody can hear.
+org: That's the spirit. | See you on stage, {a}.
+-> end
+
+
+scene: lounge_tongo
+where: lounge
+cast: dealer=any, p1=any, p2=any
+weight: 3
+
+= start
+dealer: Cards on the table. Ration chits in the pot. | Right. Tongo or poker?
+    | Deal you in, {p1}?
+p1: Poker. I don't understand tongo. | Tongo. I've been practising.
+    | What are the stakes?
+dealer: One replicator chit to play. Two to see. | A chit a hand.
+p2: Chits for what? | Is this legal?
+dealer: Replicator time. Real currency on this ship.
+    | Five minutes of replicator. It's legal if we say it is.
+-> poker 2, tongo 2
+
+= poker
+dealer: Five card draw. Nothing wild. | Texas hold'em. Keep up.
+p1: Nothing wild? Where's the fun? | Fine.
+...
+p2: I'll see that. | Raise. One chit.
+    | I'm in.
+p1: You're bluffing. | You have nothing.
+    | You're doing the thing with your eyebrow.
+p2: I don't do a thing with my eyebrow. | I have plenty.
+    | Trill poker face. Three lifetimes of it.
+-> bluff 2, fold 1
+
+= tongo
+dealer: Tongo it is. Confront, evade, retreat. You know the words.
+    | Tongo. Four hundred years of Ferengi misery.
+p1: I have the wheel app on my PADD. | Acquire. Is that right?
+dealer: Acquire. Now speculate. | Close enough. Speculate.
+p2: I speculate. | Evade. I always evade.
+dealer: You can't always evade. | That's not a strategy, {p2}.
+    | Evading is how you lose slowly.
+p2: It's how I've survived this long. | It's worked all year.
+-> bluff 1, fold 2
+
+= bluff
+dealer: Show. | Cards up.
+p1: Pair of sevens. | Two pair.
+    | A flush. Almost.
+p2: Nothing. Absolutely nothing. | High card. A nine.
+p1: You raised on a nine?! | You bluffed me on that?
+p2: The eyebrow sold it. | Never trust a science officer.
+dealer: Pot to {p1}. Three chits. | {p1} takes it.
+-> talk 2, grieg 1
+
+= fold
+p1: Fold. | I'm out.
+p2: Fold? You had a good hand. | Coward.
+p1: I'm saving my chits. I want soup on Thursday.
+    | I need those chits. It's my sister's birthday tomorrow.
+dealer: Whose? | Where's she?
+p1: Earth. She won't know. I'll replicate a cake and eat it for her.
+    | San Diego. I'll eat something on her behalf.
+dealer: Then play for the cake. | That's worth playing for.
+-> talk 2, grieg 1
+
+= grieg
+p2: Grieg's taking chits for real bread now, you know.
+    | Did you hear Grieg's doing real bread on Sundays?
+dealer: Real bread is worth four chits. I've done the maths.
+    | I'd pay six. I'd pay my boots.
+p1: She won't take chits. She says the galley isn't a casino.
+    | She said chits don't buy bread, manners do.
+-> talk
+
+= talk
+p2: Who's winning this month overall? | What's the league table?
+dealer: th'Zoran. By a mile. | Sickbay. They never fold.
+    | Anwar. Doctors can't be read.
+p1: She runs the transporter schedule. She can count everything.
+    | Doctors are terrible people to play cards with.
+dealer: Another hand? | Again?
+-> another 3, done 1
+
+= another
+p2: One more. I want my chit back. | Deal. I'm feeling lucky.
+dealer: Ante up. | Chits in.
+...
+p1: I fold. I'm cursed. | Why do I keep getting twos?
+p2: Ha! Mine. | That's my chit back.
+p1: Deal again. I want a rematch. | Best of three.
+dealer: That was best of three. Four hands ago. | No. I'm cutting you off.
+p1: Then I'm keeping the deck warm for Tuesday. | Fine. Tuesday. Rematch.
+dealer: And that's the night. | That's enough gambling for a Starfleet vessel.
+-> done
+
+= done
+dealer: Same time Tuesday? | I'll tally the chits.
+    | I'm writing this down. Nobody argue with the book.
+p1: Tuesday. | I'll be here. I'll lose.
+p2: Night, {dealer}. | Bring more chits.
+    | Don't tell the captain about the eyebrow.
+-> end
+
+
+scene: lounge_viewport_night
+where: lounge
+cast: a=any, b=any
+weight: 3
+
+= start
+a: Mind if I sit? | Room at the window?
+    | Is this seat taken?
+b: Go ahead. | Sit.
+    | Be my guest.
+...
+a: It's dark down there. | You can't see anything tonight.
+    | Night side again.
+b: It's been dark since June. | That's the county. There's nothing lit anymore.
+    | It used to have lights.
+-> lights 3, stars 2
+
+= lights
+a: I used to count the towns at night. | I used to look for the town lights.
+b: Me too. The big one, and the little ones along the river.
+    | There was a line of them. The highway, I think.
+a: Muldraugh. West Point. I learned the names off Shepard's maps.
+    | I knew them all. I don't know why I learned them.
+b: Some are lit sometimes. A fire. A generator. | Sometimes one flickers.
+a: Someone's alive, then. | That means someone's down there.
+b: Or a generator on a timer. | Maybe. I hope so.
+    | I always hope so.
+-> eleven 3, quiet 1
+
+= stars
+b: Look up, not down. That's what I do. | I watch the stars instead.
+a: They don't move. | They're the same stars every night.
+b: Same ones since February. I've named some. | I know. I've named a few.
+a: What did you call them? | Named them what?
+b: That one's Gerald. That one's also Gerald.
+    | People I miss. It's easier than a letter.
+    | My old instructors. The bright one's the one I hated.
+a: That's... actually lovely. | I'd like to name one.
+b: Take one. There are plenty. | Pick one. Not Gerald.
+-> eleven 2, quiet 2
+
+= eleven
+a: Do you think about the ones still down there? | You think they're alive?
+    | Do you think about the surface team?
+b: Every night. Maren's in her quarters in my head. Still.
+    | All the time. Tomas owes me a book.
+    | Every time I sit here.
+a: The transporter room's still bringing people up. | Some come up.
+b: Idris came up last week. Thin as a rail and grinning.
+    | Somebody's down there beaming them up. Nobody knows who.
+    | They are. Slowly. That's something.
+...
+a: They stayed for the work. | They chose to stay. For the science.
+b: They did. And it was the right call at the time.
+    | I know. I'd have stayed too. I think.
+-> letter 2, quiet 1, dawn 1
+
+= letter
+a: I wrote to Maren's mother. I haven't sent it. | I wrote to Tomas's family.
+    | I've started a letter to Yuki's partner. Three times.
+b: What does it say? | Can I ask what you wrote?
+a: That they were brave. That they stayed to do good work.
+    | That they're missed. That we haven't stopped looking.
+    | That I don't know anything yet. That's the hard part.
+b: That's what I'd want to read. | That's right. That's all true.
+a: I keep rewriting the last line. | I can't find an ending.
+b: Maybe it doesn't need one yet. | Leave it open. It's not over.
+-> quiet 2, dawn 1
+
+= quiet
+...
+a: Is it strange that it's still beautiful? | It's still beautiful. That's the worst part.
+b: No. It's allowed to be. | No. The river's still there.
+    | It's a beautiful planet. It didn't do anything.
+a: The people didn't either. | None of them did anything.
+b: No. They didn't. | No.
+...
+-> dawn 2, go 2
+
+= dawn
+b: Terminator's coming round. Dawn over the river. | There's the dawn line.
+a: Look at that. | There it goes.
+b: Every ninety minutes. I've never got tired of it.
+    | Sixteen of these a day. Still stop what I'm doing.
+a: Me neither. | I hope someone down there's watching it too.
+-> go
+
+= go
+a: I should sleep. | I'm on alpha shift.
+    | I'm going to try and sleep.
+b: Same time tomorrow? | Go on. I'll keep watch.
+    | Night, {a}.
+a: Same time. Save me the window. | Night, {b}. Say hi to Gerald.
+    | Night.
+-> end
+
+
+scene: lounge_shepard_gossip
+where: lounge
+cast: a=any, b=any, c=any
+weight: 3
+
+= start
+a: Have you been in it? Shepard's shuttle? | Have you seen inside her shuttle?
+    | Did you see what came up with Shepard?
+b: The furniture? Everybody's seen the furniture. | Everyone's seen it.
+    | Only through the hatch. I didn't want to be rude.
+a: There's a refrigerator. A real one. With a hum. | There's an oven in there.
+    | There's a lamp. With a shade. A fabric shade.
+-> tv 3, chair 2
+
+= tv
+c: She has a television. | Did you hear she has a television?
+b: A what? | A what now?
+c: A television. A box with a glass screen. It plays tapes.
+    | A real 1990s television. With a tape deck under it.
+b: Tapes? Magnetic tape? | You're joking.
+c: A whole shelf. Her handwriting on the labels.
+    | A row of them. Starfleet ones. Earth ones. Things she dubbed.
+a: I saw one called Ninety-Nine Things To Do With Leola Root.
+    | There's one about dilithium and the seventeen ways it kills you.
+b: That's a real tape? | Why would anyone need that?
+    | I would watch that.
+-> method 2, chair 1
+
+= chair
+b: There's a chair in there. A theatre chair. Red.
+    | And a chair. A big one that tips back.
+c: The theatre chair. She watches the tapes in it.
+    | She sits in it and watches her tapes. I heard.
+a: I heard somebody moved it. And that's why she came up.
+    | Someone said she left the surface because of that chair.
+c: That doesn't make any sense. | Because of a chair?
+a: I'm just saying what I heard. | That's the story going round.
+-> method 2, drop 1
+
+= method
+c: Her department calls it method. Survey work. | She says it's research.
+b: The ship's manifest calls it clutter. | Engineering calls it a fire hazard.
+a: You can't understand a people from orbit. That's what she says.
+    | She says you have to live with their things to read them.
+c: She's not wrong. | She has a point.
+    | Eight months down there. I believe her.
+b: She knows how to boil water in this century. We don't. | Fair.
+-> drop 1, visit 2
+
+= drop
+c: We shouldn't gossip about her. She had it worst.
+    | Be nice. She stayed down there longest.
+a: I'm not being unkind. I'm impressed. | No, I mean it kindly.
+b: She came up on the ninth of July. After everything.
+    | She was alone down there when it happened.
+c: Exactly. So let her keep her furniture. | So she gets a television.
+a: She can have ten televisions. | Fair enough.
+-> visit 1, wrap 2
+
+= visit
+b: Do you think she'd let us watch one? | Would she show us a tape?
+a: Ask her. She loves an audience. | She might. Bring a snack.
+c: Not the leola root one. | The talent night one. Everybody says so.
+b: I'll ask. Politely. | I'll bring her a raktajino as a bribe.
+a: Bring two. | Bring the good kind.
+-> wrap
+
+= wrap
+c: Anyway. Shift in ten. | I have to get back.
+a: Same. Don't touch her lamp. | Tell me if you get invited.
+b: Night, {a}. Night, {c}. | See you both.
+-> end
+
+
+scene: lounge_birthday
+where: lounge
+cast: host=any, bday=any, c=any
+weight: 2
+
+= start
+host: There she is! Sit, sit. | Here's the birthday person.
+    | Surprise. Sort of. You saw us.
+bday: Oh, no. Who told you? | I told nobody. How do you know?
+host: The personnel file told us. {c} can read. | It's in your file.
+c: Happy birthday, {bday}. | Happy birthday!
+-> cake 3, song 1
+
+= cake
+host: Bad news. There's no cake. | There's no cake. I tried.
+bday: That's fine. Really. | There's never been cake. It's fine.
+host: Grieg ran the numbers. Eggs. Butter. Flour. Not in stasis.
+    | Replicator won't do a cake over two hundred grams on ration.
+c: So we did the next best thing. | We improvised.
+-> jumja 2, ration 2
+
+= jumja
+c: One jumja stick, with a candle in it. | A jumja stick. With a candle.
+host: The candle is a glow rod. Fire suppression won't let us.
+    | It's a candle made of a light stick. Safety.
+bday: That's... a jumja stick. | That's the saddest cake I've ever seen.
+    | I love it.
+c: It's Bajoran. It's sweet. It's practically a cake. | Sweet is sweet.
+-> song 2, wish 2
+
+= ration
+host: A ration pack. Dessert course. Apple, allegedly.
+    | Ration pack. The one with the cobbler. We found the cobbler.
+bday: You found the cobbler one? They're like gold. | Nobody gets the cobbler.
+c: We traded three chits for it. | I had to bribe the quartermaster.
+bday: For me? | You didn't have to do that.
+host: We did. It's your birthday. | You're worth one cobbler.
+-> song 2, wish 1
+
+= song
+host: Do we sing? We have to sing. | We're singing. Brace.
+c: Keep it short. The lounge echoes. | Not the Klingon version.
+...
+host: Happy birthday to you. | That was terrible.
+c: That was worse than the talent night rehearsal. | Awful. Lovely.
+bday: Thank you. Honestly. | That was the worst thing I've ever heard. Thank you.
+-> wish
+
+= wish
+c: Make a wish. | Blow out the glow rod.
+host: You have to wish. It's regulation. | Close your eyes.
+...
+bday: Done. | There.
+host: What did you wish for? | Well?
+bday: You know what I wished for. | Same as everyone.
+    | I'm not telling. It won't come true.
+c: Comms. | Home.
+    | For the lights to come back on down there.
+bday: Something like that. | Close enough.
+-> home 3, end_it 1
+
+= home
+bday: My mother always made the same cake. Lemon. Too much lemon.
+    | At home we'd have forty cousins in the garden.
+    | My dad would call at midnight, whatever planet I was on.
+host: Tell us about it. | Too much lemon sounds right.
+bday: Next year. When I can tell them I spent it with you lot.
+    | She'll ask me about this one. I'll say there was cake.
+c: There was cake. | Tell her it was a big cake.
+-> end_it
+
+= end_it
+host: Now eat it before the replicator wants it back. | Eat your cake.
+bday: Half each. | Share it. I insist.
+c: Happy birthday, {bday}. Really. | Many happy returns. Here. Or anywhere.
+bday: Thanks, both of you. | This was nice. Thank you.
+-> end
+
+
+scene: lounge_holodeck_rota
+where: lounge
+cast: a=any, b=any, clerk=operations
+weight: 2
+
+= start
+a: {clerk}! Please tell me I'm on the holodeck list.
+    | {clerk}, is the holodeck rota out?
+clerk: It's out. Don't get excited. | Posted this morning.
+    | It's out. Twenty minutes each.
+b: Twenty minutes? It was thirty last month. | Twenty?
+clerk: Rhel's orders. Every hour on the holodeck is power we can't waste.
+    | Power budget. The holodeck eats energy like a Klingon eats gagh.
+-> slot 2, swap 2
+
+= slot
+a: When's mine? | Where am I?
+clerk: Thursday, oh-three-forty. | Tuesday. Two in the morning.
+a: In the morning? | That's the middle of the night.
+clerk: Then it's quiet. You'll have the beach to yourself.
+    | Nobody will interrupt. Think of it that way.
+b: What's everyone doing with theirs? | What's popular?
+clerk: Beaches. Forests. Rain. People want weather.
+    | Mostly rain. Just standing in the rain.
+-> weather 2, swap 1
+
+= swap
+b: I'll trade you. My Friday slot for your Tuesday. | Want to swap?
+a: Why? | What's wrong with Friday?
+b: It's right after the sensor shift. I just want to sleep.
+    | Friday's talent night. I'm not missing spoons.
+a: Deal. | Done. {clerk}, did you hear that?
+clerk: I heard nothing. Swaps are between consenting adults.
+    | Log it yourselves. I'm not doing it twice.
+-> weather 2, merge 1
+
+= weather
+a: Rain. I'd do rain. | I want snow. Real cold.
+    | I want a city. Noise. Traffic. People who don't know me.
+b: I did a Paris cafe last month. The waiter was rude. It was perfect.
+    | I just walk around a market. Buy nothing. Listen.
+clerk: Somebody booked a 1990s mall. After Shepard's photographs.
+    | Someone asked me for a program of a Kentucky diner. I said no.
+a: That's not funny. | Too soon.
+    | Why would anyone want to go down there?
+clerk: They said it was research. I think they're homesick for somewhere.
+    | I agree. I didn't book it.
+-> beach 2, merge 2, done 1
+
+= beach
+b: What does engineering do with theirs? | What's Rhel's lot's program?
+clerk: A beach. Always the same beach. On Risa. Sunset, permanently.
+    | A beach on Bajor. Rhel picked it. No arguments allowed.
+a: Permanently sunset? | The same beach every week?
+clerk: They say they like knowing what'll be there. Nothing changes.
+    | It's the only place on the ship where nothing's broken.
+b: That's quite sad. | I get that, actually.
+    | That's the most engineering thing I've ever heard.
+clerk: They come out smiling. That's all I care about.
+    | Whatever works. They're keeping the lights on.
+-> merge 2, done 1
+
+= merge
+b: What if two of us share a slot? Forty minutes, one program.
+    | Could we pool our slots? A whole hour?
+clerk: You can share. Two to a slot, same program. It's allowed.
+    | Sharing's allowed. Fewer people, same power.
+a: Rain and a market. We can have both. | Snow in a city?
+b: A rainy market. | Snow on a street market. Done.
+clerk: I'll put it in as a joint slot. | Writing it in.
+-> done
+
+= done
+clerk: Next month it might be fifteen minutes. Enjoy the twenty.
+    | Don't be late. You'll lose the whole thing.
+a: Thanks, {clerk}. | You're a hero.
+b: Rain, {a}. See you in the rain. | See you on the beach.
+-> end
+
+
+scene: lounge_sickbay_rumour
+where: lounge
+cast: a=any, b=any, med=medical
+weight: 2
+tags: lore
+
+= start
+a: Can I ask you something, {med}? Off the record? | {med}. Quick question.
+    | You're sickbay, right? Can I ask you something?
+med: Depends on the question. | Ask. I might not answer.
+    | Off the record isn't a thing on a starship.
+a: What did sickbay actually find? In the samples. | What did the Doctor find?
+b: Everyone's heard something. | There's a story going round.
+-> hedge 3, markers 2
+
+= hedge
+med: I can't talk about patient samples. You know that.
+    | That's Dr. Anwar's to say, not mine.
+b: We're not asking about a patient. We're asking about the county.
+    | Not a patient. The planet.
+med: Same answer. Mostly. | ...
+    | It's not my place.
+a: Then what are people saying? | Fine. What's the rumour?
+-> markers 2, okafor 2
+
+= markers
+med: There were markers in the samples. Confusing ones.
+    | Some of the readings didn't fit anything we expected.
+b: Confusing how? | Confusing like what?
+med: Like a signature you half recognise. | Like two things wearing one coat.
+    | I'm not going to guess out loud.
+a: Section 31? That's what Shepard thought. | So it was Section 31?
+med: Some people think so. The Doctor didn't say that.
+    | Maybe. Maybe not. Some people think so.
+-> doctor 2, okafor 1
+
+= doctor
+med: He said something. I wrote it down because it stuck.
+    | You know what the Doctor said? Word for word?
+med: I can support the chemistry. I cannot support the author.
+b: What does that mean? | What's that supposed to mean?
+med: I don't know. I don't think he knew yet either.
+    | That the science is solid and the conclusion isn't.
+    | Ask him. He'll give you forty minutes on it.
+-> okafor 2, q 1
+
+= okafor
+a: And Okafor? Somebody saw him coming out of sickbay. | And Okafor?
+b: The quiet one. Intelligence liaison. | The one who never smiles.
+med: I saw him. He looked shaken. That's all I'll say.
+    | He came in, read something, and left without speaking.
+    | He looked like a man who'd been wrong about something.
+a: Shaken. Okafor. | That's worse than anything you could have said.
+-> q 2, stop 2
+
+= q
+b: My money's on Q. It's always Q. | Maybe it's Q.
+    | The Q theory. Captain's not ruling it out.
+med: Sensible people think it's Q. I'm not sure I'm sensible.
+    | The captain takes it seriously. So do I, I suppose.
+a: And somebody aboard? The sabotage was from the inside.
+    | The sabotage came from inside the ship. Everybody knows it.
+med: Everybody knows it and nobody knows who. | Don't start that here.
+-> stop
+
+= stop
+med: Look. I'll tell you what I tell everyone. We don't know yet.
+    | That's all. Really. We don't know. Not yet.
+b: But somebody will. | Someone will work it out.
+med: Somebody will. Probably someone we'd never expect.
+    | Maybe. The Doctor reads everything. Give him time.
+a: Thanks, {med}. For not saying anything. | We never had this talk.
+med: What talk? | Get some sleep, both of you.
+-> end
+
+
+scene: lounge_replicator_pizza
+where: lounge
+cast: cook=any, a=any, b=any
+weight: 2
+tags: rare
+
+= start
+cook: Stand back. I'm making history. | Behold.
+    | Okay. I think I've got it.
+a: What is it? | Is that meant to smell like that?
+cook: A 1993 pizza. From Shepard's field notes. Pepperoni. Extra cheese.
+    | Microwave pizza. Shepard wrote a pattern for it in March.
+b: It's steaming. Why is it steaming? | It's orange.
+    | It looks like a hull patch.
+-> taste 2, notes 2
+
+= notes
+cook: She wrote down everything. Cheese stretched eleven centimetres.
+    | Her notes say it was eaten out of a box. Standing up.
+a: Standing up? | Out of a box?
+cook: At a gas station counter. A cultural survey is very specific.
+    | She says standing up was part of it. I'm respecting the method.
+b: We're doing this properly, then. Everyone up. | Nobody sit down.
+-> taste
+
+= taste
+a: You first. | After you, {cook}.
+cook: Fine. Cowards. | For science.
+...
+cook: It's... hot. It's very hot. | The roof of my mouth is gone.
+b: But how does it taste? | Is it good?
+cook: It tastes like the box. | It's incredible. It's awful. Both.
+    | It tastes like a Tuesday afternoon four hundred years ago.
+-> klingon 1, more 2
+
+= klingon
+b: Kurag's coming. Hide it. | Oh no. Security's coming this way.
+a: He's going to hate it. He hates everything replicated.
+    | He'll throw it at the replicator again.
+...
+b: He took a slice. | He just ate one. Standing up.
+cook: He said it was honourable. | He said it was a warrior's food.
+    | He said nothing and took two more.
+a: That's the highest praise on this ship. | We need to tell Grieg.
+-> more
+
+= more
+a: Give me some. Actually give me some. | Fine. Give me a slice.
+b: Me too. | I want one.
+cook: One slice each. That was a whole ration. | Chits, please.
+a: Oh. Oh no. | That's... actually good.
+b: I hate that I like it. | Make another one.
+cook: I can't. I spent three days' ration on this. | That's all.
+-> shepard 2, end_it 1
+
+= shepard
+a: Did Shepard ever eat one of these? Down there? | Has Shepard tried it?
+cook: She says she ate them at a truck stop every Thursday. For the survey.
+    | She said they were the best thing on the planet. And the worst.
+b: Every Thursday? | For the survey. Of course.
+cook: She had a regular booth. The waitress knew her name.
+    | She said the woman behind the counter called her hon.
+...
+b: I hope that waitress is all right. | I hope she got somewhere safe.
+cook: So do I. | Shepard doesn't talk about it. I didn't ask.
+a: Let's save her a slice. | We should bring her the next one.
+-> end_it
+
+= end_it
+a: Shepard needs to know. | Put it on the talent night menu.
+b: I'm writing to Starfleet about this. When they pick up. | Historic.
+cook: Tell nobody. Everyone will want one. | Not a word to Grieg.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# GALLEY
+# ---------------------------------------------------------------------------
+
+scene: galley_gagh
+where: galley
+cast: cook=operations, sec=security, c=any
+weight: 3
+
+= start
+sec: I need a word about the gagh. | We have a gagh situation.
+    | {cook}, it's about Lieutenant Kurag.
+cook: Oh no. What happened this time? | Is it the replicator again?
+sec: He ordered gagh. The replicator made gagh. | Kurag replicated gagh.
+cook: And? | So far so good.
+-> fury 3, thrown 2
+
+= fury
+sec: It wasn't moving. He says it was dead. | He says it was flat.
+    | He says the worms had no fight in them.
+cook: It's replicated. It doesn't move. It can't. | It's a pattern. It's dead.
+sec: He said that is exactly the problem. At volume.
+    | He called it the gagh of a coward.
+c: Is he still in there? | I heard shouting from Deck 3.
+sec: He's in the lounge telling everybody. | He's writing a complaint to Vale.
+-> thrown 1, fix 2
+
+= thrown
+c: I heard he threw it. | Is it true he threw the plate?
+sec: At the replicator. Very accurately. | Into the replicator. From the door.
+cook: Did it break? | Is the replicator all right?
+sec: The replicator's fine. The worms are in the ventilation.
+    | Nothing broke. Deck crew are cleaning worms off the bulkhead.
+c: Dead worms. In the vents. | Oh, that's going to smell by morning.
+-> fix 3
+
+= fix
+cook: What does he want me to do? I can't make live gagh.
+    | He knows the stasis units have no gagh. Not one.
+sec: He wants real food. That's all. | He wants to eat something honourable.
+c: Rokeg blood pie? Grieg did one in May. | Is there any rokeg left?
+cook: One pie. In stasis. For emergencies. | One. Grieg guards it.
+sec: This is an emergency. | I'd call this an emergency.
+    | He's been on this ship eight months. It's an emergency.
+-> complaint 1, grieg 2, bargain 2
+
+= complaint
+c: What did he write to the captain? | Did he actually file a complaint?
+sec: Three pages. I've seen it. It opens with a battle poem.
+    | He filed it. It rhymes. In Klingon.
+cook: What did Vale say? | Has the captain answered?
+sec: She wrote back one line. Noted. Eat the pie.
+    | She said she'd review it after the warp core is fixed.
+c: That's the most Captain Vale thing I've ever heard. | Classic Vale.
+-> grieg 1, bargain 1
+
+= grieg
+cook: Grieg will want it signed for. In triplicate. | I have to ask Grieg.
+c: Tell her it's morale. She likes morale. | She'll say yes. She likes him.
+cook: She does. He's the only one who eats her boiled greens.
+    | He brought her a bat'leth when her oven broke. To fix it with.
+sec: Did it fix the oven? | Did it work?
+cook: Yes. Don't ask how. | Surprisingly well.
+-> pie
+
+= bargain
+cook: He can have the pie if he cleans the vents. | Pie for vents.
+sec: I'll tell him. He'll say cleaning is for targs. | That's fair.
+c: Tell him it's a battle with the ventilation. He'll love it.
+    | Tell him the worms fled. He'll hunt them.
+sec: That might actually work. | I'll frame it as a hunt.
+-> pie
+
+= pie
+cook: I'm warming the pie. Real heat. Not the replicator.
+    | Oven's on. Twenty minutes. Tell him to come hungry.
+sec: Thank you, {cook}. You've saved a man's honour.
+    | Thanks. You've saved my evening.
+c: Can I have a slice? | Is there any left over?
+cook: No. | It's rokeg blood pie. You don't want any.
+c: I don't want any. | Fair.
+    | No. I really don't.
+-> end
+
+
+scene: galley_plomeek
+where: galley
+cast: cook=operations, vul=sciences, c=any
+weight: 3
+
+= start
+vul: Is there any plomeek left? | Excuse me. I would like plomeek soup.
+    | {cook}. Plomeek, if you have it.
+cook: Replicated or real? | Real, from stasis, or the replicator?
+vul: Real, if possible. | Real. The replicated version is inaccurate.
+cook: What's wrong with the replicated one? | Inaccurate how?
+-> explain 3, c_asks 2
+
+= c_asks
+c: What even is plomeek? | I've never known what plomeek is.
+    | I always thought it was a colour.
+vul: A root vegetable. Vulcan. Grown in the desert near ShiKahr.
+    | A soup. Orange. Served at breakfast, with no garnish.
+c: At breakfast? | Soup for breakfast?
+vul: At breakfast. It is logical. | Where I grew up, at every breakfast.
+-> explain
+
+= explain
+vul: The pattern overseasons it. It is meant to be bland.
+    | The replicator adds salt. There is no salt in plomeek.
+cook: It's meant to be bland? | You want it blander?
+vul: It is meant to be quiet. It lets you think.
+    | It is not meant to taste of anything in particular. That is the point.
+c: That's the most Vulcan thing I've ever heard.
+    | You're describing a soup that's trying not to be a soup.
+vul: Thank you. | That is accurate.
+-> stock 2, recipe 2, quiet 2
+
+= quiet
+cook: Do you need quiet? More than usual, I mean? | Is it hard, aboard?
+vul: One hundred and forty-one people, grieving at once. It is loud.
+    | The ship is anxious. Even when nobody speaks, it is loud.
+c: We're that bad? | Sorry.
+vul: You are not bad. You are frightened. It is reasonable.
+    | It is not a criticism. It is a very human ship right now.
+cook: Then you need soup. | Then soup it is.
+-> stock 1, recipe 1
+
+= stock
+cook: We have four bowls in stasis. That's the whole supply.
+    | Three portions left. Then it's replicator or nothing.
+vul: So few. There are eight Vulcans aboard. | Hm. That is too few.
+cook: I know. I've been saving them. | For bad days.
+vul: Today is not a bad day. I will have the replicator version.
+    | Then I will not take one. Someone may need it more.
+c: That's very noble. | Take the soup.
+-> recipe 2, bowl 1
+
+= recipe
+cook: Can you tell me how to make it? From scratch? | Teach me.
+vul: The root. Water. Heat. Time. Nothing else. | Four ingredients.
+cook: That's it? | Where do I get the root?
+vul: Nowhere near here. But there is a root on the surface. A parsnip.
+    | There are roots in Shepard's samples that are close.
+cook: A parsnip. You'd eat parsnip soup? | Could I try a parsnip?
+vul: It would be imprecise. I would eat it. | It would be... acceptable.
+-> bowl
+
+= bowl
+cook: Here. Real, from stasis. Don't argue. | Here's a bowl. The real one.
+vul: I said I would take the replicated. | I asked for the replicator one.
+cook: You also said it lets you think. You look like you need to think.
+    | You've been on shift sixteen hours. Eat the soup.
+vul: ... Thank you, {cook}. | That is kind.
+c: Is it good? | How is it?
+vul: It is quiet. | It is exactly as bland as it should be.
+    | It tastes like home. In a very small way.
+-> end
+
+
+scene: galley_leola
+where: galley
+cast: a=any, b=any, cook=operations
+weight: 2
+
+= start
+a: Is that leola root? Is Tessik cooking again? | Oh no. Leola root.
+    | I can smell leola from the corridor.
+cook: Tessik's leola stew. He asked for the galley for an hour.
+    | Crewman Tessik is making leola. For everybody. Whether we want it or not.
+b: I like leola root. | Don't be rude. He means well.
+a: You like leola root? | Nobody likes leola root.
+-> defend 3, tape 1
+
+= defend
+b: It's earthy. It's honest. It's a whole root. | It fills you up.
+a: It tastes like wet soil that's angry with you.
+    | It tastes like a boot.
+b: Have you had it with chadre'kab? | You haven't had it done properly.
+cook: He does it properly. That's the problem. It tastes more of leola.
+    | Properly is worse. Properly is more leola.
+-> tessik 1, tape 1, argue 2
+
+= argue
+b: Name one thing on this ship that tastes better than leola. | Name one.
+a: Anything. The ration packs. The soap. | A ration pack. A boot.
+    | The cobbler pack. The recycled water.
+b: You've never had the soap. | You're being dramatic.
+a: I've had the leola. I can extrapolate. | I don't need to.
+cook: You two do this every time he cooks. | Every week. Same argument.
+b: And every week {a} eats a bowl. | And every week you finish it.
+-> tessik
+
+= tape
+cook: Shepard's got a tape. Ninety-Nine Things To Do With Leola Root.
+    | Did you know there's a whole tape about leola? Ninety-nine recipes.
+b: Ninety-nine? | And?
+cook: Somebody watched it. Around thing sixty the chef stops pretending.
+    | They said he starts talking about home and how far away it is.
+a: That's the saddest cooking show I've ever heard of.
+    | So even the chef hates leola.
+cook: He gets back to it. Thing sixty-one. | He finishes. That's the point.
+-> tessik
+
+= tessik
+a: Why does Tessik do it? Nobody asks for it. | Why does he keep making it?
+cook: Because he's the only Talaxian on the ship. It's home.
+    | Because it's the only thing that tastes like his mother's kitchen.
+b: And because it's stasis-stable. Leola keeps forever.
+    | And leola keeps. It's practically indestructible.
+a: Oh. | I didn't think about that.
+...
+a: Fine. I'll have a bowl. | I'll eat it. For him.
+-> eat 2, spice 1
+
+= spice
+b: Ask him to go easy on the spice. | He puts pepper in it, you know.
+cook: He puts Talaxian pepper in everything. It's his signature.
+    | He says pepper makes leola forgive you.
+a: Does it? | And does it?
+cook: It makes you forget the leola. For about a minute.
+    | Nothing forgives leola.
+-> eat
+
+= eat
+cook: Here. Say something nice to him when you see him.
+    | Bowl. Say thank you to Tessik, mind.
+a: ... It's not bad. | It's... it's actually all right.
+    | It's awful. I'm going to finish it.
+b: See? | Told you.
+a: Don't tell him I said that. | I'm never admitting this.
+cook: Too late. He's behind you. | He heard that.
+-> end
+
+
+scene: galley_disaster
+where: galley
+cast: cook=operations, helper=any, c=any
+weight: 2
+
+= start
+helper: Is it supposed to be black? | Something's burning.
+    | {cook}? The oven's making a noise.
+cook: No. No, no, no. | Open the vent. Open the vent!
+    | Don't open the door! Too late.
+c: What was it? | What did it used to be?
+cook: Bread. It was bread. Grieg's starter. | A loaf. It was a loaf.
+-> starter 2, smoke 2
+
+= smoke
+c: The smoke detector's going to go. | Is that the fire suppression?
+helper: I'll wave a tray at it. | Tray. Wave it. Go.
+...
+c: It's stopped. | It stopped.
+cook: If the suppression field goes off, we lose everything in here.
+    | We'd lose a week of dough. Grieg would never forgive me.
+-> starter 2, cause 1
+
+= starter
+cook: Grieg's been keeping that starter alive since February.
+    | She calls the starter Gerald. It's older than the sabotage.
+helper: Is Gerald dead? | Did we kill Gerald?
+cook: No. Gerald's in the jar. We only killed his loaf. | Gerald is fine.
+c: Thank goodness. | Oh, thank the Prophets.
+    | She'd have spaced us.
+-> cause
+
+= cause
+c: What happened? | What went wrong?
+cook: I set it in Celsius. The oven's from Shepard's survey. Fahrenheit.
+    | The oven's in Fahrenheit. It's a 1990s oven. I forgot.
+helper: Four hundred Celsius. | So you baked it at four hundred degrees.
+cook: Yes. At the temperature of a phaser drill. | It's charcoal now.
+-> salvage 2, grieg 2
+
+= salvage
+helper: Can we save any of it? | Is any of it edible?
+c: The middle might be fine. | Cut it open.
+...
+cook: The middle's still raw. | It's black outside and raw inside.
+helper: Impressive. Both at once. | That's actually a talent.
+c: Put it on the talent night list. | Kurag might eat it.
+-> grieg
+
+= grieg
+cook: I have to tell Grieg. | Grieg is going to be so quiet.
+helper: She won't shout. | She's never shouted at anyone.
+cook: She doesn't shout. She goes quiet and makes you tea. It's worse.
+    | That's why. She'll be kind. I can't bear it.
+c: Make another one. Before she's back. | You've got the dough. Start again.
+cook: At the right temperature. | Three hundred and fifty. Fahrenheit.
+-> redo
+
+= redo
+helper: I'll watch the dial. | I'll stand guard over it.
+cook: Thanks, {helper}. | Right. Forty minutes.
+c: I'll open the vents. | I'll tell Grieg you're busy.
+cook: Don't lie to her. | Tell her the truth. Later.
+helper: What do we do with the black one? | And the charcoal?
+cook: Kurag might want it. He likes things that fought back.
+    | Recycler. Quickly, before anyone sees.
+c: I'll take it to him. | I'll give it a hero's funeral.
+-> end
+
+
+scene: galley_washing_up
+where: galley
+cast: wash=any, dry=any
+weight: 3
+
+= start
+wash: Your turn to dry. | Pass me the next one.
+    | Right. Sleeves up.
+dry: Why aren't we just putting these in the recycler?
+    | Why do we even wash these? Couldn't we recycle them?
+wash: Recycling costs power. Water's free. Grieg's rules.
+    | Every plate we recycle is a gram of matter we don't get back.
+dry: I know. I know. | I know. I was asking the universe.
+-> talk 2, plates 2
+
+= plates
+dry: This one's from Shepard's lot. It has a flower on it.
+    | Look at this. A cup with a cartoon on it.
+wash: Careful. Those are from 1993. Real ceramic. | Careful with it.
+dry: Who's the duck? | What is this animal?
+wash: No idea. Shepard would know. | Some sort of mascot.
+    | I think it's a cultural artefact now.
+dry: I'm drying an artefact. | We are washing history.
+-> talk
+
+= talk
+wash: How are you doing? Really. | You all right? You've been quiet.
+dry: Fine. Tired. | Honestly? Bit low.
+    | I'm all right. I miss my own kitchen.
+wash: Want to talk? | Anything happen?
+dry: Just the planet. You look out the window and remember.
+    | I was on the sensor rota. Counting nothing.
+    | My sister's wedding was last week. I think. I did the maths.
+wash: I'm sorry. | That's hard.
+-> home 3, kind 1, song 1
+
+= home
+wash: What was your kitchen like? At home. | Where's home for you?
+    | Tell me about your kitchen. The one you miss.
+dry: Small. Blue tiles. A window over the sink onto a lemon tree.
+    | A station galley on Starbase 12. No window. I loved it anyway.
+    | My dad's kitchen in Nairobi. There was always a radio on.
+wash: Sounds lovely. | I can picture it.
+    | That sounds like a good place to be.
+dry: I did the dishes there every night. Looking out.
+    | That's why I don't mind this. It's the same job.
+wash: Well. Look out of this one. | Our window's got a whole planet.
+dry: It's not a lemon tree. | It'll do.
+    | It's not the same. But it'll do.
+-> kind 2, song 1
+
+= kind
+wash: You know what helps me? Doing dishes.
+    | This helps. Stupid, but it does.
+dry: Dishes. | Honestly?
+wash: They get clean. You can see it. There's not much else like that.
+    | You start with dirty and you end with clean. It's a whole story.
+dry: That's... actually nice. | I'll take it.
+...
+-> song 2, done 1
+
+= song
+wash: Do you know any songs? | Sing something.
+dry: Only one my grandmother sang. | Only the Academy fight song.
+wash: Go on. | Let's hear it.
+...
+dry: That's all I remember. | That's the verse. There's no more.
+wash: That was nice. | Do it again at talent night.
+-> done
+
+= done
+wash: Last one. | That's the lot.
+dry: Stack them. Grieg likes them stacked by size.
+    | Grieg sorts them by colour. Don't mess it up.
+wash: Thanks for the help. | Same time tomorrow?
+dry: Same time. | Anytime.
+-> end
+
+
+scene: galley_stasis_count
+where: galley
+cast: q=operations, cook=any, c=any
+weight: 2
+
+= start
+q: Stasis count. Everybody quiet. | Inventory time. Grieg wants numbers.
+    | Right. Count with me, {cook}.
+cook: Unit one. Open. | Unit one. Here we go.
+q: Read it out. | Numbers.
+-> one 3
+
+= one
+cook: Unit one. Forty ration packs. Four plomeek. Six hasperat.
+    | Unit one. Thirty-eight packs, three plomeek, and the rokeg pie.
+q: The rokeg pie? Still? | Kurag hasn't found it?
+cook: It's labelled cleaning supplies. | Grieg hid it under the cabbages.
+c: Clever. | Good.
+-> two 2, maths 1
+
+= two
+cook: Unit two. Tubers. Andorian. Nine. Oskoid, fourteen.
+    | Unit two. Oskoid. Lots of oskoid. Nobody eats the oskoid.
+q: Why is there so much oskoid? | We've got more oskoid than people.
+c: The Betazoids are too polite to say they don't like it.
+    | Somebody ordered it by the crate in 2433.
+cook: Jumja sticks, twenty. Chadre'kab, four. | And three wing-slug rolls.
+q: Wing-slug? We don't have any Orions. | Who's the wing-slug for?
+cook: Nobody knows. They've been there since the shakedown.
+    | Rhel. He claims it's for a bet.
+-> three
+
+= three
+cook: Unit three. Mostly surface food. From the beam-downs.
+    | Unit three. Tins. From down there.
+q: What kind? | Label?
+cook: Beans. Soup. Peaches in syrup. The labels are 1993.
+    | Canned peaches. Canned corn. A tin that says spam.
+c: Is it safe? | It's four hundred years old.
+q: It's from their 1993. It's about six months old.
+    | It's their year. Not ours. It's fine.
+-> maths 2
+
+= maths
+q: Right. Maths. A hundred and forty-one crew. | Right. The sums.
+q: Three meals a day. Replicator does two. The galley does one.
+    | Two replicated meals a day, one real meal a week each.
+cook: At this rate, real food lasts till... | How long?
+q: October, if nobody has a birthday. | Till winter. If we're careful.
+c: And after that? | Then what?
+q: Replicator only. Unless someone brings food up from the surface.
+    | Then we need the transporter room to beam up tins.
+-> hope 2, shrug 1
+
+= hope
+cook: The transporter's still bringing things up. | We have options.
+c: And people. | People too. Idris came up last week.
+q: People first. Tins second. That's the order.
+    | People matter more than peaches.
+c: Obviously. | Of course.
+-> close
+
+= shrug
+c: So we eat ration packs till Christmas. | Replicated Christmas.
+cook: Grieg will do a real Christmas. She'll find a way.
+    | She's saving something. She won't say what.
+q: She is. I've seen the list. It's got a trifle on it.
+    | Unit one, back left. I didn't see it. Neither did you.
+-> close
+
+= close
+q: Log it. Seal them. | Close them up. Keep the cold in.
+cook: Sealed. | Units sealed. Power's good.
+q: Thanks, both. Don't tell anyone about the trifle.
+    | Good work. I'll give Grieg the numbers.
+c: What trifle? | My lips are sealed.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# BARKS
+# ---------------------------------------------------------------------------
+
+bark: idle
+where: lounge, galley
+- Replicator ration's down to four minutes. Four. | Four minutes of replicator.
+- Who took the last raktajino pattern slot? | Somebody's hogging the raktajino.
+- Grieg's bread day. The whole deck smells like home. | Bread. Real bread.
+- Same planet in the window. Every day. | Still there. Still dark.
+- One more hand. Just one. | I'm owed three chits by somebody.
+- Earl Grey, hot. ... No, the other hot. | Tea. Earl Grey. Hot. Please.
+- Holodeck list's out. Twenty minutes. Twenty. | I got Tuesday at two AM.
+- Who left oskoid in the stasis unit again? | Nobody eats the oskoid.
+- Is that leola? Is Tessik cooking? | I can smell leola.
+- Talent night, Friday. Somebody sign up. | Still need acts for Friday.
+- Humming. Just humming. Don't mind me. | La la la.
+- Four more weeks of real coffee. I did the maths.
+    | Real coffee runs out in October.
+- I miss rain. | I would kill for weather.
+- Where are the cobbler ration packs? | Somebody's been eating all the cobbler.
+- Wash, rinse, stack. Wash, rinse, stack. | Grieg stacks them by size.
+- Kurag's still angry about the gagh. | Don't mention gagh near Kurag.
+- Nobody's opening the Romulan ale. Nobody. | What ale? I know nothing.
+- One more letter for the unsent file. | Dear Mum. Still here.
+- Is the lift working? It stuck again on Deck 3.
+- There's a light down there. No. Gone.
+    | Was that a light on the surface? No.
+
+bark: hello
+where: lounge, galley
+- Evening. | Crewman. | Hi there.
+- Grab a seat. | Plenty of chairs.
+- Want a drink? Chit's on me. | Coffee's terrible. Want one?
+- Oh, hi. Didn't see you there. | Hello.
+- Are you eating? Grieg's got soup. | There's soup, if you're hungry.
+- Mind the floor. Just mopped. | Watch your step.
+- Welcome to the best room on the ship. | Hi. Room at the window.
+- You look like you need a raktajino. | Long shift?
+- Evening. We're one short for cards. | Play tongo?
+
+bark: outfit
+where: lounge, galley
+- That's a strange outfit you have on. | That's... an outfit.
+- Is that from down there? The 1990s? | Is that surface clothing?
+- Do those trousers have rivets? | Why are there rivets on your trousers?
+- Is that denim? Real denim? | Shepard would love that jacket.
+- Where's your uniform? Laundry day? | Out of uniform. Bold.
+- Is that a shirt with a word on it? What does it mean?
+    | What's the writing on your shirt about?
+- That jacket's got a hood. For weather, I suppose. | A hood. Practical.
+- Are you with Shepard's survey? That's very authentic.
+    | Is that for the cultural survey? Very convincing.
+- The galley has a dress code. Sort of. | Grieg won't mind. Probably.
+- I like the look. Very 1993. | Very period. Very brave.

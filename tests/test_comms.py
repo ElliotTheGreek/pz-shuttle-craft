@@ -146,18 +146,24 @@ def main():
                             gen_comms.THREADS)
         gen_comms.write_text(base / "media/lua/shared/Translate/EN/Print_Text.json",
                              gen_comms.build(gen_comms.THREADS))
-        for rel in ("media/lua/shared/TREK/TREK_CommsTree.lua",
-                    "media/lua/shared/Translate/EN/Print_Text.json"):
-            want = (base / rel).read_text(encoding="utf-8")
-            have = (ROOT / "TrekShuttle/42" / rel).read_text(encoding="utf-8")
-            if want != have:
-                fail(f"{rel} is not what tools/gen_comms.py writes now -- run it")
+        rel = "media/lua/shared/TREK/TREK_CommsTree.lua"
+        if (base / rel).read_text(encoding="utf-8") != (ROOT / "TrekShuttle/42" / rel).read_text(encoding="utf-8"):
+            fail(f"{rel} is not what tools/gen_comms.py writes now -- run it")
+        # Print_Text.json is shared with the crew's talk: compare the
+        # channel's own keys, which are all this generator writes.
+        rel = "media/lua/shared/Translate/EN/Print_Text.json"
+        def comm(path):
+            return {k: v for k, v in json.loads(path.read_text(encoding="utf-8")).items()
+                    if k.startswith("Print_Text_TREK_COMM")}
+        if comm(base / rel) != comm(ROOT / "TrekShuttle/42" / rel):
+            fail(f"{rel} is not what tools/gen_comms.py writes now -- run it")
 
     # --- every key the tree names has text, and nothing is orphaned ---------
     lua = (ROOT / "TrekShuttle/42/media/lua/shared/TREK/TREK_CommsTree.lua").read_text(
         encoding="utf-8")
-    text = json.loads((ROOT / "TrekShuttle/42/media/lua/shared/Translate/EN/"
-                                "Print_Text.json").read_text(encoding="utf-8"))
+    text = {k: v for k, v in json.loads((ROOT / "TrekShuttle/42/media/lua/shared/Translate/EN/"
+                                "Print_Text.json").read_text(encoding="utf-8")).items()
+            if k.startswith("Print_Text_TREK_COMM")}
     used = set(re.findall(r'"(Print_Text_TREK_COMM_[A-Za-z0-9_]+)"', lua))
     if len(used) < 100 or len(text) < 100:
         fail(f"only {len(used)} keys in the tree and {len(text)} in the text: "

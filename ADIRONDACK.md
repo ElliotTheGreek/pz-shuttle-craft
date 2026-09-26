@@ -321,12 +321,10 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
 
 1. **First play-test**: do the pack and tiledef load, do the doors open, do
    the walls block, is the lighting enough.
-2. **Crew.** Starfleet NPCs are dressed, calmed zombies spawned by the server
-   with `addZombiesInOutfit` -- no debug or admin gate (checked in the
-   bytecode), a vanilla call site in the tutorial, and the whole of the
-   Bandits mod built on it. `ENSIGN.md` section 3 says otherwise and is wrong
-   on this point. Our own small crew system or a dependency on Bandits is the
-   open decision.
+2. **Crew:** built, without depending on Bandits. See CREW.md. The first
+   play-test decides the animation and pathfinding questions in CREW.md §6.
+   `ENSIGN.md` §3's claim that zombie NPCs are gated is wrong:
+   `addZombiesInOutfit` has no admin gate.
 3. Posters, original art only: no real actors' likenesses.
 4. Art: the plant, the transporter pad, the plaque's IP check, the tan
    viewports and door frames, a two-storey warp core.

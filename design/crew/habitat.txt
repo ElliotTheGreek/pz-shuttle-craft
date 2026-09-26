@@ -1,0 +1,834 @@
+# The crew quarters, Deck 2's corridor, the bunks and the baths (CREW.md 4).
+
+scene: hab_sonic_shower
+where: quarters, habitat
+cast: a=any, b=any
+weight: 3
+
+= start
+a: You were in the sonic shower for forty minutes. | Forty minutes, {b}.
+    | Did you fall asleep in the shower again?
+b: It was twenty. | It was not forty.
+    | I was thinking. It's the only quiet place on the ship.
+a: I timed it. I had a PADD. | The door log says forty-one.
+b: You timed my shower? | You checked the door log?
+-> setting 2, water 2, quiet 1
+
+= setting
+a: And you left it on your setting again. Maximum. | You changed the setting.
+b: Maximum is the only setting that does anything. | It's a sonic shower.
+    | Maximum is how it's meant to be.
+a: Maximum makes my teeth hum for an hour. | It rattles my fillings.
+    | I came out of it hearing colours.
+b: That's how you know you're clean. | That's how you know it's working.
+a: That's how you know you've been to a rock concert.
+    | I don't want to be clean at a molecular level. Just clean.
+-> water 2, compromise 2
+
+= water
+b: I want a real shower. With water. Just once. | I miss water.
+a: Everyone wants a water shower. There's a rota. | Rhel says no.
+    | Water showers are Thursday. Four minutes.
+b: Four minutes. I have hair, {a}. I have a lot of hair.
+    | Four minutes isn't a shower. It's a rinse with ambition.
+a: Shepard had a bath in her shuttle. A real bathtub.
+    | You know the Adirondack has one bathtub? In the captain's quarters.
+b: Please don't tell me that. | I didn't need to know that.
+    | And does Vale ever use it?
+a: Never. She sleeps four hours and showers sonic like the rest of us.
+    | Rumour says she keeps plants in it.
+-> compromise 2, quiet 1
+
+= quiet
+b: Honestly? I go in there to sit. | I'm not showering. I'm hiding.
+a: Hiding from what? | From who?
+b: Everything. The window. The sensor map. The news that isn't news.
+    | Nobody can find you in a sonic shower. It's the only door that locks.
+a: Oh. | I didn't know that.
+    | You could have said.
+b: It's fine. It's just... it hums. It drowns things out.
+    | It's loud in the right way.
+-> kind 2, compromise 1
+
+= kind
+a: You can have the forty minutes. | Take the forty. I'll use Deck 3's.
+b: No, you're right. I'll time it. | I'll find somewhere else to hide.
+a: Or hide in here with the lights off and I'll pretend I'm asleep.
+    | There's the observation lounge at night. Nobody's there after two.
+b: Thanks, {a}. | You're a good roommate. Mostly.
+-> compromise
+
+= compromise
+a: Deal. Twenty minutes each. Mornings mine, evenings yours.
+    | Here's the deal. You get evenings. I get mornings.
+b: And the setting? | Maximum on my time?
+a: Your time, your teeth. Just put it back to medium after.
+    | Maximum on your time. Medium on mine. Reset it.
+b: Deal. | Fine. Deal.
+    | Agreed. Shake on it.
+-> label 2, done 1
+
+= label
+a: I'm putting a label on the panel. | I'll write it on the wall.
+b: You're writing a shower treaty. | Is this a formal treaty?
+a: The Treaty of Quarters Twelve. | The Deck 2 Accords.
+b: I want it witnessed. By a Vulcan. | Get it notarised by th'Zoran.
+a: She'd make us fill in a transporter form. | She'd schedule it.
+-> done
+
+= done
+b: I'm going to bed. | Right. Lights out.
+    | I'm going in. Twenty minutes.
+a: Night, {b}. | Twenty. I'm counting.
+    | Medium setting. I'm serious.
+b: Goodnight, treaty partner. | Night.
+-> end
+
+
+scene: hab_cant_sleep
+where: habitat, quarters
+cast: a=any, b=any
+weight: 3
+
+= start
+a: Oh. Sorry. I didn't think anyone was up. | You're up too?
+    | It's oh-three-hundred. What are you doing up?
+b: Couldn't sleep. | Same as you, I suspect.
+    | I've been lying there listening to the air recyclers.
+a: Me neither. | Welcome to the club.
+    | Me either. Third night running.
+-> why 3, counting 2
+
+= why
+b: What's keeping you up? | Anything in particular?
+a: I keep thinking about the ninth of February. | The engines. The sound.
+    | I dream about the surface. I've never been down there.
+b: The sound when the warp field dropped. I remember it too.
+    | You mean the jolt. I was in the shower.
+    | I dream about it too. Everyone does, I think.
+a: I was on the bridge when the board went red. All of it at once.
+    | I heard Rhel on the comm. I've never heard him like that.
+b: That must have been something. | I only heard the klaxon.
+-> talk 2, tea 2
+
+= counting
+b: I've been counting the panels on the ceiling. | I counted the ceiling.
+a: How many? | And?
+b: Forty-four. Then I counted them again in Bajoran. Still forty-four.
+    | Forty-four. They haven't changed since February.
+a: That's the problem. Nothing changes. | Same forty-four every night.
+b: Same ceiling. Same planet. Same forty-four.
+    | I've named some of them too.
+-> talk 2, tea 1
+
+= talk
+a: Do you think we'll ever get home? | Honestly, do you think they'll find us?
+b: I think Rhel will get the engines back, or somebody will come.
+    | I think so. I have to think so.
+    | Yes. Starfleet loses people. Starfleet also looks for them.
+a: Nobody knows we're here. That's the thing. | They don't know where we are.
+b: Not yet. The captain's still transmitting. Every day.
+    | Somebody will notice a science ship never came home.
+...
+a: Thanks. | I needed to hear someone say it.
+-> tea 2, tren 1
+
+= tea
+b: Want tea? There's a replicator in the corridor. | Tea?
+a: I've used my ration. | It's not my turn on the replicator.
+b: I haven't. Chamomile, hot. | I've got two minutes left. Earl Grey?
+a: Chamomile. They say it helps. | Anything that isn't raktajino.
+...
+b: Here. It's terrible. | Careful. The replicator makes it too hot.
+a: It's perfect. | It's awful. Thank you.
+-> tren 1, story 2
+
+= tren
+b: Have you talked to Tren? | Maybe mention it to the counselor?
+a: She's so busy. Everybody's in her office. | She's got a list.
+b: She'd make time. | That's her job. She'd want to know.
+a: Maybe. Tomorrow. | I'll think about it.
+-> story 2, bed 1
+
+= story
+b: Want to hear something stupid? | Can I tell you something?
+a: Always. | Go on.
+b: I used to sleep with a recording of rain on. My mother's porch.
+    | When I can't sleep I plan what I'll eat when we get home.
+    | I read old duty rosters. Boring enough to put anybody under.
+a: What's on the menu? | Does it work?
+b: Everything. Pancakes. A whole lake of pancakes.
+    | Every time. Twenty minutes in and I'm gone.
+    | Rain works. I just can't find the file.
+a: I'll try that. | Pancakes. I'll go with pancakes.
+-> bed
+
+= bed
+a: I'm going to try again. | I think I could sleep now.
+b: Me too. Goodnight, {a}. | Try. Close your eyes and count something.
+a: Night, {b}. Thanks for the tea. | Thanks. Really.
+b: Same time tomorrow if it doesn't work? | See you at three, probably.
+-> end
+
+
+scene: hab_unsent_letter
+where: quarters, habitat
+cast: writer=any, friend=any
+weight: 3
+
+= start
+friend: What are you writing? | Another letter?
+    | You've been at that PADD for an hour.
+writer: A letter home. | To my parents. Letter number...
+    | A letter. For when comms come back.
+friend: Can I see? | How many is that now?
+writer: This is sixty-two. | I stopped counting at fifty.
+-> read 2, private 2
+
+= private
+writer: You can't read it. It's embarrassing. | Not this one. Sorry.
+friend: That's fine. | Of course. Sorry.
+writer: It's just... it's about the county. The part I don't say out loud.
+    | It's the one I'm not going to send.
+friend: Why not? | Then why write it?
+writer: Because they'd worry. But I have to write it down somewhere.
+    | So it's out of my head. So it's somewhere.
+-> county 2, lighter 1
+
+= read
+writer: Here. The first bit. | Go on. It's not very good.
+friend: Dear Mum and Dad. The food is fine. The view is lovely.
+    | Dear Nana. I'm fine. We're parked. Nothing to report.
+friend: That's it? | That's all you say?
+writer: That's the start. The rest is the truth. | That's the version they get.
+-> county 2, lighter 2
+
+= county
+writer: I wrote about June. About watching the county on the sensors.
+    | I wrote about the two days. When all the life signs went.
+friend: Oh. | That's a lot to put in a letter.
+writer: I don't know how to say it. They were people. Ordinary ones.
+    | The school still had its lights on the first night. I don't know why.
+friend: No. Nobody knows how to say it. | I remember that. The lights.
+...
+friend: I think you should keep it. Maybe not send it. But keep it.
+    | They'd want to know you were all right. And you weren't. That's fine.
+writer: Maybe. | That's what Tren says too.
+-> lighter 1, family 2
+
+= lighter
+friend: Put something good in it. There's good stuff too.
+    | Tell them about something funny. Something that happened.
+writer: Like what? | Name one thing.
+friend: Kurag throwing gagh at a replicator. | Grieg's bread days.
+    | The shower treaty on Deck 2. Everyone's heard.
+writer: Ha. Okay. That's going in. | They'll love that. Dad will.
+-> family 2, sign 1
+
+= family
+friend: Who's it to, mostly? | Who'll read it first?
+writer: My dad. He reads everything twice. | My little sister. She's twelve.
+    | My grandmother. She still writes on paper.
+friend: What's she like? | Tell me about them.
+writer: She'll want to know if I've been eating. Every letter.
+    | He'll check it for spelling. He can't help it.
+    | She'll pin it on the wall and tell her whole school.
+friend: Then tell her you've been eating. | Then check your spelling.
+writer: I have. Sort of. Leola counts. | I'll get it right for once.
+-> sign 2
+
+= sign
+writer: How do I end it? I never know how to end these.
+    | I can never write the last line.
+friend: See you soon. | Love, and see you soon.
+    | Just your name. They'll know the rest.
+writer: See you soon. | That's good. That's honest enough.
+...
+writer: Saved. Unsent file. Sixty-two. | There. In the file with the others.
+friend: One day they'll all go at once. | They'll get sixty-two letters in a day.
+writer: They'll need a week to read them. | Dad will read them twice.
+friend: Come on. Galley's doing soup. | Let's eat something.
+-> end
+
+
+scene: hab_board_game
+where: quarters, habitat
+cast: a=any, b=any
+weight: 3
+
+= start
+a: Your move. | It's your turn, {b}.
+    | Are you going to move or are you asleep?
+b: I'm thinking. | I'm planning something.
+    | Don't rush me. Strategy takes time.
+a: You've been thinking for six minutes. | You're stalling.
+-> game 2, what 2
+
+= what
+b: Explain the rules again. | Remind me what this game is even about.
+a: It's from Shepard's shuttle. A 1990s game. You buy streets.
+    | You buy property. You charge rent. You bankrupt your friends.
+b: That's horrible. | That's the whole game?
+    | That's the most un-Federation thing I've ever heard.
+a: Shepard says it's a cultural artefact. The paper money is real paper.
+    | She lent it for research. It's research, {b}.
+b: Research. | Very scientific.
+-> game
+
+= game
+b: Fine. I'll buy the green one. | I'm buying the blue street.
+    | I'll put a little house on it.
+a: You can't afford the green one. | You can't afford the blue one.
+b: I can if I mortgage the railway. | I'll sell you the water company.
+a: Nobody wants the water company. | The water company is useless.
+b: I want the water company. | The water company is critical infrastructure.
+-> cheat 2, chess 1, jail 2
+
+= jail
+a: Go to jail. | You landed on jail. Go directly to jail.
+b: Why? What did I do? | On what charge?
+a: It doesn't say. You just go. | The card says so.
+b: That's not due process. | This game has no legal system.
+    | I'm appealing to a Federation magistrate.
+a: There's no appeal. It's 1993. | You can roll a double.
+...
+b: Double sixes! | Ha! Doubles!
+-> cheat 1, end_game 2
+
+= cheat
+a: Wait. Where did you get that money? | Are you the bank now?
+b: The bank gave it to me. | I'm the banker. Bankers get money.
+a: You can't be the banker and a player. | That's a conflict of interest.
+b: That's how it's done in 1993. I checked with Shepard.
+    | Shepard said everybody cheats at this game. Everybody.
+a: She did not. | She absolutely did not say that.
+-> end_game 2, chess 1
+
+= chess
+a: We should have played three-dimensional chess.
+    | Next time, kal-toh. Something with rules that make sense.
+b: You always lose at chess. | You're terrible at kal-toh.
+a: I don't lose at chess, I'm strategic in defeat. | I'm improving.
+b: Four hundred games since February. You've won nine.
+    | You've won eleven games in eight months.
+a: Nine very good games. | Eleven. That's a lot. That's a streak.
+-> end_game
+
+= end_game
+a: Right. I'm bankrupt. | That's it. I'm out. You've taken everything.
+    | I own a railway and nothing else.
+b: I'm sorry. Would you like to rent the water company?
+    | It's just business, {a}. Pay your rent.
+a: I hate this game. | I hate this game and I love it.
+b: Same time tomorrow? | Rematch?
+a: Rematch. And I'm the banker. | Tomorrow. Bring your paper money.
+-> tidy 2, end_now 1
+
+= tidy
+b: Pack it carefully. It's four hundred years old. | Mind the little dog.
+a: The dog piece is missing. | Where's the little dog?
+b: Under the bunk. I saw it roll. | It's in your boot.
+a: Got it. | Found him.
+-> end_now
+
+= end_now
+b: Night, {a}. | Night, tycoon.
+a: Night. | Night. Dream of rent.
+-> end
+
+
+scene: hab_posters
+where: quarters, habitat
+cast: a=any, b=any
+weight: 2
+
+= start
+a: What do you think? | Look. Isn't it great?
+    | Don't say anything yet. Just look at it.
+b: What is that? | Why is there a paper rectangle on our wall?
+    | What happened to our wall?
+a: A poster. A 1990s Earth poster. | It's a poster. From the surface.
+b: Is that a man with a guitar on fire? | Is that a dolphin?
+    | Why is it a picture of a car?
+-> shuttle 2, taste 2
+
+= shuttle
+a: It's like Lieutenant Shepard's shuttle. She has one. | Shepard's got one.
+b: Shepard's shuttle has a refrigerator and a lamp. It's a museum.
+    | Shepard's shuttle is a field station. This is our quarters.
+a: It's cosy. It's human. | It makes it feel lived-in.
+b: It makes it feel like a teenager's bedroom. | Four hundred years ago.
+a: That's the point. | Exactly.
+-> taste 1, compromise 2
+
+= taste
+b: Where did you even get it? | How did you get it up here?
+a: The last beam-up. It was in a shop window. I asked the transporter room.
+    | Shepard had spares. She said take one, it's good for morale.
+b: Did it have a price on it? | Is that a price tag?
+a: Four dollars and ninety-nine cents. | It says sale. Sale was their word.
+b: What's a dollar? | You'd pay four whole dollars for that?
+a: I have no idea what a dollar is. | It's a cultural artefact, {b}.
+-> compromise 2, more 1
+
+= more
+a: I've got four more. | There's more. I have more.
+b: How many? | Oh no.
+a: A band. A film. A beach. And a kitten on a branch.
+    | A film. A car. And one that just says hang in there.
+b: Hang in there? | A kitten?
+a: It's hanging on to a branch. It's very inspiring.
+    | It means hold on. Keep going. It's for us, really.
+...
+b: Okay, I'll allow that one. | That one's actually good.
+-> compromise
+
+= compromise
+b: Right. Your side, your posters. My side stays grey.
+    | Deal. Two on your wall, none on mine.
+a: Grey is not a colour. | Grey is a mood.
+    | You're going to crack. I know you are.
+b: Grey is regulation. | I like grey. It's calm.
+a: Wait till you wake up and see the kitten. | You'll come round.
+-> kitten 2, end_it 1
+
+= kitten
+b: Fine. The kitten can go above my bunk. | The kitten. Just the kitten.
+a: Really? | I knew it.
+b: Don't make a thing of it. | It's for morale.
+a: It's for morale. | It is absolutely for morale.
+-> end_it
+
+= end_it
+a: I'll get the adhesive. | Where's the tape? Shepard gave me tape.
+b: Do not put a hole in the bulkhead. | Don't damage the wall.
+a: I would never damage the Adirondack. | Tape. Only tape.
+b: Night, {a}. | Sleep well, interior decorator.
+-> end
+
+
+scene: hab_instrument
+where: habitat, quarters
+cast: player=any, neighbour=any
+weight: 2
+
+= start
+neighbour: What is that noise? | Is something wrong with the air recycler?
+    | Is someone hurt in there?
+player: It's a clarinet. | I'm practising.
+    | It's my trumpet. Sorry.
+neighbour: That's what that is? | That's a clarinet?
+    | It sounds like the plasma conduits on Deck 5.
+player: I'm learning. | It's new. I'm new at it.
+-> why 2, talent 2
+
+= why
+neighbour: Why now? | When did you take this up?
+player: March. I needed something to do that wasn't worrying.
+    | After February. The counselor said to get a hobby.
+neighbour: And you picked the loudest instrument aboard. | Tren suggested this?
+player: Tren suggested knitting. I got ambitious.
+    | She suggested a hobby. She did not specify quiet.
+-> talent 1, play 2
+
+= talent
+player: It's for talent night. Friday. | I'm on the talent night list.
+neighbour: Friday this Friday? | You're performing that? In public?
+player: Four days. I can learn one song in four days.
+    | I'm third. After the spoons.
+neighbour: What song? | Which song?
+player: It's an old Earth thing. It has a lot of high notes.
+    | The one from Shepard's tape. The one they played at the end.
+-> play
+
+= play
+neighbour: Go on then. Play it. | Let's hear it properly.
+player: Right now? | Okay. From the top.
+...
+neighbour: That was... | Hm.
+player: Was that bad? | Be honest.
+neighbour: Honestly? The middle was good. | The first three notes were lovely.
+    | The end was very brave.
+-> tips 2, complain 1
+
+= complain
+neighbour: Could you practise somewhere else? Just sometimes?
+    | I'm on alpha shift. I sleep at twenty-one hundred.
+player: Where? | Where would I go?
+neighbour: The cargo bay. Nobody's in there. Great acoustics.
+    | Engineering. Rhel wouldn't notice. The warp core is louder.
+player: Rhel talks to the warp core. He'd think I was answering.
+    | I'll try the cargo bay. Sorry.
+-> tips 1, deal 2
+
+= tips
+neighbour: Try breathing from lower down. Like singing.
+    | You're biting it. Relax your mouth.
+player: You play? | How do you know that?
+neighbour: I played the oboe for ten years. At school.
+    | My brother played. In the Academy band.
+player: Teach me! | Why didn't you say?
+neighbour: Because I wanted to see how long you'd last.
+    | Because I like being asleep.
+-> deal
+
+= deal
+neighbour: Fine. One lesson. And you practise before twenty hundred.
+    | I'll give you a lesson on one condition. Not after twenty hundred.
+player: Deal. | Deal. Thank you, {neighbour}.
+neighbour: And I'm coming on Friday. Front row. | I'll be there Friday.
+player: Oh no. | Now I'm nervous.
+neighbour: Good. Nervous means you care. | Practise. Quietly. Somehow.
+-> end
+
+
+scene: hab_grief
+where: quarters, habitat
+cast: a=any, b=any
+weight: 2
+
+= start
+b: You're sitting on Maren's bunk. | Is that Maren's bunk?
+    | I thought you'd be here.
+a: I know. I'm not moving anything. | I just wanted to sit.
+    | I come in here sometimes. Is that strange?
+b: No. It's not strange. | It's not strange.
+    | Can I sit too?
+-> bunk 2, memory 2
+
+= bunk
+a: She made it before she beamed down. Corners like a cadet.
+    | She left it made. Hospital corners. She was so proud of those.
+b: She was the only one on the deck who did that. | I remember.
+a: Nobody's touched it. Nobody wants to be the one.
+    | The quartermaster asked if they could reassign it. I said no.
+b: Good. It's hers. | It's hers until we know.
+-> memory 2, hope 2
+
+= memory
+a: Do you remember when she put the geology samples in the fridge?
+    | She sang in the corridor. Badly. Every morning.
+    | She used to leave notes on the replicator. Little jokes.
+b: The ones labelled not food, trust me? | Everybody heard her.
+    | I've still got one. It says ration your laughter.
+a: She was so excited to go down. She'd been reading about rivers.
+    | She wanted to see the limestone. The caves. She talked about it for weeks.
+b: Lindqvist and her limestone. | She picked the site herself.
+...
+a: She chose to stay. For the work. | She wanted to finish the survey.
+b: She did. She knew what she was doing. | That was Maren.
+-> report 2, hope 2, sit 1
+
+= report
+a: I read her last field report. The one from the ninth of February.
+    | I found her last report in the survey files. From before.
+b: What did it say? | What was she working on?
+a: Water tables. Karst. Three pages on one cave. She was so happy.
+    | Soil samples. And a note that the farmers waved at the shuttle site.
+b: That sounds like her. | Of course it does.
+a: She signed off with see you Thursday. | Last line says more tomorrow.
+...
+b: We'll keep it. For when she comes up to finish it.
+    | Save it. Somebody should finish it. With her name first.
+-> hope 2, sit 1
+
+= hope
+b: People are still coming up, you know. | They're still bringing people up.
+a: I know. Idris. Tomas. Every one makes me think it'll be her next.
+    | I know. Every time the transporter room calls, I think it's her.
+b: It might be. | It could be.
+a: And if it isn't? | What if it's not?
+b: Then we'll sit here. Like this. And remember her right.
+    | Then we'll miss her properly. Together. Not on our own.
+...
+-> sit 2, go 1
+
+= sit
+a: Can we just sit for a bit? | Just a minute longer.
+b: As long as you want. | Of course.
+...
+a: She'd hate this. Us being sad on her bunk. | She'd tell us to get off her bed.
+b: She'd say we're wrinkling it. | She'd say we're ruining the corners.
+a: Ha. Yeah. | She would.
+-> go
+
+= go
+b: Come on. Let's get some tea. | Want to get some food?
+    | Grieg's doing bread. Maren loved bread day.
+a: Let me fix the corner first. | I'll straighten the blanket first.
+b: I'll help. | Here. Like she did it.
+a: There. Perfect. | Hospital corners.
+b: Perfect. | Just how she left it.
+-> end
+
+
+scene: hab_friend_returns
+where: habitat, quarters
+cast: a=any, back=any, b=any
+weight: 2
+
+= start
+a: {back}? {back}! | Is that... {back}! You're up!
+    | Oh my days. {back}!
+back: Hey. Hi. Hello. | I'm up. I'm really up.
+    | Surprise.
+a: When did you get up here? | How long have you been aboard?
+back: This morning. Sickbay only just let me go. | Last night. Beamed up.
+-> hug 3, surface 1
+
+= hug
+a: Come here. | Come here, you.
+back: Careful, I'm a bit bruised. | Ow. Okay. Okay. That's nice.
+    | I haven't had a proper wash in a week. Consider yourself warned.
+a: I don't care. | I really don't care.
+b: What's the... {back}? | Is that who I think it is?
+back: {b}! | Hi, {b}.
+b: You're alive! You're actually alive! | Nobody told us!
+-> surface 2, food 2
+
+= surface
+b: What was it like down there? | Where were you all this time?
+back: I don't want to talk about most of it. Not yet.
+    | Hiding. In a school, then a farmhouse.
+a: That's fine. You don't have to. | Of course. When you're ready.
+back: I ate a lot of tinned peaches. | There were a lot of tinned beans.
+b: We have tinned peaches up here too. You're going to laugh.
+    | You'll never want a peach again.
+back: Never again. | Don't even say it.
+-> who 2, food 1
+
+= who
+a: How did you get up? Who found you? | Who called the beam-up?
+back: I don't know. Somebody set a beacon. I never saw them.
+    | Somebody tagged me for transport. I don't know who.
+b: The transporter room says that about everyone. | There's someone down there.
+back: Whoever it is, I owe them. | I'd like to buy them a drink.
+a: Everybody would. | Get in the queue.
+-> food 2, others 2
+
+= others
+back: Is anyone else back? | Did the others make it up?
+b: Some. Idris is up. Tomas came up. | A few. More every week.
+a: Not everyone. Not yet. | Not all of them.
+back: Maren? | And Yuki?
+a: Not yet. | No word yet.
+...
+back: They'll come up. They're tougher than me.
+    | Then we keep looking. That's all.
+-> food 2
+
+= food
+a: Are you hungry? You must be hungry. | Grieg's got real bread today.
+back: Starving. I've been dreaming about plomeek soup. And I hate plomeek.
+    | I'd eat a ration pack. I'd eat two.
+b: I'll get you a jumja stick. I've been saving one. | Have my ration.
+back: You don't have to do that. | You're both ridiculous.
+a: We do. | We absolutely do.
+-> quarters 2, tren 1
+
+= tren
+b: Has Tren seen you? | Have you talked to the counselor?
+back: Tomorrow. She put me in for tomorrow. | Anwar made me promise.
+a: Good. Go. Even if you don't want to. | Go. Seriously.
+back: I will. | Yes. I'll go.
+-> quarters
+
+= quarters
+a: Your bunk's still there. Nobody touched it. | Your quarters are how you left them.
+back: Really? | You kept it?
+b: We weren't going to give it away. | Of course we kept it.
+back: Thank you. | That means... thank you.
+a: Come on. Food. Then sleep. Then more food. | Galley. Now. Walk with us.
+-> end
+
+
+scene: hab_exercise
+where: habitat, quarters
+cast: a=any, b=any
+weight: 2
+
+= start
+a: Forty-eight. Forty-nine. Fifty. | And that's fifty.
+    | Twelve more. Come on, twelve more.
+b: You're doing push-ups in the corridor. | Is this what you do all day?
+    | Why are you on the floor?
+a: The gym's booked. Security's got it. | The gym's full. The corridor isn't.
+b: You're blocking the path. | People have to step over you.
+-> join 2, why 2
+
+= why
+b: Why so much? | You're doing this every day now.
+a: If I stop, I think. | It helps me sleep. Nothing else does.
+    | I need to be ready. For if they need people down there.
+b: Down there? The surface? | You want to beam down?
+a: Somebody might have to. If more of the eleven turn up.
+    | If they ask for volunteers, I want to be fit enough.
+b: Fair. | That's fair.
+-> join 2, mokbara 1
+
+= join
+b: Budge up. | Fine. Move over.
+a: You're joining? | Really?
+b: I've been sitting at a console for eight months. My back's a disaster.
+    | I'm not letting you get fitter than me.
+a: Plank. One minute. Go. | Plank position. Go.
+...
+b: How long's that been? | Is it a minute yet?
+a: Twenty seconds. | Fourteen seconds.
+b: Liar. | That can't be right.
+-> mokbara 2, run 1
+
+= mokbara
+a: Have you seen the mok'bara tape on Shepard's shelf?
+    | Shepard's got a tape of Klingon mok'bara. Taught reluctantly.
+b: Taught reluctantly? | Why reluctantly?
+a: The instructor hates doing it. He keeps sighing. It's great.
+    | The teacher doesn't want to be there. You learn a lot anyway.
+b: Show me. | Go on, show me one.
+a: Arms like this. Slow. Breathe. | Like this. Slow, like water.
+...
+b: I look ridiculous. | Am I doing it?
+a: You look like a Klingon who's very tired. | Close enough.
+-> run 1, stretch 2
+
+= run
+b: Want to run the deck? | Laps of Deck 2?
+a: How many? | The whole deck?
+b: Ten laps. The corridor's about a hundred metres round.
+    | Until one of us falls over.
+a: The corridor that's full of people? | Is that allowed?
+b: Everybody runs laps. th'Zoran does forty before breakfast.
+    | Security does it every morning. Just shout lift ahead.
+-> stretch
+
+= stretch
+a: Stretch first. Or tomorrow you'll be walking like Kurag after gagh night.
+    | Stretch. You'll thank me in the morning.
+b: I'm not stretching. Stretching is for Vulcans. | I never stretch.
+a: Everybody stretches. | Hamstrings. Now.
+b: Ow. Ow. I felt that. | That's... actually good.
+-> done
+
+= done
+a: Same time tomorrow? | Tomorrow at six?
+b: Six. And I'm bringing water. | If I can walk.
+a: You'll walk. You'll complain, but you'll walk. | You'll be fine.
+b: See you, {a}. | Six. Don't start without me.
+-> end
+
+
+scene: hab_counselor
+where: quarters, habitat
+cast: a=any, b=any
+weight: 2
+
+= start
+b: Aren't you supposed to be somewhere? | Don't you have the counselor at ten?
+    | It's ten past. Aren't you due at Tren's?
+a: What? No. | Is it Tuesday already?
+    | I rescheduled. Twice.
+b: You rescheduled twice? | Tren's going to come looking for you.
+-> excuse 2, honest 2
+
+= excuse
+a: I'm busy. I've got to calibrate the sensor array.
+    | I've got a report due. For Rhel.
+b: The sensor array's been calibrated for a week. | You're lying.
+a: I'm... reorganising my locker. | It's an important locker.
+b: Your locker has three things in it. | You're hiding.
+a: I'm not hiding. | I'm not hiding. I'm avoiding. There's a difference.
+-> honest
+
+= honest
+a: I don't want to talk about it. That's the whole problem.
+    | I don't know what to say to her. I'm fine. I'm just tired.
+b: That's why you go. | You don't have to know. That's her job.
+a: She'll read my mind anyway. She's Betazoid. | She knows already.
+b: Then you've got nothing to hide. | Then half the work's done.
+-> fear 2, went 1
+
+= fear
+a: If I start talking, I don't know if I'll stop.
+    | If I say it out loud it's real.
+b: Say what? | What's real?
+a: That nobody's coming. That we're stuck here. Forever, maybe.
+    | That I watched the county die and I felt nothing. Then everything.
+b: That's not forever. That's today. | That's a lot to carry on your own.
+...
+a: Yeah. | Maybe.
+b: You know the captain goes? Every week. | Even Vale sees her, I heard.
+a: The captain? | Vale goes to counselling?
+b: Tuesday mornings. She doesn't hide it. She says it's maintenance.
+    | She told the senior staff. She said if she can, we can.
+a: Huh. | That's... actually reassuring.
+-> went 2, bribe 1
+
+= went
+b: I went. In April. | I've been. Three times.
+a: You did? | You never said.
+b: It helped. She doesn't make you talk about anything you don't want.
+    | She mostly let me sit. She made tea. It was fine.
+a: What did you talk about? | Did it help?
+b: My dog. For forty minutes. I cried about my dog.
+    | Oskoid. She's the only one who likes the oskoid. We bonded.
+a: Your dog. | That's so like you.
+-> bribe 1, go 2
+
+= bribe
+b: I'll make a deal. You go, I'll give you my holodeck slot.
+    | Go, and I'll do your laundry for a week.
+a: Your holodeck slot? The Tuesday one? | For a week?
+b: The Tuesday one. Two in the morning. | A whole week.
+a: That's a terrible bribe. | Fine. That's a good bribe.
+-> go
+
+= go
+a: Fine. I'll go. | Okay. I'm going.
+b: I'll walk you. | Want me to come with you? To the door?
+a: To the door. Not in. | Just to the door.
+b: Just to the door. | Deal.
+a: Thanks, {b}. | You're a good friend. Annoying, but good.
+-> end
+
+
+# ---------------------------------------------------------------------------
+# BARKS
+# ---------------------------------------------------------------------------
+
+bark: idle
+where: quarters, habitat
+- Twenty minutes in the shower. Twenty. | Who's in the sonic shower?
+- Can't sleep. Again. | Three in the morning. Great.
+- Dear Mum. Still here. Still fine. | Letter sixty-three.
+- Where's my other boot? | Has anybody seen my boot?
+- Humming. Quietly. | La la. Sorry. Humming.
+- Forty-four ceiling panels. Still forty-four.
+- Hang in there, kitten. | I love that kitten.
+- Who has the little dog piece? | Rematch tonight. I'm the banker.
+- Push-ups. Twenty more. | One lap. Two laps.
+- Must reschedule Tren. Again. | Counselor at ten.
+- Somebody's practising the clarinet again. | Is that a clarinet?
+- Lights down, please. | Computer, dim the lights.
+- My bunk's too short. It's been too short since February.
+- The recycler hums in B flat. I've checked.
+- I'll write to them tomorrow. | Another letter for the file.
+
+bark: hello
+where: habitat, quarters
+- Evening. | Morning. | Hi.
+- Sorry. Didn't mean to block the corridor. | After you.
+- Oh, hello. Can't sleep either? | Late one?
+- Hey. Is that your quarters? | Neighbour.
+- Mind the push-ups. | Watch your feet.
+- Crewman. | Evening, crewman.
+- Shower's free. Medium setting. | Shower's free.
+- Hi there. Quiet night. | Quiet on the deck tonight.
+
+bark: outfit
+where: habitat, quarters
+- That's a strange outfit you have on. | Are those surface clothes?
+- Is that a real 1990s shirt? | Where did you find that?
+- Laundry day? | Lost your uniform?
+- Nice jacket. Shepard would have questions. | Very 1993.
+- Do the pockets go all the way down? | So many pockets.
+- Is that what they wear down there? | Are you with the survey?

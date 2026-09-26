@@ -422,8 +422,19 @@ def write_lua(path, threads):
     path.write_text("\n".join(out), encoding="utf-8")
 
 
+COMM_PREFIX = "Print_Text_TREK_COMM"
+
+
 def write_text(path, text):
-    body = json.dumps(text, indent=4, ensure_ascii=True, sort_keys=True)
+    """Writes the channel's keys into Print_Text.json and keeps everybody
+    else's: the crew's talk (tools/gen_crew_talk.py) lives in the same file,
+    and each generator replaces only its own prefix."""
+    merged = {}
+    if path.exists():
+        merged = {k: v for k, v in json.loads(path.read_text(encoding="utf-8")).items()
+                  if not k.startswith(COMM_PREFIX)}
+    merged.update(text)
+    body = json.dumps(merged, indent=4, ensure_ascii=True, sort_keys=True)
     path.write_text(body + "\n", encoding="utf-8")
 
 

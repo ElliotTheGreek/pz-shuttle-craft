@@ -196,6 +196,10 @@ APPLY = r"""
                 sq.special = sq.special or {}
                 table.insert(sq.special, o)
             end
+        elseif op == "zombie" then
+            -- A body reaches a client with its online id; one client
+            -- simulates it (SIM.ownsZombies), the rest hold a remote copy.
+            SIM.newZed(d.x, d.y, d.z, d.female, d.id, not SIM.ownsZombies)
         elseif op == "door" then
             for _, o in ipairs(sq.special or {}) do
                 if o.closedSprite == d.sprite then
@@ -349,6 +353,17 @@ class Net:
                 rt.run("SIM.stream(); SIM.gravity(); SIM.vehicleGravity(); SIM.settleUI()")
                 rt.fire("OnTick", 0)
                 rt.run("for _, p in ipairs(SIM.players) do SIM.fire('OnPlayerUpdate', p) end")
+                rt.run("for _, z in ipairs(SIM.zombies) do SIM.fire('OnZombieUpdate', z) end")
+            # The client that simulates a body reports where it is; the server
+            # and the other clients follow it.
+            for name, c in self.clients.items():
+                for pair in (c.eval("SIM.ownedZombies()") or "").split(";"):
+                    if pair:
+                        zid, xy = pair.split("=")
+                        zx, zy = xy.split(",")
+                        for other in self.all():
+                            if other is not c:
+                                other.run(f"SIM.setZed({zid}, {zx}, {zy})")
             # Each client reports its own character's position to the server.
             for name, c in self.clients.items():
                 x, y, z = c.eval("SIM.players[1].x"), c.eval("SIM.players[1].y"), c.eval("SIM.players[1].z")
@@ -11602,9 +11617,15 @@ def adk_where(rt, who=1):
 
 
 def adk_menu(rt):
+    """Right-clicks aboard her. `adkSub` is her own submenu, found by its
+    label: another fixture's option can come first on the same click."""
     rt.run("""
         adkCtx = SIM.contextMenu()
         SIM.fire("OnPreFillWorldObjectContextMenu", 0, adkCtx, {}, false)
+        adkSub = nil
+        for _, o in ipairs(adkCtx.options) do
+            if o.name:find("IGUI_TREK_Adirondack", 1, true) == 1 then adkSub = o.sub end
+        end
     """)
     return str(rt.eval("adkCtx:deepLabels()"))
 
@@ -11725,6 +11746,18 @@ def adk_machines(net, rt, P):
     check(rt.eval(f"TREK.EMH.inReachOf({P})") is True,
           "adirondack: standing at her EMH station is out of his reach")
     check(rt.eval(f"TREK.EMH.isUp({P})") is True, "adirondack: her Doctor needs summoning")
+    doctors = int(rt.eval(f"""(function()
+        local A, n = TREK.Adirondack, 0
+        for dx = -1, 1 do for dy = -1, 1 do
+            local x, y = A.at({k}, {x} + dx, {y} + dy)
+            for _, w in ipairs(SIM.rawSquare(x, y, A.Z).worldObjects or {{}}) do
+                local it = w.getItem and w:getItem() or w.item
+                if it and it:getFullType() == TREK.Config.EmhItem then n = n + 1 end
+            end
+        end end
+        return n
+    end)()"""))
+    check(doctors == 1, f"adirondack: {doctors} Doctors stand at her EMH station, not one")
     check(rt.eval(f"TREK.EMH.refusal({P})") is None,
           f"adirondack: the Doctor refuses at her station: {rt.eval(f'TREK.EMH.refusal({P})')}")
 
@@ -11894,7 +11927,7 @@ def adirondack():
     labels = adk_menu(rt)
     check("IGUI_TREK_Turbolift" in labels, f"adirondack: no turbolift in the car: {labels}")
     rt.run("""
-        local lift = adkCtx.options[1].sub:find("IGUI_TREK_Turbolift").sub
+        local lift = adkSub:find("IGUI_TREK_Turbolift").sub
         local o = lift.options[1]
         o.fn(o.target, unpack(o.args))
     """)
@@ -11924,7 +11957,7 @@ def adirondack():
 
     # And home.
     adk_menu(rt)
-    rt.run('adkCtx.options[1].sub:click("IGUI_TREK_BeamToShuttle")')
+    rt.run('adkSub:click("IGUI_TREK_BeamToShuttle")')
     net.pump(300)
     if died(rt, "adirondack, beaming back"):
         return
@@ -11974,6 +12007,190 @@ def adirondack_multiplayer():
           "and a lift ride asked for from elsewhere is refused")
 
 
+
+# --- the Adirondack's crew (CREW.md) ------------------------------------------------
+
+CREW_FAST = """
+    local CS = TREK.CrewServer
+    CS.SpawnGap = 200
+    CS.StayMin, CS.StayMax = 1500, 3000
+    CS.SceneGapMin, CS.SceneGapMax = 300, 600
+    CS.IdleGap = 400
+    CS.BarkCrewGap, CS.BarkPlayerGap = 300, 300
+    CS.LineBase, CS.LinePerChar, CS.BeatMs = 300, 0, 300
+    CS.wake()
+"""
+
+
+def crew_count(rt):
+    return int(rt.eval("(function() local n = 0 for _ in pairs(TREK.Crew.state().crew) do n = n + 1 end return n end)()"))
+
+
+def crew_chat(rt):
+    return [str(rt.eval(f"SIM.chat[{i}].text")) for i in range(1, int(rt.eval("#SIM.chat")) + 1)]
+
+
+def to_adirondack(net, rt, P):
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    rt.run(f"TREK.AdirondackClient.beamTo({P})")
+    net.pump(320)
+
+
+def crew():
+    """Crew come aboard a deck through its lift while you are on it, dressed
+    and quiet, walk to posts, talk to each other, speak to you, shrug off a
+    hit, and are gone when you leave."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('solo', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run(ADK_SETUP)
+    P = "SIM.players[1]"
+    to_adirondack(net, rt, P)
+    if died(rt, "crew, beaming across"):
+        return
+    rt.run(CREW_FAST)
+    net.pump(400)
+    n = crew_count(rt)
+    k = adk_where(rt)
+    check(n >= 3, f"crew: {n} crew aboard deck {k} after a while, not a crowd")
+    bodies = int(rt.eval("#SIM.zombies"))
+    check(bodies == n, f"crew: {n} entries and {bodies} bodies")
+
+    # Dressed as people, and quiet.
+    got = rt.eval("""(function()
+        local out = {}
+        for _, z in ipairs(SIM.zombies) do
+            local e = TREK.Crew.entry(z)
+            local uniform = false
+            for _, v in ipairs(z.visuals) do if v:find("TrekUniform") then uniform = true end end
+            table.insert(out, table.concat({ tostring(e ~= nil), tostring(uniform),
+                tostring(z.useless), tostring(z.walkType), tostring(z.skin ~= nil),
+                tostring(z.vars.TrekCrew) }, ","))
+        end
+        return table.concat(out, ";")
+    end)()""")
+    for row in str(got).split(";"):
+        check(row == "true,true,true,TrekWalk,true,true",
+              f"crew: a body is not a dressed, pacified crew member (entry,uniform,useless,walk,skin,var = {row})")
+
+    # They go places, and some of them sit down.
+    steps = str(rt.eval("""(function()
+        local out = {}
+        for _, e in pairs(TREK.Crew.state().crew) do table.insert(out, e.step and e.step.k or "?") end
+        return table.concat(out, ",")
+    end)()"""))
+    net.pump(1500)
+    seen = str(rt.eval("""(function()
+        local out = {}
+        for _, m in pairs(TREK.CrewServer.live()) do
+            table.insert(out, m.state .. ":" .. (m.e.step and m.e.step.k or "?"))
+        end
+        return table.concat(out, ",")
+    end)()"""))
+    check("stay:stand" in seen or "stay:sit" in seen,
+          f"crew: nobody ever reached a post (was {steps}, now {seen})")
+
+    # They talk: a scene's lines, and barks.
+    chat = crew_chat(rt)
+    scene_lines = [c for c in chat if c.startswith("Print_Text_TREK_CREW_") and "_BARK_" not in c]
+    check(len(scene_lines) >= 3, f"crew: {len(scene_lines)} scene lines heard in all that time: {chat[:6]}")
+    check(not any("{" in c for c in chat), "crew: a {role} was never filled in")
+
+    # Out of uniform, somebody says so; in uniform, they say hello. Only an
+    # idle crew member barks, so let the conversations finish first.
+    rt.run("TREK.CrewServer.ScenesPerDeck = 0")
+    net.pump(300)
+    rt.run("SIM.chat = {}")
+    rt.run("""(function()
+        local p = SIM.players[1]
+        for _, m in pairs(TREK.CrewServer.live()) do
+            if not m.scene and m.x then p.x, p.y = m.x + 0.4, m.y + 0.4 return end
+        end
+    end)()""")
+    net.pump(200)
+    barks = [c for c in crew_chat(rt) if "_BARK_" in c]
+    check(any("_BARK_outfit_" in c for c in barks),
+          f"crew: out of uniform and nobody remarked on it: {barks[:5]}")
+    rt.run(f"{P}.worn = {{ 'TrekShuttle.TrekUniformDutyCommand' }}; SIM.chat = {{}}")
+    net.pump(300)
+    barks = [c for c in crew_chat(rt) if "_BARK_" in c]
+    check(not any("_BARK_outfit_" in c for c in barks),
+          f"crew: remarked on the outfit of somebody in uniform: {barks[:5]}")
+
+    # A hit does nothing.
+    rt.run("SIM.fire('OnHitZombie', SIM.zombies[1])")
+    check(rt.eval("SIM.zombies[1].avoidDamage") is True, "crew: a crew member took a hit")
+
+    # Beam back: the deck is empty behind you.
+    adk_menu(rt)
+    rt.run('adkSub:click("IGUI_TREK_BeamToShuttle")')
+    net.pump(300)
+    check(crew_count(rt) == 0 and int(rt.eval("#SIM.zombies")) == 0,
+          f"crew: {crew_count(rt)} entries and {rt.eval('#SIM.zombies')} bodies left behind on an empty deck")
+    for w in rt.warnings():
+        fail(f"crew: {w}")
+    print(f"crew: {n} came aboard deck {k}, dressed and quiet, went to their posts, "
+          f"talked ({len(scene_lines)} scene lines), remarked on an outfit, shrugged off a hit, "
+          f"and left with you")
+
+
+def crew_multiplayer():
+    """The server spawns and scripts, one client walks each body, and every
+    client dresses it and hears it."""
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    srv.run("SIM.player('alice', 2000.5, 2000.5, 0); SIM.player('bob', 2003.5, 2000.5, 0)")
+    A.run("SIM.player('alice', 2000.5, 2000.5, 0); SIM.ownsZombies = true")
+    B.run("SIM.player('bob', 2003.5, 2000.5, 0)")
+    net.start()
+    for rt in net.all():
+        rt.run(ADK_SETUP)
+    P = "SIM.players[1]"
+    for c in (A, B):
+        c.run(f"TREK.Transport.beamUp({P})")
+    net.pump(220)
+    for c in (A, B):
+        c.run(f"TREK.AdirondackClient.beamTo({P})")
+    net.pump(320)
+    srv.run(CREW_FAST)
+    net.pump(1200)
+    n = crew_count(srv)
+    check(n >= 3, f"crew mp: the server has {n} crew aboard")
+    for name, c in (("alice", A), ("bob", B)):
+        bodies = int(c.eval("#SIM.zombies"))
+        known = int(c.eval("(function() local n = 0 for _, z in ipairs(SIM.zombies) do "
+                           "if TREK.Crew.entry(z) then n = n + 1 end end return n end)()"))
+        dressed = int(c.eval("(function() local n = 0 for _, z in ipairs(SIM.zombies) do "
+                             "if #z.visuals > 0 then n = n + 1 end end return n end)()"))
+        check(bodies >= n and known >= n and dressed >= n,
+              f"crew mp: {name} has {bodies} bodies, {known} known, {dressed} dressed, of {n}")
+        check(int(c.eval("SIM.clientWorldEdit or 0")) == 0, f"crew mp: {name}'s client edited the world")
+    # Bob's copies moved because Alice walked them.
+    moved = int(B.eval("""(function()
+        local n = 0
+        for _, z in ipairs(SIM.zombies) do
+            local e = TREK.Crew.entry(z)
+            if e then
+                local k, lx, ly = TREK.Adirondack.locate(z.x, z.y)
+                local r = k and TREK.Adirondack.roomAt(k, lx, ly)
+                if r and r.internal ~= "trekturbolift" then n = n + 1 end
+            end
+        end
+        return n
+    end)()"""))
+    check(moved >= 1, "crew mp: nobody left the lift car on bob's screen")
+    for name, c in (("alice", A), ("bob", B)):
+        heard = [x for x in crew_chat(c) if x.startswith("Print_Text_TREK_CREW_")]
+        check(len(heard) >= 2, f"crew mp: {name} heard {len(heard)} crew lines")
+    for name, rt in (("server", srv), ("alice", A), ("bob", B)):
+        for w in rt.warnings():
+            fail(f"crew mp ({name}): {w}")
+    print(f"crew multiplayer: the server brought {n} aboard; alice walked them, bob saw them "
+          f"move; both dressed them and heard them")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -11988,7 +12205,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, traits, traits_multiplayer, species_look, creation_look,
-            adirondack, adirondack_multiplayer, multiplayer)
+            adirondack, adirondack_multiplayer, crew, crew_multiplayer, multiplayer)
 
 
 def main():

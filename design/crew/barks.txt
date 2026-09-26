@@ -1,0 +1,248 @@
+# Ship-wide one-liners (CREW.md 4.2). No {placeholders} in barks.
+# Place-specific barks live beside their scenes (engineering.txt and others).
+
+# ---------------------------------------------------------------------------
+bark: hello
+where: any
+- Morning. | Evening. | Crewman.
+- Excuse me. | Pardon me. | Sorry, after you.
+- Sorry! Didn't see you there. | Oops. Sorry. | My fault. Sorry.
+- Good morning. | Morning. Sleep well? | Morning. You look how I feel.
+- Evening. | Good evening. | Evening. Nearly done?
+- Hello. | Hi there. | Hey.
+- Crewman. | Ensign. | Lieutenant. I think. Sorry, I'm terrible with pips.
+- Afternoon. | Good afternoon. | Afternoon. Is it afternoon?
+- Busy shift? | Long day? | Keeping busy?
+- After you. | You first. | Go ahead.
+- On your left. | Coming through. Sorry. | Mind your back.
+- Morning. Is the galley open yet? | Have you eaten? The galley's open.
+- Evening. Grieg's doing real bread tonight. | Real bread tonight. Pass it on.
+- Hello again. | Oh, hi. Again. | We keep meeting like this.
+- Alpha shift already? | Gamma shift? You poor thing. | Beta shift. Nearly there.
+- Nice to see a face. | Good to see you. | There's a friendly face.
+- Keeping well? | All right? | How are you holding up?
+- Don't let me keep you. | I'll let you get on. | Carry on.
+- Sorry, am I in your way? | Excuse me, can I squeeze past? | Pardon. Tight corridor.
+- Hello. Have we met? I'm sure we've met. | Sorry, which department are you?
+- Morning. Same as yesterday, then. | Another day in orbit. | Another lovely day.
+- Crewman. Carry on. | As you were. | At ease. We're all at ease now.
+- Did you hear? Another one came up. | Good news on the pads today.
+- Mind the deck plating, it's loose there. | Careful, that panel lifts.
+- Evening. Holodeck rota's up. | Seen the new rota?
+- Morning. Coffee? No? Wise. | Coffee's terrible today. Just so you know.
+- Good morning. Lovely view of the planet today. | Clear day down there.
+- Hello. You look like you've been working. | Hard at it?
+- Hey. Get some sleep tonight. | Sleep, crewman. Actual sleep.
+- Hello. Nice to see a new face. Or an old one. | Hi. Remind me your name later?
+- Pardon me. Lost in thought. | Sorry. Miles away. | Sorry, didn't see you.
+- Good to see you up and about. | You're looking well.
+- Excuse me, Crewman. | Pardon, Ensign. | Excuse me, sir. Or ma'am. Sorry.
+
+# ---------------------------------------------------------------------------
+bark: outfit
+where: any
+- That's a strange outfit you have on. | Interesting outfit. | Bold choice.
+- Is that... from down there? | Is that from the surface? | Surface clothes?
+- Did Shepard lend you that? | Is that from the shuttle's collection?
+- Are you... cleared to be up here? | Sorry, who are you with?
+- Is that denim? Real denim? | Are those jeans? Actual jeans?
+- That's a very nineteen-ninety-three look. | Very period. Very authentic.
+- Is that a costume? For the holodeck? | Holodeck party I wasn't told about?
+- Where's your uniform? | Out of uniform, crewman? | Uniform in the wash?
+- I love the jacket. I don't understand it, but I love it.
+ | That jacket has a lot of pockets.
+- That's what they wear down there? Honestly? | Is that normal, down there?
+- Does the replicator even have that pattern? | How did you get that pattern?
+- You've been on the surface, haven't you? It's the clothes.
+ | You smell a bit of the surface. No offence. It's the clothes.
+- Survey detail? Blending in? | Undercover? For the survey?
+- Are you one of ours? Sorry. I don't know your face.
+ | I don't think I've seen you on this deck.
+- Is that a flannel shirt? The historians would kill for that.
+ | Shepard would love that shirt.
+- Very... practical. | Very rugged. | Very... Kentucky.
+- Did you just beam up? You've still got mud on you. | Fresh off the pad?
+- Does security know you're up here? Only asking.
+ | Hm. Have you checked in with security?
+- I like the shoes. Are they comfortable? | Those shoes have laces. Real laces.
+- You look like an exhibit from the shuttle. In a nice way.
+ | You look like you walked out of one of Shepard's tapes.
+- Is that the survivor look? It's working. | Survivor fashion. It suits you.
+- Where on earth did you get that? Well. Not Earth. You know what I mean.
+ | Where did you find that? Actually, don't tell me.
+- Tell me that's not a real bloodstain. | Is that... paint? Please say paint.
+- That shirt says the name of a gas station. | Your shirt has a logo on it.
+- Stores can issue you a uniform, you know. Deck four. | Want a uniform?
+- Nice hat. Very... local. | That hat is extraordinary.
+- Sorry. Stop staring. I'm stopping. It's just... the outfit.
+ | I'm not staring. I'm admiring. It's different.
+- Did you raid Shepard's shuttle? She'll want that back.
+ | If that's from the shuttle, put it back before she notices.
+
+# ---------------------------------------------------------------------------
+bark: idle
+where: any
+- Hmm, hmm-hmm, hmmm. | La la la. | Dum de dum.
+- Where did I leave that padd? | Padd, padd, padd. | Who's got my padd?
+- Two more hours. Two more hours. | Nearly end of shift. Nearly.
+- I'd kill for a real coffee. | Coffee. Coffee. Coffee. | Is it coffee time?
+- Replicator ration's gone already. Tuesday. | Ration's gone. Again.
+- Sleep. I remember sleep. | Four hours. Four whole hours. Luxury.
+- Stew again. It's fine. It's fine. | Grieg's stew. Third day running.
+- Report, report, report. | Log that. Log it. | Who reads these logs?
+- One hundred and forty-one. Minus eleven. | Still eleven down there.
+- Five months. Five months in orbit. | Day one hundred and something.
+- Holodeck rota. Where am I on the holodeck rota? | Beach. I want a beach.
+- Did I lock my console? I locked my console. | Console locked. Every time.
+- Come on, come on, come on. | Nearly. Nearly. | There. Got it.
+- What is that noise? Oh. Ventilation. | Is that the ventilation again?
+- If one more thing breaks today. | Please nothing break today.
+- July. It's July down there. | Ninety-three. Still ninety-three.
+- I miss rain. | I miss wind. | I miss weather.
+- Letter home. Can't send it. Writing it anyway. | Dear Mum. No. Start again.
+- The transporter works. At least the transporter works.
+- Another survivor came up. Good. Good. | That's another one home.
+- Recalibrate, realign, recalibrate. | Right. From the top.
+- Dinner, then bed. Dinner, then bed. | Bed. Soon. Very soon.
+- Tomorrow will be better. Probably. | Tomorrow. Tomorrow's the day.
+- Hm. Interesting. Very interesting. | That's odd. | Huh.
+- Don't think about it. Don't think about it. | Just do the next thing.
+- Right. Where was I? | Where was I going? | What did I come in here for?
+- Warp core's humming nicely today. | You can hear the core from here.
+
+# ---------------------------------------------------------------------------
+bark: arrive
+where: any
+- Here we are. | This is me. | My stop.
+- Right. Where was I going? | Now, which way? | Left. No. Right.
+- Deck four. Finally. | Deck two. Home. | Deck three. Good.
+- Thanks for the lift. | Cheers. | Thank you.
+- That lift smells of burnt toast again. | Somebody's been eating in the lift.
+- Quick ride, for once. | No stops. A miracle.
+- Oh, hello. Didn't expect anyone. | Oh. Sorry. Coming out.
+- Mind out, coming through. | Excuse me, stepping off.
+- Five minutes late. Nobody look at me. | Late. Late. Late.
+- That junction stalled again. | Stuck between decks three and four. Again.
+- Fresh air. Well. Recycled air. | Out of the box at last.
+
+# ---------------------------------------------------------------------------
+bark: leave
+where: any
+- Deck four. | Deck two. | Deck three.
+- Main Engineering. | Sickbay. | Bridge.
+- Galley, please. | Transporter room. | Shuttle bay.
+- Habitat deck. | Quarters. Deck two. | Take me home.
+- Hold the lift! | Wait for me! | Hold it, please!
+- Anywhere with coffee. | Somewhere quiet. | Deck two. Bed.
+- Lounge. | The lounge, please. | Deck one. Lounge.
+- Cargo bay. | Cargo bay two. | The cargo deck.
+- Right. Off I go. | That's me. Bye. | See you later.
+- Deck four. And step on it. | Bridge. Quickly, please.
+- Holodeck. It's my turn. It's finally my turn. | Holodeck. My slot.
+
+# ---------------------------------------------------------------------------
+bark: species:klingon
+where: any
+- Qapla'. | Qapla', friend. | Success to you.
+- A warrior. Good. We need more of those. | Good to have a warrior aboard.
+- Have you tried Grieg's stew? It's the closest thing to real food here.
+ | Grieg does a real roast on Sundays. Not replicated. You'd approve.
+- There's a bat'leth drill in the gym on Thursdays. | Sparring on Thursdays.
+- Today is a good day to... have lunch. | Today is a good day. Truly.
+- You didn't hear it from me, but there's bloodwine in cargo bay two.
+ | K'teral in engineering is looking for a sparring partner.
+
+bark: species:vulcan
+where: any
+- Peace and long life. | Live long and prosper. | Good day.
+- Good day. The logical thing would be sleep, but here we are.
+ | You must find all this very illogical.
+- Plomeek soup in the galley. Grieg makes it properly. | Galley has plomeek.
+- Taval in engineering could use a calm voice. | Engineering needs your calm.
+- Is it true you don't mind the orbit? Five months and no complaints?
+ | You'd tell me if it was bothering you. Wouldn't you?
+- Morning. You make the rest of us look very emotional.
+ | Good morning. Calmly said.
+
+bark: species:betazoid
+where: any
+- Oh. You probably know what I'm thinking. Sorry about that.
+ | Please ignore whatever I'm feeling. It's been a week.
+- Counselor Tren's looking for help. If you've got time.
+ | You and Tren should have tea. She's busy. Help her.
+- Hello. Don't read me before coffee. | Hi. Brace yourself. I'm grumpy.
+- You must feel the whole ship some days. That can't be easy.
+ | A hundred and forty-one worried people. How do you stand it?
+- Is it loud in here? For you, I mean. | Is the ship noisy for you?
+
+bark: species:bajoran
+where: any
+- The Prophets walk with you. | Peace of the Prophets. | Good morning.
+- The chief's Bajoran too. You'll have seen him talking to the core.
+ | Have you met Rhel? He'll talk your ear off. In Bajoran.
+- There's a small shrine on deck two. Somebody set it up in March.
+ | If you need it, there's a quiet room on deck two with candles.
+- Hasperat in the galley on Fridays. Grieg tried. It's hot. | Hasperat Friday.
+- Your earring is lovely. | That's a beautiful earring.
+
+bark: species:trill
+where: any
+- Morning. Both of you. All of you? How many of you are there?
+ | Hello to you, and to whoever else is in there.
+- Ensign Daro's joined too. You two should compare notes.
+ | You and Daro could start a club.
+- Does the symbiont mind being stuck in orbit? | How's the symbiont holding up?
+- Morning. Any of your previous hosts ever been stranded? Any tips?
+ | Did any of you ever do anything like this before?
+- I love your spots. Is that rude? Sorry. | Nice to see you. Spots and all.
+
+bark: species:andorian
+where: any
+- Lieutenant th'Zoran's Andorian too. She'll be glad of the company.
+ | Have you met Kess? From the transporter room? You'd get on.
+- Cold enough for you? We can turn it down. | Is the ship too warm for you?
+- Your antennae are doing a thing. Is that good? | Antennae up. Good day, then.
+- Morning. Straight talk, please. It's been a long week.
+ | Good. Somebody who'll just say it.
+- Hello. Nobody argues with an Andorian at the transporter schedule.
+ | Kess runs the pads like an Andorian. Because she is one.
+
+bark: species:talaxian
+where: any
+- Oh, you must meet Grieg. The galley needs you. | Can you cook? Please cook.
+- Your whiskers are magnificent. | Great whiskers. Really great.
+- You always cheer this corridor up. | Ship's happier when you're about.
+- Leola root? Please say you haven't brought leola root. | Is that leola root?
+- Morning! You've got that face. The good face. | Morning. Keep smiling.
+- Grieg says you're the best morale officer she's never had.
+ | Somebody said you made the galley laugh yesterday. Thank you.
+
+bark: species:exborg
+where: any
+- Hello. Sorry. I didn't mean to stare. | Morning. Sorry. Good morning.
+- If the ship's noise bothers you, deck two's quietest at night.
+ | Sickbay's got a quiet room, if you ever need one.
+- Welcome aboard. Properly welcome. | You're very welcome here. I mean that.
+- Does the implant hurt? Sorry. None of my business. | Sorry. That was rude.
+- Good to see you. Really. | Hello. You're one of us here. That's all.
+- Hello. Do you hear it too? The hum? Down there? Sorry. Forget I asked.
+ | They say you hear something near the dead. I'm sorry. That must be hard.
+
+# ---------------------------------------------------------------------------
+bark: thanks
+where: any
+- Is it you? Beaming them up? Thank you. If it is. | Whoever's doing it, thanks.
+- Thank you. For the survivors. I think it's you. Is it you?
+ | If you're the one on the surface, thank you. Really.
+- Reyes came up last week. Somebody found her. Thank you.
+ | My friend came up on the pad. If that was you, I owe you everything.
+- Someone's bringing them home. I hope it's you. Thank you.
+ | Somebody down there is bringing us our people. Thank you.
+- Every crystal that comes up, somebody carried. Thanks for carrying.
+ | That dilithium didn't walk to the pad by itself. Thank you.
+- I don't know who you are, but thank you. | Thank you. Whoever you are.
+- The transporter crew says hello. They wave at every lock. Thank you.
+ | Th'Zoran would say thank you, if she said thank you. So I will.
+- Stay safe down there. And thank you. | Thank you. Please be careful.
+- You look like somebody who's been down there. Thank you for coming back.
+ | Thanks for everything you're doing down there.

@@ -1,0 +1,797 @@
+# The transporter room (CREW.md 4). Compiled by tools/gen_crew_talk.py.
+# Lt. Kess th'Zoran runs the schedule. The transporters are the lifeline.
+
+# ---------------------------------------------------------------------------
+# Pattern-buffer fussiness.
+
+scene: tr_buffer_fuss
+where: transporter
+cast: chief=operations, other=any
+weight: 3
+
+= start
+chief: Don't lean on that. | Please don't put your coffee on the console.
+     | Hands off the pad rail, if you would. Just calibrated it.
+other: I wasn't touching it. | Sorry. It's a railing. People lean on railings.
+     | It's a mug. It's got a lid.
+chief: It's a transporter. People lean on it, people end up in Kansas.
+     | That console holds eleven thousand terabytes of somebody's atoms.
+-> buffer 3, cal 2, kess 1
+
+= buffer
+other: Is something wrong with it? | You're very tense this morning.
+chief: Buffer's running a point-oh-three percent drift. Point-oh-three.
+     | The pattern buffer hums half a tone flat. You can't hear it. I can.
+other: Is that bad? | Is that dangerous? | Is that a lot?
+chief: It's inside tolerance. Well inside. That's not the point.
+     | By the book, no. By me, yes.
+chief: Somebody comes up through this buffer with their nose a millimetre left.
+     | You'd notice. Every mirror, for the rest of your life, you'd notice.
+other: I'd think it was my face. | I wouldn't notice. My nose is already left.
+-> fix 2, why 2
+
+= cal
+chief: Calibration. Third time this shift. | Running the Heisenberg check.
+other: Third time? | Why three times?
+chief: Once for the book. Once for the captain. Once for me.
+     | Because the first two were for other people.
+other: Does the third one ever find anything? | And does the third one differ?
+chief: Once. In April. A phase variance in the secondary coil.
+     | Never. That's why I trust it.
+-> why 2, fix 1
+
+= kess
+chief: Kess wants the whole system certified before tonight's window.
+     | Lieutenant th'Zoran's schedule has a beam at nineteen hundred.
+other: Kess wants everything certified. | Kess would certify the air.
+chief: Kess is right. Kess is always right. It's exhausting.
+     | Andorians. They say what they think. Usually that you're late.
+other: Is there a beam tonight? | Who's coming up?
+chief: Maybe. A beacon's live. If they get to it. | If somebody down there can.
+-> why 2, fix 1
+
+= why
+chief: This thing is all we've got. You know that?
+     | No warp. No impulse. No comms. This. This room. That's it.
+chief: Everyone who comes home, comes home through here.
+     | Every one of the eleven that's come back, came back on that pad.
+other: I know. | I hadn't thought of it that way. | That's a lot of weight.
+chief: So I fuss. | So, yes. I'm going to fuss. I'll fuss all day.
+-> spared 2, scott 1, fix 1, rhel 1
+
+= spared
+other: Funny, isn't it. Whoever broke the ship left this alone.
+     | Why leave us the transporters? If you wanted us stuck?
+chief: I think about that every shift. | I've asked myself a thousand times.
+chief: Maybe they needed it. Maybe they didn't think it mattered.
+     | Maybe they wanted us able to watch. And unable to leave.
+other: That's a horrible thought. | I wish I hadn't asked.
+chief: It's working, that's what counts. And I'm keeping it working.
+     | They made a mistake. This room is their mistake. I like that.
+-> fix 2, rhel 1
+
+= scott
+other: Didn't someone survive in a buffer once? For decades?
+     | Wasn't there an engineer who lived in a pattern buffer?
+chief: Montgomery Scott. Seventy-five years, on a loop. Old history now.
+     | Captain Scott. Jury-rigged a buffer and came out seventy years later.
+other: Could you do that? | Could we?
+chief: With this buffer? Four seconds and I'm sweating.
+     | Don't give Rhel ideas. He'd try it with the core.
+-> fix
+
+= rhel
+other: Rhel could look at it. | Why not get engineering up here?
+chief: Rhel's got a warp core to apologise to. I can handle a buffer.
+     | Rhel came up once. Spent an hour telling the coils they were brave.
+other: Did it help? | Were they? | And?
+chief: The drift went down. I don't want to talk about it.
+     | They've been very steady since. Don't tell him.
+-> fix
+
+= fix
+...
+chief: There. Point-oh-one. | Aligned. Listen. That's the right note.
+     | Better. Point-oh-one. I'll take that.
+other: I can't hear a difference. | Sounds exactly the same.
+     | Congratulations. I think.
+chief: You'd hear it if you were on the pad. | That's because it's right now.
+other: Do you ever sleep? | When did you last take a day off?
+chief: I sleep. In that chair. With the beacon alarm on my wrist.
+     | Tuesdays. Kess makes me. I spend it thinking about the buffer.
+-> leave 2, stay 1
+
+= stay
+other: Mind if I stay and watch? | Can I watch the next check?
+chief: Stand there. Not there. There. Don't touch anything.
+     | If you're quiet. And the coffee goes outside.
+other: I'll hold very still. | Coffee's gone. I'm a statue.
+-> end
+
+= leave
+other: I'll leave you to it. | I'll take my coffee somewhere safer.
+chief: Thank you. | Mind the rail on your way out. | Go on. Shoo.
+-> end
+
+# ---------------------------------------------------------------------------
+# A rescue arrives: a shaken ensign from the surface.
+
+scene: tr_rescue_arrives
+where: transporter
+cast: chief=operations, ensign=any, medic=medical
+weight: 3
+
+= start
+chief: Lock! I have a lock. Energising. | Signal's up. Locking on. Energising.
+     | Combadge signal. Holding it. Holding. Energising now.
+...
+chief: Got them. Got them. They're aboard. | Materialised. We have them.
+-> dazed 3, talk 2
+
+= dazed
+ensign: Where... is this the ship? Am I on the ship?
+      | I was on a roof. I was on a roof a second ago.
+      | Oh. Oh, it's so quiet. Is it over?
+medic: You're aboard the Adirondack. You're safe. Sit down for me.
+     | Easy. You're home. Sit before you fall down.
+ensign: I can't stop shaking. | My hands won't stop. Sorry. Sorry.
+medic: That's normal. That's your body catching up. Breathe.
+     | Nothing to be sorry for. Breathe with me. In. Out.
+-> ground 2, scan 1, who 1
+
+= ground
+ensign: They were everywhere. The streets. I couldn't get to the badge.
+      | I was in a school for a week. I heard them on the stairs every night.
+      | I lost my tricorder in a river. I had to wait. Just wait.
+chief: You're here now. That's done. | Not now. You don't have to tell us now.
+ensign: I ate cat food. I want someone to know. I ate cat food.
+      | I kept my combadge in my sock. Every night. In my sock.
+medic: Noted for the medical log. You'll never eat it again.
+     | The best thing you ever did. It got you here.
+ensign: I'm sorry. I'm babbling. | I can't stop talking. Is that normal?
+medic: Very. Babble all you like. | It's normal. Keep going if it helps.
+-> scan 2, who 1
+
+= talk
+ensign: Is this real? | Please tell me this is real.
+      | I heard the chime. I didn't think it would work.
+chief: It's real. Welcome home, {ensign}. | You're here. You made it.
+medic: Medical team to the transporter room. | Stay on the pad a moment.
+-> scan 2, who 2
+
+= scan
+medic: Let me look at you. Tricorder. Don't move.
+     | Scanning. Hold still for me, {ensign}.
+medic: Dehydrated. Two cracked ribs. Scratches. No bites, no fever.
+     | Malnourished. A sprained ankle. You've been on it for days.
+ensign: I'm fine. I'm fine. | Is that bad? | I ran on that ankle.
+medic: You're not fine. You'll be fine. There's a difference.
+     | You're alive. Everything else, we can fix.
+-> who 2, sickbay 1
+
+= who
+ensign: Someone found me. There was someone. On the ground.
+      | Who was that? Someone came. They had a tricorder.
+chief: We don't know who. Somebody's been answering the distress calls.
+     | We never know. Just a signal, and a lock, and then you.
+ensign: They didn't say a word. Just held up the tricorder and nodded.
+      | I think I said thank you. I don't remember. I hope I did.
+medic: Whoever it was, they got you here. | We'll thank them for you.
+-> others 2, sickbay 2
+
+= others
+ensign: The others. Is anyone else back? Castellan? Reyes?
+      | Did the others make it up? We got separated in June.
+chief: Some. Not all. I'll get you the list when you've rested.
+     | A few are aboard. Sickbay has the names. You'll see them.
+ensign: Not all. | ... Some. Right.
+...
+medic: One thing at a time. You first. | Today, you. The rest tomorrow.
+-> sickbay 2
+
+= sickbay
+medic: Sickbay. Now. Doctor Anwar's waiting.
+     | Can you walk? Lean on me. It's not far.
+ensign: Can I have a shower? A real one? | I'd kill for a bath.
+      | Is there food? Real food? Not out of a tin?
+medic: Water shower. Doctor's orders. | Grieg will have something hot.
+     | Sonic first. Then Grieg's soup. It's very good soup.
+-> log 2, chief_alone 1
+
+= log
+chief: Logging. Rescue, time, name. One more home.
+     | Adding it to the list. Another one home.
+medic: Good work, Chief. | Nicely done. Steady hands.
+chief: Wasn't me. Somebody down there did the hard part.
+     | I just pressed the button. The hard part was on the ground.
+-> end
+
+= chief_alone
+...
+chief: Welcome home. | That's another one. That's another one.
+     | Home. Good. Good.
+-> end
+
+# ---------------------------------------------------------------------------
+# The transporter chief remembers every name.
+
+scene: tr_every_name
+where: transporter
+cast: chief=operations, other=any
+weight: 2
+
+= start
+other: You keep a list? | What's that padd you're always holding?
+     | Is that the transfer log?
+chief: Names. Everyone who's come up on this pad since February.
+     | Everybody I've brought home. And the ones I haven't. Yet.
+other: May I? | Can I see? | You don't have to show me.
+-> list 3, memory 2
+
+= list
+chief: Novak. Came up bleeding and apologising for the carpet.
+     | Tamura. Came up singing. Wouldn't say what.
+chief: Haddad. Off a roof. Refused the medic. Fainted two steps later.
+     | Sato. Asked if we still had coffee. First thing. Not hello.
+other: You remember all of them. | You remember what they said.
+chief: Every one. You don't forget the first thing a person says.
+     | I'm not going to forget them. That's not how it works.
+-> eleven 2, memory 1
+
+= memory
+other: How do you remember them all? | Doesn't it wear on you?
+chief: It's not memory. It's the pattern. You hold a person, once.
+     | Every pattern goes through the buffer. I watch every one.
+chief: For four seconds, a whole person is numbers on my console.
+     | For a moment you're responsible for every atom of someone.
+other: I'd never thought of it like that. | That sounds heavy.
+chief: It's the best job on the ship. | Heavy. And the best job there is.
+-> eleven 2
+
+= eleven
+other: How many of the eleven? | And the surface team? The eleven?
+chief: Eleven stayed for the fieldwork. Some are back. Some aren't.
+     | Eleven chose to stay. I've brought up some of them. Not all.
+chief: I keep the others at the bottom of the list. Blank line after each.
+     | The ones still down there have a line each. Waiting to be filled in.
+other: Brennan's on there. | Lindqvist. She was in my study group.
+chief: Last heard on the twenty-ninth. | Beacon went quiet in June.
+...
+other: Do you think they're...? | Do you think...
+chief: I think the line's blank. That's all I know.
+     | Blank means not yet. I'm not writing anything else in it.
+-> stayed 2, hope 1, others 1
+
+= stayed
+other: Can I ask why they stayed? | Why did they stay down, the eleven?
+     | I was on nights in February. I never heard why the eleven stayed.
+chief: Fieldwork. That's the answer everyone gives. It's true.
+     | For the work. Every one of them. The survey wasn't finished.
+-> e_work 3, e_argue 2
+
+= e_work
+chief: They were in the middle of it. Market days. Radio. The harvest.
+     | Six months of study, half done. They wanted to finish it.
+other: Even after the sabotage? | With the ship crippled?
+chief: In February, the planet was having a very ordinary week.
+     | The ship was stuck, not sinking. And the county was fine.
+chief: We could beam them any time. They could reach us. So they stayed.
+     | There was no reason to come up. The transporters worked.
+-> e_june
+
+= e_argue
+chief: The captain argued. Came down here herself. Stood on the pad.
+     | Vale stood right there and argued with them on an open channel.
+other: And she let them stay? | She didn't order them up?
+chief: She could have. She asked instead. She said it was their call.
+     | She said the work mattered. She said please be careful.
+other: That sounds like her. | That's Vale.
+-> e_june
+
+= e_june
+...
+chief: Then June. | And then late June. Two days.
+other: Did you try to bring them up? | Couldn't you get them all up?
+chief: I tried. For two days I didn't leave this room.
+     | Every lock I could hold, I held. Some beacons, I couldn't find.
+chief: The ones who weren't near a badge. Or who'd lost it running.
+     | Some were too far. Some were underground. Some went quiet.
+other: I'm sorry. | That wasn't your fault. | You did what you could.
+chief: I know. I'll know it better one day. | Tren says the same.
+chief: Since July, somebody's been finding them. One at a time.
+     | And now somebody down there brings them. One by one.
+-> hope 2, others 1
+
+= others
+other: What about the people who aren't ours? From the county?
+     | Could you bring up someone from down there? A civilian?
+chief: If someone put a signal on that pad, I'd take them.
+     | The captain's ruled. Anyone who reaches us. No questions.
+chief: They'd go on the list like anyone else. First words and all.
+     | They'd get a line. Same as everyone. Same ink.
+-> hope
+
+= hope
+other: I hope you fill them in. | I hope you get to write them all.
+chief: So do I. | Every one of them.
+     | Me too. I've got a very nice stylus saved for it.
+other: Thanks for showing me. | Thank you. For keeping it.
+chief: Somebody should. | Come by any time. I'll be here.
+-> end
+
+# ---------------------------------------------------------------------------
+# Who is down there, beaming them up?
+
+scene: tr_who_beams
+where: transporter
+cast: chief=operations, other=any, third=any
+weight: 3
+
+= start
+other: Another one last night? | I heard the chime at two a.m.
+     | Is it true there was another rescue?
+chief: Ensign Moreau. Came up at oh-two-hundred. Sickbay has her.
+     | Another ensign. Twenty minutes after the beacon lit.
+third: That's the fifth this month. | That's quick work. Whoever it is.
+-> who 3, theory 2
+
+= who
+other: So who's doing it? Who's down there?
+     | Nobody knows who's answering the calls? Honestly?
+chief: Honestly? No. A combadge in their hand, and that's all I see.
+     | We get a lock on the ensign. Never on the one who found them.
+third: The ensigns never get a name. A face, sometimes. A nod.
+     | They say someone arrives, scans them and steps back.
+-> theory 2, grateful 2
+
+= theory
+third: A survivor. A local who found a combadge. That's my guess.
+     | One of the eleven, maybe. Someone we don't know is alive.
+other: A local wouldn't know how to use a tricorder.
+     | One of ours would've come up by now. Surely.
+chief: Unless they don't want to. Shepard didn't, for months.
+     | Maybe they're too busy. It's a big county.
+third: Or somebody else entirely. | Or maybe it's somebody we'll never meet.
+-> ask 2, kess 1, twice 1
+
+= ask
+other: What do the ensigns say about them? The ones who came up?
+     | Did anyone describe them? Height, anything?
+chief: Novak said they smelled of woodsmoke and had a very old tricorder.
+     | Haddad said they wore something odd. Not a uniform. Maybe a uniform.
+third: Sato swore they hummed the whole time. Badly.
+     | Tamura says they talked to her. Kept her awake. Told her jokes.
+other: That's not much to go on. | So a person. Probably human. Maybe.
+chief: That's the most anyone's got. | It's a start.
+-> kess 2, grateful 1
+
+= kess
+chief: Kess ran the numbers. Somebody's on the ground and on the shuttle.
+     | Kess says it's the shuttle's signal every time. The same crew.
+other: The shuttle? Shepard's shuttle? It's parked down there.
+     | Somebody's using Shepard's shuttle? With the lamps?
+chief: Somebody's living in it. Somebody's using the sensors.
+     | Somebody found it and learned it. And now they answer our calls.
+third: Shepard must know. | Does Shepard know? She must.
+chief: If she does, she's not saying. | She smiles when you ask.
+-> grateful 2
+
+= twice
+other: What if there's more than one of them? | Maybe it's a team.
+chief: The pattern's different sometimes. The signal comes from new places.
+     | Could be. Some nights two beacons. Some nights none.
+third: A team of strangers saving our people. | That's a lot of strangers.
+other: Strangers who know a tricorder. | Strangers with our equipment.
+chief: Which is either very good or very strange. | I'll take it either way.
+-> grateful
+
+= grateful
+...
+chief: Whoever they are, I'd shake their hand. | I owe them. We all do.
+other: I'd give them my holodeck time. A whole week of it.
+     | I'd give them my replicator ration. All of it.
+third: Grieg says she's saving a pie for them. A real one.
+     | I'd just like to say thank you. To a face.
+chief: They might come up one day. | Maybe they're listening.
+     | Maybe they're standing in this room. Who knows.
+other: Now you're being spooky. | You'd notice a stranger on this ship.
+chief: Would I? | I'd like to think so.
+third: I'll keep an eye out. Anyone who looks lost and competent.
+     | That's half the ship. Lost and competent.
+chief: Then I'll thank all of you, just in case. | That's the ship, yes.
+-> end
+
+# ---------------------------------------------------------------------------
+# Fear of transporters.
+
+scene: tr_fear
+where: transporter
+cast: nervous=any, chief=operations
+weight: 2
+
+= start
+nervous: I don't have to go today, do I? | I'm on the roster for a test beam.
+       | Is it true the survey team's using the pad today?
+chief: Pad two, ten hundred, you and a crate of sample jars.
+     | Your name's on Kess's list. Ship to cargo bay. Short hop.
+nervous: Short. Right. | Fine. Great. Absolutely fine.
+-> admit 3, deny 2
+
+= deny
+chief: You look pale. | Are you all right? You look like you ate replicator fish.
+nervous: I'm fine. I love transporters. They're my favourite thing.
+       | I'm perfectly calm. This is my calm face.
+chief: Your hands are shaking. | You've sweated through your uniform.
+nervous: It's warm in here. | That's... circulation.
+-> admit
+
+= admit
+nervous: All right. I hate it. I've always hated it.
+       | I don't like being taken apart. There. I said it.
+chief: You're not the first. | A lot of people don't. More than you think.
+chief: Doctor McCoy hated them. Barclay had the whole condition.
+     | Transporter phobia is in every Starfleet medical text since McCoy.
+nervous: That was nearly two centuries ago. | Barclay? He saw things in the beam.
+chief: Some things don't change. | He did. He was fine. Mostly.
+-> explain 2, joke 2
+
+= explain
+chief: Here's how it works. You stand. I lock. Four seconds. Done.
+     | You won't feel a thing. A tingle. Like cold water on the arms.
+nervous: And in those four seconds? | Where am I, for those four seconds?
+chief: In my buffer. With me watching every atom. I don't blink.
+     | Right here. On this screen. I've never lost anyone off this pad.
+nervous: Never? | Not once?
+chief: Not once. Not in nine years. | Not one person. I'd remember.
+-> history 1, go 2
+
+= joke
+chief: Think of it this way. The version of you that walks off is brand new.
+     | Philosophers have argued about that since Cochrane. Don't think about it.
+nervous: That's not helping. | That is the worst thing you could have said.
+chief: Sorry. Bad joke. Old transporter chief's joke.
+     | Yes. Sorry. That one's for engineers.
+-> explain
+
+= history
+nervous: What about the surface? When they beam up from the surface?
+       | And people coming up from below? It's not like cargo.
+chief: They're hurt, scared, with the dead a few metres off. And it works.
+     | Harder. Weaker lock. Moving target. And it still works. Every time.
+nervous: If they can do it from a rooftop... | Then I can do it to the cargo bay.
+chief: That's the spirit. | Exactly that.
+-> go
+
+= go
+...
+chief: Pad two. Deep breath. | Up you get. Hands at your sides.
+nervous: Can you tell me when? | Don't count down. Just do it.
+       | Count me down. Slowly.
+chief: Three. Two. | No countdown. Just... now.
+-> after 2, bail 1
+
+= after
+nervous: Did it... oh. Oh, that's it? | I'm still here. I'm in the cargo bay.
+       | That was it? That was nothing.
+chief: That was it. Every atom present and accounted for.
+     | Told you. Your nose is exactly where you left it.
+nervous: I think I'm going to sit down. | I want to do it again. No. Never.
+-> end
+
+= bail
+nervous: Wait. Wait. Can I take the turbolift? It's four decks.
+       | Actually, I'll walk. I'll carry the crate. I love walking.
+chief: It's thirty kilos of sample jars. | Take the lift. Next week, the pad.
+nervous: Next week. Definitely next week. | I'll build up to it.
+chief: Next week. I'll put you down. | I'm writing it in Kess's schedule.
+-> end
+
+# ---------------------------------------------------------------------------
+# A training session gone mildly wrong.
+
+scene: tr_training
+where: transporter
+cast: chief=operations, trainee=any
+weight: 2
+
+= start
+chief: Right. Today we beam a crate of ration packs to the cargo bay.
+     | Training exercise. One crate. Pad to cargo bay three. Simple.
+trainee: Ready. | Understood. | How hard can it be?
+chief: Never say that in this room. | Never ask that in here.
+-> steps 3
+
+= steps
+chief: Lock the crate. Confirm the destination. Then energise.
+     | Target the crate, target the bay, check the phase, then energise.
+trainee: Locked. Destination confirmed. Energising.
+       | Crate locked. Bay three. Energising.
+...
+chief: Good. Now check the bay. | Right. Confirm arrival with the bay.
+-> wrong 3, fine 1
+
+= fine
+trainee: Crate arrived in cargo bay three. Right side up.
+       | Arrival confirmed. Nothing missing.
+chief: Well done. Again, with two crates. | Good. Now the hard one.
+-> wrong
+
+= wrong
+trainee: Bay three says... they don't have it. | Hm. Cargo bay says no crate.
+chief: What do you mean, they don't have it? | Check your coordinates.
+trainee: I did. It says it arrived. It's just not in the bay.
+       | The system says materialised. The bay says it's empty.
+chief: Read me the destination. | Read out your coordinates. Slowly.
+trainee: Deck four, section nine, cargo... oh. Oh no.
+       | Deck four, section... that's not a cargo bay, is it.
+-> galley 2, quarters 2
+
+= galley
+chief: That's the galley. You beamed rations into the galley.
+     | That's Grieg's galley. You sent a crate to the galley.
+trainee: That's... where rations go? Technically?
+       | At least it's the right department?
+chief: Onto the counter? Or into the soup? | Did it land on anything?
+...
+trainee: Grieg's on the comm. She says thank you. And never again.
+       | Grieg says it's in her bread dough. And she's coming up here.
+chief: She's coming up here? | Did she sound angry?
+trainee: She sounded very calm. | She said she'd bring a rolling pin.
+-> lesson 2
+
+= quarters
+chief: That's crew quarters. That's someone's bunk.
+     | You put thirty kilos of ration packs in someone's quarters.
+trainee: Whose? | Is anyone in there?
+chief: Section nine. That's the counselor. That's Tren's quarters.
+     | Section nine. Lieutenant Tren. She's off shift. She's asleep.
+...
+trainee: She's on the comm. She wants to know if it's a metaphor.
+       | Tren's calling. She'd like to talk about why I did it.
+chief: Tell her it's a training exercise. | Tell her it's a gift.
+-> lesson 2
+
+= lesson
+chief: Lesson one. Read the coordinates twice. Out loud.
+     | This is why we check the bay first. Every time. Twice.
+trainee: I'm so sorry. | Understood. I'll never forget it.
+       | I'll check three times from now on.
+chief: Good. Everybody does it once. I sent a chair to the brig.
+     | Don't worry. My first one went into a warp nacelle. It was fine.
+trainee: A chair to the brig? | What did the brig say?
+chief: They kept it. It's still there. | That's between me and security.
+-> again 2, done 1
+
+= again
+chief: Go on. Beam it back. Carefully. | Now beam it back. Properly.
+trainee: Coordinates: transporter room pad one. Twice. Out loud.
+       | Pad one. Pad one. Pad one. Energising.
+...
+chief: There it is. | Crate on the pad. Well done.
+trainee: It's got flour on it. | Is that... dough?
+chief: Leave it. Grieg will want it back. | That's lunch.
+trainee: Can I log that as a successful transport? | Does it count?
+chief: It counts. I'm writing a note in the margin. | Half marks.
+-> end
+
+= done
+chief: That'll do for today. Go and apologise. Take flowers.
+     | Enough. Go and say sorry in person. Bring something.
+trainee: Flowers? Where do I get flowers? | What do I bring?
+chief: Hydroponics. Tell them it's an emergency. | A pie. That always works.
+-> end
+
+# ---------------------------------------------------------------------------
+# Waiting on a beam that doesn't come.
+
+scene: tr_lost_beacon
+where: transporter
+cast: chief=operations, other=any
+weight: 2
+
+= start
+other: Still waiting? | Anything? | Is it still live?
+chief: Beacon's still on the board. Ensign Kowalczyk. North of the river.
+     | Still live. Ensign Ferreira. Somebody accepted the call this morning.
+other: How long? | How long's it been?
+chief: Nine hours. The window's twelve. | Most of the day.
+-> wait 3, talk 2
+
+= wait
+other: Want company? | I can sit with you.
+chief: If you like. | Stay. Don't talk. Or talk. Either.
+...
+other: Does it ever just come through, at the last minute?
+     | Have you had one come in right at the end?
+chief: Once. Eleven hours, fifty minutes. Came up laughing.
+     | Twice. Once with four minutes left. I nearly cried.
+-> talk 2, flicker 2
+
+= talk
+other: Did you know them? | What was Kowalczyk like?
+     | Were you friends?
+chief: A little. Botany. Talked to plants the way Rhel talks to the core.
+     | We played cards on Thursdays. Terrible at cards. Worse at lying.
+other: Sounds like a good sort. | I'd like to meet them.
+chief: You will. | Maybe you will. | I hope so.
+-> flicker
+
+= flicker
+...
+chief: Signal's flickering. | It's weakening. | There. It moved.
+other: That's good? Moving is good? | What does that mean?
+chief: Could be the badge. Could be the rain. Could be nothing.
+     | Could mean they're walking. Could mean the badge is in the mud.
+-> gone 3, lock 1
+
+= lock
+chief: Wait. Wait. I have something. | Hold on. It's strengthening.
+other: Is it them? | Can you get them?
+chief: No. No, that's a reflection. A mast. Sorry. Sorry.
+     | It's the shuttle's carrier. Not the badge. Not them.
+-> gone
+
+= gone
+...
+chief: It's gone. | The beacon's stopped. | Board's clear.
+other: Gone? Gone how? | What happened?
+chief: I don't know. That's the thing about it. You never know.
+     | Could be the badge failed. Could be anything. It just stops.
+other: They might still be alive. | That doesn't mean anything. Does it?
+chief: It doesn't. It means I can't hear them. That's all.
+     | It means the line's blank. And I leave it blank.
+-> after 2, kess 1
+
+= kess
+chief: Kess will want the log. She hates this part. | I have to log it for Kess.
+other: Kess hates anything? | Th'Zoran? She seems unshakeable.
+chief: Andorians feel everything. They just say it in fewer words.
+     | She signs these and goes to the gym for an hour. Every time.
+-> after
+
+= after
+other: What do you do now? | Now what?
+chief: Clear the board. Log the time. And wait for the next one.
+     | Log it. Go and tell the captain. Then come back.
+other: I'll come with you. | Do you want me to tell her?
+chief: No. I'll do it. It should be me. | Come with me. It's easier with two.
+other: And Kowalczyk's line? | What goes in the log?
+chief: Beacon lost. Not found. Not lost. Beacon lost.
+     | The time, and the place. And nothing else. Not yet.
+-> end
+
+# ---------------------------------------------------------------------------
+# Shepard's arrival, on the ninth of July.
+
+scene: tr_shepard_arrival
+where: transporter
+cast: chief=operations, other=any
+weight: 2
+
+= start
+other: Were you on duty when Shepard came up? | You beamed Shepard up, right?
+     | They say you brought Lieutenant Shepard up. The ninth.
+chief: The ninth of July. Oh-seven-fifty. I'll never forget it.
+     | I did. The ninth. Morning. She called it in herself.
+-> call 3, before 1
+
+= before
+chief: We'd asked her to come up every week since February. She wouldn't.
+     | The captain ordered it once. Shepard politely declined. For months.
+other: You can decline an order? | How did she get away with that?
+chief: Not really. But she was the only one who understood the ground.
+     | She said she was the only one who knew how this century boils water.
+-> call
+
+= call
+chief: She called and said: Energise. Now. Just that.
+     | She didn't chat. No hello. Just, bring me up. Please. Now.
+other: Was she hurt? | Was she in trouble?
+chief: No. Not a scratch. But her voice. I'd never heard it like that.
+     | Not physically. She was pale as the pad when she arrived.
+-> chair 2, what 2
+
+= chair
+chief: She said a chair had been moved. In her shuttle. That was all.
+     | She kept saying, the chair was moved. The chair was moved.
+other: A chair? | That's it? A chair?
+chief: Nothing taken. Nothing broken. A chair in a different place.
+     | That's all. And she'd been in that county through all of June.
+other: That's what got her to come up? | After everything?
+chief: After everything. | A chair. I've thought about that a lot.
+-> what 1, tapes 2
+
+= what
+other: What did she say, when she got here? | What were her first words?
+chief: She stood there. Then she said, I'm sorry. I stayed too long.
+     | She said, Is the captain up? And then, I need to sit down.
+other: And then? | What did you say?
+chief: I said, welcome home, Lieutenant. What else is there?
+     | I said the captain was on her way. She was already running.
+-> vale 2, tapes 1
+
+= vale
+chief: The captain came through that door at a run. I've never seen her run.
+     | Vale got here in ninety seconds. From the ready room. Four decks.
+other: What did she say? | What happened?
+chief: Nothing. Put her arms round her. Held on. Neither of them said a word.
+     | She said, you stubborn, stubborn woman. And then she hugged her.
+other: The captain hugged someone? | Vale? Our Vale?
+chief: Don't tell anyone I told you. | I didn't see it. I was very busy.
+-> tapes
+
+= tapes
+chief: She didn't bring a thing. Not a bag. She left it all on the shuttle.
+     | Empty-handed. The lamps, the tapes, the chair. She left all of it.
+other: Her collection? The tapes? | She left the tapes behind?
+chief: I asked. She said, somebody down there should have them.
+     | She said, they're where they need to be. Then she gave me a look.
+other: Somebody like who? | What kind of look?
+chief: Like she knew who. Like she wasn't telling.
+     | Like there was someone down there she was counting on.
+-> since 2
+
+= since
+...
+other: Is she all right now? | How is she, these days?
+chief: She argues with everybody. That means she's fine.
+     | She's on the channel every day. She fusses about her shuttle.
+chief: And she fills out cargo requests for lamps. So, yes.
+     | She's Shepard again. That's the best sign there is.
+other: Good. | I'm glad. | Lamps. Of course.
+-> end
+
+# ---------------------------------------------------------------------------
+# Barks.
+
+bark: thanks
+where: transporter
+- Was that you? Last night? Thank you. | If that was you... thank you.
+- Whoever's been bringing them up. Thank you. I mean it.
+- You were down there? You found one of ours? Thank you.
+- I don't know who you are. But thank you. | Thank you. Whoever you are.
+- Novak would thank you herself. She's still in sickbay. So, from her.
+- Thank you. We can't get down there. You can. Thank you.
+- Every name on my list, somebody found. If it's you, thank you.
+- You look like somebody who knows the ground. Thanks, if it's you.
+- Sickbay says you keep them alive long enough. Thank you.
+- I owe you a drink. Or my holodeck time. Take your pick.
+- Grieg's saving you a pie. If it's you. It might be you.
+- Thanks for bringing them home. | Thank you for going down there.
+
+bark: idle
+where: transporter
+- Buffer drift, point-oh-two. Hmm. | Pattern buffer's humming flat.
+- Pad two. Heisenberg check. Again. | Recalibrating the phase coils.
+- Beacon board's clear. | No beacons. Quiet night. | Nothing on the board.
+- Kess wants this certified by nineteen hundred. Of course she does.
+- Don't lean on the rail. Nobody ever listens. | Who left a mug here?
+- Annular confinement, nominal. | Emitter array, nominal.
+- Rescue logged. Another name. Good. | Log's up to date. One more name.
+- Welcome home, welcome home. | One more. One more for the list.
+- Point-oh-one. That's the note. That's the right note.
+- Signal's weak down there. Rain. It's always rain.
+- If you can hear me down there... hold on. We're coming.
+- Grieg's asking for her crate back. Still.
+- Eleven lines. Some filled. Some not yet.
+
+bark: hello
+where: transporter
+- Morning. Mind the pads. | Hello. Don't stand on pad three.
+- Coming or going? | Beaming out? You're not on the schedule.
+- Transporter room. How can I help? | Need a transport?
+- Oh. Hello. Didn't hear the doors.
+- If you're here for Kess, she's in ops. | Looking for th'Zoran?
+- Quiet today. Too quiet. | Welcome. Wipe your feet.
+- Nice to see a face that didn't just materialise.
+
+bark: arrive
+where: transporter
+- Reporting for transporter duty. | Relieving you, Chief.
+- Is the board clear? Any beacons? | Anything live on the board?
+- Right. What have we got? | Morning. What's the buffer doing?
+- I came as soon as I heard the chime. | Did something just come up?
+- Kess sent me down. | Schedule says I'm on pads until twenty-two hundred.
+- Energising... oh. I'm on the pad. Sorry. Wrong way.
+- That's the last time I beam instead of taking the lift.
+- Stepping off. All my atoms, I think. | Off the pad. Everything's here.

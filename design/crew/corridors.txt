@@ -1,0 +1,576 @@
+# Chance meetings: any deck's corridor, a turbolift car, anywhere.
+# Short on purpose: people are on their way somewhere.
+# CREW.md section 4 is the format; section 2 is what these people know.
+
+# ---------------------------------------------------------------------------
+scene: cor_shift_gossip
+where: corridor, any
+cast: a=any, b=any
+weight: 3
+
+= start
+a: Did you hear about deck two last night? | You'll never guess who I saw.
+ | Have you got a minute? You have to hear this.
+b: I've got about thirty seconds. Go. | Is it good? Tell me it's good.
+ | Morning, {a}. Is this gossip? Your face says gossip.
+a: It's the best thing that's happened since February. Nearly.
+ | It's small. It's very small. But it's lovely.
+-> romance 2, galley 2, holodeck 1
+
+= romance
+a: Pell Daro and somebody from stellar cartography. In the lounge. Holding hands.
+ | Two of the night-shift sensor crew. Sharing a dessert ration.
+b: Sharing a ration? That's practically a proposal.
+ | No. On this ship? That's serious.
+a: Grieg's already planning a cake. | The whole galley knows.
+b: Does the symbiont approve? Daro's got three previous opinions on everything.
+ | Good for them. Somebody should be happy up here.
+a: Apparently the second host was a romantic. | Apparently it's unanimous.
+-> reply
+
+= galley
+a: Grieg threw a replicator padd across the galley.
+ | Somebody complained about Grieg's stew. To her face.
+b: Who? Who was brave enough? | Were they hurt?
+a: Some ensign from sciences. He apologised twice and asked for seconds.
+ | Nobody knows. She's put the stew on the menu three days running now.
+b: That's a punishment. That's a whole-ship punishment. | Serves us all right.
+a: I like the stew. Don't tell anyone. | The stew's fine. It's honest stew.
+-> reply
+
+= holodeck
+a: Someone booked the holodeck for six hours. Six. With a forged rota.
+ | The holodeck rota went missing and came back with one name added.
+b: That's bold. Who? | Security will love that.
+a: Nobody's saying. The program was a beach. Just a beach, all six hours.
+ | They ran a rainstorm. That's all. Six hours of rain.
+b: ... Honestly? I understand. | I'd do the same thing.
+a: Me too. I'd give a week's rations for real rain. | Same. I miss weather.
+-> reply
+
+= reply
+b: Right. My turn. The Captain laughed on the bridge yesterday.
+ | I've got one. Somebody saw Ensign Daro practising the helm. With no helm.
+ | Mine's better. Th'Zoran smiled at a transporter log.
+a: No! | You're making that up. | At what?
+b: Nobody knows. It was brief. It happened. | That's all I know. It's plenty.
+a: That's going round the whole ship by lunch. | I'm telling everybody.
+-> off 2, late 1
+
+= off
+a: I have to go. Save me anything else. | Right. I'm late. Keep me posted.
+b: Always. | Same time tomorrow. | Tell nobody. Tell everybody.
+-> end
+
+= late
+a: Oh no, is that the time? I'm on in two minutes.
+ | I'm late. I'm very late. Tell nobody I stopped.
+b: Go. Run. Don't run, security hates it. Walk fast.
+ | Walk fast. And look like you're carrying something important.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: cor_which_deck
+where: lift
+cast: a=any, b=any, c=any
+weight: 3
+
+= start
+a: Morning. | Evening. | Oh, hello.
+b: Hi. | Hello, {a}. | Hey.
+a: Which deck? | Where are you headed? | Going up or down?
+b: Four, please. | Two. Habitat. | Engineering. | Sickbay, if you're passing.
+a: Same. | I'm one past you. | Main Engineering.
+...
+-> stuck 1, chat 3, quiet 2
+
+= quiet
+a: ... | ...
+b: Long shift? | You look how I feel.
+a: Double. Somebody swapped with me. | Every shift is long now.
+b: I know. | Same.
+a: What are you on, this week? | Where've they got you?
+b: Hydroponics. Talking to lettuce. | Inventory. Counting spoons. Actually.
+a: Could be worse. Could be tube seven. | Somebody has to count the spoons.
+-> joiner 1, arrive 2
+
+= chat
+b: Did you see the surface on the viewer this morning?
+ | They put the planet on the lounge viewer again. Clear day.
+a: Clouds over the county. Looked almost normal from up here.
+ | I saw. Green. It looks so green, still.
+b: It does. From here you'd never know. | Yes. That's the hard part.
+a: I keep looking for the towns at night. The lights.
+ | I don't look any more. I used to look every morning.
+b: I still look. Out of habit. | Me too. I can't help it.
+-> joiner 2, arrive 2
+
+= stuck
+a: Is it... slowing down? | Did we just stop?
+b: Deck three junction. It does this. Give it a second.
+ | It's the junction. Engineering rerouted the lift power.
+...
+a: Should we call someone? | Is there a hatch? There's always a hatch.
+b: Give it ten seconds. It sulks. | There's a hatch. We are not using the hatch.
+...
+a: And we're moving. | There we go.
+b: Somebody's running the replicators again. | Galley's doing lunch.
+-> arrive
+
+= joiner
+c: Hold the lift! | Room for one more? | Deck three, please.
+a: In you get. | Plenty of room. | Come in, {c}.
+c: Thanks. I'm late for the transporter schedule. Th'Zoran will kill me.
+ | Thank you. Sickbay. I've got samples. Don't bump me.
+b: Kess only kills people on Tuesdays. | We'll hold our breath.
+c: It's Tuesday. | That's very kind. Very still, everyone.
+-> arrive
+
+= arrive
+...
+a: This is me. | My deck. | Here we are.
+b: See you around. | Take care. | Get some sleep.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: cor_the_crate
+where: corridor
+cast: a=operations, b=any
+weight: 2
+
+= start
+a: Coming through! Sorry. Heavy. | Mind your feet, please. Crate.
+ | Excuse me. Excuse me. Very heavy crate.
+b: Want a hand with that? | Where's that going? | Do you need help?
+a: Please. Take the other end. | Oh, yes. Thank you. The far end.
+-> what 3, where 2
+
+= what
+b: What's in it? It weighs a ton. | What is this, bricks?
+a: Seals. Couplings. And, for some reason, a toaster.
+ | Surface salvage. Came up the transporter this morning.
+b: A toaster? | From the surface?
+a: Lieutenant Shepard says it's a specimen. The chief says it's parts.
+ | Somebody found it in a field. It's going to the shuttle bay.
+b: Who wins? | Who's winning that argument?
+a: So far, the toaster. | Nobody. The toaster sits in the corridor.
+-> where
+
+= where
+b: Where are we taking it? | Which way?
+a: Cargo bay two. Then engineering. Then maybe cargo bay two again.
+ | Shuttle bay. The long way, the lift's full.
+-> drop 1, arrive 3
+
+= drop
+b: It's slipping. It's slipping! | My fingers. Hold on.
+a: Down, down, gently. | Put it down! On three!
+...
+b: Sorry. It's fine. Nothing broke. | Nothing rattled. We're fine.
+a: Nothing broke that wasn't already broken. | It's a crate. It's forgiven.
+-> arrive
+
+= arrive
+a: Here. This is fine. Thank you. Really. | Right here. Thank you so much.
+b: Any time. Mind your back. | Why didn't you use the antigrav cart?
+a: The cart's on the ceiling again. That's why I'm carrying it.
+ | I would have used the cart, but it's in engineering, and it's up.
+b: On the ceiling? | Up where?
+a: Don't ask. | Long story. Involves a dial.
+-> thanks 2, bye 2
+
+= thanks
+a: I'll tell Grieg you helped. She keeps a list. | I owe you a coffee.
+b: A real coffee? | Is it a good list?
+a: Real coffee. Surface beans. Somebody beamed up a whole tin.
+ | The best list. People on it get the crusty bits of the bread.
+b: Then it was worth it. | Deal. I'll collect.
+-> end
+
+= bye
+b: Next time, find me first. I'm stronger than I look. | Next time, two of us.
+a: Next time, I'm waiting for the cart. | Next time I'm hiring the Klingons.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: cor_friend_in_sickbay
+where: corridor, lift
+cast: a=any, b=sciences
+weight: 2
+
+= start
+a: You're from sickbay, aren't you? Can I ask you something?
+ | Sorry to stop you. You work with Dr. Anwar?
+b: I am. What is it? | For a minute. What's wrong?
+a: My friend's in there. Since yesterday. Nobody's telling me anything.
+ | Ensign Tamura. My bunkmate. She went in last night.
+-> fine 3, unsure 1, what 1
+
+= what
+b: What happened to her? Do you know? | Was it an accident?
+a: She was helping on the transporter pad. A survivor grabbed her arm.
+ | She fainted in the galley. Just went down. Hasn't slept in weeks.
+b: Then she's in the right place. They'll look after her.
+ | The Doctor's thorough. Maddeningly thorough. That's good for her.
+-> fine
+
+= fine
+b: I can't give you details. But she's resting, and she's eating.
+ | I saw her this morning. She complained about the food. That's a good sign.
+a: Complaining is good? | Oh, thank goodness.
+b: Complaining is excellent. The quiet ones worry us.
+ | The Doctor says a patient who complains is a patient who's going home.
+a: Then she'll be out in an hour. She complains professionally.
+ | She's the best complainer on the ship. She'll be fine.
+-> visit
+
+= unsure
+b: I'm not on her case. But Dr. Anwar is. She's in good hands.
+ | I don't know. I'm sorry. I work in the lab. I'll ask.
+a: Would you? Please. | Thank you. I'd owe you.
+b: I'll get word to you by end of shift. I promise.
+ | Of course. Where will you be?
+a: Deck two. Quarters. Or the galley. Probably the galley.
+ | Anywhere near a comm panel. Pacing.
+-> visit
+
+= visit
+a: Can I see her? | Are visits allowed?
+b: After gamma shift. Bring her something from the galley.
+ | Tomorrow, probably. The Doctor's strict about visiting hours.
+a: I will. Thank you. Really. | I'll bring the stew. She hates the stew.
+-> spite 2, bye 2
+
+= spite
+b: Then she'll know it's you. | Perfect. She'll recover out of spite.
+a: That's the plan. | That's always been the plan.
+-> end
+
+= bye
+b: And you get some sleep yourself. You look like you need a bed.
+ | And eat something. I don't want you in there next.
+a: Yes, doctor. | I will. Promise.
+b: I'm not a doctor. I just work with two. | Don't let the Doctor hear that.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: cor_okafor
+where: corridor, lift, any
+cast: a=any, b=any, c=security
+weight: 1
+tags: lore
+
+= start
+a: Was that Cmdr. Okafor? Just now? | Did you see who got out of the lift?
+b: Okafor. Yes. | Intelligence liaison. Walks like he's counting doors.
+a: Is it true what they say? About where he's really from?
+ | You've heard the rumours, right?
+-> rumours 3, defend 1
+
+= rumours
+b: That he's not really Intelligence. That he's the other thing.
+ | I heard he's Section 31. I heard Shepard said it to his face.
+a: That's what I heard. And that he laughed. | And that he didn't deny it?
+b: I heard he did deny it. And that nobody believed him but her.
+ | The way I heard it, he said no. And that was the scary part.
+a: Why is no scary? | Why's that worse?
+b: Because if it wasn't his people, then whose was it?
+ | Because then nobody knows who did this. Not even them.
+-> shaken 2, stop 2
+
+= defend
+b: He brought me tea when I was on the night watch. Twice.
+ | He helped carry a survivor off the pad. Soaked his uniform.
+a: Tea doesn't mean anything. | That doesn't mean anything.
+b: It means he brought me tea. | It means he carried somebody.
+a: ... Fair enough. | All right. I take it back. A bit.
+-> shaken
+
+= shaken
+a: Someone saw him coming out of sickbay last week. Looking awful.
+ | Th'Zoran said he looked shaken. After the Doctor's report.
+b: Shaken by what? | What was in the report?
+a: Nobody knows. Something about markers. Confusing ones.
+ | Something about the samples. That's all anyone says.
+b: The Doctor's never confused. He'd rather die. Well. Be deactivated.
+ | Confusing markers. That's not a phrase I like.
+-> stop
+
+= stop
+c: Evening. What are we discussing? | Keep it down in the lifts. They carry.
+ | Evening, both. Something interesting?
+a: Nothing, {c}. | Just the weather. | The menu.
+c: Good. Rumours on a ship this size are how people get hurt.
+ | The commander's doing his job. Let's all do ours.
+b: Yes, {c}. | Understood.
+c: For what it's worth, he asked after the eleven. Every one. By name.
+ | And for the record, I've seen him in the chapel. Twice.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: cor_the_captain
+where: corridor, lift
+cast: a=any, b=any
+weight: 2
+
+= start
+a: Did the Captain look tired to you this morning? | Seen the Captain lately?
+b: She always looks tired. Since February. | Why? What happened?
+a: She was in the galley at oh-three-hundred. Just sitting there.
+ | Somebody saw her walking the decks at night. Every deck. All of them.
+-> kind 2, worry 2, story 1
+
+= kind
+b: She does that. She checks on everybody. On the night watch too.
+ | She walks the ship. My friend in hydro says she knows every name.
+a: Every name? All hundred and forty-one?
+ | She said good morning to me by name. I've been aboard three months.
+b: Every one. Including the eleven. She says their names at night.
+ | Every one. She keeps the eleven on a list in her ready room.
+-> close 2, rumour 1
+
+= worry
+b: Does anyone make her sleep? | Somebody should make her sleep.
+a: Dr. Anwar tried. The Captain gave her the look.
+ | Counselor Tren tried. They had tea. The Captain didn't sleep.
+b: The look. | Oh, the look.
+a: The dry one. Where she agrees with you and does nothing about it.
+ | You know the one. Eyebrow. Very small. Devastating.
+-> close 2, rumour 1
+
+= story
+b: You know what she said on the tenth? When they told her about the drives?
+ | Did you hear what she said, the day after?
+a: No. What? | Go on.
+b: Well. We've always wanted to see the place properly. Now we have time.
+ | She said: then we'll be the best-kept orbital platform in the quadrant.
+a: That's so her. | Of course she did.
+-> close
+
+= rumour
+a: People say she argued with Okafor. In the ready room. Door closed.
+ | Someone heard raised voices from the ready room. Hers.
+b: About what? | The Captain doesn't raise her voice.
+a: Nobody knows. Might be nothing. Might be the eleven.
+ | Might have been about going down there. Getting them all back.
+b: Then good. Somebody should be shouting about it.
+ | If she's shouting, she's shouting for us. I'm fine with that.
+-> close
+
+= close
+a: You know she gave up her replicator ration to the survivors? All of it.
+ | She sends her coffee ration down to sickbay. For whoever came up last.
+b: I didn't know that. | Of course she does.
+...
+a: I'd follow her anywhere. Even nowhere. Especially nowhere.
+ | Good captain. Good person. Tired person.
+b: Me too. Right. Let's go and be less trouble for her.
+ | Same. Come on. Let's make her day easier.
+a: Starting with not being late. Come on. | Deal. Walk with me.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: cor_the_ensigns
+where: corridor, lift, any
+cast: a=any, b=any
+weight: 2
+
+= start
+a: Another one came up yesterday. From the surface. | Did you hear? Another one.
+b: One of the eleven? Who? | Really? Alive?
+a: Ensign Reyes. Thin, filthy, and asking for coffee.
+ | Ensign Novak. Walked onto the pad on her own feet.
+-> who 2, how 2
+
+= who
+b: Is she all right? Is she hurt? | How is she?
+a: The Doctor says tired, dehydrated, nothing that won't mend.
+ | Sickbay. She's sleeping. She keeps waking up to check she's aboard.
+b: Thank goodness. | Oh, that's good. That's so good.
+a: She asked if we'd kept her quarters. We had. Nobody touched anything.
+ | First thing she asked for was a shower. Then the date. Then the others.
+-> left
+
+= how
+b: How did they find her? Nobody's beamed down in weeks.
+ | How? Who marked her for transport?
+a: Somebody on the surface. Th'Zoran got a lock from an odd signal.
+ | Nobody knows. There was a signal. She was just there on the pad.
+b: Somebody down there is doing it. Someone brave. | Whoever it is. Bless them.
+a: She said somebody found her. She didn't get a good look. Just a voice.
+ | She says a stranger. That's all. A stranger who knew about us.
+-> left
+
+= left
+a: That leaves... how many still down there? | How many does that leave?
+b: I keep a count. I don't say it out loud.
+ | I don't know. I stopped counting. I didn't like counting.
+...
+a: They're not dead until we know. | We don't know. That's the thing.
+b: We don't know. That's hope and it's horrible. | Not knowing is the worst part.
+-> welcome 2, part 1
+
+= welcome
+a: I'm going to bring her something from the galley. | I'll visit, later.
+b: Bring her socks. Surface socks are terrible. | Tell her welcome home.
+a: I'll tell her the whole deck says welcome home.
+ | I'll bring socks. And the gossip. She's missed five months of it.
+-> end
+
+= part
+a: I need a minute. | Sorry. I'll catch you later.
+b: Take it. | Of course. Go on.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: cor_transporter_nerves
+where: corridor, lift
+cast: a=any, b=operations
+weight: 2
+
+= start
+a: They've put me on the survey detail. Beaming down. Tomorrow.
+ | I've been assigned to the pad team. They want me to beam.
+b: Congratulations? You look like I said congratulations to a funeral.
+ | That's good news. Isn't it? You've gone green.
+a: I hate transporters. I really, deeply hate transporters.
+ | I have never liked being taken apart. It's a thing. It's a personal thing.
+-> reassure 2, joke 1, admit 2
+
+= reassure
+b: It's the best-behaved system on the ship. It's never dropped anybody.
+ | Th'Zoran runs those pads like a clock. You'll be fine.
+a: It's not the dropping. It's the being taken apart and put back.
+ | Yes, but is it me that comes back? That's what I think about.
+b: It's you. I've seen you before and after. Same terrible haircut.
+ | It's you. The same you. I promise. I've read the physics.
+-> admit
+
+= joke
+b: Look at it this way. You get a free scrub. Atom by atom.
+ | Think of it as the most thorough sonic shower you'll ever have.
+a: That doesn't help. That's worse. | Why would you say that?
+b: Sorry. That one's for engineers. | Yes. Sorry. Wrong audience.
+-> admit
+
+= admit
+b: What helps? What do you do? | Is there anything that helps?
+a: I count. Backwards from twenty. My grandmother taught me.
+ | I close my eyes and I think about the coffee at the other end.
+b: Then count. And there'll be coffee. I'll make sure.
+ | Tell the pad chief. Everyone's got something. They'll wait for you.
+-> swap 1, brave 3
+
+= swap
+a: Could I swap? With somebody else? | Is it cowardly to ask to swap?
+b: Not cowardly. Ask. But I think you'd do fine.
+ | Ask the Lieutenant. She'll say yes. But you might regret it.
+-> brave
+
+= brave
+a: No. I'll go. Somebody's got to. The eleven went down every day.
+ | I'll do it. If Shepard did it every day for five months, I can do it once.
+b: That's the spirit. I'll wave from the console. | I'll be at the pad. Promise.
+a: Wave with both hands. So I know I've come back in one piece.
+ | If I come back as two people, you're buying both of them dinner.
+b: Deal. | Done. Both of you.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: cor_calendar
+where: corridor, lift, any
+cast: a=any, b=any
+weight: 2
+
+= start
+a: What's the date? Down there, I mean. | What day is it on the surface?
+b: July. Nineteen ninety-three. | Their calendar says July, ninety-three.
+a: Four hundred and forty-two years. It still makes my head hurt.
+ | Ninety-three. And it's twenty-four thirty-five up here.
+-> maths 2, calendar 2
+
+= maths
+b: Science checked it about fifty times. It doesn't add up.
+ | It shouldn't be ninety-three. It should be now. Nobody can say why.
+a: Shepard said nobody explained Miri either. | Maybe time just runs odd there.
+b: That's a very Starfleet shrug. | Great. Unexplained. Again.
+-> calendar
+
+= calendar
+a: I've got a paper calendar in my quarters. From the surface. Ninety-three.
+ | Shepard gave me a calendar. Paper. With pictures of ducks.
+b: Paper? You write on it? | What's on it?
+a: Ducks. Every month a different duck. July is a very handsome duck.
+ | Lighthouses. Twelve lighthouses. None of them are anywhere we've mapped.
+b: I want one. Where do I get one? | That's wonderful. I'm jealous.
+a: Ask Shepard. She's got a box of them. From a gas station.
+ | The shuttle. There's a stack of them behind the sofa.
+-> street 1, end_it 3
+
+= street
+b: Speaking of which. The map's wrong. Have you noticed?
+ | Science found a street down there with the wrong name. Wrong for Earth.
+a: Wrong how? | Wrong compared to what?
+b: Close to Earth's. Not the same. Like somebody retold it from memory.
+ | Nearly right. Everything down there is nearly right.
+-> end_it
+
+= end_it
+a: Anyway. It's July. Happy July. | Happy July, I suppose.
+b: Happy July. | Happy ninety-three.
+a: I cross the days off. It helps. Somehow it helps.
+ | I cross the days off on the duck. Don't ask me why.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: cor_the_watcher
+where: corridor, lift
+cast: a=any, b=any
+weight: 1
+
+= start
+a: You all right? You've been staring at that bulkhead a while.
+ | Hey. You were miles away.
+b: Sorry. Yes. I'm fine. | Just thinking. | Didn't sleep.
+a: You don't look fine. Sit a second. | Do you want to talk about it?
+-> push 3, leave 1, sit 2
+
+= push
+a: Is it June again? | You were on sensors in June, weren't you?
+b: Two days. I watched it all. The whole county. Two days.
+ | I had the long-range sensors. I counted lights going out.
+...
+a: I'm sorry. | That's not a thing anybody should have to watch.
+b: We couldn't do anything. Observe only. I observed.
+ | Observe only. That was the order. So I observed. All of it.
+-> sit
+
+= sit
+b: They were people. They had radios and markets and school buses.
+ | There was a baseball game on the Friday. I heard the crowd on the audio.
+a: I know. | They were real. All of them.
+b: Nobody ever says that. People say the county. I want to say the people.
+ | I don't want them to just be a number I watched.
+a: Then say it. I'll listen. Any time. | They were people. I'll remember too.
+-> tren 2, walk 2
+
+= tren
+a: Have you talked to Counselor Tren? | Tren's got a free slot on Thursdays.
+b: Once. She was very kind. She said it's allowed to hurt.
+ | Not yet. I'll go. I keep meaning to go.
+a: It is. It's allowed. | Go. For me, if not for you.
+-> walk
+
+= walk
+a: Come on. I'll walk you to the galley. Grieg's got soup.
+ | Walk with me. You shouldn't be on your own right now.
+b: ... Yeah. All right. Thank you. | Okay. Thanks. Really.
+-> end
+
+= leave
+a: All right. You don't have to. | Okay. No pressure.
+a: Want company? Or want me to go? | I can go, if you'd rather.
+b: Go. It's all right. I just need a minute.
+ | I'm all right. Honestly. Thank you for asking.
+a: I'm on deck three if you change your mind. | Find me later. I mean it.
+-> end

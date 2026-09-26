@@ -1,0 +1,1758 @@
+# Sickbay, the Medical Lab and the CMO's office (CREW.md 4).
+# Doctors and nurses are `medical`, lab techs `sciences`, patients `any`.
+# Never a speaker: Shepard, the Doctor, Okafor. Anwar, Vale, Rhel, th'Zoran,
+# Tren and Grieg are mentioned by name, not by pronoun.
+
+# ---------------------------------------------------------------------------
+scene: sickbay_headache
+where: sickbay
+cast: patient=any, doc=medical
+weight: 3
+
+= start
+patient: I've got a headache, Doc.
+       | Got a minute? My head's been pounding since yesterday.
+       | Is this a bad time? My head is killing me.
+doc: Sit on the biobed. When did it start?
+   | Up on the bed. How long has it been going?
+   | Every third person this week. Sit down, let's see yours.
+patient: End of beta shift. Right behind the eyes.
+       | Two days, on and off. Worse in the mornings.
+       | Since the rations changed, honestly.
+-> scan 3, joke 2, grumble 2
+
+= joke
+patient: Before you ask: no, I haven't hit my head on anything.
+       | And no, I didn't walk into a bulkhead. Not this time.
+doc: That's exactly what people who walk into bulkheads say.
+   | Noted. I'll scan for bulkhead-shaped dents anyway.
+patient: Fair.
+       | ... There might have been a door. It didn't open fast enough.
+doc: The doors have been sluggish since February. You're not the first.
+   | Engineering rerouted half the door servos. Doors hit everyone now.
+-> scan
+
+= grumble
+doc: Let me guess. You've been reading a PADD in the dark.
+   | Let me guess. Four hours of sleep and six cups of coffee.
+patient: Is that a guess or did you look at my file?
+       | Three cups. Maybe four. Grieg's rationing the real stuff.
+doc: It's a guess. It's always the same guess lately.
+   | Both. It's a small ship.
+-> scan
+
+= scan
+doc: Follow the light. ... Good. Other way.
+   | Hold still. The tricorder doesn't like fidgeting.
+...
+doc: Blood pressure's fine. Pupils are fine. You're dehydrated.
+   | No bleed, no pressure, nothing scary. You're just tired and dry.
+patient: So it's not... anything?
+       | That's it? I was ready for something dramatic.
+doc: Nothing a hypospray and a night's sleep won't fix.
+   | Sorry to disappoint. It's the boring kind of headache.
+-> sleep 3, hypo 2, deeper 2
+
+= deeper
+patient: It's not something from down there, is it? From the surface?
+       | Doc, be honest. It's nothing they brought up from the surface?
+doc: No. You haven't been down there. Your blood is as boring as mine.
+   | No. Nobody who hasn't been down there has anything from down there.
+patient: Sorry. You hear things, in the mess.
+       | Sorry. People talk. It gets in your head.
+doc: I know. That's half my caseload this week.
+   | I know. Ask me instead of the mess hall. I'm cheaper.
+-> sleep
+
+= hypo
+doc: Here. Mild analgesic, and a little something for the fluids.
+   | Hold still. Analgesic and electrolytes. Neck, please.
+patient: Is that from the ration? I don't want to waste one.
+       | Are we allowed to use those on headaches now?
+doc: A headache on shift is a mistake waiting to happen.
+   | We ration them. We don't hoard them. There's a difference.
+...
+patient: Oh. That's... better. That's much better.
+       | Huh. The lights stopped hurting.
+doc: Water. Two litres today, and I will ask.
+   | Drink something that isn't coffee. Please.
+-> sleep 2, close 1
+
+= sleep
+doc: How much are you sleeping? Honestly.
+   | When did you last sleep a full cycle?
+patient: Four hours. Five, on a good night.
+       | I lie down. That's not the same thing, is it.
+patient: The ship's too quiet since the engines went. I keep listening.
+       | Quarters are too quiet. No warp hum. I didn't know I needed it.
+doc: You're not the only one. Half the crew misses the hum.
+   | Engineering keeps promising to pipe in a recording. Ask Rhel.
+-> hum 2, orders 3
+
+= hum
+patient: Is that a real thing? A recording of the engines?
+       | Would that even help?
+doc: Placebo is real too, and it's the cheapest medicine aboard.
+   | Try it. If it doesn't work, it cost you nothing but pride.
+patient: Rhel would talk to it.
+       | Rhel would want to tune it. Properly.
+doc: Rhel talks to the real one. Everyone needs a hobby.
+   | Don't tell Rhel I said so, but I'd listen to that recording.
+-> orders
+
+= orders
+doc: Eight hours. That's a medical order, and I'm logging it.
+   | Eight hours tonight. I'm writing it in your file.
+patient: And if I can't?
+       | What if I just lie there again?
+doc: Then you come back and we talk to Tren.
+   | Then you tell Counselor Tren. Tren's better at the lying-there part.
+patient: The counselor? That's cruel.
+       | Tren's booked solid for weeks.
+       | Tren's got half the ship on the list already.
+doc: Tren will fit you in. Tren fits everyone in.
+   | Tren makes time. Somehow, always.
+-> close
+
+= close
+patient: Thanks, {doc}. Really.
+       | All right. Eight hours. Thanks, {doc}.
+       | I'll try. Thanks for not laughing.
+doc: Go on. Back to work, then straight to bed.
+   | Out you go. And drink something.
+   | Next time come in before it's two days old.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_sparring
+where: sickbay
+cast: patient=security, klingon=any, doc=medical
+weight: 2
+
+= start
+patient: Doc, it's nothing. Just a wrist.
+       | Don't make a fuss. I landed wrong.
+       | Sprained it sparring. My own fault.
+klingon: You blocked with your wrist. I told you not to.
+       | I said keep the wrist straight. Twice.
+doc: Both of you, sit. Who started it?
+   | Let me guess. Holodeck's rationed, so you used the gym.
+   | Sparring again. Who won?
+-> who 2, wrist 3
+
+= who
+patient: Nobody won. The bell went.
+       | Technically it was a draw.
+klingon: It was not a draw.
+       | A draw is what the loser calls it.
+doc: I don't care who won. I care who's bleeding.
+   | Fascinating. Wrist, please.
+-> wrist
+
+= wrist
+doc: Flex. ... Now the other way.
+   | Make a fist for me. Slowly.
+patient: Ow. Ow. Yes, that one.
+       | That's the one. That's the ow.
+doc: Sprain, not a break. The ligament's angry but intact.
+   | Mild sprain. You'll live, and you'll keep the hand.
+doc: Arm on the tray. Dermal regenerator, three minutes.
+   | Hold still. This will tingle.
+...
+patient: It tickles. Why does it always tickle?
+       | Is it supposed to feel like ants?
+doc: Nerve endings. Complain to evolution.
+   | It's knitting you back together. Be grateful it only tickles.
+-> klingon_hurt 3, advice 1
+
+= klingon_hurt
+doc: And you. You're holding your side.
+   | You're breathing short. Let's have a look at you too.
+klingon: I am not injured.
+       | A Klingon does not come to sickbay for bruises.
+       | It is nothing. A warrior's ache.
+patient: Took an elbow in the ribs. I felt it land.
+       | You took my elbow right in the ribs. I heard it.
+klingon: You heard your own wrist.
+       | That was the sound of your technique failing.
+-> refuse 2, admit 2, trick 2
+
+= refuse
+doc: On the bed, or I call Lieutenant th'Zoran.
+   | Bed. Now. Or it's light duty for a week.
+klingon: You would not.
+       | ... That is dishonourable, Doctor.
+doc: I would, and I'd enjoy the paperwork.
+   | Try me. I have nothing but time up here.
+klingon: ... Fine. For the record, it does not hurt.
+       | Very well. Scan. You will find nothing.
+-> scan_k
+
+= admit
+klingon: ... It may be a little cracked.
+       | Perhaps there is a small crack. A small one.
+patient: I knew it!
+       | Ha. There it is.
+klingon: Say nothing. Nothing.
+       | Tell anyone, and the next match is not a draw.
+-> scan_k
+
+= trick
+doc: No injury, understood. Just for my records. Deep breath in.
+   | Humour me, then. Arms up. All the way.
+klingon: Hnh.
+       | ... Nngh.
+doc: That noise is called a cracked rib.
+   | Mm-hm. And that was the noise of nothing?
+-> scan_k
+
+= scan_k
+doc: Hairline fracture, seventh rib.
+   | One cracked rib. Clean, at least.
+doc: Lie back. Regenerator, ten minutes. You're not going anywhere.
+   | Ten minutes on the bed. I'm setting it before you make it worse.
+klingon: Ten minutes. In sickbay. My ancestors weep.
+       | This is how I will be remembered. Lying down.
+patient: Your ancestors will survive.
+       | I'll bring you a blanket. And a story for the mess.
+-> advice
+
+= advice
+doc: No sparring for three days. Either of you.
+   | Three days off the mat. Both of you. I mean it.
+patient: Three days? Security drills are Thursday.
+       | What are we supposed to do for three days?
+doc: Paperwork. Reading. Something that doesn't hit back.
+   | There's a shuttle full of old Earth board games. Try one.
+klingon: The Earth games? I tried one. There was paper money.
+       | Shepard's shuttle games have no blood in them.
+doc: Exactly why I recommend them.
+   | Then you'll both survive it.
+-> close 3, rematch 2
+
+= rematch
+patient: Rematch in three days, then.
+       | Three days. Then the rematch.
+klingon: Keep your wrist straight this time.
+       | I look forward to it. Bring your good wrist.
+doc: And report here after. Not the next morning.
+   | And you both come here after. Or before, preferably.
+-> close
+
+= close
+patient: Thanks, {doc}. It already feels better.
+       | Thanks, Doc.
+doc: Out. Both of you. Carefully.
+   | Go. And no rematch in the corridor.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_transporter_sick
+where: sickbay
+cast: patient=any, doc=medical
+weight: 2
+
+= start
+patient: I think I'm going to be sick.
+       | Is there a basin? Asking for me.
+       | Doc. Transporter. Again. Ugh.
+doc: Sit. Head down. Breathe through your nose.
+   | Here. Basin. Aim well.
+   | Pad-to-pad test again?
+patient: th'Zoran ran another pad-to-pad calibration. I volunteered.
+       | Test cycle. Pad to pad. Three times.
+-> why 2, basin 2, inner_ear 1
+
+= why
+doc: Three times? Why three?
+   | Why are they cycling people at all?
+patient: Buffers. th'Zoran wants them perfect for the next pickup.
+       | If anyone signals from down there, it has to work first time.
+doc: Fair. Better you than a survivor with a broken leg.
+   | Can't argue. We get one shot at each of them.
+-> scan 2, pickup 2
+
+= pickup
+patient: Were you here for the last pickup? The ensign from the valley?
+       | Were you on shift when the last one came up?
+doc: I was. Straight off the pad and onto that bed.
+   | I was. We had the bed ready before the beam finished.
+patient: th'Zoran said the lock was thin. Barely a signal.
+       | They said the pattern buffer only just held.
+doc: Then calibrate away. Just not on my patients' stomachs.
+   | Which is why I won't stop you testing. Only complain about it.
+-> scan
+
+= basin
+...
+patient: ... Okay. Okay, I think it's passed.
+       | Sorry. Sorry about the basin.
+doc: I've seen worse. I've seen worse this week.
+   | Don't apologise. It's a very good basin.
+-> scan
+
+= inner_ear
+doc: You know it's the same molecules, going back where they were?
+   | Your body didn't go anywhere. It's your inner ear that's offended.
+patient: Tell my inner ear.
+       | My inner ear has filed a complaint.
+-> scan
+
+= scan
+doc: Pattern integrity's perfect. You're all you.
+   | Scanning... Every molecule present and accounted for.
+patient: Then why do I feel like I've been folded?
+       | Then why does the room keep tilting?
+doc: Transporter vertigo. Some people just get it.
+   | Your brain didn't like the reassembly. It'll sulk for an hour.
+-> hypo 2, history 2, ginger 1
+
+= history
+patient: Is it true people used to be scared of transporters?
+       | My grandmother never used one. Took shuttles her whole life.
+doc: Plenty still are. There's a long and proud history of it.
+   | Some people never trust them. McCoy famously hated them.
+patient: Right now I understand them completely.
+       | Right now I'm on the side of the shuttles.
+doc: Well. Let's fix the stomach first.
+   | Then here's the thing they didn't always have.
+-> hypo
+
+= hypo
+doc: Antiemetic. Hold still.
+   | Neck. This one is for the nausea.
+...
+patient: Oh, that's... the floor has stopped moving.
+       | Better. Much better. Thank you.
+-> advice
+
+= ginger
+doc: Old remedy. Ginger. Grieg keeps a real root in the galley.
+   | Go and ask Grieg for ginger tea. The real kind, not replicated.
+patient: Real ginger? Grieg will never part with it.
+       | Grieg rations ginger like it's dilithium.
+doc: Tell Grieg I sent you. The galley owes me for last month's burn.
+   | Say it's prescribed. It is. I'm prescribing it.
+-> advice
+
+= advice
+doc: No more test cycles today. I'll tell th'Zoran myself.
+   | You're off the volunteer list for a week.
+patient: The lieutenant won't like that.
+       | But they need bodies for the calibration.
+doc: They can use a sack of flour. Grieg's got plenty.
+   | Then they can calibrate on a crate of rations. Same mass.
+patient: Ha. Don't tell th'Zoran. The lieutenant would actually do it.
+       | A crate of rations. That's actually a good idea.
+-> meaning 2, close 2
+
+= meaning
+patient: It's worth it, though. Isn't it? If somebody calls.
+       | I'd do it again. If it helps bring one of the eleven home.
+doc: It is. And that's why I want you well for it.
+   | I know. That's why I'd rather you rested than fainted.
+...
+patient: Any word? Anyone new come up?
+       | Has anyone... come up lately?
+doc: Not this week. We keep the beds made.
+   | Not lately. But the beds are ready. They're always ready.
+-> close
+
+= close
+patient: Thanks, Doc. I'll walk slowly.
+       | Right. Slowly. Thanks.
+       | Thanks, {doc}. Sorry again about the basin.
+doc: Sit up for five minutes first. Then go.
+   | Walk, don't run. And eat something plain.
+   | Mind the door. The doors are slow.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_stimulant
+where: sickbay
+cast: patient=engineer, doc=medical
+weight: 2
+
+= start
+patient: I need something to keep me up. Double shifts, all week.
+       | Doc, I need a stimulant. Rhel's got us on doubles.
+       | I need a favour. Something to keep me sharp for sixteen hours.
+doc: No.
+   | Absolutely not.
+   | Sit down and tell me why first. Then I'll say no.
+-> argue 3, why 2
+
+= why
+patient: The plasma manifolds. Rhel wants every conduit rechecked.
+       | We're rebuilding the impulse relays. Again. By hand.
+doc: The relays that have been dead since February.
+   | The ones that were sabotaged five months ago?
+patient: They're not dead. They're... resting.
+       | Rhel says they're one good week from working.
+doc: Rhel has said that every week since February.
+   | Rhel says that to the warp core too. It isn't listening either.
+-> argue
+
+= argue
+patient: It's one week. It's just a stimulant.
+       | Other ships hand them out. It's standard stock.
+       | Just enough to get through. I'm not asking for much.
+doc: We're not other ships. We can't replace what we use.
+   | Standard stock is exactly what we don't have.
+doc: A tired engineer on a plasma conduit is a hazard, not a hero.
+   | Tired hands make mistakes. In Engineering, mistakes burn.
+-> push 2, bargain 2, fold 1
+
+= push
+patient: I'll sign a waiver.
+       | I can take it. I've done doubles before.
+       | It's my body, Doc.
+doc: It is. And you're my patient. So, no.
+   | You did doubles on a ship with a starbase at the end of the week.
+   | Rhel needs you in a year, not just this week.
+patient: ... That's not fair.
+       | That's a low blow.
+doc: No. It's true, which is worse.
+   | It isn't supposed to be fair. It's supposed to be right.
+-> checkup 2, offer 1
+
+= bargain
+patient: Half a dose?
+       | What about the mild one? The one for night duty?
+doc: Negotiating with the CMO's office. Bold.
+   | Half a dose of a bad idea is still a bad idea.
+patient: Dr. Anwar would give it to me.
+       | The Doctor would. If I asked properly.
+doc: Anwar wrote the policy. The Doctor would recite it back to you.
+   | Anwar wrote the rule. The Doctor would lecture you for an hour.
+patient: ... With footnotes.
+       | ... The Doctor would, wouldn't he.
+-> checkup 2, offer 1
+
+= fold
+patient: ... Fine. I knew you'd say no.
+       | Worth a try.
+doc: Then why did you ask?
+   | You came anyway. That tells me something.
+patient: Because I'm tired, Doc. We're all tired.
+       | I don't know. Hoping, I suppose.
+-> checkup 1, offer 1
+
+= checkup
+doc: Since you're here. On the bed. Humour me.
+   | While you're sitting down. Let me look at you.
+patient: I'm fine. I came for a hypo, not a physical.
+       | This is a trap, isn't it.
+...
+doc: Heart rate's up. Cortisol's through the roof. Eyes like a map.
+   | You're running on adrenaline and replicator coffee. Mostly coffee.
+patient: That's just what Engineering looks like now.
+       | Everyone down there looks like this.
+doc: Then everyone down there is getting a note from me.
+   | Then I'll be seeing everyone down there. One at a time.
+-> offer
+
+= offer
+doc: Here's what I'll do instead.
+   | Here's my counteroffer.
+doc: I'm writing to Rhel. Three days of doubles, maximum, then sleep.
+   | Nobody does doubles more than three days running. I'll tell Rhel.
+patient: Rhel will love that.
+       | Rhel will complain about you to the warp core.
+doc: Good. It'll be the most sensible talk in Engineering.
+   | Let Rhel. The core agrees with me.
+-> rhel 2, close 2
+
+= rhel
+patient: Rhel's taking it hard, you know. The sabotage. Personally.
+       | Rhel hasn't slept properly since February either.
+doc: I know. Rhel's on my list. Rhel doesn't know it yet.
+   | I know. Rhel's next. Don't say anything.
+patient: Good luck. Rhel hides in the Jefferies tubes.
+       | Rhel will say fine. Rhel always says fine.
+doc: Everyone here says fine. I have a hypospray for fine.
+   | Then I'll take the tricorder into the tubes.
+-> close
+
+= close
+patient: All right. Three days. And sleep.
+       | Fine. You win. Thanks, I think.
+       | I'll tell Rhel it's doctor's orders.
+doc: Good. Go on. And eat on your break.
+   | Now go, before I find something else wrong with you.
+   | Tell Rhel. And tell Rhel to come and see me.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_allergy
+where: sickbay
+cast: patient=any, doc=medical, nurse=medical
+weight: 2
+
+= start
+patient: Doc? My lips feel... big.
+       | Is my face doing something? It feels like it's doing something.
+       | I think something I ate is trying to kill me.
+nurse: Oh. Oh, yes. That's very puffy.
+     | Sit down. Right there. Don't touch your face.
+doc: What did you eat?
+   | Galley? What was on today?
+patient: Grieg's special. Something Talaxian. Leola root, the card said.
+       | The Talaxian stew. The card said it was an old Voyager recipe.
+-> diagnose
+
+= diagnose
+doc: Leola root. Of course.
+   | Neelix's recipe. It's in every galley archive in the fleet.
+nurse: That's the third one today.
+     | Third reaction since lunch. Grieg is going to be crushed.
+doc: Histamine response. Mild, but it'll climb. Hypospray.
+   | Allergic reaction. Nothing a hypospray won't handle.
+-> fear 3, calm 1
+
+= calm
+patient: Fine. Do it. I just want my face back.
+       | Go ahead. Anything. Just make it stop.
+doc: Good. Quick hiss.
+   | That's the spirit.
+...
+doc: Done.
+   | And that's it.
+-> after
+
+= fear
+patient: No. No hyposprays.
+       | Can't you just... give me a pill?
+       | Is there another way? Any other way?
+nurse: You're afraid of hyposprays?
+     | It doesn't even have a needle.
+patient: I know it doesn't. I know. It's the hiss.
+       | I know that. My brain knows that. The rest of me doesn't.
+-> coax 2, story 2, sneak 1
+
+= coax
+doc: It's a quick hiss and then you breathe easier. That's the deal.
+   | It's over before you hear it. I promise.
+patient: That's what they said when I was six.
+       | They always promise.
+nurse: Look at me. Not the hypo. Tell me about the stew.
+     | Talk to me. What else was in it?
+patient: Um. Some root. Something purple. It smelled amazing.
+       | There was a purple thing. And bread. The bread was good.
+...
+doc: Done.
+   | And that's it. Done.
+patient: Wait. That was it?
+       | Did you already...?
+-> after
+
+= story
+patient: A medic at the Academy dropped one on my foot once.
+       | There was an accident once. When I was a kid. It's stupid.
+nurse: It's not stupid. Lots of people hate them.
+     | Half the crew flinches. You're in good company.
+doc: I'll tell you a secret. I hate being on the other end of one.
+   | Want to know something? I flinch too. Every time.
+patient: Really?
+       | You're making that up.
+doc: Ask Dr. Anwar. Anwar's done my shots for years.
+   | Every time. The Doctor has made remarks.
+patient: ... All right. Quick. Before I change my mind.
+       | Fine. Fine. Do it now.
+...
+doc: Done.
+   | There. Finished.
+-> after
+
+= sneak
+nurse: Is that Grieg at the door?
+     | Hang on, is that a Talaxian recipe card on the wall?
+patient: What? Where?
+       | Hm?
+doc: Done.
+   | And we're finished.
+patient: You tricked me!
+       | That's... that's a dirty trick.
+nurse: Oldest one in the book.
+     | Works on children and security officers.
+-> after
+
+= after
+patient: Oh. My lips feel less like... that.
+       | Oh. That's better. I can feel my tongue again.
+nurse: Swelling's going down already.
+     | Look at that. A normal face.
+doc: Stay put twenty minutes. I want to watch it.
+   | Twenty minutes on the bed, then you can go.
+-> grieg 2, rations 2, close 1
+
+= grieg
+patient: Don't tell Grieg. The whole galley was so proud of that stew.
+       | Please don't tell the galley. Grieg worked all morning on it.
+nurse: We have to. It needs flagging for the others.
+     | Grieg needs to know. That's three of you now.
+doc: I'll tell Grieg gently. There'll be a card on the counter.
+   | I'll send a note. Kindly. Grieg's a professional.
+patient: Grieg's the only one still cooking real food, you know.
+       | That galley keeps everyone sane.
+doc: I know. That's why it's a gentle note.
+   | I know. Real food on principle. I respect it.
+nurse: And the stew smelled incredible. Half the ward was jealous.
+     | Honestly? I'd have risked it. It smelled wonderful.
+-> close
+
+= rations
+patient: Do I lose a replicator slot for this?
+       | Does this count against my meal rations?
+nurse: No. Medical covers it.
+     | Medical takes it. Don't worry.
+patient: Good. I'd hate to lose a dinner to my own face.
+       | Good. I'm saving my slots for a real coffee.
+doc: Save them for something that doesn't try to kill you.
+   | Real coffee. Now there's medicine.
+-> close
+
+= close
+patient: Thanks. Both of you. And sorry about the fuss.
+       | Thank you. Next time I'll just have the bread.
+nurse: Next time, ask what's in it.
+     | We'll put leola root on your file.
+doc: And no more Talaxian food without asking.
+   | Stick to the bread. Rest now.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_survivor
+where: sickbay
+cast: ensign=any, doc=medical
+weight: 2
+
+= start
+doc: Morning. How are you sleeping?
+   | Come in, {ensign}. Just a follow-up today.
+   | Sit wherever you like. This one's routine.
+ensign: I'm fine.
+      | Fine. Better. I don't know.
+      | You don't have to keep checking on me.
+doc: I do, actually. It's in the rules. And I want to.
+   | Humour me. It's week two. Week two is when things show up.
+-> physical 2, quiet 2
+
+= physical
+doc: Arm out. Let's see the cut.
+   | Let me look at your hand. How's it healing?
+...
+doc: Clean. Barely a mark. The regenerator did good work.
+   | Healed nicely. Scans are clear. Every one of them.
+ensign: They keep saying that. Clear.
+      | You're sure? You're sure I'm not... carrying anything?
+doc: I'm sure. The Doctor ran the full panel twice. You're clear.
+   | Clear. Anwar checked, the Doctor checked, I checked. Clear.
+-> quiet
+
+= quiet
+...
+ensign: It's so clean up here.
+      | Everything smells like nothing up here.
+doc: Too clean?
+   | That bothers you?
+ensign: Down there everything smelled like something. Smoke. Rain.
+      | I got used to listening. For anything. It's too quiet up here.
+-> guilt 3, food 1, sleep 2
+
+= guilt
+ensign: There were others. We were a team of three, in the valley.
+      | I wasn't alone down there. Not at first.
+doc: You don't have to talk about it here.
+   | I read the report. Say as much or as little as you want.
+ensign: I got a signal out. They didn't. That's the whole story.
+      | I'm here because I was closer to the transmitter. That's it. Luck.
+doc: That's not all. You kept yourself alive long enough to call.
+   | Luck, and you kept going. Both things are true.
+...
+ensign: Somebody beamed me up. I never found out who.
+      | Somebody answered. I don't even know who to thank.
+doc: Neither do we, honestly. Somebody's working the surface.
+   | We don't fully know either. Somebody down there keeps finding you.
+-> hope 2, tren 2
+
+= hope
+ensign: The others. Is there any word?
+      | Has anyone else come up? Since me?
+doc: Not since you. The beds are ready. They're always ready.
+   | No one new yet. We keep watching. Every shift.
+ensign: I keep thinking about why we stayed.
+      | We stayed for the fieldwork. It seemed so important.
+doc: It was important. None of you did anything wrong.
+   | You stayed to do your jobs. Nobody here blames you. Nobody.
+-> tren
+
+= tren
+doc: Have you seen Counselor Tren yet?
+   | Has Lieutenant Tren been by?
+ensign: Twice. Tren's good. I don't say much.
+      | Once. I talked about the weather. For an hour.
+doc: The weather's a fine place to start.
+   | That counts. Tren will take whatever you give.
+-> sleep 2, close 1
+
+= food
+ensign: The food's strange too. Grieg keeps giving me extra.
+      | Petty Officer Grieg keeps slipping me extra bread.
+doc: That's how the galley says welcome home.
+   | Take it. Grieg would be offended if you didn't.
+ensign: I ate from cans for weeks. Cold beans. From a shop shelf.
+      | Down there I ate out of cans. Cold. I keep thinking about it.
+doc: Eat slowly. Your stomach's still catching up.
+   | Small meals for now. Your body needs time.
+-> sleep
+
+= sleep
+doc: And sleep?
+   | How many hours, honestly?
+ensign: Some. I wake up at every door.
+      | Three. Maybe. I check the door. I know it's locked. I check anyway.
+doc: That's normal, for now. It'll ease.
+   | That's your body keeping watch. It'll learn it can stop.
+doc: I can give you something mild, if you want. Your call.
+   | There's a sedative if you want it. No pressure.
+ensign: Not yet. I want to try without.
+      | Maybe. Not tonight. Maybe next week.
+doc: Then the offer stands. Any hour, any night.
+   | That's fine. It's there when you want it.
+-> close
+
+= close
+ensign: Can I go?
+      | Is that it? Same time next week?
+doc: Same time next week. And come in any time before that.
+   | Next week. Or sooner. Sickbay's always open.
+   | Go on. You're doing better than you think.
+ensign: ... Thank you. For all of it.
+      | Thanks, {doc}.
+      | Okay. Next week.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_nightmares
+where: sickbay
+cast: patient=any, doc=medical
+weight: 2
+
+= start
+patient: Can you give me something to sleep? Something strong?
+       | I need something to stop the dreams.
+       | Is there anything for nightmares? Anything at all?
+doc: Maybe. Tell me what's happening first.
+   | Sit down. Tell me about the dreams.
+   | Sleep aids I have. Tell me why.
+-> tell 3, deflect 2
+
+= deflect
+patient: It's just stress. Everyone's stressed.
+       | It doesn't matter. I just need to sleep.
+doc: It matters to me. I don't hand out sedatives blind.
+   | Humour me. I have to put something in the file.
+patient: ... All right.
+       | Fine. You'll think it's stupid.
+-> tell
+
+= tell
+patient: I was on the long-range sensors in June. The last week.
+       | I had the science station. The night it started. In June.
+patient: I watched the county on the display. The life signs.
+       | I was watching the life signs over the county. All night.
+doc: Oh.
+   | I see.
+...
+patient: They just... went out. Town by town. Two days.
+       | We watched the numbers go down, and there was nothing to do.
+-> listen 3, doc_too 2
+
+= listen
+doc: And now you see it when you close your eyes.
+   | And that's what you see at night.
+patient: Every night. The readout. The count going down.
+       | Every time. I dream I can stop it if I read faster.
+doc: You couldn't have stopped it. Nobody aboard could.
+   | There was nothing any of us could do. Not from up here.
+patient: We have transporters. We could have done something.
+       | We had a whole ship. And we watched.
+doc: A ship without engines, and an order not to interfere.
+   | We watched because watching was all we were allowed. And able.
+-> order 2, meds 2
+
+= doc_too
+doc: I was in here that night. We had the sensor feed too.
+   | I saw the same feed from here. We had it up on the lab wall.
+patient: You did?
+       | Then you know.
+doc: I know. I still think about it too.
+   | I do. Some nights I don't sleep either.
+patient: What do you do?
+       | How do you manage?
+doc: Badly, sometimes. I talk to Anwar. I talk to Tren.
+   | I work. I talk. I let myself be sad about it. That's allowed.
+-> order 1, meds 2
+
+= order
+patient: Observe only. Uxbridge. Miri. I know the file by heart now.
+       | Observe only. That order. I hate that order.
+doc: Hate it if you need to. It was argued in good faith.
+   | Careful people wrote it, for good reasons. It still hurts.
+patient: They were people down there. Real people.
+       | Every one of those dots was a person. With a name.
+doc: They were. That's why it hurts. It's supposed to.
+   | They were. Remember them that way. Not as the readout.
+-> meds
+
+= meds
+doc: I'll give you something mild. Three nights, then we talk.
+   | Here's a mild sedative. Three nights only.
+doc: And I'm booking you with Tren. Not optional.
+   | And you're seeing Counselor Tren this week. Doctor's orders.
+patient: Tren's booked out for weeks.
+       | Tren has the whole crew on the list.
+doc: Then I'll trade. Tren owes me a favour.
+   | Then I'll sit in Tren's doorway until there's a slot.
+-> watch 2, close 2
+
+= watch
+patient: Some of our people were down there. When it happened.
+       | The eleven. Were any of them near the towns?
+doc: Some. And some have come up since. Every one is a small miracle.
+   | Some came through. We've got bunks full of proof.
+patient: So there's a chance.
+       | Then it wasn't all just... watching.
+doc: There's always a chance. That's why the beds stay made.
+   | No. Somebody down there is still answering. We keep listening.
+-> close
+
+= close
+patient: Thank you. I mean it.
+       | Three nights. Then Tren. Okay.
+       | Thanks. I didn't think I could say it out loud.
+doc: You did say it out loud. That's the hard part done.
+   | Come back any time. Night or day.
+   | Sleep well. Or at least, sleep.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_the_argument
+where: sickbay
+cast: nurse=medical, medic=medical
+weight: 2
+
+= start
+nurse: Are they still at it?
+     | Is that Anwar and the Doctor in the office again?
+     | Listen. They're arguing again.
+medic: Since the start of shift.
+     | For an hour now. Right through the door.
+     | Round three. Maybe four.
+nurse: What is it this time?
+     | What's the subject today?
+-> protocol 2, bedside 2, opera 1
+
+= protocol
+medic: Dosing. The Doctor wants to cut the analgesic ration by ten percent.
+     | Hypospray allocation. The Doctor's built a model. With decimals.
+nurse: And Anwar?
+     | Let me guess. Anwar says the model doesn't bleed.
+medic: Anwar said, and I quote, patients are not spreadsheets.
+     | Anwar says the model forgets that people are people.
+nurse: The Doctor's not wrong, though. We have to stretch it.
+     | Honestly, they're both right. That's the problem.
+-> listen
+
+= bedside
+medic: Bedside manner. His.
+     | Anwar says he used the word terminal on a sprained ankle.
+nurse: He did not.
+     | He didn't. Did he?
+medic: He said it was technically a terminal ligament.
+     | He said it was anatomically accurate. Which it was.
+nurse: Oh, no.
+     | That poor ensign.
+-> listen
+
+= opera
+medic: Opera. He wants to sing to the patients in recovery.
+     | He wants opera in the recovery ward. For morale.
+nurse: For morale? Whose morale?
+     | Oh, that's not happening.
+medic: His, mostly.
+     | Anwar threatened to delete the subroutine. He said try it.
+-> listen
+
+= listen
+...
+nurse: Was that a laugh? I think Anwar laughed.
+     | Did somebody just laugh in there?
+medic: They always end up laughing.
+     | That's how it ends every time. Wait for it.
+nurse: I think they like it. The arguing.
+     | They'd be lost without each other. You know that.
+-> fond 2, story 2
+
+= fond
+medic: Anwar told me once he's the best colleague there's ever been.
+     | Anwar says he's the only one aboard who reads as much as a CMO.
+nurse: Has anyone told him that?
+     | Don't let him hear that. His ego would need its own deck.
+medic: Never. Anwar would rather resign.
+     | Of course not. He'd be insufferable.
+nurse: He knows anyway. He must.
+     | He knows. He's a hologram, not an idiot.
+-> work 2, story 1
+
+= story
+nurse: Remember when he locked Anwar out of the lab?
+     | Remember the week they didn't speak? In March?
+medic: Over the stasis pods. God. Yes.
+     | The whole week. They sent notes through me. I was a courier.
+nurse: And how did it end?
+     | Who won?
+medic: Anwar brought him a medical text he hadn't read. Instant peace.
+     | He apologised with a thirty-page report. Anwar framed the cover.
+nurse: That's them exactly.
+     | That is the most them thing I've ever heard.
+-> work
+
+= work
+...
+medic: Door's opening. Look busy.
+     | Uh oh. Door. Look like we're working.
+nurse: I am busy. I'm always busy.
+     | I'm counting regenerator cells. Very busy.
+medic: Doctor Anwar. Good shift?
+     | Morning, Doctor. Everything all right in there?
+nurse: ... Smiling. So who won?
+     | ... That's a smile. That's either a win or a truce.
+-> bet 2, end_scene 2, captain 2
+
+= captain
+medic: Remember when Captain Vale came down to referee?
+     | Did you hear the captain had to settle one last week?
+nurse: The analgesic thing? I heard Vale sat between them.
+     | Vale came down? For an argument about gauze?
+medic: Vale listened for ten minutes and said they were both right.
+     | Vale heard them out, said both were right, and left.
+nurse: That's why the captain's the captain.
+     | Then they argued about which one was more right.
+medic: For another hour.
+     | Naturally.
+-> end_scene
+
+= bet
+medic: Five replicator credits says round five starts before lunch.
+     | I'll bet you a coffee ration they're at it again by gamma shift.
+nurse: No bet. Obviously they will be.
+     | You're on. Actually, no. I'd lose.
+-> end_scene
+
+= end_scene
+nurse: Back to the cabinets, then.
+     | Right. Inventory.
+     | Come on. The biobeds won't calibrate themselves.
+medic: After you.
+     | Coming.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_samples
+where: sickbay
+cast: tech=sciences, tech2=sciences, doc=medical
+weight: 2
+
+= start
+tech: Sample twelve. Same result.
+    | That's the fourth run. Same markers.
+    | Look at this. Just look.
+tech2: Again?
+     | Same as yesterday?
+tech: Same as yesterday. Same as last week.
+    | Identical. It doesn't drift.
+-> describe 3, gloves 1
+
+= gloves
+tech2: You're not wearing gloves.
+     | Gloves. Where are your gloves?
+tech: It's in a sealed dish.
+    | It's sealed. Triple sealed.
+tech2: Gloves.
+     | Humour me. Protocol. Gloves.
+tech: ... Fine. Gloves.
+    | Yes, Mother.
+-> describe
+
+= describe
+tech2: Where's this one from?
+     | Which sample is this?
+tech: The swab set that came up with the last ensign. Their gear.
+    | Soil and cloth, from the last rescue. Decontaminated twice.
+tech2: And it's still showing that pattern?
+     | Still the odd protein folding?
+tech: The folding, and something riding along with it.
+    | Protein structure that shouldn't hold still. And it doesn't.
+-> theory 3, doc_arrives 2
+
+= theory
+tech2: Could it be local? A parallel Earth, parallel bugs?
+     | What if it's just native biology? Something endemic?
+tech: Earth bugs don't look like this. Nothing on file does.
+    | If it were native we'd have a match in the archives. We don't.
+tech2: Engineered, then. That's what they say in the mess.
+     | People in the mess say it's a weapon. Section 31.
+tech: People in the mess say a lot of things.
+    | I don't do people in the mess. I do data.
+-> doc_arrives
+
+= doc_arrives
+doc: What have you got?
+   | Anything new?
+   | Talk to me.
+tech: The same confusing markers, Doctor. Still.
+    | More of the same. Markers that don't agree with each other.
+doc: Confusing how?
+   | Show me.
+tech2: It reads like two things. Two signatures that shouldn't coexist.
+     | Half of it looks like one thing. The other half, another.
+-> careful 2, emh 2
+
+= careful
+doc: Log it. Exactly as observed. No conclusions.
+   | Into the file. Observed only. Don't speculate on paper.
+tech: Not even a working theory?
+    | Nothing? We've got a whole shelf of guesses.
+doc: A guess in a file becomes a fact in a week.
+   | Guesses spread faster than anything in that dish.
+tech2: Understood.
+     | Fair.
+-> close_q
+
+= emh
+doc: Has the Doctor seen these?
+   | You've sent these to the Doctor?
+tech: All of them. He ran the first ones himself.
+    | Every one. He went very quiet, for a hologram.
+doc: What did he say?
+   | Did he give you anything?
+tech2: That the chemistry is sound. Nothing about where it came from.
+     | He'll vouch for the chemistry. Not much else.
+doc: That sounds like him. Careful to the last decimal.
+   | Then that's what goes in the log. Chemistry only.
+-> close_q
+
+= close_q
+...
+tech2: Does the captain know?
+     | Has Captain Vale seen these?
+doc: The captain has everything we have. Every day.
+   | Vale reads every report. Asks for these ones first.
+tech: Shepard's soil samples from March make a decent control.
+    | Lieutenant Shepard's spring baselines are helping, actually.
+doc: Good. Use them. Anything from before June is precious.
+   | Then use them. Pre-June baselines are gold.
+-> wrap 2, rerun 2
+
+= wrap
+tech: I'll run it once more with the new calibration.
+    | Once more, then I'm going to eat something.
+tech2: Then we compare with the June set.
+     | I'll pull the June samples out of stasis.
+doc: Good. Full protocol. Always.
+   | Careful with those. Gloves, both of you.
+-> end
+
+= rerun
+tech: Running it again.
+    | Once more from the top.
+...
+tech: Same.
+    | Identical. Again.
+tech2: At least it's consistent.
+     | Consistent is something. Consistent we can work with.
+doc: Consistent is how we'll find it. Keep going.
+   | Stubborn data is still data. Log it, then rest.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_vulcan
+where: sickbay
+cast: patient=any, doc=medical
+weight: 2
+
+= start
+doc: Annual physical. Sit, please.
+   | Routine check-up. On the bed.
+   | Right on time. To the second, I imagine.
+patient: I am here as scheduled.
+       | I arrived at the appointed time. Precisely.
+       | Doctor.
+doc: How are you feeling?
+   | Any complaints?
+patient: I am functioning within acceptable parameters.
+       | I do not have complaints. I have observations.
+       | Adequately.
+-> scan 2, observations 2
+
+= observations
+doc: Go on. Observations.
+   | ... I'll bite. What observations?
+patient: The sickbay lighting is three percent brighter than regulation.
+       | Your door takes point four seconds longer to open than in March.
+doc: The doors are slow everywhere. Since February.
+   | Engineering has bigger problems than our door.
+patient: I am aware. I have filed a report nonetheless.
+       | Nevertheless, I have noted it.
+-> scan
+
+= scan
+doc: Hold still. ... Heart rate's fine. Well. Vulcan fine.
+   | Blood pressure fine. Copper levels fine. Everything's fine.
+patient: As I predicted.
+       | I could have told you this.
+       | You sound disappointed.
+doc: I'm required to check anyway.
+   | Humour me. It's regulations.
+-> sleep 2, meditation 2, mood 1
+
+= sleep
+doc: How are you sleeping?
+   | Rest? Any trouble resting?
+patient: Vulcans require less sleep than humans.
+       | I meditate. It is more efficient than sleep.
+doc: And how's the meditation?
+   | Is it working, lately?
+patient: The ship is quieter without the warp drive. It is... noticeable.
+       | The absence of the engines is an unusual variable.
+doc: You miss the hum.
+   | You too? Half the crew says the same thing.
+patient: Miss is imprecise. I have registered its absence.
+       | I would not say miss. I would say I notice.
+-> mood
+
+= meditation
+doc: Still meditating by the viewport?
+   | You still sit at the observation window?
+patient: The view of the planet is conducive to contemplation.
+       | Yes. The planet below is... instructive.
+doc: Even now? After June?
+   | Even after what happened down there?
+patient: Especially now. It would be illogical to look away.
+       | Particularly. Looking away would not honour what we saw.
+doc: ... That's a kind way to put it.
+   | I think that's the right answer.
+-> mood
+
+= mood
+doc: And morale? Your own, I mean.
+   | Emotionally, then. Anything I should know?
+patient: Vulcans do not have morale.
+       | That is not a medical question.
+doc: Everyone aboard has morale. Even you.
+   | It's on the form. Box seven.
+patient: ... Box seven. Satisfactory.
+       | Then write: acceptable, given the circumstances.
+-> joke 2, soup 2
+
+= joke
+doc: I've been told Vulcans do have a sense of humour.
+   | Someone told me Vulcans tell jokes. Very quietly.
+patient: That is a human myth.
+       | I have never told a joke.
+...
+patient: Your tricorder is displaying my scan upside down.
+       | Doctor, your regenerator is set to veterinary.
+doc: It isn't. It isn't! ... Was that a joke?
+   | ... No, it's not. Hang on. Was that...?
+patient: I could not say.
+       | I would not know.
+doc: I'm writing that down. Box eight. Possible humour detected.
+   | I'm telling the whole ward. Nobody will believe me.
+patient: There is no box eight.
+       | No one will believe you. That is correct.
+-> close
+
+= soup
+patient: I have one request. Medical, in nature.
+       | There is one matter. Related to diet.
+doc: Go on.
+   | Yes?
+patient: My replicator ration rarely permits plomeek broth.
+       | The current rations are deficient in plomeek soup.
+doc: A plomeek deficiency. Is that a medical condition?
+   | You want a prescription. For soup.
+patient: Twice a week would be logical.
+       | I would describe it as a nutritional requirement.
+doc: I'll write it up. Soup, twice weekly.
+   | Fine. Two bowls a week. Don't tell anyone I did this.
+patient: I will inform no one. It would be illogical.
+       | Your discretion is appreciated.
+-> close
+
+= close
+doc: You're done. Clean bill of health.
+   | That's it. See you next year. Or sooner, if you break something.
+patient: Thank you, Doctor. Live long and prosper.
+       | Acceptable. Good day.
+       | I will return in one year. Precisely.
+doc: And you. Try to rest.
+   | Peace and long life. Mind the door.
+   | I'll hold you to the second.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_headache_club
+where: sickbay
+cast: medic=medical, nurse=medical, patient=any
+weight: 2
+
+= start
+medic: Guess who's on the schedule again.
+     | Look who booked a slot. Again.
+     | Your fan's coming in at fourteen hundred.
+nurse: Don't.
+     | Don't start.
+     | I have no idea who you mean.
+medic: Headache. Fourth one this month.
+     | Headaches. Every Tuesday. Like clockwork.
+-> tease 3, deny 2
+
+= tease
+medic: Always asks for you, too. Never me.
+     | Funny how the headaches only happen on your shifts.
+nurse: It's a coincidence.
+     | Maybe my shifts are the stressful ones.
+medic: Brought you a tomato last week. A real one. From hydroponics.
+     | Brought you a flower from hydroponics. An actual flower.
+nurse: That was for the ward.
+     | It was for everyone. It was very nice. It was for everyone.
+medic: You kept it in the office.
+     | I didn't see anybody else get any.
+-> deny
+
+= deny
+nurse: Look, people are lonely. It's been five months.
+     | We're all stuck in the same tin can. People want someone to talk to.
+medic: I'm not judging. I think it's sweet.
+     | I'm not teasing. Well. A little.
+nurse: It is a bit sweet.
+     | ... They're funny. I'll give them that.
+-> scans 2, arrive 3
+
+= scans
+medic: What do the scans say? Honestly?
+     | So is there anything actually wrong?
+nurse: Nothing. Every scan clean. Hydrated, rested.
+     | Healthiest person on the ship. Every single time.
+medic: Imagine being that healthy and still needing a doctor.
+     | A clean bill of health, four times running.
+nurse: Maybe they just need someone to say they're fine.
+     | Maybe that's the medicine. Being told you're fine.
+medic: ... That's actually very wise.
+     | Fine. That's a good answer. I'll stop.
+-> arrive
+
+= arrive
+...
+patient: Hi. Um. I have a headache.
+       | Hello. Sorry. It's my head again.
+       | Is this a good time? Headache. A bit of one.
+medic: Of course you do.
+     | I'll just... be over here. Counting things.
+nurse: Sit down. Let's have a look.
+     | Right. Over here. Tell me where it hurts.
+-> exam
+
+= exam
+patient: Kind of... here. All over. Generally.
+       | Behind the eyes. Or the forehead. Somewhere up there.
+...
+nurse: Everything looks fine.
+     | Scan's clear. Again.
+patient: Oh. Good. That's good.
+       | That's a relief. Probably just stress.
+nurse: Probably. Do something fun this week. Anything.
+     | Stress, yes. You should use your holodeck time.
+-> invite 2, bashful 2
+
+= invite
+patient: Actually, I saved up a holodeck slot. Friday. Two hours.
+       | I've got holodeck time Friday. There's a beach program.
+patient: If you wanted... you could... it's a beach.
+       | Would you want to come? If you're not on shift?
+nurse: ... I'm off Friday.
+     | ... I could be off Friday.
+medic: Off Friday! Definitely off Friday!
+     | Nobody's on shift Friday. Very quiet Friday.
+patient: Great. Friday. Great. I'll, um. Bye.
+       | Okay! Friday. Good. Bye. Thanks for the scan.
+-> close
+
+= bashful
+patient: Right. Rest. Okay. I'll... go rest.
+       | Okay. Thanks. I'll, um. Thanks.
+nurse: Come back if it gets worse.
+     | Come back if you need to. Any time.
+patient: I will. Probably Tuesday.
+       | Definitely. I mean, hopefully not. But yes.
+medic: Tuesday it is.
+     | We'll pencil you in.
+-> close
+
+= close
+nurse: Not a word.
+     | Don't you say anything.
+     | One word and you're on inventory for a month.
+medic: I didn't say anything.
+     | Me? I'm counting gauze.
+     | Wouldn't dream of it.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_rationing
+where: sickbay
+cast: nurse=medical, doc=medical, qm=operations
+weight: 2
+
+= start
+nurse: Inventory's done. You're not going to like it.
+     | Doctor, the monthly count. It's not pretty.
+     | Hypospray cartridges. We need to talk.
+doc: How bad?
+   | Tell me.
+   | I never like it. Go on.
+nurse: Forty-one full cartridges. Nine regenerator cells.
+     | Forty cartridges and change. And the cells are low.
+-> numbers
+
+= numbers
+doc: At this month's rate?
+   | How long does that last us?
+nurse: Six weeks. Eight if nobody spars.
+     | Two months. If nobody else comes up hurt.
+doc: And people will come up hurt. That's the point.
+   | Every rescue comes up needing something. We plan for them first.
+-> replicator 3, cut 2
+
+= replicator
+doc: Can we replicate more?
+   | What would it cost to replicate a batch?
+nurse: Operations says the medical allotment's already over.
+     | The replicator schedule's full. The quartermaster's been by twice.
+qm: Did somebody say allotment?
+  | You rang? I heard my favourite word.
+doc: Your timing is suspicious.
+   | Speak of the devil.
+qm: I was coming to see you anyway. You're over, Doctor.
+  | I was on my way. We need to talk about your replicator hours.
+-> qm_argue
+
+= cut
+doc: What can we cut?
+   | Where can we trim?
+nurse: Headaches. No hyposprays for headaches. Tea and bed instead.
+     | The minor stuff. Bruises get the regenerator only. No hypos.
+doc: Agreed. Nobody dies of a headache.
+   | Fine. Tell the staff. Tea, water, bed.
+nurse: And the quartermaster's here. Looking for you.
+     | The quartermaster's at the door. Wants a word.
+qm: Doctor. A word about your hours?
+  | Doctor. Got a minute?
+-> qm_argue
+
+= qm_argue
+qm: Every replicator hour is power. Power is dilithium. We can't mine.
+  | Replicator time runs off the core. And the core is all we've got.
+doc: And every cartridge is somebody's life.
+   | I understand. But medicine is not optional.
+qm: Nobody said it was. I'm saying pick what matters most.
+  | I'm not saying no. I'm saying prioritise.
+-> deal 2, grieg 1, rhel 2
+
+= grieg
+qm: The galley gave up two hours last week. For you.
+  | Grieg already gave up hours. Cooks on real stoves now.
+nurse: Real bread. The whole crew's grateful.
+     | Grieg is a saint. An actual saint.
+doc: Then Medical gives up something too. Fair's fair.
+   | Then we'll match it. Medical isn't special.
+-> deal
+
+= rhel
+qm: Rhel says the core can take more, if we're careful. Maybe.
+  | Engineering thinks there's slack in the power budget. Rhel's guessing.
+doc: Rhel's guesses are usually good.
+   | Rhel's usually right about that core.
+qm: Rhel also talks to it. So.
+  | Rhel also calls it sweetheart. Grain of salt.
+nurse: Everyone talks to something up here.
+     | I talk to the biobeds. It's fine.
+-> deal
+
+= deal
+doc: Here's my offer. Six hours a month. Cartridges only.
+   | Six hours. We drop the cells. Engineering can recharge those.
+qm: Five.
+  | Five, and I'll find you a sixth if we have a quiet month.
+doc: Five. But if anyone comes up from the surface, I get what I need.
+   | Five and a half, and rescues come first. Always.
+qm: ... Deal. Nobody argues with that.
+  | Deal. Rescues first. Nobody would say otherwise.
+-> surface 2, cells 2, close 1
+
+= cells
+nurse: And the regenerator cells?
+     | What about the cells? We're down to nine.
+qm: Send them to Engineering. They'll recharge on the core overnight.
+  | Engineering can recharge those. Costs almost nothing.
+nurse: Almost nothing?
+     | You said almost.
+qm: Rhel wants a thank-you. In person. With biscuits.
+  | Almost. Rhel wants the empties labelled. Properly, this time.
+doc: Done. I'll bake them myself if I have to.
+   | Fine. Grieg can help with the biscuits.
+-> surface 1, close 1
+
+= surface
+nurse: Speaking of which. Anything from the surface?
+     | Any signal from down there this week?
+qm: th'Zoran has the transporter room on watch round the clock.
+  | Nothing new. But the transporter room never sleeps.
+doc: Then we keep two biobeds free. Always. Non-negotiable.
+   | Then neither do our beds. One made up, always.
+-> close
+
+= close
+qm: I'll put it in the schedule.
+  | Right. I'll update the allotment.
+  | I'll send the paperwork.
+doc: Thank you. Truly.
+   | Appreciated. Go on, before I ask for more.
+   | Thanks. And come in for your physical, you're overdue.
+qm: I'm fine.
+  | ... I'm always overdue.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_the_author
+where: sickbay
+cast: medic=medical, medic2=medical
+weight: 2
+tags: lore
+
+= start
+medic: Can I ask you something? Off the record.
+     | You were on shift the night of the fourth. In July.
+     | You worked on the surface samples with the Doctor, didn't you.
+medic2: Depends what it is.
+      | Some of them. Why?
+      | Close the door first.
+-> line
+
+= line
+medic: I heard something the Doctor said. To Shepard, on the channel.
+     | There's a line going round. Something the Doctor said.
+medic2: I can support the chemistry. I cannot support the author.
+      | You mean the chemistry line. I was there.
+medic: What did he mean by it?
+     | That's the one. What does it mean?
+-> explain 2, deflect 1
+
+= deflect
+medic2: It means he's a careful hologram. That's all.
+      | It means he won't sign his name to a guess.
+medic: That's not all, and you know it.
+     | You're doing the thing Anwar does. The not-answering.
+medic2: ... Fine.
+      | ... All right. Sit down.
+-> explain
+
+= explain
+medic2: The markers read like one thing and another thing. At once.
+      | Two signatures in one sample. They shouldn't coexist.
+medic2: The chemistry is real. He could prove every bond.
+      | He can map the chemistry perfectly. That was never the problem.
+medic2: What he wouldn't say is who made it. Or what.
+      | He wouldn't name a maker. He said the evidence didn't point to one.
+medic: Shepard thought it was Section 31.
+     | Everyone thinks it's Section 31. Or the Q theory. Or one of us.
+medic2: It was a reasonable guess. He just wouldn't sign it.
+      | Shepard's a careful person. He still wouldn't sign it.
+-> author 2, okafor 2
+
+= author
+medic: The author. As if it were written.
+     | Like somebody wrote it. Like a book.
+medic2: Or like two people wrote it. That's the bit I can't let go.
+      | A manuscript with two hands in it. That's what he meant, I think.
+medic: That's a horrible thought.
+     | Two hands. I'm going to lose sleep over that.
+medic2: Then don't think it too hard. We don't know. Nobody does.
+      | I'm not saying I know. I'm saying he doesn't guess. Ever.
+-> phlox
+
+= okafor
+medic: Commander Okafor came through the lab, after. I saw.
+     | Okafor was here that week too. Reading the reports.
+medic2: I saw.
+      | Yes.
+medic: He looked shaken. Okafor. Shaken.
+     | I've never seen that man look anything. He looked frightened.
+medic2: Let's not do rumours in sickbay. There's enough going round.
+      | Everybody gets frightened. Even Intelligence. Leave it.
+medic: Sorry.
+     | You're right. Sorry.
+-> phlox
+
+= phlox
+medic2: There's something else. The Doctor's been reading.
+      | Have you seen what the Doctor's pulled out of the archive?
+medic: He's always reading.
+     | That's not news. He reads everything.
+medic2: A medical log. From 2153. Phlox, on the old Enterprise.
+      | Phlox. Denobulan, twenty-second century. A log nobody reads.
+medic: Phlox? That's nearly three hundred years old.
+     | Phlox? That's a museum piece.
+medic2: A note about omicron radiation. A treatment. Filed and forgotten.
+      | Omicron radiation. Phlox used it against something. Once.
+-> hope 2, doubt 2
+
+= hope
+medic: So there's a counter? A treatment?
+     | Does that mean there's a cure?
+medic2: It means there's paperwork. Paperwork isn't a cure.
+      | It means there's a note in a file. That's all. For now.
+medic: But he's reading it.
+     | But he thinks it's relevant.
+medic2: He read it twice. He doesn't read things twice.
+      | He hasn't put it down since.
+-> close
+
+= doubt
+medic: And that's related how? To any of this?
+     | Phlox was treating something completely different, surely.
+medic2: I don't know. I can't see the link. He hasn't said.
+      | Maybe it isn't. I don't know. He won't say yet.
+medic: Then why tell me?
+     | So why are we whispering?
+medic2: Because he looked hopeful. For a hologram. That's all.
+      | Because it's the first time since June he's looked hopeful.
+-> close
+
+= close
+...
+medic: We should get back.
+     | Right. Biobeds. Somebody might come up tonight.
+medic2: This stays here.
+      | Not a word in the mess.
+      | Keep it off the record. Please.
+medic: Not a word.
+     | Understood. Of course.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: sickbay_finger_trap
+where: sickbay
+cast: patient=any, doc=medical, nurse=medical
+weight: 2
+tags: rare
+
+= start
+patient: Please don't laugh.
+       | Before you say anything. I know.
+       | This is a medical emergency. Sort of.
+doc: What is... what's on your fingers?
+   | Why are your hands stuck together?
+   | Is that a... tube?
+patient: It's from Shepard's shuttle. A woven tube. From the nineties.
+       | Lieutenant Shepard's collection. It was in a box marked toys.
+nurse: It's a finger trap. An old Earth toy.
+     | Oh, I've read about these. It's a finger trap.
+-> struggle 2, doc_scan 2
+
+= struggle
+patient: The harder I pull, the tighter it gets.
+       | I've tried pulling. It gets worse. It's diabolical.
+nurse: That's the whole point of it.
+     | That's how it works. It's the entire design.
+patient: The whole point? People did this for fun?
+       | People bought these? On purpose?
+doc: 1993 was a different time.
+   | Apparently. Down there they still sell them.
+-> doc_scan
+
+= doc_scan
+doc: I'll scan it.
+   | Let me get the tricorder on it.
+...
+doc: No injury. Mild compression. Your pride took the worst of it.
+   | Circulation's fine. It's a tube of woven paper, and it's winning.
+patient: Can you cut it?
+       | Laser scalpel? Phaser? Anything?
+-> cut 2, trick 3, crowd 2
+
+= cut
+doc: I'm not cutting a surface artifact. Shepard would never forgive me.
+   | That's catalogued cultural material. I'm not cutting it.
+patient: It's a toy!
+       | It's paper! Woven paper!
+doc: It's catalogued paper. It has a number.
+   | Shepard catalogued it. It has a label and everything.
+-> trick
+
+= crowd
+nurse: Hold on. I'm getting the others.
+     | Can I take a picture first? For morale.
+patient: Absolutely not.
+       | Please. No pictures.
+nurse: It's the best thing that's happened since February.
+     | The ship needs this. You're doing it a service.
+-> trick
+
+= trick
+nurse: Push. Don't pull. Push your fingers in.
+     | Don't pull. Push them together. Gently.
+patient: That makes no sense.
+       | Push? Into the trap? That's the opposite of escape.
+nurse: Trust me.
+     | Just try it.
+...
+patient: Oh.
+       | Oh. Oh, it's loose. It's loose!
+doc: There we are. Free.
+   | Freedom. Congratulations.
+-> moral 2, label 2, close 1
+
+= label
+nurse: Wait. There's a tag on it. Shepard's handwriting.
+     | There's a label tied round the end. Look.
+doc: Read it.
+   | What does it say?
+nurse: Specimen forty-four. Do not test on self. L.S.
+     | Surface artifact. Mechanism instructive. Do not insert fingers.
+patient: It says that? It actually says that?
+       | Why was that not on the outside of the box?
+doc: It was, I imagine. In a box you didn't read.
+   | Historians. Always one step ahead.
+-> moral 1, close 1
+
+= moral
+nurse: There's a lesson in it, apparently. Stop struggling.
+     | The trick is you relax. It's a metaphor, apparently.
+patient: I don't want a metaphor. I want my afternoon back.
+       | Five months stuck in orbit. I get the metaphor.
+doc: ... That's a bit too real.
+   | Maybe don't tell Tren about this one. Tren will use it.
+-> close
+
+= close
+patient: I'm taking it back to the shuttle.
+       | Can someone return this? I'm not touching it again.
+doc: Put it back in its box. Gently.
+   | I'll return it. With a note. And a warning label.
+nurse: Or leave it here. For the next person with a headache.
+     | We could keep it. For training purposes.
+patient: Never tell anyone.
+       | This never leaves sickbay.
+       | I'm going now. With dignity.
+-> end
+
+# ---------------------------------------------------------------------------
+# Barks
+
+bark: idle
+where: sickbay
+- Biobed three needs recalibrating. Again.
+  | Why does this bed never hold its settings?
+  | Come on, you stubborn thing. Calibrate.
+- Forty cartridges. Forty-one? Forty.
+  | Count it again. Forty. Right.
+- Two beds made. Always two beds made.
+  | Fresh linens on four. Just in case.
+- Regenerator cell's at sixty percent. Hm.
+  | This cell won't last the week.
+- Hm, hm, hmm...
+  | Hmm hm hm. Hmm.
+- I'll ask the Doctor. He'll have read something.
+  | Note to self: ask the Doctor about that reading.
+- If one more person asks me for a stimulant...
+  | No stimulants. I'm putting up a sign.
+- The office door's shut. They're at it again.
+  | Anwar and the Doctor. Round five, I think.
+- Label, seal, log. Label, seal, log.
+  | Sample tray, cold storage, log it. Done.
+- Quiet shift. I hate quiet shifts.
+  | Too quiet. Somebody's about to sprain something.
+- Tea, water, bed. That's the headache protocol now.
+  | The new treatment for headaches is Grieg's tea.
+- Where's the gauze? Who moved the gauze?
+  | Somebody reorganised the cabinet. Why.
+- Trauma kit by the door. Always ready.
+  | Surface kit's packed. Just in case somebody calls.
+- Is it gamma shift already? It feels like gamma shift.
+  | I could sleep for a week.
+- Another protocol update. Forty pages. He never sleeps.
+  | The Doctor revised the protocols again. Of course.
+- Two hundred and twelve ceiling panels. I've counted.
+  | Five months in orbit. I know every tile in this room.
+- Same markers. Same markers. Same markers.
+  | Confusing markers. That's the official term now.
+
+bark: hello
+where: sickbay
+- Morning.
+  | Afternoon.
+  | Hello there.
+- Anything hurting?
+  | Here for a check-up?
+  | Need something?
+- Mind the tray.
+  | Careful, that bed's calibrating.
+- Take a seat. Someone will be right with you.
+  | Sit anywhere. We'll get to you.
+- Oh, hello. Didn't see you come in.
+  | Hi. Sorry. Busy morning.
+- You look tired. Everyone does.
+  | Get some sleep. You look done in.
+- Evening.
+  | Good shift?
+  | Hi.
+- Wash your hands, please.
+  | Sanitiser's by the door.
+- Don't touch the samples.
+  | Lab's through there, if you're looking for it.
+
+bark: thanks
+where: sickbay
+- Were you the one who called in the last one? Thank you.
+  | I don't know if it was you. But thank you.
+- Every one who comes up, we can help. Thank you for that.
+  | Whoever's finding them... thank you.
+- Somebody down there keeps sending us people. Was that you?
+  | Are you the one bringing them up? You are, aren't you.
+- Two beds made. For whoever you find next.
+  | Keep them coming. We'll be ready.
+- The last ensign said somebody helped. Was it you?
+  | Somebody found our people. If it's you, thank you.
+- I don't know who you are. But thank you.
+  | Thank you. Truly. Whoever you are.
+- Bring them home. We'll do the rest.
+  | You find them, we fix them. Deal?
+
+bark: outfit
+where: sickbay
+- That's a strange outfit. Is that... cotton?
+  | Is that cotton? Real cotton?
+- Where did you get those clothes?
+  | That's not a standard uniform, is it.
+- Were you on the surface in those? Scanned, I hope?
+  | Are those from down there? Been through decon?
+- Interesting fabric. Very... period.
+  | Very 1993. Shepard would love that.
+- Is that denim? I've only ever seen it in archives.
+  | Are those buttons? Actual buttons?
+- Please tell me that went through the biofilter.
+  | Did those clothes come through the transporter filter?
