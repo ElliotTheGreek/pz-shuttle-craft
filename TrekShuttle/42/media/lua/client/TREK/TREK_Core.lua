@@ -98,6 +98,7 @@ end
 -- nothing, which is the one thing TREK_Menu.lua's own header forbids.
 local DENIALS = {
     access        = "IGUI_TREK_NotCrew",
+    wrongPlace    = "IGUI_TREK_WrongPlace",
     notLanded     = "IGUI_TREK_NotLanded",
     bookmarksFull = "IGUI_TREK_BookmarksFull",
     crewSeated    = "IGUI_TREK_CrewSeated",

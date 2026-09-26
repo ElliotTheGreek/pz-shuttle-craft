@@ -401,5 +401,14 @@
     "IGUI_TREK_AndroidFull": "Fully charged",
     "IGUI_TREK_BorgHum": "The hum: a great many of them, close by",
     "IGUI_TREK_Empath": "Someone is in pain, to the %1",
-    "IGUI_TREK_Phobia": "Every atom of you, taken apart..."
+    "IGUI_TREK_Phobia": "Every atom of you, taken apart...",
+    "IGUI_TREK_Adirondack": "U.S.S. Adirondack",
+    "IGUI_TREK_BeamToAdirondack": "Beam to the U.S.S. Adirondack",
+    "IGUI_TREK_BeamToShuttle": "Beam back to the shuttle",
+    "IGUI_TREK_Turbolift": "Turbolift",
+    "IGUI_TREK_TurboliftHint": "Turbolift: step into a lift car",
+    "IGUI_TREK_TurboliftTo": "Turbolift: %1",
+    "IGUI_TREK_AdkDeck": "%1: %2",
+    "IGUI_TREK_AdkLostLock": "The Adirondack's transporter lost its lock; back to the shuttle",
+    "IGUI_TREK_WrongPlace": "Not from here"
 }

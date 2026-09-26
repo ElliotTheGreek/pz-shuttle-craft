@@ -6,3 +6,5 @@ author=Ensign Elliot Mousseau
 category=build
 versionMin=42.0
 modversion=1.8.0
+pack=trek_adirondack
+tiledef=trek_adirondack 7461

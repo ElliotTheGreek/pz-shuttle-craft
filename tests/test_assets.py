@@ -16,6 +16,31 @@ PZ = r"C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid\media"
 tiles = set(json.load(open(os.path.join(CATALOG, "tiles.json")))["tiles"])
 items = set(json.load(open(os.path.join(CATALOG, "items.json")))["Base"])
 
+# The mod's own tiles (the Adirondack's): known when the tiledef defines them
+# **and** the texture pack has a picture for them **and** mod.info loads both.
+# A sprite with properties and no picture draws nothing; one with a picture
+# and no properties is a decal; a pack mod.info does not name is never read.
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+import gen_adirondack_pack as _PACK  # noqa: E402
+_info = open(os.path.join(MOD, "mod.info"), encoding="utf-8").read()
+mod_tile_problems = []
+for _tiles in glob.glob(os.path.join(MOD, "media", "*.tiles")):
+    _name = os.path.splitext(os.path.basename(_tiles))[0]
+    _pack = os.path.join(MOD, "media", "texturepacks", _name + ".pack")
+    if not re.search(r"^tiledef=%s \d+\s*$" % re.escape(_name), _info, re.M):
+        mod_tile_problems.append("mod.info has no tiledef= line for %s.tiles" % _name)
+    if not os.path.isfile(_pack) or not re.search(r"^pack=%s\s*$" % re.escape(_name), _info, re.M):
+        mod_tile_problems.append("%s.tiles has no texture pack loaded by mod.info" % _name)
+        continue
+    _drawn = {e[0] for pg in _PACK.read_pack(_pack) for e in pg["entries"]}
+    for _sheet, _ts in _PACK.read_tiledefs(_tiles).items():
+        for _i, _props in enumerate(_ts["tiles"]):
+            _sprite = "%s_%d" % (_sheet, _i)
+            if _props and _sprite in _drawn:
+                tiles.add(_sprite)
+            elif _props or _sprite in _drawn:
+                mod_tile_problems.append("%s: %s" % (_sprite, "no picture" if _props else "no properties"))
+
 # a tile sprite looks like  some_tileset_name_01_42
 SPRITE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*_\d+$")
 ITEM = re.compile(r"^Base\.([A-Za-z0-9_]+)$")
@@ -41,7 +66,7 @@ mod_items = set(re.findall(r"^\s*item\s+([A-Za-z0-9_]+)\s*$", script, re.M))
 mod_models = set(re.findall(r"^\s*model\s+([A-Za-z0-9_]+)", script, re.M))
 mod_icons = set(re.findall(r"^\s*Icon\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.M))
 
-failures, checked_sprites, checked_items = [], 0, 0
+failures, checked_sprites, checked_items = list(mod_tile_problems), 0, 0
 
 # The mod's vehicle scripts. "Base.TrekShuttleCraft" is a vehicle, not an item.
 mod_vehicles = set()

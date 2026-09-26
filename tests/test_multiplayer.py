@@ -179,7 +179,7 @@ APPLY = r"""
     function SIM.apply(op, d)
         local sq = SIM.rawSquare(d.x, d.y, d.z)
         if op == "object" then
-            local o = SIM.object(d.sprite)
+            local o = SIM.object(d.sprite, d.class)
             o.modData = copy(d.modData or {})
             o.square = sq
             if d.hasContainer then
@@ -11539,6 +11539,193 @@ def creation_look():
           "the skin follows a tone and a sex chosen afterwards")
 
 
+
+# --- the U.S.S. Adirondack -----------------------------------------------------------
+
+ADK_SETUP = """
+    SIM.containerSprites = {}
+    for _, d in ipairs(TREK.Adirondack.Layout.decks) do
+        for _, o in ipairs(d.objects) do
+            if o[4] == "c" then SIM.containerSprites[o[3]] = true end
+        end
+    end
+"""
+
+
+def adk_deck(rt, k):
+    """What stands on deck k -- (tagged objects, doors, containers, floors) --
+    then what the layout asks for: (objects, doors, containers, floors)."""
+    return rt.eval(f"""(function()
+        local A = TREK.Adirondack
+        local L, d = A.Layout, A.Layout.decks[{k}]
+        local placed, doors, containers, floors = 0, 0, 0, 0
+        for lx = -2, L.W + 2 do for ly = -2, L.H + 2 do
+            local x, y = A.at({k}, lx, ly)
+            local sq = SIM.rawSquare(x, y, A.Z)
+            if sq:getFloor() then floors = floors + 1 end
+            for _, o in ipairs(sq.objects) do
+                if o.modData.TREK == "adk" then placed = placed + 1 end
+                if o.class == "IsoDoor" then doors = doors + 1 end
+                if o.container then containers = containers + 1 end
+            end
+        end end
+        local wantDoors, wantC = 0, 0
+        for _, o in ipairs(d.objects) do
+            if o[4] == "dW" or o[4] == "dN" then wantDoors = wantDoors + 1 end
+            if o[4] == "c" then wantC = wantC + 1 end
+        end
+        return placed, doors, containers, floors, #d.objects, wantDoors, wantC, #d.floors
+    end)()""")
+
+
+def adk_where(rt, who=1):
+    k = rt.eval(f"(function() local p = SIM.players[{who}] "
+                f"return (TREK.Adirondack.locate(p.x, p.y, p.z)) end)()")
+    return int(k) if k is not None else None
+
+
+def adk_menu(rt):
+    rt.run("""
+        adkCtx = SIM.contextMenu()
+        SIM.fire("OnPreFillWorldObjectContextMenu", 0, adkCtx, {}, false)
+    """)
+    return str(rt.eval("adkCtx:deepLabels()"))
+
+
+def adk_check_deck(rt, k, label):
+    placed, doors, containers, floors, want, want_d, want_c, want_f = adk_deck(rt, k)
+    check(placed == want, f"{label}: deck {k} has {placed} of its {want} objects")
+    check(doors == want_d, f"{label}: deck {k} has {doors} working doors, the layout {want_d}")
+    check(containers == want_c, f"{label}: deck {k} has {containers} containers, the layout {want_c}")
+    check(floors == want_f, f"{label}: deck {k} has {floors} floors, the layout {want_f}")
+
+
+def adirondack():
+    """Beam from the shuttle to the Adirondack, ride the lift, beam back.
+
+    The way a player does it: from the shuttle's own menu, and the lift from
+    the menu in the car. The deck is built around them while they are held on
+    the pad, five storeys up with nothing below.
+    """
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('solo', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run(ADK_SETUP)
+    P = "SIM.players[1]"
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "adirondack, beaming up to the shuttle"):
+        return
+
+    labels = aboard_menu(rt)
+    check("IGUI_TREK_BeamToAdirondack" in labels,
+          f"adirondack: the shuttle's menu does not offer the Adirondack: {labels}")
+    rt.run('aboardCtx.options[1].sub:click("IGUI_TREK_BeamToAdirondack")')
+    net.pump(300)
+    if died(rt, "adirondack, beaming across"):
+        return
+    px, py, pz, pdeck = rt.eval("TREK.Adirondack.padSpot()")
+    x, y, z = pos(rt)
+    check((int(x), int(y), int(z)) == (int(px), int(py), int(pz)),
+          f"adirondack: arrived at {pos(rt)}, not the pad {px},{py},{pz}")
+    check(rt.eval("TREK.AdirondackClient.busy()") is False, "adirondack: still held after arriving")
+    check(rt.eval("TREK.Util.isInteriorPlayer(SIM.players[1])") is False,
+          "adirondack: the Adirondack counts as the shuttle's cabin")
+    adk_check_deck(rt, int(pdeck), "adirondack")
+
+    labels = adk_menu(rt)
+    check("IGUI_TREK_BeamToShuttle" in labels and "IGUI_TREK_CallDown" not in labels,
+          f"adirondack: the menu aboard her is wrong: {labels}")
+    check("IGUI_TREK_TurboliftHint" in labels, "adirondack: no word on where the lift is")
+
+    # Walk into the lift car, and ride it to the bridge.
+    lx, ly, lz = rt.eval(f"TREK.Adirondack.liftSpot({int(pdeck)})")
+    rt.run(f"SIM.players[1].x, SIM.players[1].y = {lx} + 0.5, {ly} + 0.5")
+    net.pump(2)
+    labels = adk_menu(rt)
+    check("IGUI_TREK_Turbolift" in labels, f"adirondack: no turbolift in the car: {labels}")
+    rt.run("""
+        local lift = adkCtx.options[1].sub:find("IGUI_TREK_Turbolift").sub
+        local o = lift.options[1]
+        o.fn(o.target, unpack(o.args))
+    """)
+    net.pump(200)
+    if died(rt, "adirondack, riding the lift"):
+        return
+    check(adk_where(rt) == 1, f"adirondack: the lift left the player on deck {adk_where(rt)}, not 1")
+    bx, by, _ = rt.eval("TREK.Adirondack.liftSpot(1)")
+    x, y, z = pos(rt)
+    check((int(x), int(y)) == (int(bx), int(by)), f"adirondack: off the lift at {pos(rt)}")
+    adk_check_deck(rt, 1, "adirondack (bridge)")
+
+    # Over the wall into the black: put back, never left to fall.
+    rt.run("SIM.players[1].x = SIM.players[1].x - 4")
+    net.pump(40)
+    if died(rt, "adirondack, stepping off the deck"):
+        return
+    check(adk_where(rt) == 1 and rt.eval("""(function() local p = SIM.players[1]
+            local k, lx, ly = TREK.Adirondack.locate(p.x, p.y, p.z)
+            return TREK.Adirondack.inside(k, lx, ly) end)()""") is True,
+          f"adirondack: stepped off the deck and was left at {pos(rt)}")
+
+    # A second build of a current deck adds nothing.
+    before = adk_deck(rt, 1)[0]
+    rt.run("TREK.AdirondackServer.buildDeck(1)")
+    check(adk_deck(rt, 1)[0] == before, "adirondack: building a deck twice doubled it")
+
+    # And home.
+    adk_menu(rt)
+    rt.run('adkCtx.options[1].sub:click("IGUI_TREK_BeamToShuttle")')
+    net.pump(300)
+    if died(rt, "adirondack, beaming back"):
+        return
+    check(at_pad(rt), f"adirondack: beamed back to {pos(rt)}, not the shuttle's pad")
+    for w in rt.warnings():
+        fail(f"adirondack: {w}")
+    print("adirondack: beamed across from the shuttle's menu, the deck built round the pad "
+          "with its doors and lockers, the lift to the bridge, kept on the deck, and back")
+
+
+def adirondack_multiplayer():
+    """Two players: the server builds, both see the same deck, and a client
+    that asks for a lift ride from the shuttle is refused."""
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    srv.run("SIM.player('alice', 2000.5, 2000.5, 0); SIM.player('bob', 2003.5, 2000.5, 0)")
+    A.run("SIM.player('alice', 2000.5, 2000.5, 0)")
+    B.run("SIM.player('bob', 2003.5, 2000.5, 0)")
+    net.start()
+    for rt in net.all():
+        rt.run(ADK_SETUP)
+    P = "SIM.players[1]"
+    for c in (A, B):
+        c.run(f"TREK.Transport.beamUp({P})")
+    net.pump(220)
+    if died(A, "adirondack mp, beaming up") or died(B, "adirondack mp, beaming up"):
+        return
+    B.run(f"TREK.Core.requestMove({P}, 'turbolift', function() adkWrong = true end)")
+    net.pump(4)
+    check(B.eval("adkWrong") is None, "adirondack mp: the server granted a lift ride from the shuttle")
+    for c in (A, B):
+        c.run(f"TREK.AdirondackClient.beamTo({P})")
+    net.pump(320)
+    if died(A, "adirondack mp, beaming across") or died(B, "adirondack mp, beaming across"):
+        return
+    k = int(srv.eval("TREK.Adirondack.Layout.pad.deck"))
+    check(adk_where(A) == k and adk_where(B) == k,
+          f"adirondack mp: alice on deck {adk_where(A)}, bob on {adk_where(B)}, pad on {k}")
+    s, a, b = adk_deck(srv, k), adk_deck(A, k), adk_deck(B, k)
+    check(s[0] == s[4], f"adirondack mp: the server placed {s[0]} of {s[4]}")
+    check(tuple(a[:4]) == tuple(s[:4]) and tuple(b[:4]) == tuple(s[:4]),
+          f"adirondack mp: server {tuple(s[:4])}, alice {tuple(a[:4])}, bob {tuple(b[:4])}")
+    for name, rt in (("server", srv), ("alice", A), ("bob", B)):
+        for w in rt.warnings():
+            fail(f"adirondack mp ({name}): {w}")
+    print("adirondack multiplayer: the server builds her once, both crew see the same deck, "
+          "and a lift ride asked for from elsewhere is refused")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -11553,7 +11740,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, traits, traits_multiplayer, species_look, creation_look,
-            multiplayer)
+            adirondack, adirondack_multiplayer, multiplayer)
 
 
 def main():

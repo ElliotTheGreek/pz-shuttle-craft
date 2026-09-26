@@ -270,22 +270,42 @@ side in WorldEd and joined; the turbolifts that link decks are not built yet.
 
 ---
 
-## 9. What is not done, in order
+## 9. In the game
 
-1. **The author opens it.** Does BuildingEd load the file, draw the tiles, and
-   do the walls join?
-2. **Furniture**: a bunk, a desk, a chair, a replicator alcove -- the same
-   pipeline, rendered as multi-tile furniture.
-3. **Into the game.** Three unknowns, each small: a `.pack` (the `PZPK` v1
-   atlas Week One and Horse Mod ship -- readable, so it can be written), a
-   `.tiles` tiledef (the `tdef` binary, likewise) with a tiledef number no
-   other mod uses, and the building exported into our void map's cells as
-   real lots, the Fifth-Wheel RV's route. Plus: build 42 draws depth maps for
-   wall tiles, and whether a mod tile without one renders correctly is a
-   question for the game.
-4. **Crew.** Starfleet NPCs are dressed, calmed zombies spawned by the server
+The ship is raised at runtime, the cabin's way, not shipped as lots:
+
+    python tools/gen_adirondack_pack.py   # trek_adirondack.pack + .tiles (tiledef 7461)
+    python tools/compose_adirondack.py    # the sections -> Adirondack_Ship.tbx
+    python tools/gen_adirondack_lua.py    # -> TREK_AdirondackLayout.lua
+
+- **Where**: void cell 97,40, offset 16, on the cabin's level (`C.CabinZ`).
+- **Decks side by side, not stacked.** A runtime building has no RoomDefs, so
+  the engine would draw every deck above over the one you stand on. Deck 1
+  (the bridge) is westmost, and each next deck is 32 squares east. The lift
+  cars occupy the same squares on every deck, so a ride keeps your spot in the car.
+- **Built per deck, on demand**: the server builds a deck when a player
+  arrives on it and its chunks are loaded (`TREK_AdirondackServer.lua`).
+  Everything placed is tagged `adk`; a layout change updates a deck in place
+  and never throws out a locker with something in it.
+- **Moves** are server-granted (`toAdirondack`, `fromAdirondack` and `turbolift` in
+  TREK_Server's MOVES):
+  - The shuttle's aboard menu has *Beam to the U.S.S. Adirondack*.
+  - Aboard her, the right-click menu has *Beam back to the shuttle*, and the
+    *Turbolift* inside a lift car.
+- **Kept on the deck**: a step over a wall is put back, the same way the cabin does it.
+- **Tile properties** are copied from vanilla tiles that do the same job
+  (gen_adirondack_pack.py's docstring), never `lightswitch` or `CustomItem`.
+
+## 10. What is not done, in order
+
+1. **First play-test**: do the pack and tiledef load, do the doors open, do
+   the walls block, is the lighting enough.
+2. **Sliding doors** that open as you walk up, with the sound.
+3. **Crew.** Starfleet NPCs are dressed, calmed zombies spawned by the server
    with `addZombiesInOutfit` -- no debug or admin gate (checked in the
    bytecode), a vanilla call site in the tutorial, and the whole of the
    Bandits mod built on it. `ENSIGN.md` section 3 says otherwise and is wrong
    on this point. Our own small crew system or a dependency on Bandits is the
    open decision.
+4. Art: the plant, the transporter pad, the plaque's IP check, the tan
+   viewports and door frames, a two-storey warp core.

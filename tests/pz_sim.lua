@@ -664,7 +664,8 @@ function ObjectMT:createContainersFromSpriteProperties()
        or self.spriteName:find("refrigeration") or self.spriteName:find("cooking")
        or self.spriteName:find("medical") or self.spriteName:find("shelving")
        or self.spriteName:find("military") or self.spriteName:find("machinery")
-       or self.spriteName:find("CONTAINER") then
+       or self.spriteName:find("CONTAINER")
+       or (SIM.containerSprites and SIM.containerSprites[self.spriteName]) then
         self.container = SIM.container(40)
         self.container.parentObject = self
         -- A fridge tile is a fridge and a freezer (V8: the combo's secondary
@@ -759,6 +760,16 @@ end
 IsoObject = {}
 function IsoObject.new(sq, sprite, name)
     return SIM.object(sprite)
+end
+
+--- vanilla's constructor (ISMoveableSpriteProps.lua:2188): cell, square,
+--- sprite name, north.
+IsoDoor = {}
+function IsoDoor.new(_cell, _sq, sprite, north)
+    local name = type(sprite) == "table" and sprite.name or sprite
+    local o = SIM.object(name, "IsoDoor")
+    o.north = north == true
+    return o
 end
 
 --- A television, which is a different Java class from the sprite that draws
@@ -1040,7 +1051,9 @@ local function describe(o)
     if o.container then
         for _, it in ipairs(o.container.items) do table.insert(items, it.fullType) end
     end
-    return { sprite = o.spriteName, modData = o.modData, items = items,
+    -- The class travels with it, as in the engine: a door sent to a client
+    -- arrives as a door, not as a picture of one.
+    return { sprite = o.spriteName, class = o.class, modData = o.modData, items = items,
              hasContainer = o.container ~= nil,
              fluid = o.fluid and { capacity = o.fluid.capacity, amount = o.fluid.amount } or nil }
 end
