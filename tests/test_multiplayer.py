@@ -11802,6 +11802,34 @@ def adk_fittings(net, rt, P, pdeck):
     end)()""")
     check(int(wet[0]) > 0 and int(wet[1]) == 0,
           f"adirondack: {wet[0]} sinks with water, {wet[1]} without")
+    # Water and a Doctor on every deck.
+    per = str(rt.eval("""(function()
+        local A, out = TREK.Adirondack, {}
+        for k, d in ipairs(A.Layout.decks) do
+            local water, doctors = 0, 0
+            for _, o in ipairs(d.objects) do
+                local x, y = A.at(k, o[1], o[2])
+                if o[5] and A.Water[o[5]] then
+                    for _, obj in ipairs(SIM.rawSquare(x, y, A.Z).objects) do
+                        if obj.spriteName == o[3] and obj.fluid and obj.fluid.amount > 0 then water = water + 1 end
+                    end
+                end
+                if o[5] == "emh_station" then
+                    for dx = -1, 1 do for dy = -1, 1 do
+                        for _, w in ipairs(SIM.rawSquare(x + dx, y + dy, A.Z).worldObjects or {}) do
+                            local it = w.getItem and w:getItem() or w.item
+                            if it and it:getFullType() == TREK.Config.EmhItem then doctors = doctors + 1 end
+                        end
+                    end end
+                end
+            end
+            table.insert(out, water .. "/" .. doctors)
+        end
+        return table.concat(out, ",")
+    end)()"""))
+    for k, pair in enumerate(per.split(","), start=1):
+        w, dr = (int(v) for v in pair.split("/"))
+        check(w >= 1 and dr >= 1, f"adirondack: deck {k} has {w} sink(s) with water and {dr} Doctor(s)")
 
     # A door on the arrival deck: shut, it blocks; walk up and it opens; walk
     # away and it shuts again.
@@ -12175,6 +12203,19 @@ def crew():
     barks = [c for c in crew_chat(rt) if "_BARK_" in c]
     check(not any("_BARK_outfit_" in c for c in barks),
           f"crew: remarked on the outfit of somebody in uniform: {barks[:5]}")
+
+    # A stray aboard -- an old crew body from a save, come back a zombie, or
+    # anything else -- is removed: she is sealed.
+    rt.run("""(function()
+        local p = SIM.players[1]
+        local old = SIM.newZed(p.x + 1, p.y, p.z, false, -1, false)
+        old.modData.TREKCrew = 1
+        SIM.newZed(p.x, p.y + 1, p.z, true, -1, false)
+    end)()""")
+    before = int(rt.eval("#SIM.zombies"))
+    net.pump(120)
+    check(int(rt.eval("#SIM.zombies")) == before - 2 and int(rt.eval("#SIM.zombies")) == crew_count(rt),
+          f"crew: stray zombies left aboard ({rt.eval('#SIM.zombies')} bodies, {crew_count(rt)} crew)")
 
     # A hit does nothing.
     rt.run("SIM.fire('OnHitZombie', SIM.zombies[1])")

@@ -216,6 +216,13 @@ def compose():
         furniture_object(f, "turbolift_panel", "W", 0, LIFT[3] + 2)
         for y in range(LIFT[3] + 5, corridor_end + 1, 4):
             furniture_object(f, "wall_sconce", "W", 0, y)
+        # Every deck has water and a Doctor within reach of the lift (asked
+        # for after the first walk round her): a basin and an EMH station
+        # against the corridor's west wall, leaving two squares to walk by.
+        if corridor_end < LIFT[3] + 6:
+            raise SystemExit("%s's corridor is too short for its basin and EMH station" % deck_name)
+        furniture_object(f, "wash_basin", "W", 0, LIFT[3] + 4)
+        furniture_object(f, "emh_station", "W", 0, LIFT[3] + 6)
         layout["turbolifts"].append(dict(deck=deck_name, z=z, x=1, y=1, description=desc))
         layout["decks"].append(dict(deck=deck_name, z=z, sections=files, description=desc))
     return ship, width, height, layout, ext, door

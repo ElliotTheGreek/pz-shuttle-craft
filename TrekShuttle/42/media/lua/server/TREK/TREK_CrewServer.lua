@@ -71,6 +71,7 @@ local running = {}       -- list of scene runs
 CS.stats = { tries = 0, few = 0, started = 0, gathered = 0, dropped = 0, lines = 0, finished = 0 }
 local playerBarkAt = {}  -- username -> ms
 local serial = 0         -- single-player ids
+local session = tostring(getTimestampMs())
 
 local function now() return getTimestampMs() end
 local function rnd(n) return ZombRand(n) end
@@ -213,7 +214,9 @@ local function spawn(k, atPost)
         id = K.id(z)
     else
         serial = serial + 1
-        id = serial
+        -- Unique to this session: a counter alone restarts at 1 on every
+        -- load, and a saved body carrying an old 1 would pass for a new one.
+        id = session .. "-" .. serial
         U.try("crew.tag", function() z:getModData().TREKCrew = id end)
     end
     if id == nil then
@@ -613,8 +616,13 @@ local function decksWithPlayers()
     return on, players
 end
 
---- Removes crew bodies nobody is running: a save made with crew aboard, or a
---- body left behind by a server restart. Bodies only; entries go with them.
+--- Removes every zombie aboard her that is not one of this session's crew.
+---
+--- **She is sealed, so nothing else belongs on her decks.** The first load
+--- of a save made with crew aboard found the deck full of hostile zombies:
+--- the saved crew bodies, which come back without their looks, their calm
+--- or (it seems) their mod data -- ordinary zombies in an empty outfit. So
+--- this does not ask what a body is, only whether it is ours now.
 local function sweepStrays()
     U.try("crew.sweep", function()
         local list = getCell():getZombieList()
@@ -622,17 +630,18 @@ local function sweepStrays()
         for i = 0, list:size() - 1 do
             local z = list:get(i)
             if K.aboard(z) then
-                local md = U.try("crew.sweepMd", function() return z:getModData() end)
-                if md and (md.TREKCrewServer or md.TREKCrew) then
-                    local id = K.id(z)
-                    if id == nil or not live[tostring(id)] then table.insert(doomed, z) end
-                end
+                local id = K.id(z)
+                if id == nil or not live[tostring(id)] then table.insert(doomed, z) end
             end
         end
         for _, z in ipairs(doomed) do
+            local id = K.id(z)
             z:removeFromWorld()
             z:removeFromSquare()
+            -- The clients' copies go too (TREK_CrewClient, crewGone).
+            if id ~= nil then Net.toAll("crewGone", { id = tostring(id) }) end
         end
+        if #doomed > 0 then U.log("crew: removed %d stray zombie(s) from the Adirondack", #doomed) end
     end)
 end
 
@@ -656,7 +665,7 @@ function CS.tick()
     for id in pairs(K.state().crew) do
         if not live[id] then K.state().crew[id] = nil dirty = true end
     end
-    if t - lastSweep > 10000 then
+    if t - lastSweep > 1000 then
         lastSweep = t
         sweepStrays()
     end

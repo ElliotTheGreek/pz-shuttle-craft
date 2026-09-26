@@ -2,7 +2,7 @@
 -- Do not edit: change a section in BuildingEd, compose, and generate again.
 local L = {}
 -- Changes whenever anything placed changes; a deck built by another is brought up to date.
-L.rev = 211297354
+L.rev = 157033906
 L.W, L.H = 20, 25
 L.pitch = 32
 L.deckFloor = "trek_adirondack_01_25"
@@ -404,6 +404,8 @@ L.decks = {
       { 1, 0, "trek_adirondack_02_173", "f", "wall_sconce", "S" },
       { 0, 4, "trek_adirondack_02_174", "f", "turbolift_panel", "E" },
       { 0, 7, "trek_adirondack_02_172", "f", "wall_sconce", "E" },
+      { 0, 6, "trek_adirondack_02_43", "f", "wash_basin", "E" },
+      { 0, 8, "trek_adirondack_02_160", "f", "emh_station", "E" },
     },
   },
   {
@@ -1272,6 +1274,8 @@ L.decks = {
       { 0, 7, "trek_adirondack_02_172", "f", "wall_sconce", "E" },
       { 0, 11, "trek_adirondack_02_172", "f", "wall_sconce", "E" },
       { 0, 15, "trek_adirondack_02_172", "f", "wall_sconce", "E" },
+      { 0, 6, "trek_adirondack_02_43", "f", "wash_basin", "E" },
+      { 0, 8, "trek_adirondack_02_160", "f", "emh_station", "E" },
     },
   },
   {
@@ -1712,6 +1716,8 @@ L.decks = {
       { 0, 7, "trek_adirondack_02_172", "f", "wall_sconce", "E" },
       { 0, 11, "trek_adirondack_02_172", "f", "wall_sconce", "E" },
       { 0, 15, "trek_adirondack_02_172", "f", "wall_sconce", "E" },
+      { 0, 6, "trek_adirondack_02_43", "f", "wash_basin", "E" },
+      { 0, 8, "trek_adirondack_02_160", "f", "emh_station", "E" },
     },
   },
   {
@@ -2121,6 +2127,8 @@ L.decks = {
       { 0, 4, "trek_adirondack_02_174", "f", "turbolift_panel", "E" },
       { 0, 7, "trek_adirondack_02_172", "f", "wall_sconce", "E" },
       { 0, 11, "trek_adirondack_02_172", "f", "wall_sconce", "E" },
+      { 0, 6, "trek_adirondack_02_43", "f", "wash_basin", "E" },
+      { 0, 8, "trek_adirondack_02_160", "f", "emh_station", "E" },
     },
   },
 }

@@ -322,6 +322,16 @@ end)
 Net.onClient("crewGone", function(args)
     if not isClient() then return end
     local z = K.findZombie(args.id)
+    if not z and tonumber(args.id) then
+        -- A stray the server removed: find it by its online id.
+        U.try("crew.findStray", function()
+            local list = getCell():getZombieList()
+            for i = 0, list:size() - 1 do
+                local c = list:get(i)
+                if c:getOnlineID() == tonumber(args.id) then z = c return end
+            end
+        end)
+    end
     if not z then return end
     U.try("crew.goneLocal", function()
         z:removeFromWorld()
