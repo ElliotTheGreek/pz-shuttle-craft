@@ -138,18 +138,49 @@ local function stopEngine(z)
     end)
 end
 
---- Walks a body one tick along its route: our route, our pace, the walking
---- animation on while it moves (TrekMove, common/media/AnimSets/zombie/idle).
+--- The route as straight legs: runs of steps in one direction merged, so
+--- each leg is a straight line over open floor (K.route never crosses a wall
+--- or clips furniture) and at most MAX_LEG squares long.
+local MAX_LEG = 6
+local function legs(pts, sx, sy)
+    local out = {}
+    local px, py = sx, sy
+    local dx, dy, n = nil, nil, 0
+    for _, p in ipairs(pts) do
+        local ddx, ddy = p[1] - px, p[2] - py
+        if dx ~= nil and ddx == dx and ddy == dy and n < MAX_LEG then
+            out[#out] = { p[1], p[2] }
+            n = n + 1
+        else
+            table.insert(out, { p[1], p[2] })
+            dx, dy, n = ddx, ddy, 1
+        end
+        px, py = p[1], p[2]
+    end
+    return out
+end
+
+--- Walks a body one tick along its route.
+---
+--- **The route is ours, the stepping is the engine's.** Left to route itself
+--- the engine walked the crew into walls it does not know are there (first
+--- play-test); moving the body by hand got them there but gliding, because
+--- the walk animation only plays while the engine itself is walking them
+--- (the pathfind/walktoward states, TrekWalk). So each straight leg of our
+--- route is handed to the engine as a short walk of its own -- open floor,
+--- nothing to go wrong -- and only a leg the engine refuses, or stalls on,
+--- is slid by hand.
+local STALL_MS = 2500
 local function walk(z, e, step)
     local k = e.deck
     local r = routes[z]
     local t = getTimestampMs()
+    local ox, oy = A.at(k, 0, 0)
     if not r or r.seq ~= step.seq then
         stopEngine(z)
-        local dx, dy = A.at(k, 0, 0)
-        local sx, sy = math.floor(z:getX()) - dx, math.floor(z:getY()) - dy
+        local sx, sy = math.floor(z:getX()) - ox, math.floor(z:getY()) - oy
         local pts = K.route(k, sx, sy, step.x, step.y) or { { step.x, step.y } }
-        r = { seq = step.seq, pts = pts, i = 1, at = t }
+        r = { seq = step.seq, pts = legs(pts, sx, sy), i = 1, at = t }
         routes[z] = r
     end
     local pt = r.pts[r.i]
@@ -157,31 +188,55 @@ local function walk(z, e, step)
         U.try("crew.halt", function() z:setVariable("TrekMove", false) end)
         return
     end
-    local tx, ty = A.at(k, pt[1], pt[2])
-    tx, ty = tx + 0.5, ty + 0.5
+    local tx, ty = ox + pt[1] + 0.5, oy + pt[2] + 0.5
+    local x, y = z:getX(), z:getY()
+    local d = math.sqrt((tx - x) ^ 2 + (ty - y) ^ 2)
+
+    local function nextLeg()
+        stopEngine(z)
+        r.i, r.asked, r.slide = r.i + 1, nil, nil
+    end
+
+    if d < 0.35 then
+        nextLeg()
+        return
+    end
+
+    if not r.slide then
+        if not r.asked then
+            r.asked, r.best, r.bestAt = true, d, t
+            U.try("crew.leg", function()
+                z:setVariable("TrekMove", false)
+                z:pathToLocationF(tx, ty, A.Z)
+            end)
+            return
+        end
+        local res = tostring(U.try("crew.legUpdate", function()
+            return z:getPathFindBehavior2():update()
+        end))
+        if d < r.best - 0.05 then r.best, r.bestAt = d, t end
+        if res == "Succeeded" then
+            nextLeg()
+        elseif res == "Failed" or t - r.bestAt > STALL_MS then
+            stopEngine(z)
+            r.slide, r.at = true, t
+        end
+        return
+    end
+
+    -- The engine would not take this leg: slide it, at a walk.
     local dt = math.min(0.1, math.max(0, (t - r.at) / 1000))
     r.at = t
-    local x, y = z:getX(), z:getY()
-    local ddx, ddy = tx - x, ty - y
-    local d = math.sqrt(ddx * ddx + ddy * ddy)
-    local stepLen = K.WalkSpeed * dt
-    U.try("crew.move", function()
+    local len = K.WalkSpeed * dt
+    U.try("crew.slide", function()
         z:setVariable("TrekMove", true)
-        if d <= stepLen or d < 0.02 then
+        if d <= len then
             z:setX(tx) z:setY(ty) z:setLastX(tx) z:setLastY(ty)
-            r.i = r.i + 1
-            local nxt = r.pts[r.i]
-            if nxt then
-                local nx, ny = A.at(k, nxt[1], nxt[2])
-                z:faceLocationF(nx + 0.5, ny + 0.5)
-            end
+            nextLeg()
         else
-            local nx, ny = x + ddx / d * stepLen, y + ddy / d * stepLen
+            local nx, ny = x + (tx - x) / d * len, y + (ty - y) / d * len
             z:setX(nx) z:setY(ny) z:setLastX(nx) z:setLastY(ny)
-            if r.i == 1 or not r.faced then
-                r.faced = true
-                z:faceLocationF(tx, ty)
-            end
+            z:faceLocationF(tx, ty)
         end
     end)
 end

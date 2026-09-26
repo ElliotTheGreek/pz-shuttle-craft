@@ -311,9 +311,13 @@ These come from the Bandits framework and the bytecode (research of
   everyone in the lift car, or walked them into bulkheads.
   - `K.route` finds a way over the deck plan: same room, or through a
     doorway, and round furniture.
-  - The owner moves the body along it at `K.WalkSpeed`, while `TrekMove`
-    plays the walk animation in the idle state
-    (`AnimSets/zombie/idle/trekcrewmove.xml`).
+  - The route is cut into straight legs, and each leg is handed to the
+    engine as a short walk of its own (`pathToLocationF`). The engine's walk
+    is the only one that animates: the second play-test showed a body moved
+    by hand glides.
+  - A leg the engine fails, or stalls on for 2.5 s, is slid by hand at
+    `K.WalkSpeed`, with `TrekMove` set in case that animation node is
+    honoured.
   - A walk that has not arrived after `WalkLimit` stops where it is.
 - **On duty.** When somebody steps onto an empty deck, `CS.OnDuty` (70%) of
   its crew are already at their posts. The rest arrive by lift.

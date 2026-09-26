@@ -2759,6 +2759,7 @@ function ZedMT:getHumanVisual()
 end
 function ZedMT:faceLocationF(x, y) self.facing = { x, y } end
 function ZedMT:setPath2() end
+function ZedMT:pathToLocationF(x, y, z) self:getPathFindBehavior2():pathToLocationF(x, y, z) end
 function ZedMT:getPathFindBehavior2()
     local z = self
     z.pf = z.pf or {
@@ -2766,7 +2767,9 @@ function ZedMT:getPathFindBehavior2()
         -- Straight there at a walk, a tenth of a square a tick: the sim has
         -- no pathfinder, and the crew's rooms are open floor.
         update = function()
-            if not z.goal then return "Failed" end
+            -- SIM.pathFails: an engine that will not walk anybody anywhere,
+            -- which is what the first play-test found on the Adirondack.
+            if not z.goal or SIM.pathFails then return "Failed" end
             local dx, dy = z.goal[1] - z.x, z.goal[2] - z.y
             local d = math.sqrt(dx * dx + dy * dy)
             if d < 0.12 then

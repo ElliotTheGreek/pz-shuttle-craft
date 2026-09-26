@@ -12138,6 +12138,17 @@ def crew():
     check("stay:stand" in seen or "stay:sit" in seen,
           f"crew: nobody ever reached a post (was {steps}, now {seen})")
 
+    # And if the engine will not walk them at all, they still get there, by
+    # hand: a walk that never arrives would leave the deck frozen again.
+    rt.run("SIM.pathFails = true")
+    before = str(rt.eval('(function() local o = {} for id, m in pairs(TREK.CrewServer.live()) do table.insert(o, id .. m.e.seq) end table.sort(o) return table.concat(o, ",") end)()'))
+    net.pump(1500)
+    after = str(rt.eval('(function() local o = {} for id, m in pairs(TREK.CrewServer.live()) do table.insert(o, id .. m.e.seq) end table.sort(o) return table.concat(o, ",") end)()'))
+    arrived = str(rt.eval('(function() local n = 0 for _, m in pairs(TREK.CrewServer.live()) do if m.state == "stay" and m.e.step.k ~= "walk" then n = n + 1 end end return n end)()'))
+    check(before != after and int(arrived) >= 1,
+          f"crew: with the engine refusing every walk, nobody got anywhere ({arrived} settled)")
+    rt.run("SIM.pathFails = false")
+
     # They talk: a scene's lines, and barks.
     chat = crew_chat(rt)
     scene_lines = [c for c in chat if c.startswith("Print_Text_TREK_CREW_") and "_BARK_" not in c]
