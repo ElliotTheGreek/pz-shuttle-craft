@@ -12386,8 +12386,28 @@ def farming():
     end)()"""))
     check("false" not in crops and crops.count("=") == 7, f"farming: crops not registered whole: {crops}")
 
+    # Vanilla's farming config wipes the crop tables when it loads, and it can
+    # load after ours: the first play-test's sow menu was empty. After a wipe
+    # the next game start, or the sow menu itself, puts them back.
+    rt.run("""farming_vegetableconf.props = {}
+        farming_vegetableconf.sprite = {}
+        farming_vegetableconf.getSpriteName = function(p)
+            if p.state == "plow" then return "vegetation_farming_01_1" end
+        end""")
+    rt.fire("OnGameStart")
+    check(rt.eval("farming_vegetableconf.props.TrekPlomeek ~= nil and #farming_vegetableconf.sprite.TrekPlomeek == 8") is True,
+          "farming: our crops were not put back after vanilla wiped the table")
+
     k = 5
     adk_visit(net, rt, k)
+    # An empty tray shows its soil, not ground furrows at its foot.
+    soil = rt.eval(f"""(function()
+        local t = TREK.Farm.trays({k})[1]
+        local p = SFarmingSystem.instance:getLuaObjectAt(t[1], t[2], TREK.Adirondack.Z)
+        return farming_vegetableconf.getSpriteName(p) == TREK_FarmSoil
+            and farming_vegetableconf.getSpriteName({{ state = "plow", x = 1000, y = 1000, z = 0 }}) == "vegetation_farming_01_1"
+    end)()""")
+    check(soil is True, "farming: a plowed tray would show vanilla's ground furrows")
     primed = str(rt.eval(f"""(function()
         local n, soil = 0, 0
         for _, t in ipairs(TREK.Farm.trays({k})) do

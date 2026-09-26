@@ -307,6 +307,11 @@ def sheet02_props(defs, index):
                     # vanilla farming reads as weeds.
                     base = dict(table)
                     base.pop("IsTable", None)
+                    # Not a thing to carry off: taking a tray apart would take
+                    # its crop with it (the first play-test offered Disassemble).
+                    for k in ("IsMoveAble", "CanScrap", "CanBreak", "PickUpLevel", "PickUpTool",
+                              "PickUpWeight", "PlaceTool"):
+                        base.pop(k, None)
                 elif "container" in use:
                     base = dict(locker, container=use["container"])
                 else:

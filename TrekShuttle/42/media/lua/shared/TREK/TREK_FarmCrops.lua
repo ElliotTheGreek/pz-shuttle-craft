@@ -8,6 +8,7 @@
 
 require "Farming/farming_vegetableconf"
 require "TREK/TREK_FarmSprites"
+require "TREK/TREK_Adirondack"
 
 TREK = TREK or {}
 local F = TREK.Farm or {}
@@ -84,7 +85,56 @@ function F.register()
     return n
 end
 
-F.registered = F.register()
+--- True for a plant standing on the Adirondack.
+function F.onShip(plant)
+    return plant ~= nil and TREK.Adirondack ~= nil and plant.x ~= nil
+        and TREK.Adirondack.locate(plant.x, plant.y, plant.z) ~= nil
+end
+
+-- A plowed plot's sprite is hard-coded in vanilla (getSpriteName answers
+-- vegetation_farming_01_1 for "plow"), and vanilla sets every plant's sprite
+-- from that answer on its checks -- so a plot primed in a tray showed ground
+-- furrows at floor level beside the tray (first play-test). Aboard her, an
+-- empty tray shows the tray's own soil instead.
+local function spriteWrapper(original)
+    local wrapper = function(plant)
+        if plant and plant.state == "plow" and TREK_FarmSoil and F.onShip(plant) then
+            return TREK_FarmSoil
+        end
+        return original(plant)
+    end
+    return wrapper
+end
+
+--- Makes sure vanilla farming knows our crops, and shows our trays' soil.
+---
+--- **Idempotent, and called often, on purpose.** vanilla's own
+--- farming_vegetableconf.lua ends with `props = {}` and fresh sprite tables,
+--- and it can load after this file: the first play-test's sow menu was empty
+--- because every crop registered here had been wiped by the time anybody
+--- right-clicked a tray. So this runs at load, at game and server start,
+--- every hour, and just before the sow menu is built (TREK_FarmClient).
+function F.ensure()
+    local conf = farming_vegetableconf
+    if not conf or not conf.props then return false end
+    if not conf.props.TrekPlomeek or not (conf.sprite and conf.sprite.TrekPlomeek) then
+        for _, t in ipairs({ "sprite", "unhealthySprite", "dyingSprite", "deadSprite", "trampledSprite" }) do
+            conf[t] = conf[t] or {}
+        end
+        F.register()
+    end
+    if conf.getSpriteName and conf.getSpriteName ~= F.spriteWrapper then
+        F.spriteWrapper = spriteWrapper(conf.getSpriteName)
+        conf.getSpriteName = F.spriteWrapper
+    end
+    return conf.props.TrekPlomeek ~= nil
+end
+
+F.registered = F.ensure()
+Events.OnGameBoot.Add(function() F.ensure() end)
+Events.OnGameStart.Add(function() F.ensure() end)
+Events.OnInitGlobalModData.Add(function() F.ensure() end)
+Events.OnServerStarted.Add(function() F.ensure() end)
 
 --- True for one of ours, by the crop a plant was sown as.
 function F.isOurCrop(typeOfSeed)

@@ -49,10 +49,6 @@ local function system()
     return SFarmingSystem and SFarmingSystem.instance
 end
 
---- True for a plant standing on the Adirondack.
-function F.onShip(luaObject)
-    return luaObject ~= nil and A.locate(luaObject.x, luaObject.y, luaObject.z) ~= nil
-end
 
 local function autoWater()
     local v = U.try("hydroWater", function()
@@ -305,6 +301,7 @@ end
 ---------------------------------------------------------------------------
 --- Everything hydroponic, once a game hour, on every deck that is built.
 function F.hourly()
+    F.ensure()
     F.wrapHealth()
     F.tendAll()
     local AS = TREK.AdirondackServer
