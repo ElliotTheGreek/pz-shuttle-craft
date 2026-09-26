@@ -369,10 +369,17 @@ Sandbox *Hydroponics tend themselves* (on by default) turns the tending off.
   is real food.
 - Recipes are not gated: anybody can cook from scratch.
 
+**Confirmed in game (2026-09-26):**
+- Sowing a tray through vanilla's own menu, five storeys up.
+- Harvesting a ready crop.
+- A pot of plomeek made at the counter, cooked in the galley range with the
+  bus powering it, and served into three bowls.
+
+The range is a vanilla stove: a pot goes *in* it, as a container, and cooks
+while it is on. There is no separate hob to set it on, in vanilla either.
+
 **Only the game can show:**
 1. Crops standing *in* the trays at the right height (`TRAY_TOP`).
-2. Vanilla's own sow, harvest and info menus on a tray square five storeys up.
-3. The range cooking, with the bus powering it.
 4. The drinks arriving hot (`TREKFarm_HotDrink` is named in the recipes but
    not written yet; see below).
 5. A dried item keeping its count through the dehydrator.
