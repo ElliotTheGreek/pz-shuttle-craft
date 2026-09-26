@@ -244,7 +244,33 @@ with the author's go-ahead; the delete endpoint allows about one a second.
 
 ---
 
-## 8. What is not done, in order
+## 8. The sections, drafted
+
+`tools/gen_adirondack_sections.py` writes each section as a BuildingEd file
+from a spec of rooms, doors and furniture, checks it (off the floor, across two
+rooms, two pieces on a square, a door not on a wall, a wall piece with no wall)
+and renders it in a dollhouse view from the real tiles:
+
+| Section | File | Size | Rooms |
+|---|---|---|---|
+| Transporter Room | `Adirondack_TransporterRoom.tbx` | 8 x 7 | 1 |
+| Habitat Deck | `Adirondack_HabitatDeck.tbx` | 17 x 14 | 4 quarters, 2 baths, corridor |
+| Lounge and Galley | `Adirondack_Lounge_Galley.tbx` | 16 x 11 | 2 |
+| Bridge and Ready Room | `Adirondack_Bridge_ReadyRoom.tbx` | 15 x 12 | 2 |
+| Sickbay | `Adirondack_Sickbay.tbx` | 13 x 9 | ward, CMO's office, lab |
+| Main Engineering | `Adirondack_MainEngineering.tbx` | 15 x 13 | 1 |
+
+The previews are `design/art/adirondack/sections/*.png`. **Once the author
+saves one in BuildingEd it is theirs**: the generator writes a `Generator`
+property into every file it makes and will not overwrite a file that has lost
+it (`--force` does).
+
+Every section has a west-wall door as its way in, so they can be laid side by
+side in WorldEd and joined; the turbolifts that link decks are not built yet.
+
+---
+
+## 9. What is not done, in order
 
 1. **The author opens it.** Does BuildingEd load the file, draw the tiles, and
    do the walls join?

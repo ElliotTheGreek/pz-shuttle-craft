@@ -1,0 +1,124 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<building version="3" width="8" height="7" ExteriorWall="1" ExteriorWallTrim="0" Door="5" DoorFrame="0" Window="0" Curtains="0" Shutters="0" Stairs="0" RoofCap="0" RoofSlope="0" RoofTop="0" GrimeWall="0">
+ <properties>
+  <property name="Description" value="U.S.S. Adirondack: Transporter Room. Drafted by tools/gen_adirondack_sections.py; see ADIRONDACK.md" />
+  <property name="Mod" value="TrekShuttle" />
+  <property name="Generator" value="gen_adirondack_sections" />
+ </properties>
+ <tile_entry category="exterior_walls">
+  <tile enum="West" tile="trek_adirondack_01_000" />
+  <tile enum="North" tile="trek_adirondack_01_001" />
+  <tile enum="NorthWest" tile="trek_adirondack_01_002" />
+  <tile enum="SouthEast" tile="trek_adirondack_01_003" />
+  <tile enum="WestWindow" tile="" />
+  <tile enum="NorthWindow" tile="" />
+  <tile enum="WestDoor" tile="trek_adirondack_01_010" />
+  <tile enum="NorthDoor" tile="trek_adirondack_01_011" />
+ </tile_entry>
+ <tile_entry category="interior_walls">
+  <tile enum="West" tile="trek_adirondack_01_000" />
+  <tile enum="North" tile="trek_adirondack_01_001" />
+  <tile enum="NorthWest" tile="trek_adirondack_01_002" />
+  <tile enum="SouthEast" tile="trek_adirondack_01_003" />
+  <tile enum="WestWindow" tile="" />
+  <tile enum="NorthWindow" tile="" />
+  <tile enum="WestDoor" tile="trek_adirondack_01_010" />
+  <tile enum="NorthDoor" tile="trek_adirondack_01_011" />
+ </tile_entry>
+ <tile_entry category="floors">
+  <tile enum="Floor" tile="trek_adirondack_01_024" />
+ </tile_entry>
+ <tile_entry category="floors">
+  <tile enum="Floor" tile="trek_adirondack_01_025" />
+ </tile_entry>
+ <tile_entry category="doors">
+  <tile enum="West" tile="trek_adirondack_01_032" />
+  <tile enum="North" tile="trek_adirondack_01_033" />
+  <tile enum="WestOpen" tile="trek_adirondack_01_034" />
+  <tile enum="NorthOpen" tile="trek_adirondack_01_035" />
+ </tile_entry>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_142" />
+   <tile x="0" y="1" name="trek_adirondack_02_143" />
+   <tile x="0" y="2" name="trek_adirondack_02_144" />
+   <tile x="1" y="0" name="trek_adirondack_02_145" />
+   <tile x="1" y="1" name="trek_adirondack_02_146" />
+   <tile x="1" y="2" name="trek_adirondack_02_147" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_148" />
+   <tile x="0" y="1" name="trek_adirondack_02_149" />
+   <tile x="1" y="0" name="trek_adirondack_02_150" />
+   <tile x="1" y="1" name="trek_adirondack_02_151" />
+   <tile x="2" y="0" name="trek_adirondack_02_152" />
+   <tile x="2" y="1" name="trek_adirondack_02_153" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_154" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_155" />
+  </entry>
+  <entry orient="E">
+   <tile x="0" y="0" name="trek_adirondack_02_156" />
+  </entry>
+  <entry orient="S">
+   <tile x="0" y="0" name="trek_adirondack_02_157" />
+  </entry>
+ </furniture>
+ <furniture layer="WallFurniture">
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_172" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_173" />
+  </entry>
+ </furniture>
+ <furniture layer="WallFurniture">
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_170" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_171" />
+  </entry>
+ </furniture>
+ <furniture layer="WallFurniture">
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_174" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_175" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_047" />
+  </entry>
+ </furniture>
+ <user_tiles />
+ <used_tiles>1 2 3 4 5</used_tiles>
+ <used_furniture>0 1 2 3 4 5</used_furniture>
+ <room Name="Transporter Room" InternalName="hall" Color="150 170 200" InteriorWall="2" InteriorWallTrim="0" Floor="4" GrimeFloor="0" GrimeWall="0" />
+ <floor>
+  <rooms>
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1
+</rooms>
+  <object type="door" x="0" y="5" dir="W" Tile="5" FrameTile="0" />
+  <object type="furniture" FurnitureTiles="0" orient="N" x="2" y="0" />
+  <object type="furniture" FurnitureTiles="1" orient="S" x="3" y="4" />
+  <object type="furniture" FurnitureTiles="2" orient="N" x="1" y="0" />
+  <object type="furniture" FurnitureTiles="2" orient="N" x="6" y="0" />
+  <object type="furniture" FurnitureTiles="3" orient="N" x="5" y="0" />
+  <object type="furniture" FurnitureTiles="4" orient="W" x="0" y="4" />
+  <object type="furniture" FurnitureTiles="5" orient="W" x="7" y="6" />
+ </floor>
+</building>

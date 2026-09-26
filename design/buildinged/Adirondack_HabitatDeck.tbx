@@ -1,0 +1,316 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<building version="3" width="17" height="14" ExteriorWall="1" ExteriorWallTrim="0" Door="5" DoorFrame="0" Window="0" Curtains="0" Shutters="0" Stairs="0" RoofCap="0" RoofSlope="0" RoofTop="0" GrimeWall="0">
+ <properties>
+  <property name="Description" value="U.S.S. Adirondack: Habitat Deck. Drafted by tools/gen_adirondack_sections.py; see ADIRONDACK.md" />
+  <property name="Mod" value="TrekShuttle" />
+  <property name="Generator" value="gen_adirondack_sections" />
+ </properties>
+ <tile_entry category="exterior_walls">
+  <tile enum="West" tile="trek_adirondack_01_000" />
+  <tile enum="North" tile="trek_adirondack_01_001" />
+  <tile enum="NorthWest" tile="trek_adirondack_01_002" />
+  <tile enum="SouthEast" tile="trek_adirondack_01_003" />
+  <tile enum="WestWindow" tile="" />
+  <tile enum="NorthWindow" tile="" />
+  <tile enum="WestDoor" tile="trek_adirondack_01_010" />
+  <tile enum="NorthDoor" tile="trek_adirondack_01_011" />
+ </tile_entry>
+ <tile_entry category="interior_walls">
+  <tile enum="West" tile="trek_adirondack_01_000" />
+  <tile enum="North" tile="trek_adirondack_01_001" />
+  <tile enum="NorthWest" tile="trek_adirondack_01_002" />
+  <tile enum="SouthEast" tile="trek_adirondack_01_003" />
+  <tile enum="WestWindow" tile="" />
+  <tile enum="NorthWindow" tile="" />
+  <tile enum="WestDoor" tile="trek_adirondack_01_010" />
+  <tile enum="NorthDoor" tile="trek_adirondack_01_011" />
+ </tile_entry>
+ <tile_entry category="floors">
+  <tile enum="Floor" tile="trek_adirondack_01_024" />
+ </tile_entry>
+ <tile_entry category="floors">
+  <tile enum="Floor" tile="trek_adirondack_01_025" />
+ </tile_entry>
+ <tile_entry category="doors">
+  <tile enum="West" tile="trek_adirondack_01_032" />
+  <tile enum="North" tile="trek_adirondack_01_033" />
+  <tile enum="WestOpen" tile="trek_adirondack_01_034" />
+  <tile enum="NorthOpen" tile="trek_adirondack_01_035" />
+ </tile_entry>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_004" />
+   <tile x="0" y="1" name="trek_adirondack_02_005" />
+   <tile x="1" y="0" name="trek_adirondack_02_006" />
+   <tile x="1" y="1" name="trek_adirondack_02_007" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_008" />
+   <tile x="0" y="1" name="trek_adirondack_02_009" />
+   <tile x="1" y="0" name="trek_adirondack_02_010" />
+   <tile x="1" y="1" name="trek_adirondack_02_011" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_014" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_015" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_016" />
+   <tile x="0" y="1" name="trek_adirondack_02_017" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_018" />
+   <tile x="1" y="0" name="trek_adirondack_02_019" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_020" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_021" />
+  </entry>
+  <entry orient="E">
+   <tile x="0" y="0" name="trek_adirondack_02_022" />
+  </entry>
+  <entry orient="S">
+   <tile x="0" y="0" name="trek_adirondack_02_023" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_037" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_038" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_039" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_040" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_158" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_159" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_024" />
+   <tile x="0" y="1" name="trek_adirondack_02_025" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_026" />
+   <tile x="1" y="0" name="trek_adirondack_02_027" />
+  </entry>
+  <entry orient="E">
+   <tile x="0" y="0" name="trek_adirondack_02_028" />
+   <tile x="0" y="1" name="trek_adirondack_02_029" />
+  </entry>
+  <entry orient="S">
+   <tile x="0" y="0" name="trek_adirondack_02_030" />
+   <tile x="1" y="0" name="trek_adirondack_02_031" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_036" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_032" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_033" />
+  </entry>
+  <entry orient="E">
+   <tile x="0" y="0" name="trek_adirondack_02_034" />
+  </entry>
+  <entry orient="S">
+   <tile x="0" y="0" name="trek_adirondack_02_035" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_047" />
+  </entry>
+ </furniture>
+ <furniture layer="WallFurniture">
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_168" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_169" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_041" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_042" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_045" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_046" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_043" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_044" />
+  </entry>
+ </furniture>
+ <furniture layer="WallFurniture">
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_172" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_173" />
+  </entry>
+ </furniture>
+ <furniture layer="WallFurniture">
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_174" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_175" />
+  </entry>
+ </furniture>
+ <furniture layer="WallFurniture">
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_166" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_167" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_012" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_013" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_000" />
+   <tile x="1" y="0" name="trek_adirondack_02_001" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_002" />
+   <tile x="0" y="1" name="trek_adirondack_02_003" />
+  </entry>
+ </furniture>
+ <user_tiles />
+ <used_tiles>1 2 3 4 5</used_tiles>
+ <used_furniture>0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19</used_furniture>
+ <room Name="Quarters 1" InternalName="bedroom" Color="72 96 160" InteriorWall="2" InteriorWallTrim="0" Floor="3" GrimeFloor="0" GrimeWall="0" />
+ <room Name="Quarters 1 Bath" InternalName="bathroom" Color="120 160 190" InteriorWall="2" InteriorWallTrim="0" Floor="4" GrimeFloor="0" GrimeWall="0" />
+ <room Name="Quarters 2" InternalName="bedroom" Color="80 104 168" InteriorWall="2" InteriorWallTrim="0" Floor="3" GrimeFloor="0" GrimeWall="0" />
+ <room Name="Quarters 2 Bath" InternalName="bathroom" Color="120 160 190" InteriorWall="2" InteriorWallTrim="0" Floor="4" GrimeFloor="0" GrimeWall="0" />
+ <room Name="Corridor" InternalName="hall" Color="160 150 120" InteriorWall="2" InteriorWallTrim="0" Floor="4" GrimeFloor="0" GrimeWall="0" />
+ <room Name="Junior Quarters 3" InternalName="bedroom" Color="88 88 150" InteriorWall="2" InteriorWallTrim="0" Floor="3" GrimeFloor="0" GrimeWall="0" />
+ <room Name="Junior Quarters 4" InternalName="bedroom" Color="96 96 158" InteriorWall="2" InteriorWallTrim="0" Floor="3" GrimeFloor="0" GrimeWall="0" />
+ <floor>
+  <rooms>
+1,1,1,1,1,1,2,2,2,3,3,3,3,3,4,4,4,
+1,1,1,1,1,1,2,2,2,3,3,3,3,3,4,4,4,
+1,1,1,1,1,1,1,1,1,3,3,3,3,3,3,3,3,
+1,1,1,1,1,1,1,1,1,3,3,3,3,3,3,3,3,
+1,1,1,1,1,1,1,1,1,3,3,3,3,3,3,3,3,
+1,1,1,1,1,1,1,1,1,3,3,3,3,3,3,3,3,
+5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7,
+6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7,
+6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7,
+6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7,
+6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7,
+6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7
+</rooms>
+  <object type="door" x="2" y="6" dir="N" Tile="5" FrameTile="0" />
+  <object type="door" x="7" y="2" dir="N" Tile="5" FrameTile="0" />
+  <object type="door" x="11" y="6" dir="N" Tile="5" FrameTile="0" />
+  <object type="door" x="15" y="2" dir="N" Tile="5" FrameTile="0" />
+  <object type="door" x="4" y="8" dir="N" Tile="5" FrameTile="0" />
+  <object type="door" x="11" y="8" dir="N" Tile="5" FrameTile="0" />
+  <object type="door" x="0" y="6" dir="W" Tile="5" FrameTile="0" />
+  <object type="furniture" FurnitureTiles="0" orient="N" x="1" y="0" />
+  <object type="furniture" FurnitureTiles="1" orient="N" x="0" y="0" />
+  <object type="furniture" FurnitureTiles="1" orient="N" x="3" y="0" />
+  <object type="furniture" FurnitureTiles="2" orient="N" x="4" y="0" />
+  <object type="furniture" FurnitureTiles="3" orient="N" x="4" y="1" />
+  <object type="furniture" FurnitureTiles="4" orient="W" x="0" y="3" />
+  <object type="furniture" FurnitureTiles="5" orient="W" x="0" y="4" />
+  <object type="furniture" FurnitureTiles="6" orient="W" x="0" y="5" />
+  <object type="furniture" FurnitureTiles="7" orient="S" x="3" y="5" />
+  <object type="furniture" FurnitureTiles="8" orient="W" x="4" y="4" />
+  <object type="furniture" FurnitureTiles="9" orient="E" x="6" y="4" />
+  <object type="furniture" FurnitureTiles="10" orient="W" x="8" y="5" />
+  <object type="furniture" FurnitureTiles="11" orient="W" x="0" y="2" />
+  <object type="furniture" FurnitureTiles="12" orient="N" x="8" y="0" />
+  <object type="furniture" FurnitureTiles="13" orient="N" x="7" y="0" />
+  <object type="furniture" FurnitureTiles="14" orient="W" x="6" y="1" />
+  <object type="furniture" FurnitureTiles="0" orient="N" x="10" y="0" />
+  <object type="furniture" FurnitureTiles="1" orient="N" x="9" y="0" />
+  <object type="furniture" FurnitureTiles="1" orient="N" x="12" y="0" />
+  <object type="furniture" FurnitureTiles="4" orient="N" x="13" y="0" />
+  <object type="furniture" FurnitureTiles="5" orient="W" x="9" y="2" />
+  <object type="furniture" FurnitureTiles="2" orient="W" x="9" y="3" />
+  <object type="furniture" FurnitureTiles="3" orient="E" x="10" y="3" />
+  <object type="furniture" FurnitureTiles="6" orient="W" x="9" y="5" />
+  <object type="furniture" FurnitureTiles="9" orient="S" x="12" y="5" />
+  <object type="furniture" FurnitureTiles="8" orient="W" x="13" y="4" />
+  <object type="furniture" FurnitureTiles="10" orient="W" x="16" y="5" />
+  <object type="furniture" FurnitureTiles="12" orient="N" x="16" y="0" />
+  <object type="furniture" FurnitureTiles="13" orient="N" x="15" y="0" />
+  <object type="furniture" FurnitureTiles="14" orient="W" x="14" y="1" />
+  <object type="furniture" FurnitureTiles="15" orient="N" x="4" y="6" />
+  <object type="furniture" FurnitureTiles="16" orient="N" x="8" y="6" />
+  <object type="furniture" FurnitureTiles="15" orient="N" x="13" y="6" />
+  <object type="furniture" FurnitureTiles="17" orient="N" x="6" y="6" />
+  <object type="furniture" FurnitureTiles="18" orient="W" x="0" y="9" />
+  <object type="furniture" FurnitureTiles="18" orient="W" x="0" y="11" />
+  <object type="furniture" FurnitureTiles="2" orient="N" x="1" y="8" />
+  <object type="furniture" FurnitureTiles="3" orient="N" x="1" y="9" />
+  <object type="furniture" FurnitureTiles="4" orient="N" x="6" y="8" />
+  <object type="furniture" FurnitureTiles="4" orient="N" x="7" y="8" />
+  <object type="furniture" FurnitureTiles="5" orient="N" x="8" y="8" />
+  <object type="furniture" FurnitureTiles="8" orient="W" x="4" y="11" />
+  <object type="furniture" FurnitureTiles="9" orient="E" x="5" y="11" />
+  <object type="furniture" FurnitureTiles="6" orient="W" x="0" y="13" />
+  <object type="furniture" FurnitureTiles="10" orient="W" x="8" y="13" />
+  <object type="furniture" FurnitureTiles="19" orient="W" x="9" y="9" />
+  <object type="furniture" FurnitureTiles="1" orient="W" x="9" y="10" />
+  <object type="furniture" FurnitureTiles="19" orient="W" x="9" y="12" />
+  <object type="furniture" FurnitureTiles="1" orient="W" x="9" y="11" />
+  <object type="furniture" FurnitureTiles="2" orient="N" x="12" y="8" />
+  <object type="furniture" FurnitureTiles="3" orient="N" x="12" y="9" />
+  <object type="furniture" FurnitureTiles="4" orient="N" x="15" y="8" />
+  <object type="furniture" FurnitureTiles="4" orient="N" x="16" y="8" />
+  <object type="furniture" FurnitureTiles="6" orient="N" x="14" y="8" />
+  <object type="furniture" FurnitureTiles="10" orient="W" x="16" y="13" />
+ </floor>
+</building>
