@@ -328,6 +328,15 @@ Every phase in §7 is done in one pass.
 | The galley range | on Deck 2, an `IsoStove`, powered by an invisible generator on its own square and billed to her warp core (`AS.servicePowerBus`) |
 | Tests | `tests/test_farming.py` (static: every recipe item and tag, every crop's items and sprites) and `farming()` in `tests/test_multiplayer.py` (the loop, in the sim) |
 
+**The bay is a working farm when you arrive** (`F.stockBay`, once per world):
+- the front row has one of each crop, ready to harvest;
+- the middle row has one of each still growing;
+- the back row is empty, for you to sow.
+
+The crops are sown and grown with vanilla's own `seed()` and `growPlant()`, so
+they are plants like any other. A tray a player has already sown is left
+alone.
+
 **The bay runs itself.** Every hour the ship does all of this to each plant
 aboard her:
 - waters it full;

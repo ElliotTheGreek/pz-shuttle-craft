@@ -4474,6 +4474,16 @@ package.preload["Farming/farming_vegetableconf"] = function()
         props = {}, sprite = {}, unhealthySprite = {}, dyingSprite = {},
         deadSprite = {}, trampledSprite = {},
     }
+    -- Vanilla's own answers, as far as the tests need them: a plowed plot is
+    -- ground furrows, a growing plant its stage in the healthy table.
+    farming_vegetableconf.getSpriteName = farming_vegetableconf.getSpriteName or function(p)
+        if p.state == "plow" then return "vegetation_farming_01_1" end
+        local t = farming_vegetableconf.sprite[p.typeOfSeed]
+        return t and t[p.nbOfGrow]
+    end
+    farming_vegetableconf.getObjectName = farming_vegetableconf.getObjectName or function(p)
+        return p.typeOfSeed
+    end
     return farming_vegetableconf
 end
 
@@ -4485,6 +4495,11 @@ package.preload["Farming/SFarmingSystem"] = function()
         return self.state ~= "destroyed" and self.state ~= "dead" and self.state ~= "rotten"
             and self.state ~= "harvested"
     end
+    function PlantMT:seed(crop)
+        self.state, self.typeOfSeed, self.nbOfGrow = "seeded", crop, 0
+        SFarmingSystem:growPlant(self)
+    end
+    function PlantMT:setObjectName(n) self.objectName = n end
     function PlantMT:setSpriteName(n) self.spriteName = n; if self.obj then self.obj.spriteName = n end end
     function PlantMT:saveData()
         if self.obj then
@@ -4523,6 +4538,12 @@ package.preload["Farming/SFarmingSystem"] = function()
                 if o == p.obj then table.remove(p.obj.square.objects, i) break end
             end
         end
+    end
+    function SFarmingSystem:growPlant(p)
+        if p.state ~= "seeded" then return end
+        local prop = farming_vegetableconf.props[p.typeOfSeed]
+        if prop and p.nbOfGrow >= prop.harvestLevel then p.hasVegetable = true end
+        p.nbOfGrow = p.nbOfGrow + 1
     end
     -- The part that hurts crops indoors: every plant loses 10 a pass.
     function SFarmingSystem:changeHealth()

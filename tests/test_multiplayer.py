@@ -12402,24 +12402,37 @@ def farming():
     adk_visit(net, rt, k)
     # An empty tray shows its soil, not ground furrows at its foot.
     soil = rt.eval(f"""(function()
-        local t = TREK.Farm.trays({k})[1]
-        local p = SFarmingSystem.instance:getLuaObjectAt(t[1], t[2], TREK.Adirondack.Z)
+        local p
+        for _, t in ipairs(TREK.Farm.trays({k})) do
+            local q = SFarmingSystem.instance:getLuaObjectAt(t[1], t[2], TREK.Adirondack.Z)
+            if q and q.state == "plow" then p = q break end
+        end
         return farming_vegetableconf.getSpriteName(p) == TREK_FarmSoil
             and farming_vegetableconf.getSpriteName({{ state = "plow", x = 1000, y = 1000, z = 0 }}) == "vegetation_farming_01_1"
     end)()""")
     check(soil is True, "farming: a plowed tray would show vanilla's ground furrows")
+    # The bay is a working farm on arrival: a row ready to harvest, a row
+    # growing, and a row of empty trays for the player.
     primed = str(rt.eval(f"""(function()
-        local n, soil = 0, 0
+        local empty, ready, growing, crops = 0, 0, 0, {{}}
         for _, t in ipairs(TREK.Farm.trays({k})) do
             local p = SFarmingSystem.instance:getLuaObjectAt(t[1], t[2], TREK.Adirondack.Z)
-            if p and p.state == "plow" then n = n + 1 end
-            if p and p.spriteName == TREK_FarmSoil then soil = soil + 1 end
+            if p and p.state == "plow" then empty = empty + 1
+            elseif p and p.state == "seeded" and p.hasVegetable then ready = ready + 1; crops[p.typeOfSeed] = true
+            elseif p and p.state == "seeded" then growing = growing + 1 end
         end
-        return n .. "/" .. soil .. "/" .. #TREK.Farm.trays({k})
+        local n = 0
+        for _ in pairs(crops) do n = n + 1 end
+        return empty .. "/" .. ready .. "/" .. growing .. "/" .. n .. "/" .. #TREK.Farm.trays({k})
     end)()"""))
-    n, soil, trays = (int(v) for v in primed.split("/"))
-    check(trays == 21 and n == trays and soil == trays,
-          f"farming: {n} of {trays} trays primed, {soil} showing the tray's soil")
+    empty, ready, growing, kinds, trays = (int(v) for v in primed.split("/"))
+    n = trays
+    check(trays == 21 and empty == 7 and ready == 7 and growing == 7 and kinds == 7,
+          f"farming: the bay starts with {empty} empty, {ready} ready ({kinds} kinds), "
+          f"{growing} growing, of {trays} trays")
+    rt.run(f"TREK.AdirondackServer.buildDeck({k})")
+    check(int(rt.eval("(function() local n = 0 for _, p in ipairs(SFarmingSystem.instance.plants) do if p.state == 'seeded' then n = n + 1 end end return n end)()")) == 14,
+          "farming: the bay was planted a second time")
 
     # Stocked: seeds of every crop, the bench's tools, the tanks' worms.
     seeds = farm_items(rt, k, "seed_locker")
@@ -12518,7 +12531,8 @@ def farming():
 
     for w in rt.warnings():
         fail(f"farming: {w}")
-    print(f"farming: seven crops registered; Deck 5's {trays} trays primed and stocked; a crop "
+    print(f"farming: seven crops registered; Deck 5's {trays} trays: 7 ready to harvest, 7 growing, "
+          f"7 empty; a crop "
           f"kept its health and its water, survived a rebuild, and its tray re-primed after "
           f"harvest; the dehydrator dried tea; the worms bred and starved; the range is a stove")
 

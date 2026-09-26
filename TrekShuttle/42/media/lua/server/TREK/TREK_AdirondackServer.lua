@@ -54,7 +54,7 @@ local TAG = "adk"
 -- Bumped when what an existing object needs changes (doors registered,
 -- containers stocked, sinks with water): a deck built by an older one is
 -- repaired in place on the next visit, without anything being rebuilt.
-AS.FIT = 4
+AS.FIT = 5
 
 function AS.state()
     local s = ModData.getOrCreate(A.StateKey)
@@ -308,7 +308,10 @@ function AS.buildDeck(k)
     end
 
     U.try("adk.doctor", AS.serviceDoctor, k)
-    if TREK.Farm then U.try("adk.trays", TREK.Farm.primeDeck, k) end
+    if TREK.Farm then
+        U.try("adk.trays", TREK.Farm.primeDeck, k)
+        U.try("adk.bay", TREK.Farm.stockBay, k)
+    end
     U.try("adk.bus", AS.servicePowerBus, k)
 
     local s = AS.state()

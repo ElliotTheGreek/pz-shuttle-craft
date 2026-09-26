@@ -117,6 +117,88 @@ function F.primeDeck(k)
     return primed
 end
 
+---------------------------------------------------------------------------
+-- The bay as the crew keep it
+---------------------------------------------------------------------------
+-- The bay is a working farm when anybody first walks into it: the front row
+-- has one of each crop ready to harvest, the middle row one of each still
+-- growing, and the back row is empty for the player to sow. By tray row, in
+-- the order the layout lists the trays.
+F.StartRows = {
+    { "TrekTeaBush", "TrekBergamot", "TrekKlingonCoffee", "TrekPlomeek",
+      "TrekLeolaRoot", "TrekAndorianTuber", "TrekHasperatPepper", stage = 5 },
+    { "TrekHasperatPepper", "TrekAndorianTuber", "TrekLeolaRoot", "TrekPlomeek",
+      "TrekKlingonCoffee", "TrekBergamot", "TrekTeaBush", stages = { 2, 3, 4, 2, 3, 4, 3 } },
+}
+
+--- Sows one primed tray and grows it to `stage` the way vanilla would have:
+--- its own seed(), then its own growPlant() a stage at a time, watered, so
+--- the plant carries every field a hand-sown one does. Returns true.
+function F.plantTray(sq, crop, stage)
+    local sys = system()
+    local plant = sq and plantAt(sq:getX(), sq:getY(), sq:getZ())
+    if not sys or not plant or plant.state ~= "plow" then return false end
+    U.try("farm.seed", function() plant:seed(crop, 3) end)
+    if plant.state ~= "seeded" then return false end
+    for _ = 1, 20 do
+        if (plant.nbOfGrow or 0) >= stage then break end
+        plant.waterLvl = 100
+        U.try("farm.grow", function() sys:growPlant(plant, nil, true) end)
+    end
+    local prop = farming_vegetableconf.props[crop]
+    plant.health = 80
+    plant.waterLvl = 100
+    plant.mildewLvl, plant.aphidLvl, plant.fliesLvl, plant.slugsLvl = 0, 0, 0, 0
+    if prop and (plant.nbOfGrow or 0) >= prop.harvestLevel then plant.hasVegetable = true end
+    U.try("farm.stageSprite", function()
+        plant:setSpriteName(farming_vegetableconf.getSpriteName(plant))
+        plant:setObjectName(farming_vegetableconf.getObjectName(plant))
+    end)
+    U.try("farm.stageSave", function() plant:saveData() end)
+    return true
+end
+
+--- Plants deck k's bay the first time it is seen (F.StartRows), once per
+--- world. Only trays still waiting to be sown: anything a player has planted
+--- is left alone. Returns how many it planted.
+function F.stockBay(k)
+    local AS = TREK.AdirondackServer
+    local st = AS and AS.state()
+    if not st then return 0 end
+    st.farmStocked = st.farmStocked or {}
+    if st.farmStocked[k] then return 0 end
+    local trays = F.trays(k)
+    if #trays == 0 then return 0 end
+    for _, t in ipairs(trays) do
+        if not U.chunkLoaded(t[1], t[2], A.Z) then return 0 end
+    end
+    -- The rows, as the layout has them: trays sorted by row, then along it.
+    local rows = {}
+    for _, t in ipairs(trays) do
+        rows[t[2]] = rows[t[2]] or {}
+        table.insert(rows[t[2]], t)
+    end
+    local ys = {}
+    for y in pairs(rows) do table.insert(ys, y) end
+    table.sort(ys)
+    local planted = 0
+    for r, spec in ipairs(F.StartRows) do
+        local row = rows[ys[r]]
+        if row then
+            table.sort(row, function(a, b) return a[1] < b[1] end)
+            for i, t in ipairs(row) do
+                local crop = spec[i]
+                local stage = spec.stage or (spec.stages and spec.stages[i]) or 3
+                local sq = crop and U.square(t[1], t[2], A.Z, false)
+                if sq and F.plantTray(sq, crop, stage) then planted = planted + 1 end
+            end
+        end
+    end
+    st.farmStocked[k] = true
+    U.log("hydroponics: deck %d's bay planted, %d crops growing", k, planted)
+    return planted
+end
+
 -- **The greenhouse rule.** Vanilla's health pass takes health off a plant
 -- indoors unless its room is a greenhouse, and in winter and bad months off
 -- one it thinks is outdoors; our deck has no rooms, and may count as either.
@@ -308,6 +390,7 @@ function F.hourly()
     for k = 1, #L.decks do
         if AS and AS.state().decks[k] then
             F.primeDeck(k)
+            F.stockBay(k)
             F.serviceDehydrators(k)
             F.serviceWormTanks(k)
         end
