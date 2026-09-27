@@ -345,7 +345,9 @@ These come from the Bandits framework and the bytecode (research of
 The sim checks the logic end to end, in single player and with two clients.
 These depend on the engine and have not been seen yet:
 1. **Walk and idle:** do the crew walk and idle like people? This depends on
-   the animation nodes being picked over the zombie ones.
+   the animation nodes being picked over the zombie ones. `trekcrewmove.xml`
+   did not parse until 2026-09-27 (a `--` in a comment) and the game dropped
+   it, so any walk seen before then was not this one.
 2. **Sitting:** does the sit pose hold, and at the right spot in the chair?
 3. **Pathfinding:** does it find its way over runtime-built decks and
    through the auto doors?

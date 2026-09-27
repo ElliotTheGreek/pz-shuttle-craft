@@ -2232,6 +2232,10 @@ function SIM.gravity()
     end
 end
 function PlayerMT:getVehicle() return self.vehicle end
+-- Light to read by: a test sets `dark` on a player; nobody holds a torch.
+function PlayerMT:tooDarkToRead() return self.dark == true end
+function PlayerMT:getTorchStrength() return 0 end
+function PlayerMT:setJoypadIgnoreAimUntilCentered() end
 function PlayerMT:isbFalling() return false end
 function PlayerMT:getJoypadBind() return -1 end
 function PlayerMT:getUsername() return self.name end
@@ -3092,6 +3096,8 @@ function ISWorldMap.ShowWorldMap(playerNum, centerX, centerY, zoom)
             getSymbolsAPIv2 = function() return symbols end,
             uiToWorldX = function(_, x) return x end,
             uiToWorldY = function(_, y) return y end,
+            worldToUIX = function(_, x) return x end,
+            worldToUIY = function(_, _, y) return y end,
             centerOn = function() end,
             setZoom = function() end,
         },
@@ -3113,6 +3119,63 @@ end
 function ISWorldMap:onClose()
     ISWorldMap_instance = nil
     SIM.map = nil
+end
+
+-- Drawing on the open map, for the tests: every rect and label, in UI
+-- coordinates. The map's projection here is the identity -- world squares are
+-- UI pixels -- which is enough to say where a dot was put, not how it looks.
+SIM.mapDraws = {}
+function ISWorldMap:isVisible() return ISWorldMap_instance == self end
+function ISWorldMap:getWidth() return 1000000 end
+function ISWorldMap:getHeight() return 1000000 end
+function ISWorldMap:drawRect(x, y, w, h, a, r, g, b)
+    table.insert(SIM.mapDraws, { kind = "rect", x = x, y = y, w = w, h = h, r = r, g = g, b = b })
+end
+function ISWorldMap:drawRectBorder() end
+function ISWorldMap:drawTextCentre(text, x, y)
+    table.insert(SIM.mapDraws, { kind = "text", text = text, x = x, y = y })
+end
+
+--- Vanilla's rules for opening the map, ISWorldMap.lua:1491-1629, as they
+--- are: allowed by the sandbox; **refused in the dark** when the sandbox's
+--- MapNeedsLight is on, unless the player sits in a vehicle with a live
+--- battery or holds a lit torch; and otherwise opened through a timed action.
+--- The dark refusal is the whole reason TREK_MapView exists, so it is here
+--- exactly, and a map "opened" in the dark leaves SIM.tooDark set.
+SandboxVars = SandboxVars or {}
+SandboxVars.Map = SandboxVars.Map or { AllowWorldMap = true, MapNeedsLight = true }
+function ISWorldMap.IsAllowed() return SandboxVars.Map.AllowWorldMap == true end
+function ISWorldMap.NeedsLight() return SandboxVars.Map.MapNeedsLight == true end
+function ISWorldMap.HideWorldMap() if ISWorldMap_instance then ISWorldMap_instance:close() end end
+function ISWorldMap.ToggleWorldMap(playerNum)
+    if not ISWorldMap.IsAllowed() then return end
+    local p = getSpecificPlayer(playerNum)
+    if ISWorldMap_instance and ISWorldMap_instance:isVisible() then
+        ISWorldMap.HideWorldMap(playerNum)
+        return
+    end
+    local dark = p and p:tooDarkToRead() or false
+    if p and p:getVehicle() then
+        local v = p:getVehicle()
+        if v.hasLiveBattery and v:hasLiveBattery() then dark = false end
+    end
+    if ISWorldMap.NeedsLight() and p and dark then
+        SIM.tooDark = true
+        return
+    end
+    ISTimedActionQueue.clear(p)
+    ISTimedActionQueue.add(ISReadWorldMap:new(p))
+end
+
+ISReadWorldMap = ISReadWorldMap or {}
+ISReadWorldMap.__index = ISReadWorldMap
+function ISReadWorldMap:new(character, centerX, centerY, zoom)
+    return setmetatable({ character = character, playerNum = 0, centerX = centerX,
+                          centerY = centerY, zoom = zoom, Type = "ISReadWorldMap" }, ISReadWorldMap)
+end
+function ISReadWorldMap:isValid() return ISWorldMap.IsAllowed() end
+function ISReadWorldMap:perform()
+    ISWorldMap.ShowWorldMap(self.playerNum, self.centerX, self.centerY, self.zoom)
 end
 
 --- What is on the open map, for the tests.
@@ -3904,6 +3967,7 @@ function ISTimedActionQueue.add(action)
     table.insert(SIM.actionQueue, action)
     return action
 end
+function ISTimedActionQueue.clear() SIM.actionQueue = {} end
 
 -- `new`'s parameter names, after `self`, the way NetTimedAction reads them.
 local function paramNames(class)

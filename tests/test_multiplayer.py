@@ -10996,6 +10996,97 @@ def map_dot():
           "closes first; a map already saved without it is repaired")
 
 
+
+def map_view():
+    """The ordinary map, at three in the morning with Map needs light on (the
+    author, 2026-09-27: "the map has stopped working"): vanilla's rule stands
+    for somebody out in the dark with nothing lit; aboard, in her seat, or with
+    a tricorder it opens, centred on where the player really is; and it shows
+    a red dot for the player and an orange one for the landed ship."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('walker', 1000.5, 1000.5, 0)")
+    net.start()
+    net.pump(2)
+    P = "SIM.players[1]"
+    rt.run(f"{P}.dark = true; SIM.tooDark = nil; SIM.actionQueue = {{}}")
+
+    def toggle():
+        rt.run("SIM.tooDark = nil; SIM.actionQueue = {}; ISWorldMap.ToggleWorldMap(0)")
+        queued = rt.eval("SIM.actionQueue[1] and SIM.actionQueue[1].Type")
+        return rt.eval("SIM.tooDark") is True, queued == "ISReadWorldMap"
+
+    def read():
+        rt.run("local a = SIM.actionQueue[1]; SIM.actionQueue = {}; a:perform(); SIM.mapDraws = {}; "
+               "ISWorldMap_instance:render()")
+
+    def dots():
+        """{colour: (x, y)} of the discs drawn: the widest rows' middle."""
+        rows = {}
+        n = int(rt.eval("#SIM.mapDraws"))
+        for i in range(1, n + 1):
+            d = rt.eval(f"SIM.mapDraws[{i}]")
+            if d["kind"] != "rect" or d["h"] != 1 or d["w"] < 11:
+                continue
+            r, g = float(d["r"]), float(d["g"])
+            colour = "red" if r > 0.9 and g < 0.3 else "orange" if r > 0.9 and g > 0.4 else None
+            if colour:
+                rows.setdefault(colour, []).append((int(d["x"] + d["w"] // 2), int(d["y"])))
+        return {c: (v[0][0], (min(y for _, y in v) + max(y for _, y in v)) // 2) for c, v in rows.items()}
+
+    # Out in the dark with nothing lit: vanilla's refusal, as the sandbox asks.
+    dark, queued = toggle()
+    check(dark and not queued, "map view: the map opened in the dark with no light at all")
+
+    # A tricorder's screen is light enough.
+    rt.run(f"{P}.inventory:AddItem(instanceItem(TREK.Config.TricorderItem))")
+    dark, queued = toggle()
+    check(not dark and queued, "map view: a tricorder in the pack did not light the map")
+    check(rt.eval("SIM.actionQueue[1].centerX") is None,
+          "map view: walking, the map is not centred on the character")
+    rt.run("TREK.Ship.get().landed = true; TREK.Ship.get().x = 1010; TREK.Ship.get().y = 1005")
+    read()
+    got = dots()
+    check(got.get("red") == (1000, 1000), f"map view: walking, the red dot is at {got.get('red')}")
+    check(got.get("orange") == (1010, 1005), f"map view: the landed ship's dot is at {got.get('orange')}")
+    rt.run("ISWorldMap_instance:close()")
+
+    # Flying: no ship dot, the red dot is the player in her seat.
+    rt.run(f"""{P}.inventory.items = {{}}
+        {P}.vehicle = {{ getScriptName = function() return TREK.Vehicle.SCRIPT end,
+                        getX = function() return {P}.x end, getY = function() return {P}.y end,
+                        getZ = function() return 0 end }}
+        TREK.Ship.get().flying = true""")
+    dark, queued = toggle()
+    check(not dark and queued, "map view: in her seat at night the map would not open")
+    read()
+    got = dots()
+    check("orange" not in got and got.get("red") == (1000, 1000),
+          f"map view: in flight the map drew {got}")
+    rt.run(f"ISWorldMap_instance:close(); {P}.vehicle = nil; TREK.Ship.get().flying = false")
+
+    # Aboard, in her cabin in the void: open, centred on the ship, the red dot
+    # on her.
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    rt.run(f"{P}.dark = true")
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is True, "map view: never got aboard")
+    dark, queued = toggle()
+    check(not dark and queued, "map view: aboard at night the map would not open")
+    cx, cy = rt.eval("SIM.actionQueue[1].centerX"), rt.eval("SIM.actionQueue[1].centerY")
+    check((cx, cy) == (1010, 1005), f"map view: aboard, the map is centred on {cx},{cy}, not the ship")
+    read()
+    got = dots()
+    check(got.get("red") == (1010, 1005), f"map view: aboard, the red dot is at {got.get('red')}")
+    # And M again closes it.
+    rt.run("ISWorldMap.ToggleWorldMap(0)")
+    check(rt.eval("ISWorldMap_instance") is None, "map view: the map would not close")
+    for w in rt.warnings():
+        fail(f"map view: {w}")
+    print("map view: out in the dark the sandbox's rule stands; a tricorder, her seat or her cabin light "
+          "it; aboard it opens on the ship, not the void; a red dot for the player and an orange one "
+          "for the ship on the ground")
+
 def phaser_multiplayer():
     """A cut on a server with two clients: the server fells it, both
     clients lose it, the watcher sees and hears the beam, and a client that
@@ -13880,7 +13971,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
-            transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, traits, traits_multiplayer, species_look, creation_look,
+            transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
             contraband, contraband_multiplayer, multiplayer)
 

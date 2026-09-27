@@ -1277,6 +1277,21 @@ if os.path.isfile(PC):
 else:
     failures.append("traits: shared/Definitions/TREK_ProfessionClothing.lua is missing")
 
+# Every XML file the mod ships has to parse the way the game's parser does
+# (PZXmlUtil, a strict SAX parser). A "--" inside a comment is illegal XML:
+# two AnimSets files carried one, the game logged "The string -- is not
+# permitted within comments" and dropped them -- the Jefferies crawl and the
+# crew's walk -- and nothing here noticed, because nothing here parsed them.
+import xml.etree.ElementTree as _ET
+_xmls = glob.glob(os.path.join(ROOT, "TrekShuttle", "**", "*.xml"), recursive=True)
+if len(_xmls) < 10:
+    failures.append(f"xml: only {len(_xmls)} XML files found under TrekShuttle/; the pattern has stopped matching")
+for _x in _xmls:
+    try:
+        _ET.parse(_x)
+    except _ET.ParseError as e:
+        failures.append(f"xml: {os.path.relpath(_x, ROOT)} does not parse: {e}")
+
 # The field station's breaker box (FIELD_STATION.md 3) goes on one square of
 # one vanilla stockroom wall. Read the real map, with the server's own rule:
 # a game update that moves that wall or puts something on it fails here, at

@@ -1493,6 +1493,38 @@ apply to them.
 - **When a feature "never worked", read its own diagnostic first.** It is
   cheaper than any theory, and here it was one line.
 
+### The map needs light, and the shuttle has no battery
+
+**Found in play, 2026-09-27: "the map has stopped working."** Nothing had
+changed in the mod's map code and nothing was logged. The save had vanilla's
+sandbox *Map needs light* on, and the session was at three in the morning:
+`ISWorldMap.ToggleWorldMap` refuses a player too dark to read
+(`ISWorldMap.lua:1592-1607`), with a small "too dark" halo, and inside a
+vehicle it lifts that only for one with a live battery. The shuttle has none.
+Every earlier test of the map had been played in daylight.
+
+`TREK_MapView.lua` opens the map by vanilla's own route (the
+`ISReadWorldMap` timed action) without the darkness check when there is light
+to read by -- aboard any of the three places, in her seats, or with a
+tricorder or PADD in the pack -- and leaves the sandbox's rule alone
+everywhere else. It also centres the map on where the player really is when
+they are aboard (vanilla centres on the character, who is in the void), and
+draws a red dot for the player and an orange one for the landed shuttle.
+
+- **A feature that works by day has not been tested.** The clock is part of
+  the state; so is the sandbox.
+- **A refusal vanilla shows as a halo note is easy to miss** and never logged.
+  `pz_sim.lua` now carries vanilla's darkness rule exactly, so `map_view()`
+  fails the way the game did.
+
+### Every XML file must parse the way the game parses it
+
+The same session's log: `The string "--" is not permitted within comments`,
+twice. Two AnimSets files -- the Jefferies crawl and the crew's walk -- had a
+double dash in a comment, the game dropped both, and no check here had ever
+parsed them. `tests/test_assets.py` parses every XML file the mod ships now.
+**Never write `--` inside an XML comment.**
+
 ### A wall on the map is more than its wall tile
 
 **New in this mod, with the field station, and caught before the game.** The
@@ -2412,6 +2444,9 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **Stuck on the pad, then put back outside** | The server never reported the cabin ready. Look for `[TREK] cabin ready` in the server's log and `arrival tick` lines on the client. |
 | **The phaser runs out** | The sweep is not seeing it. `TREK_Phaser()` reports how many it found; zero while one is in your hands means the inventory lookup is wrong. |
 | **Grass, trees or zombies outside the cabin or the Adirondack** | The void map is not loaded (log: `the 'TrekShuttle' map is not loaded`). In single player the map is not under `common/media/maps` -- the engine never reads it from `42/`; on a server, add it to `Map=`. Or the save generated those cells before the map was loaded: test in a new world. |
+| **The map will not open at night, or in the shuttle** | The sandbox's *Map needs light* and no light to read by. Aboard, in her seats or with a tricorder or PADD it opens anyway (`TREK_MapView`); out in the dark with none of those it is vanilla's refusal, a "too dark" note over the head. |
+| **The map opens on an empty black picture** | It was centred on the character in the void. `TREK_MapView` centres it on the ship aboard; if this returns, `MV.open` is not being reached. |
+| **The Jefferies crawl or the crew's walk never plays** | An AnimSets XML file failed to parse and the game dropped it: `grep "not permitted\|PZXmlParserException" console.txt`. `tests/test_assets.py` parses them all. |
 | **No breaker box in the Muldraugh stockroom** | The server has not looked yet (the chunk loads, then within `C.FieldStation.serviceTicks`), or no square passed its check: `grep "field station" console.txt` -- a WARN names the rule. `python tools/fieldstation_site.py` shows the same thing from the map. |
 | **Stars under the field station, or grass round it** | The void map is not loaded, or the save generated those cells before this build: the station's cells are mapped black (`gen_void_map.py`). |
 | **Another deck in view from this one** | `DECK_PITCH` has come down below the engine's load radius (79 squares from the player's chunk). See `JEFFERIES.md` 5. |

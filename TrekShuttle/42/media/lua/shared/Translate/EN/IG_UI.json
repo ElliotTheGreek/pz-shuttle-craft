@@ -411,6 +411,7 @@
     "IGUI_TREK_AdkDeck": "%1: %2",
     "IGUI_TREK_AdkLostLock": "The Adirondack's transporter lost its lock; back to the shuttle",
     "IGUI_TREK_WrongPlace": "Not from here",
+    "IGUI_TREK_MapShuttle": "Shuttle",
     "IGUI_TREK_FieldStation": "Field Station",
     "IGUI_TREK_StationLift": "Lift",
     "IGUI_TREK_StationLiftHint": "Lift: step into the lift car",

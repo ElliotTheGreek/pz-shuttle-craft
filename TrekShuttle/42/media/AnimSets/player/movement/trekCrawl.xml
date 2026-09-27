@@ -3,7 +3,7 @@
      Bob_Crawl and plays it nowhere; this node plays it whenever the mod sets
      the TrekCrawl variable on a player in a tube. Priority 20 is above every
      vanilla movement node (the highest is 10), so it wins whatever else is
-     true -- sneaking, a weapon in hand, limping (AnimNode.compareSelectionConditions:
+     true  -  sneaking, a weapon in hand, limping (AnimNode.compareSelectionConditions:
      priority first, then the number of conditions). -->
 <animNode>
 	<m_Name>trekCrawl</m_Name>

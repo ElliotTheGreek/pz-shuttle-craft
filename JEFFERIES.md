@@ -190,7 +190,9 @@ generated, and every save made before this has grass in them.
 2. **Spacing.** At the widest zoom on any deck, no other deck in view.
 3. **The hatch.** Walk up to the west wall of Deck 1's corridor, row 3: it
    opens. The hatch art is `tube_hatch_raw.jpg` in a full-height door frame.
-4. **The crawl.** Into the tube: does `Bob_Crawl` play, which way does it
+4. **The crawl.** (Until 2026-09-27 `trekCrawl.xml` did not parse -- a `--`
+   in a comment -- and the game dropped it, so any crawl seen before then was
+   not this one.) Into the tube: does `Bob_Crawl` play, which way does it
    face, and does the idle node hold a pose or snap to the T-pose. If the
    crawl reads wrong, the two XML files are all there is to change.
 5. **The crossing.** All the way to Deck 2. Watch for being held on a square
