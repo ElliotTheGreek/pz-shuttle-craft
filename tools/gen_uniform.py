@@ -12,7 +12,7 @@ Of the 1,795 clothing items build 42 ships, 597 have no mesh at all and the
 rest share a small pool of rigs -- 38 items ride `bob_trousers`, 7 ride
 `bob_boilersuit`. A garment is an item script, a nine-line clothing XML, a
 GUID row and a 256x256 PNG. So a uniform is a **texture**, and the hard part
-of ROADMAP2 section 1.4 does not exist.
+of the wardrobe's design (UNIFORMS.md) does not exist.
 
 Why the texture is painted from the mesh's own UVs
 --------------------------------------------------

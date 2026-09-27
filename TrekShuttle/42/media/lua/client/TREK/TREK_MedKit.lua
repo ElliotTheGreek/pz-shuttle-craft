@@ -545,8 +545,8 @@ end
 
 --- The downed ensign relative to this sweep, if they are in range; nil if not.
 ---
---- ROADMAP2: "Long-range systems locate the region; the tricorder locates
---- the person." Their square is already in the contact store every client
+--- The progression design (ENSIGN.md): "Long-range systems locate the
+--- region; the tricorder locates the person." Their square is already in the contact store every client
 --- holds, so this is arithmetic, not a search -- and it is their *true* square,
 --- where the map only ever draws the long-range circle.
 local function personnelFix(sw)

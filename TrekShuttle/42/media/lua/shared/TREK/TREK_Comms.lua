@@ -124,9 +124,10 @@ end)
 ---------------------------------------------------------------------------
 --- Days since the ship was commissioned, or nil before that.
 ---
---- **Commissioned means first boarded**, for now: the first time the cabin
---- was built. ROADMAP2 1.6's cold start will change what sets `day0` and
---- nothing that reads it (COMMS.md 4: "two weeks later" has to mean two
+--- **Day zero is commissioning**: `TREK_CommsServer.commission` sets `day0`
+--- once the cabin is built and `s.commissioned` is true -- the first crystal
+--- loaded on a cold start, the first boarding otherwise (ENERGY.md 10.4).
+--- Nothing that reads it cares which (COMMS.md 4: "two weeks later" has to mean two
 --- weeks of the crew's own time, not of the world's).
 ---
 --- The sandbox's first-call setting shifts the whole calendar: the story is

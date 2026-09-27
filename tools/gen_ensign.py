@@ -53,7 +53,7 @@ TEXTURES = os.path.join(PZ, "textures")
 # The pose, and the moment of it. Sitting on the ground and doubled over reads
 # as *hurt and alive*; the three lying-down poses the game has
 # (Bob_Deadbody_OnBack, Bob_Idle_FloorOnFront, Bob_SitGround_SleepIdle) all
-# read as a body, which is the one thing ROADMAP2 1.7 says the ensign must not look
+# read as a body, which is the one thing the design (ENSIGN.md) says the ensign must not look
 # like. The frame is the middle of the loop, where the hand is on the stomach.
 POSE = "Bob_SitGround_Pain_Stomach.x"
 POSE_AT = 0.5

@@ -1333,7 +1333,7 @@ C.ProbeFlightTicks = 60
 -- **This was 1200 to 2400 and it was wrong.** A quarter of the map in one
 -- hop: the first contact anybody got was placed far north of the playable
 -- world entirely, and the crew walked toward a mark that was never going to
--- have anything on it. "Across a great map distance" is what ROADMAP2 asks
+-- have anything on it. "Across a great map distance" is what the design asked
 -- for and it is not what the game can pay -- the roadmap says as much about
 -- the ensign, that "about a mile" has to be tuned by actual travel time
 -- rather than converted literally.
@@ -1351,10 +1351,11 @@ C.ProbeMaxDistance = 260
 -- points at nothing.
 C.ProbeBearingTries = 24
 
--- How often a probe finds anything. ROADMAP2: "Random probes may find
--- nothing" -- an honest empty report is a valid outcome and the interface has
--- to be able to say so. The opening guarantee that 1.6 needs is a separate
--- mechanism and is deliberately not this number.
+-- How often a probe finds anything. The design (PROBES.md): "Random probes
+-- may find nothing" -- an honest empty report is a valid outcome and the interface has
+-- to be able to say so. The opening guarantee (the first probe of a save
+-- always finds something, ENERGY.md 10) is a separate mechanism and is
+-- deliberately not this number.
 --
 -- It was 0.65, and the first cold-start play (2026-09-24) drew four empty
 -- probes in a row after the opening one -- a 1.5% streak, but a design that
@@ -1421,7 +1422,7 @@ C.ContactKinds = {
     clue = true,
 }
 
--- ROADMAP2's common lifecycle:
+-- The contacts' common lifecycle (PROBES.md, MAP_MARKERS.md):
 --
 --     unknown -> reported -> investigated -> recovered / completed
 --                                        -> expired / invalid
@@ -1580,8 +1581,8 @@ C.EnsignSurnames = { "Okonkwo", "Vance", "Tamura", "Reyes", "Lindqvist",
                      "Haddad", "Castellan", "Novak", "Achebe", "Moreau",
                      "Sato", "Brennan", "Kowalczyk", "Ferreira" }
 
--- What a rescue pays. Patterns, not a crystal: ROADMAP2 says not to hand out
--- another crystal right after the opening one, and a pattern is for ever.
+-- What a rescue pays. Patterns, not a crystal: the design (ENSIGN.md 4) says
+-- not to hand out another crystal right after the opening one, and a pattern is for ever.
 -- Learned in this order, the first few the ship does not already know.
 C.RescuePatterns = {
     "Base.Antibiotics", "Base.SutureNeedle", "Base.Splint",

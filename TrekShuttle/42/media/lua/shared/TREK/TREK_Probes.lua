@@ -194,7 +194,7 @@ end
 
 --- Enforces the two bounds. Authority only, and idempotent.
 ---
---- **Two bounds, and they are not the same bound.** ROADMAP2: "Keep
+--- **Two bounds, and they are not the same bound.** The design: "Keep
 --- unresolved contacts, retain only a bounded number of resolved records."
 --- So the resolved history is trimmed to C.MaxResolvedContacts whatever the
 --- total is -- a crew who have recovered forty crystals do not need forty

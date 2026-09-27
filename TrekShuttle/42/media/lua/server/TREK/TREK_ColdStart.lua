@@ -19,7 +19,7 @@
         forward left in it.
 
     **An existing save is never drained.** A ship that has ever been built or
-    landed carries on commissioned, whatever the sandbox says. ROADMAP2: never
+    landed carries on commissioned, whatever the sandbox says. The rule (ENERGY.md 3.2): never
     infer a campaign from a low reserve -- `s.commissioned` is explicit and
     published, and nothing reads the reserve to decide it.
 

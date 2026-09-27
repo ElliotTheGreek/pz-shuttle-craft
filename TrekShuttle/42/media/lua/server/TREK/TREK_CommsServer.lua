@@ -128,7 +128,7 @@ function S.event(kind, name)
         d.lastName = name
         d.flags.thanksDue = true
         -- The first rescue hands the ship a tape off the ensign's own
-        -- recorder (LORE.md 5, #17): ROADMAP2 1.7 wanted a reward that is
+        -- recorder (LORE.md 5, #17): the rescue (ENSIGN.md) wanted a reward that is
         -- not another crystal, and a piece of somebody is it.
         if d.rescued == 1 then S.issueTape(C.EnsignTape) end
     elseif kind == "lost" then

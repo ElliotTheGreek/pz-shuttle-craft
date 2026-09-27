@@ -433,7 +433,7 @@ if os.path.isfile(BODY_LOC):
                                 f"the game declares; the garment cannot be "
                                 f"worn")
 
-# ROADMAP2 1.4: "no arbitrary stat bonus or armour-like protection". Vanilla's
+# The wardrobe's design (UNIFORMS.md 4): "no arbitrary stat bonus or armour-like protection". Vanilla's
 # Boilersuit -- the block the duty uniform was copied from -- carries
 # ScratchDefense = 10, and a defence stat that rides along because it was in
 # the source block is exactly the "better than intended" item DEV_GUIDE warns
@@ -447,7 +447,7 @@ for _name, _body in zip(_cl_chunks[1::2], _cl_chunks[2::2]):
                  "NeckProtectionModifier"):
         if re.search(rf"^\s*{stat}\s*=", _body, re.M):
             failures.append(
-                f"{_name} sets {stat}. ROADMAP2 1.4 says the uniform carries "
+                f"{_name} sets {stat}. UNIFORMS.md says the uniform carries "
                 f"no armour-like protection; vanilla's Boilersuit has "
                 f"ScratchDefense = 10 and it must not be copied across.")
 

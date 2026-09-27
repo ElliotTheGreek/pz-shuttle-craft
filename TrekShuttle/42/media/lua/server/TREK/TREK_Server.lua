@@ -2500,7 +2500,7 @@ end)
 -- A launch is **one authority-side transaction**: validate, spend, and create
 -- the job, with nothing in between that a second request could interleave
 -- with. Two crew hitting the menu together therefore produce one probe and
--- one deduction, which is what ROADMAP2 asks for -- "Racing launch requests
+-- one deduction, which is what the design asks for (PROBES.md) -- "Racing launch requests
 -- create one job and one deduction" -- and it comes out of doing the whole
 -- thing in one handler rather than out of any locking.
 --
@@ -2823,7 +2823,7 @@ end
 --- Runs on the game-minute tick rather than per server tick, because a
 --- three-hundred-tick flight at sixty ticks a second is five seconds and this
 --- is meant to be a journey. It is also the tick every setup is certain to
---- run, so a probe cannot be stranded by a client disconnecting -- ROADMAP2:
+--- run, so a probe cannot be stranded by a client disconnecting -- PROBES.md:
 --- "A probe continues if its launching player disconnects."
 function S.serviceProbe()
     if not Probes.active() then return end
@@ -2839,9 +2839,9 @@ function S.serviceProbe()
     -- one launch in three is 250 units and an hour of game time for a line in
     -- a log the player never reads, and the very first one coming back empty
     -- is indistinguishable from the feature being broken -- which is exactly
-    -- how it read the first time anybody played it. ROADMAP2 1.6 wants a
-    -- guaranteed opening for the cold start anyway; this is the honest
-    -- minimum of it, and every probe after the first is a fair roll.
+    -- how it read the first time anybody played it. It is also the cold
+    -- start's guaranteed opening (ENERGY.md 10.5), and every probe after
+    -- the first is a fair roll.
     --
     -- And never more than C.ProbeDryLimit empty ones in a row: the first
     -- cold-start play drew four, which is a campaign stalled on luck.
@@ -2903,8 +2903,8 @@ function S.serviceProbe()
 
     -- **Tell the crew.** Until this, the only trace of an empty report was a
     -- line in console.txt, so from the console a probe that found nothing and
-    -- a probe that never happened looked exactly the same. ROADMAP2 asks for
-    -- the page to show recent reports, and an honest empty result is a real
+    -- a probe that never happened looked exactly the same. The design (PROBES.md) asks
+    -- for the page to show recent reports, and an honest empty result is a real
     -- outcome that has to be reported as one.
     for _, p in ipairs(U.players()) do
         Net.toClient(p, "probeReport", { found = found })

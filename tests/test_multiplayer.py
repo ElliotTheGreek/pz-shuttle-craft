@@ -5823,7 +5823,7 @@ def emh_multiplayer():
 def contacts():
     """The contact store: what it accepts, what it refuses, and what it drops.
 
-    This is ROADMAP2 step 3 built against **synthetic** contacts, which is the
+    This is the contact store (MAP_MARKERS.md) built against **synthetic** contacts, which is the
     roadmap's own instruction: the store, its bounds and its map view can all
     be proven before a probe exists to fill it, and every one of them is a
     thing that would otherwise only be found once probes were being debugged
@@ -6112,7 +6112,7 @@ def aboard_menu(rt):
 def probes():
     """Fabricating, launching, flying and reporting.
 
-    ROADMAP2 step 4, in the shape the author asked for after playing it:
+    The probes (PROBES.md), in the shape the author asked for after playing it:
     energy buys a **probe**, and a probe is what a launch costs. "Three probes
     aboard" is a state you can plan around; "830 units of reserve" is
     arithmetic you have to do first.

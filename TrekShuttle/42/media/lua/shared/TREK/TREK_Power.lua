@@ -516,7 +516,7 @@ end
 --- `s.dark` is unambiguous. The authority's numbers are always current, even
 --- in the moment between a spend and the S.powerChanged that publishes it.
 ---
---- ROADMAP2 says *never infer a campaign from a low reserve*: this is the
+--- The rule (ENERGY.md 3.2): *never infer a campaign from a low reserve*: this is the
 --- ship's power, and nothing about the story reads it.
 function P.dark(pool)
     if isClient() then
