@@ -574,3 +574,42 @@ b: Go. It's all right. I just need a minute.
  | I'm all right. Honestly. Thank you for asking.
 a: I'm on deck three if you change your mind. | Find me later. I mean it.
 -> end
+
+# ---------------------------------------------------------------------------
+# The field station (FIELD_STATION.md 2): the ship logged the survey's field
+# office as dark on 29 June. This is how a player hears where it is.
+scene: cor_field_office
+where: corridor, lift, transporter
+cast: a=any, b=any
+weight: 2
+
+= start
+a: Anything from the field office? | Has anybody tried the field office again?
+ | Did ops ping the Muldraugh office this morning?
+b: Nothing. Dark since the twenty-ninth of June. | Silence. Same as every day.
+a: The one under the television shop? | Behind the TV shop in Muldraugh?
+b: That's the one. Electronics store on the main road, by the Zippee.
+ | That's it. The shop on the main road. Shepard's cover.
+-> dead 2, hiding 2
+
+= dead
+a: You think they're gone? | Do you think anybody's left down there?
+b: I think a hole in the ground is a good place to be in a plague.
+ | I don't think anything. Thinking about it doesn't help.
+a: Eight people were stationed there. Eight. | I knew two of them.
+b: I know. | Me too.
+-> close
+
+= hiding
+a: Maybe they went quiet on purpose. | What if they just stopped answering?
+b: The masking field. If it's up, we'd see nothing. That's what it's for.
+ | Then good for them. I wouldn't trust us either, after February.
+a: Somebody should knock on the door. | Somebody should go and look.
+b: Somebody should. Nobody's cleared to. | Tell the captain. I dare you.
+-> close
+
+= close
+a: Next time you're on the pads, try the frequency again.
+ | I'll ask th'Zoran to try once more.
+b: I will. | Every day. | For what it's worth.
+-> end

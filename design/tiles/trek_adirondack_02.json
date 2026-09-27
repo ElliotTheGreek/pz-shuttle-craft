@@ -684,6 +684,27 @@
   "layer": "Furniture",
   "use": {}
  },
+ "fuse_box": {
+  "area": "fieldstation",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     212
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     211
+    ]
+   ]
+  },
+  "layer": "WallFurniture",
+  "use": {}
+ },
  "galley_counter": {
   "area": "lounge",
   "facings": {

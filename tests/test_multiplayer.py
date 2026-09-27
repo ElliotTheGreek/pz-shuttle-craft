@@ -11838,11 +11838,13 @@ def adk_piece(rt, piece):
     return int(k), int(x), int(y)
 
 
-def adk_items(rt, piece):
-    """Every item in every container of a piece aboard her, as full types."""
+def adk_items(rt, piece, site="adk"):
+    """Every item in every container of a piece aboard her (or, with
+    site="fst", in the field station), as full types."""
     got = rt.eval(f"""(function()
         local A, out = TREK.Adirondack, {{}}
         for k, d in ipairs(A.Layout.decks) do
+            if A.siteOf(k) == "{site}" then
             for _, o in ipairs(d.objects) do
                 if o[5] == "{piece}" then
                     local x, y = A.at(k, o[1], o[2])
@@ -11854,6 +11856,7 @@ def adk_items(rt, piece):
                         end
                     end
                 end
+            end
             end
         end
         return table.concat(out, ";")
@@ -12317,9 +12320,15 @@ def jefferies():
         return
     adk_visit(net, rt, 1)
 
+    # Between her decks only: the field station's sublevels are no part of
+    # her, and no tube reaches them (FIELD_STATION.md 4).
     ntubes = int(rt.eval("#TREK.Adirondack.Layout.tubes"))
-    check(ntubes == int(rt.eval("#TREK.Adirondack.Layout.decks")) - 1,
-          f"jefferies: {ntubes} tubes for {rt.eval('#TREK.Adirondack.Layout.decks')} decks")
+    ndecks = int(rt.eval('#TREK.Adirondack.decksOf("adk")'))
+    check(ntubes == ndecks - 1, f"jefferies: {ntubes} tubes for {ndecks} decks")
+    check(rt.eval("""(function() for _, t in ipairs(TREK.Adirondack.Layout.tubes) do
+            if TREK.Adirondack.siteOf(t.from) ~= "adk" or TREK.Adirondack.siteOf(t.to) ~= "adk" then
+                return false end end return true end)()""") is True,
+          "jefferies: a tube reaches the field station")
     # Every tube leaves one deck and reaches the next, and none is short.
     for t in range(1, ntubes + 1):
         check(tube_len(rt, t) > 80, f"jefferies: tube {t} is only {tube_len(rt, t)} squares")
@@ -13541,6 +13550,323 @@ def contraband_multiplayer():
           "flashing light asked from a client and cleared on both")
 
 
+
+# --- the field station (FIELD_STATION.md) -----------------------------------------------
+
+# The stockroom of Muldraugh's electronics store, as the vanilla map has it
+# (tools/fieldstation_site.py): a room called electronicsstorage, a solid west
+# wall at 10602 with a bare square at 9604 (its trim on every square), a
+# workbench on the next one down, a locker in the corner above it, and an
+# interior window along the north edge. Built in whichever runtime it is run
+# in, because every process loads the map.
+FS_STOCKROOM = """
+    SIM.tileProps["walls_interior_house_04_32"] = { WallW = true }
+    SIM.tileProps["walls_commercial_02_1"] = { WindowN = true, windowN = true }
+    SIM.tileProps["location_business_machinery_01_19"] = {}
+    -- The trim every wall in the stockroom carries: part of the wall.
+    SIM.tileProps["location_trailer_02_48"] = { WallOverlay = true, attachedW = true }
+    SIM.room("electronicsstorage", 10602, 9603, 10611, 9608, 0)
+    local function put(x, y, sprite)
+        local sq = SIM.rawSquare(x, y, 0)
+        local o = SIM.object(sprite)
+        o.square = sq
+        table.insert(sq.objects, o)
+    end
+    for y = 9603, 9608 do
+        put(10602, y, "walls_interior_house_04_32")
+        put(10602, y, "location_trailer_02_48")
+    end
+    for x = 10605, 10610 do put(x, 9603, "walls_commercial_02_1") end
+    put(10602, 9603, "furniture_storage_02_0")
+    put(10602, 9605, "location_business_machinery_01_19")
+    put(10602, 9606, "location_business_machinery_01_19")
+"""
+
+
+def fs_menu(rt):
+    """Right-clicks where the player is aiming; returns the labels offered."""
+    rt.run("""
+        fsCtx = SIM.contextMenu()
+        SIM.fire("OnPreFillWorldObjectContextMenu", 0, fsCtx, {}, false)
+    """)
+    return str(rt.eval("fsCtx:deepLabels()"))
+
+
+def fs_click(rt, label):
+    rt.run(f"""(function()
+        for _, o in ipairs(fsCtx.options) do
+            if o.name == "{label}" then o.fn(o.target, unpack(o.args)) return end
+        end
+        error("no option {label}")
+    end)()""")
+
+
+def fs_ours(rt, x, y):
+    """(boxes, panels) of ours on the square, by sprite."""
+    return rt.eval(f"""(function()
+        local FS, boxes, panels = TREK.FieldStation, 0, 0
+        for _, o in ipairs(SIM.rawSquare({x}, {y}, 0).objects) do
+            if o.spriteName == FS.BoxSprite.W or o.spriteName == FS.BoxSprite.N then boxes = boxes + 1 end
+            if o.spriteName == FS.PanelSprite.W or o.spriteName == FS.PanelSprite.N then panels = panels + 1 end
+        end
+        return boxes, panels
+    end)()""")
+
+
+def fieldstation():
+    """The breaker box on the stockroom wall, opened; the lift down; the
+    sublevels built, their lift, their power and their crew; and up again."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('solo', 10606.5, 9606.5, 0)")
+    rt.run(FS_STOCKROOM)
+    net.start()
+    rt.run(ADK_SETUP)
+    P = "SIM.players[1]"
+    sx, sy = 10602, 9604
+
+    # --- the layout: three sublevels of their own, far from her ------------------
+    lay = rt.eval("""(function()
+        local A, L = TREK.Adirondack, TREK.Adirondack.Layout
+        local fst, adk, near = A.decksOf("fst"), A.decksOf("adk"), 1e9
+        for _, k in ipairs(fst) do
+            for _, j in ipairs(adk) do
+                near = math.min(near, math.abs(L.decks[k].ox - L.decks[j].ox))
+            end
+        end
+        return #fst, #adk, near, fst[1]
+    end)()""")
+    nf, na, near, first = int(lay[0]), int(lay[1]), int(lay[2]), int(lay[3])
+    check(nf == 3 and na == 5, f"fieldstation: {nf} sublevels and {na} decks, not 3 and 5")
+    check(near >= 400, f"fieldstation: a sublevel stands {near} squares from one of her decks")
+
+    # --- the checks on the wall ----------------------------------------------------
+    why = rt.eval(f"""(function()
+        local F = TREK.FieldStationServer
+        local function at(x, y) return SIM.rawSquare(x, y, 0) end
+        return F.checkSquare(at({sx}, {sy}), "W", "electronicsstorage"),
+               F.checkSquare(at(10602, 9605), "W", "electronicsstorage"),
+               F.checkSquare(at(10607, 9603), "N", "electronicsstorage"),
+               F.checkSquare(at(10604, 9604), "W", "electronicsstorage"),
+               F.checkSquare(at({sx}, {sy}), "W", "grocery")
+    end)()""")
+    got = [str(w) if w is not None else None for w in why]
+    check(got == [None, "occupied", "opening", "wall", "room"],
+          f"fieldstation: the wall checks answered {got}")
+    # A configured square that fails (a workbench on it) is not used, and the
+    # room is searched for the one that passes.
+    moved = rt.eval("""(function() local site = TREK.Config.FieldStation
+        local oy = site.y
+        site.y = 9605
+        local x, y, z, edge = TREK.FieldStationServer.chooseSpot()
+        site.y = oy
+        return x, y, edge end)()""")
+    check(tuple(moved) == (sx, sy, "W"), f"fieldstation: from a blocked square the search chose {moved}")
+
+    # --- the box, placed once on the checked square --------------------------------
+    net.pump(70)
+    rec = rt.eval("(function() local r = TREK.Ship.get().station or {} "
+                  "return r.x, r.y, r.edge, r.found end)()")
+    check((rec[0], rec[1], rec[2]) == (sx, sy, "W") and rec[3] is False,
+          f"fieldstation: the record says {rec}")
+    check(tuple(fs_ours(rt, sx, sy)) == (1, 0), f"fieldstation: the wall holds {fs_ours(rt, sx, sy)}")
+    net.pump(70)
+    check(tuple(fs_ours(rt, sx, sy)) == (1, 0), "fieldstation: a second look hung a second box")
+
+    # Refused down before anybody has opened it -- standing right at it, so
+    # it is the closed box that refuses and not the distance.
+    rt.run(f"{P}.x, {P}.y = {sx} + 0.5, {sy} + 0.5")
+    rt.run(f"TREK.Core.requestMove({P}, 'stationDown', function() fsEarly = true end)")
+    net.pump(4)
+    check(rt.eval("fsEarly") is None, "fieldstation: the lift went down through a closed box")
+    rt.run(f"{P}.x, {P}.y = 10606.5, 9606.5")
+
+    # --- opening it --------------------------------------------------------------------
+    rt.run(f"SIM.aim.dx, SIM.aim.dy = {sx} - {P}.x, {sy} - {P}.y")
+    labels = fs_menu(rt)
+    check("IGUI_TREK_StationBox" in labels, f"fieldstation: the box offers {labels}")
+    check(rt.eval("fsCtx.options[1].notAvailable") is True,
+          "fieldstation: the box can be opened from across the room")
+    rt.run(f"TREK.Net.send({P}, 'stationOpen', {{}})")
+    net.pump(4)
+    check(rt.eval("TREK.FieldStation.found()") is False, "fieldstation: opened from across the room")
+    rt.run(f"{P}.x, {P}.y = {sx} + 1.5, {sy} + 0.5; SIM.aim.dx, SIM.aim.dy = -1, 0")
+    labels = fs_menu(rt)
+    fs_click(rt, "IGUI_TREK_StationBox")
+    net.pump(4)
+    check(rt.eval("TREK.FieldStation.found()") is True, "fieldstation: the box would not open")
+    check(tuple(fs_ours(rt, sx, sy)) == (0, 1), f"fieldstation: after opening the wall holds "
+                                                 f"{fs_ours(rt, sx, sy)}")
+    labels = fs_menu(rt)
+    check("IGUI_TREK_StationDown" in labels and "IGUI_TREK_StationBox" not in labels,
+          f"fieldstation: the open panel offers {labels}")
+
+    # --- down --------------------------------------------------------------------------
+    rt.run(f"{P}.modData = {P}.modData or {{}}")
+    fs_click(rt, "IGUI_TREK_StationDown")
+    net.pump(260)
+    if died(rt, "fieldstation, going down"):
+        return
+    check(adk_where(rt) == first, f"fieldstation: went down to deck {adk_where(rt)}, not {first}")
+    check(rt.eval(f"TREK.Adirondack.onStation({P})") is True, "fieldstation: not in the station")
+    check(rt.eval(f"(TREK.Adirondack.inLift({P}.x, {P}.y, {P}.z))") is True,
+          "fieldstation: arrived outside the lift car")
+    check(rt.eval("TREK.AdirondackClient.busy()") is False, "fieldstation: still held on arrival")
+    adk_check_deck(rt, first, "fieldstation")
+    ox, oy = rt.eval(f"TREK.Ship.worldOrigin({P})")
+    check((int(ox), int(oy)) == (sx + 1, sy), f"fieldstation: the map puts the player at {ox},{oy}")
+
+    # --- the menu, the lift ------------------------------------------------------------
+    labels = adk_menu(rt)
+    rt.run("""fsSub = nil
+        for _, o in ipairs(adkCtx.options) do
+            if o.name:find("IGUI_TREK_FieldStation", 1, true) == 1 then fsSub = o.sub end
+        end""")
+    check("IGUI_TREK_FieldStation" in labels and "IGUI_TREK_BeamToShuttle" not in labels
+          and "IGUI_TREK_Adirondack" not in labels, f"fieldstation: the menu below is {labels}")
+    check("IGUI_TREK_StationUp" in labels and "IGUI_TREK_StationLift" in labels,
+          f"fieldstation: the lift does not go up: {labels}")
+    rides = int(rt.eval("""(function() local n = 0
+        for _, o in ipairs(fsSub:find("IGUI_TREK_StationLift").sub.options) do
+            if o.name:find("IGUI_TREK_AdkDeck", 1, true) == 1 then n = n + 1 end end return n end)()"""))
+    check(rides == 3, f"fieldstation: the lift lists {rides} levels, not the station's 3")
+    second = int(rt.eval('TREK.Adirondack.decksOf("fst")[2]'))
+    rt.run(f"""local lift = fsSub:find("IGUI_TREK_StationLift").sub
+        for _, o in ipairs(lift.options) do
+            if o.name:find("IGUI_TREK_AdkDeck", 1, true) == 1 and o.args[2] == {second} then
+                o.fn(o.target, unpack(o.args)) end end""")
+    net.pump(200)
+    check(adk_where(rt) == second, f"fieldstation: the lift left the player on deck {adk_where(rt)}")
+    check(rt.eval(f"TREK.AdirondackClient.ride({P}, 1)") is False,
+          "fieldstation: the station's lift rides to the Adirondack's bridge")
+
+    # --- power: the station's own ------------------------------------------------------
+    check(rt.eval(f"TREK.Power.poolOf({P})") == "fst", "fieldstation: not on the station's power")
+    check(int(rt.eval("TREK.Power.crystals('fst')")) == 12,
+          f"fieldstation: its core holds {rt.eval('TREK.Power.crystals(\'fst\')')} crystals, not 12")
+    adk_before = float(rt.eval("TREK.Power.reserve('adk')"))
+    shuttle_before = float(rt.eval("TREK.Power.reserve('shuttle')"))
+    k, x, y = rt.eval("""(function() for _, k in ipairs(TREK.Adirondack.decksOf("fst")) do
+        for _, o in ipairs(TREK.Adirondack.Layout.decks[k].objects) do
+            if o[5] == "replicator" then return k, o[1], o[2] end end end end)()""")
+    adk_visit(net, rt, int(k))
+    adk_beside(rt, int(k), int(x), int(y))
+    before = float(rt.eval("TREK.Power.reserve('fst')"))
+    held = carrying(rt, "TrekShuttle.TrekRationPack")
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'TrekShuttle.TrekRationPack', count = 1 }})")
+    net.pump(4)
+    check(carrying(rt, "TrekShuttle.TrekRationPack") == held + 1, "fieldstation: the replicator made nothing")
+    check(float(rt.eval("TREK.Power.reserve('fst')")) < before, "fieldstation: the ration cost the station nothing")
+    check(float(rt.eval("TREK.Power.reserve('adk')")) == adk_before
+          and float(rt.eval("TREK.Power.reserve('shuttle')")) == shuttle_before,
+          "fieldstation: the station's replicator billed another ship")
+
+    # --- lockers ------------------------------------------------------------------------
+    for k2 in [int(v) for v in rt.eval('TREK.Adirondack.decksOf("fst")').values()]:
+        adk_visit(net, rt, k2)
+    shelves = adk_items(rt, "display_shelf", "fst")
+    check(shelves and "Base.Book" in shelves and not any("Batleth" in i for i in shelves),
+          f"fieldstation: the survey records hold {shelves[:6]}")
+    arms = adk_items(rt, "arms_locker", "fst")
+    check(arms.count("TrekShuttle.TrekPhaser") == 4 and "TrekShuttle.TrekPhaserRifle" not in arms,
+          f"fieldstation: security's lockers hold {arms}")
+
+    # --- crew: their own talk -----------------------------------------------------------
+    fits = rt.eval(f"""(function() local CS = TREK.CrewServer
+        return CS.fits({{ any = true }}, "ops", {first}), CS.fits({{ station = true }}, "ops", {first}),
+               CS.fits({{ ops = true }}, "ops", {first}), CS.fits({{ station = true }}, "bridge", 1),
+               CS.fits({{ any = true }}, "bridge", 1) end)()""")
+    check(list(fits) == [False, True, True, False, True],
+          f"fieldstation: the talk matching answered {list(fits)}")
+    rt.run("TREK.CrewServer.wake()")
+    net.pump(30)
+    staff = int(rt.eval(f"""(function() local n = 0
+        for _, m in pairs(TREK.CrewServer.live()) do
+            if TREK.Adirondack.siteOf(m.e.deck) == "fst" then n = n + 1 end end return n end)()"""))
+    check(staff > 0, "fieldstation: nobody on duty in the station")
+
+    # --- up ------------------------------------------------------------------------------
+    adk_visit(net, rt, first)
+    rt.run(f"TREK.AdirondackClient.goUp({P})")
+    net.pump(200)
+    if died(rt, "fieldstation, coming up"):
+        return
+    x, y, z = pos(rt)
+    check((int(x), int(y), int(z)) == (sx, sy, 0), f"fieldstation: came up at {pos(rt)}")
+    check(rt.eval("TREK.AdirondackClient.busy()") is False, "fieldstation: still held in the stockroom")
+    rt.run(f"TREK.Core.requestMove({P}, 'stationUp', function() fsUpAgain = true end)")
+    net.pump(4)
+    check(rt.eval("fsUpAgain") is None, "fieldstation: a lift up was granted from the stockroom")
+    # Nor from the Adirondack's lift car: a lift car, but not the station's.
+    rt.run(f"{P}.z, {P}.lastZ = TREK.Adirondack.Z, TREK.Adirondack.Z")
+    adk_visit(net, rt, 1)
+    rt.run(f"TREK.Core.requestMove({P}, 'stationUp', function() fsFromShip = true end)")
+    net.pump(4)
+    check(rt.eval("fsFromShip") is None, "fieldstation: the Adirondack's lift goes up to the stockroom")
+    rt.run(f"{P}.x, {P}.y, {P}.z, {P}.lastZ = {sx} + 1.5, {sy} + 0.5, 0, 0")
+    net.pump(60)
+
+    # --- the panel taken away, and put back -------------------------------------------
+    rt.run(f"""(function() local sq = SIM.rawSquare({sx}, {sy}, 0)
+        for i = #sq.objects, 1, -1 do
+            if sq.objects[i].modData.TREK == "fst" then table.remove(sq.objects, i) end end end)()""")
+    net.pump(40)
+    check(tuple(fs_ours(rt, sx, sy)) == (0, 1), "fieldstation: a panel taken off the wall stayed off")
+
+    for w in rt.warnings():
+        fail(f"fieldstation: {w}")
+    print("fieldstation: the box on the one bare stretch of the stockroom wall and never on a window, "
+          "opened in reach only, down to a sublevel built round the lift, the station's lift and its "
+          "power, its lockers and crew, and up to the stockroom again")
+
+
+def fieldstation_multiplayer():
+    """One player opens the box; the other sees the panel. The server keeps
+    the return point for a player below, and refuses a ride down from the
+    street."""
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    srv.run("SIM.player('alice', 10603.5, 9604.5, 0); SIM.player('bob', 10620.5, 9620.5, 0)")
+    A.run("SIM.player('alice', 10603.5, 9604.5, 0)")
+    B.run("SIM.player('bob', 10620.5, 9620.5, 0)")
+    for rt in net.all():
+        rt.run(FS_STOCKROOM)
+    net.start()
+    for rt in net.all():
+        rt.run(ADK_SETUP)
+    P = "SIM.players[1]"
+    net.pump(70)
+    check(tuple(fs_ours(B, 10602, 9604)) == (1, 0),
+          f"fieldstation mp: bob sees {fs_ours(B, 10602, 9604)} on the wall")
+    B.run(f"TREK.Net.send({P}, 'stationOpen', {{}})")
+    net.pump(4)
+    check(srv.eval("TREK.FieldStation.found()") is False, "fieldstation mp: opened from the street")
+    A.run(f"TREK.FieldStationClient.open({P})")
+    net.pump(6)
+    check(B.eval("TREK.FieldStation.found()") is True, "fieldstation mp: bob was never told it is open")
+    check(tuple(fs_ours(B, 10602, 9604)) == (0, 1),
+          f"fieldstation mp: bob sees {fs_ours(B, 10602, 9604)} on the wall after alice opened it")
+    B.run(f"TREK.Core.requestMove({P}, 'stationDown', function() fsFar = true end)")
+    net.pump(4)
+    check(B.eval("fsFar") is None, "fieldstation mp: the server let bob down from the street")
+    A.run(f"TREK.AdirondackClient.goDown({P})")
+    net.pump(280)
+    if died(A, "fieldstation mp, going down"):
+        return
+    check(A.eval(f"TREK.Adirondack.onStation({P})") is True, "fieldstation mp: alice never got down")
+    ret = srv.eval("""(function() for _, p in ipairs(SIM.players) do if p.name == "alice" then
+        return TREK.Ship.returnPoint(p) end end end)()""")
+    check(ret is not None and (int(ret[0]), int(ret[1])) == (10603, 9604),
+          f"fieldstation mp: the server has alice's return point as {ret}")
+    check(srv.eval("""(function() for _, p in ipairs(SIM.players) do if p.name == "alice" then
+        return TREK.Power.poolOf(p) end end end)()""") == "fst",
+          "fieldstation mp: the server bills alice below to another store")
+    for name, rt in (("server", srv), ("alice", A), ("bob", B)):
+        for w in rt.warnings():
+            fail(f"fieldstation mp ({name}): {w}")
+    print("fieldstation multiplayer: one opens the box and the other sees the panel, a ride down "
+          "from the street is refused, and the server keeps the stockroom as the return point")
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -13555,7 +13881,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, traits, traits_multiplayer, species_look, creation_look,
-            adirondack, adirondack_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
+            adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
             contraband, contraband_multiplayer, multiplayer)
 
 

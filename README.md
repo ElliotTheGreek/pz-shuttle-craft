@@ -54,6 +54,7 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Her crew** | Starfleet officers and crew of several species step out of the lifts, walk to their posts, sit, talk to each other and to you, and leave again. They know who you are not, and they notice your clothes. |
 | **Hydroponics** | Deck 5 grows seven crops in trays the ship tends for you -- tea, bergamot, Klingon coffee, plomeek, leola root, Andorian tuber, hasperat peppers -- to be dried, ground, brewed and cooked into the galley's dishes from scratch. A tank of serpent worms breeds when fed; five of them in a bowl is gagh. |
 | **Jefferies tubes** | Crawlways between her decks, across the stars under her, for anybody who would rather not take the lift. Three hideouts off them where the off-watch crew keep their bottles -- and their contraband, and other people's weapons. |
+| **The field station** | Muldraugh's electronics store, on the main road beside the Zippee, has a breaker box on its stockroom wall that is not a breaker box. Open it, and the lift behind it takes you down to a Starfleet survey station three sublevels deep -- operations and its wall of screens watching the county, a mess, bunks and an infirmary, a reactor, stores and a survey lab -- staffed by some of the eleven who stayed on the ground, and running on its own dilithium. The Adirondack's crew know where it is; the station has not answered them since June. |
 | **Stores** | Three Starfleet lockers — an armoury, the rations and the sick bay — and five containers left empty on purpose: the fridge, the oven, both counters and the microwave are yours to fill. |
 | **Shields** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed — no free experience, no free loot. Raise and lower them at the helm. |
 | **A shared ship** | In multiplayer there is one shuttle for everyone. Server owners can limit it to its owner and crew. |
@@ -128,6 +129,12 @@ counts each one. If your players want unlimited beaming, set
    you end up at the foot of the ramp.
 6. On the ground, right-click the hull to **board** it or to **send it back
    up**; right-click open ground to **call it down** somewhere new.
+
+The **field station** is under the electronics store in Muldraugh. Go in
+through the shop, through to the stockroom, and right-click the grey breaker
+box on the west wall: **Open the breaker box**, then **Lift: down to the field
+station**. Down there the lift car's menu goes between the three sublevels
+and **Up to the stockroom**; there is no transporter below.
 
 The shuttle is either sitting on the ground somewhere or overhead. The
 transporter works either way; the hatch only works when it is down.
@@ -246,6 +253,8 @@ engine facts it rests on.
 | `tools/gen_fragment.py` | The six holo fragments: one mesh and texture, six numbered icons, and their sheet in `design/art/fragment/`. |
 | `tools/gen_padd.py` | The PADD: mesh, LCARS texture, icon rendered from the mesh, and its sheet in `design/art/padd/`. |
 | `tools/gen_poster.py` | The mods-screen poster. |
+| `tools/fieldstation_site.py` | Reads the vanilla map's rooms and tiles round the field station's hidden entrance and prints the stockroom square by square, with the server's own rule for where the breaker box may hang. |
+| `tools/gen_fuse_box.py` | The field station's breaker box, drawn: the picture the furniture sheet lays on a wall. |
 | `tools/luacheck.py` | Parses every Lua file through a real Lua VM. |
 | `tools/deploy_windows.py` | Copy the mod into the Zomboid mods folder as `TrekShuttleDev` and verify the copy. |
 | `tools/package_workshop.py` | Stage the Workshop upload (keeps the published item id). |
@@ -277,7 +286,7 @@ beaming, the cabin build reaching every client, ownership and crew, transporter
 charges, landing, ghosts, shields, the torpedoes, the medical set, the
 replicator, distress calls and rescues, the PADD's timed actions crossing to
 the server by name, the energy system and the cold start, traits, the
-Adirondack and her crew, hydroponics, the tubes and contraband. It fails if a client ever edits the world or the ship itself.
+Adirondack and her crew, the field station, hydroponics, the tubes and contraband. It fails if a client ever edits the world or the ship itself.
 
 In game, load a **fresh** world with the mod enabled. From the debug console
 (the reports go to the server's log, `console.txt` in single player):

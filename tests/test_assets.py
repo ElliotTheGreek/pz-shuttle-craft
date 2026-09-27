@@ -1277,6 +1277,29 @@ if os.path.isfile(PC):
 else:
     failures.append("traits: shared/Definitions/TREK_ProfessionClothing.lua is missing")
 
+# The field station's breaker box (FIELD_STATION.md 3) goes on one square of
+# one vanilla stockroom wall. Read the real map, with the server's own rule:
+# a game update that moves that wall or puts something on it fails here, at
+# the desk, rather than as a world with no way into the station.
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+try:
+    import fieldstation_site as FSITE
+    if os.path.isdir(FSITE.MAP):
+        _fx, _fy, _fz, _fedge, _froom = FSITE.site()
+        _fcx, _fcy = _fx // FSITE.CELL, _fy // FSITE.CELL
+        _rooms = FSITE.header(_fcx, _fcy)[3]
+        if not any(r[0] == _froom and any(rx <= _fx < rx + w and ry <= _fy < ry + h
+                                          for rx, ry, w, h in r[2]) for r in _rooms):
+            failures.append(f"field station: {_fx},{_fy} is not in a room called {_froom} on the map")
+        _fsq = FSITE.squares(_fcx, _fcy, _fx, _fy, _fx, _fy, _fz).get((_fx, _fy), [])
+        _why = FSITE.verdict(_fsq, _fedge, json.load(open(FSITE.CATALOG))["tiles"])
+        if _why:
+            failures.append(f"field station: the box cannot hang on {_fx},{_fy}: {_why}")
+    else:
+        print("field station: no vanilla map at", FSITE.MAP, "-- site not checked")
+except SystemExit as e:
+    failures.append(f"field station: {e}")
+
 print(f"checked {checked_sprites} sprite names and {checked_items} item ids, "
       f"{len(mod_items)} mod items, {len(mod_models)} models, "
       f"{len(mod_icons)} icons, {checked_dists} loot tables and "

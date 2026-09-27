@@ -293,6 +293,13 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
     python tools/gen_adirondack_lua.py    # -> TREK_AdirondackLayout.lua
 
 - **Where**: void cell 97,40, offset 16, on the cabin's level (`C.CabinZ`).
+- **She shares her layout with the field station** (`FIELD_STATION.md` 4):
+  its three sublevels are more entries in `L.decks`, marked `site = "fst"`
+  (hers are `"adk"`), standing from slot 8 east of Deck 1 over black rather
+  than stars. Everything below holds for them; `A.siteOf(k)` is the one
+  question that differs -- what the lift lists, the way out, whose power, what
+  the crew talk about. Anything that counts "every deck" of hers walks
+  `A.decksOf("adk")`, not `L.decks`.
 - **Decks side by side, not stacked.** A runtime building has no RoomDefs, so
   the engine would draw every deck above over the one you stand on. Deck 1
   (the bridge) is westmost, and each next deck is 108 squares east -- beyond

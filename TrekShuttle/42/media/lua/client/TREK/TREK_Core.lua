@@ -99,6 +99,7 @@ end
 local DENIALS = {
     access        = "IGUI_TREK_NotCrew",
     wrongPlace    = "IGUI_TREK_WrongPlace",
+    stationFar    = "IGUI_TREK_StationFar",
     notLanded     = "IGUI_TREK_NotLanded",
     bookmarksFull = "IGUI_TREK_BookmarksFull",
     crewSeated    = "IGUI_TREK_CrewSeated",

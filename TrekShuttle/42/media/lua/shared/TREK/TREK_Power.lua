@@ -235,7 +235,11 @@ end)
 -- her, every replicator and the Doctor's station, and she sails with
 -- A.StartCrystals in it.
 --
--- Every function below takes an optional `pool` last: "shuttle" or "adk".
+-- **And a third, the field station's, `s.fst`** (FIELD_STATION.md 6): the
+-- same kind of store as hers, under a store in Muldraugh.
+--
+-- Every function below takes an optional `pool` last: "shuttle", "adk" or
+-- "fst".
 -- Left out, it is P.current -- which the server sets for the length of a
 -- command from a player standing aboard her (TREK_Net) -- and failing that
 -- the shuttle. Nothing that runs on its own (the hover drain, the shields,
@@ -248,8 +252,22 @@ end
 
 --- Which store serves a player where they are standing.
 function P.poolOf(player)
-    if player and TREK.Adirondack and TREK.Adirondack.onShip(player) then return "adk" end
+    local site = player and TREK.Adirondack and TREK.Adirondack.siteOfPlayer(player)
+    if site then return site end
     return "shuttle"
+end
+
+--- True for a store that is not the shuttle's: hers, or the station's.
+--- The shuttle's lamps, notes and warnings are the shuttle's alone.
+function P.isRemote(pool)
+    return P.pool(pool) ~= "shuttle"
+end
+
+-- What each remote store starts with.
+local function startCrystals(pool)
+    local A = TREK.Adirondack
+    if pool == "fst" then return A and A.StationStartCrystals or 12 end
+    return A and A.StartCrystals or 50
 end
 
 --- Runs fn with P.current set, and puts it back however fn ends.
@@ -265,22 +283,22 @@ end
 --- The table one store lives in.
 local function box(pool)
     local s = U.state()
-    if P.pool(pool) ~= "adk" then return s end
-    if type(s.adk) ~= "table" then
+    local name = P.pool(pool)
+    if name == "shuttle" then return s end
+    if type(s[name]) ~= "table" then
         -- A client that has not been sent hers yet reads an empty one: the
         -- reserve full, no spares, and not dark.
         if isClient() then return {} end
-        s.adk = { power = C.PowerMax,
-                  crystals = TREK.Adirondack and TREK.Adirondack.StartCrystals or 50 }
+        s[name] = { power = C.PowerMax, crystals = startCrystals(name) }
     end
-    return s.adk
+    return s[name]
 end
 P.box = box
 
 --- Her dark flag, kept beside her numbers for clients to read. The
 --- shuttle's is published by TREK_Energy along with the notes that go with it.
 local function settle(pool)
-    if P.pool(pool) == "adk" and not isClient() then
+    if P.isRemote(pool) and not isClient() then
         box(pool).dark = P.computeDark(pool)
     end
 end

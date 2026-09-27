@@ -178,7 +178,13 @@ patient: The counselor? That's cruel.
   | `engineering` | Main Engineering |
   | `corridor` | any deck's corridor |
   | `lift` | a turbolift car |
-  | `any` | anywhere |
+  | `any` | anywhere **on the Adirondack** |
+  | `ops`, `records`, `mess`, `bunks`, `infirmary`, `reactor`, `shaft` | the field station's rooms (`FIELD_STATION.md` 7) |
+  | `station` | anywhere in the field station |
+
+  `any` never plays in the field station, and `station` never on the ship:
+  the ship's talk is about orbit and her galley, and the station's about a
+  bunker under a shop (`TREK_CrewServer`, `CS.fits`).
 
 - **`cast:`** is two to four roles, `name=requirement`. The requirement is one
   of:
@@ -289,7 +295,7 @@ own `|` variants.
 
 | File | What |
 |---|---|
-| `design/crew/*.txt` | the talk: bridge, transporter, sickbay, lounge (and galley), habitat, engineering, corridors, and ship-wide barks |
+| `design/crew/*.txt` | the talk: bridge, transporter, sickbay, lounge (and galley), habitat, engineering, corridors, ship-wide barks, and the field station (`station.txt`) |
 | `tools/gen_crew_talk.py` | compiles it. `--check --stats [file]` validates and prints each scene's shortest, typical and longest time |
 | `shared/TREK/TREK_CrewTalk.lua` | GENERATED: the tree |
 | `Translate/EN/Print_Text.json` | the words, as `Print_Text_TREK_CREW_*`. Shared with the comms channel; each generator replaces only its own prefix |

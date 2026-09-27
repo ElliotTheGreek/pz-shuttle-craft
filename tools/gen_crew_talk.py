@@ -35,7 +35,10 @@ TEXT = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua", "shared", "Transl
 PREFIX = "Print_Text_TREK_CREW_"
 
 PLACES = {"bridge", "readyroom", "lounge", "galley", "quarters", "habitat", "transporter", "hydroponics",
-          "sickbay", "engineering", "corridor", "lift", "any"}
+          "sickbay", "engineering", "corridor", "lift", "any", "armoury",
+          # The field station's (FIELD_STATION.md 7). `any` is anywhere on the
+          # Adirondack; `station` is anywhere in the field station.
+          "ops", "records", "mess", "bunks", "infirmary", "reactor", "shaft", "station"}
 REQUIREMENTS = {"any", "command", "operations", "sciences", "medical", "engineer", "security", "helm"}
 BARKS = {"hello", "outfit", "thanks", "idle", "arrive", "leave"}
 SPECIES = {"klingon", "vulcan", "betazoid", "bajoran", "trill", "andorian", "talaxian", "exborg"}

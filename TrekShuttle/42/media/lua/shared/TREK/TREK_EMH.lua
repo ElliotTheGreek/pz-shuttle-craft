@@ -194,12 +194,13 @@ end
 function E.patients(asking)
     local out = {}
     local mine = asking and TREK.Ship.usernameOf(asking) or nil
-    -- Everyone aboard the ship the asker is in: the shuttle's cabin, or the
-    -- Adirondack.
-    local adk = asking ~= nil and TREK.Adirondack ~= nil and TREK.Adirondack.onShip(asking)
+    -- Everyone aboard the place the asker is in: the shuttle's cabin, the
+    -- Adirondack, or the field station -- never another of the three.
+    local A = TREK.Adirondack
+    local site = asking ~= nil and A ~= nil and A.siteOfPlayer(asking) or nil
     for _, p in ipairs(U.players()) do
         local alive = U.try("emh.alive", function() return p:isDead() end) == false
-        local here = (adk and TREK.Adirondack.onShip(p)) or (not adk and U.isInteriorPlayer(p))
+        local here = (site and A.siteOfPlayer(p) == site) or (not site and U.isInteriorPlayer(p))
         if alive and here then
             local name = TREK.Ship.usernameOf(p)
             local row = { player = p, name = name, own = (name == mine) or nil }
@@ -218,10 +219,14 @@ end
 ---
 --- **Used by the server and by nothing else that matters.** The patient is
 --- never taken from what a client sent: the name is looked up here, against
---- this process's own view of where people are standing.
-function E.patientNamed(name)
+--- this process's own view of where people are standing -- in the place
+--- `asking` stands in (the cabin, the Adirondack or the field station), so a
+--- Doctor on one never reaches a patient in another. Without `asking`, the
+--- cabin, as it always was; on the Adirondack that used to mean nobody else
+--- could ever be treated there, because the patient was looked for aft.
+function E.patientNamed(name, asking)
     if type(name) ~= "string" or name == "" or #name > 64 then return nil end
-    for _, row in ipairs(E.patients(nil)) do
+    for _, row in ipairs(E.patients(asking)) do
         if row.name == name then return row.player end
     end
     return nil

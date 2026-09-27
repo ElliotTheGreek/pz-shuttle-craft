@@ -204,10 +204,11 @@ local function stockTape(obj, id)
     return 1
 end
 
---- What a container is stocked with, by the piece it is part of (A.Stock).
---- Returns the number of items put in.
-local function stock(obj, piece)
-    local rule = piece and A.Stock[piece]
+--- What a container is stocked with, by the piece it is part of (A.Stock,
+--- or the field station's own A.SiteStock on a sublevel). Returns the number
+--- of items put in.
+local function stock(obj, piece, k)
+    local rule = piece and A.stockRule(piece, k)
     if not rule then return 0 end
     local added = 0
     if rule.loot then
@@ -232,8 +233,8 @@ local function stock(obj, piece)
 end
 
 --- Makes one layout object and sends it, finished. `o` is the layout entry:
---- { x, y, sprite, kind, piece }.
-local function make(sq, o)
+--- { x, y, sprite, kind, piece }; k the deck it stands on.
+local function make(sq, o, k)
     local sprite, kind, piece = o[3], o[4], o[5]
     if isDoorKind(kind) then
         local door = U.try("IsoDoor.new", function()
@@ -270,8 +271,8 @@ local function make(sq, o)
             -- Explored, or vanilla rolls its own loot into it on first look.
             if c then c:setExplored(true) end
         end)
-        if A.Stock[piece] then
-            U.try("stock:" .. tostring(piece), stock, obj, piece)
+        if A.stockRule(piece, k) then
+            U.try("stock:" .. tostring(piece), stock, obj, piece, k)
             U.try("stocked", function() obj:getModData().TREKStock = true end)
         end
     end
@@ -284,7 +285,7 @@ end
 --- True when an object already standing is not what the layout needs any
 --- more and has nothing in it to lose: a door the engine does not collide
 --- with, a locker that was never stocked, a sink with no water.
-local function needsRefit(sq, obj, o)
+local function needsRefit(sq, obj, o, k)
     local kind, piece = o[4], o[5]
     if isDoorKind(kind) then
         return not isSpecial(sq, obj) or not instanceof(obj, "IsoDoor")
@@ -292,7 +293,7 @@ local function needsRefit(sq, obj, o)
     if piece == "galley_range" and not instanceof(obj, "IsoStove") and not holdsAnything(obj) then
         return true
     end
-    if kind == "c" and A.Stock[piece] then
+    if kind == "c" and A.stockRule(piece, k) then
         local md = U.try("md", function() return obj:getModData() end) or {}
         return md.TREKStock ~= true and not holdsAnything(obj)
     end
@@ -361,7 +362,7 @@ function AS.buildDeck(k)
                         local entry = entryFor(here, o)
                         if not entry then
                             if not holdsAnything(o) then table.insert(doomed, o) end
-                        elseif needsRefit(sq, o, entry) then
+                        elseif needsRefit(sq, o, entry, k) then
                             table.insert(doomed, o)
                             refitted = refitted + 1
                         end
@@ -389,7 +390,7 @@ function AS.buildDeck(k)
         local x, y = A.at(k, o[1], o[2])
         local sq = U.square(x, y, A.Z, true)
         if sq and not standing(sq, o) then
-            if make(sq, o) then made = made + 1 end
+            if make(sq, o, k) then made = made + 1 end
         end
     end
 
@@ -402,7 +403,8 @@ function AS.buildDeck(k)
 
     local s = AS.state()
     s.decks[k], s.fit[k] = L.rev, AS.FIT
-    U.log("Adirondack %s built (rev %d): %d placed, %d refitted, %d taken away, %d cleared",
+    U.log("%s %s built (rev %d): %d placed, %d refitted, %d taken away, %d cleared",
+          A.siteOf(k) == "fst" and "Field Station" or "Adirondack",
           deck.name, L.rev, made, refitted, removed - refitted, cleared)
     return true
 end
@@ -575,7 +577,7 @@ function AS.buildTube(t)
         if U.chunkLoaded(x, y, A.Z) then
             local sq = U.square(x, y, A.Z, true)
             if sq and not standing(sq, o) then
-                if make(sq, o) then made = made + 1 end
+                if make(sq, o, k) then made = made + 1 end
             end
         end
     end
@@ -685,8 +687,10 @@ end
 -- An oven needs electricity, and a runtime deck is on no grid. The shuttle's
 -- answer (TREK_Build.servicePowerBus) is an invisible generator, fuelled from
 -- the ship's reserve; hers is the same, on the galley range's own square, so
--- the stove and the stasis units nearby have power, billed to her warp core.
+-- the stove and the stasis units nearby have power, billed to her warp core --
+-- or, on a field station sublevel, to the station's (FIELD_STATION.md 6).
 function AS.servicePowerBus(k)
+    local pool = A.siteOf(k) or "adk"
     local range = nil
     for _, o in ipairs(L.decks[k].objects) do
         if o[5] == "galley_range" then range = o break end
@@ -720,7 +724,7 @@ function AS.servicePowerBus(k)
     local max = U.try("adk.busMax", function() return gen:getMaxFuel() end) or 10
     local fuel = U.try("adk.busFuel", function() return gen:getFuel() end) or max
     if max - fuel > 0.0001 and TREK.Energy then
-        P.using("adk", function()
+        P.using(pool, function()
             TREK.Energy.energize(nil, "galley", (max - fuel) * C.FuelToEnergy,
                                  { partial = true, silent = true })
         end)
@@ -729,7 +733,7 @@ function AS.servicePowerBus(k)
     U.try("adk.busMend", function()
         if gen:getCondition() < 100 then gen:setCondition(100) end
     end)
-    local want = not P.dark("adk")
+    local want = not P.dark(pool)
     if U.try("adk.busOn", function() return gen:isActivated() end) ~= want then
         U.try("adk.busSwitch", function() gen:setActivated(want) end)
     end

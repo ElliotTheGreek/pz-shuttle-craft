@@ -36,6 +36,7 @@ require "TREK/TREK_ContrabandServer"
 require "TREK/TREK_Build"
 require "TREK/TREK_Energy"
 require "TREK/TREK_Adirondack"
+require "TREK/TREK_FieldStation"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -950,14 +951,34 @@ local MOVES = {
     -- `from` is where the player must be standing to ask.
     toAdirondack   = { cost = 1, access = true, energy = "BeamCost", from = "shuttle" },
     fromAdirondack = { cost = 1, from = "adirondack" },
-    turbolift      = { cost = 0, from = "adirondack" },
+    turbolift      = { cost = 0, from = "decks" },
+    -- The field station (FIELD_STATION.md 3): down from the panel behind
+    -- the breaker box, once it is open, and up from any sublevel's lift car.
+    -- A lift, so no power; one long move each, so one charge each.
+    stationDown    = { cost = 1, from = "stationPanel" },
+    stationUp      = { cost = 1, from = "stationLift" },
 }
 
 --- True when the player is where a move of this kind may start.
 local function movesFrom(player, where)
     if not where then return true end
     if where == "shuttle" then return U.isInteriorPlayer(player) end
-    return TREK.Adirondack ~= nil and TREK.Adirondack.onShip(player)
+    local A = TREK.Adirondack
+    if not A then return false end
+    if where == "adirondack" then return A.onAdirondack(player) end
+    if where == "decks" then return A.onShip(player) end
+    local FS = TREK.FieldStation
+    if where == "stationPanel" then
+        return FS ~= nil and FS.found() and FS.playerInReach(player)
+    end
+    if where == "stationLift" then
+        if not A.onStation(player) then return false end
+        local x = U.try("liftX", function() return player:getX() end)
+        local y = U.try("liftY", function() return player:getY() end)
+        local z = U.try("liftZ", function() return player:getZ() end)
+        return x ~= nil and A.inLift(x, y, z) == true
+    end
+    return false
 end
 
 Net.onServer("move", function(player, args)
@@ -1014,7 +1035,7 @@ Net.onServer("move", function(player, args)
     -- (DEV_GUIDE: *Single player cannot test a fix that both ends apply*).
     -- This handler runs before the move, so the player is still standing
     -- where they are leaving from.
-    if kind == "beamUp" or kind == "hatchIn" then
+    if kind == "beamUp" or kind == "hatchIn" or kind == "stationDown" then
         local px = U.try("moveFromX", function() return player:getX() end)
         local py = U.try("moveFromY", function() return player:getY() end)
         local pz = U.try("moveFromZ", function() return player:getZ() end)
@@ -1038,7 +1059,7 @@ Net.onServer("move", function(player, args)
                               or kind == "toAdirondack" or kind == "fromAdirondack") then
         U.try("traits.beam", TREK.TraitsServer.onBeam, player, kind)
     end
-    if TREK.TraitsServer and kind == "turbolift" then
+    if TREK.TraitsServer and (kind == "turbolift" or kind == "stationDown" or kind == "stationUp") then
         U.try("traits.lift", TREK.TraitsServer.onLift, player)
     end
 
@@ -2029,7 +2050,7 @@ end
 local function patientFor(player, args)
     local name = args and args.who
     if name == nil or name == "" then return player, Ship.usernameOf(player) end
-    local patient = EMH.patientNamed(name)
+    local patient = EMH.patientNamed(name, player)
     if not patient then
         deny(player, "emhNoPatient")
         return nil, nil
@@ -2336,7 +2357,7 @@ local function resolveOffer(player, args, accepted)
         deny(player, "emhGone")
         return
     end
-    local patient = EMH.patientNamed(job.who)
+    local patient = EMH.patientNamed(job.who, asker)
     if not patient then
         deny(player, "emhNoPatient")
         return

@@ -243,6 +243,104 @@ SECTIONS["engineering"] = dict(
     ])
 
 
+# --- the field station (FIELD_STATION.md 4) ---------------------------------------------
+# Three sublevels under a store in Muldraugh, in the Adirondack's fittings and
+# never a viewport: they are underground. `file` names the .tbx and `place`
+# what its description says it is part of. Every one has a door on its west
+# wall for the sublevel's spine to meet, as a deck's sections do.
+
+SECTIONS["fs_operations"] = dict(
+    title="Operations", file="FieldStation_Operations.tbx", place="Field Station Muldraugh",
+    size=(14, 11),
+    rooms=[
+        room("Operations", "office", CARPET, 0, 0, 8, 10, "80 110 150"),
+        room("Security Office", "office", DECK, 9, 0, 13, 4, "110 90 90"),
+        room("Survey Records", "office", CARPET, 9, 5, 13, 10, "120 110 80"),
+    ],
+    doors=[("W", 0, 9), ("W", 9, 2), ("W", 9, 7)],
+    furniture=(
+        # The wall of screens that watches the county, a station under each.
+        [("science_display", "N", x, 0) for x in (1, 3, 5, 7)]
+        + [("science_station", "N", x, 0) for x in (1, 3, 5, 7)]
+        + [("bridge_chair", "S", x, 1) for x in (1, 3, 5, 7)]
+        + [("science_station", "W", 0, 3), ("science_station", "W", 0, 5),
+           ("desk_chair", "E", 1, 3), ("desk_chair", "E", 1, 5),
+           ("master_systems", "W", 3, 4), ("captain_chair", "S", 4, 7),
+           ("wall_sconce", "W", 0, 7), ("plant", "W", 8, 10),
+           # security: two lockers, a desk by the door, a screen
+           ("arms_locker", "N", 11, 0), ("arms_locker", "N", 12, 0),
+           ("science_station", "N", 10, 0), ("wall_sconce", "N", 13, 0),
+           ("desk", "W", 9, 3), ("desk_chair", "E", 10, 3)]
+        # survey records: the archive's shelves and a reading desk
+        + [("display_shelf", "N", x, 5) for x in (10, 11, 12, 13)]
+        + [("display_shelf", "W", 9, 5), ("desk", "W", 9, 9), ("desk_chair", "E", 10, 9),
+           ("science_display", "W", 9, 6), ("plant", "W", 13, 10)]
+    ))
+
+SECTIONS["fs_habitat"] = dict(
+    title="Habitat", file="FieldStation_Habitat.tbx", place="Field Station Muldraugh",
+    size=(12, 14),
+    rooms=[
+        room("Mess", "kitchen", DECK, 0, 0, 6, 8, "170 160 130"),
+        room("Bunk Room", "bedroom", CARPET, 7, 0, 11, 8, "88 88 150"),
+        room("Infirmary", "medical", DECK, 0, 9, 6, 13, "200 200 210"),
+        room("Washroom", "bathroom", DECK, 7, 9, 11, 13, "120 160 190"),
+    ],
+    # The way in is low on the west wall: a sublevel's corridor runs down
+    # from the lift to its door, and needs room for its basin and Doctor.
+    doors=[("W", 0, 8), ("W", 7, 4), ("N", 3, 9), ("N", 9, 9)],
+    furniture=[
+        # the mess and its galley
+        ("galley_counter", "N", 1, 0), ("galley_sink", "N", 3, 0), ("galley_range", "N", 4, 0),
+        ("stasis_unit", "N", 5, 0), ("replicator", "N", 6, 0),
+        ("galley_cupboard", "W", 0, 5),
+        ("lounge_table", "W", 3, 3), ("lounge_chair", "W", 2, 3), ("lounge_chair", "E", 4, 3),
+        ("lounge_table", "W", 3, 5), ("lounge_chair", "W", 2, 5), ("lounge_chair", "E", 4, 5),
+        ("lounge_table", "W", 5, 7), ("lounge_chair", "W", 4, 7), ("lounge_chair", "E", 6, 7),
+        ("wall_sconce", "W", 0, 1),
+        # the bunk room: five bunks, two wardrobes
+        ("bunk", "W", 7, 0), ("bunk", "W", 7, 2), ("bunk", "W", 7, 8), ("bunk", "N", 9, 0),
+        ("bunk", "N", 11, 0), ("nightstand", "N", 10, 0), ("wardrobe", "W", 7, 5),
+        ("wardrobe", "W", 7, 6), ("coffee_table", "W", 10, 4), ("armchair", "E", 11, 4),
+        ("plant", "W", 11, 8),
+        # the washroom
+        ("sonic_shower", "N", 7, 9), ("sonic_shower", "N", 8, 9), ("toilet", "N", 10, 9),
+        ("toilet", "N", 11, 9), ("wash_basin", "W", 7, 11), ("wash_basin", "W", 7, 12),
+        # the infirmary
+        ("biobed", "N", 1, 9), ("biobed", "N", 5, 9), ("medical_cabinet", "N", 6, 9),
+        ("emh_station", "W", 0, 11), ("medical_cabinet", "W", 0, 12), ("medical_cabinet", "W", 0, 13),
+        ("medical_cart", "S", 4, 12), ("wall_sconce", "N", 2, 9),
+    ])
+
+SECTIONS["fs_reactor"] = dict(
+    title="Reactor", file="FieldStation_Reactor.tbx", place="Field Station Muldraugh",
+    size=(15, 13),
+    rooms=[
+        room("Reactor Room", "storageunit", DECK, 0, 0, 9, 8, "190 150 90"),
+        room("Stores", "storageunit", DECK, 10, 0, 14, 8, "150 140 110"),
+        room("Survey Lab", "office", CARPET, 0, 9, 14, 12, "110 150 130"),
+    ],
+    doors=[("W", 0, 8), ("W", 10, 4), ("N", 3, 9)],
+    furniture=[
+        # the station's own core, railed in, its consoles round the walls
+        ("warp_core", "W", 4, 3),
+        ("railing", "N", 3, 2), ("railing", "N", 6, 2), ("railing", "S", 3, 5), ("railing", "S", 6, 5),
+        ("engineering_console", "N", 1, 0), ("engineering_console", "N", 3, 0),
+        ("engineering_console", "N", 6, 0), ("engineering_console", "N", 8, 0),
+        ("engineering_console", "W", 0, 3), ("engineering_console", "W", 0, 5),
+        ("wall_sconce", "N", 2, 0), ("wall_sconce", "N", 7, 0),
+        # stores
+        ("cargo_crate", "N", 11, 0), ("stasis_unit", "N", 12, 0), ("cargo_crate", "N", 13, 0),
+        ("stasis_unit", "N", 14, 0), ("cargo_crate", "S", 14, 8), ("wall_sconce", "W", 10, 7),
+        # the survey lab: its benches along the north wall, a desk in the corner
+        ("science_station", "N", 6, 9), ("science_station", "N", 8, 9), ("science_station", "N", 12, 9),
+        ("science_display", "N", 6, 9), ("science_display", "N", 12, 9),
+        ("bridge_chair", "S", 6, 10), ("bridge_chair", "S", 8, 10), ("bridge_chair", "S", 12, 10),
+        ("desk", "W", 0, 11), ("desk_chair", "E", 1, 11),
+        ("display_shelf", "N", 10, 9), ("plant", "W", 14, 12),
+    ])
+
+
 # --- the furniture the specs can name --------------------------------------------------
 
 def catalogue():
@@ -334,7 +432,9 @@ def tbx(key, sec, cat, g):
            'RoofSlope="0" RoofTop="0" GrimeWall="0">' % (W, H),
            " <properties>",
            '  <property name="Description" value=%s />' % quoteattr(
-               "U.S.S. Adirondack: %s. Drafted by tools/gen_adirondack_sections.py; see ADIRONDACK.md" % sec["title"]),
+               "%s: %s. Drafted by tools/gen_adirondack_sections.py; see %s"
+               % (sec.get("place", "U.S.S. Adirondack"), sec["title"],
+                  "FIELD_STATION.md" if "place" in sec else "ADIRONDACK.md")),
            '  <property name="Mod" value="TrekShuttle" />',
            '  <property name="Generator" value="%s" />' % MARKER,
            " </properties>"]
@@ -455,7 +555,8 @@ def preview(key, sec, cat, g, path):
                 img.putalpha(a)
             canvas.alpha_composite(img, (ox + 64 * (x - y) - 64, oy + 32 * (x + y) - 192))
     d = ImageDraw.Draw(canvas)
-    d.text((16, 16), "U.S.S. Adirondack -- %s  (%d x %d)" % (sec["title"], W, H), fill=(230, 230, 230, 255))
+    d.text((16, 16), "%s -- %s  (%d x %d)" % (sec.get("place", "U.S.S. Adirondack"), sec["title"], W, H),
+           fill=(230, 230, 230, 255))
     save(canvas, path)
 
 
@@ -482,7 +583,8 @@ def main():
     for key in wanted:
         sec = SECTIONS[key]
         g = check(key, sec, cat)
-        path = os.path.join(BED, "Adirondack_%s.tbx" % sec["title"].replace(" and ", "_").replace(" ", ""))
+        path = os.path.join(BED, sec.get("file") or
+                            "Adirondack_%s.tbx" % sec["title"].replace(" and ", "_").replace(" ", ""))
         if os.path.exists(path) and not force:
             with open(path, encoding="utf-8") as f:
                 if MARKER not in f.read():

@@ -49,6 +49,7 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | Her crew | `CREW.md` | **Played** twice; walking and sitting still need a look |
 | Hydroponics and the galley stove | `FARMING.md` | **Played** 2026-09-26: planted bay, harvest, sowing, cooking |
 | Jefferies tubes, hideouts, Turbolift Phobia | `JEFFERIES.md` | Built, not played. **Needs a new world** |
+| The field station: the breaker box in Muldraugh, three sublevels, its crew and power | `FIELD_STATION.md` | Built 2026-09-27, not played. Reaches existing worlds (the box is placed when the stockroom's chunk next loads) |
 | Contraband | `CONTRABAND.md` | Built, not played. **Needs a new world** |
 | Dedicated server | `MULTIPLAYER.md` | Loads cleanly; **nobody has played on it** |
 
@@ -77,9 +78,12 @@ each guide's own *Not yet seen* section has the detail.
 8. **The Adirondack's tubes and hideouts** (`JEFFERIES.md` 7), then
    **contraband** (`CONTRABAND.md` 7), then each hideout's **arms crate**
    (`ARMOURY.md` 7).
+9. **The crew** (`CREW.md` 6): walking, sitting and speech.
 10. **The armoury** (`ARMOURY.md` 9): every weapon in the fist, on the ground
     and fired; holstered and slung; the room off the bridge and its lockers.
-9. **The crew** (`CREW.md` 6): walking, sitting and speech.
+11. **The field station** (`FIELD_STATION.md` 10): the box in the Muldraugh
+    stockroom, opened; down, the sublevels, their crew; the replicator on the
+    station's power; up again.
 
 ### 2.2 The two-player session
 
@@ -109,6 +113,7 @@ Check, with two people:
 - a pattern scanned by one reaching the other;
 - one channel with two PADDs;
 - one ensign rescued for one reward;
+- the field station's box opened by one and the panel seen by the other;
 - the Adirondack's crew seen from both;
 - *Offer the Game to...*
 
@@ -182,6 +187,11 @@ prisoner, and the holosuite reel. Still unwritten:
 - `bar_corner` is modelled and not placed.
 - Rooms: holodeck, science labs, shuttlebay, brig, captain's quarters, gym.
   The armoury is built (`ARMOURY.md` 6).
+
+**The field station** (`FIELD_STATION.md` 11)
+- A hint in the world beyond the Adirondack crew's talk: a comms line, or the
+  station as a probe's result.
+- Whether the station ever breaks silence and calls the ship.
 
 **Items** (`ITEMS.md` 6)
 - Combadge, isolinear chips, engineering tools, more medical kit.

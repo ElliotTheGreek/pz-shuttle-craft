@@ -141,12 +141,53 @@ function A.locate(x, y, z)
     return nil
 end
 
+--- True when a player stands on any of the runtime decks: the Adirondack's
+--- or the field station's (FIELD_STATION.md 4). What the machines' menus, the
+--- Doctor and the deck builder ask; `onAdirondack` and `onStation` are the
+--- two halves, for the few things that differ.
 function A.onShip(player)
-    if not player then return false end
-    local ok, k = pcall(function()
-        return A.locate(player:getX(), player:getY(), player:getZ())
+    return A.siteOfPlayer(player) ~= nil
+end
+
+---------------------------------------------------------------------------
+-- Two places, one layout
+---------------------------------------------------------------------------
+-- The field station's sublevels are more decks of this layout, marked
+-- `site = "fst"`; hers are `site = "adk"` (FIELD_STATION.md 4). A deck's
+-- site decides what its lift lists, its menu's title, its way out, whose
+-- power it runs on and what its crew talk about. Nothing else.
+A.Sites = { adk = true, fst = true }
+
+--- The site of deck k: "adk" or "fst".
+function A.siteOf(k)
+    local deck = k and L.decks[k]
+    return deck and (deck.site or "adk") or nil
+end
+
+--- The site of a square, or nil off both.
+function A.siteAt(x, y, z)
+    return A.siteOf(A.locate(x, y, z))
+end
+
+--- The site a player stands on, or nil.
+function A.siteOfPlayer(player)
+    if not player then return nil end
+    local ok, site = pcall(function()
+        return A.siteAt(player:getX(), player:getY(), player:getZ())
     end)
-    return ok and k ~= nil
+    return ok and site or nil
+end
+
+function A.onAdirondack(player) return A.siteOfPlayer(player) == "adk" end
+function A.onStation(player) return A.siteOfPlayer(player) == "fst" end
+
+--- The decks of one site, in lift order: { k, ... }.
+function A.decksOf(site)
+    local out = {}
+    for k = 1, #L.decks do
+        if A.siteOf(k) == site then table.insert(out, k) end
+    end
+    return out
 end
 
 --- The room a deck square belongs to, or nil for no room.
@@ -345,6 +386,22 @@ function A.stockItems(name)
                  "TrekShuttle.TrekAldebaranWhiskey" }
     end
     if name == "cordrazine" then return { C.Cordrazine.item } end
+    if name == "records" then
+        -- What a cultural survey kept of the county: its reading, and a PADD
+        -- to catalogue it on. Not its tapes: a retail tape made here would
+        -- be blank (TREK_Build's warning), and a blank tape is not a record.
+        return { "Base.Book", "Base.Book", "Base.Magazine", "Base.Magazine", "Base.Newspaper",
+                 "Base.ComicBook", "Base.BookFancy_History", "Base.BookFancy_ClassicNonfiction",
+                 C.PaddItem }
+    end
+    if name == "station_arms" then
+        return { C.PhaserItem, C.PhaserItem, C.HolsterItem, C.HolsterItem }
+    end
+    if name == "station_stores" then
+        return { "Base.TinnedBeans", "Base.TinnedSoup", "Base.CannedCorn", "Base.WaterBottle",
+                 "Base.WaterBottle", "Base.Battery", "Base.Battery", "Base.Torch",
+                 "TrekShuttle.TrekTricorder" }
+    end
     if name == "cookware" then
         return { "Base.Pot", "Base.Pot", "Base.Saucepan", "Base.Pan", "Base.RoastingPan",
                  "Base.BakingTray", "Base.Kettle", "Base.Bowl", "Base.Bowl", "Base.Bowl",
@@ -369,5 +426,28 @@ A.DoctorYaw = { S = 0, E = 270, N = 180, W = 90 }
 
 -- Crystals in her core the first time anybody asks.
 A.StartCrystals = 50
+-- And in the field station's (FIELD_STATION.md 6): enough to run its
+-- replicator and its Doctor a long while, not enough to make it a better
+-- base than the shuttle.
+A.StationStartCrystals = 12
+
+-- What the field station's own lockers hold, where it differs from hers
+-- (FIELD_STATION.md 4): a survey archive's shelves hold the county's books
+-- and tapes rather than weapons, its security keeps one watch's arms, and its
+-- stores are a bunker's.
+A.SiteStock = {
+    fst = {
+        display_shelf = { items = "records", copies = 1 },
+        arms_locker   = { items = "station_arms", copies = 1 },
+        cargo_crate   = { items = "station_stores", copies = 1 },
+    },
+}
+
+--- The stock rule for a piece on deck k: the site's own, or hers.
+function A.stockRule(piece, k)
+    local site = A.siteOf(k)
+    local own = site and A.SiteStock[site]
+    return (own and own[piece]) or A.Stock[piece]
+end
 
 return A

@@ -51,7 +51,7 @@ function E.onPowerUp(fn) table.insert(E.upListeners, fn) end
 function E.powerChanged()
     -- The shuttle's lamps, notes and listeners. Her store keeps its own flag
     -- (TREK_Power, settle), and none of this is about her.
-    if P.pool() == "adk" then return nil end
+    if P.isRemote() then return nil end
     local s = U.state()
     local dark = P.computeDark()
     if s.dark == dark then return nil end
@@ -96,7 +96,7 @@ end
 --- reached is ship state, so a warning is not repeated by a second machine or
 --- after a restart, and it resets once there is power to spare again.
 function E.thresholds(sparesBefore)
-    if P.pool() == "adk" then return nil end
+    if P.isRemote() then return nil end
     local s = U.state()
     if P.crystals() > 0 then
         s.powerWarn = nil

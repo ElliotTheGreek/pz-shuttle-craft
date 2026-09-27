@@ -1,0 +1,524 @@
+# The field station under the electronics store in Muldraugh (FIELD_STATION.md).
+# Part of the eleven: the survey team who stayed on the ground, sealed the
+# station when the county died at the end of June, raised the masking field
+# and went silent. They watch the county on their screens, keep its records,
+# and argue about whether to call the ship.
+# CREW.md section 4 is the format; section 2 is what these people know, and
+# FIELD_STATION.md 2 is what these people know that the ship does not.
+# `station` is anywhere down here; `any` is the ship's, and never plays here.
+
+# ---------------------------------------------------------------------------
+scene: st_screens
+where: ops
+cast: a=any, b=sciences
+weight: 4
+
+= start
+a: {b}. Screen four. Main Street, by the post office.
+ | Have a look at camera four for me. By the post office.
+ | {b}, come and look at this. Four. No, four.
+b: What am I looking at? | I see the street. | The post office. And?
+a: Wait for it. There. Walking. | Give it a second. There -- by the mailbox.
+...
+-> person 2, shape 2, glitch 1
+
+= person
+b: That's not a walk I know. That's a person. That's a living person.
+ | Upright. Looking both ways. That's a person, isn't it?
+a: Carrying something. A bag. Heading for the pharmacy.
+ | They're checking the door. Nobody from out there checks a door.
+b: Log it. Time, place, direction, what they're carrying.
+ | Mark it. Every one of them gets written down.
+a: And then? | And then what do we do about them?
+-> nothing 2, argue 1
+
+= shape
+b: No. Look at the feet. That's one of them.
+ | It's the shuffle. I'm sorry. That's one of them.
+a: I was so sure. | It looked like it was going somewhere.
+b: They all look like they're going somewhere. That's the worst of it.
+ | Half of them walk the routes they walked before. To work. Home.
+a: Mark it anyway? | Do we still log them?
+b: We log everybody. They were people. They get a line in the book.
+ | Yes. Name unknown, last seen outside the post office. Everybody.
+-> quiet
+
+= glitch
+b: That's the feed. The camera on the water tower drops a frame.
+ | That's static. The tower camera's been ghosting since Tuesday.
+a: I could have sworn. | Are you sure?
+b: I'm sure. I climbed up there to fix it in May. It did it then too.
+ | Sure as I can be from under a shop. I'll go up and check it tonight.
+a: Don't go up on your own. | Take somebody with you.
+-> quiet
+
+= nothing
+b: What we always do. Nothing. We watch, we write it down.
+ | Nothing. The masking field doesn't open for one person.
+a: They're somebody's. They're alive out there on their own.
+ | We have a replicator down here. We have a Doctor.
+b: I know. I know. Talk to Iverne. Again.
+ | Then say it at the briefing. Say it louder than last time.
+-> quiet
+
+= argue
+b: We've had this conversation. | Don't. Not today.
+a: We have. And every time we lose a day. | Somebody has to keep having it.
+b: If they see this place, whoever did this to the county sees it too.
+ | One door opened is one door found. You know the rule.
+a: The rule was written by people who weren't down here.
+ | The rule didn't watch Muldraugh die on a monitor.
+...
+b: Write it down. That's what I can give you today.
+ | Log it. We'll take it upstairs. Metaphorically.
+-> quiet
+
+= quiet
+...
+a: Back to it, then. | Right. Screen six. | I'll keep an eye on four.
+b: Call me if they come back. | Shout if they move. | Good eyes, {a}.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: st_silence
+where: ops, mess, station
+cast: a=any, b=any
+weight: 2
+tags: lore
+
+= start
+a: I watched her go over again last night. The Adirondack.
+ | She came over at two this morning. You could see her on the passive scan.
+b: Every ninety minutes. Like a clock. | You're still counting passes?
+a: One transmission. That's all it would take. One word. We're here.
+ | We could call her. We have the kit. It's sitting right there.
+-> iverne 2, risk 2, maybe 1
+
+= iverne
+b: Iverne says no. | The commander's said no every week since June.
+a: Iverne says no because Iverne is scared. | Iverne is being careful.
+b: Iverne is right to be scared. Somebody sabotaged the ship from inside.
+ | The ship was hit from the inside. Whoever did it may still be aboard.
+a: So we sit under a television shop until it all goes away?
+ | So we trust nobody. For ever.
+b: Until we know who. That's the order. | Until we know. That's all.
+-> end_quiet
+
+= risk
+b: And if the wrong person hears it?
+ | And who else is listening on that band?
+a: There's nobody left down here to listen. You've seen the screens.
+ | Who? The county? The county's gone.
+b: Whoever did this is still out there. It knew how Starfleet thinks.
+ | Whatever did this knew exactly where to hit us. It could hear us too.
+a: ... | You don't know that. | Nobody knows that.
+b: No. That's rather the point. | Nobody knows anything. That's why.
+-> end_quiet
+
+= maybe
+b: Maybe we won't have to. | Maybe she'll find us first.
+a: Through the masking field? She'd need to know where to look.
+ | Not with the field up. We're a hole in the ground to her sensors.
+b: Shepard knows where to look. Shepard bought the shop.
+ | Lucy Shepard knows. If she made it up there, she knows.
+a: If. | You think she made it?
+b: I think Shepard walks out of everything. It's infuriating.
+ | I have to think so. So I do.
+-> end_quiet
+
+= end_quiet
+...
+a: Next pass is at four. | I'll be at the screens at four.
+b: I'll bring the coffee. | Wake me. | Don't do anything stupid.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: st_records
+where: records
+cast: a=sciences, b=any
+weight: 3
+
+= start
+a: Can you read this? It's a church register. The ink's run.
+ | Hold the lamp. I'm on the parish records from Riverside.
+ | Give me a hand with these. The census sheets from the library.
+b: What are you after? | Which family? | What are we looking for?
+a: The Delaneys. Four of them on Fourth Street. I'm finishing their file.
+ | A family called Harrow. I've got the father, the mother. Not the kids.
+ | A retired schoolteacher. She wrote to the paper every week for thirty years.
+-> file 2, why 2, found 1
+
+= file
+b: How much have you got? | What does the file say?
+a: Birthdays. Jobs. The dog's name. A photo from a church picnic.
+ | Where they worked, who they married, what they grew in the garden.
+b: More than most people get. | That's a life.
+a: That's the point. It's not a survey any more. It's a memorial.
+ | It's all that's going to be left of them. Somebody should write it down.
+-> close
+
+= why
+b: Can I ask why? Honestly. What's it for, now?
+ | Does anybody ever read these? Honestly?
+a: The orders were to observe, report and explain. So I'm reporting.
+ | Because somebody made this place. And everybody on it was real.
+b: Report to who? | And explain?
+a: I can't explain. So I'm doing the part I can.
+ | Nobody can explain it. That's why the reporting has to be good.
+-> close
+
+= found
+b: Wait. Look. Under the stamp. A second name on the baptism line.
+ | Here. The margin. Somebody's pencilled a date.
+a: That's the youngest. That's her. Oh, that's her.
+ | That's the one I was missing. Thank you. Thank you.
+b: Put it in. | You've got her now. | Write her in.
+a: Wrote her in. | She's in. | Done.
+-> close
+
+= close
+...
+a: Seven hundred and twelve files. | That's the four hundredth. | Another one.
+b: Get some sleep, {a}. | Take a break. | I'll bring you tea.
+a: After the next one. | One more. | In a minute.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: st_mess
+where: mess
+cast: a=any, b=any, c=any
+weight: 3
+
+= start
+a: Somebody took the last of the peanut butter. I'm not angry. I'm hurt.
+ | Replicator's rationed again. Iverne's orders. Two meals a day.
+ | Who went up to the Zippee last night? There are Twinkies in the cupboard.
+b: Not me. | I have no idea what you mean. | Define "went up".
+c: It was the reactor crew. It's always the reactor crew.
+ | Ask the security office. They have the key to the back door.
+-> ration 2, zippee 2, food 1
+
+= ration
+b: The core's on its last few crystals. Every meal costs us.
+ | Every plate out of that replicator is dilithium we don't get back.
+c: Then we eat what's upstairs. The shop next door is full of it.
+ | There's a whole convenience store on the other side of the wall.
+a: Going up is how we get seen. | And how we get bitten.
+b: I'd risk it for a sandwich. I'm serious.
+ | Honestly? I'd risk it for bread.
+-> end_meal
+
+= zippee
+b: Fine. It was me. And I'd do it again. They had ice cream. Melted.
+ | It was me. Two in the morning. Nobody on the street but the dead.
+c: You went out? Past the front windows?
+ | You went through the shop? Past the windows?
+b: Through the back. Along the wall. The door sticks, then it doesn't.
+ | Stockroom, back door, alley, back door. Forty seconds each way.
+a: If Iverne finds out-- | Security will have your pips.
+b: Then nobody tell Iverne. Twinkie? | Then have a Twinkie and hush.
+-> end_meal
+
+= food
+b: I miss real food. Not replicated. Real. From a real kitchen.
+ | Remember the diner on the highway? Before?
+c: The pie. The pie at that diner. | The waitress who called everyone honey.
+a: ... | Don't. | We can't do this.
+b: Sorry. | Yes. Sorry.
+-> end_meal
+
+= end_meal
+...
+a: Right. Dishes. | Who's on dishes? | Your turn.
+c: Not me, I did it yesterday. | I'll do them. | Rock, paper, scissors.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: st_bunks
+where: bunks
+cast: a=any, b=any
+weight: 2
+
+= start
+a: You awake? | Can't sleep either? | You're up.
+b: The lift. It hums at night. | I keep counting days. | It's too quiet.
+a: Ninety days since June. Give or take. | Three months in a hole.
+ | I don't know what day it is. I stopped knowing.
+-> home 2, sky 2, noise 1
+
+= home
+b: What would you be doing, if none of this had happened?
+ | Where would you be right now? Honestly.
+a: Writing it up. Six months of fieldwork. It was going to be a good paper.
+ | On leave. My sister's getting married. Got married. In August.
+b: I'd be on the Adirondack eating something that wasn't beans.
+ | Arguing with Shepard about my footnotes.
+a: ... | You'll write it. | You will.
+-> sleep
+
+= sky
+b: I want to see the sky. That's all. I want to see weather.
+ | I haven't seen the sun since June.
+a: Go up to the stockroom. There's a window in the office.
+ | There's a skylight over the shop floor. You can see a bit.
+b: I did. I saw clouds. I cried a bit. Don't tell anyone.
+ | I did. It was raining. It was the best thing all month.
+-> sleep
+
+= noise
+b: Shh. Listen. | Did you hear that? Upstairs.
+...
+a: That's the pipes. | It's the building settling. | It's nothing.
+b: It's never nothing. | It's always nothing, until it isn't.
+a: The field's up. The doors are shut. We're safe. Go to sleep.
+ | Security's on the screens. If it was something, they'd say.
+-> sleep
+
+= sleep
+a: Try. Go on. | Close your eyes. | Night, {b}.
+b: Night. | Try yourself. | You too.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: st_infirmary
+where: infirmary
+cast: a=medical, b=any
+weight: 3
+
+= start
+a: Sit. Sleeve up. You know the routine. | Arm. Scanner. Go on.
+b: I wasn't bitten. I'd know. | It's a scratch. From a shelf. Honestly.
+a: I believe you. The scanner believes nobody. That's its job.
+ | Then this will take ten seconds and we'll both feel better.
+...
+-> clean 3, doctor 2, scare 1
+
+= clean
+a: Clean. A scratch. From a shelf. | You're fine. A shelf, as advertised.
+b: Told you. | Can I go now? | Thank you.
+a: Dermal regenerator. Hold still. There. No scar.
+ | I'll close it. You'll never know it was there.
+-> after
+
+= doctor
+b: Is the Doctor running? | Can I see the hologram instead?
+a: The station's program is fifty years old and it knows it.
+ | He's the old field model. He's rude. You'd enjoy him.
+b: Does he know about the county? | Does he know what's out there?
+a: He knows more than he says. He read everything we sent. Twice.
+ | He's read the samples. He calls it "a signature with two authors".
+-> after
+
+= scare
+a: Hold still. ... Hold still. | Wait. Let me run it again.
+b: What? What is it? | Why are you running it again?
+...
+a: Clean. It's clean. The scanner needed a moment. So did I.
+ | You're fine. I'm sorry. I'm jumpy. You're fine.
+b: Don't ever do that again. | I nearly died of fright.
+-> after
+
+= after
+a: Next time, gloves. | Wear the gloves. I mean it. | Go on.
+b: Yes, doctor. | Gloves. Got it. | Thanks.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: st_reactor
+where: reactor
+cast: a=engineer, b=any
+weight: 3
+
+= start
+a: Core's steady. Masking field's pulling twelve per cent.
+ | Field draw's up again. The humidity, I think. It hates Kentucky.
+ | She's running sweet today. Don't tell her I said so.
+b: How long have we got? | How many crystals left? | Can we keep the field up?
+a: Months. If we eat less and nobody runs the replicator for fun.
+ | A few. Enough. Not enough. Depends who's asking.
+-> crystals 2, field 2, sound 1
+
+= crystals
+b: There's dilithium out there. The probes found it in the fields.
+ | They say there's crystal lying in the woods. Actual crystal.
+a: In the wild ground. Never in town. Nobody knows why.
+ | Only where there's no town. As if the towns grew on top of it.
+b: That's not how dilithium works. | That's not how anything works.
+a: No. And yet. | Tell the planet. | This county breaks every rule.
+-> leave
+
+= field
+b: What happens if the field goes? | If the field drops, what do we look like?
+a: Like a hole full of power under a TV shop. On every scan there is.
+ | Like a lighthouse. Anybody with a sensor could find us.
+b: Anybody meaning the Adirondack. | Anybody meaning whoever did this.
+a: Both. That's the trouble. We can't be found by one and not the other.
+ | Yes. And we don't know which of those is worse.
+-> leave
+
+= sound
+b: Listen to her. | It sings, doesn't it? | That hum.
+a: Hear that tick? Every forty seconds? That's her telling me she's fine.
+ | That flutter's the field modulator. If it stops, I worry.
+b: You talk about it like a pet. | You love it.
+a: I've spent more time with her than with any person since June.
+ | She's the only one down here who never argues.
+-> leave
+
+= leave
+a: Mind the railing. | Don't touch anything blue. | Off you go.
+b: Wouldn't dream of it. | Thanks. | Goodnight, core.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: st_the_television
+where: shaft, station
+cast: a=any, b=any
+weight: 1
+tags: lore
+
+= start
+a: Did you know Shepard bought the television from upstairs?
+ | You know the old set Shepard took? That was from our shop floor.
+b: The big one? From the window display? | The one with the tape deck?
+a: That one. She paid for it. In cash. From the survey's cover budget.
+ | She logged it as a surface artifact. Then she took it to her shuttle.
+-> why 2, tapes 2
+
+= why
+b: Why a television? She's a historian. | Of everything in the county?
+a: She said the hardware was the finding. A world this close to ours...
+ | She said you can't understand a people from orbit. You watch their TV.
+b: That's the most Shepard thing I've ever heard.
+ | She'd have taken the whole shop if she could.
+-> close
+
+= tapes
+b: And the tapes. She made tapes. Of everything.
+ | She's got a shelf of tapes on that shuttle, apparently.
+a: Her whole collection. Holos, flattened to tape so the set would play them.
+ | Old recordings. Ten Forward talent nights. That sort of thing.
+b: I'd kill for a talent night. | I'd watch anything right now.
+-> close
+
+= close
+a: Hope she's watching one now. Somewhere safe.
+ | I hope she's up there with it. Warm. Bored.
+b: Me too. | She is. | Yes.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: st_the_stranger
+where: ops, station
+cast: a=any, b=security
+weight: 1
+tags: lore
+
+= start
+a: So who is it? The one who came down through the stockroom?
+ | Have you worked out who our visitor is yet?
+b: Nobody knows. Not on our roster. Not on anybody's roster.
+ | I've checked every name we have. Nothing.
+a: They found the breaker box. Nobody finds the breaker box.
+ | They opened the panel. That takes knowing it's a panel.
+-> uniform 2, trust 2
+
+= uniform
+b: Some of them turn up in uniform. That's the part I don't like.
+ | They wear the uniform like they've always had it.
+a: Maybe they have. Maybe they're one of ours from the ship.
+ | Maybe the Adirondack sent them. Maybe Shepard did.
+b: Then why don't they know my name? | Then why haven't they said so?
+-> close
+
+= trust
+b: Iverne says treat them as crew until they're not.
+ | The orders are be polite and watch closely.
+a: And if they're not? | What does "until they're not" look like?
+b: Then I'll know. That's what I'm here for.
+ | Then I'll be standing behind them. I'm always behind them.
+-> close
+
+= close
+a: They seem all right. | They helped carry the crates in.
+b: Most people seem all right. That's never been the question.
+ | Probably. Probably is my least favourite word.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: st_shaft_passing
+where: shaft
+cast: a=any, b=any
+weight: 3
+
+= start
+a: Going up or down? | Which level? | After you.
+b: Two. Mess. | Three, for my sins. | Records. Again.
+a: Same. | I'm one past you. | Reactor. Always reactor.
+...
+-> small 2, rumour 1
+
+= small
+b: Busy shift? | You look tired. | Long day?
+a: Every day is a long day under a shop. | I'm counting passes again.
+b: Me too. | Don't. It doesn't help. | Same here.
+-> end
+
+= rumour
+b: Did you hear? Somebody saw a living person on camera four.
+ | They say there's somebody alive on Main Street.
+a: I heard. I'm trying not to hope. | I heard. I'm hoping anyway.
+b: Me too. | That's allowed.
+-> end
+
+# ---------------------------------------------------------------------------
+bark: hello
+where: station
+- Morning. Probably. | Evening, is it? Hard to tell down here.
+- Excuse me. | Pardon me. | Sorry, after you.
+- Hello. You're new. | Hi. We don't get many new faces. Any.
+- Watch the step. | Mind the cable. | Careful, that panel's loose.
+- Keeping your head down? | Staying out of sight? Good.
+- Morning. Screens are quiet today. | Quiet up top today.
+- Hello. Iverne know you're here? | Have you checked in with security?
+- You came down the lift? Welcome to the hole.
+ | Welcome to the basement. Wipe your feet.
+- Hello. Nice to see a face that isn't one of the eleven.
+ | Hi. Sorry. We're not used to company.
+- Did you come through the shop? Anybody see you?
+ | Did you close the breaker box behind you?
+
+# ---------------------------------------------------------------------------
+bark: outfit
+where: station
+- You came in from up there? Dressed like that? | You're from outside.
+- You're not one of ours. | Who let you through the panel?
+- Is that a local's coat? From the county? | That's surface clothing.
+- You're alive. Out there. How? | You walked here? Through town?
+- We've been watching the street for months. We never saw you.
+ | You didn't show up on camera four. Or anywhere.
+
+# ---------------------------------------------------------------------------
+bark: idle
+where: station
+- Camera six is fogging up again. | Somebody wipe the lens on six.
+- Log entry. Nothing moving on the highway. Again.
+- Seven hundred and twelve files. Seven hundred and thirteen.
+- That hum is the lift. It's only the lift. It's always the lift.
+- Masking field nominal. | Field steady. | Core steady.
+- If I eat one more tin of beans I'm going upstairs.
+- I miss rain. | I miss windows. | I miss the ship. There, I said it.
+- ... (humming the Zippee's radio jingle) ...
+- Next pass in forty minutes. | She'll be overhead soon.
+
+# ---------------------------------------------------------------------------
+bark: arrive
+where: station
+- Level two. Mess. Finally. | Here we are. | Down we go.
+- Anyone seen my padd? | Right. Where was I?
+
+# ---------------------------------------------------------------------------
+bark: leave
+where: station
+- Back to the screens. | Back to the files. | Back to the core.
+- Up I go. | Level one, then. | See you at the briefing.

@@ -655,12 +655,25 @@ function ObjectMT:getSprite()
                         return obj.isFloor == true and obj.square ~= nil
                                and obj.square.water == true
                     end
-                    return false
+                    -- A tile's own flags, the ones a test declares for a
+                    -- sprite it puts in the world: `WallW`, `WindowN`... The
+                    -- field station reads a vanilla wall this way
+                    -- (FIELD_STATION.md 3), and a stub that answered false
+                    -- for everything would pass a box hung on a window.
+                    local t = SIM.tileProps[name]
+                    return t ~= nil and t[flag] == true
+                end,
+                get = function(_, key)
+                    local t = SIM.tileProps[name]
+                    return t and t[key] or nil
                 end,
             }
         end,
     }
 end
+-- Sprite name -> { flag = true }: what a test says a vanilla tile carries.
+SIM.tileProps = SIM.tileProps or {}
+
 function ObjectMT:getModData() return self.modData end
 function ObjectMT:getSquare() return self.square end
 function ObjectMT:createContainersFromSpriteProperties()
@@ -976,6 +989,10 @@ function SquareMT:getZ() return self.z end
 ---     which really does delete all three machines. TREK_Rebuild() leaving the
 ---     Doctor standing while s.emh says he is up is a bug the build phase
 ---     exists to repair, and it could not be reproduced here at all.
+--- The map's room for this square, as the engine's RoomDef: only the
+--- squares a test put in one (SIM.room) are in any.
+function SquareMT:getRoomDef() return self.roomDef end
+
 function SquareMT:getObjects()
     local all = {}
     for _, o in ipairs(self.objects) do table.insert(all, o) end
@@ -1305,6 +1322,22 @@ local function ground(x, y, z)
         table.insert(sq.objects, tree)
     end
     return sq
+end
+
+--- A room of the vanilla map, on the ground: every square x0..x1, y0..y1
+--- answers getRoomDef() with it, the way a map-loaded building's do.
+function SIM.room(name, x0, y0, x1, y1, z)
+    z = z or 0
+    local def = {
+        getName = function() return name end,
+        getX = function() return x0 end, getY = function() return y0 end,
+        getX2 = function() return x1 end, getY2 = function() return y1 end,
+        getZ = function() return z end,
+    }
+    for x = x0, x1 do
+        for y = y0, y1 do SIM.rawSquare(x, y, z).roomDef = def end
+    end
+    return def
 end
 
 --- For replication and test setup: the square whatever is loaded.

@@ -33,7 +33,10 @@ K.StateKey = "TREK_Crew"
 K.Outfit = "TrekCrewBase"
 
 -- How many are about on a deck while somebody is on it.
-K.Population = { 6, 8, 5, 6, 4 }
+K.Population = { 6, 8, 5, 6, 4,
+                 -- The field station's sublevels (FIELD_STATION.md 7): a
+                 -- survey detachment, not a ship's company.
+                 4, 4, 3 }
 
 ---------------------------------------------------------------------------
 -- Who they are
@@ -81,6 +84,14 @@ K.Jobs = {
       { "command", "command", 1 } },
     -- Deck 5, hydroponics: botanists, and somebody from the galley.
     { { "sciences", "sciences", 5 }, { "operations", "operations", 2 }, { "sciences", "medical", 1 } },
+    -- The field station (FIELD_STATION.md 7): sciences first -- it is a
+    -- survey -- then the people who keep it hidden and running.
+    -- Sublevel 1, operations and security.
+    { { "sciences", "sciences", 4 }, { "operations", "security", 2 }, { "command", "command", 1 } },
+    -- Sublevel 2, the mess, the bunks, the infirmary.
+    { { "sciences", "sciences", 3 }, { "operations", "operations", 2 }, { "sciences", "medical", 2 } },
+    -- Sublevel 3, the reactor and the lab.
+    { { "operations", "engineer", 3 }, { "sciences", "sciences", 3 } },
 }
 
 K.Ranks = { { "Crewman", 4 }, { "Ensign", 5 }, { "Lieutenant", 3 }, { "Petty Officer", 2 },

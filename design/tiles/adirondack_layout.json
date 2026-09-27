@@ -34,6 +34,27 @@
    "x": 1,
    "y": 1,
    "description": "Hydroponics"
+  },
+  {
+   "deck": "Sublevel 1",
+   "z": 5,
+   "x": 1,
+   "y": 1,
+   "description": "Operations, Security, Survey Records"
+  },
+  {
+   "deck": "Sublevel 2",
+   "z": 6,
+   "x": 1,
+   "y": 1,
+   "description": "Mess, Bunk Room, Infirmary"
+  },
+  {
+   "deck": "Sublevel 3",
+   "z": 7,
+   "x": 1,
+   "y": 1,
+   "description": "Reactor Room, Stores, Survey Lab"
   }
  ],
  "decks": [
@@ -43,7 +64,8 @@
    "sections": [
     "Adirondack_MainEngineering.tbx"
    ],
-   "description": "Main Engineering"
+   "description": "Main Engineering",
+   "site": "adk"
   },
   {
    "deck": "Deck 3",
@@ -52,7 +74,8 @@
     "Adirondack_TransporterRoom.tbx",
     "Adirondack_Sickbay.tbx"
    ],
-   "description": "Transporter Room, Sickbay"
+   "description": "Transporter Room, Sickbay",
+   "site": "adk"
   },
   {
    "deck": "Deck 2",
@@ -61,7 +84,8 @@
     "Adirondack_Lounge_Galley.tbx",
     "Adirondack_HabitatDeck.tbx"
    ],
-   "description": "Lounge, Habitat"
+   "description": "Lounge, Habitat",
+   "site": "adk"
   },
   {
    "deck": "Deck 1",
@@ -69,7 +93,8 @@
    "sections": [
     "Adirondack_Bridge_ReadyRoom.tbx"
    ],
-   "description": "Bridge"
+   "description": "Bridge",
+   "site": "adk"
   },
   {
    "deck": "Deck 5",
@@ -77,7 +102,35 @@
    "sections": [
     "Adirondack_Hydroponics.tbx"
    ],
-   "description": "Hydroponics"
+   "description": "Hydroponics",
+   "site": "adk"
+  },
+  {
+   "deck": "Sublevel 1",
+   "z": 5,
+   "sections": [
+    "FieldStation_Operations.tbx"
+   ],
+   "description": "Operations, Security, Survey Records",
+   "site": "fst"
+  },
+  {
+   "deck": "Sublevel 2",
+   "z": 6,
+   "sections": [
+    "FieldStation_Habitat.tbx"
+   ],
+   "description": "Mess, Bunk Room, Infirmary",
+   "site": "fst"
+  },
+  {
+   "deck": "Sublevel 3",
+   "z": 7,
+   "sections": [
+    "FieldStation_Reactor.tbx"
+   ],
+   "description": "Reactor Room, Stores, Survey Lab",
+   "site": "fst"
   }
  ],
  "spine_x": 3,
@@ -90,5 +143,5 @@
   20,
   25
  ],
- "floors": 5
+ "floors": 8
 }

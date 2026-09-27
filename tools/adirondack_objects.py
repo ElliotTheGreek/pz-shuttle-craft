@@ -324,6 +324,18 @@ OBJECTS += [
 ]
 
 
+OBJECTS += [
+    # --- the field station (FIELD_STATION.md 3) ------------------------------
+    # LAST, as ever. The disguise on the stockroom wall of a store in
+    # Muldraugh: a 1993 breaker cabinet, drawn by tools/gen_fuse_box.py rather
+    # than generated. The same window on the wall as turbolift_panel, which
+    # is what hangs there once it is opened, so one replaces the other.
+    flat("fuse_box", "fieldstation", "Drawn by tools/gen_fuse_box.py: a grey "
+         "pressed-steel breaker cabinet with a keyed latch and a yellow "
+         "warning triangle.", u=(0.3, 0.7), v=(0.22, 0.58)),
+]
+
+
 def by_name():
     return {o["name"]: o for o in OBJECTS}
 

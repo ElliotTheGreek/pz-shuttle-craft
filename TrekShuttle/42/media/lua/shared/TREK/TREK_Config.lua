@@ -2321,4 +2321,24 @@ end
 -- in the stash crates rather than on the shuttle's shelf.
 C.HolosuiteTape = "TREK_Holosuite"
 
+---------------------------------------------------------------------------
+-- The field station (FIELD_STATION.md)
+---------------------------------------------------------------------------
+-- Where its way down is hidden: Muldraugh's electronics store (the strip on
+-- the main road, with the Zippee), in the stockroom, on the one stretch of
+-- its west wall with nothing on it. Read off the vanilla map by
+-- tools/fieldstation_site.py, and checked by the server in every world
+-- before it touches the wall (TREK_FieldStationServer, FS.checkSquare):
+-- the room's name, a solid wall on `edge`, nothing standing there. If the
+-- square fails, the rest of the same room is searched for one that passes.
+C.FieldStation = {
+    x = 10602, y = 9604, z = 0, edge = "W",
+    room = "electronicsstorage",
+    name = "Muldraugh",
+    -- How far from the box a player may stand to open it or ride down.
+    reach = 2.2,
+    -- Ticks between looks at whether its box needs placing.
+    serviceTicks = 30,
+}
+
 return C

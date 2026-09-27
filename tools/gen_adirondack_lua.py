@@ -42,6 +42,8 @@ OUT = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua", "shared", "TREK",
 # tubes cross it (gen_adirondack_tubes.py).
 DECK_PITCH = TUBES.DECK_PITCH
 DECK_FLOOR = "trek_adirondack_01_25"
+# The field station's first sublevel stands this many pitches east of Deck 1.
+STATION_SLOT = 8
 
 
 def unpad(name):
@@ -160,9 +162,27 @@ def main():
     # top, and the order they stand in, west to east. **Never by storey.**
     # Deck 5 is the fifth storey and the fifth deck; sorting by storey put it
     # first, which would have moved every deck already built in a save.
+    #
+    # **The ship's decks first, then the field station's sublevels**
+    # (FIELD_STATION.md 4): "Sublevel 1" sorted against "Deck 1" by number
+    # alone would move every deck a save has already built.
+    def site(z):
+        return by_z.get(z, {}).get("site", "adk")
+
     def number(z):
-        return int(by_z[z]["deck"].split()[-1])
+        return (site(z) != "adk", int(by_z[z]["deck"].split()[-1]))
     order = sorted(range(len(decks)), key=number)
+    ship_order = [z for z in order if site(z) == "adk"]
+    station_order = [z for z in order if site(z) != "adk"]
+
+    # Where each deck stands, as its west edge's offset from the ship's
+    # origin: the ship's side by side, the station's from STATION_SLOT on --
+    # far past the stars under her (gen_void_map.py, VIEW), so nobody in the
+    # station ever sees one.
+    def slot_ox(n, z):
+        if site(z) == "adk":
+            return (n - 1) * DECK_PITCH
+        return (STATION_SLOT + station_order.index(z)) * DECK_PITCH
 
     # The pad: every square of the platform, and the arrival is the one
     # nearest the room's middle, so nobody materialises against a wall.
@@ -185,8 +205,8 @@ def main():
 
     # The Jefferies tubes (gen_adirondack_tubes.py, JEFFERIES.md): they put
     # their hatches on the decks' corridor walls, so before anything is written.
-    tubes = TUBES.build([decks[z] for z in order], W, H, index)
-    span = TUBES.span(tubes, W, H, len(order))
+    tubes = TUBES.build([decks[z] for z in ship_order], W, H, index)
+    span = TUBES.span(tubes, W, H, len(ship_order))
 
     # --- write --------------------------------------------------------------------------
     def q(s):
@@ -204,8 +224,25 @@ def main():
     out.append("L.pad = { deck = %d, x = %d, y = %d }" % (order.index(pz) + 1, pad[0], pad[1]))
     # The place each room is, for the crew's talk (CREW.md 4.1): which scenes
     # and barks may play there. By the room's name, which is the author's.
-    def place(r):
+    station_rooms = set()
+    for z in station_order:
+        for row in decks[z]["grid"]:
+            station_rooms.update(v for v in row if v)
+
+    # The station's own places (FIELD_STATION.md 7): its rooms never take a
+    # ship's tag, because a ship's scene talks about the ship.
+    STATION_PLACES = (("Operations", "ops"), ("Security", "ops"), ("Records", "records"),
+                      ("Survey Lab", "records"), ("Mess", "mess"), ("Bunk", "bunks"),
+                      ("Washroom", "bunks"), ("Infirmary", "infirmary"), ("Reactor", "reactor"),
+                      ("Stores", "reactor"), ("Lift", "shaft"), ("Corridor", "shaft"))
+
+    def place(r, rid):
         name, internal = r["Name"], r.get("InternalName", "")
+        if rid in station_rooms:
+            for key, tag in STATION_PLACES:
+                if key in name:
+                    return tag
+            raise SystemExit("station room %r has no place tag: add it to STATION_PLACES" % name)
         if internal == "trekturbolift":
             return "lift"
         for key, tag in (("Bridge", "bridge"), ("Ready Room", "readyroom"), ("Armoury", "armoury"), ("Lounge", "lounge"),
@@ -225,7 +262,7 @@ def main():
     for rid in range(1, len(ship["rooms"]) + 1):
         r = ship["rooms"][rid - 1]
         out.append("  { name = %s, internal = %s, place = %s }," % (
-            q(r["Name"]), q(r.get("InternalName", "")), q(place(r))))
+            q(r["Name"]), q(r.get("InternalName", "")), q(place(r, rid))))
     out.append("}")
     body = []
     # Every tube in the frame of its own deck (`from`): x runs on past that
@@ -234,6 +271,11 @@ def main():
     # where one stands; `clutter` what lies on its floor, placed once.
     sq = lambda pts: ", ".join("{ %d, %d }" % (x, y) for x, y in pts)
     body.append("L.span = { x0 = %d, y0 = %d, x1 = %d, y1 = %d }" % span)
+    # The field station's box, in the same frame: the void map's black cells.
+    if station_order:
+        xs = [slot_ox(0, z) for z in station_order]
+        body.append("L.stationSpan = { x0 = %d, y0 = %d, x1 = %d, y1 = %d }"
+                    % (min(xs) - 2, -2, max(xs) + W + 2, H + 2))
     body.append("L.tubes = {")
     for t in tubes:
         n = t["n"] + 1
@@ -266,8 +308,9 @@ def main():
         d = decks[z]
         info = by_z.get(z, {})
         body.append("  {")
-        body.append("    name = %s, description = %s, ox = %d,"
-                    % (q(info.get("deck", "Deck %d" % n)), q(info.get("description", "")), (n - 1) * DECK_PITCH))
+        body.append("    name = %s, description = %s, ox = %d, site = %s,"
+                    % (q(info.get("deck", "Deck %d" % n)), q(info.get("description", "")), slot_ox(n, z),
+                       q(site(z))))
         body.append("    -- Room index per square, one row per line: %d rows of %d." % (H, W))
         body.append("    grid = {")
         for row in d["grid"]:

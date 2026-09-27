@@ -1493,6 +1493,28 @@ apply to them.
 - **When a feature "never worked", read its own diagnostic first.** It is
   cheaper than any theory, and here it was one line.
 
+### A wall on the map is more than its wall tile
+
+**New in this mod, with the field station, and caught before the game.** The
+breaker box goes on a vanilla wall, and the server checks the square first:
+a solid wall on that edge, and nothing else standing there. The first rule
+counted anything wall-attached that was not the wall as "something standing
+there" -- and every wall in the stockroom carries a second tile,
+`location_trailer_02_48`, flagged `WallOverlay`: the map's paint and trim.
+Every square failed, so would every world, with one WARN.
+
+The tests passed, because the simulated wall was only a wall. What caught it
+was `tools/fieldstation_site.py` reading the real map -- the `lotheader` and
+`lotpack` formats out of `IsoMetaGrid$MetaGridLoaderThread.loadCell` and
+`IsoLot.load` -- and applying the same rule. `tests/test_assets.py` runs it
+against the installed map now.
+
+- **Before a rule about what is on a vanilla square, read a vanilla square.**
+  The tile catalogue says what a tile is; only the map says what stands
+  together.
+- The shape is *The simulation has to be as unkind as the engine* from the
+  map's side: the stub's world was tidier than Kentucky.
+
 ### Never find a door by its sprite
 
 **New in this mod.** `IsoDoor.ToggleDoor` swaps an open door's sprite for the
@@ -2291,6 +2313,7 @@ python tools/gen_farm_icons.py                    # hydroponics item icons, keye
 python tools/gen_contraband_icons.py              # contraband item icons, keyed from their raws
 python tools/gen_crew_talk.py                     # the crew's talk (design/crew -> TREK_CrewTalk.lua)
 python tools/gen_adirondack_tiles.py              # the Adirondack's structure sheet and the stars
+python tools/gen_fuse_box.py                      # the field station's breaker box, drawn (before the furniture)
 python tools/gen_adirondack_furniture.py          # her furniture, rendered into tiles (ADIRONDACK.md 7)
 python tools/gen_adirondack_crops.py              # the crops' growth sprites (FARMING.md)
 python tools/gen_adirondack_pack.py               # her texture pack, tiledef and seating
@@ -2389,6 +2412,8 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **Stuck on the pad, then put back outside** | The server never reported the cabin ready. Look for `[TREK] cabin ready` in the server's log and `arrival tick` lines on the client. |
 | **The phaser runs out** | The sweep is not seeing it. `TREK_Phaser()` reports how many it found; zero while one is in your hands means the inventory lookup is wrong. |
 | **Grass, trees or zombies outside the cabin or the Adirondack** | The void map is not loaded (log: `the 'TrekShuttle' map is not loaded`). In single player the map is not under `common/media/maps` -- the engine never reads it from `42/`; on a server, add it to `Map=`. Or the save generated those cells before the map was loaded: test in a new world. |
+| **No breaker box in the Muldraugh stockroom** | The server has not looked yet (the chunk loads, then within `C.FieldStation.serviceTicks`), or no square passed its check: `grep "field station" console.txt` -- a WARN names the rule. `python tools/fieldstation_site.py` shows the same thing from the map. |
+| **Stars under the field station, or grass round it** | The void map is not loaded, or the save generated those cells before this build: the station's cells are mapped black (`gen_void_map.py`). |
 | **Another deck in view from this one** | `DECK_PITCH` has come down below the engine's load radius (79 squares from the player's chunk). See `JEFFERIES.md` 5. |
 | **Standing up in a Jefferies tube, or crawling in a corridor** | `TrekCrawl` is not being set or cleared (`AC.serviceCrawl`), or the AnimSets nodes are not loading -- `media/AnimSets/player/movement/trekCrawl.xml` must be in the mod. |
 | **Two doors in one doorway, or an open door that shuts itself on a rebuild** | Something looked for a door by its sprite. See *Never find a door by its sprite*. |
@@ -2596,7 +2621,7 @@ notes have since been answered in play.
 | 1.7.0 | energy: the ledger, the gauge, the dark ship, the cold start, wild dilithium, the galley made real |
 | 1.8.0 | species, Starfleet professions and rank; the phaser's own model, beam and cutting |
 | 1.9.0 | the U.S.S. Adirondack, her crew and hydroponics |
-| since 1.9.0 | the Jefferies tubes and hideouts, Turbolift Phobia, contraband (not yet released) |
+| since 1.9.0 | the Jefferies tubes and hideouts, Turbolift Phobia, contraband, the armoury, the field station (not yet released) |
 
 `modversion` in `mod.info` and `C.Version` in `TREK_Config.lua` are the same
 number, and `tests/test_assets.py` fails if they are not -- they had drifted a
@@ -3093,6 +3118,16 @@ hurts the body. Twenty-one mutations, one pass at a time, all caught, and two
 more on the Doctor's panel. **Needs a new world, and none of it has been
 seen in game.**
 
+**The 2026-09-27 field station** (`FIELD_STATION.md`): a breaker box on the
+stockroom wall of Muldraugh's electronics store that opens on a lift panel,
+and three sublevels of a Starfleet survey station below it, with crew of
+their own talk and a third power store. The sublevels are more decks of the
+Adirondack's layout (`site = "fst"`), so her builder, doors, lamps, machines
+and crew serve them unchanged. Fifteen mutations, one at a time, all caught.
+It found a new rule (*A wall on the map is more than its wall tile*, above)
+and fixed a latent one on the ship: the Doctor's server looked for a named
+patient only in the shuttle's cabin. **Not seen in game.**
+
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
 
@@ -3153,6 +3188,10 @@ TrekShuttle/42/media/lua/client/TREK/TREK_AdirondackClient.lua moving about her:
 TrekShuttle/42/media/AnimSets/player/*/trekCrawl*.xml          the crawl in a Jefferies tube (vanilla's Bob_Crawl)
 TrekShuttle/common/media/maps/TrekShuttle/                     the void map: space (generated; must be under common/)
 tools/gen_adirondack_tubes.py                                  the Jefferies tubes' routes, walls, hatches, hideouts
+TrekShuttle/42/media/lua/shared/TREK/TREK_FieldStation.lua    the field station's way in: where the box is, reach, sprites
+TrekShuttle/42/media/lua/server/TREK/TREK_FieldStationServer.lua the box placed and checked, opening it
+TrekShuttle/42/media/lua/client/TREK/TREK_FieldStationClient.lua the box's and panel's menus, the tricorder's hint
+tools/fieldstation_site.py                                     the vanilla stockroom, read off the map
 TrekShuttle/42/media/lua/shared/TREK/TREK_Contraband.lua      contraband: the record either side reads, habits, the words
 TrekShuttle/42/media/lua/shared/TREK/TREK_ContrabandActions.lua the Ktarian game's timed action (global, shared)
 TrekShuttle/42/media/lua/server/TREK/TREK_ContrabandServer.lua doses, rounds, withdrawal, the Game handed on, the flashing light

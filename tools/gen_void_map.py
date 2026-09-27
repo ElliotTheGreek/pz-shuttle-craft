@@ -90,6 +90,22 @@ def ships():
     return cabin, ship
 
 
+def station():
+    """The squares the field station's sublevels stand on (FIELD_STATION.md 4),
+    or None. **Black, not stars**: they are underground. Their cells are
+    mapped so nothing grows there, and every square of them is left empty."""
+    adk = LUA / "TREK_Adirondack.lua"
+    ax, ay = lua_number(adk, r"A\.Cell\s*=\s*\{\s*x\s*=\s*(\d+),\s*y\s*=\s*(\d+)")
+    (aoff,) = lua_number(adk, r"A\.Offset\s*=\s*(\d+)")
+    m = re.search(r"L\.stationSpan = \{ x0 = (-?\d+), y0 = (-?\d+), x1 = (-?\d+), y1 = (-?\d+) \}",
+                  (LUA / "TREK_AdirondackLayout.lua").read_text(encoding="utf-8"))
+    if not m:
+        return None
+    sx0, sy0, sx1, sy1 = [int(v) for v in m.groups()]
+    x0, y0 = ax * CELL + aoff, ay * CELL + aoff
+    return (x0 + sx0 - VIEW, y0 + sy0 - VIEW, x0 + sx1 + VIEW, y0 + sy1 + VIEW)
+
+
 def space_box():
     cabin, ship = ships()
     return (min(cabin[0], ship[0]) - VIEW, min(cabin[1], ship[1]) - VIEW,
@@ -170,6 +186,11 @@ def main():
         old.unlink()
     box = space_box()
     todo = cells(box)
+    dark = station()
+    if dark:
+        if dark[0] <= box[2]:
+            raise SystemExit("the field station %s is within sight of the stars %s" % (dark, box))
+        todo += [c for c in cells(dark) if c not in todo]
     (OUT / "map.info").write_text(MAP_INFO, encoding="utf-8", newline="\n")
     (OUT / "objects.lua").write_text("objects = {}\n", encoding="utf-8", newline="\n")
     size = 0
