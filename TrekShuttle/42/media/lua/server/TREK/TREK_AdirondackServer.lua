@@ -641,12 +641,23 @@ function AS.serviceDoctor(k)
             local x, y = A.at(k, o[1] + step[1], o[2] + step[2])
             local sq = U.square(x, y, A.Z, true)
             if sq then
+                local yaw = A.DoctorYaw[facing] or 0
                 local have = 0
                 U.try("adk.doctorCount", function()
                     local items = sq:getWorldObjects()
                     for i = 0, items:size() - 1 do
                         local it = items:get(i):getItem()
-                        if it and it:getFullType() == C.EmhItem then have = have + 1 end
+                        if it and it:getFullType() == C.EmhItem then
+                            have = have + 1
+                            -- A save from before the turn was seen has him
+                            -- facing the wall; the rotation is saved with
+                            -- the item, so this pass is what turns him round.
+                            if it:getWorldZRotation() ~= yaw then
+                                it:setWorldXRotation(0)
+                                it:setWorldYRotation(0)
+                                it:setWorldZRotation(yaw)
+                            end
+                        end
                     end
                 end)
                 if have == 0 then
@@ -657,7 +668,7 @@ function AS.serviceDoctor(k)
                         U.try("adk.doctorTurn", function()
                             item:setWorldXRotation(0)
                             item:setWorldYRotation(0)
-                            item:setWorldZRotation(A.DoctorYaw[facing] or 0)
+                            item:setWorldZRotation(yaw)
                         end)
                         placed = placed + 1
                     end

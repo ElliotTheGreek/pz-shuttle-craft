@@ -329,9 +329,10 @@ A.Water = { galley_sink = true, wash_basin = true }
 -- Her Doctor stands on the square in front of her EMH station, always: he
 -- is a world model (C.EmhItem) turned to face out from the station. The
 -- model faces south unturned (tools/gen_emh.py); these are the turns for a
--- station whose Facing is each way. NOT YET SEEN IN GAME -- if he stands
--- with his back to the room, this table is what to change.
-A.DoctorYaw = { S = 0, E = 90, N = 180, W = 270 }
+-- station whose Facing is each way. Seen in game: at E = 90 he stood facing
+-- the west wall, so a positive Z turn goes clockwise seen from above and
+-- east is 270. N and S are not yet seen.
+A.DoctorYaw = { S = 0, E = 270, N = 180, W = 90 }
 
 -- Crystals in her core the first time anybody asks.
 A.StartCrystals = 50
