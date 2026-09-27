@@ -80,7 +80,7 @@ locked door. The engine fact the override taught is still worth keeping:
 `setLockedByKey` syncs only when it is **not** on the server
 (`DEV_GUIDE.md`, *A setter's own sync may be one-sided*).
 
-Three orderings in there are deliberate and easy to break:
+Two orderings in there are deliberate and easy to break:
 
 - **A dose is spent after the treatment took, not before.** Two guards, and it
   takes removing both to waste one.
@@ -88,8 +88,6 @@ Three orderings in there are deliberate and easy to break:
   `ISMedicalCheckAction:perform` returns, the health-window table has been
   rewritten. Same lesson as the radial menu (`DEV_GUIDE.md`, *A hook on a
   toggle must ask before it calls through*).
-- **The cooldown is spent on an attempt that reached a real lock**, not on a
-  refusal. Clicking a padlock does not lock the tool for twenty seconds.
 
 ---
 
@@ -101,7 +99,7 @@ Three orderings in there are deliberate and easy to break:
 | `shared/TREK/TREK_Medical.lua` | `Med.TREATMENTS`, `Med.SKIN`, `Med.treatWith`, doses. No side effects; loads everywhere |
 | `client/TREK/TREK_MedKit.lua` | the menus, both panels, the sweep job, dose refills, the `ISMedicalCheckAction` wrapper |
 | `server/TREK/TREK_Build.lua` | `SPECIALS.medkit` — what the sick-bay locker is guaranteed |
-| `shared/TREK/TREK_InteriorLayout.lua` | `special = "medkit"` on the locker at 5,1 |
+| `shared/TREK/TREK_InteriorLayout.lua` | `special = "medkit"` on the sick-bay locker at 3,2 |
 | `media/scripts/trekshuttle.txt` | the four `item` blocks and three `sound` blocks |
 | `lua/shared/Translate/EN/` | `ItemName`, `Tooltip`, and every `IGUI_TREK_` string |
 | `tools/gen_medical.py` | the three sounds. **The icons are not made here** — they come from the Gemini toolkit |
@@ -221,24 +219,18 @@ same rule the torpedo's flight follows. It is an `ISPanelJoypad` built from the
 helm's own LCARS parts (`H.pill`, `TREKLcarsButton`, `H.P`), so changing the
 helm's palette changes this too.
 
-### The lock
-
-`C.UnlockRange` (2 tiles) and `C.UnlockCooldownMs` (20 s), both measured on the
-server. `Med.lockOn` decides what counts as a lock and is asked by **both**
-sides — the client to offer the option, the server before it touches anything —
-so they cannot disagree.
-
-Widening it is mostly a matter of which Iso classes `Med.lockOn` accepts. What
-must not widen is the padlock and safehouse refusal; see *The rules it obeys*.
-
 ### Where it is in the ship
 
-Both sick-bay lockers stock `C.Loot.medical`; the **forward** one at 5,1
-carries one of each instrument outright via `special = "medkit"` — the same
-mechanism that puts four phasers in the locker at 5,6, generalised into a
-`SPECIALS` table in `TREK_Build.lua`. Leaving them to the loot list is not
-enough: the fill walks it from a rolling cursor, so four entries among
-thirty-two can miss both lockers and the ship sails with no tricorder aboard.
+The shuttle's sick-bay locker at 3,2 stocks `C.Loot.medical` and carries one of
+each instrument outright via `special = "medkit"` -- the same mechanism that
+puts four phasers in the armoury at 3,0, generalised into a `SPECIALS` table in
+`TREK_Build.lua`. Leaving them to the loot list is not enough: the fill walks
+it from a rolling cursor, and a locker that happens to miss one instrument
+looks exactly like one that does not.
+
+The Adirondack's Sickbay (Deck 3) stocks the same list in its five medical
+cabinets and three carts, and each cart also carries a cordrazine
+(`CONTRABAND.md`).
 
 `tests/test_layout.py` cross-checks every `special` in the layout against the
 rules in `TREK_Build.lua` **both ways**, so a typo fails a test instead of
@@ -271,23 +263,16 @@ Not optional; `MULTIPLAYER.md` has the reasoning.
 - **A character's body belongs to the client that owns them.** Treating
   yourself and reading your own vitals need no protocol at all — the same rule
   and the same reason as "a client moves only its own character". Treating
-  *somebody else* is the EMH's, later, and will be a server command.
-- **A lock is world state, so the server opens it.** A client is a request and
-  never a fact: the tool is checked in that player's inventory **on the
-  server's own copy**, and so are the range, the cooldown and the chunk.
-- **The engine's own sync is not symmetric.** `setLockedByKey` fires
-  `IsoDoor.sync()` itself, behind `if (!GameServer.server)` — so the authority
-  that owns world state is exactly the process where it does nothing.
-  `obj:sync()` is the explicit call, and the server makes it.
+  *somebody else* is the EMH's, and is a server command (`EMH.md`).
+- **Nothing here opens a lock.** The tricorder's lock override was removed on
+  2026-09-24: nothing a Starfleet crew carries picks a lock, and a phaser
+  takes the door out of its frame instead (`PHASERS.md`). The engine fact it
+  taught stays true: `setLockedByKey` syncs itself only off the server, so
+  anything that changes a lock on the authority calls `obj:sync()`.
 - **Reading somebody's body goes through their consent.**
   `requestMedicalCheck` raises a yes/no on their screen and only a yes reaches
   the action. A mod that reads a player without asking is a different kind of
   mod.
-- **The tricorder will not open a padlock, or anything inside a safehouse the
-  asking player is not a member of.** Both are another player's property. A mod
-  that picks them is a griefing tool on every server that installs it, with no
-  setting to turn it off, because an owner would first have to know it was
-  there.
 - **No admin-only or `-debug`-gated calls.** `ISHealthPanel.cheat` is the
   obvious one in this area and is exactly that; assume there are more, because
   medical and admin overlap heavily.
@@ -409,18 +394,14 @@ single-line mutation reaches it, which is the intended redundancy.
 
 - **No hot reload.** Mod Lua loads when a world starts, and `.txt` script
   changes too. Every change needs a full restart.
-- **New loot reaches new worlds only.** `C.BuildRev` is 15; an existing save
-  keeps the lockers it has. Test in a fresh world (`DEV_GUIDE.md`, *Never
+- **New loot reaches new worlds only.** An existing save keeps the lockers it
+  has, whatever `C.BuildRev` says. Test in a fresh world (`DEV_GUIDE.md`, *Never
   restock an existing container*).
 - **A convenience method is a bundle of writes somebody else chose.**
   `RestoreToFullHealth` is the case that nearly shipped here; read the
   disassembly before reaching for the short call.
 - **The two infections have nearly the same name**, and the wrong one is the
   cure the whole game is built around.
-- **`Med.lockOn` is asked twice, by two processes.** If you change what counts
-  as a lock, both the offered menu option and the server's verdict move
-  together — which is the point, but it means a change here is a change to
-  what every client sees.
 - **`U.batch`, not `U.try`, for anything per-part or per-tick.** A method that
   does not exist throws out of Java and dumps a stack trace *per call*; this
   mod has hit 2932 in one session. `Med.treatWith` batches per concern so a
@@ -441,7 +422,7 @@ single-line mutation reaches it, which is the intended redundancy.
 Nothing here has been seen in the game. In the order worth checking:
 
 1. **The four items are in the sick bay.** Fresh world, beam up, open the
-   forward starboard locker.
+   sick-bay locker at 3,2, third down the starboard row.
 2. **The hypospray.** Take damage, use it, read the halo note. Then the thing
    that matters: a bite must still be a bite afterwards and the infection
    moodle must still be there.

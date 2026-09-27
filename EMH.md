@@ -17,7 +17,18 @@ The EMH consists of three related parts:
 1. a permanent custom projector station mounted in sick bay;
 2. a summoned Doctor model projected directly below that station;
 3. a server-authoritative medical service, including the mod's only cure for
-   zombie infection.
+   zombie infection, and a detox for contraband habits (`CONTRABAND.md`).
+
+**Played in part, 2026-09-23**: he was summoned, treated, and the first cure
+anybody ran found two bugs, both fixed (*Aboard means the ship*, at the end).
+A cure landing in game, the detox and the consent prompt on a second machine
+are still to see.
+
+**The Adirondack has him too.** Every deck has an EMH station
+(`emh_station`, `ADIRONDACK.md`), and aboard her he is always projected:
+`E.isUp` answers true for a player on her, there is nothing to summon, and the
+treatments bill her own dilithium, never the shuttle's. The rules, panel and
+handlers below are the same code.
 
 The station and Doctor deliberately share cabin offset **`(3,3)`**. The station
 mesh is shallow and elevated against the east bulkhead, leaving the deck clear
@@ -326,6 +337,7 @@ emhDismiss
 emhLook    { who }
 emhTreat   { who }
 emhCure    { who }
+emhDetox   { who }
 emhAccept  { token }
 emhDecline { token }
 ```
@@ -333,12 +345,13 @@ emhDecline { token }
 Server to client:
 
 ```text
-emhFindings    { who, total, infected, bitten, items }
+emhFindings    { who, total, infected, bitten, items, dependent }
 emhOffered     { token, from, what, cost }
 emhTreated     { who, counts, total }
 emhCureStarted { hours }
 emhCured       {}
 emhCureLost    {}
+emhDetoxed     { who, n }
 denied         { why, ... }
 ```
 
@@ -432,6 +445,16 @@ Single player cannot prove which side performed those writes because client and
 server code share one process. Keep the multiplayer test that inspects the
 server's own patient copy after completion.
 
+### Detox
+
+`emhDetox` clears every habit in the patient's contraband record
+(`TREK_ContrabandServer.detox`), sets panic to nothing and eases stress, for
+`C.EmhDetoxCost` reserve units. `E.detoxRefusal` refuses a patient with no
+habit (`emhClean`), and the panel greys the button for the same reason. Like
+treatment, it is yourself at once and anybody else only with their consent
+(`what = "detox"` on the offer). The patient's own client reads its habits
+from the mirror the server sends it (`CONTRABAND.md` 3).
+
 ### Consent
 
 Self-treatment requires no prompt. Treating or curing another player requires
@@ -463,6 +486,8 @@ The panel includes:
 - reserve and crystal counts;
 - Treat;
 - Cure the infection;
+- Detox (`C.EmhDetoxCost`, 100 units): every contraband habit at once, with
+  the patient's habits named on the findings (*DEPENDENT: ...*);
 - Full readout;
 - Dismiss.
 

@@ -22,19 +22,21 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Fly it like a truck** | The landed shuttle is a vehicle with four seats. Get in as you would a car, pick a seat on its chart, switch seats, drive. No seat has a door, so nothing can bite you in one. |
 | **Take her up** | From the pilot's seat, **Shuttlecraft ▸ Take her up**. She rises smoothly to her hover height -- five storeys by default, set on the sandbox page -- and hovers, and she flies by *driving*, so the throttle, the steering, the seat chart and a controller all work exactly as they do on the ground. Her shadow on the street below marks exactly where she will come down. Pick a flight speed at the helm, and **Set her down below** when you are there. Up or down and nothing in between: there is one flight height, and anything taller than it is a wall she slows to a stop in front of. The crew can go aft to the cabin in flight and come back; she waits where you left her. While she is up the hatch is shut, so the transporter is the way off her — and once the last of you has beamed down she goes back up, ready to be called down again. |
 | **Never stranded** | If there is not enough room at the destination you are beamed straight back aboard with the reason. A failed landing never leaves you on foot a hundred miles from the ship. |
-| **Phasers** | Four in a locker beside the pad, with their own model. The charge never runs down, they never jam and they never wear out, and they are far quieter than a firearm, which is most of the point. Every shot is a visible orange bolt. Right-click a tree to **cut it down** or a door to **cut through it** in a few seconds, with a beam everybody nearby sees and hears. A beam defeats any lock, padlocks included, because the door stops being there. Somebody else's safehouse door is refused, and the sandbox can limit cutting to trees or switch it off. |
+| **Phasers** | Four in the armoury, with their own model. The charge never runs down, they never jam and they never wear out, and they are far quieter than a firearm, which is most of the point. Every shot is a visible orange bolt. Right-click a tree to **cut it down** or a door to **cut through it** in a few seconds, with a beam everybody nearby sees and hears. A beam defeats any lock, padlocks included, because the door stops being there. Somebody else's safehouse door is refused, and the sandbox can limit cutting to trees or switch it off. |
 | **A hypospray** | One dose puts right bleeding, deep wounds, infected cuts, burns, fractures, pain and stiffness — everywhere on your body at once. It will not touch a bite. Six doses, and the ship replicates more while you are aboard; out in the field, what you are carrying is what you have. |
 | **A dermal regenerator** | Run it over the skin and the skin closes: lacerations, scratches, deep wounds and burns, with the stitches and the dressing that were holding them together. No bandage needed, and no charge to run out of. It will not mend a broken bone, touch an infected wound, or close over a piece of glass. |
 | **A medical tricorder** | Reads a body the way a surgeon would, whether or not you have ever held a scalpel. On yourself, or — with their say-so — on a crewmate. |
 | **A tricorder** | A sensor sweep out to forty tiles, drawn as a contact plot with you at the centre, It reads dilithium too, out to twenty tiles and through the walls of whatever it is shut in — and **from a seat in the shuttle it reads the ground below you**, which is how you pick a town worth landing at. |
-| **Distress calls** | Once the ship has been boarded and has dilithium, it starts hearing them: a chime and a note -- *a Starfleet ensign is down, 320 tiles NE*. Answer at the sensor console, aboard. Declining or ignoring one costs nothing, and another comes later. |
+| **Distress calls** | Once the ship is commissioned, she starts hearing them: a chime and a note -- *a Starfleet ensign is down, 320 tiles NE*. Answer at the sensor console, aboard. Declining or ignoring one costs nothing, and another comes later. |
 | **The downed ensign** | Accept and the clock starts: three game days. A mark goes on the map, the tricorder finds them within forty tiles as a blue cross, and they are sitting on the ground, doubled over, in uniform, their combadge chirping -- and drawing in the dead from the surrounding block. Right-click to **Examine** them, or to **Beam them to safety** from within three tiles: the replicator learns three new patterns and you are handed a small supply. Too late, and the signal stops. |
 | **PADDs** | A Starfleet tablet that holds digital copies of books, with no limit. Carry one to a school or a library, right-click a book (or a whole shelf's worth selected in the loot panel) and **Load onto PADD** -- the book stays where it was. Right-click the PADD to **read** any of them, as often as you like, **five times faster** than paper, with the same skill multipliers, recipes and comfort. Copy a library to another PADD; lose the PADD and you lose the books, recover it and they come back. Two in the armoury; the replicator makes blank ones. |
 | **The PADD's screen** | **Open PADD** from its menu (a controller: select it, press A) or press **K** (rebindable under Options -> Mods). Three views on the shoulder buttons: the **channel**, its **history**, and the **library**. Any VHS tape can be **transcribed** onto a PADD and read there: reading it does what watching it does, once -- the boredom, the stress, a training tape's XP. |
-| **The Adirondack** | Lt. Shepard, in orbit, calls your PADD a week after the shuttle is first boarded (sandbox: *When the Adirondack first calls*). Answer wherever you are. One player holds the channel, the rest read along; silence is an answer; a missed call comes back worse. Fifteen threads tell what happened here and who made the county -- including six holo fragments a probe can find, which she puts on tape for the shelf. Tell her to stop calling and she does. |
+| **The Adirondack** | Lt. Shepard, in orbit, calls your PADD a week after the shuttle is commissioned (sandbox: *When the Adirondack first calls*). Answer wherever you are. One player holds the channel, the rest read along; silence is an answer; a missed call comes back worse. Fifteen threads tell what happened here and who made the county -- including six holo fragments a probe can find, which she puts on tape for the shelf. Tell her to stop calling and she does. |
 | **A replicator** | A machine at the aft end of the galley that makes any item in the game — if the ship holds a pattern for it, and if the reserve covers it. Browse the catalogue by category or search it, pick one, five or ten, and it forms into your hands. |
 | **Patterns** | The ship can make what it has scanned. Stand at the replicator and scan what you are carrying: the ship reads it and hands it straight back, and from then on it can make that thing for ever. Starfleet gear — phasers, hyposprays, rations, the blades — it knows from the day it is built. |
-| **Dilithium** | The ship's power is a crystal burning in the warp core amidships, and one crystal is a thousand bandages' worth — but nothing refills it for free, and **the replicator cannot make one**. They turn up where a small, valuable, electrical thing would be: a jeweller's case, a pawn shop, an electronics store, a mechanic's shelf. The ship carries three spares, the tricorder finds more, and when the last one is gone the replicator is a cupboard. |
+| **Dilithium** | The ship's power is a crystal burning in the warp core amidships, and nothing refills it for free: **the replicator cannot make one**. They lie on the county's wild ground -- fields, woods, dirt, never in town -- and turn up now and then where a small, valuable, electrical thing would be: a jeweller's case, a pawn shop, an electronics store. The tricorder finds them, probes point at them, and when the last one is gone the ship is dark. |
+| **Everything runs on it** | Beaming, calling her down, taking off, flying, hovering, the shields, the Doctor, probes and the galley all draw on the crystal, and a gauge on screen shows what is left. At zero she goes **dark**: red emergency light, no replicator, no Doctor, no beaming -- and if she was in the air she comes down, undamaged, as soon as there is room. Load a crystal and she comes back with a very pleasant sound. |
+| **Cold start** | A new world (by default) starts with the shuttle **landed near you, dark**, with two probes and no spare crystals. Walk aboard, launch a probe, walk to the dilithium it finds, bring it back and load it -- and she is commissioned. |
 | **The warp core** | Amidships, in the port passage. Right-click it to load a crystal you have found, or to take one back before a trip. It says how many the ship is holding on the option itself, so you never have to guess. |
 | **Running water** | The galley sink has its own water supply, topped up every in-game minute, so it keeps running after the mains shut off. |
 | **The Doctor** | The sick bay's wall station projects an Emergency Medical Hologram. He diagnoses, he treats -- everything a hypospray and a regenerator do between them, plus the glass and the bullets neither will touch -- and his supplies never run out. He also tells you the one thing the medical tricorder will not: whether you are infected. |
@@ -45,8 +47,12 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **A taste of home** | Every species has its dishes in the galley. Its own cooking cheers it up; somebody else's does not; a Vulcan will not enjoy meat, and a Klingon knows replicated food when they taste it. |
 | **Starfleet professions** | Seven: command, the helm, engineering, security, medical, science and cultural survey. Each reports for duty with its skills, its kit -- a phaser, a hypospray, a tricorder, a PADD -- and its division's uniform on the creation screen. An engineer makes the dilithium go further; a flight controller gets more out of the shuttle. |
 | **Rank** | Every rescue counts. The first earns a field commission from the *Adirondack*, whatever you told Shepard you were, and the rest take you up to commander. |
-| **Traits** | Transporter phobia, spacesickness, real food only, Starfleet Academy, and a holo-historian's way with a PADD. |
+| **Traits** | Transporter phobia, turbolift phobia, spacesickness, real food only, Starfleet Academy, and a holo-historian's way with a PADD. |
 | **Contraband** | The crew's hideouts off the Adirondack's Jefferies tubes hold what the first officer would confiscate: ketracel-white, felicium, Trellium-D, Saurian brandy, kanar, latinum, a holosuite reel -- and a Ktarian game, which feels wonderful, a little less wonderful every round, and gets passed from hand to hand. Three of the drugs and the Game are habits: withdrawal is miserable, it passes on its own, and the Doctor will detox you. A PADD's flashing light breaks the Game. |
+| **The U.S.S. Adirondack** | Beam across to the ship in orbit from the shuttle's aboard menu and walk her five decks: the bridge, the lounge and the crew's quarters, the transporter room and sickbay (her Doctor is always up), main engineering with her own warp core, and hydroponics. Turbolifts between the decks, doors that open as you come, beds and chairs you can use, and replicators of her own. |
+| **Her crew** | Starfleet officers and crew of several species step out of the lifts, walk to their posts, sit, talk to each other and to you, and leave again. They know who you are not, and they notice your clothes. |
+| **Hydroponics** | Deck 5 grows seven crops in trays the ship tends for you -- tea, bergamot, Klingon coffee, plomeek, leola root, Andorian tuber, hasperat peppers -- to be dried, ground, brewed and cooked into the galley's dishes from scratch. A tank of serpent worms breeds when fed; five of them in a bowl is gagh. |
+| **Jefferies tubes** | Crawlways between her decks, across the stars under her, for anybody who would rather not take the lift. Three hideouts off them where the off-watch crew keep their bottles -- and their contraband. |
 | **Stores** | Three Starfleet lockers — an armoury, the rations and the sick bay — and five containers left empty on purpose: the fridge, the oven, both counters and the microwave are yours to fill. |
 | **Shields** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed — no free experience, no free loot. Raise and lower them at the helm. |
 | **A shared ship** | In multiplayer there is one shuttle for everyone. Server owners can limit it to its owner and crew. |
@@ -82,7 +88,7 @@ player and the in-game Host settings add it for you; a dedicated server's
 log says `the 'TrekShuttle' map is not loaded`, and the view outside the cabin
 shows grass and trees.
 
-Six sandbox options, on the **Shuttlecraft** page:
+Eleven sandbox options, on the **Shuttlecraft** page:
 
 | Option | Choices | Default |
 |---|---|---|
@@ -92,6 +98,11 @@ Six sandbox options, on the **Shuttlecraft** page:
 | **Replicator** | *Patterns and energy*: it makes what the ship has scanned, and each one spends from a reserve that only dilithium refills. *Unrestricted*: anything in the catalogue, immediately, for nothing. *Off*: the machine is scenery, and says so. | Patterns and energy |
 | **Emergency Medical Hologram** | *Full*: the Doctor as designed, cure included. *Off*: the sick bay's station is inactive and says so. There is deliberately no setting that keeps him and removes the cure -- a server owner who does not want the cure turns him off. | Full |
 | **Hover height** | *2, 3, 4, 5, 6 or 8 storeys*: how high she hovers in flight. Buildings with fewer storeys pass beneath her; anything taller is a wall she slows to a stop in front of. Raise it for Louisville's towers. | 5 storeys |
+| **How the shuttle starts** | *Cold start*: landed near the first player, dark, no spares, two probes. *Commissioned*: overhead, with a full crystal and three spares. Only a brand new world is affected. | Cold start |
+| **Dilithium in the wild** | *Plentiful*, *Scarce* or *None*: crystals lying on natural ground out in the county. | Plentiful |
+| **When the Adirondack first calls** | *Straight away*, *after a day*, *three days*, *a week* or *two weeks* after commissioning. | After a week |
+| **Phaser cutting** | *Trees and doors*, *Trees only* or *Off*. Somebody else's safehouse is refused either way. | Trees and doors |
+| **Hydroponics tend themselves** | *Yes*: the Adirondack's trays are watered and kept free of pests. *No*: they need tending like any crop. | Yes |
 
 Every beam moves a character a long way at once, and the speed anti-cheat
 counts each one. If your players want unlimited beaming, set
@@ -100,15 +111,21 @@ counts each one. If your players want unlimited beaming, set
 
 ## Playing
 
-1. Right-click anywhere → **Shuttlecraft ▸ Beam up to the shuttle**. You
+1. **On a cold start** (the default), the shuttle is landed near you and has
+   no power: walk to her and in through the hatch, launch a probe from the
+   sensor console, and bring back the crystal it finds. Once she is
+   commissioned, everything below works.
+2. Right-click anywhere → **Shuttlecraft ▸ Beam up to the shuttle**. You
    materialise on the transporter pad, aft.
-2. Take a **phaser** from the armoury in the starboard row before you go.
-3. Right-click aboard for the **Shuttlecraft** menu: the helm, beam down, log
-   this position, and — when the ship is on the ground — step out of the hatch.
-4. At the **helm**, click the map to lay in a course or pick a logged position,
+3. Take a **phaser** from the armoury, forward on the starboard side, before
+   you go.
+4. Right-click aboard for the **Shuttlecraft** menu: the helm, the sensor
+   console, beam down, beam to the *Adirondack*, log this position, and --
+   when the ship is on the ground -- step out of the hatch.
+5. At the **helm**, click the map to lay in a course or pick a logged position,
    then **Take her down**. You are beamed to the site, the ship follows, and
    you end up at the foot of the ramp.
-5. On the ground, right-click the hull to **board** it or to **send it back
+6. On the ground, right-click the hull to **board** it or to **send it back
    up**; right-click open ground to **call it down** somewhere new.
 
 The shuttle is either sitting on the ground somewhere or overhead. The
@@ -173,11 +190,11 @@ that is fifteen, so the inside and the outside tell the same story.
 
 ```
     0123
-  0 TVTA      T monitor wall   V television   A armoury
+  0 TVLA      T monitor wall   V television   L tape shelf   A armoury
   1 F*.p      F fridge   * lamp   p rations
   2 oh.M      o oven   h crew seat   M sick bay
-  3 wD.E      w sink counter   D warp core   E EMH panel
-  4 m*HB      m microwave counter   H the EMH   B biobed (head)
+  3 wD.H      w sink counter   D warp core   H the EMH and his station
+  4 m*.B      m microwave counter   B biobed (head)
   5 R.@B      R the replicator   @ transporter pad   B biobed (foot)
 ```
 
@@ -197,6 +214,9 @@ TrekShuttle/42/media/sandbox-options.txt  server-owner settings
 TrekShuttle/42/media/models_X/          shuttle and helm meshes (.x)
 TrekShuttle/42/media/textures/          generated textures and icons
 TrekShuttle/42/media/scripts/           item and model definitions
+TrekShuttle/common/media/maps/          the void map: space round both ships
+content/                                every tape and every channel call, as written
+design/                                 BuildingEd interiors, crew talk, source art
 tools/                                  asset generators and dev scripts
 tests/                                  static checks and the multiplayer simulation
 ```
@@ -244,6 +264,9 @@ python tests/test_helm.py                           # the helm console and the
                                                     # tricorder plot draw and work
 python tests/test_multiplayer.py                    # single player and a server with
                                                     # two clients, simulated
+python tests/test_comms.py                          # the channel's dialogue tree
+python tests/test_crew.py                           # the crew's talk
+python tests/test_farming.py                        # recipes, crops and sinks
 ```
 
 `test_multiplayer.py` is the one worth knowing about: it loads every Lua file
@@ -251,8 +274,9 @@ into separate runtimes -- one for single player, then a server and two clients
 joined by a fake network that carries only plain data -- and plays the mod:
 beaming, the cabin build reaching every client, ownership and crew, transporter
 charges, landing, ghosts, shields, the torpedoes, the medical set, the
-replicator, distress calls and rescues, and the PADD's timed actions crossing
-to the server by name. It fails if a client ever edits the world or the ship itself.
+replicator, distress calls and rescues, the PADD's timed actions crossing to
+the server by name, the energy system and the cold start, traits, the
+Adirondack and her crew, hydroponics, the tubes and contraband. It fails if a client ever edits the world or the ship itself.
 
 In game, load a **fresh** world with the mod enabled. From the debug console
 (the reports go to the server's log, `console.txt` in single player):
@@ -269,6 +293,8 @@ In game, load a **fresh** world with the mod enabled. From the debug console
 | `TREK_Ghosts()` | Sweep hulls still waiting to be cleared, and any near you. |
 | `TREK_Charges()` | Report whether beams are rationed and your charges. |
 | `TREK_Replicator()` | Report the sandbox mode, the reserve, how many spare crystals the ship is holding, how many patterns it holds, and how big the catalogue came out. |
+| `TREK_Power()` | Top up the ship's devices and log each one's cell. |
+| `TREK_Uniform()` | Whether each uniform's garment resolved, and the model and texture it came back with. |
 | `TREK_EMH()` | Report the sandbox mode, the reserve and the spares, what the Doctor costs, any cure that is running -- and whether he is actually standing on the deck, as against what the ship believes. |
 
 The design and diagnostic ones need single player or an admin on a server.
@@ -289,7 +315,8 @@ interior plus `TREK_InteriorLayout.lua`.
 
 - **One shuttle per world.** In multiplayer the crew shares it; a second
   ship is not supported.
-- **Flight has been flown in single player and, since 1.4.1, with two people.**
+- **Flight has been flown in single player at five storeys, and with two
+  people at level 1.**
   The shuttle flies on an invisible floor the mod lays at altitude, because a
   vehicle's height in build 42 is decided by whether there is a floor under it
   and not by its physics. A one-square rim of that floor may be visible under
@@ -297,9 +324,9 @@ interior plus `TREK_InteriorLayout.lua`.
 - **There is one flight height, and she hovers at it.** No climbing, no diving:
   she is on the ground or she is up. The height is the sandbox's **Hover
   height**, five storeys by default; a building that tall or taller is a wall,
-  and she slows to a crawl in front of it rather than hitting it. Level 5 is
-  **new and not yet seen in game** -- if the engine will not hold her there she
-  comes back down by herself and says so, and a lower setting is the answer.
+  and she slows to a crawl in front of it rather than hitting it. If the
+  engine will not hold her at a height she comes back down by herself and says
+  so, and a lower setting is the answer.
 - **Her shadow is round and moves a square at a time.** It is drawn with the
   game's own ground markers, which take one texture and whole-square positions.
 - **The hull does not block anything.** It is a world model, and world models
@@ -355,9 +382,12 @@ interior plus `TREK_InteriorLayout.lua`.
   the only way to get another is to find one. Sleeping does nothing, waiting
   does nothing, and the replicator cannot make them — which is the point of
   the whole arrangement.
-- **Crystals reach new worlds only.** Both the three in the ship's core and
-  the ones out in the town are placed when a world is made, so an existing
-  save will not have them.
+- **Crystals in the town reach new worlds only**, because loot is rolled when
+  a world is made. Crystals in wild ground are placed as a player first loads
+  that ground, so they reach an existing save wherever it has not been
+  explored yet.
+- **The cold start only applies to a brand new world.** A save made before it
+  carries on commissioned.
 - **The warp core is not a cupboard.** It holds crystals and nothing else, and
   you put them in and take them out from its right-click menu rather than by
   opening it.

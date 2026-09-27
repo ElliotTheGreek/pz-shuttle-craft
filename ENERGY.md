@@ -1,13 +1,20 @@
 # Energy — everything aboard runs on the crystal
 
-**Status: being built, phase by phase (section 12). Phases 0 to 7 are done
-(2026-09-24): the verify-first answers, the ledger, the gauge, movement,
-the dark cabin, the shields, the emergency landing and the cold start. None of it has been seen in game yet.** The design questions
-were settled with the author on 2026-09-24 (section 13). When it is built
-it becomes the working guide for the ship's power, in the shape
-`REPLICATOR.md` and `PILOTING.md` use.
+**Status: built, all eight phases, and released as 1.7.0 (2026-09-24).** The
+ledger, the gauge, movement, the dark cabin, the shields, the emergency
+landing, the cold start and the galley. It was written as a plan and built
+as written; where the build differed, the section says so ("found while
+building", "as built"). Read it as the design record: sections 1-11 are what
+the system does and why, section 12 is how it was built, section 13 the
+author's decisions.
 
-It is also `ROADMAP2.md` 1.6, the cold start: a dark ship is just the power
+**Played:** the cold start (2026-09-24). That play is where dilithium in the
+wild ground came from (`LORE.md` 1c, `TREK_Wild.lua`, sandbox *Dilithium in
+the wild*). **Not yet played:** spending the ship to dark, the red light and
+the power-up, an emergency landing, the shields' charge, and the galley's
+fridge, oven and microwave running off the power bus.
+
+It is also the old ROADMAP2 1.6, the cold start: a dark ship is just the power
 system at zero, so the cold start is the last phase of this guide rather than
 a separate feature.
 
@@ -171,7 +178,7 @@ It is **published as `s.dark`** as well as derivable, for three reasons:
   published flag is unambiguous;
 - the cold start begins dark by *decision*, not by arithmetic.
 
-`ROADMAP2.md` says *never infer a campaign from a low reserve*, and this is how
+the old ROADMAP2 says *never infer a campaign from a low reserve*, and this is how
 that is kept.
 
 **Every consumer checks dark first**, on both sides. The client greys or
@@ -671,6 +678,30 @@ power check reads only the generator and the grid. The phase then stops and
 reports back, and the galley stays shelves. It is ordered **after** the rest
 of the system (section 12), so a failure here doesn't hold anything else up.
 
+### 9.1 As built
+
+V5-V7 held, so the galley is real:
+
+- **The power bus** is a mod item, `TrekShuttle.TrekPowerBus`, tagged
+  `base:generator` so the engine's generator code reads *its* numbers: it
+  never wears, and it makes almost no noise. It is drawn with the invisible
+  sky tile and stands at `C.PowerBusSpot`, on the hull ring west of the oven:
+  floored, outside the cabin's shape so nobody walks onto it, and well inside
+  the generator's reach of every appliance.
+- `B.servicePowerBus` places it if it is missing, bills the fuel it burned at
+  `C.FuelToEnergy` (20 units a unit of fuel -- about 72 units a day, so a
+  crystal keeps the galley cold for two months of game time), refuels and
+  mends it, and switches it on while there is power and off when she is dark.
+  It runs as a build phase, every game hour, and on every change of power.
+- **The oven and the microwave are built as `IsoStove`s**, with their
+  containers made before they are added, because `IsoStove.addToWorld`
+  returns early without one.
+- **Found while building (V6):** the cabin is not a building, so its squares
+  are "exterior", and a server with exterior generators disabled has a dead
+  galley. The log says so once.
+- The Adirondack's Deck 2 range uses the same arrangement, billed to her own
+  store (`FARMING.md`, *The galley*).
+
 **If it works, it is a `C.BuildRev` bump**: new object classes on existing
 squares. The rebuild has to move the fridge's and oven's contents across, and
 `tests/test_layout.py` has to learn the new fittings.
@@ -778,7 +809,7 @@ of building the power system first.
 
 ### 10.6 Soft-lock prevention
 
-`ROADMAP2.md` lists the ways the campaign has to survive. Each one is answered:
+the old ROADMAP2 lists the ways the campaign has to survive. Each one is answered:
 
 | Case | Answer |
 |---|---|
@@ -837,8 +868,8 @@ and a commit. None of it needs a game until the phase marked **play**.
 | — | **Play** | One single-player session: spend to dark, see the red, load a crystal, hear the sound. Hover to dark over a town. This is the first time anything here is proven. |
 | 7 | **Cold start** | the option, the cold state, placement beside the first player, commissioning, the migration, the recovery probe, `M.hearing`. Then the comms hook, once the other session's work has landed. |
 | — | **Play** | A fresh cold world, walked end to end (10.5). |
-| 8 | **The galley** | V5–V8, then the hidden generator, the `IsoStove`s and the `BuildRev` bump. It stops and reports if V5–V7 fail. |
-| 9 | **Docs** | This file rewritten as a working guide. `ROADMAP2.md` 1.6 marked built. DEV_GUIDE's *Current state*, the README's known limits, `MULTIPLAYER.md`'s traffic list, `PILOTING.md` (emergency landing), `EMH.md` and `REPLICATOR.md` (their dark behaviour). **Version 1.7.0** -- 1.6.0 is the PADD and the channel. |
+| 8 | **The galley** -- built | V5–V8 passed: the hidden generator (`TrekPowerBus`), the `IsoStove`s and the `BuildRev` bump. See 9.1. |
+| 9 | **Docs** -- done 2026-09-26 | This file rewritten as a working guide. the old ROADMAP2 1.6 marked built. DEV_GUIDE's *Current state*, the README's known limits, `MULTIPLAYER.md`'s traffic list, `PILOTING.md` (emergency landing), `EMH.md` and `REPLICATOR.md` (their dark behaviour). **Version 1.7.0** -- 1.6.0 is the PADD and the channel. |
 
 ### Verify first: answered 2026-09-24
 

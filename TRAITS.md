@@ -506,7 +506,7 @@ under *Traits*.
 
 | File | Job |
 |---|---|
-| `media/registries.lua` | every id: 27 traits, 7 professions. Runs before anything else |
+| `media/registries.lua` | every id: 28 traits, 7 professions. Runs before anything else |
 | `media/scripts/trek_traits.txt` | the definitions: cost, XP boosts, granted vanilla traits, exclusions |
 | `shared/TREK/TREK_Traits.lua` | asking (`has`, `species`, `rank`), the mirrored stat change, the table, the small factors, two-way exclusions at boot |
 | `server/TREK/TREK_TraitsServer.lua` | first sight, the timers, the android, rank, the transporter hook |

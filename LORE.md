@@ -3,7 +3,7 @@
 The plan for telling stories aboard this ship, and the engine research it rests
 on.
 
-`ROADMAP.md` and `ROADMAP2.md` say what the ship *does*. This file says what it
+`ROADMAP.md` says what the ship *does*. This file says what it
 **remembers**. Everything here is delivered through one fitting — a small shelf
 beside the television in the bow — and a set of VHS tapes on it, each of which
 is a piece of somebody's testimony.
@@ -170,7 +170,7 @@ Starfleet does not know anyone was ever here, and long-range comms have been
 dark the whole time, so nobody is looking and no rescue is coming.
 
 **The ship can still transport, and that is the mechanic.** Every survivor the
-player beams to safety goes *up there* — which is where `ROADMAP2.md` 1.7's
+player beams to safety goes *up there* — which is where the old ROADMAP2 1.7's
 "safe off-screen recovery" has always needed to be going. **Every ensign
 rescued is one of her crew**, off a number the player has already heard.
 
@@ -287,7 +287,7 @@ page beats building the machinery to ration it, and a reveal that is merely
 *available* early is a far smaller problem than a reveal that is never written.
 The gating design in section 6 stays parked until every log exists — and when it
 is wanted, the answer is probably **a survivor hands you the next log**, which
-solves `ROADMAP2.md` 1.7's reward problem at the same time: the reward for a
+solves the old ROADMAP2 1.7's reward problem at the same time: the reward for a
 rescue is a piece of the truth, which costs the ship nothing and is worth more
 than a crystal.
 
@@ -1097,7 +1097,7 @@ six built logs (`TREK_LogOne`..`LogSix`) are what these two became, and neither
 is to be written. **#17 is built**, as `TREK_EnsignLog`, issued to the ship on the
 first rescue (`COMMS.md` 9). They are kept below as the record of the idea.
 
-These tie the shelf to `ROADMAP2.md`'s progression, and they are the reason the
+These tie the shelf to the old ROADMAP2's progression, and they are the reason the
 shelf is worth doing before 1.6 rather than after.
 
 **15. `TREK_FinalLog` — *SHUTTLECRAFT LOG, FINAL ENTRY — dubbed for playback*** — SUPERSEDED by the six logs
@@ -1147,7 +1147,7 @@ down, breathing wrong. He is not sure anybody is coming and says so, and then
 apologises for saying so, and then talks himself through his own field dressing
 step by step because it is something to do with his voice.
 
-`UHP+1`, `DOC+1`. `ROADMAP2.md` 1.7 wants a reward that is not another
+`UHP+1`, `DOC+1`. the old ROADMAP2 1.7 wants a reward that is not another
 crystal; this is it, and it costs the ship nothing.
 
 ### Stretch, and worth its own decision

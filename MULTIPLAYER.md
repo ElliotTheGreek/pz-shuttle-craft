@@ -8,8 +8,10 @@ Status: **all nine migration steps built (1.3.0)**. Everything through step 8
 simulated server with two clients. **Flight was played with two real people for
 the first time on 2026-09-23**, which is where the levelling bug in
 `PILOTING.md` section 4 came from; nothing else in here has been played with
-two real people yet. This document is the plan and the record of why each
-decision was made. Every step is covered by `tests/test_multiplayer.py`, which
+two real people yet. Every feature since 1.3.0 -- energy, the Adirondack, her
+crew, traits, contraband -- follows the same split, and each guide has its own
+multiplayer section; the tables below list the ones that matter here. This
+document is the plan and the record of why each decision was made. Every step is covered by `tests/test_multiplayer.py`, which
 runs the real Lua as single player and as a server with two clients over a
 simulated network, flight included -- but a simulation is not the game.
 
@@ -180,6 +182,11 @@ So a server-side file guarded by `if isClient() then return end` runs in
 | The ensign's combadge chirp | **Each client, for itself** | Presentation: what this machine hears |
 | A PADD's library | **Server**, in a timed action's `complete()`, pushed to the carrier with `syncItemModData` | Item state; every Lua timed action on a client is rebuilt and completed on the server (PADD.md section 7) |
 | What reading off a PADD gives | **Server**, in `TREKReadPadd:complete()`; a novel's comfort also on the reader's client via `paddRead` | Exactly where vanilla applies a book |
+| The reserve, the spares, dark and commissioned | **Server**, ship state; every charge through one ledger (`TREK.Energy.energize`) | One store, paid for once however many ask (`ENERGY.md` 11) |
+| The Adirondack's decks, doors, crew and her own power store | **Server**, built as players load each deck; her charges bill her store, never the shuttle's | World objects and ship state (`ADIRONDACK.md` 9, `CREW.md` 5) |
+| A crew member's walk | **The client that simulates that zombie**; the server scripts the route | Zombies are client-simulated (`CREW.md` 6) |
+| A character's stat change from a trait, a meal or contraband | **Server**, mirrored to the owner's client (`T.adjust`) | The stats live on both copies (`TRAITS.md` 4.1) |
+| A contraband record | **Server**, player mod data; a summary sent to the owner (`contraState`) | The client's copy of the player never sees the server's write (`CONTRABAND.md` 3) |
 
 ### Files
 
@@ -348,6 +355,12 @@ server's, set by validated commands, exactly like everything else.
 | `TrekShuttle.TorpedoFire` | Full / Blast only | Full |
 | `TrekShuttle.Replicator` | Patterns and energy / Unrestricted / Off | Patterns and energy |
 | `TrekShuttle.EMH` | Full / Off | Full |
+| `TrekShuttle.FlightHeight` | 2, 3, 4, 5, 6 or 8 storeys | 5 storeys |
+| `TrekShuttle.CommsFirstDay` | Straight away / a day / three days / a week / two weeks | A week |
+| `TrekShuttle.StartState` | Cold start / Commissioned | Cold start |
+| `TrekShuttle.WildDilithium` | Plentiful / Scarce / None | Plentiful |
+| `TrekShuttle.PhaserCutting` | Trees and doors / Trees only / Off | Trees and doors |
+| `TrekShuttle.HydroponicsWater` | Yes / No | Yes |
 
 - **Owner**: the first player to use the ship claims it -- on a hosted game
   that is naturally the host. Admins can reassign; the owner manages the crew

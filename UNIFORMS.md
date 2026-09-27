@@ -4,7 +4,7 @@ The working guide for the mod's clothing, in the shape `REPLICATOR.md` and
 `EMH.md` use: what the player gets, how to change each piece, the engine facts
 not to re-derive, and what will bite you.
 
-`ROADMAP2.md` section 1.4 is the design this came from. Its biggest open
+the old ROADMAP2 section 1.4 is the design this came from. Its biggest open
 question — *custom uniform mesh versus custom texture on vanilla geometry* —
 is answered, and the answer made the rest small.
 
@@ -31,7 +31,11 @@ They reach the player three ways:
 2. **The replicator**, from the first minute of any save. `R.seedDefaults()`
    learns every id this mod declares on each authority start, so the uniforms
    need no migration and reach **existing saves** as patterns.
-3. Later, the downed ensign of roadmap 1.7 will wear one.
+3. **The creation screen**: each Starfleet profession offers its division's
+   duty and dress uniform (`TRAITS.md` 4.4).
+
+They are also worn by the downed ensign, baked into the figure
+(`ENSIGN.md` 3), and by the Adirondack's crew (`CREW.md` 1).
 
 They insulate (0.65 duty, 0.45 dress) and they are **not armour**. See §4.
 

@@ -1,6 +1,6 @@
 # The downed ensign
 
-The working guide for `ROADMAP2.md` 1.7, the mod's first mission, in the shape
+The working guide for the old ROADMAP2 1.7, the mod's first mission, in the shape
 `PROBES.md`, `EMH.md` and `UNIFORMS.md` use: what the player does, what
 happens, how the figure is made, the numbers, the engine facts not to
 re-derive, and what will bite you.
@@ -48,6 +48,8 @@ Every ensign is rolled male or female, so this guide says "the ensign" and
    rescuer is handed two ration packs and a hypospray, and the replicator
    learns three patterns from the ensign's tricorder: antibiotics, a suture
    needle and a splint first, and further down the list on each rescue after.
+   The rescue is also credited to the rescuer and counts toward their rank
+   (`TRAITS.md` 4.5): the first earns a field commission.
 
 If the clock runs out first, the beacon stops, the mark leaves the map, the
 figure is taken away, and the crew are told. No second chance on that
@@ -64,9 +66,11 @@ mission and not a quest line.
 game-minute tick, outside every cabin-loaded branch, like probes and cures.
 
 - **The ship has to be able to hear.** `M.hearing()` is true once the cabin
-  has been built (a crew has been aboard) and there is dilithium in the core
-  or the reserve. **This is the one line cold start (1.6) changes:**
-  *commissioned* will replace *has dilithium*, and nothing else here moves.
+  has been built (a crew has been aboard) and the ship is **commissioned**
+  (`s.commissioned`, `ENERGY.md` 10.4). On a cold start that is when the first
+  crystal goes into the core; a commissioned start is commissioned from the
+  beginning. It used to be "has dilithium", and this was the one line the cold
+  start changed.
 - **The first call is scheduled, not made**, `C.DistressFirstHours` after the
   ship first hears -- one game hour, a few real minutes, so a fresh world
   meets its first ensign in the first sitting and not the instant the crew
@@ -400,7 +404,7 @@ whether the beacon drew anything, the chirp over a long rescue, vanilla's
 own options on the figure, and two clients.
 
 The route, in a fresh world or an existing one (the call needs only a built
-cabin and dilithium in the core):
+cabin and a commissioned ship):
 
 1. Beam aboard, and play on for **about an hour of game time**. The call
    arrives as a note with a chime.

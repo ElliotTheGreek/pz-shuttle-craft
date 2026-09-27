@@ -1,9 +1,12 @@
 # The interior refit: 54 squares down to 24
 
-**Built, revision 17. Not yet seen in game.**
+**Built at revision 17, and changed since** by the EMH's station (revision 23),
+the tape shelf (27) and the galley's power bus (`ENERGY.md` 9.1). **Played:**
+the television, which plays the shelf's tapes. The rest of the list in section
+7 has not been walked, and the migration from a 6x9 save has not been seen.
 
 The cabin is four squares across by six fore-and-aft, the lockers hold nothing
-but the mod's own items, and five of the eight containers start empty on
+but the mod's own items, and five of the nine containers start empty on
 purpose. This file is the working guide: what it is, why each piece is the way
 it is, the five traps the pass found, and what to look at the first time it is
 carried into a game.
@@ -33,18 +36,18 @@ still enough room to give every system a place a player can find without a map.
 
 ```
     0123
-  0 TVTA        T monitor wall (wall object, deck underneath)   A armoury
-  1 F*.p        V television on its console   F fridge   * lamp   p rations
-  2 oh.M        h crew seat, facing the screen   o oven   M sick bay
-  3 wD.E        w sink counter   D the warp core       E EMH panel (wall)
-  4 m*HB        m microwave counter   H the EMH stands here (kept clear)
-                                                      B biobed (head)
-  5 R.@B        @ transporter pad   R the replicator    B biobed (foot)
+  0 TVLA        T monitor wall (wall object, deck underneath)   A armoury
+  1 F*.p        V television on its console   L tape shelf (wall)   p rations
+  2 oh.M        F fridge   * lamp   h crew seat, facing the screen   o oven
+  3 wD.H        M sick bay   w sink counter   D the warp core
+  4 m*.B        H the EMH's station overhead, and where he stands (kept clear)
+  5 R.@B        m microwave counter   B biobed   @ transporter pad
+                R the replicator
 ```
 
 `python tests/test_layout.py` prints this with the legend and the container
-list; the whole bow bulkhead also carries a four-panel LCARS monitor wall,
-which the plan cannot draw because it is a wall object sharing those squares.
+list; the bow bulkhead also carries LCARS monitors at 0,0, 1,0 and 3,0, which
+the plan cannot draw because they are wall objects sharing those squares.
 
 Eleven squares carry a blocking fitting and twelve are open deck — including
 0,0 and 2,0, which look occupied on the plan and are not: the monitor wall is
@@ -66,7 +69,7 @@ Everything is reachable from an open square:
 | rations, sick bay | 2,1 and 2,2 |
 | fridge, oven, sink, microwave, the replicator | the port passage, 1,1 .. 1,5 |
 | the warp core | 1,3 itself; worked from 2,3, which the layout keeps clear |
-| biobed, EMH panel | 2,4, the pad at 2,5, and the open square at 3,3 |
+| biobed, the EMH's station | 2,4, the pad at 2,5, and 3,3 under the station |
 
 ---
 
@@ -76,7 +79,8 @@ Everything is reachable from an open square:
 
 | Square | Sprite | Tag |
 |---|---|---|
-| 0,0 – 3,0 | `security_01_4` | `console` — wall-mounted, blocks nothing |
+| 0,0, 1,0, 3,0 | `security_01_4` | `console` — wall-mounted, blocks nothing |
+| 2,0 | `furniture_shelving_01_28` | `tapes` — the tape shelf, a wall shelf; 2,0 stays deck so the armoury can be opened (`LORE.md` 3) |
 | 1,0 | `furniture_tables_low_01_3` | `tvConsole` |
 | 1,0 | `appliances_television_01_1` | `television`, `device = "Base.TvWideScreen"` |
 | 1,2 | `location_entertainment_theatre_01_3` | `chair`, facing N |
@@ -94,8 +98,10 @@ tape type. `RWMMedia.lua:235` pulls `Base.VHS_Home` and `Base.VHS_Retail` out
 of your inventory and into that device. A television in build 42 *is* a
 television and a video player in one object.
 
-The ship is not issued with tapes. That is deliberate: tapes are something to
-go and find, and the cabin's stores are Starfleet issue (§4).
+**The shelf at 2,0 holds the ship's tapes**: Lt. Shepard's collection, and
+the tapes the Adirondack channel issues later (`LORE.md`, `COMMS.md`). They
+are the one thing aboard that is not Starfleet issue, and the fiction says
+why: the cabin is hers.
 
 **And it has power, which took a second pass.** See §5 — the cabin is not on
 the town grid, has no generator, and cannot be given electricity by telling
@@ -114,7 +120,10 @@ own cell and keeps it full, in every process.
 | 0,4 | `appliances_cooking_01_24` (cap 5) | `microwave` | nothing |
 
 Four squares, five appliances: the sink and the microwave ride on counters
-rather than taking squares of their own. The fifth galley square, 0,5, is the
+rather than taking squares of their own. **The oven and the microwave are real
+`IsoStove`s and the fridge really cools**, powered by a generator nobody sees
+on the hull ring beside the oven (`TrekPowerBus`, `ENERGY.md` 9.1), billed
+from the reserve and switched off when the ship is dark. The fifth galley square, 0,5, is the
 replicator's and carries no fitting -- the machine is the whole thing there.
 
 **The oven is one tile now.** The old galley used `appliances_cooking_01_40`
@@ -166,8 +175,8 @@ All three are `furniture_storage_02_11` — Locker, facing W, capacity 40.
 
 | Square | Tag | `special` | `loot` | `cap` | Ends up holding |
 |---|---|---|---|---|---|
-| 3,0 | `armoury` | `phasers`, `uniforms` | `weapons` | 8 | 4 phasers, 2 each of the 4 blades, 1 of each of the 6 uniforms |
-| 3,1 | `provisions` | — | `food` | 27 | 3 each of 5 dishes and 4 drinks |
+| 3,0 | `armoury` | `phasers`, `uniforms`, `padds` | `weapons` | 8 | 4 phasers, 2 each of the 4 blades, 1 of each of the 6 uniforms, 2 PADDs |
+| 3,1 | `provisions` | — | `food` | 27 | 27 from the 18-item food list: the dishes and the drinks |
 | 3,2 | `medical` | `medkit` | `medical` | 8 | 3 each of the 4 instruments |
 
 `C.PhaserRack` follows the armoury to 3,0; `tests/test_layout.py` holds the two
@@ -187,23 +196,17 @@ working guide.
 
 ### Starboard aft: the sick bay and the EMH's station
 
-| Square | Sprite | Tag |
+| Square | What | Tag |
 |---|---|---|
-| 3,3 | `industry_01_15` | `emhPanel` — wall-mounted, blocks nothing |
-| 2,4 | *(open deck)* | the Doctor's square |
+| 3,3 | the EMH's projector station, the mod's own model, mounted high on the east bulkhead | a world item, `C.EmhStationItem` |
+| 3,3 | the Doctor, projected directly below it when he is up | a world item, `C.EmhItem` |
 | 3,4 / 3,5 | `location_community_medical_01_17` / `_16` | `biobed` |
 
-`industry_01_15` is from **the hull's own wall set** — `industry_01_0/1/2` are
-the bulkheads — so a grey metal panel there reads as part of the ship rather
-than as something borrowed from a house. It exists in all four facings and
-carries neither `solid` nor `solidtrans`, so 3,3 is still deck.
-
-Its `CustomName` is "Air Conditioner", which for a scenery object that is only
-ever right-clicked may never be visible; that is one in-game look, not a
-deduction. `IsoObject.setName(String)` is public and would settle it, and it
-has **zero vanilla Lua call sites**, which makes it a suspect rather than a
-solution. If it reads badly, `security_01_5` on the port bulkhead is the
-fallback.
+The station and the Doctor share 3,3, and the layout keeps that square clear.
+Until revision 23 the station was a vanilla wall panel (`industry_01_15`, whose
+`CustomName` is "Air Conditioner", and which looked like one) and the Doctor
+stood at 2,4 in the middle of the room. `B.serviceEMH` removes both from older
+cabins. `EMH.md` is the working guide.
 
 **Not a light switch.** `lighting_indoor_01_0..7` is the obvious "wall button"
 and every one of them carries the `lightswitch` tile property, which is what
@@ -246,10 +249,10 @@ was deleted with it.
 That is the second half of the refit and it is why `C.Loot` is four lines long
 now instead of nine lists.
 
-- **Five of the eight containers hold nothing.** The fridge, the oven, both
-  counters and the microwave are the player's shelves. (Nine for a while: the
-  replicator replaced the counter it used to stand on, the dilithium cabinet
-  arrived, and then the warp core replaced that too.)
+- **Five of the nine containers hold nothing.** The fridge, the oven, both
+  counters and the microwave are the player's shelves. The ninth is the tape
+  shelf. (The replicator replaced the counter it used to stand on, a dilithium
+  cabinet came and went, and the warp core replaced that.)
 - **The three lockers hold the mod's own items and nothing else.** A locker of
   pistols and bandages was what a 40-unit container needed when there were
   eight of them; with three it is just the vanilla game, in a cupboard, on a
@@ -257,15 +260,14 @@ now instead of nine lists.
 
 ```
 C.Loot.medical   4   hypospray, dermal regenerator, medical tricorder, tricorder
-C.Loot.food      9   ration pack, gagh, leola stew, plomeek soup, jumja stick,
-                     raktajino, Earl Grey, Romulan ale, bloodwine
+C.Loot.food     18   the eleven galley dishes and seven drinks (ITEMS.md)
 C.Loot.weapons   4   bat'leth, mek'leth, lirpa, ushaan-tor   (phasers via `special`)
 C.UniformIssue   6   duty and dress uniforms, command/operations/sciences
                      (all six via `special`, one each, not rolled)
 ```
 
-`C.Loot.fresh`, `cookware`, `drinks`, `tools`, `linen` and `survival` are
-deleted. Nothing pointed at them any more, and `tests/test_stock.py` reads its
+`C.Loot.fresh`, `cookware`, `tools`, `linen` and `survival` are deleted
+(`drinks` came back later, for the Adirondack's bar). Nothing pointed at them any more, and `tests/test_stock.py` reads its
 list names out of the layout, so a list nothing uses is a list nothing checks.
 
 **Quantity is a decision, not an outcome.** Each locker carries `fill = 1.0`
@@ -477,18 +479,15 @@ All seven static checks pass. None of this has been seen in a game.
 1. **The shape.** Beam up. It should read as the inside of a shuttle. Walk from
    the pad to every fitting: the bow row via a seat square, the galley down the
    port passage, the sick bay aft.
-2. **The three lockers.** 4 phasers and 2 of each blade at 3,0; 3 of each dish
-   and drink at 3,1; 3 of each instrument at 3,2. `TREK_Stock()` names every
+2. **The three lockers.** 4 phasers, 2 of each blade, the six uniforms and
+   two PADDs at 3,0; 27 dishes and drinks at 3,1; 3 of each instrument at 3,2. `TREK_Stock()` names every
    container and how full it is.
 3. **The five empty ones** are openable and empty — not unopenable, which is
    what a missing `container = true` looks like.
-4. **The television.** Right-click it. It should offer to turn on, stay on,
-   and take a VHS tape. `TREK_Power()` reports its cell; `grep "device:"
-   console.txt` says whether its device data landed at build time.
+4. ~~**The television.**~~ Played: it switches on and plays the shelf's tapes.
 5. **The sink** with *Water Shutoff* set to instant. `TREK_Water()`.
 6. **The biobed** as a bed: sleep in it.
-7. **The EMH panel** at 3,3 — does it read as a ship's wall panel, and what
-   name does the game show for it?
+7. **The fridge, oven and microwave** cool and heat, off the power bus.
 8. **No big box on the deck.** The helm console prop is gone; the Helm panel
    is still on the right-click *Shuttlecraft* menu and must still open.
 9. **The walls hold.** Walk into each of the four bulkheads and hold the
@@ -516,10 +515,6 @@ free: the cabin and its stock reaching a client, and whether a runtime
 
 ## 8. Still open
 
-- **The EMH panel's name** — §3. Still open: the Doctor was built on
-  2026-09-20 (`EMH.md`) and his station is this panel, but what `CustomName`
-  the game shows for `industry_01_15` when you hover it is a question only the
-  game answers.
 - **A custom biobed.** A custom *tile* needs a TileZed-packed texture pack and
   is out of this pipeline; a custom *world model* is the helm's proven route
   but carries no `BedType`, so the vanilla sprite has to stay underneath and
@@ -533,5 +528,4 @@ free: the cabin and its stock reaching a client, and whether a runtime
   engine nobody here has answered. They go once the migration has been seen to
   work in a real save. (`TREK_Helm.lua`, `TREK_HelmBackdrop.png` and
   `TREK_HelmEmblem.png` are the LCARS *panel* and are unrelated.)
-- **VHS tapes.** None are stocked. Worth deciding whether the ship carries a
-  couple or whether finding one is the point.
+- ~~**VHS tapes.**~~ Settled: the tape shelf at 2,0 (`LORE.md`).

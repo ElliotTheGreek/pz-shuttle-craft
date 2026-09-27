@@ -1,14 +1,14 @@
 # Map markers: what build 42 actually offers
 
-Research for `ROADMAP2.md` 1.5, which says: *"Research the ordinary-client
+Research for the old ROADMAP2 1.5, which says: *"Research the ordinary-client
 Build 42 map-symbol API before committing to an implementation. Confirm
 creation, transmission, save/load, and removal semantics, and avoid
 admin/debug-only calls."*
 
-This is that research. **Sections 1-5 are the findings; section 6 is now
-built** -- the store, its bounds, the map view and two-client publication, all
-against synthetic contacts (`TREK_Probes.lua`, `TREK_MapContacts.lua`). What
-is not built is anything that *creates* a contact, which is the probe itself.
+This is that research. **Sections 1-5 are the findings; section 6 is built**
+-- the store, its bounds, the map view and two-client publication
+(`TREK_Probes.lua`, `TREK_MapContacts.lua`). Contacts are made by probes
+(`PROBES.md`), distress calls (`ENSIGN.md`) and clue sites (`COMMS.md` 9).
 
 Everything below was read out of the installed **42.20.4** jar and its own
 Lua, using the three tools in the order `DEV_GUIDE.md` prescribes: does the
@@ -152,7 +152,7 @@ mod owns the contact.
 **The mod owns contacts; the engine draws them.**
 
 1. **The store.** Contacts live in their own bounded mod-data key with a
-   request/receive handshake, exactly as `ROADMAP2.md` *Separate bounded
+   request/receive handshake, exactly as the old ROADMAP2 *Separate bounded
    stores* specifies and exactly as `C.PatternKey` already works. The server
    owns it, commits it, and transmits it when it changes — never inside the
    ship table, which is published whole on every move.
@@ -196,31 +196,23 @@ with a picture rather than in advance.
 
 ---
 
-## 7. Still unverified — needs a game
+## 7. Seen in game, and still unverified
 
-**There is nothing to look at in a world yet**, and that is worth saying
-plainly: contacts are created by probes, probes are step 4, so a fresh world
-today has an empty contact log and therefore an empty map. The list below is
-what to check the moment the first probe reports, not before.
+**Seen:** a mod-added symbol draws, at the right square -- the downed ensign's
+personnel mark, with the ground uncovered round it (`ENSIGN.md` 9) -- so
+`MapSymbolDefinitions:addTexture` from the mod's own `shared/Definitions/` file
+is picked up. **And one failure found in play**: a mod symbol *category* with
+fewer than nine symbols makes opening the world map throw inside vanilla. The
+mod's symbols join `Locations` (`PROBES.md` 6).
 
-In the order that matters:
+Still unverified:
 
-1. **That a mod-added symbol appears at all**, and at the right square. World
-   coordinates are confirmed from vanilla's own call site, not from a test.
-2. **Whether the world map's symbols persist in single player.** The only
-   symbol save files found are `servermap_symbols.bin` (server) and the
-   per-item annotations inside `MapItem`; no single-player world-map symbol
-   file turned up. If they *do* persist, adding on open and removing on close
-   is still correct and prevents duplicates — this is the *"Two shuttles"*
-   failure shape, and the mitigation is the same either way.
-3. **Whether `MapSymbolDefinitions:addTexture` from a mod's own
-   `shared/Definitions/` file is picked up**, and when in load order.
-4. **Whether symbols survive the map being closed and reopened** within one
+1. **Whether the world map's symbols persist in single player.** Adding on open
+   and removing on close is correct either way and prevents duplicates.
+2. **Whether symbols survive the map being closed and reopened** within one
    session, which decides whether the rebuild is per-open or once.
-5. **Two clients**, to confirm that rebuilding from the shared store really
+3. **Two clients**, to confirm that rebuilding from the shared store really
    does give both crew the same picture.
-
----
 
 ## 8. Decisions this settles, and one it does not
 

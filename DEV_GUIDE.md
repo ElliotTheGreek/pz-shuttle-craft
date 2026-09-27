@@ -26,9 +26,11 @@ python tests/test_layout.py
 python tests/test_helm.py
 python tests/test_multiplayer.py
 python tests/test_comms.py
+python tests/test_crew.py
+python tests/test_farming.py
 ```
 
-If all eight succeed you have a working setup. `test_layout.py` prints the cabin
+If all ten succeed you have a working setup. `test_layout.py` prints the cabin
 floor plan with every fitting on it — the fastest way to see the shape of the
 thing.
 
@@ -53,7 +55,7 @@ changing anything that touches the world or the ship's state.
 ```sh
 # 1. edit, then always:
 python tools/luacheck.py TrekShuttle/42/media/lua
-python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py && python tests/test_helm.py && python tests/test_multiplayer.py && python tests/test_comms.py
+python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py && python tests/test_helm.py && python tests/test_multiplayer.py && python tests/test_comms.py && python tests/test_crew.py && python tests/test_farming.py
 
 # 2. install
 python tools/deploy_windows.py
@@ -2282,6 +2284,18 @@ python tools/gen_comms.py   TrekShuttle/42        # the channel: the tree and Pr
 python tools/gen_torpedo_flight.py TrekShuttle/42 # the torpedo in flight
 python tools/gen_void_map.py                      # space round the cabin and the Adirondack (common/media/maps)
 python tools/preview_tubes.py                     # the Jefferies tubes: overview and a render of each
+python tools/gen_power.py   TrekShuttle/42        # the power-up and power-down sounds
+python tools/gen_trait_icons.py                   # trait and profession icons
+python tools/gen_species.py                       # the species looks (TRAITS.md 4.6)
+python tools/gen_farm_icons.py                    # hydroponics item icons, keyed from their raws
+python tools/gen_contraband_icons.py              # contraband item icons, keyed from their raws
+python tools/gen_crew_talk.py                     # the crew's talk (design/crew -> TREK_CrewTalk.lua)
+python tools/gen_adirondack_tiles.py              # the Adirondack's structure sheet and the stars
+python tools/gen_adirondack_furniture.py          # her furniture, rendered into tiles (ADIRONDACK.md 7)
+python tools/gen_adirondack_crops.py              # the crops' growth sprites (FARMING.md)
+python tools/gen_adirondack_pack.py               # her texture pack, tiledef and seating
+python tools/compose_adirondack.py                # the BuildingEd sections stacked into the ship
+python tools/gen_adirondack_lua.py                # the layout her decks and tubes are built from
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
 python tools/vet_icons.py design/art/all_icons.png    # icons at 32px
 ```
@@ -2507,6 +2521,9 @@ single player, `server-console.txt` on a server).
 | `TREK_Ghosts()` | Sweep hulls waiting to be cleared, and strays near you |
 | `TREK_Charges()` | Log whether beams are rationed on this server and your charges |
 | `TREK_Replicator()` | The sandbox mode, the reserve, the ship's spare crystals, how many patterns the ship holds, and the catalogue's size |
+| `TREK_EMH()` | The Doctor: sandbox mode, reserve, spares, a running cure, and how many Doctors and stations really stand at 3,3 |
+| `TREK_PhaserFX()` | How many beams and bolts are burning on this client |
+| `TREK_Fly()` / `TREK_Sky()` | The flight probe and the sky plane (`PILOTING.md` 6) |
 | `TREK_Uniform()` | Whether each uniform's `ClothingItem` resolved through the GUID table, and the male model, female model and texture it came back with. **The first thing to run the first time the wardrobe is carried into a world** -- a garment whose GUID is missing wears perfectly and draws nothing |
 
 ### On a dedicated server
@@ -2564,7 +2581,22 @@ gets verified. Practical notes:
 
 ## Current state
 
-Version **1.6.0**, build revision **28**.
+Version **1.9.0**, build revision **29**. What each system has and has not
+been played with is the table in `ROADMAP.md` section 1, and **that table is the
+place to update when something is seen in game** -- the dated entries below are
+the history of how each part was built, and several of their "not yet seen"
+notes have since been answered in play.
+
+| Release | What it added |
+|---|---|
+| 1.3.0 | the multiplayer rewrite: server-owned ship, the shuttle as a vehicle, flight |
+| 1.4.x | torpedoes, the blades, the medical set, the 4x6 refit, the replicator and dilithium, the EMH, the wardrobe, probes and the sensor console, the two-player flight fixes |
+| 1.5.0 | the hover height, the shadow, the torpedo reticle, the downed ensign, the PADD |
+| 1.6.0 | the PADD's screen and the Adirondack channel |
+| 1.7.0 | energy: the ledger, the gauge, the dark ship, the cold start, wild dilithium, the galley made real |
+| 1.8.0 | species, Starfleet professions and rank; the phaser's own model, beam and cutting |
+| 1.9.0 | the U.S.S. Adirondack, her crew and hydroponics |
+| since 1.9.0 | the Jefferies tubes and hideouts, Turbolift Phobia, contraband (not yet released) |
 
 `modversion` in `mod.info` and `C.Version` in `TREK_Config.lua` are the same
 number, and `tests/test_assets.py` fails if they are not -- they had drifted a
@@ -2653,41 +2685,10 @@ lessons are the sections
 *A vanilla call site proves reachability* and *Single player cannot test a fix
 that both ends apply* above.
 
-**Not yet seen in game**, in the order worth checking:
-
-0. **The EMH**, built 2026-09-20 and not played at all. The only one on this
-   list that needs **no fresh world**. `EMH.md`, *Not built, and still to
-   settle in game*.
-1. **Dilithium and the warp core**, built 2026-09-20 and not played at all.
-   The ship's power is a crystal now, held in the mod's own model at 1,3 with
-   *Load a crystal* and *Take a crystal* on its menu; twelve vanilla loot
-   tables to find more in; a tricorder pass that plots them out to twenty
-   tiles and reads the ground from the air; and no way to replicate one. **It
-   needs a fresh world** -- both the ship's spares and the ones in the town
-   are placed when the world is made. The route to check it is at the end of
-   `REPLICATOR.md`.
-2. **The replicator**, half-settled on 2026-09-20: it loads, the catalogue is
-   4913 items in 78 categories, 19 patterns seed, and the machine places where
-   it was authored. The first version could not be right-clicked at all, which
-   is now a rule of its own above; the counter it leaned on is gone and the
-   model has been scaled down since. Still open: the fixed menu, whether the
-   machine earns its place at its new size, the panel under 4913 rows, and a
-   pattern crossing between machines.
-3. **The interior refit**: the shape, the three lockers, the five empty
-   containers, the biobed as a bed -- and, in a save made before it, the
-   migration. `INTERIOR_REFIT.md` section 7. **The television is off this
-   list: it has been switched on and used repeatedly in game, and it plays
-   tapes** (2026-09-23).
-4. **The medical set**: the three items in the sick-bay locker, a dose that
-   leaves a bite alone, the health panel at doctor level, the sensor sweep in
-   front of a horde, and the lock override on a door and then on a padlock.
-   `MEDICAL_SET.md`'s *Not built, and still to settle in game* is the list.
-5. **The dedicated server**: the interior cell loads there, the server-built
-   cabin reaches the client with its stock, water fills with the mains off.
-6. **Two players**: one cabin, loot taken by one gone for the other, crew
-   access, charges — and a shuttle in the air seen from the other machine,
-   which is the last unproven thing about flight.
-7. **The phaser firing** and staying charged on a server.
+**What is still unplayed** is kept in one place now, `ROADMAP.md` section 1
+and its play-test list in 2.1. The list that stood here went stale within a day
+of being written: the EMH, the replicator and the television were all played
+while it still said they were not.
 
 **The pattern worth carrying forward.** Six separate bugs in this mod have
 had the same shape: a plausible engine call that fails silently, leaving a
@@ -2754,7 +2755,7 @@ ASCII; a check that runs after a self-healing pass checks the healing; and the
 simulation has to be as unkind as the engine, which has now cost seven holes
 rather than three.
 
-**The 2026-09-23 wardrobe** is `ROADMAP2.md` 1.4, and the roadmap's biggest
+**The 2026-09-23 wardrobe** is the old ROADMAP2 1.4, and the roadmap's biggest
 open question turned out not to exist. Of the 1,795 clothing items build 42
 ships, 597 have no mesh at all and the rest share a small pool of rigs -- 7
 ride `bob_boilersuit` -- so **a uniform is a 256x256 texture and not a rigging
@@ -2791,7 +2792,7 @@ shoulder to shoulder. All three are in `UNIFORMS.md`; the first two are the
 sections above. A female character, the replicator listing and two clients are
 still unproven.
 
-**The 2026-09-23 contact store** is `ROADMAP2.md` step 3, built against
+**The 2026-09-23 contact store** is the old ROADMAP2 step 3, built against
 synthetic contacts because that is what the roadmap asks for: the store, its
 bounds, its map view and two-client publication can all be proven before a
 probe exists to fill them.
@@ -2953,7 +2954,7 @@ was missing.
 her in the air, and whether ten checks of `FlightPilotGrace` plus thirty of
 `FlightBoardingChecks` is enough room for a real beam on a real connection.
 
-**The 2026-09-24 downed ensign** is `ROADMAP2.md` 1.7, built ahead of 1.6's
+**The 2026-09-24 downed ensign** is the old ROADMAP2 1.7, built ahead of 1.6's
 cold start, whose only hook into it is one line (`M.hearing()`). A distress
 call once the ship has been boarded and has dilithium; Accept and Decline on
 the sensor console; a `downedPersonnel` contact with a three-day clock; a
@@ -2979,7 +2980,7 @@ moved to ground that was not.
 tricorder, rescue, three patterns learned. `ENSIGN.md` section 9 has what is
 still open, chiefly two clients.
 
-**The 2026-09-24 PADD** is `ROADMAP2.md` 1.8: a tablet that holds digital
+**The 2026-09-24 PADD** is the old ROADMAP2 1.8: a tablet that holds digital
 copies of books, without limit, read five times faster than paper, copied
 between PADDs, and lost with the PADD. It is the mod's **first timed
 action**, and the first thing checked was whether a mod's own action runs
@@ -3038,6 +3039,38 @@ never called while she was calling. Fixed within the hour; the harness checks it
 Still to see: a whole call answered, the spine over a real week, a tape read for
 its XP, a fragment found by a probe, and two players on one channel.
 
+**The 2026-09-24 energy system, 1.7.0** (`ENERGY.md`): one ledger every
+charge goes through, a gauge on screen, a ship that goes dark at zero -- red
+light, no replicator, no Doctor, no beaming -- and comes down where there is
+room if she was in the air; shields that cost power per push and repair crash
+damage; the cold start, a dark shuttle landed beside the first player who has to
+walk to the first crystal; dilithium lying in the county's wild ground
+(`TREK_Wild.lua`, the Douwd's copy, `LORE.md` 1c); and the galley made real, an
+invisible generator (`TrekPowerBus`) powering an oven and a microwave built as
+`IsoStove`s. The cold start has been played; the rest has not.
+
+**The 2026-09-24 phasers, 1.8.0** (`PHASERS.md`): the mod's own model, a
+visible bolt on every shot, and a beam that fells a tree or burns a door out of
+its frame. Played the same day. The screen-sized overlay that took the world's
+mouse away is a rule above.
+
+**The 2026-09-24 traits, 1.8.0** (`TRAITS.md`): ten species with their looks,
+seven Starfleet professions, rank from rescues, and six traits anyone can take.
+Not yet played.
+
+**The 2026-09-25 Adirondack, 1.9.0** (`ADIRONDACK.md`, `CREW.md`): the ship in
+orbit, built at runtime deck by deck from BuildingEd sections, with fifty
+modelled pieces, auto doors, turbolifts, her own warp core, replicators and
+EMH, and a crew of dressed, pacified zombies who walk their own routes and talk
+from `design/crew/`. Played: the decks, the lifts and the crew, twice -- the
+engine's pathfinder does not know runtime walls, so the crew walk routes of
+the mod's own.
+
+**The 2026-09-26 hydroponics, 1.9.0** (`FARMING.md`): Deck 5, seven crops in
+self-tending trays that are vanilla farming underneath, dishes cooked from
+scratch, and the gagh worm tank. Played the same day: the planted bay,
+harvest, sowing and cooking.
+
 **The 2026-09-26 Jefferies tubes** (`JEFFERIES.md`): a crawlway from every
 deck of the Adirondack to the next, across the gap and over a starfield, built
 by the server as it loads; three crew hideouts off them; Turbolift Phobia; and
@@ -3060,11 +3093,8 @@ hurts the body. Twenty-one mutations, one pass at a time, all caught, and two
 more on the Doctor's panel. **Needs a new world, and none of it has been
 seen in game.**
 
-**Next up** is `ROADMAP.md`'s step 7: publishing -- or `ROADMAP2.md` 1.6, the
-cold start, if it is to ship with the ensign. Everything else on the roadmap
-is built; what is left is playing it. Four systems have never been in a game at
-all, and the two-player session has been pinned for long enough that it is now
-the largest single piece of unproven work in the project.
+**Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
+two-player session on the dedicated server, then publish.
 
 Known limits are listed at the bottom of `README.md`.
 
@@ -3128,6 +3158,33 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_ContrabandActions.lua the Ktarian game
 TrekShuttle/42/media/lua/server/TREK/TREK_ContrabandServer.lua doses, rounds, withdrawal, the Game handed on, the flashing light
 TrekShuttle/42/media/lua/client/TREK/TREK_ContrabandUI.lua    the Game's and the PADD's menus; the record's mirror
 TrekShuttle/42/media/scripts/trekcontraband.txt                the contraband's items and fluids
+TrekShuttle/42/media/lua/shared/TREK/TREK_Vehicle.lua         finding the shuttle's vehicle, and whose seat is whose
+TrekShuttle/42/media/lua/client/TREK/TREK_VehicleMenu.lua      the radial menu: take her up, set her down, go aboard
+TrekShuttle/42/media/lua/client/TREK/TREK_Shadow.lua           her shadow on the ground in flight
+TrekShuttle/42/media/lua/client/TREK/TREK_Torpedo.lua          aiming, the reticle, the projectile
+TrekShuttle/42/media/lua/shared/TREK/TREK_PhaserCut.lua        the phaser's cut: rules, the timed action, the world change
+TrekShuttle/42/media/lua/client/TREK/TREK_PhaserFX.lua         the beam, the bolts, the hum and the light
+TrekShuttle/42/media/lua/client/TREK/TREK_ProbeUI.lua          the sensor console: probes, contacts, distress calls
+TrekShuttle/42/media/lua/shared/TREK/TREK_Tapes.lua            every tape's RecMedia entry (generated by tools/gen_tapes.py)
+TrekShuttle/42/media/lua/server/TREK/TREK_Energy.lua           the ledger every charge goes through; dark and back (ENERGY.md)
+TrekShuttle/42/media/lua/client/TREK/TREK_PowerHUD.lua         the power gauge on screen
+TrekShuttle/42/media/lua/server/TREK/TREK_ColdStart.lua        the cold start: placing the dark ship, commissioning
+TrekShuttle/42/media/lua/shared/TREK/TREK_Traits.lua           species, divisions and rank: asking, the mirrored stat change
+TrekShuttle/42/media/lua/server/TREK/TREK_TraitsServer.lua     first sight, the timers, the android, rank
+TrekShuttle/42/media/lua/client/TREK/TREK_TraitsUI.lua         applies the server's stat change and shows its notes
+TrekShuttle/42/media/lua/shared/TREK/TREK_Looks.lua            what each species wears (skin, overlay, head mesh)
+TrekShuttle/42/media/lua/server/TREK/TREK_Appearance.lua       putting the look on a character
+TrekShuttle/42/media/lua/client/TREK/TREK_CreationLook.lua     the look on the creation screen's avatar
+TrekShuttle/42/media/lua/shared/TREK/TREK_AdirondackLayout.lua the Adirondack's decks and tubes (generated by tools/gen_adirondack_lua.py)
+TrekShuttle/42/media/lua/shared/TREK/TREK_Crew.lua             her crew: the roster, the posts, routes, finding one by id
+TrekShuttle/42/media/lua/shared/TREK/TREK_CrewTalk.lua         what they say (generated by tools/gen_crew_talk.py)
+TrekShuttle/42/media/lua/server/TREK/TREK_CrewServer.lua       population, scripts, scenes and barks
+TrekShuttle/42/media/lua/client/TREK/TREK_CrewClient.lua       dressing, walking, sitting and speech
+TrekShuttle/42/media/lua/shared/TREK/TREK_FarmCrops.lua        the seven crops (FARMING.md)
+TrekShuttle/42/media/lua/shared/TREK/TREK_FarmSprites.lua      their growth sprites (generated)
+TrekShuttle/42/media/lua/shared/TREK/TREK_FarmRecipes.lua      the brews' OnCreate
+TrekShuttle/42/media/lua/server/TREK/TREK_Farm.lua             the trays, tending, the dehydrator, the worm tank
+TrekShuttle/42/media/lua/client/TREK/TREK_FarmClient.lua       the crops put back before vanilla's sow menu
 tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network
 ```
 

@@ -111,8 +111,10 @@ found anywhere in the world:
 - Deposition: in the matter of a quantity of latinum
 - Determination in the matter of Rana Four
 
-Six more recordings exist and are not on the shelf: *Unlabelled recording* and
-*Fragment one* to *six*. They come with the story.
+Eight more recordings exist and are not on the shelf: *Unlabelled recording*
+(the first rescued ensign's log) and *Fragment one* to *six* come with the
+story, and the *Holosuite programme reel* is in the Adirondack's hideouts
+(section 8).
 
 ### Items nobody holds
 
@@ -245,7 +247,7 @@ The loot lists:
 | **Medical** locker | starboard | 1 of each medical instrument, then the `medical` list, to 8 items |
 | Tape shelf | bow | the 12 recordings above, one tape each |
 | Fridge, oven, 2 counters, microwave | galley | empty: the crew's own |
-| Warp core | midships | not a container: **3 spare dilithium crystals** (`C.DilithiumIssue`) as ship state, plus the one burning |
+| Warp core | midships | not a container: on a **commissioned** start, **3 spare dilithium crystals** (`C.DilithiumIssue`) as ship state plus the one burning; on a **cold start** (the default), none -- the first crystal is found by probe (`ENERGY.md` 10) |
 | Galley sink | galley | running water, kept topped up |
 
 ### The U.S.S. Adirondack
@@ -376,9 +378,9 @@ A menu, not a plan. Each line says what it would give the player.
 | **Science labs / stellar cartography** | lab benches, sample lockers, a big wall display of the planet | Where the "wrong details" of the county are catalogued, and where fragments and samples could be handed in. |
 | **Cargo bay and shuttlebay** | crates, antigrav sleds, a second shuttle under repair, a hangar door | Somewhere to land the shuttle *inside* her, and bulk storage. |
 | **Armoury / security office** | weapons locker, brig cell with a forcefield | A proper home for the phasers and blades. The brig is a story hook (Okafor?). |
-| **Arboretum / hydroponics** | planters, grow lights, a pond | Real food growing aboard a rationed ship, and a quiet place for the crew to talk. |
+| ~~**Arboretum / hydroponics**~~ | **Built**: Deck 5 (section 7, `FARMING.md`) | |
 | **Captain's quarters and observation lounge** | bigger quarters, a long window table | Captain Vale, and the view of the planet at night. |
-| **Jefferies tubes** | narrow crawlspaces between decks | A second way between decks, for when the lifts are out. |
+| ~~**Jefferies tubes**~~ | **Built**, with three hideouts (`JEFFERIES.md`) | |
 | **Gym / sparring room** | mats, a bat'leth rack | The sprained-wrist patients come from here. |
 
 ### Items
@@ -390,7 +392,7 @@ A menu, not a plan. Each line says what it would give the player.
 | Hydrospanner, plasma torch, engineering kit | tools | The Engineering crates. A player-side repair loop for her systems. |
 | Emergency medkit, cortical stimulator, tricorder variants | medical | More in Sickbay's cabinets. |
 | Holodeck programme chips | media | The holodeck's presets, and loot. |
-| Latinum strips | currency | The crew's poker nights; a trade token with the crew. |
+| ~~Latinum strips~~ | **Built** as the hideouts' card-table pot (section 8). Not yet a trade token. | |
 | Replicator ration chits | token | Makes the crew's rationing real. |
 | Trill and Bolian dishes | food | Trill and ex-Borg players have no home dish in `C.SpeciesFood` yet. |
 | Spare uniforms by rank, science-blue lab coat | clothing | Wardrobes, and dressing the crew NPCs. |

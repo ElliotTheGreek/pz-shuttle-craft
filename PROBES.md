@@ -1,6 +1,6 @@
 # Long-range probes
 
-The working guide for `ROADMAP2.md` 1.5, in the shape `REPLICATOR.md`,
+The working guide for the old ROADMAP2 1.5, in the shape `REPLICATOR.md`,
 `EMH.md` and `UNIFORMS.md` use. `MAP_MARKERS.md` is the research that decided
 how contacts reach the map; this is what was built on top of it.
 
@@ -186,30 +186,40 @@ top of the map.
 was what a player saw. Put the sign in the *argument*; no other translation in
 this mod has a literal one, which was the tell.
 
-## 7. Not built, and still to settle in game
+## 7. Seen in game, and still to settle
 
-**Seen working:** nothing yet. This is the first version.
+**Played on 2026-09-23**, the day the console was built: fabricate, launch, the
+wait and the report. Play is what turned the first version into this one --
+the console panel instead of a submenu, probes as stock, real crystals placed
+at a contact, the map uncovered round it, the `%` bug, and the world map that
+crashed on a category of two symbols. A probe that came back empty was reported
+as broken, which is why the crew are now told either way and **the first probe
+of a save always finds something**. The ensign's personnel mark has since been
+seen on the map (`ENSIGN.md` 9), so a mod symbol does draw at the right place.
 
-1. **The loop end to end** in a fresh world: fabricate, launch, wait an hour
-   of game time, read the report, open the map, walk there, pick the crystal
-   up and watch the contact retire.
+Still to settle:
+
+1. **The whole loop to a crystal**: launch, walk to the contact, find the
+   crystal with the tricorder, pick it up, and watch the contact retire. On a
+   cold start this is the opening (`ENERGY.md` 10.5).
 2. **Whether an hour is the right wait**, and whether 250 is the right price.
-   Both are guesses and both are one constant.
-3. **Whether the contact symbol reads** on the real map among street names and
-   the player's own annotations, at the zoom people actually use.
-4. **Whether the revealed area is the right size.** 120 squares either side is
-   enough to see the roads in; it may be too generous or not enough.
-5. **Two clients** -- the store is shared and tested as such in the
-   simulation, but the map view has never been drawn on two machines, and the
-   reveal is per-player by design.
-6. **A probe across a server restart.** Progress is persisted and tested; the
+   Both are one constant.
+3. **Whether the revealed area is the right size** (120 squares either side).
+4. **Two clients** -- the map view has never been drawn on two machines, and
+   the reveal is per-player by design.
+5. **A probe across a server restart.** Progress is persisted and tested; the
    real save/load round trip is not.
 
-## 8. Deliberately not built yet
+## 8. What came later, and what is still not built
 
-- **The opening guarantee.** 1.6 needs one probe that certainly finds
-  something; `C.ProbeFindChance` is deliberately not that mechanism.
-- **`downedPersonnel` contacts.** The kind, the symbol and the label all exist
-  so that 1.7 does not have to add them in a hurry. Nothing creates one.
-- **A corridor scan.** The probe reports one point at its endpoint, not
-  everything along its route.
+- **The opening guarantee is built**, and it is not `C.ProbeFindChance`: the
+  first probe of a save always finds something (`s.probeEverFound`), and a
+  cold start begins with two probes in the rack and a recovery probe if the
+  ship is ever left with no way to a crystal (`ENERGY.md` 10.6).
+- **A third result: a clue site.** Once the channel has made first contact, a
+  probe that finds something finds one of Tucker Gold's holo fragments
+  `C.ProbeClueShare` of the time, while any is owed (`COMMS.md` 9).
+- **`downedPersonnel` contacts** are made by distress calls (`ENSIGN.md`).
+  Probes still never find survivors.
+- **A corridor scan** is not built. The probe reports one point at its
+  endpoint, not everything along its route.

@@ -1,9 +1,10 @@
 # The replicator
 
-**Built, revision 21. Carried into a game on 2026-09-20, three times: it
-loads, it places, and the three looks cost one real bug, a rebuilt fixture and
-two size cuts. The power behind it -- dilithium, and the warp core that holds
-it -- is built and tested and has not been played yet.**
+**Built. Carried into a game on 2026-09-20, three times: it loads, it
+places, and the three looks cost one real bug, a rebuilt fixture and two size
+cuts. The power behind it -- dilithium and the warp core -- is now the whole
+ship's power system (`ENERGY.md`, 1.7.0), and the Adirondack has
+replicators of her own, running on her own store (`ADIRONDACK.md` 9).**
 
 A machine standing at the aft end of the galley that makes any item in
 Project Zomboid, and **owns its square**: no counter under it, and no
@@ -115,9 +116,10 @@ would be a list of the items somebody thought of.
 ### The reserve, and the crystal that fills it
 
 `TREK_Power.lua`, below the line. One number in the ship state -- `s.power`,
-0..`C.PowerMax` -- spent by the replicator and, when it is built, by the EMH.
-It is the *ship's* power rather than the replicator's, which is why it does
-not live in `TREK_Replicator.lua` and why `R.energy()` is one line that asks
+0..`C.PowerMax` -- spent by everything aboard that costs power (`ENERGY.md` 3:
+beams, flight, shields, the Doctor, probes, the galley). It is the *ship's*
+power rather than the replicator's, which is why it does not live in
+`TREK_Replicator.lua` and why `R.energy()` is one line that asks
 `TREK.Power.reserve()`.
 
 **Nothing refills it for free.** It was twenty units every ten game minutes
@@ -140,18 +142,14 @@ the feel of the whole system: the interesting part is the trip out to find
 one, not rationing the last forty units. A crystal that ran out in an
 afternoon would turn every replication into a sum.
 
-`P.afford(cost)` is the only thing that should ever burn one. It answers true
-when the reserve covers the cost; when it does not, and only on the authority,
-it takes a spare out of the core, sets the reserve to a full crystal and
-answers again. Two things it will not do: burn a crystal for a cost a *fresh*
-crystal could not cover either -- nothing costs that much today, the dearest
-replication being 1500, but both numbers are tunable and eating a player's
-crystal and then refusing them is the worst failure available to this code --
-and burn anything at all on a client.
-
-The swap **sets** the reserve rather than adding to it: whatever was left in
-the old crystal is lost. That is why it only happens when the reserve
-genuinely cannot cover the request.
+**Every charge goes through one ledger** now, `TREK.Energy.energize`
+(`ENERGY.md` 3.1), which pays with `P.pay`. The replicator checks
+`P.canPay(cost)` first -- the reserve plus the spares -- and pays after, for
+what actually landed. `P.pay` runs the burning crystal to zero first and takes
+only the shortfall from the next spare, so **nothing left in a crystal is
+lost** (`ENERGY.md` V1; it used to be, when the swap set the reserve to full).
+It burns nothing on a client. An engineer aboard makes every charge 10%
+cheaper (`TRAITS.md` 4.4), and that discount is applied inside `P.pay`.
 
 `P.burnCrystal()` is `P.takeCrystal()` plus a full reserve, and taking one is
 now a decrement rather than a removal from a container -- the read-back that
@@ -288,11 +286,14 @@ something was new.
 
 ### The blocklist
 
-`C.ReplicatorBlocked`. Three ids today, and all three are items this mod
-declares for its own purposes: the torpedo specification (a warhead nobody
-holds, with no icon), the hull, and the deleted helm console. **The engine's
-own filter does not catch any of them** -- they are not obsolete, not hidden
-and not in `Moveables` -- which is precisely why the list exists.
+`C.ReplicatorBlocked`, in `TREK_Config.lua`, with the reason beside each.
+Items this mod declares for its own purposes and nobody should hold (the
+torpedo warhead, the hull, the deleted helm console, the power bus, the Doctor
+and his station, the six ensign figures), **dilithium**, which is the point of
+the whole arrangement, balso tonic for canon's sake, and every piece of
+contraband (`CONTRABAND.md`). **The engine's own filter does not catch any of
+them** -- they are not obsolete, not hidden and not in `Moveables` -- which is
+precisely why the list exists.
 
 Add to it rather than to a filter: a server owner reading the config should
 be able to see what the ship refuses to make.
@@ -377,7 +378,7 @@ player concludes an item is not in the game.
 | Who may use it | **Server** -- alive, the ship's `canUse`, standing at the machine |
 | The pattern set | **Server**, its own mod data key, shared by the crew |
 | The reserve | **Server**, ship state, one number. A client that has not been told yet reads it as *full*, so a panel opened before the first sync does not grey its own button |
-| The crystals | **Server**, and they are items in a container rather than a number anywhere |
+| The crystals | **Server**, ship state: one number, `s.crystals`, beside the reserve (*The warp core*, above) |
 | The catalogue | **Both**, built per process from the engine's own list |
 | The panel, the search, the list | **Client**, presentation only |
 

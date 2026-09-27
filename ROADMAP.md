@@ -44,7 +44,7 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | The Adirondack channel | `COMMS.md` | Built. Only first contact is **played** |
 | Tape shelf | `LORE.md` | **Played** (tapes play). Line effects not seen |
 | Species, traits, professions, rank | `TRAITS.md` | Built, not played |
-| The Adirondack: decks, lifts, doors, machines | `ADIRONDACK.md` | **Played** (the deck is built, lifts run, the Doctor stands) |
+| The Adirondack: decks, lifts, doors, machines | `ADIRONDACK.md` | **Played**: beaming across, the decks, the lifts. Her doors on a server, her EMH stations and the lighting still want a look |
 | Her crew | `CREW.md` | **Played** twice; walking and sitting still need a look |
 | Hydroponics and the galley stove | `FARMING.md` | **Played** 2026-09-26: planted bay, harvest, sowing, cooking |
 | Jefferies tubes, hideouts, Turbolift Phobia | `JEFFERIES.md` | Built, not played. **Needs a new world** |
@@ -108,17 +108,14 @@ Check, with two people:
 - the Adirondack's crew seen from both;
 - *Offer the Game to...*
 
-### 2.3 Tidy the documents
+### 2.3 Keep the documents true
 
-Several guides carry *not yet seen* lists and status lines the game has since
-answered. That is how the television was reported "never switched on" for
-days after it had been used (`LORE.md` 8). Before publishing:
-- **`DEV_GUIDE.md` *Current state*** still says version 1.6.0;
-- **`ENERGY.md`** is still written as a plan; its phase 9 rewrite is owed;
-- **`ADIRONDACK.md`**'s header says nothing is in the game;
-- **`PROBES.md`** says *seen working: nothing yet*;
-- **`EMH.md`**'s status predates the first cure;
-- update each guide from section 1 as the backlog above is played.
+Brought up to date on 2026-09-26: every guide's status now matches section 1.
+The rule that keeps it that way: **when something is seen in game, update
+section 1 and the guide's own *not yet seen* list in the same commit.** A
+"not yet proven" line decays silently every time the game is played and the
+file is not edited -- the television was reported "never switched on" for days
+after it had been used (`LORE.md` 8).
 
 ### 2.4 Publish
 

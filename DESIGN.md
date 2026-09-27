@@ -1,7 +1,8 @@
 # Designing the Shuttlecraft
 
-How to change the shape, layout and contents of the ship, and the rules the
-engine imposes on all of it.
+How to change the shape, layout and contents of the shuttle's cabin, and the
+rules the engine imposes on all of it. The Adirondack has her own guide
+(`ADIRONDACK.md`); the same constraints apply to her.
 
 Read [The five constraints](#the-five-constraints) before changing anything.
 Four of them were learned by breaking the TARDIS mod this one is built on;
@@ -12,28 +13,32 @@ different problem from a police box.
 
 ## The shape of the thing
 
-The cabin is **generated at runtime**, not shipped as a map. Nothing here was
-made in TileZed; the mod writes floors, walls and furniture into empty world
-cells the first time a player is aboard.
+The cabin is **generated at runtime**, not shipped as a map. The mod writes
+floors, walls and furniture into an empty world cell the first time a player
+is aboard, from a layout authored in BuildingEd.
 
-One compartment, one storey, at **z 4** in cell **96,40** — clear of the
-vanilla map (it ends at cell x 77), of the Fifth-Wheel RV interior at 85,40,
-and of the TARDIS mod's six deck footprints running east from 92,40.
+One compartment, one storey, at **z 4** (`C.CabinZ`) in cell **96,40**
+(`C.InteriorCell`) -- clear of the vanilla map (it ends at cell x 77), of the
+Fifth-Wheel RV interior at 85,40, and of the TARDIS mod's decks running east
+from 92,40. The Adirondack is in cell 97,40.
 
-The hull is 14 squares across by 22 fore and aft, with the bow cut back six
-squares and the stern three. That is 254 deck squares — roughly half a TARDIS
-deck, which is the point: this is a shuttle.
+**Four squares across by six fore and aft** (`C.CabinW = 3`, `C.CabinL = 5`):
+twenty-four squares, against a hull that is fifteen, so the inside and the
+outside tell the same story. It was 14x22 and then 6x9 before the refit;
+`INTERIOR_REFIT.md` is why it is this size and what is on every square.
 
 ```
-    01234567890123
-  0       ..           oy 0 is the bow
-  1      V.V.
-  2     ..H...
-  ...
- 21    ..eeee..        oy 21 is the stern
+    0123
+  0 TVLA
+  1 F*.p
+  2 oh.M
+  3 wD.H
+  4 m*.B
+  5 R.@B
 ```
 
-`python tests/test_layout.py` prints the whole thing with every fitting on it.
+`python tests/test_layout.py` prints this with its legend and every
+container.
 
 ---
 
@@ -42,7 +47,7 @@ deck, which is the point: this is a shuttle.
 ### 1. Nothing can be built into a chunk that has not streamed in
 
 Chunks only load around a **player**. The cabin is somewhere nobody ever goes,
-so until someone is standing there its chunks do not exist — and
+so until someone is standing there its chunks do not exist -- and
 `getOrCreateGridSquare` on an absent chunk returns an *orphan* square with no
 chunk behind it. The first engine call that touches one (`addFloor`,
 `AddTileObject`) throws out of Java.
@@ -51,89 +56,71 @@ So the order is always **move the player in first, then build**:
 
 - `U.chunkLoaded(x, y, z)` gates everything; `U.square(..., create=true)`
   returns `nil` rather than an orphan.
-- `B.cabinReady()` probes the corners, the centre and the pad.
-- `Core.beginArrival` puts the player on the pad, then holds them —
-  invulnerable, not falling — until `B.cabinCurrent()` is true *and* the pad
+- The arrival puts the player on the pad and holds them there until the
+  server reports the cabin is built round them (`cabinReady`), and the pad
   square demonstrably has a floor.
-- If that never happens, `Core.ejectToOutside` puts them back on real ground.
+- If that never happens, they are put back on real ground.
 
 **Never build at a location no player is at.**
 
 And the corollary, which is easier to miss: **you cannot un-build there
-either.** Anything that reaches for a remembered position — to remove, check
-or repair it — gets `nil` back when that chunk is not loaded, and `nil` is not
-"there is nothing there". It means "ask again later".
-
-The hull is the worked example. Landing lifts the ship from wherever it was,
-but a new site is by definition nowhere near where the ship has been, so at
-that moment the old chunk is never loaded. Treating that failure as "the old
-hull is gone" would leave a second shuttle standing after every flight.
-`Core.removeHullAt` returns a *reason* rather than a bare boolean for exactly
-this, and a position it could not reach goes into `s.ghosts` to be cleared
-when the world next streams that spot in.
+either.** Anything that reaches for a remembered position -- to remove, check
+or repair it -- gets `nil` back when that chunk is not loaded, and `nil` is not
+"there is nothing there". It means "ask again later". A hull left where the
+ship used to be goes into `s.ghosts` and is cleared when that ground next
+streams in; treating the failure as success is how a second shuttle ends up
+standing after every flight.
 
 ### 2. A shuttle needs room, and room cannot be checked from the helm
 
-This is the constraint the TARDIS never had. A police box occupies one tile
-and can materialise in a hallway; the shuttle needs its whole 3×5 footprint,
-and the ground it is aimed at is in a chunk that has not loaded yet.
+A police box occupies one tile; the shuttle needs its whole 3x5 footprint, and
+the ground it is aimed at is in a chunk that has not loaded yet. So **landing
+cannot be a decision, it has to be a process**:
 
-The consequence is that **landing cannot be a decision, it has to be a
-process**:
-
-1. Set a course at the helm. Nothing moves. Nothing is checked, because
+1. Set a course at the helm. Nothing moves and nothing is checked, because
    nothing *can* be checked.
-2. Take her down. The player is beamed to the site — which is what makes its
-   chunks stream in — and a tick job then searches for somewhere the hull
-   fits.
-3. If it finds one, the ship comes in and the player is put at the foot of the
-   ramp. If it does not, the player is beamed **back aboard** with the reason.
+2. Take her down. The player is beamed to the site -- which is what makes its
+   chunks stream in -- and a job searches for somewhere the hull fits.
+3. If it finds one, the ship comes in and the player is put beside her. If it
+   does not, the player is beamed **back aboard** with the reason.
 
-Step 3's failure branch is not politeness, it is the whole design. Doing it
-the other way round — check, then move — is impossible; doing it as "move,
-then fail" would strand the player on foot wherever the ship could not follow.
+Step 3's failure branch is the whole design. Check-then-move is impossible;
+move-then-fail without recovery would strand the player on foot.
 
-Two details that are easy to get wrong here:
+Two details that are easy to get wrong:
 
-- **The player's own square must be exempt.** The hull is five tiles long, so
-  anybody calling it down in front of them is standing inside the footprint,
-  and anybody beamed to a destination for the ship to follow is standing in
-  the middle of it. Without `Core.exemptFor(player)` the ship refuses every
-  landing anyone ever orders. `Core.land` then steps them clear as it arrives.
-- **"unloaded" is not a refusal.** `Core.roomToLand` reports it only when
-  *every* blocked square was unloaded. A wall inside an area that is otherwise
-  still streaming in is a real "no", and answering "wait and see" to it would
-  leave the landing job retrying against a site that will never work.
+- **The player's own square must be exempt** (`World.exemptFor`). Anybody
+  calling her down in front of them is standing inside the footprint, and
+  without the exemption the ship refuses every landing anyone ever orders.
+- **"Unloaded" is not a refusal** unless *every* blocked square was unloaded.
+  A wall inside an area that is still streaming in is a real "no".
 
 ### 3. The landing search must not run whole every tick
 
-The search covers a 49×49 area and asks about all fifteen footprint squares at
-each position: roughly **thirty-six thousand square lookups for one pass**.
-Run per frame, that is not slow, it is a hard lock.
-
-So the job keeps a cursor and examines `SITES_PER_TICK` (48) positions per
-tick, wrapping round when it runs out — because ground that was not loaded on
-the first pass may well be by the third. One cheap `getFloor()` probe rejects
-most candidates before the fifteen-square test is worth running at all.
-
-The same reasoning made `C.footprintOffsets()` memoise its table: it is walked
-inside that loop, and rebuilding a fifteen-entry table thousands of times a
-second is pure garbage.
+The search covers a 49x49 area and asks about all fifteen footprint squares at
+each position: about **thirty-six thousand square lookups for one pass**. Run
+per frame, that is not slow, it is a hard lock. So the job keeps a cursor and
+examines `SITES_PER_TICK` (48) positions per tick, wrapping round, because
+ground that was not loaded on the first pass may be by the third. One cheap
+`getFloor()` probe rejects most candidates first, and `C.footprintOffsets()`
+memoises its table.
 
 ### 4. Unmapped cells grow wilderness
 
-The engine generates procedural forest in cells with no map data, so an
-untreated cabin reads as a hut standing in a wood. Two passes handle it:
+The engine generates grass, trees and zombies in any cell with no map data, so
+an untreated cabin is a hut standing in a wood. **The answer is a map**: the
+mod ships `TrekShuttle/common/media/maps/TrekShuttle`, cells round the cabin
+and the Adirondack that are a starfield near either ship and empty beyond
+(`tools/gen_void_map.py`). A mapped cell is never generated. **It has to be
+under `common/`** -- the engine never reads a mod's map from `42/`, and for
+every release before 1.9 it did not load (`DEV_GUIDE.md`, *The black outside
+the cabin is a map*). A dedicated server lists it: `Map=TrekShuttle;Muldraugh, KY`.
 
-- `clearFootprint` strips the hull footprint before anything is placed.
-- `clearSurroundings` strips a `ClearMargin` (24) ring down to *nothing* — no
-  objects, no floor — which renders as black void, the look the Fifth-Wheel RV
-  interior has. It runs at the cabin's own level **and at z 0**, because that
-  is where the trees actually grow.
-
-`U.clearSquare` deliberately preserves anything the mod tagged and anything
-lying on the ground, so both passes are safe to repeat as chunks stream in
-late.
+The runtime clearing stays as the fallback for a save whose cells were
+generated before the map loaded: `clearSurroundings` strips a `C.ClearMargin`
+(24) ring to nothing, at the cabin's level and at z 0. `U.clearSquare` keeps
+anything the mod tagged, anything lying on the ground, and the star floors, so
+the passes are safe to repeat as chunks stream in.
 
 ### 5. A wrong engine method name is not a quiet failure
 
@@ -141,9 +128,8 @@ Calling a method that does not exist throws out of Java, and the engine dumps
 a full stack trace **per call**. Inside a per-square loop that is hundreds of
 dumps, which freezes the game hard enough to look like a crash.
 
-Two defences, and both matter:
-
-- **Check the name first**: `python tools/pzapi.py zombie.iso.IsoGridSquare stairs`
+- **Check the name first**: `python tools/pzapi.py zombie.iso.IsoGridSquare isFree`,
+  and `tools/javadis.py` for what it does and under what condition.
 - **Batch anything repeated**: `U.batch(label)` returns a callable that stops
   after its first failure, logs one warning, and lets the pass continue.
 
@@ -152,76 +138,62 @@ local join = U.batch("light.lamppost")
 for ... do join(function() cell:addLamppost(x, y, z, r, g, b, 8) end) end
 ```
 
-`U.try` is **not** a substitute. It silences the *Lua* warning after the first
-failure but keeps calling, and the engine keeps dumping a Java stack trace
-every time. `U.try` is for a call that happens once; `U.batch` is for a call
-that repeats.
-
-There is a second edge to this constraint, and the phaser is where it bit.
-`U.try` returns `nil` both when a call fails *and* when the call legitimately
-returns nothing — so a probe that answers "nil means clear" reads a thrown
-exception as clear ground to land a ship on. `squareIsClear` answers `"ok"`
-rather than `nil` for exactly that reason.
+`U.try` is **not** a substitute: it silences the Lua warning but keeps calling,
+and the engine keeps dumping. And `U.try` returns `nil` both when a call fails
+*and* when it legitimately returns nothing, so a probe that answers "nil means
+clear" reads a thrown exception as clear ground. `squareIsClear` answers
+`"ok"` for exactly that reason.
 
 ---
 
 ## Changing the design
 
-### Furnishing the cabin
+### Moving or adding furniture
 
-Each area has one function in `TREK_Build.lua`: `furnishHelm`, `furnishGalley`,
-`furnishSickBay`, `furnishQuarters`, `furnishCargo`, `furnishPhasers`.
+**The interior is authored in BuildingEd**, in
+`design/buildinged/TrekShuttle_Interior.tbx`, and read at runtime from
+`shared/TREK/TREK_InteriorLayout.lua`. To move a locker, open the map editor,
+not the Lua. `DEV_GUIDE.md`, *Changing the interior or what is in it*, is the
+step-by-step; in short:
 
-```lua
-local function furnishGalley()
-    local S = C.Sprites
-    fit(0, 8,  S.sink.W,    "sink")
-    fit(0, 9,  S.counter.W, "counter", C.Loot.cookware, 6)
-    line(S.locker.W, 1, 9, 0, 1, 4,
-         { loot = C.Loot.food, amount = 12, tag = "pantry" })
-end
-```
+1. Edit the `.tbx` in BuildingEd.
+2. `python tools/import_tbx_layout.py` lists every furniture tile it expands,
+   and which of them the tileset says are containers.
+3. Carry the change into `L.tiles` in `TREK_InteriorLayout.lua`. Geometry
+   (`x`, `y`, `sprite`) comes from the `.tbx`; `tag`, `container`, `loot`,
+   `special`, `fill` and `cap` are yours.
+4. Bump `C.BuildRev`, and run `python tests/test_layout.py`, which fails if the
+   Lua and the `.tbx` disagree about containers and prints the deck plan.
 
-`fit(ox, oy, sprite, tag, loot, amount)` places one object.
-`line(sprite, ox, oy, dx, dy, count, opts)` places a run of them.
-`place(pieceName, ox, oy, tag)` places a multi-tile piece from `C.Pieces`.
-
-| key | meaning |
-|-----|---------|
-| `loot` | a list from `C.Loot`; makes the object a container and stocks it |
-| `amount` | items per container |
-| `tag` | mod-data tag — **required for anything that should survive a rebuild** |
+Some squares carry **no fitting at all** because a machine owns them: the
+replicator at 0,5 (`C.ReplicatorSpot`), the warp core at 1,3
+(`C.DilithiumSpot`) and the EMH's station at 3,3 (`C.EmhStation`). Each is a
+world model the build stands there, and `test_layout.py` fails if anything is
+authored onto one.
 
 **Tag everything you place.** `U.clearSquare` keeps tagged objects and destroys
 untagged ones, so an untagged shelf is wiped on the next rebuild. Tags also
-drive behaviour: `sink`, `shower` and `toilet` are refilled with water every
-ten in-game minutes, and the self-test counts them by tag.
+drive behaviour: `C.WaterTags` (`sink`) gets water, `television` gets device
+data.
 
-Offsets run `0..CabinW` by `0..CabinL` from the bow. **The hull tapers**, so an
-offset that is fine amidships is in open space forward of about oy 6 or aft of
-about oy 18. A placement that misses simply does not happen and reports
-nothing, which is why `tests/test_layout.py` parses every call out of the
-source and checks it.
+**One object per square**, except on purpose. The lamps are placed with
+`claim()`, which refuses a square already taken, so a lamp cannot land on a
+locker; authored layering (a sink on a counter, the television on its table)
+bypasses it deliberately. `test_layout.py` catches anything stacked by
+mistake.
 
-`C.Landing` and its clearance ring are refused by every placement helper, so
-nothing can be put down where a player materialises.
+### A sprite is not the object the engine builds from it
 
-### One object per square
+A fitting built with `IsoObject.new` is an `IsoObject` wearing that sprite:
+drawn, and inert. The television is built as an `IsoTelevision` with device
+data (`device = "Base.TvWideScreen"` on its layout entry), the oven and the
+microwave as `IsoStove`s, and every container gets
+`createContainersFromSpriteProperties()` before it is sent. `DEV_GUIDE.md` has
+both rules.
 
-`fit`, `line` and `place` all `claim()` the square they are about to use, and
-refuse one that is already taken. This exists because overlaps do not fail:
-`U.addObject` only looks for its own sprite, so a deckhead lamp dropped where
-a crate already stands simply stacks, both are drawn, and which one the player
-can actually reach is a matter of draw order. Claiming turns that into one
-line in the log at build time — and `test_layout.py` catches it before the
-game is ever launched.
+### Loot
 
-This is why the lighting pass runs **after** the furnishing: the lamps take
-whatever squares are left rather than being stacked on top of the cargo.
-
-### Loot lists
-
-Lists live in `C.Loot` in `TREK_Config.lua`. Every id must exist in the
+Lists live in `C.Loot` in `TREK_Config.lua`, and every id must exist in the
 installed build:
 
 ```sh
@@ -229,18 +201,13 @@ python tools/pzcatalog.py items "^Canned"      # find ids
 python tools/pzcatalog.py check Base.Pills,Base.Bandage
 ```
 
-`U.stock` keeps a **rolling cursor per list**, so consecutive containers
-continue through it instead of all starting at the top. Without it every
-medical cabinet holds an identical handful and most of the list never appears.
-`tests/test_stock.py` guards it.
-
-Long lists spread further than short ones. If you want fuller coverage, make
-the list longer or the containers more numerous — not `amount` bigger.
-
-`U.stockEach` is the other tool: it puts one of everything in and then reads
-the container back, returning what did not land. Use it where coverage has to
-be *proved* rather than hoped for — the phaser locker uses it, because "there
-are four phasers in there" is a claim the mod should be able to check.
+The three lockers hold the mod's own items only (`INTERIOR_REFIT.md` 4), with
+the headline items guaranteed by a `special` rule in `TREK_Build.lua` and read
+back by `U.stockEach`: `phasers`, `uniforms`, `padds`, `medkit`, `tapes`.
+Everything else fills to `C.FillFraction` of the container's own capacity, or
+to the entry's `fill` and `cap`. `U.stock` keeps a rolling cursor per list so
+neighbouring containers do not all hold the same handful; `tests/test_stock.py`
+guards it.
 
 ### Choosing sprites
 
@@ -253,324 +220,201 @@ python tools/pzcatalog.py sprites container medicine
 python tools/pzcatalog.py sprites name industry_01
 ```
 
-The sets this mod leans on, and why:
-
-| set | used for |
+| Set | Used for |
 |---|---|
 | `industry_01` | hull walls (`MaterialType: Metal_Light`) and the diamond-plate deck |
-| `security_01` | the standing helm consoles and the wall-mounted viewscreens |
-| `appliances_com_01` | the operations terminals |
-| `location_community_medical_01` | the biobed and the wide medical cabinets (capacity 30) |
-| `fixtures_counters_01` | steel galley counters — a metal hull, not somebody's kitchen |
-| `location_military_generic_01` | the cargo crates (capacity 50) |
+| `security_01` | the wall-mounted monitors on the bow bulkhead |
+| `furniture_storage_02` | the three Starfleet lockers (capacity 40) |
+| `furniture_shelving_01` | the tape shelf, a wall shelf that leaves its square as deck |
+| `appliances_*`, `fixtures_*` | the galley |
+| `location_community_medical_01` | the biobed |
+| `location_entertainment_theatre_01` | the crew seat, which blocks only its north edge |
 
 Wall tilesets follow a pattern: index 0 is the **west** face, 1 the **north**
 face, 2 the corner post. Multi-tile furniture is consecutive and its halves
-carry a `SpriteGridPos`.
+carry a `SpriteGridPos`. **Read a tile's properties before choosing it**
+(`tools/_catalog/tiles.json`): half the tileset does not block its square, and
+`CustomName` is what the player sees when they open it -- the galley's drinks
+once went into an oven because a comment called it a cabinet. And a
+catalogue says what a tile is *for*, never what it looks like: look at it.
 
 `tests/test_assets.py` checks every sprite name and item id in the Lua against
-the catalogue, so a typo fails before the game ever runs.
+the catalogue.
 
 ### Changing the hull shape
 
-`C.CabinW`, `C.CabinL`, `C.NoseCut` and `C.TailCut` are the whole shape.
+`C.CabinW`, `C.CabinL`, `C.NoseCut` and `C.TailCut` are the whole shape (the
+cuts are 0 today: the cabin is a plain rectangle).
 
 **Project Zomboid has no diagonal wall sprites.** Walls only ever sit on the
-north or west edge of a square, so a smoothly curved hull is not available at
-any size. What *is* available is a stepped chamfer — cut the corners off and
-let the wall follow the steps — which at this scale and the game's camera
-angle reads clearly as a bow.
+north or west edge of a square, so a curved hull is not available; a stepped
+chamfer is.
 
-Walls are **derived from the floor plan**, not hard-coded: `buildWalls` walks
-every in-shape square and puts a wall wherever its neighbour is outside. So a
-new shape is a change to `C.inShape` and nothing else — but every furnishing
-offset will need revisiting, and `test_layout.py` will tell you which.
-
-If you change the size, bump `C.BuildRev`.
+Walls are **derived from the floor plan**: `buildWalls` walks every in-shape
+square and puts a wall wherever its neighbour is outside. A new shape is a
+change to `C.inShape` and nothing else -- but **moving geometry is a
+migration, not a rebuild**. Write the old extent down (`C.LegacyCabin`) so
+`B.refitCabin` can clear it, and hand the contents of any deleted container
+back on the pad (`DEV_GUIDE.md`, *`U.clearSquare` keeps two things on
+purpose*).
 
 ### Changing how much ground it needs
 
 `C.Footprint = { w = 3, h = 5 }` is the whole of it, and it must be kept in
-step **by hand** with `HULL_W` / `HULL_L` in `tools/gen_shuttle.py`, which is
-how big the model is actually drawn.
-
-Nothing in the engine ties those together: a world model is drawn from one
-square and simply overhangs the rest, so the game will happily draw a five-tile
-hull that only claims one square, or claim fifteen squares for a model one tile
-wide. `tests/test_layout.py` compares the two numbers and fails if they drift.
-
-Bigger footprints are dramatically harder to land. Fifteen squares already
-rules out most of a suburban street.
+step **by hand** with `HULL_W` / `HULL_L` in `tools/gen_shuttle.py` and the
+vehicle script's `extents`. Nothing in the engine ties those together.
+`tests/test_layout.py` and `tests/test_assets.py` compare them and fail if they
+drift.
 
 ### Multi-tile furniture
 
-A bed covers several squares, and **which half goes where is not guessable** —
-it comes from the tileset's `SpriteGridPos`. Declare pieces in `C.Pieces` as
-`{sprite, dx, dy}`:
+A bed covers several squares, and **which half goes where is not guessable** --
+it comes from the tileset's `SpriteGridPos`. Pieces are declared in `C.Pieces`
+as `{sprite, dx, dy}`:
 
 ```lua
 biobedS = { { "location_community_medical_01_17", 0, 0 },
             { "location_community_medical_01_16", 0, 1 } },
 ```
 
-then place with `place("biobedS", ox, oy, "biobed")`, which refuses if any
-square it needs is outside the hull, on the pad, or already claimed.
-
-Getting these backwards is what made the TARDIS's bunks look mismatched: every
-bed had its foot laid where its head belonged. `tests/test_layout.py` checks
-every declared offset against `SpriteGridPos` and that all halves face the same
-way.
+`tests/test_layout.py` checks every declared offset against `SpriteGridPos`
+and that all halves face the same way.
 
 ---
 
 ## The transporter
 
-`TREK_Transport.lua`. Two entry points and one recovery path.
+`TREK_Transport.lua`, asking the server through `TREK_Core` for every long
+move (`MULTIPLAYER.md`).
 
-- `T.beamUp(player)` — writes down where they were standing, then a delayed
-  job puts them on the pad through `Core.beginArrival`.
-- `T.beamDown(player, dest)` — back to the recorded spot, or to a destination.
-- `T.recoverAboard(player, message)` — immediate, no ceremony, used when a
-  landing has failed.
-
-Three decisions worth keeping:
-
-**A beam is a job, not a teleport.** `C.BeamDelay` (90 ticks, about a second
-and a half) exists because an instant snap reads as a debug command and a short
-dematerialisation reads as a transporter. It also gives the halo note time to
-be seen.
-
-**Beaming does not care where the ship is.** When the shuttle is not landed it
-is overhead, which is not a position at all, and the pad reaches you either
-way. The hatch is the part that needs the ship to be somewhere; the menu hides
-"step outside" when it is not.
-
-**A beam-down needs one square, a landing needs fifteen.** `T.spotNear`
-spirals `C.BeamScatter` (6) squares outward from the target and gives up
-rather than putting anybody inside a wall — the square you left may have a
-zombie standing on it by the time you come back.
-
-**Beaming up cancels a landing in progress.** Otherwise both jobs run: the ship
-comes down at the destination and immediately teleports the player back out of
-the cabin to stand beside it.
-
----
-
-## The phaser
-
-An ordinary build 42 firearm plus one slow tick that puts the charge, the
-chambered round and the condition back. Everything tunable is in
-`TREK_Config.lua`:
-
-| constant | meaning |
-|---|---|
-| `C.PhaserItem` | the full id, for spawning and placing |
-| `C.PhaserType` | the bare type, which is what the engine's inventory search compares |
-| `C.PhaserInfiniteAmmo` | put the charge back |
-| `C.PhaserNeverJams` | clear a jam |
-| `C.PhaserNeverWears` | put the condition back |
-| `C.PhaserInterval` | ticks between sweeps |
-| `C.PhaserRack`, `C.PhaserCount` | where the locker sits and how many are in it |
-
-Four things decided the shape of it.
-
-**The ammunition type is 9mm, and it had to be.** A phaser ought to have its
-own power cell. It cannot: `AmmoType = base:bullets_9mm` resolves through
-`AmmoType.registerBase` in Java, and there is no script syntax anywhere in
-build 42 that lets a mod add one. Grep the whole of `media/scripts` for
-`bullets_9mm` and it appears only ever as the *value* of an `AmmoType` line,
-never as a definition — the string is registered in the jar. A made-up id would
-resolve to nothing and the weapon would silently refuse to fire. So the phaser
-nominally chambers 9mm, and because the charge is restored far faster than it
-can be spent, none of the player's own ammunition is ever drawn on.
-`tests/test_assets.py` checks that whatever `AmmoType` the item names is one a
-vanilla weapon also uses, so this cannot quietly rot.
-
-**The top-up is a sweep, not a hook.** There is no reliable "the player fired"
-event to hang it on, and a phaser in a bag should be as full as one in your
-hand when you draw it. `getAllTypeRecurse` walks sub-containers and both hands
-are checked separately, because an equipped item is not always in the container
-listing and a phaser you are holding is the one that most needs to be full.
-
-**`getAllTypeRecurse`, deliberately, and not `getItemsFromFullType(type,
-true)`.** Both exist and both return an `ArrayList`. The second one's boolean
-is undocumented, and guessing at an undocumented flag is precisely how a
-feature ends up silently doing nothing at all. The method whose name states
-what it does is the one to call. It compares the **bare** type, so it is handed
-`C.PhaserType` and the results are filtered on the full id afterwards.
-
-**It is quiet.** `SoundRadius = 12` against a pistol's 100. A weapon with
-unlimited charge that also brought the whole street down on you would be no
-gift at all, and "quieter than a firearm" is most of what a phaser is for.
-
-The in-hand model is vanilla (`WeaponSprite = Handgun03`). A custom one needs a
-rigged attachment set rather than a static mesh, which is a different pipeline
-from the world models — see the TARDIS mod's notes on what happens when you
-assume otherwise. The inventory icon is the mod's own.
+- **A beam is a job, not a teleport.** `C.BeamDelay` (90 ticks) exists because
+  an instant snap reads as a debug command.
+- **Beaming does not care where the ship is.** Overhead is not a position; the
+  pad reaches you either way. The hatch is the part that needs her landed, and
+  it is shut while she hovers.
+- **A beam-down needs one square, a landing needs fifteen.** `T.spotNear`
+  spirals `C.BeamScatter` (6) squares out from the target and gives up rather
+  than putting anybody inside a wall. It arrives first and settles once the
+  ground has streamed in.
+- **Beaming up cancels a landing in progress.**
+- **A beam costs power** (`C.BeamCost`, `ENERGY.md` 3.5) and, on a server with
+  the speed anti-cheat set to kick or ban, one of three transporter charges.
 
 ---
 
 ## The ship is lived in
 
 **A rebuild must never touch what is already in a container.** Once a locker
-exists it is the player's: what they eat stays eaten, what they take stays
-taken, and what they put back stays where they put it.
-
-`U.addContainer` returns a second value saying whether it created the container
-just now, and `fit`/`line` stock only when it did. Without that gate a rebuild
-does not merely refill a locker — it stocks it *again*, piling a second helping
-on top of the first, so loot multiplies with every revision bump.
-
-The corollary is that **changing a loot list does not change a cabin that
-already exists.** New containers get the new list; old ones keep what they
-have. That is correct for play and inconvenient for design, hence:
+exists it is the player's: what they eat stays eaten. A container is stocked
+**once, ever** -- when it is made, or when it has never been stocked and is
+still empty. The corollary: **changing a loot list does not change a cabin
+that already exists.** New loot reaches new worlds.
 
 ```lua
 TREK_Rebuild()      -- from the debug console, standing aboard
 ```
 
-Tears the cabin back to bare ground — containers and contents included — and
-regenerates it fully stocked. It only works with the player aboard, because
-only then are its chunks loaded.
-
-`C.DevRestock = true` does the same globally for every rebuild. It is off by
-default and should stay off outside design work.
+tears the cabin back to bare ground -- containers and contents included -- and
+regenerates it fully stocked. `C.DevRestock = true` does the same for every
+rebuild; it is off and should stay off outside design work.
 
 ## Build revisions
 
-`C.BuildRev` is stamped into the cabin as it is built. Raising it makes the
-cabin rebuild the next time a player is aboard — lazily, on arrival. Rebuilds
-repair structure (floors, walls, lighting, the void margin) and preserve tagged
-furniture, container contents and dropped items.
-
-Bump it when **generation** changes. It will not restock anything.
-
-**Moving the cabin is not a rebuild — it is a migration.** Its old geometry
-stays where it was and its container contents do not travel.
+`C.BuildRev` (29 today) is stamped into the cabin as it is built. Raising it
+makes the cabin rebuild the next time a player is aboard -- lazily, on
+arrival. Rebuilds repair structure and preserve tagged furniture, container
+contents and dropped items. **Bump it when generation changes**; it restocks
+nothing. It is not the mod's version number and must not be bumped to match
+one.
 
 ---
 
 ## Assets
 
-The hull and the helm console are **world models** (`.x` meshes plus textures),
-not tile sprites — a custom tile would need a TileZed-packed texture pack.
-Everything is generated by script; no binary asset is hand-authored.
+Meshes, textures, icons and sounds are **generated, never hand-authored** --
+by the scripts in `tools/`, listed in `DEV_GUIDE.md`, *Things that are true
+about the assets*. The mod's machines and the hull are **world models**
+(`.x` meshes plus textures), not tile sprites; the Adirondack's furniture is
+rendered into a tile pack (`ADIRONDACK.md`).
 
-```sh
-python tools/gen_shuttle.py TrekShuttle/42     # hull texture, mesh, icon
-python tools/gen_helm.py    TrekShuttle/42     # the deleted helm console prop
-python tools/gen_phaser.py  TrekShuttle/42     # phaser inventory icon
-python tools/gen_poster.py  TrekShuttle/42     # the mods-screen poster
-```
+An item's `Icon = X` resolves to `media/textures/Item_X.png`, and a missing
+one shows as a blank square and reports nothing. `tests/test_assets.py` checks
+every icon, mesh and texture the scripts name.
 
-An item's `Icon = X` resolves to `media/textures/Item_X.png`, and a missing one
-shows as a blank square in the inventory and reports nothing anywhere.
-`tests/test_assets.py` checks every icon a mod item names, every mesh and
-texture a model names, and every `TrekShuttle.*` id the Lua refers to.
-
-Check the result **without launching the game**:
+Check a model **without launching the game**:
 
 ```sh
 python tools/preview_model.py TrekShuttle/42/media/models_X/TREK_Shuttle.x \
        TrekShuttle/42/media/textures/TREK_Shuttle.png /tmp/preview.png -35
 ```
 
-`tools/preview_model.py` is a small software renderer — mesh parser, z-buffer,
-per-pixel texture sampling — that draws the model at roughly the game's camera
-angle. The last argument is the yaw, so both flanks can be checked. **Use it.**
-Four separate faults in the hull were found and fixed here before the game was
-ever involved.
-
 Five things to know about the meshes:
 
-- **Y is up.** Project Zomboid world models are Y-up; authoring Z-up lays the
-  hull on its side. `MeshBuilder(up_axis=...)` handles the swap, and
-  `preview_model.py` swaps back so previews stay upright.
-- **1 unit is 1 tile**, with `scale = 1.0` in `media/scripts/trekshuttle.txt`.
-- **The frame auto-fits.** The previewer used to assume a one-tile model and a
-  five-tile hull simply ran off every edge, which made it useless for judging
-  anything.
-- **`MeshBuilder.quad` maps its four points to fixed texture corners**, in the
-  order bottom-left, bottom-right, top-right, top-left. Reversing the winding
-  to turn a normal around also turns the artwork **upside down** — which is
-  what it did to the registry on the starboard flank. Pass the normal
-  explicitly and keep the point order.
-- **One texture on two opposite faces cannot be right on both.** It can be
-  upright on both, or at the same physical end on both, never both at once. The
-  flanks therefore have their own atlas regions and `mirror_region` draws the
-  second as a mirror of the first. That was worth a few kilobytes of atlas.
-
-A related lesson from the first pass: the nacelles originally ran the full
-length of the hull at mid height, which put them directly over the registry and
-the cockpit glazing. Neither could ever be seen. **Render it and look** — the
-geometry was correct and the result was still wrong.
+- **World models are Y-up** (Z-up lays the hull on its side), and **1 unit is
+  1 tile**, with `scale` in the model script. Weapon meshes are Y-up too.
+- **The frame auto-fits**, and the last argument is the yaw, so both flanks
+  can be checked.
+- **`MeshBuilder.quad` maps its four points to fixed texture corners**;
+  reversing the winding to turn a normal also turns the artwork upside down.
+  Pass the normal explicitly.
+- **One texture region cannot be right on two opposite faces.** The flanks
+  have their own regions and `mirror_region` draws the second.
+- **Render it and look.** Four faults in the hull were found in previews
+  before the game was involved, and none was visible in the source.
 
 ---
 
 ## The loop
 
 ```sh
-python tools/luacheck.py TrekShuttle/42/media/lua   # parses every file
+python tools/luacheck.py TrekShuttle/42/media/lua   # every file parses
 python tests/test_assets.py                         # sprites, items, icons, keys
-python tests/test_stock.py                          # loot spreads across its list
-python tests/test_layout.py                         # floor plan + fittings
-sh tools/deploy.sh                                  # copy into Zomboid/mods
+python tests/test_stock.py                          # loot spreads and fills
+python tests/test_layout.py                         # floor plan and fittings
+python tests/test_multiplayer.py                    # the mod, played in simulation
+python tools/deploy_windows.py                      # install as TrekShuttleDev
 ```
 
-Then launch with `-debug`. On a **fresh** world the self-test runs itself and
-writes `TREK-TEST` lines to `Zomboid/console.txt`; on a world where the ship is
-already in use it stays out of the way, and `TREK_SelfTest()` from the debug
-console forces it.
+Then launch the game (no hot reload: every change needs a restart) and beam
+aboard, because the cabin rebuilds lazily on arrival. There is no in-game
+self-test any more; the debug console functions (`TREK_Stock()`,
+`TREK_Power()` and the rest, `DEV_GUIDE.md` *Testing*) report what is there.
 
-```sh
-sh tools/readtest.sh
-```
-
-The self-test is a step machine, not a straight function, because most steps
-have to wait for the world. It beams up, inspects the cabin — floors, fittings
-by tag, water, phasers, nothing overhead — then beams down, lands the ship,
-boards it through the hatch, steps out and recalls it.
-
-**Lua version note.** The game runs Kahlua, a Lua 5.1 dialect where `unpack` is
-a global. `tools/luacheck.py` and the tests use Lua 5.5, which moved it to
-`table.unpack`; the harness stubs it back. Mod code should use the 5.1 spelling.
+**The game runs Kahlua, a Lua 5.1 dialect** where `unpack` is a global and
+`next` and `math.huge` do not exist. The tests run Lua 5.5 and stub the
+difference; mod code uses the 5.1 spelling.
 
 ---
 
 ## Where things live
 
+`DEV_GUIDE.md`, *Layout*, lists every file. The ones this guide is about:
+
 | File | Holds |
 |------|-------|
-| `TREK_Config.lua` | All layout constants, sprites, loot lists. Start here. |
-| `TREK_Util.lua` | Safe engine wrappers, state, coordinates, clearing, stocking |
-| `TREK_Build.lua` | Cabin construction and furnishing |
-| `TREK_Core.lua` | The hull, landing room, the hatch, arrival, water, the field |
-| `TREK_Transport.lua` | The transporter: beam up, beam down, recovery |
-| `TREK_Travel.lua` | The helm: courses, bookmarks, the landing search, map markers |
-| `TREK_Phaser.lua` | Keeping phasers charged |
-| `TREK_Menu.lua` | Right-click menus |
-| `TREK_SelfTest.lua` | In-game step machine |
-
-Almost every design change is a change to `TREK_Config.lua` plus one `furnish`
-function.
+| `TREK_Config.lua` | the cabin's shape, footprint, sprites, loot lists, every number. Start here |
+| `TREK_InteriorLayout.lua` | the interior as data, from the `.tbx` |
+| `TREK_Build.lua` | the server's cabin build: floors, walls, fittings, machines, stock, water, the power bus, migrations |
+| `TREK_Util.lua` | safe engine wrappers, state, coordinates, clearing, stocking |
+| `TREK_World.lua` | read-only landing and standing queries |
+| `TREK_Core.lua` | asking to move, arrival, the hatch, shields, lights |
+| `TREK_Transport.lua` | the transporter |
 
 ---
 
 ## Rules of thumb
 
-- Verify an engine method with `tools/pzapi.py` before calling it — and prefer
-  the overload whose name says what it does over the one with an undocumented
-  flag.
+- Verify an engine method with `tools/pzapi.py` and `tools/javadis.py` before
+  calling it, and find a vanilla Lua call site for it.
 - Wrap anything repeated per-square in `U.batch`.
 - Never let `nil` from `U.try` mean "yes". Return a sentinel.
 - Tag every object you place, or a rebuild eats it.
-- Never build where no player is standing.
-- Exempt the player's own square from the footprint check, or nothing ever
-  lands.
+- Never build, or un-build, where no player is standing.
+- Exempt the player's own square from the footprint check.
 - Never let a failed landing leave somebody on foot; beam them back aboard.
-- Slice any search that touches thousands of squares across ticks.
-- Keep `C.Footprint` and `gen_shuttle.py`'s `HULL_W`/`HULL_L` in step.
+- Slice any search that touches thousands of squares.
+- Keep `C.Footprint`, `gen_shuttle.py` and the vehicle's extents in step.
 - Bump `C.BuildRev` when generation changes; write a migration when geometry
   *moves*.
-- Run the four static checks before deploying — they are seconds, and a game
-  round-trip is minutes.
+- Run the static checks before deploying: seconds, against minutes for a
+  round trip through the game.

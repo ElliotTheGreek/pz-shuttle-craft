@@ -15,6 +15,10 @@ over the town, a 2.5-second descent, the shadow under her all the way. In the
 player's words, "to my eye everything is perfect". Still to see: the obstacle
 guard against a real tower, and any of it with two people (section 7).
 
+**Flight costs power** since 1.7.0: taking off, every tile flown and every
+minute hovering draw on the reserve, and a ship that runs dark in the air
+comes down where there is room, undamaged (`ENERGY.md` 4 and 7).
+
 ---
 
 ## 1. What it is, from the cockpit
@@ -718,7 +722,7 @@ mod reports). Heights other than 5 have not been flown.
 - **Going back up.** `S.toOrbit` fires when nobody has been aboard for
   `FlightPilotGrace` checks. The grace is what makes a beam survivable — a
   player is briefly in neither the seat nor the cabin while the transporter has
-  them — and five checks has only been reasoned about, not timed against a real
+  them — and ten checks has only been reasoned about, not timed against a real
   beam on a real server.
 - **`setWorldTransform` has no vanilla Lua call site.** It is public, ungated,
   and on the engine's Lua exposure allow-list, and it demonstrably works in

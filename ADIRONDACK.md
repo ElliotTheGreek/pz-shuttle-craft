@@ -2,12 +2,23 @@
 
 The endgame: beam up to the ship in orbit and walk her decks, with Starfleet
 crew aboard, quarters of your own, and room to build. This file is the
-working guide, and today it is mostly the **workflow**, because the first thing
-being proven is that the art and the layout can pass back and forth between
-Claude and the author without anybody hand-copying anything.
+working guide: the workflow between the author's editor and the generators
+(sections 1-8), and how the ship is raised in the game (section 9).
 
-Started 2026-09-25. **Nothing here is in the game yet**: the first slice is a
-tileset and one building, in the editor.
+Started 2026-09-25, **in the game since 1.9.0** (2026-09-26): five decks built
+at runtime, turbolifts between them, her own warp core, replicators and EMH
+stations, stocked lockers, running water, and a crew. **Played:** beaming
+across, the decks, the lifts, the crew (twice; `CREW.md`) and Deck 5's
+hydroponics and Deck 2's galley stove (`FARMING.md`). The Jefferies tubes
+between the decks are `JEFFERIES.md`.
+
+| Deck | What is on it |
+|---|---|
+| 1 | Bridge, Ready Room |
+| 2 | Lounge and galley, the habitat (four quarters, two baths) |
+| 3 | Transporter Room (the arrival pad), Sickbay |
+| 4 | Main Engineering, her warp core |
+| 5 | Hydroponics, Botany Lab, Serpent Tank Room |
 
 ---
 
@@ -121,18 +132,18 @@ tile and a half of one of *our* doors, open it silently and play our sound;
 nobody near for a moment, close it. The server does it, because a door is
 world state (and `obj:sync()`, not trusting the setter's own sync -- the lock
 override taught that). Crew NPCs would open doors the same way players do.
-Two engine questions first: whether `ToggleDoorSilent` replicates from the
-server, and whether a tile's `DoorSound` property can name our own sound. A
-two-frame slide (half open) may be possible by swapping sprites client-side for
-a few ticks; it is polish, after the basic door works.
+As built (section 9), the server uses `ToggleDoor`, and the tile's
+`DoorSound = TrekDoor` has the engine play `TrekDoorOpen`/`Close` on every
+client. A two-frame slide (half open) may be possible by swapping sprites
+client-side for a few ticks; it is polish, not built.
 
-**Our machines become tiles.** The replicator, the EMH's station and the warp
-core are world models today, placed at runtime, and a world model cannot be
-clicked where it is drawn. Rendered at the game's iso angle with the renderer
+**Our machines are tiles here.** In the shuttle the replicator, the EMH's
+station and the warp core are world models placed at runtime, and a world
+model cannot be clicked where it is drawn. Rendered at the game's iso angle with the renderer
 we already have, each becomes an ordinary tile sprite that BuildingEd places
 like a fridge, that is clicked at its base like a fridge, and that the Lua
-recognises by its sprite name to hang the same menus off. The shuttle's own
-cabin can keep its world models; the Adirondack should not start with them.
+recognises by its piece name to hang the same menus off (`A.machines`,
+section 9). The shuttle's own cabin keeps its world models.
 
 ---
 
@@ -267,7 +278,9 @@ property into every file it makes and will not overwrite a file that has lost
 it (`--force` does).
 
 Every section has a west-wall door as its way in, so they can be laid side by
-side in WorldEd and joined; the turbolifts that link decks are not built yet.
+side and joined. `tools/compose_adirondack.py` stacks them into the ship, one
+deck per `DECKS` entry, and a turbolift car at the same squares on every deck
+links them. Deck 5's `Adirondack_Hydroponics.tbx` came later (`FARMING.md`).
 
 ---
 
@@ -326,14 +339,17 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
 - **Tile properties** are copied from vanilla tiles that do the same job
   (gen_adirondack_pack.py's docstring), never `lightswitch` or `CustomItem`.
 
-## 10. What is not done, in order
+## 10. What is not done
 
-1. **First play-test**: do the pack and tiledef load, do the doors open, do
-   the walls block, is the lighting enough.
-2. **Crew:** built, without depending on Bandits. See CREW.md. The first
-   play-test decides the animation and pathfinding questions in CREW.md §6.
-   `ENSIGN.md` §3's claim that zombie NPCs are gated is wrong:
-   `addZombiesInOutfit` has no admin gate.
+1. **Still to look at in game**: whether the doors open and close for
+   everybody on a server, whether the walls block, whether the lighting is
+   enough, and her EMH stations (one by the lift on every deck).
+2. **Crew:** walking, sitting and speech still want a look (`CREW.md` 6).
+   `ENSIGN.md` 3's claim that zombie NPCs are gated is wrong:
+   `addZombiesInOutfit` has no admin gate, and that is what the crew are.
 3. Posters, original art only: no real actors' likenesses.
 4. Art: the plant, the transporter pad, the plaque's IP check, the tan
    viewports and door frames, a two-storey warp core.
+5. `bar_corner` is modelled and not placed anywhere.
+6. Rooms from `ITEMS.md` 6 not yet built: holodeck, science labs, shuttlebay,
+   armoury and brig, captain's quarters, gym.

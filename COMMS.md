@@ -58,7 +58,7 @@ content — section 7.
 - **It can be missed.** A tape waits for ever. A hail does not, and a missed
   call is the cheapest source of consequence the mod has ever had access to.
 - **It knows what the player has done.** Eleven crew are on the ground
-  (`ROADMAP2.md` 1.7). The channel is where a rescue stops being a counter and
+  (the old ROADMAP2 1.7). The channel is where a rescue stops being a counter and
   becomes somebody who answers by name.
 
 ---
@@ -161,7 +161,7 @@ runs later:
 Time is counted in **days since the ship was commissioned**, not days since the
 world started. A player may not find the shuttle until day 40, and *"two weeks
 later"* has to mean two weeks of theirs. This is the same reasoning that makes
-`ROADMAP2.md`'s commissioning the mod's real day zero.
+the old ROADMAP2's commissioning the mod's real day zero.
 
 **First contact is one week after commissioning, and that is deliberate.** The
 shelf comes first. A player gets seven days to work through twelve tapes, or to
@@ -321,7 +321,7 @@ decides they would rather it stayed that way.
    unlocks tier 3's gating and every converted fragment.
 4. **6.1 written in full**, because it is the thread that establishes the
    player's own identity and everything else references it.
-5. **The spine**, alongside `ROADMAP2.md` 1.6 and 1.7, because the crew thread
+5. **The spine**, alongside the old ROADMAP2 1.6 and 1.7, because the crew thread
    and the rescue mechanic are the same feature seen from two directions.
 6. **The clue chain** (6.3), last, because it needs the issue record, a probe
    result and the fragment item — and because it is the only part of the story
@@ -425,9 +425,11 @@ Bounded at `C.CommsLogMax` rows.
 
 ### The scheduler
 
-Every game minute, outside any loaded-ground branch. **Day zero is the first
-boarding** (decided): `TREK_CommsServer.commission` sets it the first time the
-cabin is built, and ROADMAP2 1.6's cold start will change that one function.
+Every game minute, outside any loaded-ground branch. **Day zero is
+commissioning**: `TREK_CommsServer.commission` sets it once the cabin has been
+built *and* `s.commissioned` is true. On a cold start that is the moment the
+first crystal goes into the core (`ENERGY.md` 10.4); on a commissioned start,
+and in every save from before the cold start, it is the first boarding.
 
 - An incoming thread rings when its `day` has come, the thread named in `after`
   has run and its hours have passed, its `requires` hold and its `forbids` do not,
