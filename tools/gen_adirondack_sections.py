@@ -173,8 +173,11 @@ SECTIONS["bridge"] = dict(
     rooms=[
         room("Bridge", "office", CARPET, 0, 0, 10, 11, "150 60 60"),
         room("Ready Room", "office", CARPET, 11, 0, 14, 6, "120 70 70"),
+        # The armoury (ARMOURY.md 6), in the corner the ready room left:
+        # four by five, deck plate, its door on the bridge's east wall.
+        room("Armoury", "office", DECK, 11, 7, 14, 11, "90 90 110"),
     ],
-    doors=[("W", 11, 3), ("W", 0, 9)],
+    doors=[("W", 11, 3), ("W", 0, 9), ("W", 11, 9)],
     furniture=[
         ("viewport", "N", 4, 0), ("viewport", "N", 5, 0), ("viewport", "N", 6, 0),
         ("science_display", "N", 2, 0), ("science_display", "N", 8, 0),
@@ -192,6 +195,11 @@ SECTIONS["bridge"] = dict(
         ("lounge_chair", "S", 12, 4), ("lounge_chair", "S", 13, 4),
         ("display_shelf", "N", 14, 0), ("painting_ship", "N", 13, 0),
         ("replicator", "W", 11, 6), ("plant", "W", 14, 6),
+        # the armoury: three weapons lockers along the wall it shares with
+        # the ready room, the trophy case and a console by the door
+        ("arms_locker", "N", 12, 7), ("arms_locker", "N", 13, 7), ("arms_locker", "N", 14, 7),
+        ("science_station", "W", 11, 7), ("trophy_case", "W", 11, 11),
+        ("wall_sconce", "W", 11, 10),
     ])
 
 SECTIONS["sickbay"] = dict(

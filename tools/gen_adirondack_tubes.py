@@ -44,6 +44,11 @@ RUN = (5, 13)
 JOG = (2, 5)
 # Tubes that have a hideout, by index (0 = the tube from Deck 1 to Deck 2).
 HIDEOUTS = (0, 2, 3)
+# Whose weapons each hideout's second crate hides (ARMOURY.md 7): the crew's
+# trophies from other people's wars, which are nobody's issue and so are kept
+# where the first officer will not look. The name is the piece the server
+# stocks it by (TREK_Adirondack, A.Stock).
+ARMS_STASH = {0: "stash_arms_klingon", 2: "stash_arms_romulan", 3: "stash_arms_dominion"}
 
 S1 = "trek_adirondack_01_%d"
 S2 = "trek_adirondack_02_%d"
@@ -144,7 +149,7 @@ def piece(index, name, facing):
     return [(dx, dy, S2 % i) for dx, dy, i in index[name]["facings"][facing]]
 
 
-def hideout(path, i, index):
+def hideout(path, i, index, n):
     """The side crawl, the room, its fittings and what was left lying about."""
     x, y = path[i]
     branch = [(x, y - 1), (x, y - 2)]
@@ -165,7 +170,7 @@ def hideout(path, i, index):
     put("cargo_crate", "W", x0, y0, "stash_crate")
     put("wall_sconce", "N", x0 + 1, y0)
     put("bottle_shelf", "N", x0 + 2, y0, "stash_shelf")
-    put("cargo_crate", "E", x0 + 4, y0, "stash_crate")
+    put("cargo_crate", "E", x0 + 4, y0, ARMS_STASH[n])
     put("lounge_chair", "W", x0 + 1, y0 + 2)
     put("lounge_table", "W", x0 + 2, y0 + 2)
     put("lounge_chair", "E", x0 + 3, y0 + 2)
@@ -262,7 +267,7 @@ def build(decks, W, H, index, pitch=DECK_PITCH):
                  floors={p: GRATING for p in path}, objects=[], clutter=[], hideout=None)
         if n in HIDEOUTS:
             i = hideout_site(path, n)
-            h = hideout(path, i, index)
+            h = hideout(path, i, index, n)
             chain = [path[i]] + h["branch"]
             opens |= {frozenset(pr) for pr in zip(chain, chain[1:])}
             opens.add(frozenset((h["branch"][-1], (h["door"][0], h["door"][1] - 1))))

@@ -31,7 +31,9 @@ is how the ship is put together; this file is the part of her you crawl.
   chairs stood in the only row in front of the stash; `tests/test_assets.py`
   now walks every hideout from its hatch to every crate.) The crates also
   hold the crew's contraband -- the drugs, the Ktarian game, latinum and a
-  holosuite reel -- which is `CONTRABAND.md`.
+  holosuite reel -- which is `CONTRABAND.md`. And each hideout's second
+  crate hides one culture's weapons: Klingon, Romulan and Cardassian,
+  Jem'Hadar (`ARMOURY.md` 7).
 - **Turbolift Phobia**, a negative trait (+2 points): every lift ride is
   instant dread -- stress, panic and misery -- and the lift's menu says so
   before you choose. The tubes cost the phobic nothing.

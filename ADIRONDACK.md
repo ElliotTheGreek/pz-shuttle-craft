@@ -14,7 +14,7 @@ between the decks are `JEFFERIES.md`.
 
 | Deck | What is on it |
 |---|---|
-| 1 | Bridge, Ready Room |
+| 1 | Bridge, Ready Room, Armoury (`ARMOURY.md` 6) |
 | 2 | Lounge and galley, the habitat (four quarters, two baths) |
 | 3 | Transporter Room (the arrival pad), Sickbay |
 | 4 | Main Engineering, her warp core |
@@ -268,7 +268,7 @@ and renders it in a dollhouse view from the real tiles:
 | Transporter Room | `Adirondack_TransporterRoom.tbx` | 8 x 7 | 1 |
 | Habitat Deck | `Adirondack_HabitatDeck.tbx` | 17 x 14 | 4 quarters, 2 baths, corridor |
 | Lounge and Galley | `Adirondack_Lounge_Galley.tbx` | 16 x 11 | 2 |
-| Bridge and Ready Room | `Adirondack_Bridge_ReadyRoom.tbx` | 15 x 12 | 2 |
+| Bridge and Ready Room | `Adirondack_Bridge_ReadyRoom.tbx` | 15 x 12 | 3: bridge, ready room, armoury |
 | Sickbay | `Adirondack_Sickbay.tbx` | 13 x 9 | ward, CMO's office, lab |
 | Main Engineering | `Adirondack_MainEngineering.tbx` | 15 x 13 | 1 |
 
@@ -352,4 +352,8 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
    viewports and door frames, a two-storey warp core.
 5. `bar_corner` is modelled and not placed anywhere.
 6. Rooms from `ITEMS.md` 6 not yet built: holodeck, science labs, shuttlebay,
-   armoury and brig, captain's quarters, gym.
+   brig, captain's quarters, gym. The armoury was built off the bridge on
+   2026-09-27 (`ARMOURY.md` 6).
+7. **New furniture goes at the end of `tools/adirondack_objects.py`.** The
+   furniture sheet numbers its tiles in that list's order, and a tile's
+   number is its sprite name in every save (`ARMOURY.md` 6).

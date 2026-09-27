@@ -27,7 +27,8 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | Transporter, landing, hatch, the void outside | `DESIGN.md`, `MULTIPLAYER.md` | **Played** |
 | Flight (one hover height, sandbox *Hover height*) | `PILOTING.md` | **Played** at level 5, and with two people at level 1 (2026-09-23). The obstacle guard has not met a tall building yet |
 | Photon torpedoes | `PHOTON_TORPEDOS.md` | **Played** with a mouse. Controller aim is built and has not been held |
-| Phaser: model, bolts, cutting trees and doors | `PHASERS.md` | **Played** |
+| Phaser: model, bolts, cutting trees and doors | `PHASERS.md` | **Played**. Holstering (2026-09-27) not yet seen |
+| The armoury: phaser rifle, Klingon, Romulan, Jem'Hadar and Cardassian arms, the Starfleet holster, the room off the bridge, the hideouts' arms | `ARMOURY.md` | **Played** 2026-09-27 ("it works well"); `ARMOURY.md` 9's checks not yet itemised. The hideouts' arms **need a new world** |
 | Blades: bat'leth, mek'leth, lirpa, ushaan-tor | `DEV_GUIDE.md` | **Played**, at the right size |
 | Galley food and drinks | `ITEMS.md` | **Played** |
 | Interior refit (4x6 cabin, three lockers) | `INTERIOR_REFIT.md` | Built. Only the television is **played** (it plays tapes). The migration from a 6x9 save has not been seen |
@@ -74,7 +75,10 @@ each guide's own *Not yet seen* section has the detail.
 7. **Traits** (`TRAITS.md` 5): the creation screen, a Trill's first minute,
    the looks, a Vulcan eating steak.
 8. **The Adirondack's tubes and hideouts** (`JEFFERIES.md` 7), then
-   **contraband** (`CONTRABAND.md` 7).
+   **contraband** (`CONTRABAND.md` 7), then each hideout's **arms crate**
+   (`ARMOURY.md` 7).
+10. **The armoury** (`ARMOURY.md` 9): every weapon in the fist, on the ground
+    and fired; holstered and slung; the room off the bridge and its lockers.
 9. **The crew** (`CREW.md` 6): walking, sitting and speech.
 
 ### 2.2 The two-player session
@@ -139,8 +143,8 @@ Ideas, not a plan. One line each, and each points at where its reasoning is.
   a Deck (`PHOTON_TORPEDOS.md`).
 
 **The shuttle**
-- Phaser holster (`AttachmentType = HolsterSmall`, with a 32x32 icon), stun
-  and kill settings, and a charge for cutting (`PHASERS.md` 8).
+- A charge for cutting (`PHASERS.md` 8). Holsters are built (`ARMOURY.md` 3);
+  the author wants no stun setting.
 - A custom biobed canopy (`INTERIOR_REFIT.md` 8).
 - Delete the helm console's assets once the refit migration has been seen in
   a real save.
@@ -176,8 +180,8 @@ prisoner, and the holosuite reel. Still unwritten:
 - Posters and art: the plant, the transporter pad, the plaque's IP check, a
   two-storey warp core.
 - `bar_corner` is modelled and not placed.
-- Rooms: holodeck, science labs, shuttlebay, armoury and brig, captain's
-  quarters, gym.
+- Rooms: holodeck, science labs, shuttlebay, brig, captain's quarters, gym.
+  The armoury is built (`ARMOURY.md` 6).
 
 **Items** (`ITEMS.md` 6)
 - Combadge, isolinear chips, engineering tools, more medical kit.
@@ -190,8 +194,6 @@ prisoner, and the holosuite reel. Still unwritten:
 
 - **The helm emblem** was judged a near-exact copy of the Picard-era Starfleet
   insignia. Keep it, or draw something more distinct.
-- **The phaser holster**: vanilla's holster slot, or a uniform that provides a
-  hip slot (`PHASERS.md` 8).
 - **Tier 2 tapes**: findable before the ship is found, or only after
   (`LORE.md` 9).
 - **Contraband**: the defaults taken on 2026-09-26 (withdrawal never hurts;

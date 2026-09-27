@@ -29,6 +29,14 @@
   "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9d-f633-78a1-b371-35bcded32046/status",
   "mesh_url": "https://v3b.fal.media/files/b/0aabe4f2/UJh0_NqIdUP_ZCJcRmcVk_model.glb"
  },
+ "arms_locker": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/a377d8ae-3e97-4190-940a-868fed2119a5.jpg",
+  "mesh_request": "01a0e37d-796b-7ab0-a4a8-05efbea3ec70",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0e37d-796b-7ab0-a4a8-05efbea3ec70",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0e37d-796b-7ab0-a4a8-05efbea3ec70/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aac1f15/wHAb2wriB_F8F5Osohsj8_model.glb"
+ },
  "bar_corner": {
   "concept_by": "gemini",
   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/9b789f00-b6da-4fcb-a965-1477345b2b7f.jpg",
@@ -424,6 +432,14 @@
   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9f-1135-72c1-ae53-61e15a930cba",
   "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0da9f-1135-72c1-ae53-61e15a930cba/status",
   "mesh_url": "https://v3b.fal.media/files/b/0aabe4f5/-3lC_aXBiF9p47VvhOXW__model.glb"
+ },
+ "trophy_case": {
+  "concept_by": "gemini",
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/ef54d835-e16d-4c10-acc4-80e9792d5d49.jpg",
+  "mesh_request": "01a0e37d-7b8f-7393-a10a-2beba92e6f91",
+  "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0e37d-7b8f-7393-a10a-2beba92e6f91",
+  "mesh_status_url": "https://queue.fal.run/fal-ai/trellis/requests/01a0e37d-7b8f-7393-a10a-2beba92e6f91/status",
+  "mesh_url": "https://v3b.fal.media/files/b/0aac1f17/lXL_4q1GQhj65k5rJ0LR4_model.glb"
  },
  "turbolift_panel": {
   "concept_by": "gemini",

@@ -1,0 +1,39 @@
+{
+ "phaser_rifle": {
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/b1fced7d-efa4-47bf-97ec-859ae273cdce.jpg",
+  "concept_note": "edit-image of the rejected stubby first draw (concept_34_stubby_rejected.jpg), stretched to a rifle",
+  "mesh_request": "01a0e367-773b-78a2-ab24-7bfb42fb9cc4",
+  "mesh_url": "https://v3b.fal.media/files/b/0aac1e87/f9WO0qp8om5adjoJBYNKj_trellis2_a56ff4bbbb724ebba371ea9adad36719.glb",
+  "mesh_model": "fal-ai/trellis-2, seed 1701, texture 1024, ss/slat steps 20"
+ },
+ "klingon_pistol": {
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/88a12886-b2e3-4bbd-b3fc-92987e40189e.jpg",
+  "mesh_request": "01a0e367-7e2a-7572-bbd1-37dcdea9f81c",
+  "mesh_url": "https://v3b.fal.media/files/b/0aac1e86/31Tg4QE1b8n6RR4mmFtV8_trellis2_e1af1e65da284c69a75e7f29b0437d06.glb",
+  "mesh_model": "fal-ai/trellis-2, seed 1701, texture 1024, ss/slat steps 20"
+ },
+ "klingon_rifle": {
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/64ca294a-6029-4fb4-adbe-76efdb744055.jpg",
+  "mesh_request": "01a0e367-8324-7c11-bc55-463b048ab0dc",
+  "mesh_url": "https://v3b.fal.media/files/b/0aac1e86/yxUiRtRLo8UvCKdjP7dEz_trellis2_2eef97ab59b346c6ab34c64c4694b19f.glb",
+  "mesh_model": "fal-ai/trellis-2, seed 1701, texture 1024, ss/slat steps 20"
+ },
+ "romulan_pistol": {
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/6865ec3f-2589-483e-8978-1b1c19de585e.jpg",
+  "mesh_request": "01a0e367-8b30-7452-8d92-adbdcf82ce73",
+  "mesh_url": "https://v3b.fal.media/files/b/0aac1e8d/cLXaer_sjd7ltUbpJXZgC_trellis2_81bb3b1d4fcf48f59a8dd06db5fd2fbf.glb",
+  "mesh_model": "fal-ai/trellis-2, seed 1701, texture 1024, ss/slat steps 20"
+ },
+ "jemhadar_rifle": {
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/d433d2fb-d322-4580-8f43-c9f686747df0.jpg",
+  "mesh_request": "01a0e367-91df-7141-9127-9c08262c16ad",
+  "mesh_url": "https://v3b.fal.media/files/b/0aac1e8b/qssvkvmZ2g55ufPgsGkqw_trellis2_9e39fde4aa95451da8cf81a1290311bb.glb",
+  "mesh_model": "fal-ai/trellis-2, seed 1701, texture 1024, ss/slat steps 20"
+ },
+ "cardassian_pistol": {
+  "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/d53a1cad-d5cc-4bb5-a532-95ed50fee60c.jpg",
+  "mesh_request": "01a0e367-9438-74a1-8624-9d9c47358976",
+  "mesh_url": "https://v3b.fal.media/files/b/0aac1e8d/dfDeBh0IfE0uMBcZlJgSS_trellis2_1b88d58a09d148119882b58db63714ce.glb",
+  "mesh_model": "fal-ai/trellis-2, seed 1701, texture 1024, ss/slat steps 20"
+ }
+}

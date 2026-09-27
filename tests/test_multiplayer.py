@@ -10841,6 +10841,129 @@ def phaser():
           "a safehouse, the sandbox and distance are refused; a shot draws a bolt")
 
 
+def armoury():
+    """The armoury's energy weapons (ARMOURY.md): every one kept charged by
+    the phaser's sweep, every one's bolt in its own colour, and only the
+    phaser family cutting -- a disruptor is refused by the action itself,
+    not just left off the menu."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('armourer', 1000.5, 1000.5, 0)")
+    net.start()
+    net.pump(2)
+    P = "SIM.players[1]"
+    TREE = '"IGUI_TREK_PhaserCutTree"'
+    arms = sorted(str(k) for k in rt.eval(
+        "(function() local o = {} for k in pairs(TREK.Config.EnergyWeapons) do "
+        "table.insert(o, k) end return table.concat(o, ';') end)()").split(";"))
+    check(len(arms) == 7, f"armoury: {len(arms)} energy weapons, not the phaser and six more")
+
+    # --- a disruptor alone offers no cut, and cuts nothing from a hand --------
+    rt.run(f"""
+        klingon = instanceItem("TrekShuttle.TrekKlingonDisruptor")
+        {P}.inventory:AddItem(klingon)
+        aTree = SIM.tree(1003, 1000, 0)
+    """)
+    phaser_menu(rt, "a0", 1003, 1000, 0, "IsoTree")
+    check("IGUI_TREK_PhaserCutTree" not in phaser_labels(rt, "a0"),
+          "armoury: a player carrying only a Klingon disruptor was offered to cut a tree")
+    rt.run(f"{P}:setPrimaryHandItem(klingon)")
+    check(rt.eval(f"TREK.PhaserCut.inHand({P})") is None,
+          "armoury: a disruptor in hand counts as a cutting phaser")
+    rt.run(f"ISTimedActionQueue.add(TREKPhaserCut:new({P}, 1003, 1000, 0, 'tree')); "
+           "SIM.runActions()")
+    check(phaser_present(rt, 1003, 1000, 0, "IsoTree"),
+          "armoury: the cut action felled a tree for a disruptor -- the menu is "
+          "not the only gate; the action is what a client could queue itself")
+
+    # --- the phaser rifle cuts, drawn from a pocket like the phaser -----------
+    rt.run(f"""
+        {P}:setPrimaryHandItem(nil)
+        {P}.inventory:AddItem(instanceItem(TREK.Config.PhaserRifleItem))
+    """)
+    phaser_menu(rt, "a1", 1003, 1000, 0, "IsoTree")
+    check("IGUI_TREK_PhaserCutTree" in phaser_labels(rt, "a1"),
+          "armoury: a phaser rifle in a pocket was not offered to cut a tree")
+    rt.run(f"a1:click({TREE}); SIM.runActions()")
+    held = str(rt.eval(f"{P}:getPrimaryHandItem() and {P}:getPrimaryHandItem():getFullType()"))
+    check(held == "TrekShuttle.TrekPhaserRifle",
+          f"armoury: choosing the cut drew {held}, not the phaser rifle")
+    check(not phaser_present(rt, 1003, 1000, 0, "IsoTree"),
+          "armoury: the phaser rifle's cut left the tree standing")
+
+    # --- the sweep keeps every one of them full, unjammed and unworn ----------
+    rt.run(f"""
+        for _, id in ipairs({{ "TrekShuttle.TrekKlingonRifle", "TrekShuttle.TrekRomulanDisruptor",
+                               "TrekShuttle.TrekPolaronRifle", "TrekShuttle.TrekCardassianPhaser" }}) do
+            {P}.inventory:AddItem(instanceItem(id))
+        end
+        for _, it in ipairs(TREK.Phaser.carriedBy({P})) do
+            it:setCurrentAmmoCount(0); it:setRoundChambered(false)
+            it:setJammed(true); it:setCondition(1)
+        end
+    """)
+    found = int(rt.eval(f"#TREK.Phaser.carriedBy({P})"))
+    check(found == 6, f"armoury: the sweep sees {found} energy weapons on the player, not 6")
+    rt.run(f"TREK.Phaser.sweep({P})")
+    empty = rt.eval(f"""(function()
+        local bad = {{}}
+        for _, it in ipairs(TREK.Phaser.carriedBy({P})) do
+            if it:getCurrentAmmoCount() ~= 60 or it:isJammed() or it:getCondition() ~= 10 then
+                table.insert(bad, it:getFullType())
+            end
+        end
+        return table.concat(bad, ";")
+    end)()""")
+    check(not empty, f"armoury: the sweep left these empty, jammed or worn: {empty}")
+
+    # --- every shot bolts, in its weapon's own colour and weight -------------
+    for full in arms:
+        rt.run(f"""
+            TREK.PhaserFX.bolts = {{}}
+            SIM.quads = {{}}
+            SIM.fire("OnWeaponSwingHitPoint", {P}, instanceItem("{full}"))
+            SIM.renderFrame()
+        """)
+        spec = rt.eval(f'TREK.Config.EnergyWeapons["{full}"]')
+        n = int(rt.eval("#SIM.quads"))
+        check(n == 2, f"armoury: a {full} shot drew {n} strips, not a bolt")
+        if n == 2:
+            got = tuple(round(float(rt.eval(f"SIM.quads[1].{c}")), 3) for c in "rgb")
+            want = tuple(round(float(spec.tint[c]), 3) for c in "rgb")
+            check(got == want, f"armoury: a {full} bolt is tinted {got}, not {want}")
+            width = float(rt.eval("TREK.PhaserFX.bolts[1].width"))
+            check(abs(width - float(spec.width)) < 1e-6,
+                  f"armoury: a {full} bolt is {width} wide, not {spec.width}")
+    rt.run(f"""TREK.PhaserFX.bolts = {{}}
+               SIM.fire("OnWeaponSwingHitPoint", {P}, instanceItem("Base.AssaultRifle"))""")
+    check(int(rt.eval("#TREK.PhaserFX.bolts")) == 0,
+          "armoury: a vanilla rifle drew an energy bolt")
+
+    # --- what each item is, from its script ------------------------------------
+    script = open(os.path.join(ROOT, "TrekShuttle", "42", "media", "scripts",
+                               "trekshuttle.txt"), encoding="utf-8").read()
+    for full in arms:
+        name = full.split(".")[1]
+        block = re.search(r"item %s\s*\{(.*?)\n    \}" % name, script, re.S)
+        check(block is not None, f"armoury: no item block for {full}")
+        if block:
+            rifle = "TwoHandWeapon = true" in block.group(1)
+            slot = re.search(r"AttachmentType\s*=\s*(\w+)", block.group(1))
+            want = "Rifle" if rifle else "Holster"
+            check(slot and slot.group(1) == want,
+                  f"armoury: {full} attaches as {slot and slot.group(1)}, not {want} "
+                  f"-- it would fit no {'sling' if rifle else 'holster'}")
+    holster = re.search(r"item TrekHolster\s*\{(.*?)\n    \}", script, re.S)
+    check(holster and "AttachmentsProvided = HolsterRight" in holster.group(1),
+          "armoury: the Starfleet holster provides no holster slot")
+    for w in rt.warnings():
+        fail(f"armoury: {w}")
+    print("armoury: a disruptor offers no cut and the action refuses one; the phaser "
+          "rifle is drawn and cuts; the sweep refills all six; every weapon bolts in "
+          "its own colour and weight and a vanilla rifle does not; pistols holster, "
+          "rifles sling, and the holster is one")
+
+
 def phaser_multiplayer():
     """A cut on a server with two clients: the server fells it, both
     clients lose it, the watcher sees and hears the beam, and a client that
@@ -11790,6 +11913,18 @@ def adk_fittings(net, rt, P, pdeck):
     check(any("Uniform" in i for i in adk_items(rt, "wardrobe")),
           "adirondack: no uniforms in the quarters' wardrobes")
     check("TrekShuttle.TrekPADD" in adk_items(rt, "desk"), "adirondack: no PADD on a desk")
+    # The armoury off the bridge (ARMOURY.md 6): Starfleet's issue in its
+    # lockers, a holster for each phaser; one of everybody else's in the case.
+    arms = adk_items(rt, "arms_locker")
+    for want, n in (("TrekShuttle.TrekPhaser", 6), ("TrekShuttle.TrekPhaserRifle", 3),
+                    ("TrekShuttle.TrekHolster", 6)):
+        check(arms.count(want) == n,
+              f"adirondack: the armoury's three lockers hold {arms.count(want)} {want}, not {n}")
+    case = sorted(adk_items(rt, "trophy_case"))
+    check(case == sorted(["TrekShuttle.TrekKlingonDisruptor", "TrekShuttle.TrekKlingonRifle",
+                          "TrekShuttle.TrekRomulanDisruptor", "TrekShuttle.TrekPolaronRifle",
+                          "TrekShuttle.TrekCardassianPhaser"]),
+          f"adirondack: the trophy case holds {case}, not one of each culture's")
     wet = rt.eval("""(function()
         local A, n, dry = TREK.Adirondack, 0, 0
         for k, d in ipairs(A.Layout.decks) do
@@ -12267,6 +12402,18 @@ def jefferies():
                  "TrekShuttle.TrekLatinumStrip", "TrekShuttle.TrekKanar",
                  "TrekShuttle.TrekSaurianBrandy", "TrekShuttle.TrekAldebaranWhiskey"):
         check(want in stash, f"jefferies: the hideout holds no {want}: {stash}")
+    # Somebody else's weapons (ARMOURY.md 7): the first hideout's are the
+    # Klingons', and only theirs -- each hideout hides one culture's.
+    for want in ("TrekShuttle.TrekKlingonDisruptor", "TrekShuttle.TrekKlingonRifle"):
+        check(want in stash, f"jefferies: the first hideout hides no {want}: {stash}")
+    for other in ("TrekShuttle.TrekRomulanDisruptor", "TrekShuttle.TrekPolaronRifle",
+                  "TrekShuttle.TrekCardassianPhaser"):
+        check(other not in stash, f"jefferies: the Klingons' hideout also hides {other}")
+    # And the arms crate carries its share of the stash, as it did when it was
+    # a second stash_crate: two crates, three strips of latinum in each.
+    latinum = stash.count("TrekShuttle.TrekLatinumStrip")
+    check(latinum == 6, f"jefferies: the hideout holds {latinum} latinum strips, not "
+                        f"two crates' worth (6) -- the arms crate lost its stash")
     reels = str(rt.eval(f"""(function()
         local A = TREK.Adirondack
         local tb = A.Layout.tubes[1]
@@ -13375,7 +13522,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
-            transcripts_multiplayer, phaser, phaser_multiplayer, traits, traits_multiplayer, species_look, creation_look,
+            transcripts_multiplayer, phaser, phaser_multiplayer, armoury, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
             contraband, contraband_multiplayer, multiplayer)
 

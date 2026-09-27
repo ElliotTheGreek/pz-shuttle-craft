@@ -741,6 +741,47 @@ C.PhaserBoltMs    = 120
 C.PhaserBeamGraceMs = 2500
 C.PhaserLight = { r = 1.0, g = 0.55, b = 0.2, radius = 3 }
 
+---------------------------------------------------------------------------
+-- The armoury's energy weapons (ARMOURY.md)
+---------------------------------------------------------------------------
+-- Every weapon the phaser's machinery serves, by full id: the charge sweep
+-- keeps each one full, unjammed and unworn (TREK_Phaser.lua); every shot of
+-- each draws a bolt in its own colour (TREK_PhaserFX.lua); and those marked
+-- `cuts` may fell a tree or burn out a door (TREK_PhaserCut.lua). The phaser
+-- is the first entry and changes nothing about itself by being here.
+--
+-- `type` is the bare type the inventory search takes (see C.PhaserType);
+-- `tint` the bolt's colour, as C.PhaserTint; `width` its thickness against
+-- the phaser's, since a rifle's bolt should look heavier.
+C.EnergyWeapons = {
+    ["TrekShuttle.TrekPhaser"] =
+        { type = "TrekPhaser", tint = C.PhaserTint, width = 1.0, cuts = true },
+    ["TrekShuttle.TrekPhaserRifle"] =
+        { type = "TrekPhaserRifle", tint = C.PhaserTint, width = 1.35, cuts = true },
+    -- Klingon and Romulan disruptors: green, the Romulan's cooler.
+    ["TrekShuttle.TrekKlingonDisruptor"] =
+        { type = "TrekKlingonDisruptor", tint = { r = 0.35, g = 1.00, b = 0.30 }, width = 1.1 },
+    ["TrekShuttle.TrekKlingonRifle"] =
+        { type = "TrekKlingonRifle", tint = { r = 0.35, g = 1.00, b = 0.30 }, width = 1.45 },
+    ["TrekShuttle.TrekRomulanDisruptor"] =
+        { type = "TrekRomulanDisruptor", tint = { r = 0.25, g = 1.00, b = 0.55 }, width = 1.0 },
+    -- Jem'Hadar polaron: blue-white.
+    ["TrekShuttle.TrekPolaronRifle"] =
+        { type = "TrekPolaronRifle", tint = { r = 0.55, g = 0.80, b = 1.00 }, width = 1.45 },
+    -- Cardassian: yellow.
+    ["TrekShuttle.TrekCardassianPhaser"] =
+        { type = "TrekCardassianPhaser", tint = { r = 1.00, g = 0.82, b = 0.20 }, width = 1.0 },
+}
+
+--- The C.EnergyWeapons entry for an item's full id, or nil.
+function C.energyWeapon(fullType)
+    return fullType and C.EnergyWeapons[fullType] or nil
+end
+
+-- The Starfleet holster (ARMOURY.md 3).
+C.HolsterItem = "TrekShuttle.TrekHolster"
+C.PhaserRifleItem = "TrekShuttle.TrekPhaserRifle"
+
 -- Sandbox: what a phaser may cut. An absent value is the feature as designed.
 C.PhaserCutAll   = 1
 C.PhaserCutTrees = 2

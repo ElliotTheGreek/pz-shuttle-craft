@@ -303,6 +303,27 @@ OBJECTS += [
 ]
 
 
+OBJECTS += [
+    # --- the armoury, off the bridge (ARMOURY.md 6) --------------------------
+    # LAST, and new pieces always go last: the furniture sheet numbers its
+    # tiles in this list's order, and a tile's number is its sprite name in
+    # every save. Inserted mid-list, these two renumbered every piece after
+    # them.
+    m("arms_locker", "armoury", "A tall narrow starship security weapons "
+      "locker standing against a wall: a charcoal-framed cabinet with a tall "
+      "clear glass door, behind it a rack holding two long off-white energy "
+      "rifles upright and a row of small off-white handheld phasers on a "
+      "shelf, a small red status light and a keypad on the frame, beige side "
+      "panels.", 1, 1, 2.0, use={"container": "locker"}),
+    m("trophy_case", "armoury", "A waist-high museum-style display case: a "
+      "beige and charcoal plinth with a glass top case lit from inside with "
+      "soft white light, inside it a few captured alien pistols and a dark "
+      "alien rifle laid on a dark velvet bed, one with a green glowing "
+      "emitter, one bronze-brown, one sleek green-grey.", 1, 1, 1.2,
+      use={"container": "displaycase"}),
+]
+
+
 def by_name():
     return {o["name"]: o for o in OBJECTS}
 

@@ -218,11 +218,28 @@
    <tile x="0" y="0" name="trek_adirondack_02_159" />
   </entry>
  </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_207" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_208" />
+  </entry>
+ </furniture>
+ <furniture>
+  <entry orient="W">
+   <tile x="0" y="0" name="trek_adirondack_02_209" />
+  </entry>
+  <entry orient="N">
+   <tile x="0" y="0" name="trek_adirondack_02_210" />
+  </entry>
+ </furniture>
  <user_tiles />
  <used_tiles>1 2 3 4 5</used_tiles>
- <used_furniture>0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16</used_furniture>
+ <used_furniture>0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18</used_furniture>
  <room Name="Bridge" InternalName="office" Color="150 60 60" InteriorWall="2" InteriorWallTrim="0" Floor="3" GrimeFloor="0" GrimeWall="0" />
  <room Name="Ready Room" InternalName="office" Color="120 70 70" InteriorWall="2" InteriorWallTrim="0" Floor="3" GrimeFloor="0" GrimeWall="0" />
+ <room Name="Armoury" InternalName="office" Color="90 90 110" InteriorWall="2" InteriorWallTrim="0" Floor="4" GrimeFloor="0" GrimeWall="0" />
  <floor>
   <rooms>
 1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,
@@ -232,14 +249,15 @@
 1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,
 1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,
 1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,
-1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,
-1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,
-1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,
-1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,
-1,1,1,1,1,1,1,1,1,1,1,0,0,0,0
+1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,
+1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,
+1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,
+1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,
+1,1,1,1,1,1,1,1,1,1,1,3,3,3,3
 </rooms>
   <object type="door" x="11" y="3" dir="W" Tile="5" FrameTile="0" />
   <object type="door" x="0" y="9" dir="W" Tile="5" FrameTile="0" />
+  <object type="door" x="11" y="9" dir="W" Tile="5" FrameTile="0" />
   <object type="furniture" FurnitureTiles="0" orient="N" x="4" y="0" />
   <object type="furniture" FurnitureTiles="0" orient="N" x="5" y="0" />
   <object type="furniture" FurnitureTiles="0" orient="N" x="6" y="0" />
@@ -273,5 +291,11 @@
   <object type="furniture" FurnitureTiles="15" orient="N" x="13" y="0" />
   <object type="furniture" FurnitureTiles="16" orient="W" x="11" y="6" />
   <object type="furniture" FurnitureTiles="9" orient="W" x="14" y="6" />
+  <object type="furniture" FurnitureTiles="17" orient="N" x="12" y="7" />
+  <object type="furniture" FurnitureTiles="17" orient="N" x="13" y="7" />
+  <object type="furniture" FurnitureTiles="17" orient="N" x="14" y="7" />
+  <object type="furniture" FurnitureTiles="2" orient="W" x="11" y="7" />
+  <object type="furniture" FurnitureTiles="18" orient="W" x="11" y="11" />
+  <object type="furniture" FurnitureTiles="10" orient="W" x="11" y="10" />
  </floor>
 </building>

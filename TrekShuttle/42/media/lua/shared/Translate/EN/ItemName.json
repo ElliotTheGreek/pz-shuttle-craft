@@ -99,5 +99,12 @@
     "TrekShuttle.TrekLatinumStrip": "Latinum Strip",
     "TrekShuttle.TrekKanar": "Kanar",
     "TrekShuttle.TrekSaurianBrandy": "Saurian Brandy",
-    "TrekShuttle.TrekAldebaranWhiskey": "Aldebaran Whiskey"
+    "TrekShuttle.TrekAldebaranWhiskey": "Aldebaran Whiskey",
+    "TrekShuttle.TrekPhaserRifle": "Phaser Rifle",
+    "TrekShuttle.TrekKlingonDisruptor": "Klingon Disruptor",
+    "TrekShuttle.TrekKlingonRifle": "Klingon Disruptor Rifle",
+    "TrekShuttle.TrekRomulanDisruptor": "Romulan Disruptor",
+    "TrekShuttle.TrekPolaronRifle": "Jem'Hadar Polaron Rifle",
+    "TrekShuttle.TrekCardassianPhaser": "Cardassian Phaser",
+    "TrekShuttle.TrekHolster": "Starfleet Phaser Holster"
 }

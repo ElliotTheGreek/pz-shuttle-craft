@@ -93,7 +93,9 @@ function PC.target(x, y, z, kind)
     return PC.onSquare(sq, kind), sq
 end
 
---- The phaser in either of the player's hands, or nil.
+--- The cutting weapon in either of the player's hands, or nil: the phaser,
+--- or the phaser rifle -- anything C.EnergyWeapons marks `cuts`. A
+--- disruptor in hand is no cutter, and the server refuses it (NotHeld).
 function PC.inHand(player)
     if not player then return nil end
     for _, get in ipairs({ "getPrimaryHandItem", "getSecondaryHandItem" }) do
@@ -101,7 +103,8 @@ function PC.inHand(player)
         local full = item and U.try("phaser.handType", function()
             return item:getFullType()
         end)
-        if full == C.PhaserItem then return item end
+        local spec = C.energyWeapon(full)
+        if spec and spec.cuts then return item end
     end
     return nil
 end

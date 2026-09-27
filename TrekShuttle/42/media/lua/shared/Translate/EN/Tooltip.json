@@ -59,5 +59,12 @@
     "Tooltip_TREK_LatinumStrip": "Gold-pressed latinum. The one thing a replicator cannot make, which is why the Ferengi keep it.",
     "Tooltip_TREK_Kanar": "Cardassian, thick as syrup, and very much an acquired taste.",
     "Tooltip_TREK_SaurianBrandy": "The officer's brandy. Every captain seems to keep a bottle in a drawer.",
-    "Tooltip_TREK_AldebaranWhiskey": "It is green."
+    "Tooltip_TREK_AldebaranWhiskey": "It is green.",
+    "Tooltip_TREK_PhaserRifle": "Starfleet security's long arm: the phaser's charge that never runs down, with twice the reach and a harder hit. It cuts trees and doors as a phaser does. Slings across the back.",
+    "Tooltip_TREK_KlingonDisruptor": "A Klingon sidearm. Heavy, loud and meant to be. It never runs down; it fits any pistol holster.",
+    "Tooltip_TREK_KlingonRifle": "A Klingon disruptor rifle: the loudest and one of the hardest-hitting things aboard. Slings across the back.",
+    "Tooltip_TREK_RomulanDisruptor": "A Romulan sidearm: light, accurate, and cruel on a critical hit. It never runs down.",
+    "Tooltip_TREK_PolaronRifle": "A Jem'Hadar polaron rifle. It hits as hard as anything aboard and does not care who hears it. Slings across the back.",
+    "Tooltip_TREK_CardassianPhaser": "A Cardassian sidearm: compact and dependable, with a bright yellow bolt. It never runs down.",
+    "Tooltip_TREK_Holster": "A Starfleet belt holster. Any pistol rides in it: a phaser, a disruptor, or the M9 you found in town."
 }

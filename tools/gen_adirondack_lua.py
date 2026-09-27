@@ -208,7 +208,7 @@ def main():
         name, internal = r["Name"], r.get("InternalName", "")
         if internal == "trekturbolift":
             return "lift"
-        for key, tag in (("Bridge", "bridge"), ("Ready Room", "readyroom"), ("Lounge", "lounge"),
+        for key, tag in (("Bridge", "bridge"), ("Ready Room", "readyroom"), ("Armoury", "armoury"), ("Lounge", "lounge"),
                          ("Galley", "galley"), ("Quarters", "quarters"), ("Transporter", "transporter"),
                          ("Sickbay", "sickbay"), ("Medical", "sickbay"), ("Engineering", "engineering"),
             ("Hydroponics", "hydroponics"), ("Botany", "hydroponics"), ("Serpent", "hydroponics"),

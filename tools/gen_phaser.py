@@ -255,9 +255,9 @@ def m9_layer(m, rgb=None):
 def build_icon(model, size=64):
     """The inventory icon, rendered from the mesh the hand holds.
 
-    64x64 on purpose: the phaser has no AttachmentType, so vanilla's hotbar
-    never draws it and the blades' 32x32 rule does not apply (DEV_GUIDE.md,
-    *A weapon model is a static mesh*).
+    Drawn at 32 for the item (it holsters, so the hotbar draws it and the
+    blades' 32x32 rule applies) and at 64 for media/ui. It was 64 alone while
+    the phaser had no AttachmentType.
 
     Judged against the whole set (tools/vet_icons.py), the first render was
     the dullest icon in it -- mean brightness 72 against the tricorder's 110
@@ -346,11 +346,16 @@ def build_model(root):
           f"long x {max(zs) - min(zs):.3f} tall  (M9: 0.020 x 0.151 x 0.100)")
     print(f"  muzzle  offset = 0.0 {muzzle[1]:.4f} {muzzle[2]:.4f}  "
           f"(the model block's muzzle attachment)")
+    # 32x32 since the phaser holsters (AttachmentType = Holster, ARMOURY.md
+    # 3): the hotbar draws an attachable item's icon assuming 32, and a 64
+    # spills half its width into the next slot (tests/test_assets.py). The
+    # 64 is kept in media/ui for anything that wants it bigger.
     icon = build_icon(model)
-    for out in (os.path.join(root, "media", "textures", "Item_TREK_Phaser.png"),
-                os.path.join(root, "media", "ui", "TREK_Phaser.png")):
-        icon.save(out, optimize=True)
-    print("  icon    media/textures/Item_TREK_Phaser.png (64x64, from the mesh)")
+    icon.save(os.path.join(root, "media", "ui", "TREK_Phaser.png"), optimize=True)
+    small = build_icon(model, size=32)
+    small.save(os.path.join(root, "media", "textures", "Item_TREK_Phaser.png"),
+               optimize=True)
+    print("  icon    media/textures/Item_TREK_Phaser.png (32x32, from the mesh)")
     sheet = os.path.join(SHEET_DIR, "phaser_sheet.png")
     build_sheet(sheet, model, icon)
     print(f"  sheet   {os.path.relpath(sheet, REPO)} -- look at it")

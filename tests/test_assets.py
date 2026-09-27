@@ -57,8 +57,8 @@ MOD_ITEM = re.compile(r"^TrekShuttle\.([A-Za-z0-9_]+)$")
 # report a model that is really there as missing.
 script = "".join(
     open(os.path.join(MOD, "media", "scripts", fn), encoding="utf-8").read()
-    for fn in ("trekshuttle.txt", "trekweapons.txt", "trekfarming.txt",
-               "trekcontraband.txt")
+    for fn in ("trekshuttle.txt", "trekweapons.txt", "trekarms.txt",
+               "trekfarming.txt", "trekcontraband.txt")
     if os.path.isfile(os.path.join(MOD, "media", "scripts", fn)))
 # Anchored to the end of the line, as the model and fluid patterns are: a real
 # declaration is "item Foo" and nothing else, so prose in a comment that
@@ -711,7 +711,7 @@ else:
 # resolved to no ModelScript at all. Every vanilla weapon model, and the one
 # Workshop mod shipping custom in-hand blades, declares them in `module Base`.
 model_module = {}
-for fn in ("trekshuttle.txt", "trekweapons.txt"):
+for fn in ("trekshuttle.txt", "trekweapons.txt", "trekarms.txt"):
     path = os.path.join(MOD, "media", "scripts", fn)
     if not os.path.isfile(path):
         continue
@@ -1115,11 +1115,13 @@ except SystemExit as e:
 _index = json.load(open(os.path.join(ROOT, "design", "tiles", "trek_adirondack_02.json")))
 for _n in TUBES.HIDEOUTS:
     _path = TUBES.route(_n, 20, 25, TUBES.DECK_PITCH)
-    _h = TUBES.hideout(_path, TUBES.hideout_site(_path, _n), _index)
+    _h = TUBES.hideout(_path, TUBES.hideout_site(_path, _n), _index, _n)
     _room = set(_h["room"])
     _blocked = set()
     for x, y, _s, what, _k in _h["fittings"]:
         base = {"stash_crate": "cargo_crate", "stash_shelf": "bottle_shelf"}.get(what, what)
+        if what.startswith("stash_arms"):
+            base = "cargo_crate"     # each hideout's arms crate (ARMOURY.md 7)
         if _index[base]["layer"] != "WallFurniture":
             _blocked.add((x, y))
     _start = (_h["door"][0], _h["door"][1] - 1)

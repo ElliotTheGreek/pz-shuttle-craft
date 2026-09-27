@@ -258,7 +258,8 @@ CS.spawn = spawn
 local PREFER = {
     helm = { bridge = 5, readyroom = 1 }, command = { bridge = 4, readyroom = 2 },
     medical = { sickbay = 6 }, engineer = { engineering = 6 },
-    security = { bridge = 2, transporter = 2, corridor = 2 },
+    -- The armoury off the bridge (ARMOURY.md 6) is security's own.
+    security = { armoury = 4, bridge = 2, transporter = 2, corridor = 2 },
     operations = { transporter = 3, engineering = 2, galley = 2 },
     sciences = { bridge = 2, sickbay = 2 },
 }

@@ -23,6 +23,9 @@ correctness**; and **render it and look**.
 - **Four phasers** in the armoury locker, with the mod's own model and icon.
   The charge never runs down, they never jam and they never wear out, and
   they are far quieter than a firearm.
+- **It holsters** (since 2026-09-27): `AttachmentType = Holster`, so it rides
+  in the Starfleet holster and in every vanilla pistol holster. The phaser
+  rifle and the alien arms run on this same machinery; `ARMOURY.md` is theirs.
 - **Every shot is a visible bolt**: a short orange beam from the emitter to
   whatever it hit, or to the end of its range, with a low *zap* rather than a
   gunshot.
@@ -63,7 +66,8 @@ sledgehammer's job, and on a server it would be a griefing tool.
 | The model's source | `tools/assets/trek_phaser/` (`SOURCE.txt`, the bake); concepts in `design/art/weapons/phaser/` |
 | Generators | `tools/bake_phaser.py` (once per source), `tools/gen_phaser.py` (mesh, icon, sounds, sheet), `tools/gen_phaser_beam.py` (beam art, sheet) |
 | Review sheets | `design/art/weapons/phaser/phaser_sheet.png`, `design/art/ui/phaser_beam_sheet.png` |
-| Tests | `tests/test_multiplayer.py`: `phaser()`, `phaser_multiplayer()`, and `medical()`'s check that a tricorder opens nothing |
+| Tests | `tests/test_multiplayer.py`: `phaser()`, `phaser_multiplayer()`, `armoury()`, and `medical()`'s check that a tricorder opens nothing |
+| Which weapons this machinery serves, and which cut | `TREK_Config.lua`, `C.EnergyWeapons` (`ARMOURY.md` 5) |
 
 ---
 
@@ -106,8 +110,8 @@ Three things about that are the design, not the incidental detail:
   directly.
 
 `PC.refusal` is the one list of reasons, each an `IGUI_TREK_Phaser*` key:
-nothing there (`NoTarget`), the sandbox (`CutOff`), no phaser in either hand
-(`NotHeld`), a different level or beyond range (`TooFar`), and a door in a
+nothing there (`NoTarget`), the sandbox (`CutOff`), no cutting weapon in
+either hand -- the phaser or the phaser rifle, never a disruptor (`NotHeld`), a different level or beyond range (`TooFar`), and a door in a
 safehouse the player isn't a member of (`Safehouse`). A reason the server
 reaches in `complete()` is sent to the cutter as `phaserRefused` and shown as
 a note.
@@ -230,10 +234,11 @@ command that builds the asset:
 5. the icon against the whole set (`tools/vet_icons.py`);
 6. then the game.
 
-**The icon** is rendered from the mesh at 64x64, three-quarter view, brighter
-than the in-game preview, with a one-pixel dark outline like its neighbours.
-The phaser has no `AttachmentType`, so the hotbar's 32x32 rule doesn't apply.
-**If it ever gets one** (for holsters; see *Open*), the icon must become 32x32.
+**The icon** is rendered from the mesh, three-quarter view, brighter than the
+in-game preview, with a one-pixel dark outline like its neighbours. It is
+**32x32** since the phaser holsters: the hotbar draws an attachable item's
+icon assuming 32 (`tests/test_assets.py`). A 64 is still written to
+`media/ui/`.
 
 ---
 
@@ -273,8 +278,9 @@ re-derive them.
    checks visible, then the mouse inside the element's rectangle (bci 23-187).
    It never calls a Lua `isMouseOver`, and while it says yes the world gets no
    right-click and no aiming.
-8. **The phaser has no `AttachmentType`**, so it is not a hotbar item and
-   fits no holster.
+8. **The phaser's `AttachmentType` is `Holster`**, vanilla's pistols' own
+   (since 2026-09-27; `ARMOURY.md` 3). Before that it had none and fitted no
+   holster.
 
 ---
 
@@ -362,15 +368,17 @@ after a test was written for them:
 - **Other people's bolts.** The bytecode says the shot event fires for remote
   shooters on each client; only a two-player game can confirm it. Build a
   relay only if it doesn't.
-- **Holsters.** `AttachmentType = HolsterSmall` would fit every vanilla
-  holster (hip, double, shoulder, ankle), and the icon would then have to be
-  32x32. A Starfleet-flavoured alternative is a uniform that provides a hip
-  slot through `AttachmentsProvided`. Awaiting the author.
+- **Holsters: done** (2026-09-27, `ARMOURY.md` 3). The author chose vanilla's
+  holsters plus a Starfleet one. It is `Holster`, not `HolsterSmall`: that is
+  what vanilla's pistols carry, and it reaches the hip, left, shoulder and
+  double holsters. It does not reach the ankle holster, which only takes
+  `HolsterSmall`.
 - **The cutting pose** (`BlowTorch`) and **where the beam leaves the hand**
   (`C.PhaserHandZ`, `C.PhaserHandAhead`) have not been commented on.
 - **Cutting costs nothing**, like the rest of the phaser. If `ENERGY.md` ever
   gives a hand phaser a cell, cutting is the natural thing to charge for.
-- **Stun and kill settings** are not built and deserve their own document.
+- **Stun and kill settings** are not built. The author does not want a stun
+  setting (2026-09-27).
 - **The four blue indicator lights** in the concept did not survive TRELLIS,
   and at held size they would be one pixel. Not painted in.
 

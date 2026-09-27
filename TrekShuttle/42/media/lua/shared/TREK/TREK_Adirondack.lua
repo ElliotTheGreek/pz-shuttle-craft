@@ -275,6 +275,23 @@ A.Stock = {
     -- CONTRABAND.md, what they keep that the Doctor would take off them.
     stash_crate     = { items = "stash", copies = 1, tape = C.HolosuiteTape },
     stash_shelf     = { items = "stash_shelf", copies = 1 },
+    -- Each hideout's second crate (ARMOURY.md 7): the same stash its twin
+    -- holds -- it was a second stash_crate until the armoury -- and under it
+    -- somebody else's weapons, a different culture's in each hideout.
+    stash_arms_klingon  = { items = "stash_arms_klingon", copies = 1, tape = C.HolosuiteTape },
+    stash_arms_romulan  = { items = "stash_arms_romulan", copies = 1, tape = C.HolosuiteTape },
+    stash_arms_dominion = { items = "stash_arms_dominion", copies = 1, tape = C.HolosuiteTape },
+    -- The armoury off the bridge (ARMOURY.md 6): Starfleet's issue in the
+    -- lockers, one of everybody else's in the trophy case.
+    arms_locker     = { items = "arms_locker", copies = 1 },
+    trophy_case     = { items = "trophy_case", copies = 1 },
+}
+
+-- Whose weapons each hideout keeps, beside its stash (ARMOURY.md 7).
+A.StashArms = {
+    stash_arms_klingon  = { "TrekShuttle.TrekKlingonDisruptor", "TrekShuttle.TrekKlingonRifle" },
+    stash_arms_romulan  = { "TrekShuttle.TrekRomulanDisruptor", "TrekShuttle.TrekCardassianPhaser" },
+    stash_arms_dominion = { "TrekShuttle.TrekPolaronRifle" },
 }
 
 --- The item lists A.Stock names. A function, because C is filled in order
@@ -304,6 +321,22 @@ function A.stockItems(name)
                  "TrekShuttle.TrekTrelliumD", "TrekShuttle.TrekKtarianGame",
                  "TrekShuttle.TrekLatinumStrip", "TrekShuttle.TrekLatinumStrip",
                  "TrekShuttle.TrekLatinumStrip" }
+    end
+    if A.StashArms[name] then
+        local out = {}
+        for _, id in ipairs(A.stockItems("stash")) do table.insert(out, id) end
+        for _, id in ipairs(A.StashArms[name]) do table.insert(out, id) end
+        return out
+    end
+    if name == "arms_locker" then
+        -- A locker per wall of the armoury holds a watch's worth: two
+        -- phasers, a phaser rifle, and a holster for each phaser.
+        return { C.PhaserItem, C.PhaserItem, C.PhaserRifleItem, C.HolsterItem, C.HolsterItem }
+    end
+    if name == "trophy_case" then
+        return { "TrekShuttle.TrekKlingonDisruptor", "TrekShuttle.TrekKlingonRifle",
+                 "TrekShuttle.TrekRomulanDisruptor", "TrekShuttle.TrekPolaronRifle",
+                 "TrekShuttle.TrekCardassianPhaser" }
     end
     if name == "stash_shelf" then
         return { "TrekShuttle.TrekBloodwine", "TrekShuttle.TrekAndorianAle", "Base.Rum",

@@ -24,7 +24,14 @@ Every item id below is `TrekShuttle.<id>`.
 
 | Item | Id | Notes |
 |---|---|---|
-| Phaser | `TrekPhaser` | A ranged beam weapon that also cuts down trees and cuts through doors. Four are issued in the shuttle's armoury. |
+| Phaser | `TrekPhaser` | A ranged beam weapon that also cuts down trees and cuts through doors. Four are issued in the shuttle's armoury, six in the Adirondack's. Holsters. |
+| Phaser rifle | `TrekPhaserRifle` | Two-handed; the phaser's reach doubled, and it cuts as the phaser does. Slings. The Adirondack's armoury (`ARMOURY.md`) |
+| Klingon disruptor | `TrekKlingonDisruptor` | Green bolt, heavy and loud. Holsters. A hideout; the trophy case |
+| Klingon disruptor rifle | `TrekKlingonRifle` | Green bolt, the hardest hitter with the polaron rifle. Slings. A hideout; the trophy case |
+| Romulan disruptor | `TrekRomulanDisruptor` | Cool green bolt; light, accurate, cruel on a critical. Holsters. A hideout; the trophy case |
+| Jem'Hadar polaron rifle | `TrekPolaronRifle` | Blue-white bolt. Slings. A hideout; the trophy case |
+| Cardassian phaser | `TrekCardassianPhaser` | Yellow bolt, compact. Holsters. A hideout; the trophy case |
+| Starfleet phaser holster | `TrekHolster` | A belt holster any pistol rides in. The Adirondack's armoury |
 | Bat'leth | `TrekBatleth` | Klingon blade, two-handed |
 | Mek'leth | `TrekMekleth` | Klingon short blade |
 | Lirpa | `TrekLirpa` | Vulcan polearm |
@@ -377,7 +384,7 @@ A menu, not a plan. Each line says what it would give the player.
 | **Holodeck** (Deck 2 or 5) | an empty grid room, arch and control panel | Rationed time is a running joke in the crew's talk. Later, a room that re-dresses itself from a few presets (a 1990s diner would be on theme). |
 | **Science labs / stellar cartography** | lab benches, sample lockers, a big wall display of the planet | Where the "wrong details" of the county are catalogued, and where fragments and samples could be handed in. |
 | **Cargo bay and shuttlebay** | crates, antigrav sleds, a second shuttle under repair, a hangar door | Somewhere to land the shuttle *inside* her, and bulk storage. |
-| **Armoury / security office** | weapons locker, brig cell with a forcefield | A proper home for the phasers and blades. The brig is a story hook (Okafor?). |
+| **Armoury / security office** | weapons locker, brig cell with a forcefield | **The armoury is built** off the bridge (`ARMOURY.md` 6). The brig is not; it is a story hook (Okafor?). |
 | ~~**Arboretum / hydroponics**~~ | **Built**: Deck 5 (section 7, `FARMING.md`) | |
 | **Captain's quarters and observation lounge** | bigger quarters, a long window table | Captain Vale, and the view of the planet at night. |
 | ~~**Jefferies tubes**~~ | **Built**, with three hideouts (`JEFFERIES.md`) | |

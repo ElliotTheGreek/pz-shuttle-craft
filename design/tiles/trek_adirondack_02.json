@@ -101,6 +101,29 @@
    "seat": true
   }
  },
+ "arms_locker": {
+  "area": "armoury",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     208
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     207
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "locker"
+  }
+ },
  "bar_corner": {
   "area": "lounge",
   "facings": {
@@ -1687,6 +1710,29 @@
   },
   "layer": "Furniture",
   "use": {}
+ },
+ "trophy_case": {
+  "area": "armoury",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     210
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     209
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "container": "displaycase"
+  }
  },
  "turbolift_panel": {
   "area": "any",

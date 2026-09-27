@@ -48,7 +48,7 @@ place to avoid rather than a place to explore.
 
 | Where | What |
 |---|---|
-| **stash_crate** (two per hideout, three hideouts) | the old stash, plus one white, one felicium, one Trellium-D, one Game, three latinum strips -- and one holosuite reel (`tape = C.HolosuiteTape`) |
+| **stash_crate**, and each hideout's **stash_arms_*** crate beside it (two per hideout, three hideouts; the second also hides weapons, `ARMOURY.md` 7) | the old stash, plus one white, one felicium, one Trellium-D, one Game, three latinum strips -- and one holosuite reel (`tape = C.HolosuiteTape`) |
 | **stash_shelf** (one per hideout) | the old shelf, plus kanar, Saurian brandy and Aldebaran whiskey |
 | **medical_cart** (Sickbay, three) | the medical list, plus one cordrazine |
 
