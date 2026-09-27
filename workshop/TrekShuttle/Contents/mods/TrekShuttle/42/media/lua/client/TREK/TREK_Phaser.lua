@@ -61,33 +61,53 @@ TREK.Phaser = P
 --- The hands are checked separately because an equipped item is not always in
 --- the container listing, and a phaser you are holding is the one that most
 --- needs to be full.
-function P.carriedBy(player)
+---
+--- **Every energy weapon, not only the phaser** (ARMOURY.md): the phaser
+--- rifle and the alien arms are kept full by this same sweep, one bare-type
+--- search per entry in C.EnergyWeapons. `only` narrows it to one full id.
+function P.carriedBy(player, only)
     local out, seen = {}, {}
 
     local function add(item)
         if not item or seen[item] then return end
         local t = U.try("phaser.fullType", function() return item:getFullType() end)
-        if t ~= C.PhaserItem then return end
+        if not C.energyWeapon(t) or (only and t ~= only) then return end
         seen[item] = true
         table.insert(out, item)
     end
 
     local inv = U.try("phaser.inventory", function() return player:getInventory() end)
     if inv then
-        local list = U.try("phaser.find", function()
-            return inv:getAllTypeRecurse(C.PhaserType)
-        end)
-        if list then
-            local join = U.batch("phaser.list")
-            local n = join(function() return list:size() end) or 0
-            for i = 0, n - 1 do
-                add(join(function() return list:get(i) end))
+        local join = U.batch("phaser.list")
+        for full, spec in pairs(C.EnergyWeapons) do
+            if not only or only == full then
+                local list = U.try("phaser.find", function()
+                    return inv:getAllTypeRecurse(spec.type)
+                end)
+                if list then
+                    local n = join(function() return list:size() end) or 0
+                    for i = 0, n - 1 do
+                        add(join(function() return list:get(i) end))
+                    end
+                end
             end
         end
     end
 
     add(U.try("phaser.primary", function() return player:getPrimaryHandItem() end))
     add(U.try("phaser.secondary", function() return player:getSecondaryHandItem() end))
+    return out
+end
+
+--- Only the ones that cut: the phaser and the phaser rifle. A disruptor is
+--- a weapon and nothing more (C.EnergyWeapons, `cuts`).
+function P.cuttersBy(player)
+    local out = {}
+    for _, item in ipairs(P.carriedBy(player)) do
+        local t = U.try("phaser.cutType", function() return item:getFullType() end)
+        local spec = C.energyWeapon(t)
+        if spec and spec.cuts then table.insert(out, item) end
+    end
     return out
 end
 
@@ -218,7 +238,7 @@ local LABELS = { tree = "IGUI_TREK_PhaserCutTree", door = "IGUI_TREK_PhaserCutDo
 function P.fillWorldMenu(playerNum, context, worldobjects, test)
     local player = U.player(playerNum)
     if not player then return end
-    if not PC.inHand(player) and #P.carriedBy(player) == 0 then return end
+    if not PC.inHand(player) and #P.cuttersBy(player) == 0 then return end
     local targets = P.cutTargets(worldobjects)
     if #targets == 0 then return end
     if test then return ISWorldObjectContextMenu.setTest() end
@@ -254,7 +274,7 @@ function P.onCut(_, player, obj, kind)
     local sq = U.try("phaser.cutSq", function() return obj:getSquare() end)
     if not sq then return end
     if not PC.inHand(player) then
-        local item = P.carriedBy(player)[1]
+        local item = P.cuttersBy(player)[1]
         if not item then return end
         ISWorldObjectContextMenu.equip(player, player:getPrimaryHandItem(), item,
                                        true, false)

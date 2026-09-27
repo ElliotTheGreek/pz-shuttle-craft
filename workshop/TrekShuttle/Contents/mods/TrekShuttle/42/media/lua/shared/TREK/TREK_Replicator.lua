@@ -100,6 +100,10 @@ function R.inReach(x, y, z)
     if TREK.Adirondack and TREK.Adirondack.nearMachine("replicator", x, y, z, C.ReplicatorRange + 1) then
         return true
     end
+    -- One installed in the world (INSTALLATIONS.md).
+    if TREK.Installations and TREK.Installations.nearMachine("replicator", x, y, z, C.ReplicatorRange + 1) then
+        return true
+    end
     local ox, oy = R.spot()
     if not ox then return false end
     if not U.isAboard(x, y, z) then return false end

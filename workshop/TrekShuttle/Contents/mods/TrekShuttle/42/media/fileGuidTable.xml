@@ -80,4 +80,8 @@
 		<path>media/clothing/clothingItems/TrekUniformDressScience.xml</path>
 		<guid>67bf7f89-c497-54d5-bef0-dc2718a8a6be</guid>
 	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekHolster.xml</path>
+		<guid>abd1ae2d-c38d-566d-9884-e578dee2d3e7</guid>
+	</files>
 </fileGuidTable>

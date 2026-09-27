@@ -32,9 +32,11 @@ require "TREK/TREK_Medical"
 require "TREK/TREK_Replicator"
 require "TREK/TREK_Probes"
 require "TREK/TREK_EMH"
+require "TREK/TREK_ContrabandServer"
 require "TREK/TREK_Build"
 require "TREK/TREK_Energy"
 require "TREK/TREK_Adirondack"
+require "TREK/TREK_FieldStation"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -949,14 +951,34 @@ local MOVES = {
     -- `from` is where the player must be standing to ask.
     toAdirondack   = { cost = 1, access = true, energy = "BeamCost", from = "shuttle" },
     fromAdirondack = { cost = 1, from = "adirondack" },
-    turbolift      = { cost = 0, from = "adirondack" },
+    turbolift      = { cost = 0, from = "decks" },
+    -- The field station (FIELD_STATION.md 3): down from the panel behind
+    -- the breaker box, once it is open, and up from any sublevel's lift car.
+    -- A lift, so no power; one long move each, so one charge each.
+    stationDown    = { cost = 1, from = "stationPanel" },
+    stationUp      = { cost = 1, from = "stationLift" },
 }
 
 --- True when the player is where a move of this kind may start.
 local function movesFrom(player, where)
     if not where then return true end
     if where == "shuttle" then return U.isInteriorPlayer(player) end
-    return TREK.Adirondack ~= nil and TREK.Adirondack.onShip(player)
+    local A = TREK.Adirondack
+    if not A then return false end
+    if where == "adirondack" then return A.onAdirondack(player) end
+    if where == "decks" then return A.onShip(player) end
+    local FS = TREK.FieldStation
+    if where == "stationPanel" then
+        return FS ~= nil and FS.found() and FS.playerInReach(player)
+    end
+    if where == "stationLift" then
+        if not A.onStation(player) then return false end
+        local x = U.try("liftX", function() return player:getX() end)
+        local y = U.try("liftY", function() return player:getY() end)
+        local z = U.try("liftZ", function() return player:getZ() end)
+        return x ~= nil and A.inLift(x, y, z) == true
+    end
+    return false
 end
 
 Net.onServer("move", function(player, args)
@@ -1013,7 +1035,7 @@ Net.onServer("move", function(player, args)
     -- (DEV_GUIDE: *Single player cannot test a fix that both ends apply*).
     -- This handler runs before the move, so the player is still standing
     -- where they are leaving from.
-    if kind == "beamUp" or kind == "hatchIn" then
+    if kind == "beamUp" or kind == "hatchIn" or kind == "stationDown" then
         local px = U.try("moveFromX", function() return player:getX() end)
         local py = U.try("moveFromY", function() return player:getY() end)
         local pz = U.try("moveFromZ", function() return player:getZ() end)
@@ -1036,6 +1058,9 @@ Net.onServer("move", function(player, args)
     if TREK.TraitsServer and (kind == "beamUp" or kind == "beamDown" or kind == "descend"
                               or kind == "toAdirondack" or kind == "fromAdirondack") then
         U.try("traits.beam", TREK.TraitsServer.onBeam, player, kind)
+    end
+    if TREK.TraitsServer and (kind == "turbolift" or kind == "stationDown" or kind == "stationUp") then
+        U.try("traits.lift", TREK.TraitsServer.onLift, player)
     end
 
     Net.toClient(player, "moveGranted", { kind = kind, token = args.token,
@@ -1684,6 +1709,8 @@ end
 --- `B.giveGalley` is the same shape and the precedent for the send: add to
 --- the container, then `sendAddItemToContainer` so the client's copy has it
 --- too. U.batch rather than U.try because this repeats.
+function S.materialise(player, id, count) return S._materialise(player, id, count) end
+
 local function materialise(player, id, count)
     local inv = U.try("rep.inv", function() return player:getInventory() end)
     if not inv then return 0 end
@@ -1712,12 +1739,25 @@ local function materialise(player, id, count)
     end
     return made
 end
+S._materialise = materialise
 
 --- Alive, allowed to use the ship, the machine is not switched off, and the
 --- player is really standing at it -- measured here, not taken from the
 --- command.
+--- Allowed to use the machine the player is standing at: an installed one
+--- is anybody's (INSTALLATIONS.md); the ship's follow the ship's rule.
+local function mayUseHere(player)
+    if TREK.Installations and TREK.Installations.placeOf(player) then return alive(player) end
+    return mayUse(player)
+end
+
 local function atReplicator(player)
-    if not mayUse(player) then return false end
+    if not mayUseHere(player) then return false end
+    -- Installed with no core in reach: dark, and never the shuttle's to pay.
+    if TREK.Installations and TREK.Installations.orphaned(player, "replicator", C.ReplicatorRange + 1) then
+        deny(player, "instNoCore")
+        return false
+    end
     if Rep.isOff() then
         deny(player, "repOff")
         return false
@@ -1831,7 +1871,7 @@ end
 
 --- The two things a player may do at the core, and the checks they share.
 local function atCore(player)
-    if not mayUse(player) then return false end
+    if not mayUseHere(player) then return false end
     if not TREK.Power.inReachOf(player) then
         deny(player, "coreFar")
         return false
@@ -2025,7 +2065,7 @@ end
 local function patientFor(player, args)
     local name = args and args.who
     if name == nil or name == "" then return player, Ship.usernameOf(player) end
-    local patient = EMH.patientNamed(name)
+    local patient = EMH.patientNamed(name, player)
     if not patient then
         deny(player, "emhNoPatient")
         return nil, nil
@@ -2166,6 +2206,7 @@ Net.onServer("emhLook", function(player, args)
         infected = found.infected,
         bitten = found.bitten,
         items = found.items,
+        dependent = found.dependent,
     })
 end)
 
@@ -2226,6 +2267,44 @@ Net.onServer("emhCure", function(player, args)
         return
     end
     S.beginCure(player, patient, name)
+end)
+
+--- The detox (CONTRABAND.md): every habit gone, for reserve units.
+--- Yourself at once; anybody else only if they say yes.
+local function detoxBody(asker, patient, name)
+    if TREK.Power.canPay(C.EmhDetoxCost) then
+        if not TREK.Energy.energize(asker, "emhDetox", C.EmhDetoxCost, { silent = true }) then
+            return false
+        end
+    elseif not TREK.Energy.energize(asker, "emhDetox", C.EmhDetoxCost,
+                                    { why = "emhNoPower" }) then
+        return false
+    end
+    local n = TREK.ContrabandServer.detox(patient)
+    Net.toClient(patient, "emhDetoxed", { who = name, n = n })
+    if asker ~= patient then
+        Net.toClient(asker, "emhDetoxed", { who = name, n = n })
+    end
+    U.log("emh: detoxed %s -- %d habit(s), %d unit(s) spent", name, n, C.EmhDetoxCost)
+    return true
+end
+
+Net.onServer("emhDetox", function(player, args)
+    if not atEMH(player) then return end
+    local patient, name = patientFor(player, args)
+    if not patient then return end
+
+    local why = EMH.detoxRefusal(patient)
+    if why then
+        deny(player, why)
+        return
+    end
+
+    if name ~= Ship.usernameOf(player) then
+        offer(player, patient, name, "detox", C.EmhDetoxCost)
+        return
+    end
+    detoxBody(player, patient, name)
 end)
 
 --- Takes the crystal and writes the patient into the register.
@@ -2293,7 +2372,7 @@ local function resolveOffer(player, args, accepted)
         deny(player, "emhGone")
         return
     end
-    local patient = EMH.patientNamed(job.who)
+    local patient = EMH.patientNamed(job.who, asker)
     if not patient then
         deny(player, "emhNoPatient")
         return
@@ -2306,6 +2385,16 @@ local function resolveOffer(player, args, accepted)
             return
         end
         S.beginCure(asker, patient, job.who)
+        return
+    end
+
+    if job.what == "detox" then
+        local why = EMH.detoxRefusal(patient)
+        if why then
+            deny(player, why)
+            return
+        end
+        detoxBody(asker, patient, job.who)
         return
     end
 
@@ -2447,7 +2536,7 @@ end)
 -- A launch is **one authority-side transaction**: validate, spend, and create
 -- the job, with nothing in between that a second request could interleave
 -- with. Two crew hitting the menu together therefore produce one probe and
--- one deduction, which is what ROADMAP2 asks for -- "Racing launch requests
+-- one deduction, which is what the design asks for (PROBES.md) -- "Racing launch requests
 -- create one job and one deduction" -- and it comes out of doing the whole
 -- thing in one handler rather than out of any locking.
 --
@@ -2770,7 +2859,7 @@ end
 --- Runs on the game-minute tick rather than per server tick, because a
 --- three-hundred-tick flight at sixty ticks a second is five seconds and this
 --- is meant to be a journey. It is also the tick every setup is certain to
---- run, so a probe cannot be stranded by a client disconnecting -- ROADMAP2:
+--- run, so a probe cannot be stranded by a client disconnecting -- PROBES.md:
 --- "A probe continues if its launching player disconnects."
 function S.serviceProbe()
     if not Probes.active() then return end
@@ -2786,9 +2875,9 @@ function S.serviceProbe()
     -- one launch in three is 250 units and an hour of game time for a line in
     -- a log the player never reads, and the very first one coming back empty
     -- is indistinguishable from the feature being broken -- which is exactly
-    -- how it read the first time anybody played it. ROADMAP2 1.6 wants a
-    -- guaranteed opening for the cold start anyway; this is the honest
-    -- minimum of it, and every probe after the first is a fair roll.
+    -- how it read the first time anybody played it. It is also the cold
+    -- start's guaranteed opening (ENERGY.md 10.5), and every probe after
+    -- the first is a fair roll.
     --
     -- And never more than C.ProbeDryLimit empty ones in a row: the first
     -- cold-start play drew four, which is a campaign stalled on luck.
@@ -2850,8 +2939,8 @@ function S.serviceProbe()
 
     -- **Tell the crew.** Until this, the only trace of an empty report was a
     -- line in console.txt, so from the console a probe that found nothing and
-    -- a probe that never happened looked exactly the same. ROADMAP2 asks for
-    -- the page to show recent reports, and an honest empty result is a real
+    -- a probe that never happened looked exactly the same. The design (PROBES.md) asks
+    -- for the page to show recent reports, and an honest empty result is a real
     -- outcome that has to be reported as one.
     for _, p in ipairs(U.players()) do
         Net.toClient(p, "probeReport", { found = found })
@@ -3311,8 +3400,9 @@ function S.checkVoidMap()
         U.log("void map '%s' is loaded", C.VoidMap)
     else
         U.log("NOTICE: the '%s' map is not loaded, so the space outside the cabin " ..
-              "will show wilderness. Add it before the base map in the server's Map " ..
-              "setting, e.g. Map=%s;Muldraugh, KY", C.VoidMap, C.VoidMap)
+              "will show wilderness. On a server, add it before the base map in the " ..
+              "Map setting, e.g. Map=%s;Muldraugh, KY. In single player the mod's " ..
+              "common/media/maps folder was not found (JEFFERIES.md 5).", C.VoidMap, C.VoidMap)
     end
 end
 

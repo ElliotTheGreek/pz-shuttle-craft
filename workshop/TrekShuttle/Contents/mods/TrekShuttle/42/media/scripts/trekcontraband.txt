@@ -1,0 +1,292 @@
+module TrekShuttle
+{
+    /*  Contraband (CONTRABAND.md): what the off-watch crew keep in the
+        hideouts off the Adirondack's Jefferies tubes, where the first
+        officer will not look.
+
+        **The drugs are Food.** Ketracel-white, felicium, Trellium-D and
+        cordrazine are Food items with their own menu word -- Inject, or
+        vanilla's Take -- and no hunger at all, which is exactly how vanilla
+        makes antibiotics and cigarettes: the eating menu offers the word,
+        vanilla's eating action runs, and its complete() runs Eat() on the
+        server. TREK_Traits wraps that complete(), and the wrap hands the dose
+        to TREK_ContrabandServer, which is where everything a dose does is
+        decided -- the high, the habit, the withdrawal. The only effect the
+        script itself carries is painReduction, which Eat() applies through
+        BodyDamage.setPainReduction and nothing in Lua can reach as simply.
+
+        **Nothing here can be replicated** (C.ReplicatorBlocked): the hideouts
+        are the only place any of it comes from.
+
+        Icons are generated on magenta and keyed (tools/gen_contraband_icons.py);
+        the world and in-hand models are vanilla's, borrowed by name, which
+        tests/test_assets.py checks.  */
+
+    /*  Ketracel-white (DS9): the Jem'Hadar's ration, in a grey cartridge.
+        The best stimulant in the mod and a habit after three doses.  */
+    item TrekKetracelWhite
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:food,
+        Weight = 0.1,
+        Icon = TREK_KetracelWhite,
+        CantBeFrozen = true,
+        CustomContextMenu = TREK_Inject,
+        CustomEatSound = TREK_HypoHiss,
+        HungerChange = 0.0,
+        painReduction = 10,
+        StaticModel = Antibiotics,
+        WorldStaticModel = Antibiotics,
+        Tooltip = Tooltip_TREK_KetracelWhite,
+    }
+
+    /*  Felicium (TNG "Symbiosis"): sold as the cure for a plague that is its
+        own withdrawal. The strongest pain relief here, and the label says
+        "medicine" because that is the lie it is sold on.  */
+    item TrekFelicium
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:food,
+        Weight = 0.1,
+        Icon = TREK_Felicium,
+        CantBeFrozen = true,
+        CustomContextMenu = Take,
+        HungerChange = 0.0,
+        painReduction = 25,
+        StaticModel = PillBottle,
+        WorldStaticModel = PainKillers_Ground,
+        Tooltip = Tooltip_TREK_Felicium,
+    }
+
+    /*  Trellium-D (ENT season 3): a Vulcan's undoing and everybody else's
+        poison.  */
+    item TrekTrelliumD
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:food,
+        Weight = 0.1,
+        Icon = TREK_TrelliumD,
+        CantBeFrozen = true,
+        CustomContextMenu = TREK_Inject,
+        CustomEatSound = TREK_HypoHiss,
+        HungerChange = 0.0,
+        StaticModel = WaterPurificationTablets,
+        WorldStaticModel = WaterPurificationTablets,
+        Tooltip = Tooltip_TREK_TrelliumD,
+    }
+
+    /*  Cordrazine (TOS "The City on the Edge of Forever"): Sickbay's
+        stimulant. One dose is a second wind; two inside four hours is the
+        episode.  */
+    item TrekCordrazine
+    {
+        DisplayCategory = FirstAid,
+        ItemType = base:food,
+        Weight = 0.1,
+        Icon = TREK_Cordrazine,
+        CantBeFrozen = true,
+        CustomContextMenu = TREK_Inject,
+        CustomEatSound = TREK_HypoHiss,
+        HungerChange = 0.0,
+        StaticModel = CaffeinePills,
+        WorldStaticModel = CaffeinePills,
+        Tooltip = Tooltip_TREK_Cordrazine,
+    }
+
+    /*  The Ktarian game (TNG "The Game"). Not food: it is played, through a
+        timed action of its own (TREK_ContrabandActions.lua), and handed from
+        one player to the next (TREK_ContrabandUI.lua).  */
+    item TrekKtarianGame
+    {
+        DisplayCategory = Entertainment,
+        ItemType = base:normal,
+        Type = Normal,
+        Weight = 0.2,
+        Icon = TREK_KtarianGame,
+        StaticModel = Remote,
+        WorldStaticModel = Remote,
+        Tooltip = Tooltip_TREK_KtarianGame,
+    }
+
+    /*  Gold-pressed latinum: the pot on the hideout's card table. Worth
+        nothing to a replicator, which is why the Ferengi use it.  */
+    item TrekLatinumStrip
+    {
+        DisplayCategory = Junk,
+        ItemType = base:normal,
+        Type = Normal,
+        Weight = 0.05,
+        Icon = TREK_LatinumStrip,
+        StaticModel = GoldBarSmall,
+        WorldStaticModel = GoldBarSmall,
+        Tooltip = Tooltip_TREK_LatinumStrip,
+    }
+
+    /*  ------------------------------------------------------------------
+        The good stuff: three more bottles for the stash shelf. Fluids, as
+        the galley's drinks are (trekshuttle.txt has the whole story), with
+        colours a vanilla fluid already uses -- an unknown ColorReference
+        stops the world loading.
+        ------------------------------------------------------------------ */
+
+    /*  Kanar (DS9): Cardassian, thick as syrup, and Garak's weakness.  */
+    fluid TrekKanar
+    {
+        ColorReference = Sienna,
+        DisplayName = Fluid_Name_TrekKanar,
+        Categories
+        {
+            Beverage,
+            Alcoholic,
+        }
+        Properties
+        {
+            fatigueChange = 0.0,
+            HungerChange = -10.0,
+            StressChange = -40.0,
+            ThirstChange = -10.0,
+            UnhappyChange = -30.0,
+            Calories = 500.0,
+            Carbohydrates = 60.0,
+            Lipids = 0.0,
+            Proteins = 0.0,
+            alcohol = 0.3,
+            painReduction = 5.0,
+        }
+    }
+
+    /*  Saurian brandy (TOS onwards): the officer's drink, and the bottle
+        every captain seems to have in a drawer.  */
+    fluid TrekSaurianBrandy
+    {
+        ColorReference = SandyBrown,
+        DisplayName = Fluid_Name_TrekSaurianBrandy,
+        Categories
+        {
+            Beverage,
+            Alcoholic,
+        }
+        Properties
+        {
+            fatigueChange = 0.0,
+            HungerChange = -5.0,
+            StressChange = -45.0,
+            ThirstChange = -15.0,
+            UnhappyChange = -45.0,
+            Calories = 350.0,
+            Carbohydrates = 20.0,
+            Lipids = 0.0,
+            Proteins = 0.0,
+            alcohol = 0.4,
+            painReduction = 10.0,
+        }
+    }
+
+    /*  Aldebaran whiskey (TNG "Relics"): green, and "it's green" is the
+        whole of Guinan's review.  */
+    fluid TrekAldebaranWhiskey
+    {
+        ColorReference = LimeGreen,
+        DisplayName = Fluid_Name_TrekAldebaranWhiskey,
+        Categories
+        {
+            Beverage,
+            Alcoholic,
+        }
+        Properties
+        {
+            fatigueChange = 0.0,
+            HungerChange = -5.0,
+            StressChange = -50.0,
+            ThirstChange = -15.0,
+            UnhappyChange = -35.0,
+            Calories = 300.0,
+            Carbohydrates = 10.0,
+            Lipids = 0.0,
+            Proteins = 0.0,
+            alcohol = 0.4,
+            painReduction = 10.0,
+        }
+    }
+
+    item TrekKanar
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        Weight = 0.8,
+        Icon = TREK_Kanar,
+        StaticModel = PortBottle,
+        WorldStaticModel = PortBottle,
+        FillFromDispenserSound = GetWaterFromDispenserGlass,
+        FillFromTapSound = GetWaterFromTapGlass,
+        Tags = base:glass;base:glassbottle,
+        Tooltip = Tooltip_TREK_Kanar,
+        component FluidContainer
+        {
+            ContainerName = BottleGlass,
+            Capacity = 0.75,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromBottleGlass,
+            Fluids
+            {
+                fluid = TrekKanar:1.0,
+            }
+        }
+    }
+
+    item TrekSaurianBrandy
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        Weight = 0.8,
+        Icon = TREK_SaurianBrandy,
+        StaticModel = BrandyBottle,
+        WorldStaticModel = BrandyBottle,
+        FillFromDispenserSound = GetWaterFromDispenserGlass,
+        FillFromTapSound = GetWaterFromTapGlass,
+        Tags = base:glass;base:glassbottle,
+        Tooltip = Tooltip_TREK_SaurianBrandy,
+        component FluidContainer
+        {
+            ContainerName = BottleGlass,
+            Capacity = 0.75,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromBottleGlass,
+            Fluids
+            {
+                fluid = TrekSaurianBrandy:1.0,
+            }
+        }
+    }
+
+    item TrekAldebaranWhiskey
+    {
+        DisplayCategory = Food,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = TREK_AldebaranWhiskey,
+        StaticModel = ScotchBottle,
+        WorldStaticModel = ScotchBottle,
+        FillFromDispenserSound = GetWaterFromDispenserGlass,
+        FillFromTapSound = GetWaterFromTapGlass,
+        Tags = base:glass;base:glassbottle,
+        Tooltip = Tooltip_TREK_AldebaranWhiskey,
+        component FluidContainer
+        {
+            ContainerName = BottleGlass,
+            Capacity = 1.0,
+            RainFactor = 0.0,
+            InitialPercentMin = 1.0,
+            InitialPercentMax = 1.0,
+            CustomDrinkSound = DrinkingFromBottleGlass,
+            Fluids
+            {
+                fluid = TrekAldebaranWhiskey:1.0,
+            }
+        }
+    }
+}

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A crew member walking along its own route (TREK_CrewClient, walk()): the
-     body stays in the idle state -- the engine's pathfinder is never asked,
-     because it does not know the Adirondack's walls -- and is moved square by
+     body stays in the idle state  -  the engine's pathfinder is never asked,
+     because it does not know the Adirondack's walls  -  and is moved square by
      square, so the walk is played here. Two conditions, so it outranks the
      standing idle while TrekMove is set. -->
 <animNode>

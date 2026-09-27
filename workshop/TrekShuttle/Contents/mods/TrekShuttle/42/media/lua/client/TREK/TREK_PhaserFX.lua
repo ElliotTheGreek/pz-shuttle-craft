@@ -153,10 +153,12 @@ end)
 ---------------------------------------------------------------------------
 -- Bolts
 ---------------------------------------------------------------------------
-local function isPhaser(weapon)
-    return weapon and U.try("phaserFx.weaponType", function()
+--- The C.EnergyWeapons entry for a weapon, or nil: every one of them bolts,
+--- each in its own colour (ARMOURY.md), and a vanilla pistol does not.
+local function energy(weapon)
+    return weapon and C.energyWeapon(U.try("phaserFx.weaponType", function()
         return weapon:getFullType()
-    end) == C.PhaserItem
+    end)) or nil
 end
 
 --- One shot's bolt: from the emitter straight ahead to the weapon's range.
@@ -170,9 +172,11 @@ function FX.bolt(character, weapon)
     local dx = U.try("phaserFx.dirX", function() return character:getForwardDirectionX() end) or 1
     local dy = U.try("phaserFx.dirY", function() return character:getForwardDirectionY() end) or 0
     local range = U.try("phaserFx.range", function() return weapon:getMaxRange() end) or 12
+    local spec = energy(weapon) or C.EnergyWeapons[C.PhaserItem]
     local b = {
         char = character, untilMs = now() + C.PhaserBoltMs,
         x = px + dx * range, y = py + dy * range, z = pz,
+        tint = spec.tint, width = spec.width or 1.0,
     }
     table.insert(FX.bolts, b)
     ensureOverlay()
@@ -180,11 +184,11 @@ function FX.bolt(character, weapon)
 end
 
 Events.OnWeaponSwingHitPoint.Add(function(character, weapon)
-    if isPhaser(weapon) then FX.bolt(character, weapon) end
+    if energy(weapon) then FX.bolt(character, weapon) end
 end)
 
 Events.OnWeaponHitCharacter.Add(function(attacker, target, weapon)
-    if not isPhaser(weapon) or not target then return end
+    if not energy(weapon) or not target then return end
     for i = #FX.bolts, 1, -1 do
         local b = FX.bolts[i]
         if b.char == attacker then
@@ -259,7 +263,10 @@ function Overlay:onMouseDown() return false end
 function Overlay:onRightMouseDown() return false end
 
 --- One beam, the sheet's recipe: glow, core, muzzle flare, impact spark.
-function Overlay:drawBeam(num, zoom, wx0, wy0, wz0, wx1, wy1, wz1, flicker, impact)
+--- `tint` and `width` are the weapon's (C.EnergyWeapons); a cutting beam is
+--- always a phaser's, so it passes neither and gets the phaser's.
+function Overlay:drawBeam(num, zoom, wx0, wy0, wz0, wx1, wy1, wz1, flicker, impact,
+                          tint, width)
     local sx0 = isoToScreenX(num, wx0, wy0, wz0)
     local sy0 = isoToScreenY(num, wx0, wy0, wz0)
     local sx1 = isoToScreenX(num, wx1, wy1, wz1)
@@ -269,7 +276,8 @@ function Overlay:drawBeam(num, zoom, wx0, wy0, wz0, wx1, wy1, wz1, flicker, impa
     local len = math.sqrt(dx * dx + dy * dy)
     if len < 1 then return end
     local nx, ny = -dy / len, dx / len
-    local T = C.PhaserTint
+    local T = tint or C.PhaserTint
+    flicker = flicker * (width or 1.0)
     local beam = getTexture(BEAM)
     local spark = getTexture(SPARK)
 
@@ -326,7 +334,7 @@ function Overlay:render()
         if ex then
             U.try("phaserFx.bolt", function()
                 self:drawBeam(num, zoom, ex, ey, ez, b.x, b.y, b.z + C.PhaserHandZ,
-                              1.0, 0.6)
+                              1.0, 0.6, b.tint, b.width)
             end)
         end
     end

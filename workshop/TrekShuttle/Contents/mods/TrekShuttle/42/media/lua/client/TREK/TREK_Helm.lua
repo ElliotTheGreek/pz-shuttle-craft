@@ -646,16 +646,8 @@ function TREKHelmWindow:close()
     local T = TREK.Travel
     T.picking = false
     T.window = nil
-    U.try("restoreMapSettings", function()
-        local map = ISWorldMap_instance
-        if not map then return end
-        if T.restoreShowPlayers ~= nil then
-            map:setShowPlayers(T.restoreShowPlayers)
-        end
-        if T.restoreHideUnvisited ~= nil then
-            map:setHideUnvisitedAreas(T.restoreHideUnvisited)
-        end
-    end)
+    U.try("restoreMapSettings", T.restoreMapSettings, ISWorldMap_instance)
+    T.restoreShowPlayers, T.restoreHideUnvisited = nil, nil
     -- A controller that was driving the helm goes back to the map, or to the
     -- game if the map has gone too. Left pointing at a removed panel, the
     -- controller would do nothing at all until the helm was reopened.

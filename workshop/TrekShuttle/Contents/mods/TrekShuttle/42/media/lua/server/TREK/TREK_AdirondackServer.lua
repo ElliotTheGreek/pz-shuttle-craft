@@ -30,6 +30,13 @@
     A deck is current when `decks[k] == L.rev`. The state is server mod data,
     never transmitted: a client learns a deck is ready from `adkReady`, and
     from the floor turning up under it.
+
+    **Jefferies tubes are built as they load** (JEFFERIES.md). A tube is some
+    hundred and sixty squares long and no player ever has all of it loaded, so
+    it is never built whole: while anybody is aboard, every square of a tube
+    touching their deck that is loaded and missing its floor or a fitting gets
+    it, well ahead of anybody crawling. A deck's own pass never touches a
+    square a tube owns. What lies on a hideout's floor is placed once, ever.
 ]]
 
 if isClient() then return end
@@ -60,8 +67,12 @@ function AS.state()
     local s = ModData.getOrCreate(A.StateKey)
     s.decks = s.decks or {}
     s.fit = s.fit or {}
+    s.clutter = s.clutter or {}
+    s.legacy = s.legacy or {}
     return s
 end
+
+local function ownedByTube(x, y) return A.tubeOwns(x, y) ~= nil end
 
 function AS.deckCurrent(k)
     local s = AS.state()
@@ -102,6 +113,55 @@ end
 
 local function isDoorKind(kind) return kind == "dW" or kind == "dN" end
 
+--- The hull: walls and doors are always put back. Anything else is a
+--- fitting, and a fitting a player has taken stays taken (BUILDING.md).
+local function isHull(kind) return kind == "w" or isDoorKind(kind) end
+
+local function entryKey(o) return o[1] .. "," .. o[2] .. "," .. o[3] end
+
+--- Which of deck k's fittings have been placed: "x,y,sprite" -> true.
+function AS.made(k) return U.madeRecord(A.StateKey, "made" .. k) end
+function AS.madeTube(t) return U.madeRecord(A.StateKey, "madeTube" .. t) end
+
+
+
+--- Our door on this square's north (or west) edge, whatever it looks like.
+--- **Never find a door by its sprite**: ToggleDoor swaps an open door's
+--- picture for the one two along, so a builder asking for the closed sprite
+--- misses every door somebody has walked up to, and puts a second one in it.
+local function ourDoor(sq, north)
+    local found = nil
+    U.try("adk.ourDoor", function()
+        local list = sq:getSpecialObjects()
+        for i = 0, list:size() - 1 do
+            local o = list:get(i)
+            if instanceof(o, "IsoDoor") and tagOf(o) == TAG and o:getNorth() == north then
+                found = o
+                return
+            end
+        end
+    end)
+    return found
+end
+
+--- What a layout entry has standing for it on this square already, if anything.
+local function standing(sq, o)
+    if isDoorKind(o[4]) then return ourDoor(sq, o[4] == "dN") end
+    return U.findSprite(sq, o[3])
+end
+
+--- The layout entry an object answers to: by sprite, or for a door, by being
+--- our door on that edge, open or shut.
+local function entryFor(here, o)
+    local e = here[spriteOf(o)]
+    if e or not instanceof(o, "IsoDoor") then return e end
+    local north = U.try("doorNorth", function() return o:getNorth() end) == true
+    for _, w in pairs(here) do
+        if isDoorKind(w[4]) and (w[4] == "dN") == north then return w end
+    end
+    return nil
+end
+
 local function isSpecial(sq, obj)
     return U.try("specialObjects", function()
         return sq:getSpecialObjects():contains(obj)
@@ -121,10 +181,46 @@ local function waterCapacity(obj)
     return U.try("fluidCapacity", function() return obj:getFluidCapacity() end) or 0
 end
 
---- What a container is stocked with, by the piece it is part of (A.Stock).
---- Returns the number of items put in.
-local function stock(obj, piece)
-    local rule = piece and A.Stock[piece]
+--- One tape carrying the recording `id` (a hideout's holosuite programme,
+--- CONTRABAND.md). A blank tape is TREK_Build's own warning: it sits in the
+--- crate, goes into a television and plays nothing, with nothing in any log
+--- -- so the recording is read back off the item and a failure says so.
+--- Returns 1 when a labelled tape is in the container, 0 otherwise.
+local function stockTape(obj, id)
+    local present = U.stockEach(obj, { C.TapeItem }, 1)
+    if (present[C.TapeItem] or 0) == 0 then return 0 end
+    local media = U.try("adk.recordedMedia", function()
+        return getZomboidRadio():getRecordedMedia()
+    end)
+    local data = media and U.try("adk.mediaData", function() return media:getMediaData(id) end)
+    if not data then
+        U.log("WARN adirondack: no recording registered as %s; the tape is blank", tostring(id))
+        return 0
+    end
+    local container = U.containerOf(obj)
+    local labelled = U.try("adk.labelTape", function()
+        local items = container:getItems()
+        for i = 0, items:size() - 1 do
+            local it = items:get(i)
+            if it and it:getFullType() == C.TapeItem and it:getMediaData() == nil then
+                it:setRecordedMediaData(data)
+                return it:getMediaData() ~= nil
+            end
+        end
+        return false
+    end)
+    if labelled ~= true then
+        U.log("WARN adirondack: the %s tape did not take its recording", tostring(id))
+        return 0
+    end
+    return 1
+end
+
+--- What a container is stocked with, by the piece it is part of (A.Stock,
+--- or the field station's own A.SiteStock on a sublevel). Returns the number
+--- of items put in.
+local function stock(obj, piece, k)
+    local rule = piece and A.stockRule(piece, k)
     if not rule then return 0 end
     local added = 0
     if rule.loot then
@@ -142,12 +238,15 @@ local function stock(obj, piece)
             for _, n in pairs(present or {}) do added = added + n end
         end
     end
+    if rule.tape then
+        added = added + stockTape(obj, rule.tape)
+    end
     return added
 end
 
 --- Makes one layout object and sends it, finished. `o` is the layout entry:
---- { x, y, sprite, kind, piece }.
-local function make(sq, o)
+--- { x, y, sprite, kind, piece }; k the deck it stands on.
+local function make(sq, o, k)
     local sprite, kind, piece = o[3], o[4], o[5]
     if isDoorKind(kind) then
         local door = U.try("IsoDoor.new", function()
@@ -184,8 +283,8 @@ local function make(sq, o)
             -- Explored, or vanilla rolls its own loot into it on first look.
             if c then c:setExplored(true) end
         end)
-        if A.Stock[piece] then
-            U.try("stock:" .. tostring(piece), stock, obj, piece)
+        if A.stockRule(piece, k) then
+            U.try("stock:" .. tostring(piece), stock, obj, piece, k)
             U.try("stocked", function() obj:getModData().TREKStock = true end)
         end
     end
@@ -195,10 +294,26 @@ local function make(sq, o)
     return addSynced(sq, obj)
 end
 
+--- Places a layout entry unless it stands already, or the player took it.
+--- Returns true when it placed one.
+local function fit(sq, o, k, record)
+    local key = entryKey(o)
+    if standing(sq, o) then
+        record[key] = true
+        return false
+    end
+    if record[key] and not isHull(o[4]) then return false end
+    if make(sq, o, k) then
+        record[key] = true
+        return true
+    end
+    return false
+end
+
 --- True when an object already standing is not what the layout needs any
 --- more and has nothing in it to lose: a door the engine does not collide
 --- with, a locker that was never stocked, a sink with no water.
-local function needsRefit(sq, obj, o)
+local function needsRefit(sq, obj, o, k)
     local kind, piece = o[4], o[5]
     if isDoorKind(kind) then
         return not isSpecial(sq, obj) or not instanceof(obj, "IsoDoor")
@@ -206,7 +321,7 @@ local function needsRefit(sq, obj, o)
     if piece == "galley_range" and not instanceof(obj, "IsoStove") and not holdsAnything(obj) then
         return true
     end
-    if kind == "c" and A.Stock[piece] then
+    if kind == "c" and A.stockRule(piece, k) then
         local md = U.try("md", function() return obj:getModData() end) or {}
         return md.TREKStock ~= true and not holdsAnything(obj)
     end
@@ -246,6 +361,7 @@ function AS.buildDeck(k)
     local deck = L.decks[k]
     if not deck or not AS.deckLoaded(k) then return false end
     local want = wanted(deck)
+    local record = AS.made(k)
 
     local cleared, removed, made, refitted = 0, 0, 0, 0
     -- The engine grows wilderness in unmapped cells when a server was not
@@ -256,7 +372,7 @@ function AS.buildDeck(k)
         for ly = -2, L.H + 2 do
             local x, y = A.at(k, lx, ly)
             cleared = cleared + U.clearSquare(U.square(x, y, 0, false), true)
-            local sq = U.square(x, y, A.Z, false)
+            local sq = not ownedByTube(x, y) and U.square(x, y, A.Z, false) or nil
             if sq then
                 local here = want[lx .. "," .. ly] or {}
                 local doomed = {}
@@ -272,14 +388,19 @@ function AS.buildDeck(k)
                     end
                     if instanceof(o, "IsoGenerator") then return end
                     if tag == TAG then
-                        local entry = here[spriteOf(o)]
+                        local entry = entryFor(here, o)
                         if not entry then
                             if not holdsAnything(o) then table.insert(doomed, o) end
-                        elseif needsRefit(sq, o, entry) then
+                        elseif needsRefit(sq, o, entry, k) then
                             table.insert(doomed, o)
                             refitted = refitted + 1
+                            -- Taken away by us, to be put back refitted:
+                            -- not a thing the player took.
+                            record[entryKey(entry)] = nil
                         end
-                    elseif not tag then
+                    elseif not tag and U.isWild(o) then
+                        -- Wilderness, from a world made without the void map.
+                        -- Anything else untagged is something a player built.
                         table.insert(doomed, o)
                     end
                 end)
@@ -302,9 +423,7 @@ function AS.buildDeck(k)
     for _, o in ipairs(deck.objects) do
         local x, y = A.at(k, o[1], o[2])
         local sq = U.square(x, y, A.Z, true)
-        if sq and not U.findSprite(sq, o[3]) then
-            if make(sq, o) then made = made + 1 end
-        end
+        if sq and fit(sq, o, k, record) then made = made + 1 end
     end
 
     U.try("adk.doctor", AS.serviceDoctor, k)
@@ -316,9 +435,231 @@ function AS.buildDeck(k)
 
     local s = AS.state()
     s.decks[k], s.fit[k] = L.rev, AS.FIT
-    U.log("Adirondack %s built (rev %d): %d placed, %d refitted, %d taken away, %d cleared",
+    U.log("%s %s built (rev %d): %d placed, %d refitted, %d taken away, %d cleared",
+          A.siteOf(k) == "fst" and "Field Station" or "Adirondack",
           deck.name, L.rev, made, refitted, removed - refitted, cleared)
     return true
+end
+
+---------------------------------------------------------------------------
+-- The Jefferies tubes
+---------------------------------------------------------------------------
+--- Moves the live items in an object's containers, or a world item, onto a
+--- square: what a player keeps is never ours to throw out, and moving the
+--- item rather than its id keeps a hypospray's doses (TREK_Build.spillToPad).
+local function handBack(obj, dest)
+    local moved = 0
+    if instanceof(obj, "IsoWorldInventoryObject") then
+        local item = U.try("handBack.item", function() return obj:getItem() end)
+        if item and removeSynced(obj:getSquare(), obj) then
+            if U.try("handBack.drop", function() return dest:AddWorldInventoryItem(item, 0.5, 0.5, 0.0) end) then
+                moved = moved + 1
+            end
+        end
+        return moved
+    end
+    local list = TREK.Build and TREK.Build.containersOf and TREK.Build.containersOf(obj) or {}
+    for _, c in ipairs(list) do
+        local items = {}
+        U.try("handBack.list", function()
+            local all = c:getItems()
+            for i = 0, all:size() - 1 do table.insert(items, all:get(i)) end
+        end)
+        for _, it in ipairs(items) do
+            if U.try("handBack.move", function()
+                c:Remove(it)
+                if dest:AddWorldInventoryItem(it, 0.5, 0.5, 0.0) then return true end
+                c:AddItem(it)
+                return false
+            end) then moved = moved + 1 end
+        end
+    end
+    return moved
+end
+
+--- Takes away what an older layout's hideout left standing where the tube no
+--- longer reaches (L.tubes[t].legacy, gen_adirondack_tubes.legacy_squares):
+--- walls, floor, fittings. Anything in its crates, and anything lying on its
+--- floor, is handed back on the tube at `legacy_at`, where its side crawl
+--- used to leave. Square by square as they load; each is done once, ever.
+function AS.stripLegacy(t)
+    local tube = L.tubes and L.tubes[t]
+    if not tube or not tube.legacy then return 0 end
+    local done = AS.state().legacy
+    done[t] = done[t] or {}
+    local k = tube.from
+    local dx, dy = A.at(k, tube.legacy_at[1], tube.legacy_at[2])
+    if not U.chunkLoaded(dx, dy, A.Z) then return 0 end
+    local dest = U.square(dx, dy, A.Z, false)
+    if not dest or not dest:getFloor() then return 0 end
+    local stripped = 0
+    for i, p in ipairs(tube.legacy) do
+        if not done[t][i] then
+            local x, y = A.at(k, p[1], p[2])
+            if U.chunkLoaded(x, y, A.Z) then
+                local sq = U.square(x, y, A.Z, false)
+                if sq then
+                    local doomed = {}
+                    U.eachObject(sq, function(o) table.insert(doomed, o) end)
+                    for _, o in ipairs(doomed) do
+                        if instanceof(o, "IsoWorldInventoryObject") then
+                            handBack(o, dest)
+                        elseif tagOf(o) == TAG or o == sq:getFloor() then
+                            handBack(o, dest)
+                            if removeSynced(sq, o) then stripped = stripped + 1 end
+                        end
+                    end
+                end
+                done[t][i] = true
+            end
+        end
+    end
+    if stripped > 0 then
+        U.log("Adirondack %s: an old hideout taken down, %d pieces", tube.name, stripped)
+    end
+    return stripped
+end
+
+-- Tube squares already refitted this session at this layout: "t:x,y" -> rev.
+local refitted = {}
+
+--- Brings what stands on a tube's own squares into line with the layout, in
+--- place: anything of ours the layout no longer puts there is taken away --
+--- unless it is a container with something in it -- the way a deck does it.
+--- Once per square per session; the builder then adds what is missing.
+local function refitTube(t, tube, want)
+    local k = tube.from
+    for sqKey, here in pairs(want) do
+        if refitted[t .. ":" .. sqKey] ~= L.rev then
+            local lx, ly = sqKey:match("^(-?%d+),(-?%d+)$")
+            local x, y = A.at(k, tonumber(lx), tonumber(ly))
+            if U.chunkLoaded(x, y, A.Z) then
+                refitted[t .. ":" .. sqKey] = L.rev
+                local sq = U.square(x, y, A.Z, false)
+                if sq then
+                    local doomed = {}
+                    local record = AS.madeTube(t)
+                    U.eachObject(sq, function(o)
+                        if tagOf(o) == TAG and not entryFor(here, o) and not holdsAnything(o) then
+                            table.insert(doomed, o)
+                        end
+                    end)
+                    for _, w in pairs(here) do
+                        -- Refitting is ours: an entry the old layout had
+                        -- differently gets put back, not left for gone.
+                        if not U.findSprite(sq, w[3]) then record[entryKey(w)] = nil end
+                    end
+                    for _, o in ipairs(doomed) do removeSynced(sq, o) end
+                end
+            end
+        end
+    end
+end
+
+--- Forgets which tube squares have been refitted: what a fresh load of the
+--- save does, since the record is kept for the session only.
+function AS.forgetTubeRefit()
+    refitted = {}
+end
+
+local tubeWant = {}   -- t -> "lx,ly" -> { sprite -> entry }
+
+local function wantedInTube(t, tube)
+    if tubeWant[t] then return tubeWant[t] end
+    local out = {}
+    for _, f in ipairs(tube.floors) do
+        out[f[1] .. "," .. f[2]] = out[f[1] .. "," .. f[2]] or {}
+    end
+    for _, o in ipairs(tube.objects) do
+        local key = o[1] .. "," .. o[2]
+        out[key] = out[key] or {}
+        out[key][o[3]] = o
+    end
+    tubeWant[t] = out
+    return out
+end
+--- Builds whatever of tube t is loaded and not yet there. Idempotent and
+--- partial by design: returns how much it placed, and how many of the tube's
+--- floors it could not reach yet.
+function AS.buildTube(t)
+    local tube = L.tubes and L.tubes[t]
+    if not tube then return 0, 0 end
+    local k = tube.from
+    local made, waiting = 0, 0
+    U.try("adk.tubeRefit", refitTube, t, tube, wantedInTube(t, tube))
+    U.try("adk.tubeLegacy", AS.stripLegacy, t)
+    for _, f in ipairs(tube.floors) do
+        local x, y = A.at(k, f[1], f[2])
+        if U.chunkLoaded(x, y, A.Z) then
+            local sq = U.square(x, y, A.Z, true)
+            if sq and not sq:getFloor() then
+                -- Wilderness from a world made without the void map: never
+                -- anything of ours, never anything lying on the floor, never
+                -- anything a player built.
+                local doomed = {}
+                U.eachObject(sq, function(o)
+                    if tagOf(o) == nil and U.isWild(o) then
+                        table.insert(doomed, o)
+                    end
+                end)
+                for _, o in ipairs(doomed) do removeSynced(sq, o) end
+                U.try("addFloor", function() sq:addFloor(f[3]) end)
+                made = made + 1
+            end
+        else
+            waiting = waiting + 1
+        end
+    end
+    U.resetStockCursors()
+    local record = AS.madeTube(t)
+    for _, o in ipairs(tube.objects) do
+        local x, y = A.at(k, o[1], o[2])
+        if U.chunkLoaded(x, y, A.Z) then
+            local sq = U.square(x, y, A.Z, true)
+            if sq and fit(sq, o, k, record) then made = made + 1 end
+        end
+    end
+    -- What the night watch left lying about: once, ever, item by item as its
+    -- square loads. Taken away, it stays taken.
+    local done = AS.state().clutter
+    done[t] = done[t] or {}
+    for i, c in ipairs(tube.clutter or {}) do
+        if not done[t][i] then
+            local x, y = A.at(k, c[1], c[2])
+            if U.chunkLoaded(x, y, A.Z) then
+                local sq = U.square(x, y, A.Z, false)
+                if sq and sq:getFloor() then
+                    local item = U.try("adk.clutter", function()
+                        return sq:AddWorldInventoryItem(c[3], 0.2 + 0.15 * (i % 4), 0.25 + 0.2 * (i % 3), 0.0)
+                    end)
+                    if item then done[t][i] = true end
+                end
+            end
+        end
+    end
+    if made > 0 then
+        U.log("Adirondack %s: %d placed, %d squares not loaded yet", tube.name, made, waiting)
+    end
+    return made, waiting
+end
+
+--- Every tube touching a deck somebody is on: built as far as it has loaded.
+function AS.serviceTubes()
+    if not L.tubes then return 0 end
+    local want = {}
+    for _, p in ipairs(U.players()) do
+        local x = U.try("px", function() return p:getX() end)
+        local y = U.try("py", function() return p:getY() end)
+        local k = x and A.locate(x, y)
+        if k then
+            for t, tube in ipairs(L.tubes) do
+                if tube.from == k or tube.to == k then want[t] = true end
+            end
+        end
+    end
+    local made = 0
+    for t in pairs(want) do made = made + (AS.buildTube(t)) end
+    return made
 end
 
 ---------------------------------------------------------------------------
@@ -340,12 +681,23 @@ function AS.serviceDoctor(k)
             local x, y = A.at(k, o[1] + step[1], o[2] + step[2])
             local sq = U.square(x, y, A.Z, true)
             if sq then
+                local yaw = A.DoctorYaw[facing] or 0
                 local have = 0
                 U.try("adk.doctorCount", function()
                     local items = sq:getWorldObjects()
                     for i = 0, items:size() - 1 do
                         local it = items:get(i):getItem()
-                        if it and it:getFullType() == C.EmhItem then have = have + 1 end
+                        if it and it:getFullType() == C.EmhItem then
+                            have = have + 1
+                            -- A save from before the turn was seen has him
+                            -- facing the wall; the rotation is saved with
+                            -- the item, so this pass is what turns him round.
+                            if it:getWorldZRotation() ~= yaw then
+                                it:setWorldXRotation(0)
+                                it:setWorldYRotation(0)
+                                it:setWorldZRotation(yaw)
+                            end
+                        end
                     end
                 end)
                 if have == 0 then
@@ -356,7 +708,7 @@ function AS.serviceDoctor(k)
                         U.try("adk.doctorTurn", function()
                             item:setWorldXRotation(0)
                             item:setWorldYRotation(0)
-                            item:setWorldZRotation(A.DoctorYaw[facing] or 0)
+                            item:setWorldZRotation(yaw)
                         end)
                         placed = placed + 1
                     end
@@ -373,8 +725,10 @@ end
 -- An oven needs electricity, and a runtime deck is on no grid. The shuttle's
 -- answer (TREK_Build.servicePowerBus) is an invisible generator, fuelled from
 -- the ship's reserve; hers is the same, on the galley range's own square, so
--- the stove and the stasis units nearby have power, billed to her warp core.
+-- the stove and the stasis units nearby have power, billed to her warp core --
+-- or, on a field station sublevel, to the station's (FIELD_STATION.md 6).
 function AS.servicePowerBus(k)
+    local pool = A.siteOf(k) or "adk"
     local range = nil
     for _, o in ipairs(L.decks[k].objects) do
         if o[5] == "galley_range" then range = o break end
@@ -408,7 +762,7 @@ function AS.servicePowerBus(k)
     local max = U.try("adk.busMax", function() return gen:getMaxFuel() end) or 10
     local fuel = U.try("adk.busFuel", function() return gen:getFuel() end) or max
     if max - fuel > 0.0001 and TREK.Energy then
-        P.using("adk", function()
+        P.using(pool, function()
             TREK.Energy.energize(nil, "galley", (max - fuel) * C.FuelToEnergy,
                                  { partial = true, silent = true })
         end)
@@ -417,7 +771,7 @@ function AS.servicePowerBus(k)
     U.try("adk.busMend", function()
         if gen:getCondition() < 100 then gen:setCondition(100) end
     end)
-    local want = not P.dark("adk")
+    local want = not P.dark(pool)
     if U.try("adk.busOn", function() return gen:isActivated() end) ~= want then
         U.try("adk.busSwitch", function() gen:setActivated(want) end)
     end
@@ -478,6 +832,14 @@ local function doors()
             end
         end
     end
+    -- A hideout's hatch, in its tube's deck's frame.
+    for _, tube in ipairs(L.tubes or {}) do
+        for _, o in ipairs(tube.objects) do
+            if isDoorKind(o[4]) then
+                table.insert(doorList, { tube.from, o[1], o[2], o[4] == "dN", o[3] })
+            end
+        end
+    end
     return doorList
 end
 
@@ -515,7 +877,8 @@ end
 local doorTick = 0
 function AS.serviceDoors()
     doorTick = doorTick + 1
-    -- Who is aboard her, and where: once, for every door.
+    -- Who is aboard her, and where: once, for every door. Not sorted by deck:
+    -- a hatch on one deck's corridor is reached from the last deck's tube.
     local aboard = {}
     for _, p in ipairs(U.players()) do
         local x = U.try("px", function() return p:getX() end)
@@ -523,10 +886,8 @@ function AS.serviceDoors()
         local z = U.try("pz", function() return p:getZ() end)
         local dead = U.try("dead", function() return p:isDead() end)
         if x and dead == false then
-            local k = A.locate(x, y, z)
-            if k then
-                aboard[k] = aboard[k] or {}
-                table.insert(aboard[k], { p = p, x = x, y = y })
+            if A.locate(x, y, z) then
+                table.insert(aboard, { p = p, x = x, y = y })
             end
         end
     end
@@ -535,19 +896,16 @@ function AS.serviceDoors()
     -- door a crew member opens is usually one somebody is watching anyway.
     if TREK.CrewServer then
         for _, b in ipairs(TREK.CrewServer.bodies()) do
-            aboard[b.k] = aboard[b.k] or {}
-            table.insert(aboard[b.k], { p = b.z, x = b.x, y = b.y })
+            table.insert(aboard, { p = b.z, x = b.x, y = b.y })
         end
     end
-    local any = false
-    for _ in pairs(aboard) do any = true break end
-    if not any then return 0 end
+    if #aboard == 0 then return 0 end
 
     local moved = 0
     for _, d in ipairs(doors()) do
         local k, lx, ly, north = d[1], d[2], d[3], d[4]
-        local here = aboard[k]
-        if here then
+        local here = aboard
+        do
             local x, y = A.at(k, lx, ly)
             -- The middle of the doorway: a W door is the west edge of its
             -- square, an N door the north edge.
@@ -614,16 +972,23 @@ Net.onServer("adkBoarded", function(player, args)
     -- stand, and the request is theirs to make only from there.
     if not A.onShip(player) then return end
     waiting[nameOf(player)] = k
+    U.try("adk.tubesOnBoard", AS.serviceTubes)
     serviceWaiting()
 end)
 
 local tick = 0
+local tubeTick = 0
 Events.OnTick.Add(function()
     tick = tick + 1
     if tick < 10 then return end
     tick = 0
     U.try("adk.serviceWaiting", serviceWaiting)
     U.try("adk.serviceDoors", AS.serviceDoors)
+    tubeTick = tubeTick + 1
+    if tubeTick >= 3 then
+        tubeTick = 0
+        U.try("adk.serviceTubes", AS.serviceTubes)
+    end
 end)
 
 Events.EveryOneMinute.Add(function()

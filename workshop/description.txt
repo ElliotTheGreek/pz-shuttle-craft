@@ -1,6 +1,6 @@
 A Star Trek Starfleet Type 6 shuttlecraft and the starship U.S.S. Adirondack for Project Zomboid Build 42 -- single player, hosted co-op and dedicated servers.
 
-5 new weapons: Phaser (never runs dry, far quieter than a gun, cuts down trees and cuts through locked doors), Bat'leth, Mek'leth, Lirpa, Ushaan-tor -- plus the shuttle's photon torpedoes.
+11 new weapons: Phaser and Phaser Rifle (never run dry, far quieter than a gun, cut down trees and cut through locked doors), Klingon disruptor and disruptor rifle, Romulan disruptor, Jem'Hadar polaron rifle, Cardassian phaser, Bat'leth, Mek'leth, Lirpa, Ushaan-tor -- plus the shuttle's photon torpedoes and a Starfleet holster.
 3 new medical items: Hypospray, Dermal Regenerator, Medical Tricorder.
 18 new foods and drinks: Ration Pack, Gagh, Leola Root Stew, Plomeek Soup, Jumja Stick, Andorian Tuber, Oskoid, Wing-Slug Roll, Hasperat, Rokeg Blood Pie, Chadre'kab, Raktajino, Earl Grey, Romulan Ale, Bloodwine, Andorian Ale, Balso Tonic, Nutrient Suspension.
 22 new farming items: seven alien seeds, their produce, dried and ground ingredients, and live serpent worms.
@@ -16,6 +16,18 @@ A cabin with a helm, a working galley, running water, a biobed, a sick bay, a re
 
 THE U.S.S. ADIRONDACK
 A working starship in orbit. Beam across from the shuttle and ride the turbolifts between five decks: the Bridge, the Lounge, Galley and crew quarters, the Transporter Room and Sickbay, Main Engineering, and Hydroponics. Fifty new pieces of Starfleet furniture -- seats, beds, doors that open as you walk up, and stocked lockers. She has a crew: officers of every division and several species ride the lifts, walk to their posts, sit, and talk about the ship, the county and you.
+
+JEFFERIES TUBES AND CONTRABAND
+Crawl between the Adirondack's decks through Jefferies tubes, over the stars. Three hideouts off them hold what the off-watch crew keep from the first officer: ketracel-white, felicium, Trellium-D, the Ktarian game, latinum -- and other cultures' weapons. Some of it is habit-forming; the Doctor will detox you.
+
+THE FIELD STATION
+Somewhere in Muldraugh a Starfleet survey station is hidden under an ordinary shop. Listen to the Adirondack's crew: they talk about the field office that went dark in June. Find the way down and you find one long floor of quarters, operations, a galley and replicator, an armoury, an infirmary and a reactor -- and the people who never left.
+
+STARFLEET AT HOME
+Install a warp core, a replicator and an EMH station in any house from kits (right-click the kit: Install here). Load the core with dilithium and everything within 25 squares runs on it. The ship's replicator makes the kits. Dismantle packs a machine back up.
+
+BUILD ABOARD
+Build and place what you like in the shuttle, on the Adirondack and in the field station, and move their furniture like vanilla's. Nothing you build or move is undone.
 
 HYDROPONICS
 Grow seven alien crops on Deck 5 -- tea, bergamot, Klingon coffee, plomeek, leola root, Andorian tuber and hasperat peppers -- and cook Earl Grey, Raktajino, plomeek soup, leola root stew and hasperat from scratch. The ship waters and tends the trays; you sow and harvest. Feed the serpent worm tanks and they breed: five worms and a bowl make live gagh. Homegrown food is real food, which Klingons and Real Food Only characters will happily eat.
@@ -40,6 +52,9 @@ Play a Vulcan, Klingon, Andorian, Betazoid, Trill, Bajoran, Talaxian, Orion, and
 
 SHIELDS
 Nothing dead gets within ten tiles of the landed ship. They are pushed back, not killed. Raise them at the helm.
+
+THE MAP
+Readable aboard, in the shuttle's seat and with a tricorder or PADD at any hour, even with Map Needs Light on. A red dot marks you and an orange dot the landed shuttle.
 
 QUICK GUIDE
 - The sensor console (aboard: Shuttlecraft -> Long-range sensors) launches probes and answers distress calls. Its map marks are approximate -- always take a tricorder.

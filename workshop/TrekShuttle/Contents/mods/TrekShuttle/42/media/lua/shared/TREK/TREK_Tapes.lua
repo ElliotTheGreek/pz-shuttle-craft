@@ -925,6 +925,43 @@ RecMedia["TREK_GoldSix"] = {
     },
 }
 
+-- Holosuite programme reel (dubbed off a display loop)
+RecMedia["TREK_Holosuite"] = {
+    itemDisplayName = "RM_TREK_Holosuite_name",
+    title = "RM_TREK_Holosuite_title",
+    subtitle = "RM_TREK_Holosuite_sub",
+    author = "RM_TREK_Holosuite_author",
+    extra = "RM_TREK_Holosuite_extra",
+    spawning = 0,
+    category = "Trek-VHS",
+    lines = {
+        { text = "RM_TREK_Holosuite_01", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_02", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_03", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_04", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_05", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_06", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_07", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_08", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_09", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_10", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_Holosuite_11", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_12", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_13", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_14", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_15", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_16", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_17", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_Holosuite_18", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_19", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_20", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_21", r = 0.44, g = 0.19, b = 0.63, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_22", r = 0.00, g = 0.69, b = 0.94, codes = "BOR-1,UHP-1" },
+        { text = "RM_TREK_Holosuite_23", r = 0.00, g = 0.69, b = 0.31, codes = "BOR-1" },
+        { text = "RM_TREK_Holosuite_24", r = 1.00, g = 1.00, b = 1.00, codes = "BOR-1" },
+    },
+}
+
 -- The ids the ship is issued with, in shelf order. TREK_Build
 -- reads this to stock the tape shelf, so a tape added above
 -- reaches the shelf without a second list to keep in step.
@@ -966,6 +1003,7 @@ TREK_AllTapeIds = {
     "TREK_GoldFour",
     "TREK_GoldFive",
     "TREK_GoldSix",
+    "TREK_Holosuite",
 }
 
 Events.OnInitRecordedMedia.Add(function(rc)

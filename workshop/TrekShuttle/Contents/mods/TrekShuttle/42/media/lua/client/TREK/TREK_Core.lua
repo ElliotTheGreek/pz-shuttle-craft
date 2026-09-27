@@ -99,6 +99,14 @@ end
 local DENIALS = {
     access        = "IGUI_TREK_NotCrew",
     wrongPlace    = "IGUI_TREK_WrongPlace",
+    stationFar    = "IGUI_TREK_StationFar",
+    -- Installations (INSTALLATIONS.md).
+    instFar       = "IGUI_TREK_InstFar",
+    instOurs      = "IGUI_TREK_InstOurs",
+    instBlocked   = "IGUI_TREK_InstBlocked",
+    instSafehouse = "IGUI_TREK_InstSafehouse",
+    instNoKit     = "IGUI_TREK_InstNoKit",
+    instNoCore    = "IGUI_TREK_InstNoCore",
     notLanded     = "IGUI_TREK_NotLanded",
     bookmarksFull = "IGUI_TREK_BookmarksFull",
     crewSeated    = "IGUI_TREK_CrewSeated",
@@ -143,6 +151,13 @@ local DENIALS = {
     emhNoOffer        = "IGUI_TREK_EmhNoOffer",
     emhOfferLapsed    = "IGUI_TREK_EmhOfferLapsed",
     emhGone           = "IGUI_TREK_EmhGone",
+    emhClean          = "IGUI_TREK_EmhNoHabit",
+    -- Contraband (CONTRABAND.md).
+    gameNobody        = "IGUI_TREK_GameNobody",
+    gameFar           = "IGUI_TREK_GameFar",
+    gameNone          = "IGUI_TREK_GameNone",
+    strobeNoPadd      = "IGUI_TREK_StrobeNoPadd",
+    strobeClean       = "IGUI_TREK_StrobeClean",
     -- The downed ensign (ENSIGN.md).
     distressAboard    = "IGUI_TREK_DistressAboard",
     distressGone      = "IGUI_TREK_DistressGone",

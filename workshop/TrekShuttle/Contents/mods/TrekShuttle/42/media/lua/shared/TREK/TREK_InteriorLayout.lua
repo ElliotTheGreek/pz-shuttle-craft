@@ -169,10 +169,12 @@ L.tiles = {
     ---------------------------------------------------------------------
     -- Quantities are set by `cap` rather than by weight, and `fill = 1.0`
     -- puts the weight target out of the way so that the cap is what decides.
-    -- Each cap is a multiple of its list length, so every item goes in the
-    -- same number of times whatever the rolling cursor is doing: three
-    -- containers cannot spread a list the way nineteen did, and a locker that
-    -- happens to miss the ushaan-tor looks exactly like one that does not.
+    -- A cap at least as long as its list puts every item in at least once
+    -- whatever the rolling cursor is doing: three containers cannot spread a
+    -- list the way nineteen did, and a locker that happens to miss the
+    -- ushaan-tor looks exactly like one that does not. The armoury and the
+    -- sick bay are exact multiples; the provisions' 27 covers the 18-item
+    -- food list once and nine of it twice.
     --
     -- `special` is the belt to that braces: U.stockEach puts one of each in
     -- and then reads the container back, so a guarantee that did not land is
@@ -188,7 +190,7 @@ L.tiles = {
       fill = 1.0, cap = 8 },        -- 4 phasers + 2 of each of the 4 blades
     { x = 3, y = 1, sprite = "furniture_storage_02_11", tag = "provisions",
       container = true, loot = "food",
-      fill = 1.0, cap = 27 },       -- 3 of each of the 5 dishes and 4 drinks
+      fill = 1.0, cap = 27 },       -- the 18-item food list once, then 9 more
     { x = 3, y = 2, sprite = "furniture_storage_02_11", tag = "medical",
       container = true, special = "medkit", loot = "medical",
       fill = 1.0, cap = 8 },        -- 3 of each instrument

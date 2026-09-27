@@ -33,6 +33,7 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Power"
 require "TREK/TREK_Medical"
+require "TREK/TREK_Contraband"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -67,6 +68,9 @@ function E.isStation(x, y, z)
     if TREK.Adirondack and TREK.Adirondack.clickedMachine("emh_station", x, y, z, 1) then
         return true
     end
+    if TREK.Installations and TREK.Installations.clickedMachine("emh_station", x, y, z, 1) then
+        return true
+    end
     if math.floor(z or 0) ~= C.CabinZ then return false end
     for _, spot in ipairs(C.EmhMenuSpots) do
         local sx, sy = U.at(spot[1], spot[2])
@@ -86,6 +90,9 @@ end
 function E.inReach(x, y, z)
     if not x or not y then return false end
     if TREK.Adirondack and TREK.Adirondack.nearMachine("emh_station", x, y, z, C.EmhRange + 1) then
+        return true
+    end
+    if TREK.Installations and TREK.Installations.nearMachine("emh_station", x, y, z, C.EmhRange + 1) then
         return true
     end
     if not U.isAboard(x, y, z) then return false end
@@ -132,6 +139,10 @@ function E.isUp(player)
     -- Aboard the Adirondack her station is always projecting him: there is
     -- nothing to summon, and nothing to stand up in the shuttle's cabin.
     if player and TREK.Adirondack and TREK.Adirondack.onShip(player) then return true end
+    -- An installed station projects him too, whenever its core has power.
+    if player and TREK.Installations and TREK.Installations.near(player, "emh_station", C.EmhRange + 3) then
+        return true
+    end
     return TREK.Ship.get().emh == true
 end
 
@@ -158,6 +169,8 @@ function E.aboardForCure(player)
     if not player then return false end
     if U.isInteriorPlayer(player) then return true end
     if TREK.Adirondack and TREK.Adirondack.onShip(player) then return true end
+    -- In reach of the core an installed station runs on (INSTALLATIONS.md).
+    if TREK.Installations and TREK.Installations.placeOf(player) then return true end
     local vehicle = U.try("emh.vehicle", function() return player:getVehicle() end)
     return vehicle ~= nil and TREK.Vehicle ~= nil and TREK.Vehicle.isShuttle(vehicle) == true
 end
@@ -193,12 +206,21 @@ end
 function E.patients(asking)
     local out = {}
     local mine = asking and TREK.Ship.usernameOf(asking) or nil
-    -- Everyone aboard the ship the asker is in: the shuttle's cabin, or the
-    -- Adirondack.
-    local adk = asking ~= nil and TREK.Adirondack ~= nil and TREK.Adirondack.onShip(asking)
+    -- Everyone aboard the place the asker is in: the shuttle's cabin, the
+    -- Adirondack, or the field station -- never another of the three.
+    local A = TREK.Adirondack
+    local IN = TREK.Installations
+    -- Or an installation: the same core's reach (INSTALLATIONS.md).
+    local function placeOf(p)
+        local s = A ~= nil and A.siteOfPlayer(p) or nil
+        if s then return s end
+        if U.isInteriorPlayer(p) then return nil end
+        return IN ~= nil and IN.placeOf(p) or nil
+    end
+    local site = asking ~= nil and placeOf(asking) or nil
     for _, p in ipairs(U.players()) do
         local alive = U.try("emh.alive", function() return p:isDead() end) == false
-        local here = (adk and TREK.Adirondack.onShip(p)) or (not adk and U.isInteriorPlayer(p))
+        local here = (site and placeOf(p) == site) or (not site and U.isInteriorPlayer(p))
         if alive and here then
             local name = TREK.Ship.usernameOf(p)
             local row = { player = p, name = name, own = (name == mine) or nil }
@@ -217,10 +239,14 @@ end
 ---
 --- **Used by the server and by nothing else that matters.** The patient is
 --- never taken from what a client sent: the name is looked up here, against
---- this process's own view of where people are standing.
-function E.patientNamed(name)
+--- this process's own view of where people are standing -- in the place
+--- `asking` stands in (the cabin, the Adirondack or the field station), so a
+--- Doctor on one never reaches a patient in another. Without `asking`, the
+--- cabin, as it always was; on the Adirondack that used to mean nobody else
+--- could ever be treated there, because the patient was looked for aft.
+function E.patientNamed(name, asking)
     if type(name) ~= "string" or name == "" or #name > 64 then return nil end
-    for _, row in ipairs(E.patients(nil)) do
+    for _, row in ipairs(E.patients(asking)) do
         if row.name == name then return row.player end
     end
     return nil
@@ -243,9 +269,12 @@ function E.refusal(player)
     if U.try("emh.dead", function() return player:isDead() end) ~= false then
         return "access"
     end
-    if not TREK.Ship.canUse(player) then return "access" end
+    local IN = TREK.Installations
+    -- The shuttle's access rule is about the shuttle, not somebody's house.
+    if not TREK.Ship.canUse(player) and not (IN and IN.placeOf(player)) then return "access" end
     if E.isOff() then return "emhOff" end
     if not E.inReachOf(player) then return "emhFar" end
+    if IN and IN.orphaned(player, "emh_station", C.EmhRange + 1) then return "instNoCore" end
     -- A dark ship cannot project him at all (ENERGY.md 6). Published as a
     -- flag, so a client's panel greys with the ship's own answer.
     if TREK.Power.dark(TREK.Power.poolOf(player)) then
@@ -329,7 +358,20 @@ function E.findings(patient)
     -- panel at all.
     out.infected = Med.isInfected(patient)
     out.bitten = Med.isBitten(patient)
+    -- What they are hooked on (CONTRABAND.md), by substance name. Not counted
+    -- in `total`: that is what a treatment mends, and a habit is the detox's.
+    out.dependent = TREK.Contraband.dependencies(patient)
     return out
+end
+
+--- Why a **detox** would be refused for this patient, or nil.
+---
+--- Read from the record this machine can see: the server's own on the
+--- server, the patient's mirror of it on their own client (TREK_Contraband).
+function E.detoxRefusal(patient)
+    if not patient then return "emhNoPatient" end
+    if not TREK.Contraband.isDependent(patient) then return "emhClean" end
+    return nil
 end
 
 --- Why a **cure** would be refused for this patient, or nil.

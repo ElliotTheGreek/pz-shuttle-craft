@@ -7,6 +7,13 @@
       toAdirondack    from the shuttle's cabin to the Adirondack's pad
       fromAdirondack  from anywhere aboard her back to the shuttle's pad
       turbolift       from the lift car on one deck to the car on another
+      stationDown     from the panel in the Muldraugh stockroom to the field
+                      station's first sublevel (FIELD_STATION.md 3)
+      stationUp       from a field station lift car back to the stockroom
+
+    **The field station's sublevels are decks of the same layout**, marked
+    `site = "fst"`: everything here works on them unchanged, and the site only
+    decides what the lift lists, the menu's title and the way out.
 
     Every arrival is the cabin's arrival (TREK_Core): the player is put on the
     spot and held there -- the deck is five storeys up with nothing below --
@@ -14,6 +21,12 @@
 
     And while anybody is aboard her, the same rule as the cabin: somebody off
     the deck (over a wall, into the black) is put back, never left to fall.
+
+    **The Jefferies tubes are walked, not ridden** (JEFFERIES.md): nobody is
+    moved. In a tube's crawlway the player's own character crawls -- vanilla's
+    Bob_Crawl, which no vanilla state plays, through the mod's AnimSets node
+    keyed on the TrekCrawl variable -- held to a sneak and never a run; out of
+    it, their own sneak is given back as it was.
 ]]
 
 if isServer() then return end
@@ -24,6 +37,7 @@ require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Core"
 require "TREK/TREK_Adirondack"
+require "TREK/TREK_FieldStation"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -32,6 +46,7 @@ local Net = TREK.Net
 local Ship = TREK.Ship
 local Core = TREK.Core
 local A = TREK.Adirondack
+local FS = TREK.FieldStation
 local L = A.Layout
 
 local AC = {}
@@ -41,6 +56,9 @@ TREK.AdirondackClient = AC
 AC.pending = nil
 -- Standing on a spot waiting for the deck: { player, x, y, z, deck, tries }.
 local arrival = nil
+-- Back up in the stockroom, waiting for Kentucky to stream in:
+-- { player, x, y, z, tries, settled }.
+local surfacing = nil
 -- deck -> true once the server has said it is built at this layout.
 local ready = {}
 
@@ -49,7 +67,7 @@ local SETTLE_TICKS = 15
 local ARRIVAL_TIMEOUT = 1800
 
 local function busy()
-    return AC.pending ~= nil or arrival ~= nil or Core.moveWaiting()
+    return AC.pending ~= nil or arrival ~= nil or surfacing ~= nil or Core.moveWaiting()
         or (TREK.Transport and TREK.Transport.pending ~= nil) or Core.arriving()
 end
 AC.busy = busy
@@ -84,6 +102,25 @@ local function lightDeck(k)
         end
     end
     local c = C.CabinLight
+    -- And the tubes that leave or reach this deck: a lamp every few squares
+    -- of crawlway and one over each hideout's table.
+    for _, tube in ipairs(L.tubes or {}) do
+        if tube.from == k or tube.to == k then
+            local spots = {}
+            for i = 1, #tube.path, C.TubeLampEvery do table.insert(spots, tube.path[i]) end
+            -- Over the table: the middle of the hideout's third row.
+            if tube.hideout then table.insert(spots, tube.hideout[13]) end
+            for _, p in ipairs(spots) do
+                local key = "t" .. tube.from .. "," .. p[1] .. "," .. p[2]
+                if not lamps[key] then
+                    local x, y = A.at(tube.from, p[1], p[2])
+                    lamps[key] = U.try("light.add", function()
+                        return cell:addLamppost(x, y, A.Z, c[1], c[2], c[3], c[4])
+                    end)
+                end
+            end
+        end
+    end
     for ly = 1, L.H - 1, 4 do
         for lx = 1, L.W - 1, 4 do
             local key = k .. "," .. lx .. "," .. ly
@@ -133,17 +170,58 @@ local function serviceArrival()
         lightDeck(job.deck)
         local deck = L.decks[job.deck]
         U.note(p, getText("IGUI_TREK_AdkDeck", deck.name, deck.description), 120, 190, 255)
-        U.log("materialised on the Adirondack, %s", deck.name)
+        U.log("arrived on the %s, %s", A.siteOf(job.deck) == "fst" and "field station" or "Adirondack",
+              deck.name)
         return
     end
 
     if job.tries > ARRIVAL_TIMEOUT then
         arrival = nil
+        if A.siteOf(job.deck) == "fst" then
+            -- The station never came: back up to the stockroom, not to a
+            -- shuttle this player may never have been aboard.
+            U.log("the field station's %s never arrived; back to the stockroom", L.decks[job.deck].name)
+            U.note(p, getText("IGUI_TREK_StationLost"), 255, 90, 90)
+            AC.surface(p)
+            return
+        end
         U.log("the Adirondack's %s never arrived; back to the shuttle", L.decks[job.deck].name)
         U.note(p, getText("IGUI_TREK_AdkLostLock"), 255, 90, 90)
         Core.beginArrival(p, true)
     end
 end
+AC.beginArrival = beginArrival
+
+--- Puts a player on the stockroom floor in front of the panel and holds them
+--- there until the ground is loaded under them. Kentucky is a real map, so
+--- the only wait is for its chunk to stream in.
+function AC.surface(player)
+    local x, y, z = FS.standSpot()
+    surfacing = { player = player, x = math.floor(x), y = math.floor(y), z = z, tries = 0 }
+    U.teleport(player, x, y, z)
+    Core.hold(player, math.floor(x), math.floor(y), z)
+    Core.refreshInventoryUI()
+end
+
+local function serviceSurfacing()
+    local job = surfacing
+    if not job then return end
+    local p = job.player
+    if not p then surfacing = nil return end
+    job.tries = job.tries + 1
+    Core.hold(p, job.x, job.y, job.z)
+    if floorAt(job.x, job.y, job.z) then
+        job.settled = (job.settled or 0) + 1
+        if job.settled < SETTLE_TICKS then return end
+    elseif job.tries < ARRIVAL_TIMEOUT then
+        return
+    end
+    surfacing = nil
+    U.log("up from the field station, in the stockroom at %d,%d", job.x, job.y)
+    U.note(p, getText("IGUI_TREK_StationUpArrived"), 120, 190, 255)
+end
+
+function AC.surfacing() return surfacing end
 
 ---------------------------------------------------------------------------
 -- Moves
@@ -164,7 +242,7 @@ end
 
 --- From anywhere aboard her back to the shuttle's pad.
 function AC.beamBack(player)
-    if not player or not A.onShip(player) then return false end
+    if not player or not A.onAdirondack(player) then return false end
     if busy() then busyNote(player) return false, "busy" end
     Core.requestMove(player, "fromAdirondack", function(p)
         AC.pending = { player = p, dir = "back", tries = 0 }
@@ -174,10 +252,12 @@ function AC.beamBack(player)
 end
 
 --- From this deck's lift car to deck `to`'s, at the same spot in the car.
+--- Only within one site: the Adirondack's lift goes to her decks, the field
+--- station's to its sublevels.
 function AC.ride(player, to)
     if not player or not L.decks[to] then return false end
     local inLift, k = A.inLift(player:getX(), player:getY(), player:getZ())
-    if not inLift or k == to then return false end
+    if not inLift or k == to or A.siteOf(k) ~= A.siteOf(to) then return false end
     if busy() then busyNote(player) return false, "busy" end
     local _, lx, ly = A.locate(player:getX(), player:getY(), player:getZ())
     Core.requestMove(player, "turbolift", function(p)
@@ -187,12 +267,39 @@ function AC.ride(player, to)
     return true
 end
 
+--- Down from the panel behind the breaker box to the station's first
+--- sublevel (FIELD_STATION.md 3).
+function AC.goDown(player)
+    if not player or not FS.found() or not FS.playerInReach(player) then return false end
+    local first = FS.firstDeck()
+    if not first then return false end
+    if busy() then busyNote(player) return false, "busy" end
+    Core.requestMove(player, "stationDown", function(p)
+        AC.pending = { player = p, dir = "down", tries = 0, deck = first }
+        U.note(p, getText("IGUI_TREK_StationGoingDown"), 120, 190, 255)
+    end)
+    return true
+end
+
+--- Up from a station lift car to the stockroom.
+function AC.goUp(player)
+    if not player or not A.onStation(player) then return false end
+    if not A.inLift(player:getX(), player:getY(), player:getZ()) then return false end
+    if busy() then busyNote(player) return false, "busy" end
+    Core.requestMove(player, "stationUp", function(p)
+        AC.pending = { player = p, dir = "up", tries = 0 }
+        U.note(p, getText("IGUI_TREK_StationGoingUp"), 120, 190, 255)
+    end)
+    return true
+end
+
 local function servicePending()
     local job = AC.pending
     if not job then return end
     if not job.player then AC.pending = nil return end
     job.tries = job.tries + 1
-    local delay = job.dir == "lift" and LIFT_DELAY or C.BeamDelay
+    local delay = (job.dir == "lift" or job.dir == "down" or job.dir == "up") and LIFT_DELAY
+                  or C.BeamDelay
     if job.tries < delay then return end
     AC.pending = nil
     local p = job.player
@@ -210,12 +317,24 @@ local function servicePending()
     elseif job.dir == "lift" then
         local x, y = A.at(job.deck, job.lx, job.ly)
         beginArrival(p, x, y, job.deck)
+    elseif job.dir == "down" then
+        -- The stockroom is where this player is on the map while they are
+        -- below it; the server wrote the same on its own copy before the
+        -- move (TREK_Server, MOVES).
+        Ship.setReturnPoint(p, p:getX(), p:getY(), p:getZ())
+        Ship.playerData(p).aboard = false
+        local x, y = A.liftSpot(job.deck)
+        U.log("down to the field station, %s", L.decks[job.deck].name)
+        beginArrival(p, x, y, job.deck)
+    elseif job.dir == "up" then
+        AC.surface(p)
     end
 end
 
 Events.OnTick.Add(function()
     U.try("adk.pending", servicePending)
     U.try("adk.arrival", serviceArrival)
+    U.try("adk.surfacing", serviceSurfacing)
 end)
 
 ---------------------------------------------------------------------------
@@ -232,7 +351,18 @@ local function checkAboard(player)
     -- Two levels is the most a fall covers before this catches it.
     if z < A.Z - 2 then return end
     local k, lx, ly = A.locate(x, y)
-    if not k then return end
+    if not k then
+        -- On one of the field station's old sublevels (a save from the one
+        -- day it had three): nothing is there any more to stand on or leave
+        -- by. Onto the station's floor, in its lift car.
+        if A.inLegacyStation(x, y) and TREK.FieldStation and TREK.FieldStation.firstDeck() then
+            local first = TREK.FieldStation.firstDeck()
+            local sx, sy = A.liftSpot(first)
+            U.log("standing on the field station's old sublevels; to %s", L.decks[first].name)
+            beginArrival(player, sx, sy, first)
+        end
+        return
+    end
     local who = U.try("username", function() return player:getUsername() end) or "?"
 
     if A.inside(k, lx, ly) then
@@ -259,9 +389,45 @@ local function checkAboard(player)
     U.note(player, getText("IGUI_TREK_NoWayOut"), 255, 170, 90)
 end
 
+---------------------------------------------------------------------------
+-- Crawling
+---------------------------------------------------------------------------
+-- username -> { sneaking = what it was before the tube }, while in one.
+local crawlers = {}
+
+--- On a tube's crawlway: down on all fours, at a sneak, never a run. Off it:
+--- up again, and sneaking only if they were before they went in. Only this
+--- client's own character, which is the only one a client may touch.
+function AC.serviceCrawl(player)
+    local who = U.try("username", function() return player:getUsername() end) or "?"
+    local st = crawlers[who]
+    if A.crawling(player:getX(), player:getY(), player:getZ()) then
+        if not st then
+            st = { sneaking = player:isSneaking() == true }
+            crawlers[who] = st
+        end
+        player:setVariable("TrekCrawl", true)
+        if not player:isSneaking() then player:setSneaking(true) end
+        player:setRunning(false)
+        player:setSprinting(false)
+        return true
+    elseif st then
+        crawlers[who] = nil
+        player:setVariable("TrekCrawl", false)
+        player:setSneaking(st.sneaking)
+    end
+    return false
+end
+
+function AC.isCrawling(player)
+    local who = player and U.try("username", function() return player:getUsername() end)
+    return who ~= nil and crawlers[who] ~= nil
+end
+
 Events.OnPlayerUpdate.Add(function(player)
     if not player or not player:isLocalPlayer() or player:isDead() then return end
     U.try("adk.checkAboard", checkAboard, player)
+    U.try("adk.crawl", AC.serviceCrawl, player)
 end)
 
 ---------------------------------------------------------------------------
@@ -270,6 +436,8 @@ end)
 function AC.onBeamTo(_, player) AC.beamTo(player) end
 function AC.onBeamBack(_, player) AC.beamBack(player) end
 function AC.onRide(_, player, k) AC.ride(player, k) end
+function AC.onUp(_, player) AC.goUp(player) end
+function AC.onDown(_, player) AC.goDown(player) end
 
 --- The right-click menu anywhere aboard her. Replaces the shuttle's ground
 --- menu there: calling the shuttle down onto a deck five storeys up in the
@@ -278,7 +446,8 @@ function AC.menu(context, player, worldobjects, test)
     if test then return ISWorldObjectContextMenu.setTest() end
     local k, lx, ly = A.locate(player:getX(), player:getY(), player:getZ())
     local deck = k and L.decks[k]
-    local title = getText("IGUI_TREK_Adirondack")
+    local site = A.siteOf(k)
+    local title = getText(site == "fst" and "IGUI_TREK_FieldStation" or "IGUI_TREK_Adirondack")
     if deck then title = title .. " - " .. deck.name end
     local sub = context:addOption(title, worldobjects, nil)
     local menu = ISContextMenu:getNew(context)
@@ -286,19 +455,36 @@ function AC.menu(context, player, worldobjects, test)
 
     local inLift = A.inLift(player:getX(), player:getY(), player:getZ())
     if inLift then
-        local liftSub = menu:addOption(getText("IGUI_TREK_Turbolift"), worldobjects, nil)
+        local label = getText(site == "fst" and "IGUI_TREK_StationLift" or "IGUI_TREK_Turbolift")
+        -- The phobic are told before they choose, not only after (TRAITS.md 4.3).
+        if TREK.Traits and TREK.Traits.has(player, "turboliftphobia") then
+            label = label .. " " .. getText("IGUI_TREK_LiftPhobiaWarn")
+        end
+        local liftSub = menu:addOption(label, worldobjects, nil)
         local lift = ISContextMenu:getNew(menu)
         menu:addSubMenu(liftSub, lift)
-        for j, d in ipairs(L.decks) do
+        -- The station's lift goes up to the stockroom as well as between
+        -- its own sublevels; hers goes only between her decks.
+        if site == "fst" then
+            lift:addOption(getText("IGUI_TREK_StationUp", C.FieldStation.name), worldobjects,
+                           AC.onUp, player)
+        end
+        for _, j in ipairs(A.decksOf(site)) do
+            local d = L.decks[j]
             local opt = lift:addOption(getText("IGUI_TREK_AdkDeck", d.name, d.description),
                                        worldobjects, AC.onRide, player, j)
             if j == k then opt.notAvailable = true end
         end
     else
-        local hint = menu:addOption(getText("IGUI_TREK_TurboliftHint"), worldobjects, nil)
+        local hint = menu:addOption(getText(site == "fst" and "IGUI_TREK_StationLiftHint"
+                                            or "IGUI_TREK_TurboliftHint"), worldobjects, nil)
         hint.notAvailable = true
     end
-    menu:addOption(getText("IGUI_TREK_BeamToShuttle"), worldobjects, AC.onBeamBack, player)
+    -- Her transporter is the way off her. The station has none: its way out
+    -- is the lift.
+    if site ~= "fst" then
+        menu:addOption(getText("IGUI_TREK_BeamToShuttle"), worldobjects, AC.onBeamBack, player)
+    end
     return true
 end
 

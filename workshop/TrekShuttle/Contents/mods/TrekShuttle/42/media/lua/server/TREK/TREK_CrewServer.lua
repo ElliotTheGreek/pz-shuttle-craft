@@ -115,12 +115,24 @@ local function lineMs(chars)
     return CS.LineBase + CS.LinePerChar * chars
 end
 
-local function barkFrom(cat, place)
+--- True when talk tagged `where` may be said at `place` on deck k.
+---
+--- **`any` means anywhere on the Adirondack, `station` anywhere in the field
+--- station** (FIELD_STATION.md 7): the ship's talk is about orbit, the lounge
+--- viewer and the galley upstairs, and played in a bunker it would be wrong.
+--- A room's own tag matches on either.
+function CS.fits(where, place, k)
+    if place and where[place] then return true end
+    if A.siteOf(k) == "fst" then return where.station == true end
+    return where.any == true
+end
+
+local function barkFrom(cat, place, k)
     local list = Talk.barks and Talk.barks[cat]
     if not list then return nil end
     local fit = {}
     for _, b in ipairs(list) do
-        if b.where.any or (place and b.where[place]) then table.insert(fit, b) end
+        if CS.fits(b.where, place, k) then table.insert(fit, b) end
     end
     if #fit == 0 then return nil end
     return fit[rnd(#fit) + 1]
@@ -128,7 +140,7 @@ end
 
 local function bark(m, cat)
     local place = K.placeAt(m.e.deck, m.lx or 0, m.ly or 0)
-    local b = barkFrom(cat, place)
+    local b = barkFrom(cat, place, m.e.deck)
     if not b then return false end
     say(m, b.key, b.n)
     m.barkAt = now()
@@ -258,10 +270,17 @@ CS.spawn = spawn
 local PREFER = {
     helm = { bridge = 5, readyroom = 1 }, command = { bridge = 4, readyroom = 2 },
     medical = { sickbay = 6 }, engineer = { engineering = 6 },
-    security = { bridge = 2, transporter = 2, corridor = 2 },
+    -- The armoury off the bridge (ARMOURY.md 6) is security's own.
+    security = { armoury = 4, bridge = 2, transporter = 2, corridor = 2 },
     operations = { transporter = 3, engineering = 2, galley = 2 },
-    sciences = { bridge = 2, sickbay = 2 },
+    sciences = { bridge = 2, sickbay = 2, ops = 3, records = 3 },
 }
+-- And in the field station (FIELD_STATION.md 7).
+PREFER.helm.ops, PREFER.command.ops = 3, 3
+PREFER.medical.infirmary = 6
+PREFER.engineer.reactor = 6
+PREFER.security.ops = 4
+PREFER.operations.reactor, PREFER.operations.mess = 2, 2
 
 local function spotKey(k, s) return k .. ":" .. s.x .. "," .. s.y end
 
@@ -527,7 +546,7 @@ local function tryScene(k, t)
         local place = K.placeAt(k, seed.lx, seed.ly)
         local fit, total = {}, 0
         for _, sc in ipairs(Talk.scenes) do
-            if (sc.where.any or (place and sc.where[place])) and not (sc.lore and seen[sc.id]) then
+            if CS.fits(sc.where, place, k) and not (sc.lore and seen[sc.id]) then
                 local w = sc.weight * (sc.lore and 0.25 or 1) * (sc.rare and 0.5 or 1)
                 table.insert(fit, { sc, w })
                 total = total + w
@@ -590,7 +609,8 @@ local function barkAt(p, t)
         cat = "outfit"
     elseif species and rnd(10) < 3 and Talk.barks["species:" .. species] then
         cat = "species:" .. species
-    elseif (place == "transporter" or place == "sickbay") and rnd(10) < 3 then
+    elseif (place == "transporter" or place == "sickbay") and rnd(10) < 3
+           and Talk.barks.thanks then
         cat = "thanks"
     end
     if bark(best, cat) or (cat ~= "hello" and bark(best, "hello")) then
@@ -641,7 +661,9 @@ local function sweepStrays()
             -- The clients' copies go too (TREK_CrewClient, crewGone).
             if id ~= nil then Net.toAll("crewGone", { id = tostring(id) }) end
         end
-        if #doomed > 0 then U.log("crew: removed %d stray zombie(s) from the Adirondack", #doomed) end
+        if #doomed > 0 then
+            U.log("crew: removed %d stray zombie(s) from the Adirondack or the field station", #doomed)
+        end
     end)
 end
 

@@ -122,7 +122,11 @@ function Ship.worldOrigin(player)
         local px = U.try("originX", function() return player:getX() end)
         local py = U.try("originY", function() return player:getY() end)
         local pz = U.try("originZ", function() return player:getZ() end)
-        if px and py and not U.isAboard(px, py, pz) then
+        -- Below the Muldraugh stockroom a player is *at* the stockroom as
+        -- far as the map is concerned (FIELD_STATION.md 3): their return
+        -- point, written by both ends when they went down.
+        local below = TREK.Adirondack ~= nil and TREK.Adirondack.onStation(player)
+        if px and py and not below and not U.isAboard(px, py, pz) then
             return math.floor(px), math.floor(py)
         end
         local rx, ry = Ship.returnPoint(player)

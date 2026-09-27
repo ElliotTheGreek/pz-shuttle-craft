@@ -35,6 +35,10 @@ T.STATS = {
     UNHAPPINESS = { 0, 100 }, BOREDOM = { 0, 100 }, PANIC = { 0, 100 },
     STRESS = { 0, 1 }, ENDURANCE = { 0, 1 }, FATIGUE = { 0, 1 },
     HUNGER = { 0, 1 }, THIRST = { 0, 1 },
+    -- Contraband's withdrawal (CONTRABAND.md). Vanilla's own tutorial sets
+    -- it (client/Tutorial/Steps.lua:629), which is ordinary play, not a
+    -- debug slider; the contraband never takes it past 40.
+    FOOD_SICKNESS = { 0, 100 },
 }
 
 ---------------------------------------------------------------------------
@@ -178,6 +182,12 @@ end
 --- one guard, in the one place every effect passes through.
 function T.onAte(character, item, fraction)
     if not character or not item then return end
+    -- Contraband is taken by eating it (a Food item with its own menu word),
+    -- so a dose arrives here too. TREK.ContrabandServer exists only where
+    -- the authority is: server/ Lua returns early on a client.
+    if TREK.ContrabandServer then
+        U.try("traits.contraband", TREK.ContrabandServer.onAte, character, item, fraction)
+    end
     local fullType = U.try("traits.foodType", function() return item:getFullType() end)
     local foodType = U.try("traits.foodKind", function() return item:getFoodType() end)
     local md = U.try("traits.foodMod", function() return item:getModData() end)

@@ -363,6 +363,49 @@ end
 ---
 --- Deliberately preserves anything the mod tagged and anything lying on the
 --- ground, so both clearing passes are safe to repeat as chunks stream in.
+--- True for something the engine grew rather than somebody built: the
+--- wilderness of an unmapped cell (trees, bushes, grass, the natural ground).
+---
+--- **Anything else untagged aboard is a player's** (BUILDING.md). The
+--- builders used to strip every untagged object they found on the ships'
+--- own squares, on the reasoning that only wilderness could be there; since
+--- players may build aboard, only wilderness is.
+function U.isWild(o)
+    local name = U.try("wildSprite", function()
+        local spr = o:getSprite()
+        return spr and spr:getName()
+    end)
+    if type(name) ~= "string" then return false end
+    return name:sub(1, 2) == "e_" or name:sub(1, 11) == "vegetation_"
+        or name:sub(1, 15) == "blends_natural_" or name:sub(1, 2) == "f_"
+        or name:sub(1, 12) == "blends_grass"
+end
+
+--- The record of which fittings a builder has placed, by key (usually
+--- "x,y,sprite"), kept in the named server mod data under `section`.
+---
+--- **A fitting the builder placed once and cannot find again was taken by a
+--- player**, and is not put back (BUILDING.md): picked up to be moved, or
+--- sold for scrap, it is theirs. Put back, it duplicated -- the one they
+--- carried off and a new one where it stood. Walls, doors and floors are the
+--- hull and are always put back; they never ask this.
+function U.madeRecord(key, section)
+    local s = ModData.getOrCreate(key)
+    s[section] = s[section] or {}
+    return s[section]
+end
+
+--- True for a star-field floor of the void map: trek_adirondack_01_48..63.
+function U.isSpace(o)
+    local name = U.try("spaceSprite", function()
+        local spr = o:getSprite()
+        return spr and spr:getName()
+    end)
+    if type(name) ~= "string" then return false end
+    local i = tonumber(name:match("^trek_adirondack_01_(%d+)$"))
+    return i ~= nil and i >= 48 and i <= 63
+end
+
 function U.clearSquare(sq, removeFloor)
     if not sq then return 0 end
     local doomed = {}
@@ -372,6 +415,10 @@ function U.clearSquare(sq, removeFloor)
         -- Dropped items and the world models we place as items live here too;
         -- stripping those would eat the helm and anything a player put down.
         if instanceof(o, "IsoWorldInventoryObject") then return end
+        -- Space: the void map's star floors (tools/gen_void_map.py). Every
+        -- clearing pass strips the ground under the ships, and without this
+        -- each one would punch a black hole in the starfield round them.
+        if U.isSpace(o) then return end
         if not removeFloor then
             local floor = U.try("floor", function() return sq:getFloor() end)
             if floor and o == floor then return end
