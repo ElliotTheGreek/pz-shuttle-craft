@@ -113,6 +113,18 @@ end
 
 local function isDoorKind(kind) return kind == "dW" or kind == "dN" end
 
+--- The hull: walls and doors are always put back. Anything else is a
+--- fitting, and a fitting a player has taken stays taken (BUILDING.md).
+local function isHull(kind) return kind == "w" or isDoorKind(kind) end
+
+local function entryKey(o) return o[1] .. "," .. o[2] .. "," .. o[3] end
+
+--- Which of deck k's fittings have been placed: "x,y,sprite" -> true.
+function AS.made(k) return U.madeRecord(A.StateKey, "made" .. k) end
+function AS.madeTube(t) return U.madeRecord(A.StateKey, "madeTube" .. t) end
+
+
+
 --- Our door on this square's north (or west) edge, whatever it looks like.
 --- **Never find a door by its sprite**: ToggleDoor swaps an open door's
 --- picture for the one two along, so a builder asking for the closed sprite
@@ -282,6 +294,22 @@ local function make(sq, o, k)
     return addSynced(sq, obj)
 end
 
+--- Places a layout entry unless it stands already, or the player took it.
+--- Returns true when it placed one.
+local function fit(sq, o, k, record)
+    local key = entryKey(o)
+    if standing(sq, o) then
+        record[key] = true
+        return false
+    end
+    if record[key] and not isHull(o[4]) then return false end
+    if make(sq, o, k) then
+        record[key] = true
+        return true
+    end
+    return false
+end
+
 --- True when an object already standing is not what the layout needs any
 --- more and has nothing in it to lose: a door the engine does not collide
 --- with, a locker that was never stocked, a sink with no water.
@@ -333,6 +361,7 @@ function AS.buildDeck(k)
     local deck = L.decks[k]
     if not deck or not AS.deckLoaded(k) then return false end
     local want = wanted(deck)
+    local record = AS.made(k)
 
     local cleared, removed, made, refitted = 0, 0, 0, 0
     -- The engine grows wilderness in unmapped cells when a server was not
@@ -365,8 +394,13 @@ function AS.buildDeck(k)
                         elseif needsRefit(sq, o, entry, k) then
                             table.insert(doomed, o)
                             refitted = refitted + 1
+                            -- Taken away by us, to be put back refitted:
+                            -- not a thing the player took.
+                            record[entryKey(entry)] = nil
                         end
-                    elseif not tag then
+                    elseif not tag and U.isWild(o) then
+                        -- Wilderness, from a world made without the void map.
+                        -- Anything else untagged is something a player built.
                         table.insert(doomed, o)
                     end
                 end)
@@ -389,9 +423,7 @@ function AS.buildDeck(k)
     for _, o in ipairs(deck.objects) do
         local x, y = A.at(k, o[1], o[2])
         local sq = U.square(x, y, A.Z, true)
-        if sq and not standing(sq, o) then
-            if make(sq, o, k) then made = made + 1 end
-        end
+        if sq and fit(sq, o, k, record) then made = made + 1 end
     end
 
     U.try("adk.doctor", AS.serviceDoctor, k)
@@ -506,11 +538,17 @@ local function refitTube(t, tube, want)
                 local sq = U.square(x, y, A.Z, false)
                 if sq then
                     local doomed = {}
+                    local record = AS.madeTube(t)
                     U.eachObject(sq, function(o)
                         if tagOf(o) == TAG and not entryFor(here, o) and not holdsAnything(o) then
                             table.insert(doomed, o)
                         end
                     end)
+                    for _, w in pairs(here) do
+                        -- Refitting is ours: an entry the old layout had
+                        -- differently gets put back, not left for gone.
+                        if not U.findSprite(sq, w[3]) then record[entryKey(w)] = nil end
+                    end
                     for _, o in ipairs(doomed) do removeSynced(sq, o) end
                 end
             end
@@ -556,10 +594,11 @@ function AS.buildTube(t)
             local sq = U.square(x, y, A.Z, true)
             if sq and not sq:getFloor() then
                 -- Wilderness from a world made without the void map: never
-                -- anything of ours, never anything lying on the floor.
+                -- anything of ours, never anything lying on the floor, never
+                -- anything a player built.
                 local doomed = {}
                 U.eachObject(sq, function(o)
-                    if tagOf(o) == nil and not instanceof(o, "IsoWorldInventoryObject") then
+                    if tagOf(o) == nil and U.isWild(o) then
                         table.insert(doomed, o)
                     end
                 end)
@@ -572,13 +611,12 @@ function AS.buildTube(t)
         end
     end
     U.resetStockCursors()
+    local record = AS.madeTube(t)
     for _, o in ipairs(tube.objects) do
         local x, y = A.at(k, o[1], o[2])
         if U.chunkLoaded(x, y, A.Z) then
             local sq = U.square(x, y, A.Z, true)
-            if sq and not standing(sq, o) then
-                if make(sq, o, k) then made = made + 1 end
-            end
+            if sq and fit(sq, o, k, record) then made = made + 1 end
         end
     end
     -- What the night watch left lying about: once, ever, item by item as its

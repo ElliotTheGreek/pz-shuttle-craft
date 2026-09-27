@@ -244,101 +244,100 @@ SECTIONS["engineering"] = dict(
 
 
 # --- the field station (FIELD_STATION.md 4) ---------------------------------------------
-# Three sublevels under a store in Muldraugh, in the Adirondack's fittings and
-# never a viewport: they are underground. `file` names the .tbx and `place`
-# what its description says it is part of. Every one has a door on its west
-# wall for the sublevel's spine to meet, as a deck's sections do.
+# One long, wide floor under a store in Muldraugh (the author, 2026-09-27: "keep
+# it all on one wider long floor"), in the Adirondack's fittings and never a
+# viewport. The lift car stands in the north-west corner, squares 0..2, 0..2,
+# where compose_adirondack.py puts it on every deck; this section leaves those
+# squares empty and opens on it with the door at 3,1. A corridor runs from the
+# lift down the whole floor; the living quarters are on its west side (up and
+# left on screen) and everything else on its east.
+#
+# `spine = False` tells the composer this section brings its own corridor, so
+# no spine is added; `rects` lets one room be more than one rectangle.
 
-SECTIONS["fs_operations"] = dict(
-    title="Operations", file="FieldStation_Operations.tbx", place="Field Station Muldraugh",
-    size=(14, 11),
+def quarters(t, big=False, bunks=False):
+    """A cabin six by six, its top row at t, its door onto the corridor at 6, t+2."""
+    out = [("nightstand", "N", 0, t), ("wardrobe", "N", 3, t), ("painting_nebula", "N", 4, t),
+           ("desk", "W", 0, t + 3), ("desk_chair", "E", 1, t + 3), ("wall_sconce", "W", 0, t + 2),
+           ("armchair", "S", 4, t + 4), ("plant", "W", 5, t + 5)]
+    if big:
+        out.append(("bed_double", "N", 1, t))
+    elif bunks:
+        out += [("bunk", "N", 1, t), ("bunk", "N", 2, t)]
+    else:
+        out.append(("bed", "N", 1, t))
+    return out
+
+
+SECTIONS["fs_main"] = dict(
+    title="Main Level", file="FieldStation_Main.tbx", place="Field Station Muldraugh",
+    size=(26, 36), spine=False,
     rooms=[
-        room("Operations", "office", CARPET, 0, 0, 8, 10, "80 110 150"),
-        room("Security Office", "office", DECK, 9, 0, 13, 4, "110 90 90"),
-        room("Survey Records", "office", CARPET, 9, 5, 13, 10, "120 110 80"),
+        dict(name="Main Corridor", internal="hall", floor=DECK, rect=(6, 3, 8, 35),
+             rects=[(3, 0, 8, 2), (6, 3, 8, 35)], color="160 150 120"),
+        # the west side, under the lift: where they live
+        room("Quarters 1", "bedroom", CARPET, 0, 3, 5, 8, "72 96 160"),
+        room("Quarters 2", "bedroom", CARPET, 0, 9, 5, 14, "80 104 168"),
+        room("Quarters 3", "bedroom", CARPET, 0, 15, 5, 20, "88 88 150"),
+        room("Quarters 4", "bedroom", CARPET, 0, 21, 5, 26, "96 96 158"),
+        room("Washroom", "bathroom", DECK, 0, 27, 5, 31, "120 160 190"),
+        room("Survey Records", "office", CARPET, 0, 32, 5, 35, "120 110 80"),
+        # the east side: where they work
+        room("Operations", "office", CARPET, 9, 0, 25, 8, "80 110 150"),
+        room("Galley", "kitchen", DECK, 9, 9, 25, 15, "170 160 130"),
+        room("Armoury", "office", DECK, 9, 16, 25, 20, "110 90 90"),
+        room("Infirmary", "medical", DECK, 9, 21, 25, 27, "200 200 210"),
+        room("Reactor Room", "storageunit", DECK, 9, 28, 18, 35, "190 150 90"),
+        room("Stores", "storageunit", DECK, 19, 28, 25, 35, "150 140 110"),
     ],
-    doors=[("W", 0, 9), ("W", 9, 2), ("W", 9, 7)],
+    doors=[("W", 3, 1),                                              # the lift
+           ("W", 6, 5), ("W", 6, 11), ("W", 6, 17), ("W", 6, 23),    # quarters
+           ("W", 6, 29), ("W", 6, 33),                               # washroom, records
+           ("W", 9, 4), ("W", 9, 12), ("W", 9, 18), ("W", 9, 24),    # ops, galley, armoury, infirmary
+           ("W", 9, 31), ("W", 19, 31)],                             # reactor, stores
     furniture=(
-        # The wall of screens that watches the county, a station under each.
-        [("science_display", "N", x, 0) for x in (1, 3, 5, 7)]
-        + [("science_station", "N", x, 0) for x in (1, 3, 5, 7)]
-        + [("bridge_chair", "S", x, 1) for x in (1, 3, 5, 7)]
-        + [("science_station", "W", 0, 3), ("science_station", "W", 0, 5),
-           ("desk_chair", "E", 1, 3), ("desk_chair", "E", 1, 5),
-           ("master_systems", "W", 3, 4), ("captain_chair", "S", 4, 7),
-           ("wall_sconce", "W", 0, 7), ("plant", "W", 8, 10),
-           # security: two lockers, a desk by the door, a screen
-           ("arms_locker", "N", 11, 0), ("arms_locker", "N", 12, 0),
-           ("science_station", "N", 10, 0), ("wall_sconce", "N", 13, 0),
-           ("desk", "W", 9, 3), ("desk_chair", "E", 10, 3)]
-        # survey records: the archive's shelves and a reading desk
-        + [("display_shelf", "N", x, 5) for x in (10, 11, 12, 13)]
-        + [("display_shelf", "W", 9, 5), ("desk", "W", 9, 9), ("desk_chair", "E", 10, 9),
-           ("science_display", "W", 9, 6), ("plant", "W", 13, 10)]
-    ))
-
-SECTIONS["fs_habitat"] = dict(
-    title="Habitat", file="FieldStation_Habitat.tbx", place="Field Station Muldraugh",
-    size=(12, 14),
-    rooms=[
-        room("Mess", "kitchen", DECK, 0, 0, 6, 8, "170 160 130"),
-        room("Bunk Room", "bedroom", CARPET, 7, 0, 11, 8, "88 88 150"),
-        room("Infirmary", "medical", DECK, 0, 9, 6, 13, "200 200 210"),
-        room("Washroom", "bathroom", DECK, 7, 9, 11, 13, "120 160 190"),
-    ],
-    # The way in is low on the west wall: a sublevel's corridor runs down
-    # from the lift to its door, and needs room for its basin and Doctor.
-    doors=[("W", 0, 8), ("W", 7, 4), ("N", 3, 9), ("N", 9, 9)],
-    furniture=[
-        # the mess and its galley
-        ("galley_counter", "N", 1, 0), ("galley_sink", "N", 3, 0), ("galley_range", "N", 4, 0),
-        ("stasis_unit", "N", 5, 0), ("replicator", "N", 6, 0),
-        ("galley_cupboard", "W", 0, 5),
-        ("lounge_table", "W", 3, 3), ("lounge_chair", "W", 2, 3), ("lounge_chair", "E", 4, 3),
-        ("lounge_table", "W", 3, 5), ("lounge_chair", "W", 2, 5), ("lounge_chair", "E", 4, 5),
-        ("lounge_table", "W", 5, 7), ("lounge_chair", "W", 4, 7), ("lounge_chair", "E", 6, 7),
-        ("wall_sconce", "W", 0, 1),
-        # the bunk room: five bunks, two wardrobes
-        ("bunk", "W", 7, 0), ("bunk", "W", 7, 2), ("bunk", "W", 7, 8), ("bunk", "N", 9, 0),
-        ("bunk", "N", 11, 0), ("nightstand", "N", 10, 0), ("wardrobe", "W", 7, 5),
-        ("wardrobe", "W", 7, 6), ("coffee_table", "W", 10, 4), ("armchair", "E", 11, 4),
-        ("plant", "W", 11, 8),
+        quarters(3, big=True) + quarters(9) + quarters(15) + quarters(21, bunks=True)
         # the washroom
-        ("sonic_shower", "N", 7, 9), ("sonic_shower", "N", 8, 9), ("toilet", "N", 10, 9),
-        ("toilet", "N", 11, 9), ("wash_basin", "W", 7, 11), ("wash_basin", "W", 7, 12),
+        + [("sonic_shower", "N", 0, 27), ("sonic_shower", "N", 1, 27), ("toilet", "N", 3, 27),
+           ("toilet", "N", 4, 27), ("wash_basin", "W", 0, 30), ("wash_basin", "W", 0, 31)]
+        # survey records: the archive's shelves and a reading desk
+        + [("display_shelf", "N", x, 32) for x in (0, 1, 2, 3)]
+        + [("science_station", "N", 4, 32), ("desk", "W", 0, 34), ("desk_chair", "E", 1, 34)]
+        # the corridor: the Doctor and a basin half way down, lights along it
+        + [("emh_station", "W", 6, 13), ("wash_basin", "W", 6, 14)]
+        + [("wall_sconce", "W", 6, y) for y in (7, 20, 26, 35)]
+        # operations: the wall of screens that watches the county
+        + [("science_display", "N", x, 0) for x in (10, 12, 14, 16, 18, 20)]
+        + [("science_station", "N", x, 0) for x in (10, 12, 14, 16, 18, 20)]
+        + [("bridge_chair", "S", x, 1) for x in (10, 12, 14, 16, 18, 20)]
+        + [("master_systems", "W", 15, 4), ("captain_chair", "S", 15, 7),
+           ("wall_sconce", "N", 22, 0), ("wall_sconce", "N", 24, 0), ("plant", "W", 25, 8)]
+        # the galley: counters, the range, the replicator, and tables
+        + [("galley_counter", "N", 10, 9), ("galley_sink", "N", 12, 9), ("galley_range", "N", 13, 9),
+           ("stasis_unit", "N", 14, 9), ("stasis_unit", "N", 15, 9), ("replicator", "N", 16, 9),
+           ("galley_cupboard", "N", 17, 9), ("wall_sconce", "N", 22, 9), ("plant", "W", 25, 15)]
+        + [f for tx in (13, 17, 21) for ty in (12, 14)
+           for f in (("lounge_table", "W", tx, ty), ("lounge_chair", "W", tx - 1, ty),
+                     ("lounge_chair", "E", tx + 1, ty))]
+        # the armoury
+        + [("arms_locker", "N", x, 16) for x in (11, 12, 13)]
+        + [("desk", "N", 17, 16), ("desk_chair", "S", 17, 17), ("science_station", "N", 20, 16),
+           ("cargo_crate", "N", 24, 16), ("wall_sconce", "W", 9, 16)]
         # the infirmary
-        ("biobed", "N", 1, 9), ("biobed", "N", 5, 9), ("medical_cabinet", "N", 6, 9),
-        ("emh_station", "W", 0, 11), ("medical_cabinet", "W", 0, 12), ("medical_cabinet", "W", 0, 13),
-        ("medical_cart", "S", 4, 12), ("wall_sconce", "N", 2, 9),
-    ])
-
-SECTIONS["fs_reactor"] = dict(
-    title="Reactor", file="FieldStation_Reactor.tbx", place="Field Station Muldraugh",
-    size=(15, 13),
-    rooms=[
-        room("Reactor Room", "storageunit", DECK, 0, 0, 9, 8, "190 150 90"),
-        room("Stores", "storageunit", DECK, 10, 0, 14, 8, "150 140 110"),
-        room("Survey Lab", "office", CARPET, 0, 9, 14, 12, "110 150 130"),
-    ],
-    doors=[("W", 0, 8), ("W", 10, 4), ("N", 3, 9)],
-    furniture=[
-        # the station's own core, railed in, its consoles round the walls
-        ("warp_core", "W", 4, 3),
-        ("railing", "N", 3, 2), ("railing", "N", 6, 2), ("railing", "S", 3, 5), ("railing", "S", 6, 5),
-        ("engineering_console", "N", 1, 0), ("engineering_console", "N", 3, 0),
-        ("engineering_console", "N", 6, 0), ("engineering_console", "N", 8, 0),
-        ("engineering_console", "W", 0, 3), ("engineering_console", "W", 0, 5),
-        ("wall_sconce", "N", 2, 0), ("wall_sconce", "N", 7, 0),
+        + [("biobed", "N", x, 21) for x in (11, 13, 15, 17)]
+        + [("medical_cabinet", "N", x, 21) for x in (19, 20, 21)]
+        + [("emh_station", "N", 23, 21), ("medical_cart", "S", 16, 25), ("plant", "W", 25, 27),
+           ("wall_sconce", "N", 10, 21)]
+        # the reactor, railed in
+        + [("warp_core", "W", 13, 31),
+           ("railing", "N", 12, 30), ("railing", "N", 15, 30), ("railing", "S", 12, 33), ("railing", "S", 15, 33),
+           ("engineering_console", "N", 10, 28), ("engineering_console", "N", 12, 28),
+           ("engineering_console", "N", 15, 28), ("engineering_console", "N", 17, 28),
+           ("engineering_console", "W", 9, 34), ("wall_sconce", "N", 11, 28)]
         # stores
-        ("cargo_crate", "N", 11, 0), ("stasis_unit", "N", 12, 0), ("cargo_crate", "N", 13, 0),
-        ("stasis_unit", "N", 14, 0), ("cargo_crate", "S", 14, 8), ("wall_sconce", "W", 10, 7),
-        # the survey lab: its benches along the north wall, a desk in the corner
-        ("science_station", "N", 6, 9), ("science_station", "N", 8, 9), ("science_station", "N", 12, 9),
-        ("science_display", "N", 6, 9), ("science_display", "N", 12, 9),
-        ("bridge_chair", "S", 6, 10), ("bridge_chair", "S", 8, 10), ("bridge_chair", "S", 12, 10),
-        ("desk", "W", 0, 11), ("desk_chair", "E", 1, 11),
-        ("display_shelf", "N", 10, 9), ("plant", "W", 14, 12),
-    ])
+        + [("cargo_crate", "N", 20, 28), ("stasis_unit", "N", 21, 28), ("cargo_crate", "N", 22, 28),
+           ("stasis_unit", "N", 23, 28), ("cargo_crate", "S", 25, 35), ("wall_sconce", "N", 24, 28)]
+    ))
 
 
 # --- the furniture the specs can name --------------------------------------------------
@@ -363,12 +362,13 @@ def grid_of(sec):
     W, H = sec["size"]
     g = [[0] * W for _ in range(H)]
     for k, r in enumerate(sec["rooms"], start=1):
-        x0, y0, x1, y1 = r["rect"]
-        for y in range(y0, y1 + 1):
-            for x in range(x0, x1 + 1):
-                if not (0 <= x < W and 0 <= y < H):
-                    raise SystemExit("%s: room %s leaves the building" % (sec["title"], r["name"]))
-                g[y][x] = k
+        # A room is one rectangle, or several (`rects`) for an L-shape.
+        for x0, y0, x1, y1 in r.get("rects") or [r["rect"]]:
+            for y in range(y0, y1 + 1):
+                for x in range(x0, x1 + 1):
+                    if not (0 <= x < W and 0 <= y < H):
+                        raise SystemExit("%s: room %s leaves the building" % (sec["title"], r["name"]))
+                    g[y][x] = k
     return g
 
 

@@ -63,15 +63,15 @@ DECKS = [
     (4, "Deck 5", "Hydroponics", ["Adirondack_Hydroponics.tbx"]),
 ]
 
-# The field station's sublevels (FIELD_STATION.md 4): floors of the same
-# building, each with the same spine, lift car, basin and EMH station a deck
-# has. The game stands them far east of the ship (gen_adirondack_lua.py) and
-# knows them by site. They are not the ship's decks: no tube reaches them.
+# The field station (FIELD_STATION.md 4): one long floor of its own, standing
+# far east of the ship in the game (gen_adirondack_lua.py) and known by its
+# site. Its section brings its own corridor, so it has no spine: it is laid
+# from 0,0 round the lift car, which opens on it at 3,1. No tube reaches it.
 STATION = [
-    (5, "Sublevel 1", "Operations, Security, Survey Records", ["FieldStation_Operations.tbx"]),
-    (6, "Sublevel 2", "Mess, Bunk Room, Infirmary", ["FieldStation_Habitat.tbx"]),
-    (7, "Sublevel 3", "Reactor Room, Stores, Survey Lab", ["FieldStation_Reactor.tbx"]),
+    (5, "Level 1", "Quarters, Operations, Galley, Armoury, Infirmary, Reactor",
+     ["FieldStation_Main.tbx"]),
 ]
+NO_SPINE = {z for z, _, _, _ in STATION}
 SITE = {z: "fst" for z, _, _, _ in STATION}
 
 # Attributes of an object that name a tile_entry (1-based) or a furniture (0-based).
@@ -198,6 +198,28 @@ def compose():
         f = ship.floor(z)
         oy = 0
         entrances = []
+        if z in NO_SPINE:
+            # One section, laid from 0,0; the lift car goes in the squares it
+            # leaves empty, and its own door into the car is the way in.
+            sec = read_tbx(os.path.join(BED, files[0]))
+            add_section(ship, sec, z, 0, 0)
+            for y in range(LIFT[1], LIFT[3] + 1):
+                for x in range(LIFT[0], LIFT[2] + 1):
+                    if (x, y) in f["cells"]:
+                        raise SystemExit("%s covers the lift car's square %d,%d" % (files[0], x, y))
+            width, height = max(width, sec["W"]), max(height, sec["H"])
+            lift = ship.room(dict(Name="Lift (%s)" % deck_name, InternalName="trekturbolift",
+                                  Color="200 170 90", InteriorWall=str(inner), InteriorWallTrim="0",
+                                  Floor=str(deck), GrimeFloor="0", GrimeWall="0"))
+            for y in range(LIFT[1], LIFT[3] + 1):
+                for x in range(LIFT[0], LIFT[2] + 1):
+                    f["cells"][(x, y)] = lift
+            furniture_object(f, "turbolift_panel", "W", 0, 1)
+            furniture_object(f, "wall_sconce", "N", 1, 0)
+            layout["turbolifts"].append(dict(deck=deck_name, z=z, x=1, y=1, description=desc))
+            layout["decks"].append(dict(deck=deck_name, z=z, sections=files, description=desc,
+                                        site=SITE.get(z, "adk")))
+            continue
         for name in files:
             sec = read_tbx(os.path.join(BED, name))
             add_section(ship, sec, z, SPINE_X, oy)
@@ -210,7 +232,7 @@ def compose():
             oy += sec["H"]
         height = max(height, oy)
         corridor_end = max(max(entrances), LIFT[3] + 2)
-        lift = ship.room(dict(Name=("Lift (%s)" if z in SITE else "Turbolift (%s)") % deck_name, InternalName="trekturbolift",
+        lift = ship.room(dict(Name="Turbolift (%s)" % deck_name, InternalName="trekturbolift",
                               Color="200 170 90", InteriorWall=str(inner), InteriorWallTrim="0",
                               Floor=str(deck), GrimeFloor="0", GrimeWall="0"))
         hall = ship.room(dict(Name="%s Corridor" % deck_name, InternalName="hall",
@@ -387,7 +409,7 @@ def preview_deck(ship, W, H, z, title, path):
             if order < 1 and 0 < x < W and 0 < y < H:
                 img.putalpha(img.split()[3].point(lambda v: v * 45 // 100))
             canvas.alpha_composite(img, (ox + 64 * (x - y) - 64, oy + 32 * (x + y) - 192))
-    where = "Field Station Muldraugh" if title.startswith("Sublevel") else "U.S.S. Adirondack"
+    where = "Field Station Muldraugh" if title.startswith("Level") else "U.S.S. Adirondack"
     ImageDraw.Draw(canvas).text((16, 16), "%s -- %s" % (where, title), fill=(230, 230, 230, 255))
     bbox = canvas.getbbox()
     SEC.save(canvas.crop(bbox) if bbox else canvas, path)
@@ -401,7 +423,7 @@ def main():
     write_tbx(ship, W, H, ext, door)
     os.makedirs(OUT_ART, exist_ok=True)
     for z, deck_name, desc, _ in DECKS + STATION:
-        stem = ("sublevel%s" if z in SITE else "deck%s") % deck_name.split()[-1]
+        stem = ("station%s" if z in SITE else "deck%s") % deck_name.split()[-1]
         preview_deck(ship, W, H, z, "%s (floor %d): %s" % (deck_name, z, desc),
                      os.path.join(OUT_ART, stem + ".png"))
     with open(OUT_LAYOUT, "w") as fh:

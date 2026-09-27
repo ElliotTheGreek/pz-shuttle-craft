@@ -12912,10 +12912,18 @@ def crew():
             if not m.scene and m.x then p.x, p.y = m.x + 0.4, m.y + 0.4 return end
         end
     end)()""")
-    net.pump(200)
-    barks = [c for c in crew_chat(rt) if "_BARK_" in c]
+    # One bark per player per BarkPlayerGap, and out of uniform it is the
+    # outfit remark six times in ten: listen across several, not one -- a
+    # single window passed or failed on where the random sequence happened
+    # to stand, and any new line anywhere in the talk moved it.
+    barks = []
+    for _ in range(8):
+        net.pump(1000)
+        barks = [c for c in crew_chat(rt) if "_BARK_" in c]
+        if any("_BARK_outfit_" in c for c in barks):
+            break
     check(any("_BARK_outfit_" in c for c in barks),
-          f"crew: out of uniform and nobody remarked on it: {barks[:5]}")
+          f"crew: out of uniform and nobody remarked on it: {barks[:8]}")
     rt.run(f"{P}.worn = {{ 'TrekShuttle.TrekUniformDutyCommand' }}; SIM.chat = {{}}")
     net.pump(300)
     barks = [c for c in crew_chat(rt) if "_BARK_" in c]
@@ -13642,6 +13650,152 @@ def contraband_multiplayer():
 
 
 
+# --- building and moving things aboard (BUILDING.md) --------------------------------------
+
+BUILD_HELPERS = """
+    -- The first layout object of a kind (or piece) on deck k: the entry.
+    function bFind(k, want)
+        for _, o in ipairs(TREK.Adirondack.Layout.decks[k].objects) do
+            if o[4] == want or o[5] == want then return o end
+        end
+    end
+    -- How many objects with this sprite stand on the deck square of entry o.
+    function bCount(k, o)
+        local x, y = TREK.Adirondack.at(k, o[1], o[2])
+        local n = 0
+        for _, ob in ipairs(SIM.rawSquare(x, y, TREK.Adirondack.Z).objects) do
+            if ob.spriteName == o[3] then n = n + 1 end
+        end
+        return n
+    end
+    -- A player picks it up: gone from the square, the way vanilla's
+    -- moveable pick-up takes it (a server-side removal, sent to everyone).
+    function bTake(sq, sprite)
+        for _, ob in ipairs(sq.objects) do
+            if ob.spriteName == sprite then sq:transmitRemoveItemFromSquare(ob) return true end
+        end
+        return false
+    end
+    -- A player builds: an untagged object on a square, as a placed moveable
+    -- or a crafted piece of furniture is.
+    function bBuild(sq, sprite)
+        local o = SIM.object(sprite)
+        o.square = sq
+        table.insert(sq.objects, o)
+        return o
+    end
+    function bHas(sq, sprite)
+        for _, ob in ipairs(sq.objects) do if ob.spriteName == sprite then return true end end
+        return false
+    end
+"""
+
+
+def building():
+    """Players may build aboard the shuttle, the Adirondack and the field
+    station, and move the mod's own furniture: a rebuild keeps what they
+    built, never puts back a fitting they took (it would be a second one), and
+    always puts back the hull. The machines cannot be picked up."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('builder', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run(ADK_SETUP)
+    rt.run(BUILD_HELPERS)
+    P = "SIM.players[1]"
+
+    # --- the shuttle's cabin ---------------------------------------------------------
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    got = rt.eval("""(function()
+        local L = require "TREK/TREK_InteriorLayout"
+        local U = TREK.Util
+        local entry
+        for _, e in ipairs(L.tiles) do
+            if e.container and e.loot and not e.device then entry = e break end
+        end
+        local x, y = U.at(entry.x, entry.y)
+        local sq = SIM.rawSquare(x, y, TREK.Config.CabinZ)
+        U.containerOf(U.findSprite(sq, entry.sprite)).items = {}
+        local took = bTake(sq, entry.sprite)
+        -- and builds a crate on the deck beside the pad
+        local bx, by = U.at(1, 4)
+        local bsq = SIM.rawSquare(bx, by, TREK.Config.CabinZ)
+        bBuild(bsq, "carpentry_01_16")
+        local s = TREK.Util.state()
+        s.rev = 0
+        TREK.Build.ensureCabin()
+        return took, bHas(sq, entry.sprite), bHas(bsq, "carpentry_01_16"), entry.sprite
+    end)()""")
+    check(got[0] is True and got[1] is False,
+          f"building: a locker taken from the cabin was put back by the rebuild ({got})")
+    check(got[2] is True, "building: the rebuild of the cabin threw out what the player built")
+    back = rt.eval("""(function() TREK.Build.forceRebuild()
+        local L = require "TREK/TREK_InteriorLayout"
+        for _, e in ipairs(L.tiles) do
+            if e.sprite == "%s" then
+                local x, y = TREK.Util.at(e.x, e.y)
+                return bHas(SIM.rawSquare(x, y, TREK.Config.CabinZ), e.sprite)
+            end
+        end end)()""" % got[3])
+    check(back is True, "building: a forced rebuild did not put the cabin's fittings back")
+
+    # --- the Adirondack's decks --------------------------------------------------------
+    rt.run(f"TREK.AdirondackClient.beamTo({P})")
+    net.pump(320)
+    k = adk_where(rt)
+    check(k is not None, "building: never reached the Adirondack")
+    got = rt.eval(f"""(function()
+        local A, AS = TREK.Adirondack, TREK.AdirondackServer
+        local desk = bFind({k}, "desk") or bFind({k}, "wardrobe") or bFind({k}, "medical_cabinet")
+                     or bFind({k}, "transporter_console")
+        local wall = bFind({k}, "w")
+        local dx, dy = A.at({k}, desk[1], desk[2])
+        local dsq = SIM.rawSquare(dx, dy, A.Z)
+        for _, ob in ipairs(dsq.objects) do if ob.container then ob.container.items = {{}} end end
+        local took = bTake(dsq, desk[3])
+        local wx, wy = A.at({k}, wall[1], wall[2])
+        local tookWall = bTake(SIM.rawSquare(wx, wy, A.Z), wall[3])
+        local px, py = A.liftSpot({k})
+        local bsq = SIM.rawSquare(px + 1, py + 3, A.Z)
+        bBuild(bsq, "carpentry_01_16")
+        AS.state().decks[{k}] = nil
+        AS.buildDeck({k})
+        return took, bCount({k}, desk), tookWall, bCount({k}, wall), bHas(bsq, "carpentry_01_16")
+    end)()""")
+    check(got[0] is True and int(got[1]) == 0,
+          f"building: a fitting taken from her deck was put back by the refit ({got})")
+    check(got[2] is True and int(got[3]) == 1, f"building: her hull wall was not put back ({got})")
+    check(got[4] is True, "building: her refit threw out what the player built")
+
+    # --- a hideout's crate: the tube builder runs every second ---------------------
+    hx, hy = tube_at(rt, 1, 13, "hideout")
+    adk_visit(net, rt, 1)
+    crawl_to(net, rt, hx, hy, settle=60)
+    got = rt.eval("""(function()
+        local A, AS = TREK.Adirondack, TREK.AdirondackServer
+        local tube = A.Layout.tubes[1]
+        for _, o in ipairs(tube.objects) do
+            if o[5] and o[5]:find("stash") then
+                local x, y = A.at(tube.from, o[1], o[2])
+                local sq = SIM.rawSquare(x, y, A.Z)
+                for _, ob in ipairs(sq.objects) do if ob.container then ob.container.items = {} end end
+                local took = bTake(sq, o[3])
+                AS.buildTube(1)
+                AS.buildTube(1)
+                return took, bHas(sq, o[3])
+            end
+        end
+    end)()""")
+    check(got[0] is True and got[1] is False,
+          f"building: a hideout crate taken away came straight back ({got})")
+
+    for w in rt.warnings():
+        fail(f"building: {w}")
+    print("building: in the cabin and aboard her, what a player builds survives a rebuild, a fitting "
+          "they take stays taken, the hull comes back, and a forced rebuild restores everything")
+
+
 # --- the field station (FIELD_STATION.md) -----------------------------------------------
 
 # The stockroom of Muldraugh's electronics store, as the vanilla map has it
@@ -13728,7 +13882,35 @@ def fieldstation():
         return #fst, #adk, near, fst[1]
     end)()""")
     nf, na, near, first = int(lay[0]), int(lay[1]), int(lay[2]), int(lay[3])
-    check(nf == 3 and na == 5, f"fieldstation: {nf} sublevels and {na} decks, not 3 and 5")
+    check(nf == 1 and na == 5, f"fieldstation: {nf} station floors and {na} decks, not 1 and 5")
+    # One long floor: the quarters on the corridor's west side, everything
+    # else on its east (the author, 2026-09-27).
+    sides = rt.eval(f"""(function()
+        local A, L = TREK.Adirondack, TREK.Adirondack.Layout
+        local d, west, east, bad = L.decks[{first}], {{}}, {{}}, {{}}
+        for y, row in ipairs(d.grid) do for x, rid in ipairs(row) do
+            local r = rid > 0 and L.rooms[rid]
+            if r then
+                if r.name:find("Quarters", 1, true) and x - 1 > 5 then bad[r.name] = true end
+                if (r.name == "Galley" or r.name == "Armoury" or r.name == "Operations"
+                    or r.name == "Infirmary") and x - 1 < 9 then bad[r.name] = true end
+                if r.name:find("Quarters", 1, true) then west[r.name] = true end
+                if r.name == "Galley" or r.name == "Armoury" then east[r.name] = true end
+            end
+        end end
+        local n, m, b = 0, 0, {{}}
+        for _ in pairs(west) do n = n + 1 end
+        for _ in pairs(east) do m = m + 1 end
+        for k in pairs(bad) do table.insert(b, k) end
+        return n, m, table.concat(b, ",")
+    end)()""")
+    check(int(sides[0]) == 4 and int(sides[1]) == 2 and not sides[2],
+          f"fieldstation: quarters/east rooms/misplaced = {sides}")
+    reps = int(rt.eval(f"""(function() local n = 0
+        for _, o in ipairs(TREK.Adirondack.Layout.decks[{first}].objects) do
+            if o[5] == "replicator" or o[5] == "arms_locker" or o[5] == "galley_range" then n = n + 1 end
+        end return n end)()"""))
+    check(reps >= 5, f"fieldstation: the floor has {reps} replicator/armoury/galley pieces")
     check(near >= 400, f"fieldstation: a sublevel stands {near} squares from one of her decks")
 
     # --- the checks on the wall ----------------------------------------------------
@@ -13820,14 +14002,7 @@ def fieldstation():
     rides = int(rt.eval("""(function() local n = 0
         for _, o in ipairs(fsSub:find("IGUI_TREK_StationLift").sub.options) do
             if o.name:find("IGUI_TREK_AdkDeck", 1, true) == 1 then n = n + 1 end end return n end)()"""))
-    check(rides == 3, f"fieldstation: the lift lists {rides} levels, not the station's 3")
-    second = int(rt.eval('TREK.Adirondack.decksOf("fst")[2]'))
-    rt.run(f"""local lift = fsSub:find("IGUI_TREK_StationLift").sub
-        for _, o in ipairs(lift.options) do
-            if o.name:find("IGUI_TREK_AdkDeck", 1, true) == 1 and o.args[2] == {second} then
-                o.fn(o.target, unpack(o.args)) end end""")
-    net.pump(200)
-    check(adk_where(rt) == second, f"fieldstation: the lift left the player on deck {adk_where(rt)}")
+    check(rides == 1, f"fieldstation: the lift lists {rides} levels, not the station's one")
     check(rt.eval(f"TREK.AdirondackClient.ride({P}, 1)") is False,
           "fieldstation: the station's lift rides to the Adirondack's bridge")
 
@@ -13859,7 +14034,7 @@ def fieldstation():
     check(shelves and "Base.Book" in shelves and not any("Batleth" in i for i in shelves),
           f"fieldstation: the survey records hold {shelves[:6]}")
     arms = adk_items(rt, "arms_locker", "fst")
-    check(arms.count("TrekShuttle.TrekPhaser") == 4 and "TrekShuttle.TrekPhaserRifle" not in arms,
+    check(arms.count("TrekShuttle.TrekPhaser") == 6 and "TrekShuttle.TrekPhaserRifle" not in arms,
           f"fieldstation: security's lockers hold {arms}")
 
     # --- crew: their own talk -----------------------------------------------------------
@@ -13875,6 +14050,17 @@ def fieldstation():
         for _, m in pairs(TREK.CrewServer.live()) do
             if TREK.Adirondack.siteOf(m.e.deck) == "fst" then n = n + 1 end end return n end)()"""))
     check(staff > 0, "fieldstation: nobody on duty in the station")
+
+    # --- somebody saved on the one-day sublevels: brought to the floor ------------------
+    rt.run(f"""(function() local A = TREK.Adirondack
+        local ox, oy = A.origin()
+        local p = SIM.players[1]
+        p.x, p.y, p.z, p.lastZ = ox + 8 * 108 + 5.5, oy + 5.5, A.Z, A.Z
+    end)()""")
+    net.pump(220)
+    if died(rt, "fieldstation, on an old sublevel"):
+        return
+    check(adk_where(rt) == first, f"fieldstation: left on the old sublevels at {pos(rt)}")
 
     # --- up ------------------------------------------------------------------------------
     adk_visit(net, rt, first)
@@ -13972,7 +14158,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
-            adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
+            adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
             contraband, contraband_multiplayer, multiplayer)
 
 

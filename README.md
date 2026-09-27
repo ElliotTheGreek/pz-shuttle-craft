@@ -54,7 +54,8 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Her crew** | Starfleet officers and crew of several species step out of the lifts, walk to their posts, sit, talk to each other and to you, and leave again. They know who you are not, and they notice your clothes. |
 | **Hydroponics** | Deck 5 grows seven crops in trays the ship tends for you -- tea, bergamot, Klingon coffee, plomeek, leola root, Andorian tuber, hasperat peppers -- to be dried, ground, brewed and cooked into the galley's dishes from scratch. A tank of serpent worms breeds when fed; five of them in a bowl is gagh. |
 | **Jefferies tubes** | Crawlways between her decks, across the stars under her, for anybody who would rather not take the lift. Three hideouts off them where the off-watch crew keep their bottles -- and their contraband, and other people's weapons. |
-| **The field station** | Muldraugh's electronics store, on the main road beside the Zippee, has a breaker box on its stockroom wall that is not a breaker box. Open it, and the lift behind it takes you down to a Starfleet survey station three sublevels deep -- operations and its wall of screens watching the county, a mess, bunks and an infirmary, a reactor, stores and a survey lab -- staffed by some of the eleven who stayed on the ground, and running on its own dilithium. The Adirondack's crew know where it is; the station has not answered them since June. |
+| **The field station** | Muldraugh's electronics store, on the main road beside the Zippee, has a breaker box on its stockroom wall that is not a breaker box. Open it, and the lift behind it takes you down to a Starfleet survey station on one long floor -- living quarters along one side of its corridor; operations and its wall of screens watching the county, a galley with its own replicator, an armoury, an infirmary, a reactor and stores along the other -- staffed by some of the eleven who stayed on the ground, and running on its own dilithium. The Adirondack's crew talk about it; the station has not answered them since June. |
+| **Building aboard** | Build what you like in the shuttle's cabin, on the Adirondack and in the field station, and pick up and move the mod's own furniture as you would vanilla's. Nothing you build or move is undone by the ship; only the machines (replicators, warp cores, the Doctor's stations, the lift panels) stay put. |
 | **Stores** | Three Starfleet lockers — an armoury, the rations and the sick bay — and five containers left empty on purpose: the fridge, the oven, both counters and the microwave are yours to fill. |
 | **Shields** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed — no free experience, no free loot. Raise and lower them at the helm. |
 | **A shared ship** | In multiplayer there is one shuttle for everyone. Server owners can limit it to its owner and crew. |
@@ -133,8 +134,8 @@ counts each one. If your players want unlimited beaming, set
 The **field station** is under the electronics store in Muldraugh. Go in
 through the shop, through to the stockroom, and right-click the grey breaker
 box on the west wall: **Open the breaker box**, then **Lift: down to the field
-station**. Down there the lift car's menu goes between the three sublevels
-and **Up to the stockroom**; there is no transporter below.
+station**. Down there the lift car's menu has **Up to the stockroom**; there
+is no transporter below.
 
 The shuttle is either sitting on the ground somewhere or overhead. The
 transporter works either way; the hatch only works when it is down.

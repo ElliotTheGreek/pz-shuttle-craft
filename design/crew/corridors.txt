@@ -581,15 +581,15 @@ a: I'm on deck three if you change your mind. | Find me later. I mean it.
 scene: cor_field_office
 where: corridor, lift, transporter
 cast: a=any, b=any
-weight: 2
+weight: 4
 
 = start
 a: Anything from the field office? | Has anybody tried the field office again?
  | Did ops ping the Muldraugh office this morning?
 b: Nothing. Dark since the twenty-ninth of June. | Silence. Same as every day.
 a: The one under the television shop? | Behind the TV shop in Muldraugh?
-b: That's the one. Electronics store on the main road, by the Zippee.
- | That's it. The shop on the main road. Shepard's cover.
+b: That's the one. Dixie Highway and South Main, by the Zippee.
+ | That's it. The shop at Dixie Highway and South Main. Shepard's cover.
 -> dead 2, hiding 2
 
 = dead

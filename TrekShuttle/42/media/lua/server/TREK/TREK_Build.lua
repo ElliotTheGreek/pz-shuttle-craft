@@ -125,7 +125,10 @@ end
 --- and anything lying on the ground. The interior cell is unmapped, so the
 --- engine grows procedural wilderness there; left alone the ship reads as a
 --- hut in a wood. Safe to repeat as chunks stream in late.
-local function clearSquare(sq)
+---
+--- `keepBuilt`: inside the hull, keep anything untagged that is not
+--- wilderness -- it is something a player built there (BUILDING.md).
+local function clearSquare(sq, keepBuilt)
     if not sq then return 0 end
     local doomed = {}
     U.eachObject(sq, function(o)
@@ -133,6 +136,7 @@ local function clearSquare(sq)
         if md and md.TREK then return end
         if instanceof(o, "IsoWorldInventoryObject") then return end
         if isDeck(o) then return end
+        if keepBuilt and not U.isWild(o) then return end
         table.insert(doomed, o)
     end)
     local removed = 0
@@ -426,7 +430,7 @@ local function clearFootprint()
     for ox = 0, C.CabinW do
         for oy = 0, C.CabinL do
             local x, y = at(ox, oy)
-            cleared = cleared + clearSquare(U.square(x, y, C.CabinZ, false))
+            cleared = cleared + clearSquare(U.square(x, y, C.CabinZ, false), true)
         end
     end
     U.debug("cleared %d objects from the cabin footprint", cleared)
@@ -1131,13 +1135,25 @@ end
 
 --- Places the furniture authored in BuildingEd. An appliance and its counter
 --- may share a square, so layering is intentional and nothing is claimed.
+B.MadeKey = "TREK_CabinMade"
+
+--- Which of the cabin's fittings have been placed: "x,y,sprite" -> true.
+function B.made() return U.madeRecord(B.MadeKey, "cabin") end
+
 local function furnishAuthoredInterior()
+    local record = B.made()
     for _, entry in ipairs(L.tiles) do
         if inShape(entry.x, entry.y) and not C.isLanding(entry.x, entry.y) then
             local x, y = at(entry.x, entry.y)
             local sq = U.square(x, y, C.CabinZ, true)
             local isWater = C.WaterTags[entry.tag]
-            if entry.device then
+            local key = entry.x .. "," .. entry.y .. "," .. entry.sprite
+            local here = sq and U.findSprite(sq, entry.sprite)
+            if here then record[key] = true end
+            if not here and record[key] then
+                -- Placed once and gone: a player picked it up to move it
+                -- (BUILDING.md). Theirs now; not put back.
+            elseif entry.device then
                 placeDevice(sq, entry)
             elseif C.StoveTags[entry.tag] then
                 placeStove(sq, entry)
@@ -1170,6 +1186,7 @@ local function furnishAuthoredInterior()
             else
                 place(sq, entry.sprite, entry.tag)
             end
+            if sq and U.findSprite(sq, entry.sprite) then record[key] = true end
         else
             U.warnOnce("authored:" .. tostring(entry.x) .. ":" .. tostring(entry.y),
                 string.format("layout entry %s at %d,%d is outside the cabin or on the pad",
@@ -1787,6 +1804,10 @@ function B.forceRebuild()
 
     local s = U.state()
     s.built, s.rev = false, 0
+    -- Everything is gone, the player's things with it: every fitting is put
+    -- back, whatever was taken before.
+    local made = ModData.getOrCreate(B.MadeKey)
+    made.cabin = {}
 
     local wasDev = C.DevRestock
     C.DevRestock = true

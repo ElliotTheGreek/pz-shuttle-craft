@@ -294,9 +294,10 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
 
 - **Where**: void cell 97,40, offset 16, on the cabin's level (`C.CabinZ`).
 - **She shares her layout with the field station** (`FIELD_STATION.md` 4):
-  its three sublevels are more entries in `L.decks`, marked `site = "fst"`
-  (hers are `"adk"`), standing from slot 8 east of Deck 1 over black rather
-  than stars. Everything below holds for them; `A.siteOf(k)` is the one
+  its one long floor is another entry in `L.decks`, marked `site = "fst"`
+  (hers are `"adk"`), standing at slot 11 east of Deck 1 over black rather
+  than stars. It is bigger than any deck, so `L.W`/`L.H` grew; the tubes are
+  routed by her decks' own size and did not move. Everything below holds for them; `A.siteOf(k)` is the one
   question that differs -- what the lift lists, the way out, whose power, what
   the crew talk about. Anything that counts "every deck" of hers walks
   `A.decksOf("adk")`, not `L.decks`.

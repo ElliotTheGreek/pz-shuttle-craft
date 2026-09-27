@@ -49,7 +49,8 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | Her crew | `CREW.md` | **Played** twice; walking and sitting still need a look |
 | Hydroponics and the galley stove | `FARMING.md` | **Played** 2026-09-26: planted bay, harvest, sowing, cooking |
 | Jefferies tubes, hideouts, Turbolift Phobia | `JEFFERIES.md` | Built, not played. **Needs a new world** |
-| The field station: the breaker box in Muldraugh, three sublevels, its crew and power | `FIELD_STATION.md` | Built 2026-09-27, not played. Reaches existing worlds (the box is placed when the stockroom's chunk next loads) |
+| The field station: the breaker box in Muldraugh, its one long floor, its crew and power | `FIELD_STATION.md` | **Played** 2026-09-27 as three sublevels (box, down, walked). Rebuilt as one floor with quarters, galley, replicator and armoury the same day: not yet seen |
+| Building and moving furniture aboard | `BUILDING.md` | Built 2026-09-27, not played |
 | Contraband | `CONTRABAND.md` | Built, not played. **Needs a new world** |
 | Dedicated server | `MULTIPLAYER.md` | Loads cleanly; **nobody has played on it** |
 
@@ -81,9 +82,11 @@ each guide's own *Not yet seen* section has the detail.
 9. **The crew** (`CREW.md` 6): walking, sitting and speech.
 10. **The armoury** (`ARMOURY.md` 9): every weapon in the fist, on the ground
     and fired; holstered and slung; the room off the bridge and its lockers.
-11. **The field station** (`FIELD_STATION.md` 10): the box in the Muldraugh
-    stockroom, opened; down, the sublevels, their crew; the replicator on the
-    station's power; up again.
+11. **The field station** (`FIELD_STATION.md` 10): down to the new floor
+    (from the old sublevels in the author's save), its rooms and crew, the
+    replicator on the station's power; up again.
+12. **Building** (`BUILDING.md` 4): carpentry aboard, a bed moved, a
+    replicator that will not move.
 
 ### 2.2 The two-player session
 

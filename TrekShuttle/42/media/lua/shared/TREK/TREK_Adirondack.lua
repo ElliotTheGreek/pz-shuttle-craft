@@ -181,6 +181,20 @@ end
 function A.onAdirondack(player) return A.siteOfPlayer(player) == "adk" end
 function A.onStation(player) return A.siteOfPlayer(player) == "fst" end
 
+--- True on a square of the field station's old sublevels (L.legacyStation):
+--- three floors for one day, now nothing, and a save may have somebody
+--- standing on one. They are brought to the station's floor.
+function A.inLegacyStation(x, y, z)
+    if not x or not y or not L.legacyStation then return false end
+    if z and math.floor(z) ~= A.Z then return false end
+    local ox, oy = A.origin()
+    local lx, ly = math.floor(x) - ox, math.floor(y) - oy
+    for _, b in ipairs(L.legacyStation) do
+        if lx >= b.x0 and lx <= b.x1 and ly >= b.y0 and ly <= b.y1 then return true end
+    end
+    return false
+end
+
 --- The decks of one site, in lift order: { k, ... }.
 function A.decksOf(site)
     local out = {}

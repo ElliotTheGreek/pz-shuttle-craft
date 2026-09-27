@@ -97,11 +97,17 @@ def station():
     adk = LUA / "TREK_Adirondack.lua"
     ax, ay = lua_number(adk, r"A\.Cell\s*=\s*\{\s*x\s*=\s*(\d+),\s*y\s*=\s*(\d+)")
     (aoff,) = lua_number(adk, r"A\.Offset\s*=\s*(\d+)")
-    m = re.search(r"L\.stationSpan = \{ x0 = (-?\d+), y0 = (-?\d+), x1 = (-?\d+), y1 = (-?\d+) \}",
-                  (LUA / "TREK_AdirondackLayout.lua").read_text(encoding="utf-8"))
+    text = (LUA / "TREK_AdirondackLayout.lua").read_text(encoding="utf-8")
+    m = re.search(r"L\.stationSpan = \{ x0 = (-?\d+), y0 = (-?\d+), x1 = (-?\d+), y1 = (-?\d+) \}", text)
     if not m:
         return None
     sx0, sy0, sx1, sy1 = [int(v) for v in m.groups()]
+    # And the one-day sublevels it replaced (L.legacyStation): a save may
+    # have them, and anybody standing there is brought across -- over black.
+    for g in re.findall(r"\{ x0 = (-?\d+), y0 = (-?\d+), x1 = (-?\d+), y1 = (-?\d+) \},",
+                        text[text.find("L.legacyStation"):text.find("L.tubes")]):
+        lx0, ly0, lx1, ly1 = [int(v) for v in g]
+        sx0, sy0, sx1, sy1 = min(sx0, lx0), min(sy0, ly0), max(sx1, lx1), max(sy1, ly1)
     x0, y0 = ax * CELL + aoff, ay * CELL + aoff
     return (x0 + sx0 - VIEW, y0 + sy0 - VIEW, x0 + sx1 + VIEW, y0 + sy1 + VIEW)
 

@@ -2,12 +2,16 @@
 
 The working guide to Field Station Muldraugh: a Starfleet survey base under an
 ordinary electronics store, reached through a breaker box in its stockroom
-that is not a breaker box, three sublevels deep, and staffed. `ADIRONDACK.md`
+that is not a breaker box, one long floor underground, and staffed. `ADIRONDACK.md`
 is how the ship is raised at runtime; this station is raised by the same
 machinery, and this file is what is different about it.
 
-Built 2026-09-27. **Nothing here has been seen in game yet.** Section 10 is
-what to check first; section 12 is what building it taught.
+Built 2026-09-27; reached and walked the same day ("nice, I like it down
+here"), as three sublevels. Rebuilt the same day as **one long floor** at the
+author's word, with quarters, a galley and replicator and an armoury added --
+that version is not yet seen. Section 10 is what to check; section 12 is what
+building it taught. Players may build and move furniture down here as
+everywhere aboard (`BUILDING.md`).
 
 `DEV_GUIDE.md`'s *Rules that exist because they were broken* and
 `MULTIPLAYER.md` apply to every line.
@@ -23,26 +27,33 @@ what to check first; section 12 is what building it taught.
   fuse in sight but a Starfleet lift panel. From then on the box is gone and
   the panel is there, for everybody, for the life of the world.
 - **Right-click the panel: *Lift: down to the field station*.** The stockroom
-  floor hums and drops away, and you step out of a lift car on Sublevel 1.
-- **Three sublevels**, joined by the lift, in the Adirondack's own fittings
-  (her bulkheads, deck plate, sliding doors, consoles and furniture), with no
-  viewports -- you are underground:
+  floor hums and drops away, and you step out of the station's lift car.
+- **One long, wide floor** in the Adirondack's own fittings (her bulkheads,
+  deck plate, sliding doors, consoles and furniture), with no viewports -- you
+  are underground. A corridor runs from the lift the length of the floor:
 
-  | Sublevel | What is on it |
+  | West of the corridor (up and left on screen) | East of it |
   |---|---|
-  | 1 | Operations (the wall of screens that watches the county), the security office and its arms lockers, survey records |
-  | 2 | The mess and galley, the bunk room and its washroom, the infirmary |
-  | 3 | The reactor room (a warp core scaled for a station), stores, the survey lab |
+  | Quarters 1 (a double bed), Quarters 2 and 3, Quarters 4 (bunks) | Operations: the wall of screens that watches the county |
+  | The washroom | The galley: counters, the range, stasis units, **the replicator**, tables |
+  | Survey records | **The armoury**: three arms lockers, the security desk |
+  | | The infirmary, with its Doctor |
+  | | The reactor room (a warp core scaled for a station) and the stores |
 
-- **Starfleet crew walking the sublevels in uniform**, as they do on the
+- **Starfleet crew walking the floor in uniform**, as they do on the
   Adirondack: out of the lift, to their posts, sitting, talking to each other
   and to you, and back to the lift. Their talk is their own (section 7):
   these are people who have lived underground since June.
-- **Its own power**: a replicator, a Doctor's station on every sublevel, and
-  a core that holds its own dilithium, billed to the station and never to the
-  shuttle or the Adirondack.
-- **The way out is the lift**: from any sublevel's lift car, *Up to the
-  stockroom*. There is no transporter down here, and no beam to the shuttle.
+- **Its own power**: the replicator, the Doctor, the galley, and a core that
+  holds its own dilithium, billed to the station and never to the shuttle or
+  the Adirondack.
+- **The way out is the lift**: *Up to the stockroom*, from its car. There is
+  no transporter down here, and no beam to the shuttle.
+- **The Adirondack's crew talk about it** (`design/crew/field_office.txt`,
+  and `cor_field_office`): in her lounge and galley, on the bridge, in the
+  transporter room and sickbay, and in passing -- the field office under the
+  electronics shop at Dixie Highway and South Main, dark since June, the
+  breaker box in the stockroom. That is how a player hears it is there.
 
 ## 2. The fiction
 
@@ -151,14 +162,14 @@ beam (`Core.requestMove`):
 | Move | From | Server checks | Charge |
 |---|---|---|---|
 | `stationDown` | the panel | found; standing within `C.FieldStation.reach` of the panel square | 1 |
-| `stationUp` | a station lift car | on a station sublevel, in its lift car | 1 |
+| `stationUp` | the station's lift car | in the station, in its lift car | 1 |
 
 Both are one long move of the player's own character, so both take one
 transporter charge on a server with the speed anti-cheat, as every beam does
 (`MULTIPLAYER.md`, *Transporter charge*). Neither costs power: it is a lift.
 
-- **Down** arrives in Sublevel 1's lift car and holds there until the server
-  says the sublevel is built, exactly as a turbolift ride does on the
+- **Down** arrives in the station's lift car and holds there until the server
+  says the floor is built, exactly as a turbolift ride does on the
   Adirondack (`adkBoarded` / `adkReady`).
 - **Up** arrives on the stockroom floor in front of the panel. The ground
   there is Kentucky, real map, so the only wait is for the chunk to stream in:
@@ -170,40 +181,37 @@ transporter charge on a server with the speed anti-cheat, as every beam does
 
 ## 4. The station
 
-### The sublevels
+### The floor
 
-Drafted as BuildingEd sections by `tools/gen_adirondack_sections.py` (the
-three `fs_*` entries, written to `design/buildinged/FieldStation_*.tbx`),
-composed into sublevels by `tools/compose_adirondack.py` (the `STATION`
-list), each with the Adirondack's spine corridor, lift car, wash basin and
-EMH station, exactly as a deck has them.
+Drafted as one BuildingEd section by `tools/gen_adirondack_sections.py`
+(`fs_main`, written to `design/buildinged/FieldStation_Main.tbx`), and
+composed by `tools/compose_adirondack.py` (`STATION`, `NO_SPINE`). **It brings
+its own corridor**: a deck of the Adirondack is a spine corridor down its west
+side with sections east of it, and this floor is laid from 0,0 round the lift
+car instead, its corridor running south from a lobby beside the car (a room of
+two rectangles, `rects`). Its basin and its Doctor are on the corridor; the
+lift car and its panel are the composer's, the same squares as every deck's.
 
-| Sublevel | Section | Rooms |
-|---|---|---|
-| 1 | `fs_operations` | Operations, Security Office, Survey Records |
-| 2 | `fs_habitat` | Mess, Bunk Room, Washroom, Infirmary |
-| 3 | `fs_reactor` | Reactor Room, Stores, Survey Lab |
-
-Once the author saves a section in BuildingEd it is theirs (the generator's
+Once the author saves the section in BuildingEd it is theirs (the generator's
 `Generator` property, `ADIRONDACK.md` 8).
 
 ### One layout, two places
 
-**The station is more decks of the same layout, not a second system.** Every
-sublevel is an entry in `L.decks` with `site = "fst"`; the Adirondack's are
-`site = "adk"`. Everything `ADIRONDACK.md` 9 says about a deck is true of a
-sublevel: built by the server per sublevel as a player arrives, tagged `adk`,
-refitted in place when the layout changes, doors that open as you walk up,
-water topped up, machines found by piece name, lamps hung by each client.
+**The station is another deck of the same layout, not a second system.** Its
+floor is an entry in `L.decks` with `site = "fst"`; the Adirondack's are
+`site = "adk"`. Everything `ADIRONDACK.md` 9 says about a deck is true of it:
+built by the server as a player arrives, tagged `adk`, refitted in place when
+the layout changes, doors that open as you walk up, water topped up, machines
+found by piece name, lamps hung by each client.
 
 What the site changes, and nothing else:
 
 | | Adirondack (`adk`) | Field station (`fst`) |
 |---|---|---|
-| Where in the void | decks 1-5, 108 apart | sublevels 1-3, from slot 8 (864 squares east of Deck 1), 108 apart |
+| Where in the void | decks 1-5, 108 apart | slot 11, 1188 squares east of Deck 1 |
 | Under the floor | stars | black: nothing at all (`gen_void_map.py`) |
 | Jefferies tubes | between her decks | none |
-| The lift lists | her decks | the sublevels, and *Up to the stockroom* |
+| The lift lists | her decks | the floor, and *Up to the stockroom* |
 | The way out | *Beam back to the shuttle* | the lift up |
 | Power | her store, `s.adk` | its own, `s.fst` (`A.StationStartCrystals`) |
 | Crew talk | `where: any` and her places | `where: station` and the station's places |
@@ -215,15 +223,26 @@ standing on any runtime deck, which is what the machines' menus, the Doctor
 and the deck builder ask -- and `A.onAdirondack(player)` / `A.onStation(player)`
 are the two halves for the few things that differ.
 
-**Sublevels stand far east of the ship**, not after her: the star field under
-the Adirondack reaches 110 squares past her last deck (`gen_void_map.py`,
-`VIEW`), and the station's black should not begin where anybody can see stars.
-Slot 8 leaves 280 squares of nothing between the last star and Sublevel 1.
+**It stands far east of the ship**: the star field under the Adirondack
+reaches 110 squares past her last deck (`gen_void_map.py`, `VIEW`), and the
+station's black should not begin where anybody can see stars.
 
-**Deck numbers are the station's own.** The layout generator used to order
-decks by the number at the end of the name (`Deck 4` -> 4). A second "Sublevel
-1" would sort against "Deck 1", so the order is by site first, then number,
-and the Adirondack's five keep the indices every save has already built.
+**The floor is bigger than any deck**, so the building -- and `L.W`, `L.H` --
+grew to its size. The Jefferies tubes are routed by the size of the ship's
+own decks (`gen_adirondack_lua.py`), and came out byte-identical: a tube must
+never move under a save.
+
+### The three sublevels it replaced
+
+For one day the station was three sublevels, at slots 8, 9 and 10, and a save
+may have them built -- the author's does. The floor stands clear of them at
+slot 11 rather than being refitted over them: a refit keeps any locker with
+something in it, which would have left the old sublevels' stocked shelves
+standing in the new rooms. Their squares are `L.legacyStation`; a player
+found standing there (a save made below) is brought to the floor's lift car
+(`A.inLegacyStation`, `TREK_AdirondackClient.checkAboard`). What stood on them
+stays where it was, over black, reached by nothing. The void map keeps their
+cells black.
 
 ### What the lockers hold
 
@@ -231,7 +250,7 @@ and the Adirondack's five keep the indices every save has already built.
 and changes nothing the Adirondack's lockers hold; what is in the station's is
 decided by what stands there. Worth knowing: every stocked container is
 stocked once, when it is made (`DEV_GUIDE.md`, *Never restock*), so the
-station's lockers fill when the sublevel is first built in a world -- in an
+station's lockers fill when the floor is first built in a world -- in an
 existing save as much as a new one, because none of it existed before.
 
 ## 5. Who owns what
@@ -242,7 +261,7 @@ existing save as much as a new one, because none of it existed before.
 | The box and the panel | **Server**, world objects, tagged `fst`, placed with `transmitAddObjectToSquare` and taken with `transmitRemoveItemFromSquare` |
 | Opening the box | **Server**, on `stationOpen`, measured on its own copy of the player |
 | Going down and up | **The player's own client** moves its character, after the server grants `stationDown` / `stationUp` |
-| The sublevels | **Server**, the Adirondack's deck builder, per sublevel |
+| The floor | **Server**, the Adirondack's deck builder |
 | The station's power | **Server**, `s.fst`, spent through the one ledger (`TREK.Energy.energize`) under `P.using("fst")` |
 | The crew | **Server** scripts; **the owning client** walks (`CREW.md` 6) |
 
@@ -257,7 +276,7 @@ shuttle's lamps, dark notes and warnings are the shuttle's alone
 (`s.adk`). It has three now. Every function takes the pool as before;
 `P.poolOf(player)` answers `fst` in the station. The station starts with
 `A.StationStartCrystals` (12) in its core, loaded and taken like any core
-through its warp-core piece on Sublevel 3, and its galley range has its own
+through its warp-core piece in the reactor room, and its galley range has its own
 power bus, billed to it.
 
 Twelve is deliberate: enough to run the replicator and the Doctor for a long
@@ -265,21 +284,21 @@ time, not enough to make the station a better base than the shuttle.
 
 ## 7. The crew and their talk
 
-The Adirondack's crew system, unchanged, on three more decks
-(`K.Population`, `K.Jobs` gain three entries). Their talk is
+The Adirondack's crew system, unchanged, on one more deck (`K.Population`
+and `K.Jobs` gain an entry: eight at a time, sciences first). Their talk is
 `design/crew/station.txt`, compiled with the rest by `tools/gen_crew_talk.py`.
 
 ### Places
 
 | Tag | Room |
 |---|---|
-| `ops` | Operations, the Security Office |
-| `records` | Survey Records, the Survey Lab |
-| `mess` | the Mess |
-| `bunks` | the Bunk Room, the Washroom |
+| `ops` | Operations, the Armoury |
+| `records` | Survey Records |
+| `mess` | the Galley |
+| `bunks` | the Quarters, the Washroom |
 | `infirmary` | the Infirmary |
 | `reactor` | the Reactor Room, Stores |
-| `shaft` | a station lift car, a sublevel's corridor |
+| `shaft` | the lift car, the Main Corridor |
 | `station` | anywhere in the station |
 
 **`any` means anywhere on the Adirondack, and `station` anywhere in the
@@ -309,7 +328,7 @@ detachment: sciences first, then operations, a little command.
 | `TREK_Crew.lua`, `TREK_CrewServer.lua` | three more decks; `station` for `any` |
 | `TREK_Config.lua` | `C.FieldStation` |
 | `tools/gen_adirondack_sections.py` | the three `fs_*` sections |
-| `tools/compose_adirondack.py` | `STATION`, the sublevels |
+| `tools/compose_adirondack.py` | `STATION`, `NO_SPINE`: the floor round the lift car |
 | `tools/gen_adirondack_lua.py` | `site`, the station's slots, its place tags; tubes only between the ship's decks |
 | `tools/gen_void_map.py` | the station's cells, black |
 | `tools/adirondack_objects.py`, `tools/gen_fuse_box.py` | the breaker box |
@@ -336,18 +355,20 @@ passed a box hung on a window.
 
 **`fieldstation()`**, single player and with two clients:
 
-- the layout: three sublevels with `site = "fst"`, far enough east, no tube
-  touching one, a lift car on each lined up with the ship's;
+- the layout: one floor with `site = "fst"`, far enough east, no tube
+  touching it; the quarters west of the corridor, the galley, armoury,
+  operations and infirmary east; a replicator, a range and the arms lockers;
 - the box: placed once on the checked square, refused on a square with a
   window, and found again in the room when the named square will not do;
 - opening: refused out of reach, granted in reach, the box gone and one panel
   on the wall, `found` published to the second client;
 - down and up: refused before the box is open and from the wrong place,
-  granted, Sublevel 1 built and the arrival released, the return point the
+  granted, the floor built and the arrival released, the return point the
   stockroom on the server's own copy, up again to the stockroom floor;
-- the lift: only sublevels offered in the station, only decks on the ship;
-- power: a replicator on Sublevel 2 bills `s.fst` and nothing else;
-- crew: a sublevel staffed; `station` talk matched there and `any` never.
+- the lift: only the floor and the stockroom offered, never the ship;
+- power: the galley's replicator bills `s.fst` and nothing else;
+- a player saved on the old sublevels is brought to the floor;
+- crew: the floor staffed; `station` talk matched there and `any` never.
 
 **`fieldstation_multiplayer()`**: one player opens the box and the other's
 client shows the panel; a ride down asked for from the street is refused; the
@@ -369,9 +390,11 @@ that store since will have missed the placement, and the next load fixes it):
 1. **The box.** Muldraugh, the electronics store beside the Zippee, the
    stockroom, the west wall: a grey breaker cabinet. Does it read as 1993?
 2. **Opening it.** The note, and the panel where the box was.
-3. **Down.** The note, the lift car, Sublevel 1 building round you, the log
-   saying `Field Station Sublevel 1 built`.
-4. **The sublevels.** No stars under the floor, black; the doors; the lamps;
+3. **Down.** The note, the lift car, the floor building round you, the log
+   saying `Field Station Level 1 built`. **In your save**: you were last down
+   there on the old sublevels -- you should arrive on the new floor.
+4. **The floor.** The quarters up and left of the corridor, the galley's
+   replicator, the armoury's lockers. No stars, black; the doors; the lamps;
    the lift between them.
 5. **The crew.** Walking, sitting, and the station's own talk.
 6. **Up.** Back on the stockroom floor, in front of the panel, not in a wall.

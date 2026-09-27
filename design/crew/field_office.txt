@@ -1,0 +1,137 @@
+# The field office on the ground (FIELD_STATION.md 2), as the Adirondack's crew
+# talk about it. It went dark on 29 June; nobody aboard knows that anybody is
+# alive down there. This is how a player hears that it exists and where: under
+# the electronics shop at Dixie Highway and South Main, in Muldraugh, through
+# the stockroom, behind the breaker box. Spread across the ship on purpose,
+# and weighted to come up often, because otherwise nobody will ever find it.
+
+# ---------------------------------------------------------------------------
+scene: fo_lounge_theory
+where: lounge, galley
+cast: a=any, b=any
+weight: 4
+
+= start
+a: Do you ever think about the field office? The one in Muldraugh?
+ | I dreamed about the Muldraugh field office again.
+ | Somebody should go and look at the field office. I mean it.
+b: The TV shop? Dixie Highway and South Main? | Under the electronics shop?
+ | The one that went dark in June?
+a: That one. Eight people and a masking field, and not a word since.
+ | Eight of the eleven worked out of there. Eight.
+-> alive 2, access 2, sad 1
+
+= alive
+b: You think they're alive. | You think they're still down there.
+a: I think a bunker under a shop is the best place in that county to be.
+ | Sealed, powered, hidden. If I'd been down there, I'd still be down there.
+b: Then why don't they answer? | Then why the silence?
+a: Because the field hides them from everyone. Us included. That's its job.
+ | Because somebody sabotaged us from inside. Would you call us?
+-> close
+
+= access
+b: Could you even get in? It's a shop. With the county the way it is.
+ | How would anybody get in, even if they went?
+a: Front door on the lot side, through the shop, into the stockroom.
+ | Walk in off South Main, through the shop floor, back to the stockroom.
+b: And then? | Then what? It's a stockroom.
+a: The breaker box on the stockroom wall. It isn't a breaker box.
+ | West wall of the stockroom. Grey breaker box. Open it.
+b: That's it? That's the security? | A breaker box. Shepard's idea?
+a: Shepard's idea. Who looks twice at a breaker box?
+ | Shepard. She said nobody in 1993 opens a breaker box for fun.
+-> close
+
+= sad
+b: Don't. | I try not to think about it.
+a: I know. I can't help it. Eight people, a mile from where we beam down.
+ | Sorry. It's just -- they're right there. Dixie and South Main.
+b: If they were alive, they'd have called. | Maybe. Maybe not.
+-> close
+
+= close
+a: Someone should just go and look. | One of these days somebody will.
+b: Tell that to the captain. | Not me. I don't do stairs, let alone zombies.
+ | If you find a way down, I'll come.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: fo_bridge_scan
+where: bridge
+cast: a=sciences, b=command
+weight: 3
+
+= start
+a: Sir, I ran another passive sweep over Muldraugh.
+ | Muldraugh sweep's done, {b}.
+b: And? | Anything? | Same as yesterday?
+a: The usual dead spot. Dixie Highway and South Main. Nothing reads there.
+ | A hole in the sensors under the electronics shop. Same size as ever.
+-> field 2, report 2
+
+= field
+b: That's the masking field. The field office's. It means the power is on.
+ | A hole means the field's up. A field needs power. Power needs somebody.
+a: Or it's on automatic and running on its last crystal.
+ | Or the generator doesn't know everybody's gone.
+b: ... Log it. Same as every day. | Log it. And keep looking.
+-> end
+
+= report
+b: Put it in the report. Mark the shop. | Flag it on the survey map again.
+a: It's flagged. It's been flagged since June. | Done. Stockroom entrance and all.
+b: Then flag it louder. | Good. Somebody might need it one day.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: fo_transporter_cant
+where: transporter
+cast: a=operations, b=any
+weight: 3
+
+= start
+a: Can't lock onto it. Never could. | That's the field office again. No lock.
+b: The Muldraugh one? | Under the shop? | Why not?
+a: The masking field. It eats a transporter lock like it eats everything.
+ | Their masking field. From up here it's a hole in the ground.
+b: So the only way in is on foot. | So somebody would have to walk in.
+a: Through the shop, into the stockroom, and down their own lift.
+ | Dixie Highway and South Main. Breaker box in the stockroom. Their lift.
+-> brave 2, end_it 1
+
+= brave
+b: Anybody brave enough to walk in there deserves a medal.
+ | Whoever does that is braver than me.
+a: Or a Starfleet survey pass. Same thing, these days.
+ | Whoever it is, I'd like to meet them.
+-> end
+
+= end_it
+b: I hope somebody does. | One day.
+a: Me too. | Every day I hope it.
+-> end
+
+# ---------------------------------------------------------------------------
+scene: fo_sickbay_names
+where: sickbay
+cast: a=medical, b=any
+weight: 2
+
+= start
+a: I still keep their files open. The field office team.
+ | Eight medical files, and not one update since June.
+b: The Muldraugh lot? | The ones under the TV shop?
+a: The station had its own infirmary. Its own Doctor, the old field model.
+ | They had a proper infirmary down there. Four beds. They'd be fine.
+b: If they were down there when it happened. | If they got down in time.
+a: They got down in time. I've decided. | I choose to believe they did.
+-> end
+
+# ---------------------------------------------------------------------------
+bark: idle
+where: any
+- Dixie and South Main. Somebody should knock on that breaker box.
+- Still nothing from the field office. Still a hole on the scan.
+- Eight people under a TV shop in Muldraugh. I think about it every day.
+- The field office's masking field is still up. Something's powering it.

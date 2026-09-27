@@ -36,25 +36,11 @@
    "description": "Hydroponics"
   },
   {
-   "deck": "Sublevel 1",
+   "deck": "Level 1",
    "z": 5,
    "x": 1,
    "y": 1,
-   "description": "Operations, Security, Survey Records"
-  },
-  {
-   "deck": "Sublevel 2",
-   "z": 6,
-   "x": 1,
-   "y": 1,
-   "description": "Mess, Bunk Room, Infirmary"
-  },
-  {
-   "deck": "Sublevel 3",
-   "z": 7,
-   "x": 1,
-   "y": 1,
-   "description": "Reactor Room, Stores, Survey Lab"
+   "description": "Quarters, Operations, Galley, Armoury, Infirmary, Reactor"
   }
  ],
  "decks": [
@@ -106,30 +92,12 @@
    "site": "adk"
   },
   {
-   "deck": "Sublevel 1",
+   "deck": "Level 1",
    "z": 5,
    "sections": [
-    "FieldStation_Operations.tbx"
+    "FieldStation_Main.tbx"
    ],
-   "description": "Operations, Security, Survey Records",
-   "site": "fst"
-  },
-  {
-   "deck": "Sublevel 2",
-   "z": 6,
-   "sections": [
-    "FieldStation_Habitat.tbx"
-   ],
-   "description": "Mess, Bunk Room, Infirmary",
-   "site": "fst"
-  },
-  {
-   "deck": "Sublevel 3",
-   "z": 7,
-   "sections": [
-    "FieldStation_Reactor.tbx"
-   ],
-   "description": "Reactor Room, Stores, Survey Lab",
+   "description": "Quarters, Operations, Galley, Armoury, Infirmary, Reactor",
    "site": "fst"
   }
  ],
@@ -140,8 +108,8 @@
   "y": 0
  },
  "size": [
-  20,
-  25
+  26,
+  36
  ],
- "floors": 8
+ "floors": 6
 }

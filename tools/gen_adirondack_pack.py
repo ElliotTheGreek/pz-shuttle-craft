@@ -234,6 +234,13 @@ def ours(props, **extra):
 
 FACE = {"W": "E", "N": "S", "E": "W", "S": "N"}
 
+# Everything else aboard can be picked up and moved like vanilla furniture;
+# these cannot (BUILDING.md). The machines work by where they stand, the lift
+# panel is how a lift is found, and the breaker box and its panel are the
+# field station's door.
+FIXED = {"replicator", "warp_core", "emh_station", "turbolift_panel", "fuse_box",
+         "jefferies_hatch"}
+
 
 def sheet01_props(defs):
     s01 = "trek_adirondack_01"
@@ -343,6 +350,14 @@ def sheet02_props(defs, index):
                     # (TREK_AdirondackServer, addWaterStore).
                     base.update({"waterPiped": "", "waterAmount": "20", "waterMaxAmount": "20",
                                  "IsTableTop": "", "Material3": "Sink"})
+                if name in FIXED:
+                    # A machine is found by where the layout put it
+                    # (TREK_Adirondack, A.machines): picked up and set down
+                    # elsewhere it is furniture that looks like a machine, and
+                    # the deck builder would stand a second one where it was.
+                    for k in ("IsMoveAble", "CanScrap", "CanBreak", "PickUpLevel", "PickUpTool",
+                              "PickUpWeight", "PlaceTool"):
+                        base.pop(k, None)
                 if name == "transporter_pad":
                     # You arrive standing on it: a raised dais, not an obstacle.
                     for k in ("solidtrans", "solid", "BlocksPlacement"):

@@ -452,9 +452,10 @@ cast: a=any, b=any
 weight: 3
 
 = start
-a: Going up or down? | Which level? | After you.
-b: Two. Mess. | Three, for my sins. | Records. Again.
-a: Same. | I'm one past you. | Reactor. Always reactor.
+a: Morning. | Evening, probably. | After you.
+b: Morning. Galley? | Off to the screens? | Records. Again.
+a: Galley. Somebody said there's coffee. | Reactor. Always reactor.
+ | Ops. Double shift.
 ...
 -> small 2, rumour 1
 
@@ -514,11 +515,11 @@ where: station
 # ---------------------------------------------------------------------------
 bark: arrive
 where: station
-- Level two. Mess. Finally. | Here we are. | Down we go.
+- Galley. Finally. | Here we are. | Back down again.
 - Anyone seen my padd? | Right. Where was I?
 
 # ---------------------------------------------------------------------------
 bark: leave
 where: station
 - Back to the screens. | Back to the files. | Back to the core.
-- Up I go. | Level one, then. | See you at the briefing.
+- Up I go. | Stockroom run. Don't tell Iverne. | See you at the briefing.

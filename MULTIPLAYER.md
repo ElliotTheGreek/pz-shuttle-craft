@@ -189,7 +189,7 @@ So a server-side file guarded by `if isClient() then return end` runs in
 | A contraband record | **Server**, player mod data; a summary sent to the owner (`contraState`) | The client's copy of the player never sees the server's write (`CONTRABAND.md` 3) |
 | The field station's breaker box, its panel and `found` | **Server**: world objects placed and swapped on the server; the square and `found` published in the ship state (`s.station`) | World state; opening it is a request measured on the server's copy of the player (`FIELD_STATION.md` 5) |
 | Going down to the station and up again | **The player's own client** moves; the server grants `stationDown` / `stationUp` and writes the return point on its own copy | Only a client may move its own character (`FIELD_STATION.md` 3) |
-| The station's sublevels and its own power store | **Server**, the Adirondack's deck builder and a third store, `s.fst` | The same split as hers (`FIELD_STATION.md` 4, 6) |
+| The station's floor and its own power store | **Server**, the Adirondack's deck builder and a third store, `s.fst` | The same split as hers (`FIELD_STATION.md` 4, 6) |
 
 ### Files
 

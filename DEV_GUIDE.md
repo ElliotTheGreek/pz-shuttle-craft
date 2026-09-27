@@ -2447,6 +2447,8 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **The map will not open at night, or in the shuttle** | The sandbox's *Map needs light* and no light to read by. Aboard, in her seats or with a tricorder or PADD it opens anyway (`TREK_MapView`); out in the dark with none of those it is vanilla's refusal, a "too dark" note over the head. |
 | **The map opens on an empty black picture** | It was centred on the character in the void. `TREK_MapView` centres it on the ship aboard; if this returns, `MV.open` is not being reached. |
 | **The Jefferies crawl or the crew's walk never plays** | An AnimSets XML file failed to parse and the game dropped it: `grep "not permitted\|PZXmlParserException" console.txt`. `tests/test_assets.py` parses them all. |
+| **Something a player built aboard is gone after a rebuild** | A builder took it for wilderness: its sprite matched `U.isWild`. Or it was a forced rebuild (`TREK_Rebuild()`), which wipes the cabin by design. |
+| **A fitting reappears where a player took it from** | The builder has no record of placing it (a save's first refit after `BUILDING.md`), or its record was cleared by a refit that removed it itself. Once, then never. |
 | **No breaker box in the Muldraugh stockroom** | The server has not looked yet (the chunk loads, then within `C.FieldStation.serviceTicks`), or no square passed its check: `grep "field station" console.txt` -- a WARN names the rule. `python tools/fieldstation_site.py` shows the same thing from the map. |
 | **Stars under the field station, or grass round it** | The void map is not loaded, or the save generated those cells before this build: the station's cells are mapped black (`gen_void_map.py`). |
 | **Another deck in view from this one** | `DECK_PITCH` has come down below the engine's load radius (79 squares from the player's chunk). See `JEFFERIES.md` 5. |
@@ -2656,7 +2658,7 @@ notes have since been answered in play.
 | 1.7.0 | energy: the ledger, the gauge, the dark ship, the cold start, wild dilithium, the galley made real |
 | 1.8.0 | species, Starfleet professions and rank; the phaser's own model, beam and cutting |
 | 1.9.0 | the U.S.S. Adirondack, her crew and hydroponics |
-| since 1.9.0 | the Jefferies tubes and hideouts, Turbolift Phobia, contraband, the armoury, the field station (not yet released) |
+| since 1.9.0 | the Jefferies tubes and hideouts, Turbolift Phobia, contraband, the armoury, the field station, building aboard, the map at night (not yet released) |
 
 `modversion` in `mod.info` and `C.Version` in `TREK_Config.lua` are the same
 number, and `tests/test_assets.py` fails if they are not -- they had drifted a
@@ -3162,6 +3164,14 @@ and crew serve them unchanged. Fifteen mutations, one at a time, all caught.
 It found a new rule (*A wall on the map is more than its wall tile*, above)
 and fixed a latent one on the ship: the Doctor's server looked for a named
 patient only in the shuttle's cabin. **Not seen in game.**
+
+**The 2026-09-27 building pass** (`BUILDING.md`): the builders strip only
+wilderness (`U.isWild`) and keep a record of what they placed
+(`U.madeRecord`), so a player's own furniture survives a rebuild and a fitting
+they picked up is not put back behind them -- which had been a duplication.
+The hull is always restored; the machines cannot be picked up (`FIXED` in the
+pack). The field station became one long floor the same day, at slot 11, with
+the old sublevels' squares kept as `L.legacyStation` for anybody saved there.
 
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.

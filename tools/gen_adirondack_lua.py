@@ -42,8 +42,17 @@ OUT = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua", "shared", "TREK",
 # tubes cross it (gen_adirondack_tubes.py).
 DECK_PITCH = TUBES.DECK_PITCH
 DECK_FLOOR = "trek_adirondack_01_25"
-# The field station's first sublevel stands this many pitches east of Deck 1.
-STATION_SLOT = 8
+# The field station stands this many pitches east of Deck 1.
+#
+# It was three sublevels at slots 8, 9 and 10 for one day (2026-09-27), and a
+# save may have them built, or a player standing on one. Its one floor stands
+# clear of them at slot 11, rather than being refitted over them -- a refit
+# keeps any locker with something in it, which would leave the old sublevels'
+# stocked shelves standing in the new rooms -- and the old squares are
+# written out as L.legacyStation, where a player found standing is brought to
+# the new floor (TREK_AdirondackClient).
+STATION_SLOT = 11
+LEGACY_STATION = [(8, 20, 25), (9, 20, 25), (10, 20, 25)]     # slot, width, height
 
 
 def unpad(name):
@@ -205,8 +214,18 @@ def main():
 
     # The Jefferies tubes (gen_adirondack_tubes.py, JEFFERIES.md): they put
     # their hatches on the decks' corridor walls, so before anything is written.
-    tubes = TUBES.build([decks[z] for z in ship_order], W, H, index)
-    span = TUBES.span(tubes, W, H, len(ship_order))
+    # **In the ship's own size.** The building is as wide and as deep as its
+    # biggest floor, and the field station's is bigger than any deck; the
+    # tubes are routed by the decks' size, and a tube must never move under a
+    # save (JEFFERIES.md 2).
+    sw = sh = 0
+    for z in ship_order:
+        for y, row in enumerate(decks[z]["grid"]):
+            for x, v in enumerate(row):
+                if v:
+                    sw, sh = max(sw, x + 1), max(sh, y + 1)
+    tubes = TUBES.build([decks[z] for z in ship_order], sw, sh, index)
+    span = TUBES.span(tubes, sw, sh, len(ship_order))
 
     # --- write --------------------------------------------------------------------------
     def q(s):
@@ -231,7 +250,8 @@ def main():
 
     # The station's own places (FIELD_STATION.md 7): its rooms never take a
     # ship's tag, because a ship's scene talks about the ship.
-    STATION_PLACES = (("Operations", "ops"), ("Security", "ops"), ("Records", "records"),
+    STATION_PLACES = (("Quarters", "bunks"), ("Galley", "mess"), ("Armoury", "ops"),
+                      ("Operations", "ops"), ("Security", "ops"), ("Records", "records"),
                       ("Survey Lab", "records"), ("Mess", "mess"), ("Bunk", "bunks"),
                       ("Washroom", "bunks"), ("Infirmary", "infirmary"), ("Reactor", "reactor"),
                       ("Stores", "reactor"), ("Lift", "shaft"), ("Corridor", "shaft"))
@@ -276,6 +296,11 @@ def main():
         xs = [slot_ox(0, z) for z in station_order]
         body.append("L.stationSpan = { x0 = %d, y0 = %d, x1 = %d, y1 = %d }"
                     % (min(xs) - 2, -2, max(xs) + W + 2, H + 2))
+    body.append("L.legacyStation = {")
+    for slot, lw, lh in LEGACY_STATION:
+        ox = slot * DECK_PITCH
+        body.append("  { x0 = %d, y0 = %d, x1 = %d, y1 = %d }," % (ox - 2, -2, ox + lw + 2, lh + 2))
+    body.append("}")
     body.append("L.tubes = {")
     for t in tubes:
         n = t["n"] + 1

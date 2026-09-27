@@ -351,7 +351,18 @@ local function checkAboard(player)
     -- Two levels is the most a fall covers before this catches it.
     if z < A.Z - 2 then return end
     local k, lx, ly = A.locate(x, y)
-    if not k then return end
+    if not k then
+        -- On one of the field station's old sublevels (a save from the one
+        -- day it had three): nothing is there any more to stand on or leave
+        -- by. Onto the station's floor, in its lift car.
+        if A.inLegacyStation(x, y) and TREK.FieldStation and TREK.FieldStation.firstDeck() then
+            local first = TREK.FieldStation.firstDeck()
+            local sx, sy = A.liftSpot(first)
+            U.log("standing on the field station's old sublevels; to %s", L.decks[first].name)
+            beginArrival(player, sx, sy, first)
+        end
+        return
+    end
     local who = U.try("username", function() return player:getUsername() end) or "?"
 
     if A.inside(k, lx, ly) then

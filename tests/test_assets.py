@@ -1277,6 +1277,20 @@ if os.path.isfile(PC):
 else:
     failures.append("traits: shared/Definitions/TREK_ProfessionClothing.lua is missing")
 
+# What a player may pick up aboard (BUILDING.md): every piece of furniture,
+# as vanilla's is, except the machines and the doors between places -- a
+# machine works by where the layout put it, and a moved one is scenery.
+_defs = _PACK.read_tiledefs(_PACK.TILES)["trek_adirondack_02"]["tiles"]
+_idx = json.load(open(os.path.join(ROOT, "design", "tiles", "trek_adirondack_02.json")))
+for _piece, _rec in _idx.items():
+    for _squares in _rec["facings"].values():
+        for _x, _y, _i in _squares:
+            _mov = "IsMoveAble" in dict(_defs[_i])
+            if _piece in _PACK.FIXED and _mov:
+                failures.append(f"building: {_piece} (tile {_i}) can be picked up; it must stay put")
+            if _piece in ("desk", "bed", "lounge_chair", "wardrobe", "arms_locker") and not _mov:
+                failures.append(f"building: {_piece} (tile {_i}) cannot be picked up and moved")
+
 # Every XML file the mod ships has to parse the way the game's parser does
 # (PZXmlUtil, a strict SAX parser). A "--" inside a comment is illegal XML:
 # two AnimSets files carried one, the game logged "The string -- is not
