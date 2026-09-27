@@ -415,6 +415,10 @@ scriptItem("Moveables.Moveable_fridge", { name = "Fridge", category = "Furniture
 --- against a catalogue that has never heard of the item passes whatever the
 --- locker actually ends up holding.
 for _, id in ipairs({ "TrekShuttle.TrekPhaser", "TrekShuttle.TrekHypospray",
+                      -- The installation kits (INSTALLATIONS.md): the ship
+                      -- must know them, or a house can never be powered.
+                      "TrekShuttle.TrekWarpCoreKit", "TrekShuttle.TrekReplicatorKit",
+                      "TrekShuttle.TrekEMHKit",
                       "TrekShuttle.TrekBatleth", "TrekShuttle.TrekRationPack",
                       "TrekShuttle.TrekDermalRegen", "TrekShuttle.TrekTricorder",
                       "TrekShuttle.TrekMedTricorder", "TrekShuttle.TrekTorpedo",
@@ -1016,7 +1020,28 @@ function SquareMT:has(flag)
     if flag == IsoFlagType.water then return self.water == true end
     return false
 end
-function SquareMT:isFree() return not self.occupied end
+--- Free: nobody standing there, and nothing solid on it -- a tile a test
+--- declared `solid` or `solidtrans` (SIM.tileProps). Before the installations
+--- (INSTALLATIONS.md) nothing asked about furniture, and a stub that said
+--- every square was free would let a warp core stand on a wardrobe.
+function SquareMT:isFree()
+    if self.occupied then return false end
+    for _, o in ipairs(self.objects) do
+        local t = SIM.tileProps and SIM.tileProps[o.spriteName]
+        if t and (t.solid or t.solidtrans) then return false end
+    end
+    return true
+end
+--- The wall on this square's north (or west) edge: an object whose tile a
+--- test declared WallN (WallW).
+function SquareMT:getWall(north)
+    local key = north and "WallN" or "WallW"
+    for _, o in ipairs(self.objects) do
+        local t = SIM.tileProps and SIM.tileProps[o.spriteName]
+        if t and t[key] then return o end
+    end
+    return nil
+end
 --- A vehicle stands over a 3x5 box of squares around its position (the
 --- shuttle's size; the only vehicle the tests spawn).
 function SquareMT:getVehicleContainer()
@@ -2146,6 +2171,17 @@ function PlayerMT:isSitOnGround() return false end
 function PlayerMT:isSittingOnFurniture() return false end
 
 function PlayerMT:getX() return self.x end
+function PlayerMT:getCurrentSquare()
+    return SIM.rawSquare(math.floor(self.x), math.floor(self.y), math.floor(self.z or 0))
+end
+-- Which way the character faces: `facing` on the player, south by default,
+-- as an IsoDirections that answers dx and dy.
+local DIRS = { N = { 0, -1 }, S = { 0, 1 }, E = { 1, 0 }, W = { -1, 0 },
+               NE = { 1, -1 }, NW = { -1, -1 }, SE = { 1, 1 }, SW = { -1, 1 } }
+function PlayerMT:getDir()
+    local d = DIRS[self.facing or "S"] or DIRS.S
+    return { dx = function() return d[1] end, dy = function() return d[2] end }
+end
 function PlayerMT:getY() return self.y end
 --- A character in a seat is wherever the vehicle is.
 ---

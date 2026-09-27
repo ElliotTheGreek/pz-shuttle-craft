@@ -254,6 +254,9 @@ end
 function P.poolOf(player)
     local site = player and TREK.Adirondack and TREK.Adirondack.siteOfPlayer(player)
     if site then return site end
+    -- A core installed in the world (INSTALLATIONS.md): its own store.
+    local inst = player and TREK.Installations and TREK.Installations.placeOf(player)
+    if inst then return inst end
     return "shuttle"
 end
 
@@ -285,6 +288,12 @@ local function box(pool)
     local s = U.state()
     local name = P.pool(pool)
     if name == "shuttle" then return s end
+    -- An installed core carries its own numbers in the registry
+    -- (TREK_Installations). One dismantled mid-command answers an empty
+    -- store: dark, nothing to burn.
+    if TREK.Installations and TREK.Installations.idOfPool(name) then
+        return TREK.Installations.box(name) or { power = 0, crystals = 0, dark = true }
+    end
     if type(s[name]) ~= "table" then
         -- A client that has not been sent hers yet reads an empty one: the
         -- reserve full, no spares, and not dark.
@@ -421,6 +430,9 @@ function P.inReachOf(player)
     if not x or not y then return false end
     -- Her core serves all of her; standing at it is standing at the core.
     if TREK.Adirondack and TREK.Adirondack.nearMachine("warp_core", x, y, z, C.CoreRange + 1) then
+        return true
+    end
+    if TREK.Installations and TREK.Installations.nearMachine("warp_core", x, y, z, C.CoreRange + 1) then
         return true
     end
     if not U.isAboard(x, y, z) then return false end

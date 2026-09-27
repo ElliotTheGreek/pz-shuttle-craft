@@ -14033,6 +14033,9 @@ def fieldstation():
     shelves = adk_items(rt, "display_shelf", "fst")
     check(shelves and "Base.Book" in shelves and not any("Batleth" in i for i in shelves),
           f"fieldstation: the survey records hold {shelves[:6]}")
+    crates = adk_items(rt, "cargo_crate", "fst")
+    for kit in ("TrekShuttle.TrekWarpCoreKit", "TrekShuttle.TrekReplicatorKit", "TrekShuttle.TrekEMHKit"):
+        check(kit in crates, f"fieldstation: the stores hold no {kit} (INSTALLATIONS.md): {sorted(set(crates))}")
     arms = adk_items(rt, "arms_locker", "fst")
     check(arms.count("TrekShuttle.TrekPhaser") == 6 and "TrekShuttle.TrekPhaserRifle" not in arms,
           f"fieldstation: security's lockers hold {arms}")
@@ -14144,6 +14147,228 @@ def fieldstation_multiplayer():
     print("fieldstation multiplayer: one opens the box and the other sees the panel, a ride down "
           "from the street is refused, and the server keeps the stockroom as the return point")
 
+
+# --- installations (INSTALLATIONS.md) ------------------------------------------------------
+
+INST_SETUP = """
+    -- The machines are furniture: solid, as their tiles are in the game.
+    for _, set in pairs(TREK.Installations.Sprites) do
+        for _, facing in pairs(set) do
+            for _, t in ipairs(facing) do SIM.tileProps[t[3]] = { solidtrans = true } end
+        end
+    end
+    SIM.tileProps["furniture_storage_02_11"] = { solid = true }
+    function instGive(p, id, n)
+        for _ = 1, n or 1 do p.inventory:AddItem(instanceItem(id)) end
+    end
+    function instCount()
+        local n = 0
+        for _ in pairs(TREK.Installations.state().machines) do n = n + 1 end
+        return n
+    end
+    function instIdOf(kind)
+        for id, m in pairs(TREK.Installations.state().machines) do
+            if m.kind == kind then return id, m end
+        end
+    end
+    function instTiles(x, y, z)
+        local n = 0
+        for _, o in ipairs(SIM.rawSquare(x, y, z).objects) do
+            if o.modData.TREK == "inst" then n = n + 1 end
+        end
+        return n
+    end
+"""
+
+
+def inst_menu(rt, kit):
+    rt.run(f"""
+        instCtx = SIM.contextMenu()
+        local items = {{}}
+        for _, it in ipairs(SIM.players[1].inventory.items) do
+            if it:getFullType() == "{kit}" then table.insert(items, it) break end
+        end
+        TREK.InstallationsUI.fillInventoryMenu(0, instCtx, items)
+    """)
+    return str(rt.eval("instCtx:deepLabels()"))
+
+
+def installations():
+    """A warp core, a replicator and an EMH station installed in the world,
+    run on the core's own dilithium and nobody else's; a machine with no core
+    refuses; each dismantled back into its kit, the core with its crystals."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('builder', 2000.5, 2000.5, 0)")
+    net.start()
+    rt.run(INST_SETUP)
+    P = "SIM.players[1]"
+    kits = {k: str(rt.eval(f'TREK.Installations.Kits["{k}"]')) for k in ("warp_core", "replicator", "emh_station")}
+    shuttle_before = float(rt.eval("TREK.Power.reserve('shuttle')"))
+
+    # The replicator knows the kits: they are this module's.
+    for k, kit in kits.items():
+        check(rt.eval(f'TREK.Replicator.knows("{kit}")') is True, f"installations: no pattern for the {k} kit")
+
+    # A blocked square: greyed, and refused by the server, the kit kept.
+    rt.run(f"{P}.facing = 'E'; instGive({P}, '{kits['warp_core']}')")
+    rt.run("local sq = SIM.rawSquare(2001, 2000, 0); local o = SIM.object('furniture_storage_02_11'); "
+           "o.square = sq; table.insert(sq.objects, o)")
+    labels = inst_menu(rt, kits["warp_core"])
+    check("IGUI_TREK_InstInstall" in labels and rt.eval("instCtx.options[1].notAvailable") is True,
+          f"installations: a blocked square was offered: {labels}")
+    rt.run(f"TREK.Net.send({P}, 'installMachine', {{ kind = 'warp_core', x = 2001, y = 2000, z = 0 }})")
+    net.pump(2)
+    check(int(rt.eval("instCount()")) == 0 and carrying(rt, kits["warp_core"]) == 1,
+          "installations: a core went down on top of a locker")
+    rt.run("local sq = SIM.rawSquare(2001, 2000, 0); table.remove(sq.objects)")
+
+    # --- the core --------------------------------------------------------------------
+    labels = inst_menu(rt, kits["warp_core"])
+    check(rt.eval("instCtx.options[1].notAvailable") is not True, f"installations: the core's option is greyed: {labels}")
+    rt.run("local o = instCtx.options[1]; o.fn(o.target, unpack(o.args))")
+    net.pump(2)
+    core_id = rt.eval("(instIdOf('warp_core'))")
+    check(core_id is not None and carrying(rt, kits["warp_core"]) == 0, "installations: the core was never installed")
+    tiles = sum(int(rt.eval(f"instTiles({x}, {y}, 0)")) for x in (2001, 2002) for y in (2000, 2001))
+    check(tiles == 4, f"installations: the core stands on {tiles} of its 4 squares")
+    check(rt.eval(f"TREK.Power.poolOf({P})") == f"i{core_id}", f"installations: standing by it, the pool is "
+          f"{rt.eval(f'TREK.Power.poolOf({P})')}")
+    check(rt.eval(f"TREK.Power.dark('i{core_id}')") is True, "installations: a new core is not dark")
+
+    # Loaded by hand, as the shuttle's is: dark to lit.
+    rt.run(f"instGive({P}, TREK.Config.DilithiumItem, 2)")
+    for _ in range(2):
+        rt.run(f"TREK.Core.send({P}, 'loadCrystal', {{}})")
+        net.pump(2)
+    check(float(rt.eval(f"TREK.Power.reserve('i{core_id}')")) > 4000 and int(rt.eval(f"TREK.Power.crystals('i{core_id}')")) == 1,
+          f"installations: the core holds {rt.eval(f'TREK.Power.reserve(\"i{core_id}\")')} and "
+          f"{rt.eval(f'TREK.Power.crystals(\"i{core_id}\")')} spare")
+
+    # --- the replicator, on the core's power ------------------------------------------
+    rt.run(f"{P}.x, {P}.y = 2000.5, 2005.5; instGive({P}, '{kits['replicator']}')")
+    rt.run(f"TREK.InstallationsUI.install({P}, 'replicator')")
+    net.pump(2)
+    check(rt.eval("(instIdOf('replicator'))") is not None, "installations: the replicator was never installed")
+    rt.run("SIM.aim.dx, SIM.aim.dy = 1, 0")
+    rt.run("repCtx = SIM.contextMenu(); SIM.fire('OnPreFillWorldObjectContextMenu', 0, repCtx, {}, false)")
+    labels = str(rt.eval("repCtx:deepLabels()"))
+    check("IGUI_TREK_RepUse" in labels and "IGUI_TREK_InstDismantle" in labels,
+          f"installations: right-clicking the installed replicator offers {labels}")
+    before = float(rt.eval(f"TREK.Power.reserve('i{core_id}')"))
+    held = carrying(rt, "TrekShuttle.TrekRationPack")
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'TrekShuttle.TrekRationPack', count = 1 }})")
+    net.pump(4)
+    check(carrying(rt, "TrekShuttle.TrekRationPack") == held + 1, "installations: the installed replicator made nothing")
+    check(float(rt.eval(f"TREK.Power.reserve('i{core_id}')")) < before, "installations: the ration cost the core nothing")
+    check(float(rt.eval("TREK.Power.reserve('shuttle')")) == shuttle_before, "installations: a house billed the shuttle")
+
+    # --- the Doctor ----------------------------------------------------------------------
+    rt.run(f"{P}.x, {P}.y = 2000.5, 2009.5; instGive({P}, '{kits['emh_station']}')")
+    rt.run(f"TREK.InstallationsUI.install({P}, 'emh_station')")
+    net.pump(2)
+    doc = rt.eval("""(function() local n = 0
+        for dx = -1, 3 do for dy = -1, 1 do
+            for _, w in ipairs(SIM.rawSquare(2001 + dx, 2009 + dy, 0).worldObjects or {}) do
+                local it = w.getItem and w:getItem() or w.item
+                if it and it:getFullType() == TREK.Config.EmhItem then n = n + 1 end
+            end
+        end end return n end)()""")
+    check(int(doc) == 1, f"installations: {doc} Doctors stand at the installed station")
+    check(rt.eval(f"TREK.EMH.isUp({P})") is True and rt.eval(f"TREK.EMH.refusal({P})") is None,
+          f"installations: the Doctor refuses: {rt.eval(f'TREK.EMH.refusal({P})')}")
+
+    # --- a replicator with no core in reach ---------------------------------------------
+    # The shuttle has power now, so it is the guard that refuses and not an
+    # empty reserve: served by nothing, the lonely machine would bill her.
+    rt.run("TREK.Power.addCrystals(1, 'shuttle'); TREK.Power.burnCrystal('shuttle')")
+    shuttle_before = float(rt.eval("TREK.Power.reserve('shuttle')"))
+    rt.run(f"{P}.x, {P}.y = 2200.5, 2200.5")
+    # Long enough for the replicator's cycle to pass: the cooldown after the
+    # last ration would otherwise refuse first and hide the guard.
+    net.pump(400)
+    rt.run(f"instGive({P}, '{kits['replicator']}'); TREK.InstallationsUI.install({P}, 'replicator')")
+    net.pump(2)
+    check(rt.eval(f"TREK.Installations.orphaned({P}, 'replicator', 3)") is True,
+          "installations: a replicator with no core is not known to be orphaned")
+    held = carrying(rt, "TrekShuttle.TrekRationPack")
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'TrekShuttle.TrekRationPack', count = 1 }})")
+    net.pump(4)
+    check(carrying(rt, "TrekShuttle.TrekRationPack") == held
+          and float(rt.eval("TREK.Power.reserve('shuttle')")) == shuttle_before,
+          "installations: a replicator with no core made something on somebody's power")
+    rt.run("repCtx = SIM.contextMenu(); SIM.fire('OnPreFillWorldObjectContextMenu', 0, repCtx, {}, false)")
+    check("IGUI_TREK_InstNoCore" in str(rt.eval("repCtx:deepLabels()")),
+          "installations: nothing says the lonely replicator has no core")
+
+    # --- dismantling --------------------------------------------------------------------
+    lonely = rt.eval("(function() for id, m in pairs(TREK.Installations.state().machines) do "
+                     "if m.x > 2100 then return id end end end)()")
+    rt.run(f"TREK.Net.send({P}, 'dismantleMachine', {{ id = '{lonely}' }})")
+    net.pump(2)
+    check(carrying(rt, kits["replicator"]) == 1 and int(rt.eval("instTiles(2201, 2200, 0)")) == 0,
+          "installations: dismantling gave nothing back, or left the machine")
+    # The core, from across the map: refused. Beside it: the kit and its spare.
+    rt.run(f"TREK.Net.send({P}, 'dismantleMachine', {{ id = '{core_id}' }})")
+    net.pump(2)
+    check(rt.eval(f"TREK.Installations.state().machines['{core_id}']") is not None,
+          "installations: a core was dismantled from across the map")
+    rt.run(f"{P}.x, {P}.y = 2000.5, 2000.5")
+    net.pump(40)
+    crystals = carrying(rt, "TrekShuttle.TrekDilithium")
+    rt.run(f"TREK.Net.send({P}, 'dismantleMachine', {{ id = '{core_id}' }})")
+    net.pump(2)
+    check(carrying(rt, kits["warp_core"]) == 1 and carrying(rt, "TrekShuttle.TrekDilithium") == crystals + 1,
+          "installations: the core did not come back with its spare crystal")
+    check(rt.eval(f"TREK.Power.poolOf({P})") == "shuttle", "installations: a dismantled core still serves")
+    for w in rt.warnings():
+        fail(f"installations: {w}")
+    print("installations: a core, a replicator and a Doctor installed in the world, the core loaded by hand "
+          "and billed alone; a blocked square and a lonely replicator refused; each dismantled back into "
+          "its kit, the core with its spare")
+
+
+def installations_multiplayer():
+    """One player installs; the server keeps the registry and every client
+    is told; the other uses the machine on the core's power."""
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    srv.run("SIM.player('alice', 3000.5, 3000.5, 0); SIM.player('bob', 3000.5, 3003.5, 0)")
+    A.run("SIM.player('alice', 3000.5, 3000.5, 0)")
+    B.run("SIM.player('bob', 3000.5, 3003.5, 0)")
+    net.start()
+    for rt in net.all():
+        rt.run(INST_SETUP)
+    kit = str(srv.eval('TREK.Installations.Kits.warp_core'))
+    rep = str(srv.eval('TREK.Installations.Kits.replicator'))
+    for rt in (srv, A):
+        rt.run(f"for _, p in ipairs(SIM.players) do if p.name == 'alice' then p.facing = 'E'; "
+               f"instGive(p, '{kit}'); instGive(p, '{rep}'); instGive(p, TREK.Config.DilithiumItem) end end")
+    A.run("TREK.InstallationsUI.install(SIM.players[1], 'warp_core')")
+    net.pump(4)
+    check(int(B.eval("instCount()")) == 1, "installations mp: bob's client was never told of the core")
+    A.run("TREK.Core.send(SIM.players[1], 'loadCrystal', {})")
+    net.pump(70)
+    core = B.eval("(instIdOf('warp_core'))")
+    check(B.eval(f"TREK.Power.dark('i{core}')") is False, "installations mp: bob's client still sees the core dark")
+    for rt in (srv, A):
+        rt.run("for _, p in ipairs(SIM.players) do if p.name == 'alice' then p.y = 3004.5 end end")
+    net.pump(4)
+    A.run("TREK.InstallationsUI.install(SIM.players[1], 'replicator')")
+    net.pump(4)
+    for rt in (srv, B):
+        rt.run("for _, p in ipairs(SIM.players) do if p.name == 'bob' then p.x, p.y = 3000.5, 3005.5 end end")
+    net.pump(4)
+    B.run("TREK.Core.send(SIM.players[1], 'replicate', { id = 'TrekShuttle.TrekRationPack', count = 1 })")
+    net.pump(6)
+    check(carrying(srv, "TrekShuttle.TrekRationPack", who="bob") == 1,
+          "installations mp: bob could not use alice's replicator")
+    for name, rt in (("server", srv), ("alice", A), ("bob", B)):
+        for w in rt.warnings():
+            fail(f"installations mp ({name}): {w}")
+    print("installations multiplayer: alice installs, the server keeps it and bob's client is told, "
+          "and bob replicates on the core's power")
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -14158,7 +14383,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
-            adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
+            adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
             contraband, contraband_multiplayer, multiplayer)
 
 

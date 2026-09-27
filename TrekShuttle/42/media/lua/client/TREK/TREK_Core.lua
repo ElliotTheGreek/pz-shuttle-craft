@@ -100,6 +100,13 @@ local DENIALS = {
     access        = "IGUI_TREK_NotCrew",
     wrongPlace    = "IGUI_TREK_WrongPlace",
     stationFar    = "IGUI_TREK_StationFar",
+    -- Installations (INSTALLATIONS.md).
+    instFar       = "IGUI_TREK_InstFar",
+    instOurs      = "IGUI_TREK_InstOurs",
+    instBlocked   = "IGUI_TREK_InstBlocked",
+    instSafehouse = "IGUI_TREK_InstSafehouse",
+    instNoKit     = "IGUI_TREK_InstNoKit",
+    instNoCore    = "IGUI_TREK_InstNoCore",
     notLanded     = "IGUI_TREK_NotLanded",
     bookmarksFull = "IGUI_TREK_BookmarksFull",
     crewSeated    = "IGUI_TREK_CrewSeated",

@@ -412,7 +412,11 @@ function A.stockItems(name)
         return { C.PhaserItem, C.PhaserItem, C.HolsterItem, C.HolsterItem }
     end
     if name == "station_stores" then
-        return { "Base.TinnedBeans", "Base.TinnedSoup", "Base.CannedCorn", "Base.WaterBottle",
+        -- A set to take home first (INSTALLATIONS.md), the survey's spares:
+        -- a crate drops what no longer fits, and the heavy kits are the point.
+        return { "TrekShuttle.TrekWarpCoreKit", "TrekShuttle.TrekReplicatorKit",
+                 "TrekShuttle.TrekEMHKit",
+                 "Base.TinnedBeans", "Base.TinnedSoup", "Base.CannedCorn", "Base.WaterBottle",
                  "Base.WaterBottle", "Base.Battery", "Base.Battery", "Base.Torch",
                  "TrekShuttle.TrekTricorder" }
     end

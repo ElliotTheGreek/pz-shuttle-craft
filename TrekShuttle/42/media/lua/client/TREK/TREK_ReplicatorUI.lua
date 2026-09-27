@@ -658,6 +658,9 @@ local function isBerth(x, y, z)
     if TREK.Adirondack and TREK.Adirondack.clickedMachine("replicator", x, y, z, BERTH_MARGIN) then
         return true
     end
+    if TREK.Installations and TREK.Installations.clickedMachine("replicator", x, y, z, BERTH_MARGIN) then
+        return true
+    end
     local ox, oy = R.spot()
     if not ox then return false end
     if z ~= C.CabinZ then return false end
@@ -672,7 +675,8 @@ end
 function M.fillMenu(playerIndex, context, worldobjects, test)
     local player = U.player(playerIndex)
     if not player then return end
-    if not U.isInteriorPlayer(player) and not TREK.Adirondack.onShip(player) then return end
+    local installed = TREK.Installations and TREK.Installations.near(player, "replicator")
+    if not U.isInteriorPlayer(player) and not TREK.Adirondack.onShip(player) and not installed then return end
 
     local x, y, z = U.clickedSquare(playerIndex, context, player)
     if not x or not isBerth(x, y, z) then return end
@@ -689,6 +693,8 @@ function M.fillMenu(playerIndex, context, worldobjects, test)
     local why = nil
     if R.isOff() then
         why = "IGUI_TREK_RepOff"
+    elseif TREK.Installations and TREK.Installations.orphaned(player, "replicator", C.ReplicatorRange + 1) then
+        why = "IGUI_TREK_InstNoCore"
     elseif TREK.Power.dark(TREK.Power.poolOf(player)) then
         why = "IGUI_TREK_RepOffline"
     elseif not R.inReachOf(player) then

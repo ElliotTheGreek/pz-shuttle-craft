@@ -60,6 +60,9 @@ function W.isCore(x, y, z)
     if TREK.Adirondack and TREK.Adirondack.clickedMachine("warp_core", x, y, z, 1) then
         return true
     end
+    if TREK.Installations and TREK.Installations.clickedMachine("warp_core", x, y, z, 1) then
+        return true
+    end
     return W.isCabinCore(x, y, z)
 end
 
@@ -88,8 +91,9 @@ end
 function W.fillMenu(playerNum, context, worldobjects, test)
     local player = U.player(playerNum)
     if not player then return end
-    if not U.isInteriorPlayer(player) and not TREK.Adirondack.onShip(player) then return end
-    if not TREK.Ship.canUse(player) then return end
+    local installed = TREK.Installations and TREK.Installations.near(player, "warp_core")
+    if not U.isInteriorPlayer(player) and not TREK.Adirondack.onShip(player) and not installed then return end
+    if not TREK.Ship.canUse(player) and not installed then return end
 
     local x, y, z = U.clickedSquare(playerNum, context, player)
     if not W.isCore(x, y, z) then return end

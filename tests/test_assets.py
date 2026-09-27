@@ -1291,6 +1291,20 @@ for _piece, _rec in _idx.items():
             if _piece in ("desk", "bed", "lounge_chair", "wardrobe", "arms_locker") and not _mov:
                 failures.append(f"building: {_piece} (tile {_i}) cannot be picked up and moved")
 
+# The installer's tiles (INSTALLATIONS.md) are the furniture sheet's: a
+# number that drifted would install a lounge chair and call it a warp core.
+_inst = open(os.path.join(MOD, "media", "lua", "shared", "TREK", "TREK_Installations.lua"),
+             encoding="utf-8").read()
+for _piece in ("replicator", "emh_station", "warp_core"):
+    for _fc, _squares in _idx[_piece]["facings"].items():
+        for _x, _y, _i in _squares:
+            _want = "{ %d, %d, \"trek_adirondack_02_%d\" }" % (_x, _y, _i)
+            _start = _inst.find("    " + _piece + " = {")
+            _end = re.search(r"\n    (?:\w|\})", _inst[_start + 4:]) if _start >= 0 else None
+            _block = _inst[_start:_start + 4 + _end.start()] if _end else ""
+            if _want not in _block:
+                failures.append(f"installations: IN.Sprites.{_piece} {_fc} lacks {_want}")
+
 # Every XML file the mod ships has to parse the way the game's parser does
 # (PZXmlUtil, a strict SAX parser). A "--" inside a comment is illegal XML:
 # two AnimSets files carried one, the game logged "The string -- is not

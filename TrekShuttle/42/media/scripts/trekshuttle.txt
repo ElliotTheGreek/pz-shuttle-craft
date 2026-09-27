@@ -2446,6 +2446,46 @@ module TrekShuttle
         Tooltip = Tooltip_TREK_Tricorder,
     }
 
+    /*  Installations (INSTALLATIONS.md): a Starfleet machine in a crate, to be
+        installed in a player's own house. Right-click it in the inventory:
+        Install here. The ship's replicator knows all three, as it knows
+        every item of this module; they are heavy because they are machines.  */
+    item TrekWarpCoreKit
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Warp Core Kit,
+        Icon = TREK_WarpCoreKit,
+        Weight = 15.0,
+        WorldStaticModel = ToolBox_Ground,
+        Tooltip = Tooltip_TREK_WarpCoreKit,
+    }
+
+    item TrekReplicatorKit
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Replicator Kit,
+        Icon = TREK_ReplicatorKit,
+        Weight = 8.0,
+        WorldStaticModel = ToolBox_Ground,
+        Tooltip = Tooltip_TREK_ReplicatorKit,
+    }
+
+    item TrekEMHKit
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = EMH Station Kit,
+        Icon = TREK_EMHKit,
+        Weight = 4.0,
+        WorldStaticModel = ToolBox_Ground,
+        Tooltip = Tooltip_TREK_EMHKit,
+    }
+
     /*  The Starfleet wardrobe.
 
         Six garments on two vanilla rigs and not one line of rigging. Every

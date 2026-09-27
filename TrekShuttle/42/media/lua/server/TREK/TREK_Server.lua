@@ -1709,6 +1709,8 @@ end
 --- `B.giveGalley` is the same shape and the precedent for the send: add to
 --- the container, then `sendAddItemToContainer` so the client's copy has it
 --- too. U.batch rather than U.try because this repeats.
+function S.materialise(player, id, count) return S._materialise(player, id, count) end
+
 local function materialise(player, id, count)
     local inv = U.try("rep.inv", function() return player:getInventory() end)
     if not inv then return 0 end
@@ -1737,12 +1739,25 @@ local function materialise(player, id, count)
     end
     return made
 end
+S._materialise = materialise
 
 --- Alive, allowed to use the ship, the machine is not switched off, and the
 --- player is really standing at it -- measured here, not taken from the
 --- command.
+--- Allowed to use the machine the player is standing at: an installed one
+--- is anybody's (INSTALLATIONS.md); the ship's follow the ship's rule.
+local function mayUseHere(player)
+    if TREK.Installations and TREK.Installations.placeOf(player) then return alive(player) end
+    return mayUse(player)
+end
+
 local function atReplicator(player)
-    if not mayUse(player) then return false end
+    if not mayUseHere(player) then return false end
+    -- Installed with no core in reach: dark, and never the shuttle's to pay.
+    if TREK.Installations and TREK.Installations.orphaned(player, "replicator", C.ReplicatorRange + 1) then
+        deny(player, "instNoCore")
+        return false
+    end
     if Rep.isOff() then
         deny(player, "repOff")
         return false
@@ -1856,7 +1871,7 @@ end
 
 --- The two things a player may do at the core, and the checks they share.
 local function atCore(player)
-    if not mayUse(player) then return false end
+    if not mayUseHere(player) then return false end
     if not TREK.Power.inReachOf(player) then
         deny(player, "coreFar")
         return false

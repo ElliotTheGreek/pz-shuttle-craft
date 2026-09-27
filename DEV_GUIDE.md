@@ -2658,7 +2658,7 @@ notes have since been answered in play.
 | 1.7.0 | energy: the ledger, the gauge, the dark ship, the cold start, wild dilithium, the galley made real |
 | 1.8.0 | species, Starfleet professions and rank; the phaser's own model, beam and cutting |
 | 1.9.0 | the U.S.S. Adirondack, her crew and hydroponics |
-| since 1.9.0 | the Jefferies tubes and hideouts, Turbolift Phobia, contraband, the armoury, the field station, building aboard, the map at night (not yet released) |
+| since 1.9.0 | the Jefferies tubes and hideouts, Turbolift Phobia, contraband, the armoury, the field station, building aboard, the map at night, installations (not yet released) |
 
 `modversion` in `mod.info` and `C.Version` in `TREK_Config.lua` are the same
 number, and `tests/test_assets.py` fails if they are not -- they had drifted a
@@ -3173,6 +3173,11 @@ The hull is always restored; the machines cannot be picked up (`FIXED` in the
 pack). The field station became one long floor the same day, at slot 11, with
 the old sublevels' squares kept as `L.legacyStation` for anybody saved there.
 
+**The 2026-09-27 installations** (`INSTALLATIONS.md`): kits for a warp core,
+a replicator and an EMH station, installed anywhere in the world; each core
+its own power store (pool `i<id>`) in a registry the existing machines now
+ask as a third place to be. Eleven mutations caught.
+
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
 
@@ -3237,6 +3242,10 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_FieldStation.lua    the field station'
 TrekShuttle/42/media/lua/server/TREK/TREK_FieldStationServer.lua the box placed and checked, opening it
 TrekShuttle/42/media/lua/client/TREK/TREK_FieldStationClient.lua the box's and panel's menus, the tricorder's hint
 tools/fieldstation_site.py                                     the vanilla stockroom, read off the map
+TrekShuttle/42/media/lua/shared/TREK/TREK_Installations.lua   installed machines: the registry, reach, which core
+TrekShuttle/42/media/lua/server/TREK/TREK_InstallationsServer.lua installing, dismantling, publishing
+TrekShuttle/42/media/lua/client/TREK/TREK_InstallationsUI.lua Install here, Dismantle
+tools/gen_kit_icons.py                                         the kits' icons, from the machines' tiles
 TrekShuttle/42/media/lua/shared/TREK/TREK_Contraband.lua      contraband: the record either side reads, habits, the words
 TrekShuttle/42/media/lua/shared/TREK/TREK_ContrabandActions.lua the Ktarian game's timed action (global, shared)
 TrekShuttle/42/media/lua/server/TREK/TREK_ContrabandServer.lua doses, rounds, withdrawal, the Game handed on, the flashing light

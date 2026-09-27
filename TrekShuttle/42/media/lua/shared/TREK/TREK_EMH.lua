@@ -68,6 +68,9 @@ function E.isStation(x, y, z)
     if TREK.Adirondack and TREK.Adirondack.clickedMachine("emh_station", x, y, z, 1) then
         return true
     end
+    if TREK.Installations and TREK.Installations.clickedMachine("emh_station", x, y, z, 1) then
+        return true
+    end
     if math.floor(z or 0) ~= C.CabinZ then return false end
     for _, spot in ipairs(C.EmhMenuSpots) do
         local sx, sy = U.at(spot[1], spot[2])
@@ -87,6 +90,9 @@ end
 function E.inReach(x, y, z)
     if not x or not y then return false end
     if TREK.Adirondack and TREK.Adirondack.nearMachine("emh_station", x, y, z, C.EmhRange + 1) then
+        return true
+    end
+    if TREK.Installations and TREK.Installations.nearMachine("emh_station", x, y, z, C.EmhRange + 1) then
         return true
     end
     if not U.isAboard(x, y, z) then return false end
@@ -133,6 +139,10 @@ function E.isUp(player)
     -- Aboard the Adirondack her station is always projecting him: there is
     -- nothing to summon, and nothing to stand up in the shuttle's cabin.
     if player and TREK.Adirondack and TREK.Adirondack.onShip(player) then return true end
+    -- An installed station projects him too, whenever its core has power.
+    if player and TREK.Installations and TREK.Installations.near(player, "emh_station", C.EmhRange + 3) then
+        return true
+    end
     return TREK.Ship.get().emh == true
 end
 
@@ -159,6 +169,8 @@ function E.aboardForCure(player)
     if not player then return false end
     if U.isInteriorPlayer(player) then return true end
     if TREK.Adirondack and TREK.Adirondack.onShip(player) then return true end
+    -- In reach of the core an installed station runs on (INSTALLATIONS.md).
+    if TREK.Installations and TREK.Installations.placeOf(player) then return true end
     local vehicle = U.try("emh.vehicle", function() return player:getVehicle() end)
     return vehicle ~= nil and TREK.Vehicle ~= nil and TREK.Vehicle.isShuttle(vehicle) == true
 end
@@ -197,10 +209,18 @@ function E.patients(asking)
     -- Everyone aboard the place the asker is in: the shuttle's cabin, the
     -- Adirondack, or the field station -- never another of the three.
     local A = TREK.Adirondack
-    local site = asking ~= nil and A ~= nil and A.siteOfPlayer(asking) or nil
+    local IN = TREK.Installations
+    -- Or an installation: the same core's reach (INSTALLATIONS.md).
+    local function placeOf(p)
+        local s = A ~= nil and A.siteOfPlayer(p) or nil
+        if s then return s end
+        if U.isInteriorPlayer(p) then return nil end
+        return IN ~= nil and IN.placeOf(p) or nil
+    end
+    local site = asking ~= nil and placeOf(asking) or nil
     for _, p in ipairs(U.players()) do
         local alive = U.try("emh.alive", function() return p:isDead() end) == false
-        local here = (site and A.siteOfPlayer(p) == site) or (not site and U.isInteriorPlayer(p))
+        local here = (site and placeOf(p) == site) or (not site and U.isInteriorPlayer(p))
         if alive and here then
             local name = TREK.Ship.usernameOf(p)
             local row = { player = p, name = name, own = (name == mine) or nil }
@@ -249,9 +269,12 @@ function E.refusal(player)
     if U.try("emh.dead", function() return player:isDead() end) ~= false then
         return "access"
     end
-    if not TREK.Ship.canUse(player) then return "access" end
+    local IN = TREK.Installations
+    -- The shuttle's access rule is about the shuttle, not somebody's house.
+    if not TREK.Ship.canUse(player) and not (IN and IN.placeOf(player)) then return "access" end
     if E.isOff() then return "emhOff" end
     if not E.inReachOf(player) then return "emhFar" end
+    if IN and IN.orphaned(player, "emh_station", C.EmhRange + 1) then return "instNoCore" end
     -- A dark ship cannot project him at all (ENERGY.md 6). Published as a
     -- flag, so a client's panel greys with the ship's own answer.
     if TREK.Power.dark(TREK.Power.poolOf(player)) then

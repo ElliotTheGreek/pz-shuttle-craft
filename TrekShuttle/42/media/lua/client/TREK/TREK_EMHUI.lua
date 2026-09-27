@@ -688,6 +688,7 @@ M.REFUSAL_TEXT = {
     emhNotInfected = "IGUI_TREK_EmhNotInfected",
     emhCuring      = "IGUI_TREK_EmhCuring",
     emhClean       = "IGUI_TREK_EmhNoHabit",
+    instNoCore     = "IGUI_TREK_InstNoCore",
 }
 
 --- Breaks a line into at most `lines` pieces that fit `width`.
@@ -775,8 +776,9 @@ end
 function M.fillMenu(playerIndex, context, worldobjects, test)
     local player = U.player(playerIndex)
     if not player then return end
-    if not U.isInteriorPlayer(player) and not TREK.Adirondack.onShip(player) then return end
-    if not TREK.Ship.canUse(player) then return end
+    local installed = TREK.Installations and TREK.Installations.near(player, "emh_station")
+    if not U.isInteriorPlayer(player) and not TREK.Adirondack.onShip(player) and not installed then return end
+    if not TREK.Ship.canUse(player) and not installed then return end
 
     local x, y, z = U.clickedSquare(playerIndex, context, player)
     if not x or not E.isStation(x, y, z) then return end
