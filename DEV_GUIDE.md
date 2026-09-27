@@ -2441,6 +2441,8 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **Reading a tape off the PADD relieves boredom once and then nothing** | The lines are being applied faster than vanilla's thirty-tick debounce. See *An effect the engine debounces has to be paced*. |
 | **A tape the story issued never reaches the shelf** | It is owed until the cabin is loaded -- `comms: the ship has been issued ...` and later `tape: ... is on the shelf`. A full shelf keeps it owed and says so once. |
 | **No world right-click and no aiming, suddenly, and nothing in the log** | A UI element as big as the screen is up. The engine treats the mouse as "over the UI" by the element's rectangle alone, whatever its Lua `isMouseOver` says. See *An overlay that covers the screen takes the world's mouse away*. |
+| **A drug's menu reads `ContextMenu_TREK_Inject`, or *Eat*** | The first is `Translate/EN/ContextMenu.json` not loading; the second is a `HungerChange` that is not 0, which sends vanilla's menu down its Eat branch instead of the custom word. See `CONTRABAND.md` 5. |
+| **A hooked player's Doctor offers no Detox, or a PADD no flashing light** | Their client never got `contraState`: the record is the server's, and the panel and the menu read the client's mirror of it. `contraband mp` in `tests/test_multiplayer.py` is the check. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always — it is one line and it is the answer. |
 
 ---
@@ -3046,6 +3048,18 @@ sprite*). Eighteen mutations, one pass at a time, all caught -- two only after
 the test learned to hold the run key and to check the rebuilt door was the
 same door. **Needs a new world, and none of it has been seen in game.**
 
+**The 2026-09-26 contraband** (`CONTRABAND.md`): what the hideouts' crates
+hold now -- ketracel-white, felicium and Trellium-D, which hook you, the
+Ktarian game, which hooks you and spreads hand to hand, cordrazine in
+Sickbay, three more bottles, latinum and a holosuite reel -- and the two
+cures, a detox on the Doctor's panel and a PADD's flashing light. The drugs
+are Food items with their own menu word, so vanilla's eating action carries
+every dose to the server, where one record per player is kept, walked every
+ten minutes and mirrored to its owner. Withdrawal is miserable and never
+hurts the body. Twenty-one mutations, one pass at a time, all caught, and two
+more on the Doctor's panel. **Needs a new world, and none of it has been
+seen in game.**
+
 **Next up** is `ROADMAP.md`'s step 7: publishing -- or `ROADMAP2.md` 1.6, the
 cold start, if it is to ship with the ensign. Everything else on the roadmap
 is built; what is left is playing it. Four systems have never been in a game at
@@ -3109,6 +3123,11 @@ TrekShuttle/42/media/lua/client/TREK/TREK_AdirondackClient.lua moving about her:
 TrekShuttle/42/media/AnimSets/player/*/trekCrawl*.xml          the crawl in a Jefferies tube (vanilla's Bob_Crawl)
 TrekShuttle/common/media/maps/TrekShuttle/                     the void map: space (generated; must be under common/)
 tools/gen_adirondack_tubes.py                                  the Jefferies tubes' routes, walls, hatches, hideouts
+TrekShuttle/42/media/lua/shared/TREK/TREK_Contraband.lua      contraband: the record either side reads, habits, the words
+TrekShuttle/42/media/lua/shared/TREK/TREK_ContrabandActions.lua the Ktarian game's timed action (global, shared)
+TrekShuttle/42/media/lua/server/TREK/TREK_ContrabandServer.lua doses, rounds, withdrawal, the Game handed on, the flashing light
+TrekShuttle/42/media/lua/client/TREK/TREK_ContrabandUI.lua    the Game's and the PADD's menus; the record's mirror
+TrekShuttle/42/media/scripts/trekcontraband.txt                the contraband's items and fluids
 tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network
 ```
 

@@ -169,6 +169,41 @@ local function waterCapacity(obj)
     return U.try("fluidCapacity", function() return obj:getFluidCapacity() end) or 0
 end
 
+--- One tape carrying the recording `id` (a hideout's holosuite programme,
+--- CONTRABAND.md). A blank tape is TREK_Build's own warning: it sits in the
+--- crate, goes into a television and plays nothing, with nothing in any log
+--- -- so the recording is read back off the item and a failure says so.
+--- Returns 1 when a labelled tape is in the container, 0 otherwise.
+local function stockTape(obj, id)
+    local present = U.stockEach(obj, { C.TapeItem }, 1)
+    if (present[C.TapeItem] or 0) == 0 then return 0 end
+    local media = U.try("adk.recordedMedia", function()
+        return getZomboidRadio():getRecordedMedia()
+    end)
+    local data = media and U.try("adk.mediaData", function() return media:getMediaData(id) end)
+    if not data then
+        U.log("WARN adirondack: no recording registered as %s; the tape is blank", tostring(id))
+        return 0
+    end
+    local container = U.containerOf(obj)
+    local labelled = U.try("adk.labelTape", function()
+        local items = container:getItems()
+        for i = 0, items:size() - 1 do
+            local it = items:get(i)
+            if it and it:getFullType() == C.TapeItem and it:getMediaData() == nil then
+                it:setRecordedMediaData(data)
+                return it:getMediaData() ~= nil
+            end
+        end
+        return false
+    end)
+    if labelled ~= true then
+        U.log("WARN adirondack: the %s tape did not take its recording", tostring(id))
+        return 0
+    end
+    return 1
+end
+
 --- What a container is stocked with, by the piece it is part of (A.Stock).
 --- Returns the number of items put in.
 local function stock(obj, piece)
@@ -189,6 +224,9 @@ local function stock(obj, piece)
             local present = U.stockEach(obj, items, rule.copies or 1)
             for _, n in pairs(present or {}) do added = added + n end
         end
+    end
+    if rule.tape then
+        added = added + stockTape(obj, rule.tape)
     end
     return added
 end

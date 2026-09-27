@@ -2154,4 +2154,129 @@ C.Ranks = { "rank_ensign", "rank_ltjg", "rank_lt", "rank_ltcmdr", "rank_cmdr" }
 C.RankRescues = { 1, 3, 5, 8, 11 }
 C.RescuesKey = "TREKRescues"
 
+---------------------------------------------------------------------------
+-- Contraband (CONTRABAND.md)
+---------------------------------------------------------------------------
+-- What the off-watch crew keep in the hideouts off the Jefferies tubes:
+-- ketracel-white, felicium, Trellium-D and the Ktarian game, which hook you,
+-- and cordrazine, which only punishes a second dose. Stat scales are the
+-- engine's, as the traits' are: unhappiness, boredom, panic and food sickness
+-- 0-100; stress, endurance and fatigue 0-1.
+--
+-- **The server keeps the record** (TREK_ContrabandServer), in the player's
+-- mod data on the authority, and tells the owning client a summary so the
+-- Doctor's panel and the PADD's menu can read their own body.
+C.ContrabandKey       = "TREKContraband"
+C.ContrabandMirrorKey = "TREKContrabandSeen"
+
+-- In the order the Doctor lists them.
+C.ContrabandOrder = { "ketracel", "felicium", "trellium", "game" }
+
+-- Per substance:
+--   item          what you take (the Game is played, not taken)
+--   hookAt        doses (or plays) that make it a habit
+--   forgetHours   a habit not yet formed is forgotten after this long clean
+--   withdrawAfter hours after the last dose that withdrawal starts, once hooked
+--   cleanAfter    hours after the last dose that the habit is gone by itself
+--   dose          what one dose does, as a T.adjust
+--   withdrawal    what every ten minutes of withdrawal does
+--   limit         a ceiling a withdrawal add never pushes a stat past
+--   cap           a ceiling withdrawal holds a stat under (the white's
+--                 endurance: winded all the time)
+--
+-- **Withdrawal never hurts the body.** Stress, panic, misery, boredom and a
+-- capped food sickness -- miserable, and never a wound or a death. The
+-- decision is in CONTRABAND.md 1.
+C.Contraband = {
+    -- The Jem'Hadar's ration (DS9). The best stim in the mod, bred for a body
+    -- that is not yours: full endurance and no fear, four hours of second
+    -- wind, and after three doses a habit that caps your endurance at half.
+    ketracel = {
+        item = "TrekShuttle.TrekKetracelWhite",
+        hookAt = 3, forgetHours = 48, withdrawAfter = 24, cleanAfter = 96,
+        dose = { set = { ENDURANCE = 1, PANIC = 0 },
+                 add = { FATIGUE = -0.5, STRESS = -0.5 } },
+        boostHours = 4,
+        boost = { add = { ENDURANCE = 0.05 } },
+        withdrawal = { add = { STRESS = 0.03, PANIC = 4, UNHAPPINESS = 2 } },
+        cap = { ENDURANCE = 0.5 },
+    },
+    -- Felicium (TNG "Symbiosis"): sold as a cure for a plague that is its own
+    -- withdrawal. Strong pain relief (the script's painReduction, applied by
+    -- the engine's Eat) and a warm glow; withdrawal feels exactly like being
+    -- ill, which is the joke Brekka built an economy on.
+    felicium = {
+        item = "TrekShuttle.TrekFelicium",
+        hookAt = 2, forgetHours = 36, withdrawAfter = 12, cleanAfter = 72,
+        dose = { add = { UNHAPPINESS = -30, STRESS = -0.25 } },
+        withdrawal = { add = { UNHAPPINESS = 2, FOOD_SICKNESS = 4 } },
+        limit = { FOOD_SICKNESS = 35 },
+    },
+    -- Trellium-D (ENT season 3): unmakes a Vulcan's control -- a flood of
+    -- feeling, then a crash two hours later. For anybody else it is a poison
+    -- and nothing more, and it forms no habit.
+    trellium = {
+        item = "TrekShuttle.TrekTrelliumD",
+        vulcanOnly = true,
+        hookAt = 2, forgetHours = 48, withdrawAfter = 18, cleanAfter = 90,
+        dose = { add = { UNHAPPINESS = -60, BOREDOM = -50, STRESS = -0.4 } },
+        crashHours = 2,
+        crash = { add = { PANIC = 45, STRESS = 0.35 } },
+        withdrawal = { add = { PANIC = 3, STRESS = 0.03, UNHAPPINESS = 3 } },
+        poison = { add = { FOOD_SICKNESS = 30, UNHAPPINESS = 10 } },
+        limit = { FOOD_SICKNESS = 40 },
+    },
+    -- The Ktarian game (TNG "The Game"). Played, not taken: each round is a
+    -- lift that is a little smaller than the last, four rounds make it a
+    -- habit, and a habit makes an hour without it boring. It does not wear
+    -- off quickly; the flashing light does (a PADD, or the Doctor).
+    game = {
+        item = "TrekShuttle.TrekKtarianGame",
+        hookAt = 4, forgetHours = 24, withdrawAfter = 1, cleanAfter = 120,
+        dose = { add = { BOREDOM = -40, UNHAPPINESS = -25, STRESS = -0.2 } },
+        withdrawal = { add = { BOREDOM = 4, UNHAPPINESS = 1 } },
+    },
+}
+
+-- What each play of the Game is worth, as a fraction of the first: it falls
+-- by this much a play and never below the floor.
+C.GameTolerance      = 0.08
+C.GameToleranceFloor = 0.3
+-- One round, in timed-action ticks.
+C.GamePlayTicks = 300
+-- How close somebody has to be to be handed one, in tiles.
+C.GameOfferRange = 3
+
+-- Cordrazine (TOS "The City on the Edge of Forever"): a Sickbay stimulant.
+-- One dose is a second wind; a second inside four hours is McCoy running
+-- through the Guardian. No habit.
+C.Cordrazine = {
+    item = "TrekShuttle.TrekCordrazine",
+    dose = { add = { ENDURANCE = 0.4, FATIGUE = -0.3 } },
+    overdoseHours = 4,
+    overdose = { add = { PANIC = 60, STRESS = 0.4, UNHAPPINESS = 15 } },
+}
+
+-- How often a craving says so, at most, in game hours.
+C.ContrabandNagHours = 1
+
+-- The Doctor's detox: every habit gone, in one treatment, for reserve units.
+-- Four treatments' worth -- dearer than a dressing, a long way short of a
+-- crystal, because it cures a misery rather than a death.
+C.EmhDetoxCost = 100
+
+-- Never replicated. The fiction is that a replicator refuses narcotics; the
+-- game is that the hideouts are the only place any of it comes from.
+for _, id in ipairs({ "TrekShuttle.TrekKetracelWhite", "TrekShuttle.TrekFelicium",
+                      "TrekShuttle.TrekTrelliumD", "TrekShuttle.TrekCordrazine",
+                      "TrekShuttle.TrekKtarianGame", "TrekShuttle.TrekLatinumStrip",
+                      "TrekShuttle.TrekKanar", "TrekShuttle.TrekSaurianBrandy",
+                      "TrekShuttle.TrekAldebaranWhiskey" }) do
+    C.ReplicatorBlocked[id] = true
+end
+
+-- The hideout's holosuite programme: an issued tape (content/tapes), stocked
+-- in the stash crates rather than on the shuttle's shelf.
+C.HolosuiteTape = "TREK_Holosuite"
+
 return C

@@ -244,10 +244,13 @@ end
 ---------------------------------------------------------------------------
 -- By the piece the container is part of. `loot` is a C.Loot list filled to
 -- the usual fraction; `items` are put in `copies` of each. A piece not listed
--- starts empty: somewhere for the crew's own things.
+-- starts empty: somewhere for the crew's own things. `tape` is a recording
+-- (content/tapes) put in on a tape of its own.
 A.Stock = {
     medical_cabinet = { loot = "medical" },
-    medical_cart    = { loot = "medical" },
+    -- Sickbay's carts also carry its one stimulant (CONTRABAND.md), which is
+    -- not contraband at all until somebody takes a second dose.
+    medical_cart    = { loot = "medical", items = "cordrazine", copies = 1 },
     galley_counter  = { loot = "food" },
     stasis_unit     = { loot = "food" },
     bar_straight    = { loot = "drinks" },
@@ -268,8 +271,9 @@ A.Stock = {
     -- recipes need that is not grown.
     galley_cupboard = { items = "cookware", copies = 1 },
     -- The hideouts off the Jefferies tubes (JEFFERIES.md): what the off-watch
-    -- crew keep where the first officer will not look.
-    stash_crate     = { items = "stash", copies = 1 },
+    -- crew keep where the first officer will not look -- and, since
+    -- CONTRABAND.md, what they keep that the Doctor would take off them.
+    stash_crate     = { items = "stash", copies = 1, tape = C.HolosuiteTape },
     stash_shelf     = { items = "stash_shelf", copies = 1 },
 }
 
@@ -294,12 +298,20 @@ function A.stockItems(name)
     if name == "stash" then
         return { "TrekShuttle.TrekRomulanAle", "TrekShuttle.TrekRomulanAle", "Base.Whiskey",
                  "Base.Vodka", "Base.BeerBottle", "Base.BeerBottle", "Base.BeerBottle",
-                 "Base.CigarettePack", "Base.Dice", "Base.CardDeck" }
+                 "Base.CigarettePack", "Base.Dice", "Base.CardDeck",
+                 -- The contraband (CONTRABAND.md), and the pot on the table.
+                 "TrekShuttle.TrekKetracelWhite", "TrekShuttle.TrekFelicium",
+                 "TrekShuttle.TrekTrelliumD", "TrekShuttle.TrekKtarianGame",
+                 "TrekShuttle.TrekLatinumStrip", "TrekShuttle.TrekLatinumStrip",
+                 "TrekShuttle.TrekLatinumStrip" }
     end
     if name == "stash_shelf" then
         return { "TrekShuttle.TrekBloodwine", "TrekShuttle.TrekAndorianAle", "Base.Rum",
-                 "Base.Scotch", "Base.BeerBottle" }
+                 "Base.Scotch", "Base.BeerBottle",
+                 "TrekShuttle.TrekKanar", "TrekShuttle.TrekSaurianBrandy",
+                 "TrekShuttle.TrekAldebaranWhiskey" }
     end
+    if name == "cordrazine" then return { C.Cordrazine.item } end
     if name == "cookware" then
         return { "Base.Pot", "Base.Pot", "Base.Saucepan", "Base.Pan", "Base.RoastingPan",
                  "Base.BakingTray", "Base.Kettle", "Base.Bowl", "Base.Bowl", "Base.Bowl",

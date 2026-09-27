@@ -382,7 +382,9 @@ def make_lua():
                    getPlayerNum = function() return 0 end,
                    getUsername = function() return "doctorless" end,
                    getDisplayName = function() return "doctorless" end,
-                   isDead = function() return false end }
+                   isDead = function() return false end,
+                   md = {},
+                   getModData = function(self) return self.md end }
 
         -- A body, for the EMH panel. Enough BodyPart and BodyDamage for
         -- TREK_EMH.findings to walk Med.TREATMENTS and Med.SKIN over it and
@@ -1673,6 +1675,9 @@ def main():
                         "with them")
     if win.cureBtn.enable:
         failures.append("emh: Cure is live on a patient who is not infected")
+    if win.detoxBtn.enable:
+        failures.append("emh: Detox is live on a patient with no habit "
+                        "(CONTRABAND.md)")
 
     # --- and now a patient worth treating ------------------------------------
     lua.execute("""
@@ -1728,6 +1733,34 @@ def main():
     if not any(running in str(d.extra) for d in draws if d.kind == "text"):
         failures.append("emh: a cure is running and the panel does not say "
                         "so, or how long it has left")
+
+    # --- and hooked as well (CONTRABAND.md) ----------------------------------
+    # The worst the findings column ever gets: seven findings, the infection,
+    # a cure running and a habit, all at once. The habit's line is the last
+    # thing drawn above the buttons, and it has to say what it is for.
+    lua.execute("""
+        local row = { felicium = { doses = 2, hooked = true, last = 0 },
+                      game = { doses = 5, hooked = true, last = 0 } }
+        player.md[TREK.Config.ContrabandKey] = row
+        player.md[TREK.Config.ContrabandMirrorKey] = row
+    """)
+    draws = run_frames(lua, "emh, hooked with a cure running")
+    check_bounds(lua, draws, "emh, hooked with a cure running")
+    if not win.detoxBtn.enable:
+        failures.append("emh: Detox is greyed on a patient hooked on two things")
+    dep = IG["IGUI_TREK_EmhDependent"].split("%1")[0].upper()
+    lines = [d for d in draws if d.kind == "text" and dep in str(d.extra)]
+    if not lines:
+        failures.append("emh: a hooked patient's habits are not named on the panel")
+    elif IG["IGUI_TREK_Contra_felicium"].upper() not in str(lines[0].extra):
+        failures.append(f"emh: the dependence line reads {lines[0].extra!r}")
+    else:
+        top = min(float(b.y) for b in (win.patientBtn, win.treatBtn, win.cureBtn,
+                                       win.detoxBtn))
+        if float(lines[0].y) + 14 > top:
+            failures.append(f"emh: the dependence line at y={lines[0].y} runs "
+                            f"into the buttons at {top}")
+    lua.execute("player.md = {}")
     lua.execute("TREK.EMH.cures()[player:getUsername()] = nil")
 
     # --- a long name, and an empty core --------------------------------------

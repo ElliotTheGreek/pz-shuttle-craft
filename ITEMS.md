@@ -72,6 +72,13 @@ anybody with *Real Food Only*, is unhappy with replicated food.
 | Balso Tonic | `TrekBalsoTonic` |
 | Nutrient Suspension | `TrekNutrientSuspension` (on the food list, not the bar's) |
 
+### Contraband
+
+Ketracel-White, Felicium, Trellium-D, Cordrazine, the Ktarian Game, Latinum
+Strips, Kanar, Saurian Brandy and Aldebaran Whiskey (`media/scripts/
+trekcontraband.txt`). What each does, and what is in the hideouts, is section
+8 and `CONTRABAND.md`.
+
 ### Clothing
 
 | Item | Id |
@@ -248,7 +255,7 @@ stocked.
 
 | Piece | Where | Holds |
 |---|---|---|
-| medical_cabinet ×5, medical_cart ×3 | Sickbay, D3 | `medical` list |
+| medical_cabinet ×5, medical_cart ×3 | Sickbay, D3 | `medical` list; each cart also 1 Cordrazine |
 | galley_counter ×4, stasis_unit ×3 | Galley, D2 | `food` list |
 | bar_straight ×3, bottle_shelf ×2 | Lounge, D2 | `drinks` list |
 | wardrobe ×6 | Quarters, D2 | the 6 uniforms, 1 each |
@@ -435,3 +442,35 @@ fully grown plant. The replicator makes them too.
 
 A wash basin, a replicator, a desk and a science display are also in the lab
 and the bay.
+
+---
+
+## 8. Contraband (the hideouts): added 2026-09-26
+
+How it all works is in `CONTRABAND.md`; this is the inventory. None of it can
+be replicated (`C.ReplicatorBlocked`).
+
+### Items (`media/scripts/trekcontraband.txt`)
+
+| Item | Id | Use | Notes |
+|---|---|---|---|
+| Ketracel-White | `TrekKetracelWhite` | Inject | The best stim in the mod; hooked at 3 doses |
+| Felicium | `TrekFelicium` | Take | Strongest pain relief; hooked at 2; withdrawal is the "plague" |
+| Trellium-D | `TrekTrelliumD` | Inject | A Vulcan's high and crash; everybody else's poison |
+| Cordrazine | `TrekCordrazine` | Inject | Sickbay's stimulant; a second dose inside 4 hours is an overdose |
+| Ktarian Game | `TrekKtarianGame` | Play the Game | Hooked at 4 rounds; handed on to anybody within 3 tiles |
+| Latinum Strip | `TrekLatinumStrip` | -- | The card table's pot |
+| Kanar | `TrekKanar` | Drink | Cardassian, syrupy, strong |
+| Saurian Brandy | `TrekSaurianBrandy` | Drink | The officer's brandy |
+| Aldebaran Whiskey | `TrekAldebaranWhiskey` | Drink | It is green |
+
+And one recording, *Holosuite programme reel* (`TREK_Holosuite`), on an
+ordinary `TrekTape`.
+
+### Where
+
+| Container | Where | Holds |
+|---|---|---|
+| stash_crate ×2 per hideout | the three hideouts off tubes 1-2, 3-4, 4-5 | the old stash (Romulan ale, whiskey, vodka, beer, cigarettes, dice, cards) plus 1 White, 1 Felicium, 1 Trellium-D, 1 Ktarian Game, 3 Latinum Strips and the holosuite reel |
+| stash_shelf ×1 per hideout | the same | the old shelf (bloodwine, Andorian ale, rum, scotch, beer) plus Kanar, Saurian Brandy and Aldebaran Whiskey |
+| medical_cart ×3 | Sickbay, D3 | the `medical` list plus 1 Cordrazine |

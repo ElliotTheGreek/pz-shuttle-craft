@@ -32,6 +32,7 @@ require "TREK/TREK_Medical"
 require "TREK/TREK_Replicator"
 require "TREK/TREK_Probes"
 require "TREK/TREK_EMH"
+require "TREK/TREK_ContrabandServer"
 require "TREK/TREK_Build"
 require "TREK/TREK_Energy"
 require "TREK/TREK_Adirondack"
@@ -2169,6 +2170,7 @@ Net.onServer("emhLook", function(player, args)
         infected = found.infected,
         bitten = found.bitten,
         items = found.items,
+        dependent = found.dependent,
     })
 end)
 
@@ -2229,6 +2231,44 @@ Net.onServer("emhCure", function(player, args)
         return
     end
     S.beginCure(player, patient, name)
+end)
+
+--- The detox (CONTRABAND.md): every habit gone, for reserve units.
+--- Yourself at once; anybody else only if they say yes.
+local function detoxBody(asker, patient, name)
+    if TREK.Power.canPay(C.EmhDetoxCost) then
+        if not TREK.Energy.energize(asker, "emhDetox", C.EmhDetoxCost, { silent = true }) then
+            return false
+        end
+    elseif not TREK.Energy.energize(asker, "emhDetox", C.EmhDetoxCost,
+                                    { why = "emhNoPower" }) then
+        return false
+    end
+    local n = TREK.ContrabandServer.detox(patient)
+    Net.toClient(patient, "emhDetoxed", { who = name, n = n })
+    if asker ~= patient then
+        Net.toClient(asker, "emhDetoxed", { who = name, n = n })
+    end
+    U.log("emh: detoxed %s -- %d habit(s), %d unit(s) spent", name, n, C.EmhDetoxCost)
+    return true
+end
+
+Net.onServer("emhDetox", function(player, args)
+    if not atEMH(player) then return end
+    local patient, name = patientFor(player, args)
+    if not patient then return end
+
+    local why = EMH.detoxRefusal(patient)
+    if why then
+        deny(player, why)
+        return
+    end
+
+    if name ~= Ship.usernameOf(player) then
+        offer(player, patient, name, "detox", C.EmhDetoxCost)
+        return
+    end
+    detoxBody(player, patient, name)
 end)
 
 --- Takes the crystal and writes the patient into the register.
@@ -2309,6 +2349,16 @@ local function resolveOffer(player, args, accepted)
             return
         end
         S.beginCure(asker, patient, job.who)
+        return
+    end
+
+    if job.what == "detox" then
+        local why = EMH.detoxRefusal(patient)
+        if why then
+            deny(player, why)
+            return
+        end
+        detoxBody(asker, patient, job.who)
         return
     end
 

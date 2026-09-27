@@ -143,6 +143,13 @@ local DENIALS = {
     emhNoOffer        = "IGUI_TREK_EmhNoOffer",
     emhOfferLapsed    = "IGUI_TREK_EmhOfferLapsed",
     emhGone           = "IGUI_TREK_EmhGone",
+    emhClean          = "IGUI_TREK_EmhNoHabit",
+    -- Contraband (CONTRABAND.md).
+    gameNobody        = "IGUI_TREK_GameNobody",
+    gameFar           = "IGUI_TREK_GameFar",
+    gameNone          = "IGUI_TREK_GameNone",
+    strobeNoPadd      = "IGUI_TREK_StrobeNoPadd",
+    strobeClean       = "IGUI_TREK_StrobeClean",
     -- The downed ensign (ENSIGN.md).
     distressAboard    = "IGUI_TREK_DistressAboard",
     distressGone      = "IGUI_TREK_DistressGone",

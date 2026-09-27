@@ -128,7 +128,7 @@ TREK.Ship.onChange(onShipChange)
 ---------------------------------------------------------------------------
 TREKEMHWindow = ISPanelJoypad:derive("TREKEMHWindow")
 
-local EW, EH = 420, 560
+local EW, EH = 420, 594
 local SIDE, TOPH, BOTH, PAD, RAD = 56, 26, 16, 14, 22
 local FACE = 96
 
@@ -176,7 +176,8 @@ function TREKEMHWindow:createChildren()
     self.findingsY = self.faceY + FACE + 12
 
     local btnH, gap = 28, 6
-    local row3 = self.height - BOTH - PAD - btnH
+    local row4 = self.height - BOTH - PAD - btnH
+    local row3 = row4 - gap - btnH
     local row2 = row3 - gap - btnH
     local row1 = row2 - gap - btnH
     local row0 = row1 - gap - btnH
@@ -204,12 +205,18 @@ function TREKEMHWindow:createChildren()
     self.cureBtn:initialise()
     self:addChild(self.cureBtn)
 
-    self.readoutBtn = TREKLcarsButton:new(cx, row3, (cw - gap) / 2, btnH,
+    -- The detox (CONTRABAND.md): every habit the patient has, in one go.
+    self.detoxBtn = TREKLcarsButton:new(cx, row3, cw, btnH, "", self,
+        TREKEMHWindow.onDetox, P.gold)
+    self.detoxBtn:initialise()
+    self:addChild(self.detoxBtn)
+
+    self.readoutBtn = TREKLcarsButton:new(cx, row4, (cw - gap) / 2, btnH,
         getText("IGUI_TREK_EmhReadout"), self, TREKEMHWindow.onReadout, P.gold)
     self.readoutBtn:initialise()
     self:addChild(self.readoutBtn)
 
-    self.dismissBtn = TREKLcarsButton:new(cx + (cw - gap) / 2 + gap, row3,
+    self.dismissBtn = TREKLcarsButton:new(cx + (cw - gap) / 2 + gap, row4,
         (cw - gap) / 2, btnH, getText("IGUI_TREK_EmhDismiss"), self,
         TREKEMHWindow.onDismiss, P.lilac)
     self.dismissBtn:initialise()
@@ -221,6 +228,7 @@ function TREKEMHWindow:createChildren()
     self:insertNewLineOfButtons(self.patientBtn)
     self:insertNewLineOfButtons(self.treatBtn)
     self:insertNewLineOfButtons(self.cureBtn)
+    self:insertNewLineOfButtons(self.detoxBtn)
     self:insertNewLineOfButtons(self.readoutBtn, self.dismissBtn)
     self:setISButtonForB(self.closeBtn)
 
@@ -420,8 +428,24 @@ function TREKEMHWindow:drawFindings(cx, cw)
     local due = row and E.cureDue(row.name)
     if due then
         local left = math.max(0, math.ceil(due - E.worldHours()))
+        y = y + 16
         self:drawText(string.upper(getText("IGUI_TREK_EmhCureRunning", tostring(left))),
-                      cx, y + 16, P.gold[1], P.gold[2], P.gold[3], 1, UIFont.Small)
+                      cx, y, P.gold[1], P.gold[2], P.gold[3], 1, UIFont.Small)
+    end
+
+    -- **What they are hooked on** (CONTRABAND.md), by name, so the Detox
+    -- button below it says what it is for.
+    local hooked = found.dependent or {}
+    if #hooked > 0 then
+        local names = {}
+        for _, name in ipairs(hooked) do
+            table.insert(names, getText(TREK.Contraband.nameKey(name)))
+        end
+        y = y + 16
+        self:drawText(ellipsise(string.upper(getText("IGUI_TREK_EmhDependent",
+                                                     table.concat(names, ", "))),
+                                UIFont.Small, cw),
+                      cx, y, P.peach[1], P.peach[2], P.peach[3], 1, UIFont.Small)
     end
 end
 
@@ -495,6 +519,20 @@ function TREKEMHWindow:render()
         or getText("IGUI_TREK_EmhCure", tostring(C.EmhCureCrystals))
     self.cureBtn.enable = not off and cureWhy == nil
 
+    local detoxWhy = blocked
+    if not detoxWhy then
+        if row and row.own then
+            detoxWhy = E.detoxRefusal(self.player)
+        else
+            local found = self:found()
+            if found and #(found.dependent or {}) == 0 then detoxWhy = "emhClean" end
+        end
+    end
+    self.detoxBtn.title = detoxWhy
+        and getText(M.BUTTON_TEXT[detoxWhy] or "IGUI_TREK_EmhBtnClean")
+        or getText("IGUI_TREK_EmhDetox", tostring(C.EmhDetoxCost))
+    self.detoxBtn.enable = not off and detoxWhy == nil
+
     -- The full readout is vanilla's health panel at doctor level, opened on
     -- this client. It is UI on a body, not a change to one, so there is no
     -- command behind it -- a handler whose only job is to answer "yes" is a
@@ -529,6 +567,13 @@ function TREKEMHWindow:onCure()
     if not row then return end
     says(row.own and "IGUI_TREK_EmhCuringYou" or "IGUI_TREK_EmhAsking", row.name)
     Core.send(self.player, "emhCure", { who = row.own and "" or row.name })
+end
+
+function TREKEMHWindow:onDetox()
+    local row = self:patient()
+    if not row then return end
+    says(row.own and "IGUI_TREK_EmhDetoxing" or "IGUI_TREK_EmhAsking", row.name)
+    Core.send(self.player, "emhDetox", { who = row.own and "" or row.name })
 end
 
 --- Vanilla's health panel, at the Doctor level the medical tricorder uses.
@@ -626,6 +671,7 @@ M.BUTTON_TEXT = {
     emhWell        = "IGUI_TREK_EmhBtnWell",
     emhNotInfected = "IGUI_TREK_EmhBtnNotInfected",
     emhCuring      = "IGUI_TREK_EmhBtnCuring",
+    emhClean       = "IGUI_TREK_EmhBtnClean",
 }
 
 -- Why a control is greyed, in the player's own words, keyed the way the
@@ -641,6 +687,7 @@ M.REFUSAL_TEXT = {
     emhWell        = "IGUI_TREK_EmhWell",
     emhNotInfected = "IGUI_TREK_EmhNotInfected",
     emhCuring      = "IGUI_TREK_EmhCuring",
+    emhClean       = "IGUI_TREK_EmhNoHabit",
 }
 
 --- Breaks a line into at most `lines` pieces that fit `width`.
@@ -764,6 +811,7 @@ TREK.Net.onClient("emhFindings", function(args)
         infected = args.infected == true,
         bitten = args.bitten == true,
         items = args.items or {},
+        dependent = type(args.dependent) == "table" and args.dependent or {},
     }
 end)
 
@@ -777,9 +825,10 @@ end)
 TREK.Net.onClient("emhOffered", function(args)
     local player = U.player(0)
     if not player or not args.token then return end
-    local text = getText(args.what == "cure" and "IGUI_TREK_EmhOfferCure"
-                                             or "IGUI_TREK_EmhOfferTreat",
-                         tostring(args.from), tostring(args.cost or "?"))
+    local key = "IGUI_TREK_EmhOfferTreat"
+    if args.what == "cure" then key = "IGUI_TREK_EmhOfferCure" end
+    if args.what == "detox" then key = "IGUI_TREK_EmhOfferDetox" end
+    local text = getText(key, tostring(args.from), tostring(args.cost or "?"))
     U.try("emh.modal", function()
         local modal = ISModalDialog:new(0, 0, 360, 160, text, true, nil,
                                         M.onOffer, player:getPlayerNum(),
@@ -811,6 +860,17 @@ TREK.Net.onClient("emhTreated", function(args)
     end
     -- Your own findings are re-read from your own body next frame; somebody
     -- else's have to be asked for again.
+    refreshWindow()
+end)
+
+--- The detox has landed (CONTRABAND.md). The record itself arrives as
+--- `contraState`; this is the Doctor saying so.
+TREK.Net.onClient("emhDetoxed", function(args)
+    local player = U.player(0)
+    if not player then return end
+    says("IGUI_TREK_EmhDetoxed")
+    note(player, "IGUI_TREK_EmhDetoxedNote", tostring(args and args.who or "?"))
+    U.try("emh.sound", function() player:playSoundLocal("TREK_HypoHiss") end)
     refreshWindow()
 end)
 

@@ -33,6 +33,7 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Power"
 require "TREK/TREK_Medical"
+require "TREK/TREK_Contraband"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -329,7 +330,20 @@ function E.findings(patient)
     -- panel at all.
     out.infected = Med.isInfected(patient)
     out.bitten = Med.isBitten(patient)
+    -- What they are hooked on (CONTRABAND.md), by substance name. Not counted
+    -- in `total`: that is what a treatment mends, and a habit is the detox's.
+    out.dependent = TREK.Contraband.dependencies(patient)
     return out
+end
+
+--- Why a **detox** would be refused for this patient, or nil.
+---
+--- Read from the record this machine can see: the server's own on the
+--- server, the patient's mirror of it on their own client (TREK_Contraband).
+function E.detoxRefusal(patient)
+    if not patient then return "emhNoPatient" end
+    if not TREK.Contraband.isDependent(patient) then return "emhClean" end
+    return nil
 end
 
 --- Why a **cure** would be refused for this patient, or nil.

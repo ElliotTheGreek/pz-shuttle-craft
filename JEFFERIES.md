@@ -29,7 +29,9 @@ is how the ship is put together; this file is the part of her you crawl.
   and two chairs, a light, and the empties and the cards they left lying
   about. You stand up in a hideout. (The first one was three deep and the
   chairs stood in the only row in front of the stash; `tests/test_assets.py`
-  now walks every hideout from its hatch to every crate.)
+  now walks every hideout from its hatch to every crate.) The crates also
+  hold the crew's contraband -- the drugs, the Ktarian game, latinum and a
+  holosuite reel -- which is `CONTRABAND.md`.
 - **Turbolift Phobia**, a negative trait (+2 points): every lift ride is
   instant dread -- stress, panic and misery -- and the lift's menu says so
   before you choose. The tubes cost the phobic nothing.

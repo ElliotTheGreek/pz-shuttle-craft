@@ -11770,7 +11770,11 @@ def adk_fittings(net, rt, P, pdeck):
     check(any(i in med for i in ("TrekShuttle.TrekHypospray", "TrekShuttle.TrekDermalRegen",
                                  "TrekShuttle.TrekMedTricorder")),
           f"adirondack: sickbay's cabinets hold {med}")
-    strays = [i for i in med if i not in [str(x) for x in rt.eval("TREK.Config.Loot.medical").values()]]
+    # Cordrazine is Sickbay's own (CONTRABAND.md): the carts carry one beside
+    # the medical list. Anything else is a stray.
+    issued = [str(x) for x in rt.eval("TREK.Config.Loot.medical").values()]
+    issued.append(str(rt.eval("TREK.Config.Cordrazine.item")))
+    strays = [i for i in med if i not in issued]
     check(not strays, f"adirondack: sickbay stocked with {strays}")
 
     # Every deck, then what is in her lockers and her sinks.
@@ -12255,6 +12259,35 @@ def jefferies():
     check(on_floor == clutter, f"jefferies: {on_floor} things on the hideout's floor, the layout {clutter}")
     check("TrekShuttle.TrekRomulanAle" in stash and "Base.Whiskey" in stash,
           f"jefferies: the hideout's crates hold {stash}")
+    # The contraband (CONTRABAND.md): the drugs, the Game, the pot, the good
+    # bottles, and a tape that is carrying its recording -- a blank one looks
+    # exactly like the real thing in a crate.
+    for want in ("TrekShuttle.TrekKetracelWhite", "TrekShuttle.TrekFelicium",
+                 "TrekShuttle.TrekTrelliumD", "TrekShuttle.TrekKtarianGame",
+                 "TrekShuttle.TrekLatinumStrip", "TrekShuttle.TrekKanar",
+                 "TrekShuttle.TrekSaurianBrandy", "TrekShuttle.TrekAldebaranWhiskey"):
+        check(want in stash, f"jefferies: the hideout holds no {want}: {stash}")
+    reels = str(rt.eval(f"""(function()
+        local A = TREK.Adirondack
+        local tb = A.Layout.tubes[1]
+        local out = {{}}
+        for _, p in ipairs(tb.hideout) do
+            local x, y = A.at(tb.from, p[1], p[2])
+            for _, obj in ipairs(SIM.rawSquare(x, y, A.Z).objects) do
+                if obj.container then
+                    for _, it in ipairs(obj.container.items) do
+                        if it.fullType == TREK.Config.TapeItem then
+                            local d = it:getMediaData()
+                            table.insert(out, d and d:getId() or "blank")
+                        end
+                    end
+                end
+            end
+        end
+        return table.concat(out, ";")
+    end)()"""))
+    check(reels and "blank" not in reels and "TREK_Holosuite" in reels,
+          f"jefferies: the hideout's tapes carry {reels!r}, not the holosuite reel")
     rt.run("TREK.AdirondackServer.buildTube(1)")
     net.pump(40)
     again, _, _ = hideout_items(rt, 1)
@@ -12967,6 +13000,368 @@ def farming():
           f"harvest; the dehydrator dried tea; the worms bred and starved; the range is a stove")
 
 
+def take(rt, item_id, who=1, fraction=1.0):
+    """Takes a dose the way the game does: vanilla's eating action completes
+    (on the server, or in single player), which is where a Food item with its
+    own menu word -- Inject, Take -- is used up."""
+    rt.run(f"ISEatFoodAction.complete({{ character = SIM.players[{who}], "
+           f"item = instanceItem('{item_id}'), percentage = {fraction} }})")
+
+
+def contra_row(rt, name, field="doses", who=1):
+    return rt.eval(f"(function() local r = TREK.Contraband.record(SIM.players[{who}]).{name} "
+                   f"return r and r.{field} end)()")
+
+
+def contra_tick(rt, hours_on):
+    """Moves the world clock on and runs the ten-minute pass once."""
+    rt.run(f"SIM.advanceHours({hours_on})")
+    rt.fire("EveryTenMinutes")
+
+
+def contraband():
+    """Contraband (CONTRABAND.md), in single player.
+
+    Every dose goes in through vanilla's eating action and every round of the
+    Game through the menu and its timed action, because that is the way a
+    player reaches them -- a test that called TREK_ContrabandServer directly
+    would pass against a build whose Inject word was never wired to anything.
+
+    The habits are checked from both ends: a habit forms at its count and not
+    before, a habit not yet formed is forgotten, and a habit formed goes
+    through withdrawal and comes out clean on its own clock. Each withdrawal
+    is checked against the ceiling that keeps it from hurting.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('crew', 1000.5, 1000.5, 0)")
+    net.start()
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    stat = lambda s: trait_stat(rt, s)
+    setstat = lambda s, v: rt.run(f"{P}:getStats():set(CharacterStat.{s}, {v})")
+    notes = lambda: " ".join(rt.notes())
+
+    # --- nothing of it comes out of a replicator ---------------------------
+    for item in ("TrekKetracelWhite", "TrekFelicium", "TrekTrelliumD", "TrekCordrazine",
+                 "TrekKtarianGame", "TrekLatinumStrip", "TrekKanar",
+                 "TrekSaurianBrandy", "TrekAldebaranWhiskey"):
+        check(rt.eval(f"TREK.Config.ReplicatorBlocked['TrekShuttle.{item}']") is True,
+              f"contraband: the replicator would make {item}")
+
+    # --- ketracel-white: the stim, the habit, the withdrawal, clean --------
+    setstat("ENDURANCE", 0.2)
+    setstat("PANIC", 70)
+    setstat("FATIGUE", 0.8)
+    take(rt, "TrekShuttle.TrekKetracelWhite")
+    check(stat("ENDURANCE") == 1 and stat("PANIC") == 0 and stat("FATIGUE") < 0.8,
+          f"contraband: a dose of white left endurance {stat('ENDURANCE')}, panic "
+          f"{stat('PANIC')}, fatigue {stat('FATIGUE')}")
+    check("IGUI_TREK_ContraFirst_ketracel" in notes(),
+          f"contraband: the first dose said {notes()}")
+    check(contra_row(rt, "ketracel", "hooked") is not True,
+          "contraband: one dose of white was already a habit")
+
+    # The second wind: four hours of it, on the ten-minute pass.
+    setstat("ENDURANCE", 0.5)
+    contra_tick(rt, 1)
+    check(stat("ENDURANCE") > 0.5, "contraband: no second wind an hour after the white")
+    setstat("ENDURANCE", 0.5)
+    contra_tick(rt, 4)
+    check(stat("ENDURANCE") == 0.5, "contraband: the white's second wind outlasted its four hours")
+
+    take(rt, "TrekShuttle.TrekKetracelWhite")
+    check(contra_row(rt, "ketracel", "hooked") is not True,
+          "contraband: two doses of white made a habit; it takes three")
+    take(rt, "TrekShuttle.TrekKetracelWhite")
+    check(contra_row(rt, "ketracel", "hooked") is True,
+          "contraband: three doses of white made no habit")
+    check("IGUI_TREK_ContraHooked" in notes(), "contraband: nobody was told they were hooked")
+    check(rt.eval(f"TREK.Contraband.dependencies({P})[1]") == "ketracel",
+          "contraband: the Doctor's list does not name the white")
+
+    # Not yet: withdrawal waits its hours.
+    setstat("STRESS", 0)
+    contra_tick(rt, 10)
+    check(stat("STRESS") == 0, "contraband: withdrawal from the white began after ten hours")
+    # Now: winded, afraid, and told why.
+    setstat("ENDURANCE", 0.9)
+    contra_tick(rt, 15)
+    check(stat("STRESS") > 0 and stat("PANIC") > 0,
+          f"contraband: a day without the white did nothing (stress {stat('STRESS')})")
+    check(stat("ENDURANCE") <= 0.5 + 1e-9,
+          f"contraband: withdrawal left endurance at {stat('ENDURANCE')}, over its cap")
+    check("IGUI_TREK_Crave_ketracel" in notes(), "contraband: a craving said nothing")
+    check(rt.eval(f"TREK.Contraband.summary({P}, SIM.worldAgeHours).ketracel.withdrawing") is True,
+          "contraband: the summary does not say the white is in withdrawal")
+
+    # A dose is relief, and withdrawal stops.
+    take(rt, "TrekShuttle.TrekKetracelWhite")
+    check("IGUI_TREK_ContraRelief" in notes(), "contraband: the dose in withdrawal was not a relief")
+    setstat("STRESS", 0)
+    contra_tick(rt, 1)
+    check(stat("STRESS") == 0, "contraband: withdrawal carried on through a fresh dose")
+
+    # And clean, on its own clock.
+    contra_tick(rt, float(C("Contraband.ketracel.cleanAfter")) + 1)
+    check(contra_row(rt, "ketracel") is None, "contraband: the white's habit never ended")
+    check("IGUI_TREK_ContraClean" in notes(), "contraband: nobody was told they were clean")
+
+    # --- felicium: a habit not formed is forgotten; withdrawal is capped ---
+    take(rt, "TrekShuttle.TrekFelicium")
+    check(contra_row(rt, "felicium") == 1, "contraband: felicium was not recorded")
+    contra_tick(rt, float(C("Contraband.felicium.forgetHours")) + 1)
+    check(contra_row(rt, "felicium") is None,
+          "contraband: one dose of felicium was never forgotten")
+    take(rt, "TrekShuttle.TrekFelicium")
+    take(rt, "TrekShuttle.TrekFelicium")
+    check(contra_row(rt, "felicium", "hooked") is True, "contraband: two felicium made no habit")
+    setstat("FOOD_SICKNESS", 0)
+    contra_tick(rt, 13)
+    check(stat("FOOD_SICKNESS") > 0, "contraband: felicium withdrawal is not the 'plague'")
+    limit = float(C("Contraband.felicium.limit.FOOD_SICKNESS"))
+    setstat("FOOD_SICKNESS", limit - 1)
+    for _ in range(3):
+        contra_tick(rt, 0.2)
+    check(stat("FOOD_SICKNESS") <= limit + 1e-9,
+          f"contraband: felicium withdrawal pushed food sickness to {stat('FOOD_SICKNESS')}, "
+          f"past its ceiling of {limit}")
+
+    # --- Trellium-D: a Vulcan's high and crash; anybody else's poison ------
+    setstat("FOOD_SICKNESS", 0)
+    take(rt, "TrekShuttle.TrekTrelliumD")
+    check(stat("FOOD_SICKNESS") > 0, "contraband: Trellium-D did not poison a human")
+    check(contra_row(rt, "trellium") is None, "contraband: a human formed a Trellium-D habit")
+    check("IGUI_TREK_Contra_poison" in notes(), "contraband: the poison said nothing")
+    give_trait(rt, "vulcan")
+    setstat("UNHAPPINESS", 80)
+    setstat("PANIC", 0)
+    take(rt, "TrekShuttle.TrekTrelliumD")
+    check(stat("UNHAPPINESS") < 80, "contraband: Trellium-D did nothing for a Vulcan")
+    contra_tick(rt, 1)
+    check(stat("PANIC") == 0, "contraband: the Vulcan crashed before two hours")
+    contra_tick(rt, 1.5)
+    check(stat("PANIC") >= 40, f"contraband: no crash after Trellium-D (panic {stat('PANIC')})")
+    rt.run(f"{P}.traits = {{}}")
+
+    # --- cordrazine: a second wind, and a second dose is the episode -------
+    setstat("PANIC", 0)
+    setstat("ENDURANCE", 0.3)
+    take(rt, "TrekShuttle.TrekCordrazine")
+    check(stat("ENDURANCE") > 0.3 and stat("PANIC") == 0,
+          "contraband: one dose of cordrazine was not a second wind")
+    take(rt, "TrekShuttle.TrekCordrazine")
+    check(stat("PANIC") >= 50 and "IGUI_TREK_CordrazineOverdose" in notes(),
+          "contraband: two cordrazine inside four hours was not an overdose")
+    setstat("PANIC", 0)
+    rt.run("SIM.advanceHours(5)")
+    take(rt, "TrekShuttle.TrekCordrazine")
+    check(stat("PANIC") == 0, "contraband: cordrazine five hours apart was an overdose")
+    check(rt.eval(f"TREK.Contraband.isDependent({P})") is True, "contraband: felicium's habit was lost")
+
+    # --- the Game, through its menu and its timed action -------------------
+    give(rt, "crew", "TrekShuttle.TrekKtarianGame", 7701)
+
+    def game_menu():
+        rt.run("""
+            gameMenu = SIM.contextMenu()
+            local items = {}
+            for _, it in ipairs(SIM.players[1].inventory.items) do table.insert(items, it) end
+            TREK.ContrabandUI.fillInventoryMenu(0, gameMenu, items)
+        """)
+        return str(rt.eval("gameMenu:deepLabels()"))
+
+    labels = game_menu()
+    check("IGUI_TREK_GamePlay" in labels, f"contraband: the Game's menu offers {labels!r}")
+    check("IGUI_TREK_GameOffer" not in labels,
+          "contraband: the Game is offered to somebody when nobody is near")
+    check("IGUI_TREK_Strobe" not in labels,
+          "contraband: the flashing light is offered to somebody the Game never touched")
+    lifts = []
+    for n in range(1, 6):
+        setstat("BOREDOM", 80)
+        rt.run('gameMenu:click("IGUI_TREK_GamePlay"); SIM.runActions()')
+        lifts.append(80 - stat("BOREDOM"))
+        game_menu()
+    check(int(contra_row(rt, "game") or 0) == 5,
+          f"contraband: five rounds of the Game recorded {contra_row(rt, 'game')}")
+    check(lifts[0] > 0 and lifts[-1] < lifts[0],
+          f"contraband: the Game's lift did not wear down: {lifts}")
+    check(contra_row(rt, "game", "hooked") is True, "contraband: five rounds and no habit")
+    setstat("BOREDOM", 0)
+    contra_tick(rt, 2)
+    check(stat("BOREDOM") > 0 and "IGUI_TREK_Crave_game" in notes(),
+          "contraband: an hour without the Game was not boring")
+
+    # --- the flashing light, off a PADD ------------------------------------
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Net.send({P}, 'gameStrobe', {{}})")
+    net.pump(2)
+    check("IGUI_TREK_StrobeNoPadd" in notes(),
+          f"contraband: the flashing light ran with no PADD aboard: {notes()}")
+    give(rt, "crew", "TrekShuttle.TrekPADD", 7702)
+    labels = game_menu()
+    check("IGUI_TREK_Strobe" in labels, f"contraband: a PADD offers {labels!r} to a player the Game has")
+    rt.run('gameMenu:click("IGUI_TREK_Strobe")')
+    net.pump(2)
+    check(contra_row(rt, "game") is None, "contraband: the flashing light left the Game's hold")
+    check("IGUI_TREK_Strobed" in notes(), "contraband: the flashing light said nothing")
+    check("IGUI_TREK_Strobe" not in game_menu(),
+          "contraband: the flashing light is still offered to somebody it cured")
+
+    # --- the Doctor's detox ------------------------------------------------
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "contraband, beaming up"):
+        return
+    sx, sy = int(C("EmhStation").x), int(C("EmhStation").y)
+    stand_at(rt, net, sx - 1, sy)
+    emh_menu(rt, sx, sy)
+    rt.run('emhMenu:click("IGUI_TREK_EmhConsult")')
+    net.pump(4)
+    check(rt.eval(f"TREK.EMH.findings({P}).dependent[1]") == "felicium",
+          "contraband: the Doctor's findings do not name the felicium")
+    before = float(rt.eval("TREK.Power.reserve()"))
+    rt.run("SIM.notes = {}; TREK.EMHUI.window.detoxBtn:click()")
+    net.pump(4)
+    check(rt.eval(f"TREK.Contraband.isDependent({P})") is False,
+          "contraband: the Doctor's detox left a habit")
+    spent = before - float(rt.eval("TREK.Power.reserve()"))
+    check(spent > 0, "contraband: the detox cost nothing")
+    check("IGUI_TREK_EmhDetoxedNote" in notes(), f"contraband: the detox said {notes()}")
+    rt.run("SIM.notes = {}; TREK.EMHUI.window.detoxBtn:click()")
+    net.pump(4)
+    check("IGUI_TREK_EmhNoHabit" in notes(),
+          f"contraband: detoxing a clean patient was not refused with a reason: {notes()}")
+
+    for w in rt.warnings():
+        fail(f"contraband: {w}")
+    print(f"contraband: nothing replicable; the white's stim, second wind, habit at three, "
+          f"withdrawal capped at half endurance, relief and clean; felicium forgotten, "
+          f"hooked and capped; Trellium-D a Vulcan's crash and a human's poison; "
+          f"cordrazine's second dose; the Game's rounds wearing down ({[round(x) for x in lifts]}) "
+          f"into a habit and its cure; the Doctor's detox for {spent:.0f} units")
+
+
+def contraband_multiplayer():
+    """Contraband with two clients: the server decides, the user's own client
+    is told, and the Game changes hands between two machines."""
+    net = Net("mp", ["kira", "odo"])
+    srv, kira, odo = net.server, net.clients["kira"], net.clients["odo"]
+    # Every machine holds both players, as the engine does for anybody near
+    # enough to see: kira's client can only offer odo the Game because it
+    # knows he is standing there.
+    for rt in net.all():
+        rt.run("SIM.player('kira', 3000.5, 3000.5, 0).onlineID = 1; "
+               "SIM.player('odo', 3002.5, 3000.5, 0).onlineID = 2")
+    net.start()
+    net.pump(4)
+
+    def who(name):
+        return (f"(function() for _, p in ipairs(SIM.players) do "
+                f"if p.name == '{name}' then return p end end end)()")
+
+    # --- a dose on the server; the user's client is told, nobody else ------
+    for _ in range(3):
+        srv.run(f"ISEatFoodAction.complete({{ character = {who('kira')}, "
+                f"item = instanceItem('TrekShuttle.TrekKetracelWhite'), percentage = 1 }})")
+    net.pump(4)
+    check(srv.eval(f"TREK.Contraband.isDependent({who('kira')})") is True,
+          "contraband mp: three doses on the server made no habit")
+    check(kira.eval(f"TREK.Contraband.dependencies({who('kira')})[1]") == "ketracel",
+          "contraband mp: kira's own client was never told she is hooked -- the "
+          "Doctor's panel on her screen would offer no detox")
+    check(float(kira.eval(f"{who('kira')}:getStats():get(CharacterStat.ENDURANCE)") or 0) == 1,
+          "contraband mp: the white's endurance never reached kira's own client")
+    check(odo.eval(f"TREK.Contraband.isDependent({who('odo')})") is False,
+          "contraband mp: odo's client was told about kira's habit as his own")
+
+    # A client taking a dose itself does nothing: complete() is the server's.
+    odo.run(f"ISEatFoodAction.complete({{ character = {who('odo')}, "
+            f"item = instanceItem('TrekShuttle.TrekFelicium'), percentage = 1 }})")
+    net.pump(2)
+    check(odo.eval(f"TREK.Contraband.record({who('odo')}).felicium") is None
+          and srv.eval(f"TREK.Contraband.record({who('odo')}).felicium") is None,
+          "contraband mp: a client recorded a dose by itself")
+
+    # --- the Game: played on the server, felt on the owner's client --------
+    for rt in (srv, kira):
+        give(rt, "kira", "TrekShuttle.TrekKtarianGame", 8801)
+    kira.run(f"{who('kira')}:getStats():set(CharacterStat.BOREDOM, 80)")
+    srv.run(f"{who('kira')}:getStats():set(CharacterStat.BOREDOM, 80)")
+
+    def menu(rt, name):
+        rt.run(f"""
+            gameMenu = SIM.contextMenu()
+            local items = {{}}
+            for _, it in ipairs({who(name)}.inventory.items) do table.insert(items, it) end
+            TREK.ContrabandUI.fillInventoryMenu(0, gameMenu, items)
+        """)
+        return str(rt.eval("gameMenu:deepLabels()"))
+
+    labels = menu(kira, "kira")
+    check("IGUI_TREK_GamePlay" in labels and "odo" in labels,
+          f"contraband mp: kira's Game offers {labels!r}; odo is two tiles away")
+    kira.run('gameMenu:click("IGUI_TREK_GamePlay"); SIM.runActions()')
+    net.pump(4)
+    check("TREKPlayGame" in [str(x) for x in srv.eval("SIM.actionsDone").values()],
+          "contraband mp: the server never ran the Game -- the action has to be "
+          "rebuilt there by its class name")
+    srv_b = float(srv.eval(f"{who('kira')}:getStats():get(CharacterStat.BOREDOM)"))
+    kira_b = float(kira.eval(f"{who('kira')}:getStats():get(CharacterStat.BOREDOM)"))
+    check(srv_b < 80 and abs(srv_b - kira_b) < 1e-9,
+          f"contraband mp: a round left boredom {srv_b} on the server and {kira_b} on kira's client")
+    check(int(kira.eval(f"TREK.Contraband.record({who('kira')}).game.doses") or 0) == 1,
+          "contraband mp: kira's client never heard she played")
+
+    # --- and handed on --------------------------------------------------
+    menu(kira, "kira")
+    kira.run('gameMenu:deepClick("odo")')
+    net.pump(4)
+    srv_has = lambda name: srv.eval(
+        f"{who(name)}.inventory:containsTypeRecurse('TrekKtarianGame')") is True
+    check(not srv_has("kira") and srv_has("odo"),
+          "contraband mp: the server did not move the Game from kira to odo")
+    check(odo.eval(f"{who('odo')}.inventory:containsTypeRecurse('TrekKtarianGame')") is True,
+          "contraband mp: odo's client never received the Game")
+    check(any("IGUI_TREK_GameGiven" in n for n in odo.notes()),
+          f"contraband mp: odo was not told: {odo.notes()}")
+
+    # Out of reach, and with nothing to give, both refused with a reason.
+    srv.run(f"{who('odo')}.x = 3050.5")
+    odo.run("SIM.notes = {}")
+    kira.run("SIM.notes = {}")
+    give(srv, "kira", "TrekShuttle.TrekKtarianGame", 8802)
+    kira.run("TREK.Core.send(SIM.players[1], 'gameOffer', { to = 'odo' })")
+    net.pump(4)
+    check(any("IGUI_TREK_GameFar" in n for n in kira.notes()),
+          f"contraband mp: a Game handed across the map said {kira.notes()}")
+    check(srv_has("kira"), "contraband mp: a refused offer still moved the Game")
+
+    # --- the flashing light, asked from kira's client ----------------------
+    for rt in (srv, kira):
+        give(rt, "kira", "TrekShuttle.TrekPADD", 8803)
+    labels = menu(kira, "kira")
+    check("IGUI_TREK_Strobe" in labels,
+          f"contraband mp: kira's PADD offers {labels!r}; her client should know the Game has her")
+    kira.run('gameMenu:click("IGUI_TREK_Strobe")')
+    net.pump(4)
+    check(srv.eval(f"TREK.Contraband.record({who('kira')}).game") is None,
+          "contraband mp: the flashing light left the Game's hold on the server")
+    check(kira.eval(f"TREK.Contraband.record({who('kira')}).game") is None,
+          "contraband mp: kira's client still thinks the Game has her")
+
+    check(kira.eval("TREK.ContrabandServer") is None,
+          "contraband mp: the server's half loaded on a client")
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"contraband mp: {w}")
+    print("contraband mp: a dose decided on the server and told to its taker alone; a "
+          "client's own dose ignored; the Game played on the server and felt on the "
+          "player's machine, handed across between them and refused out of reach; the "
+          "flashing light asked from a client and cleared on both")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -12981,7 +13376,8 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, traits, traits_multiplayer, species_look, creation_look,
-            adirondack, adirondack_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming, multiplayer)
+            adirondack, adirondack_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
+            contraband, contraband_multiplayer, multiplayer)
 
 
 def main():

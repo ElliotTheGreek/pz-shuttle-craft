@@ -4382,7 +4382,7 @@ function PlayerMT:isAsleep() return self.asleep == true end
 
 -- The stats the traits touch. The store in getStats() already takes any key.
 for _, name in ipairs({ "UNHAPPINESS", "STRESS", "BOREDOM", "PANIC",
-                        "ENDURANCE", "FATIGUE" }) do
+                        "ENDURANCE", "FATIGUE", "FOOD_SICKNESS" }) do
     CharacterStat[name] = CharacterStat[name] or name
 end
 
