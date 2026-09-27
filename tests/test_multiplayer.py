@@ -14432,6 +14432,76 @@ def cabin_roof():
     print(f"cabin roof: all {n} deck squares indoors, through the sky sweep and an upgrade from the last build")
 
 
+def adk_roof():
+    """No rain aboard the Adirondack, in her Jefferies tubes or on the field
+    station's floor: runtime decks with no rooms, outdoors to the engine
+    until each has a roof one storey up (1.10.0, after the cabin's)."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('solo', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run(ADK_SETUP)
+    # Stand beside each deck and each tube in turn, so its ground is loaded,
+    # and build it.
+    rt.run("""local A, L, AS = TREK.Adirondack, TREK.Adirondack.Layout, TREK.AdirondackServer
+        local p = SIM.players[1]
+        for k in ipairs(L.decks) do
+            local x, y = A.at(k, math.floor(L.W / 2), math.floor(L.H / 2))
+            p.x, p.y, p.z = x + 0.5, y + 0.5, A.Z
+            p.streamX, p.streamY = p.x, p.y
+            AS.buildDeck(k)
+        end
+        for t, tube in ipairs(L.tubes or {}) do
+            local f = tube.floors[math.floor(#tube.floors / 2) + 1]
+            local x, y = A.at(tube.from, f[1], f[2])
+            p.x, p.y, p.z = x + 0.5, y + 0.5, A.Z
+            p.streamX, p.streamY = p.x, p.y
+            AS.buildTube(t)
+        end""")
+    outdoors = """(function()
+        local A, L = TREK.Adirondack, TREK.Adirondack.Layout
+        local n, out, where = 0, 0, {}
+        local function look(k, f, what)
+            local x, y = A.at(k, f[1], f[2])
+            local sq = SIM.peekSquare(x, y, A.Z)
+            if sq and sq:getFloor() then
+                n = n + 1
+                if sq:isOutside() then out = out + 1 where[what] = true end
+            end
+        end
+        for k, d in ipairs(L.decks) do
+            for _, f in ipairs(d.floors) do look(k, f, A.siteOf(k) .. ":" .. d.name) end
+        end
+        for _, tube in ipairs(L.tubes or {}) do
+            for _, f in ipairs(tube.floors) do look(tube.from, f, tube.name) end
+        end
+        local names = {}
+        for w in pairs(where) do table.insert(names, w) end
+        table.sort(names)
+        return n .. "|" .. out .. "|" .. table.concat(names, ",")
+    end)()"""
+    n, out, where = rt.eval(outdoors).split("|")
+    n, out = int(n), int(out)
+    check(n > 500 and out == 0, f"adk roof: {out} of {n} floor squares outdoors, so it rains in {where}")
+    fst = int(rt.eval("#TREK.Adirondack.decksOf('fst')"))
+    check(fst >= 1, "adk roof: no field station floor to check")
+    # The sky sweep over one of her decks and over a tube leaves the roof.
+    rt.run("""local A, L = TREK.Adirondack, TREK.Adirondack.Layout
+        for _, spot in ipairs({ { 1, 20, 10 }, { L.tubes[1].from, L.tubes[1].floors[1][1], L.tubes[1].floors[1][2] } }) do
+            local x, y = A.at(spot[1], spot[2], spot[3])
+            local p = SIM.players[1]
+            p.x, p.y, p.streamX, p.streamY = x + 0.5, y + 0.5, x + 0.5, y + 0.5
+            local job = {}
+            for _ = 1, 2000 do if TREK.Sky.sweepArea(x, y, job) then break end end
+        end""")
+    _, out2, where2 = rt.eval(outdoors).split("|")
+    check(int(out2) == 0, f"adk roof: the sky sweep took the roof off {out2} square(s) in {where2}")
+    for w in rt.warnings():
+        fail(f"adk roof: {w}")
+    print(f"adk roof: all {n} floor squares of her decks, her tubes and the field station indoors, "
+          "and the sky sweep leaves them so")
+
+
 def speed_check():
     """A server whose speed anti-cheat kicks or bans is set to log, unless the
     owner chose to leave it. Every board and every step to the cockpit is a
@@ -14481,7 +14551,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, multiplayer)
 
 
 def main():

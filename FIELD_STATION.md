@@ -435,3 +435,8 @@ that store since will have missed the placement, and the next load fixes it):
   so always searched the shuttle's cabin: on the Adirondack nobody but
   yourself could ever be treated. It searches the asker's own place now --
   cabin, ship or station -- which fixed the ship as a side effect.
+
+**A roof one storey up.** Runtime decks have no rooms, so to the engine they
+were outdoors and it rained inside (1.10.0). Every deck and tube floor square
+gets the invisible `C.RoofTile` above it (`AS.roofOver`; DEV_GUIDE.md,
+"a runtime-generated interior is not a building").

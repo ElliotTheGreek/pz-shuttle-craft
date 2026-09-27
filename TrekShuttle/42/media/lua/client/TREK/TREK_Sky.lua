@@ -423,8 +423,11 @@ function Sky.sweepArea(cx, cy, job)
         local level = 1 + math.floor((job.cursor - 1) / #list)
         local d = list[i]
         local x, y = math.floor(cx) + d[1], math.floor(cy) + d[2]
-        -- Never the cabin's roof, which is the same tile (C.RoofTile).
-        local sq = not U.isInterior(x, y) and U.square(x, y, level, false) or nil
+        -- Never a roof -- the cabin's, her decks', her tubes', the station's --
+        -- which is the same tile (C.RoofTile).
+        local roofed = U.isInterior(x, y)
+            or (TREK.Adirondack and TREK.Adirondack.locate(x, y) ~= nil)
+        local sq = not roofed and U.square(x, y, level, false) or nil
         -- Squares that were never made cost nothing to pass over, and most of
         -- the sky is exactly that: eight levels of a patch this size would
         -- otherwise take six seconds to walk.

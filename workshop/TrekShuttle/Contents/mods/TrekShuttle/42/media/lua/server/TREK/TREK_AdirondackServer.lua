@@ -61,7 +61,7 @@ local TAG = "adk"
 -- Bumped when what an existing object needs changes (doors registered,
 -- containers stocked, sinks with water): a deck built by an older one is
 -- repaired in place on the next visit, without anything being rebuilt.
-AS.FIT = 5
+AS.FIT = 6
 
 function AS.state()
     local s = ModData.getOrCreate(A.StateKey)
@@ -73,6 +73,17 @@ function AS.state()
 end
 
 local function ownedByTube(x, y) return A.tubeOwns(x, y) ~= nil end
+
+--- A roof over one square of deck or tube: the cabin's invisible floor, one
+--- storey up (C.RoofTile). Her decks and the station have no rooms, so to the
+--- engine they were outdoors and it rained in the corridors (1.10.0).
+--- Returns true when one was laid.
+local function roofOver(x, y)
+    local sq = U.square(x, y, A.Z + 1, false)
+    if sq and U.findSprite(sq, C.RoofTile) then return false end
+    return U.addFloor(x, y, A.Z + 1, C.RoofTile) ~= nil
+end
+AS.roofOver = roofOver
 
 function AS.deckCurrent(k)
     local s = AS.state()
@@ -417,6 +428,7 @@ function AS.buildDeck(k)
         if sq and not sq:getFloor() then
             U.try("addFloor", function() sq:addFloor(f[3]) end)
         end
+        U.try("adk.roof", roofOver, x, y)
     end
 
     U.resetStockCursors()
@@ -606,6 +618,9 @@ function AS.buildTube(t)
                 U.try("addFloor", function() sq:addFloor(f[3]) end)
                 made = made + 1
             end
+            -- Every pass, not only when the floor is new: a tube from
+            -- before the roof gets one.
+            U.try("adk.tubeRoof", roofOver, x, y)
         else
             waiting = waiting + 1
         end

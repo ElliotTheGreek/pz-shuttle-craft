@@ -365,3 +365,8 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
 7. **New furniture goes at the end of `tools/adirondack_objects.py`.** The
    furniture sheet numbers its tiles in that list's order, and a tile's
    number is its sprite name in every save (`ARMOURY.md` 6).
+
+**A roof one storey up.** Runtime decks have no rooms, so to the engine they
+were outdoors and it rained inside (1.10.0). Every deck and tube floor square
+gets the invisible `C.RoofTile` above it (`AS.roofOver`; DEV_GUIDE.md,
+"a runtime-generated interior is not a building").

@@ -480,7 +480,11 @@ a room or `haveRoof`, and `haveRoof` means a solid floor on some storey above
 so the build lays `C.RoofTile` -- vanilla's invisible floor, the sky plane's
 tile -- one storey over every square with deck (`buildRoof`), and the sky sweep
 skips the interior so it never lifts it. The sim models the rule
-(`SquareMT:isOutside`) and `cabin_roof()` checks it.
+(`SquareMT:isOutside`) and `cabin_roof()` checks it. The Adirondack's decks,
+her Jefferies tubes and the field station's floor are the same (`AS.roofOver`
+in `buildDeck` and `buildTube`, `AS.FIT` 6 for decks built before it), and
+the sweep skips anything `A.locate` answers for; `adk_roof()` checks all
+3,689 of their floor squares.
 
 ### `U.clearSquare` keeps two things on purpose, and a migration has to name them
 
