@@ -417,3 +417,13 @@ shot the world stopped taking right-clicks and aiming. The overlay was
 screen-sized, and the engine's hover test is geometry. It was fixed and
 modelled in the simulation the same hour, and the author's verdict on the
 next run was that it works great.
+
+**Charged by the server in multiplayer (1.10.1).** The hit anti-cheat reads
+the server's copy of a weapon and kicks after two shots it thinks were fired
+empty ("PlayerHitZombiePacket: not enough ammo"). The charge used to be made
+only on the player's machine, so the server's copy ran dry and a player was
+kicked for firing. `TREK_PhaserCharge` (shared) holds the charging;
+`TREK_PhaserServer` runs it on every player's energy weapons four times a
+second and sends each one it changed to its holder (`syncHandWeaponFields`,
+`syncItemFields`). The player's own sweep still keeps the copy they fire from
+full between passes. `phaser_charge_mp()` checks it.

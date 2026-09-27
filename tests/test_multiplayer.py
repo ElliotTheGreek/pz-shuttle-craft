@@ -268,6 +268,22 @@ APPLY = r"""
                     end
                 end
             end
+        elseif op == "weaponFields" then
+            -- The server pushed a weapon's fields to the player carrying it.
+            for _, p in ipairs(SIM.players) do
+                if p.name == d.who then
+                    local held = { p.primary, p.secondary }
+                    for _, it in ipairs(p.inventory.items) do table.insert(held, it) end
+                    for _, it in pairs(held) do
+                        if it and it.id == d.id then
+                            if d.ammo ~= nil then it.ammo = d.ammo end
+                            if d.chambered ~= nil then it.chambered = d.chambered end
+                            if d.jammed ~= nil then it.jammed = d.jammed end
+                            if d.condition ~= nil then it.condition = d.condition end
+                        end
+                    end
+                end
+            end
         elseif op == "modData" then
             local o = find(sq.objects, d.sprite)
             if o then o.modData = copy(d.modData) end
@@ -14502,6 +14518,139 @@ def adk_roof():
           "and the sky sweep leaves them so")
 
 
+def phaser_charge_mp():
+    """The server keeps the phaser charged on its own copy and sends it to
+    the holder. That copy is what the hit anti-cheat reads, and when only
+    the player's machine charged it, it ran dry and kicked her for firing
+    (1.10.1: "PlayerHitZombiePacket: not enough ammo")."""
+    net = Net("mp", clients=("shooter",))
+    srv, cl = net.server, net.clients["shooter"]
+    for rt in (srv, cl):
+        rt.run("SIM.player('shooter', 2000.5, 2000.5, 0).onlineID = 1")
+    net.start()
+    for rt in (srv, cl):
+        rt.run("""local ph = instanceItem(TREK.Config.PhaserItem)
+            ph.id = 9001
+            ph.ammo, ph.chambered, ph.condition = 60, true, 10
+            SIM.players[1].inventory:AddItem(ph)
+            SIM.players[1].primary = ph
+            shooterPhaser = ph""")
+    net.pump(4)
+    # She fires it empty -- on the server's copy, the one the engine spends
+    # on each shot it accepts -- and wears it a little.
+    srv.run("shooterPhaser.ammo, shooterPhaser.chambered, shooterPhaser.condition = 0, false, 6")
+    srv.run("SIM.weaponSyncs = 0")
+    net.pump(40)
+    got = srv.eval("shooterPhaser.ammo .. ',' .. tostring(shooterPhaser.chambered) .. ',' .. shooterPhaser.condition")
+    check(got == "60,true,10", f"phaser charge mp: the server's copy is {got}, not full -- the anti-cheat reads this one")
+    check(int(srv.eval("SIM.weaponSyncs")) >= 1, "phaser charge mp: the server charged it and never told the holder")
+    # Full and untouched: nothing sent, pass after pass.
+    srv.run("SIM.weaponSyncs = 0")
+    net.pump(40)
+    check(int(srv.eval("SIM.weaponSyncs")) == 0, "phaser charge mp: a full phaser is sent again and again")
+    # The holder's copy is told: stop the holder's own sweep and drain it on
+    # both sides; only the server's pass can fill it.
+    cl.run("TREK.Phaser.sweep = function() return 0, 0 end; TREK.PhaserCharge.sweepOff = true")
+    srv.run("shooterPhaser.ammo = 0")
+    cl.run("shooterPhaser.ammo = 0")
+    net.pump(40)
+    check(int(cl.eval("shooterPhaser.ammo")) == 60, "phaser charge mp: the holder's copy never heard the server's charge")
+    for name, rt in (("server", srv), ("shooter", cl)):
+        for w in rt.warnings():
+            fail(f"phaser charge mp ({name}): {w}")
+    print("phaser charge mp: the server refills its own copy, the one the hit anti-cheat reads, and sends it to the holder")
+
+
+def deck_lights():
+    """Every room of the Adirondack and the field station lit, day and night.
+    The lamps went on a four-square grid across the deck, and a room the grid
+    missed was dark behind its walls at night (1.10.1). Each room -- a
+    connected run of one room type -- has a lamp in it within
+    C.DeckLampReach of every one of its squares."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('solo', 1000.5, 1000.5, 0)")
+    net.start()
+    report = rt.eval("""(function()
+        local A, L, AC, C = TREK.Adirondack, TREK.Adirondack.Layout, TREK.AdirondackClient, TREK.Config
+        local reach = C.DeckLampReach
+        local bad, rooms, lampsN, stray = 0, 0, 0, 0
+        local where = {}
+        for k, d in ipairs(L.decks) do
+            local function rid(x, y)
+                if x < 0 or y < 0 or x >= L.W or y >= L.H then return nil end
+                local r = d.grid[y + 1][x + 1]
+                return (r and r > 0) and r or nil
+            end
+            -- The rooms, found independently of the code under test.
+            local comp, n = {}, 0
+            for y = 0, L.H - 1 do for x = 0, L.W - 1 do
+                if rid(x, y) and not comp[x .. "," .. y] then
+                    n = n + 1
+                    local stack = { { x, y } }
+                    comp[x .. "," .. y] = n
+                    while #stack > 0 do
+                        local p = table.remove(stack)
+                        for _, dd in ipairs({ { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }) do
+                            local nx, ny = p[1] + dd[1], p[2] + dd[2]
+                            if rid(nx, ny) == rid(x, y) and not comp[nx .. "," .. ny] then
+                                comp[nx .. "," .. ny] = n
+                                table.insert(stack, { nx, ny })
+                            end
+                        end
+                    end
+                end
+            end end
+            rooms = rooms + n
+            local spots = AC.lampSpots(k)
+            lampsN = lampsN + #spots
+            for _, l in ipairs(spots) do
+                if not comp[l[1] .. "," .. l[2]] then stray = stray + 1 end
+            end
+            for key, c in pairs(comp) do
+                local x, y = key:match("(-?%d+),(-?%d+)")
+                x, y = tonumber(x), tonumber(y)
+                local lit = false
+                for _, l in ipairs(spots) do
+                    if comp[l[1] .. "," .. l[2]] == c and math.abs(l[1] - x) <= reach
+                       and math.abs(l[2] - y) <= reach then lit = true break end
+                end
+                if not lit then
+                    bad = bad + 1
+                    where[A.siteOf(k) .. ":" .. d.name .. " " .. L.rooms[rid(x, y)].name] = true
+                end
+            end
+        end
+        local names = {}
+        for w in pairs(where) do table.insert(names, w) end
+        table.sort(names)
+        return rooms .. "|" .. lampsN .. "|" .. bad .. "|" .. stray .. "|" .. table.concat(names, ", ")
+    end)()""")
+    rooms, lamps_n, bad, stray, where = report.split("|")
+    check(int(bad) == 0, f"deck lights: {bad} room square(s) out of reach of a lamp in their own room: {where}")
+    check(int(stray) == 0, f"deck lights: {stray} lamp(s) hung outside any room")
+    # And hung: the deck's lamps on this machine, at the deck's brightness.
+    rt.run("SIM.lampList = {}; TREK.AdirondackClient.lightDeck(1)")
+    hung, want = rt.eval("""(function()
+        local A, AC = TREK.Adirondack, TREK.AdirondackClient
+        local at = {}
+        for _, l in ipairs(SIM.lampList) do at[l.x .. "," .. l.y] = true end
+        local n, spots = 0, AC.lampSpots(1)
+        for _, p in ipairs(spots) do
+            local x, y = A.at(1, p[1], p[2])
+            if at[x .. "," .. y] then n = n + 1 end
+        end
+        return n, #spots
+    end)()""")
+    check(int(hung) == int(want) and int(want) > 0, f"deck lights: {hung} of deck 1's {want} lamps hung")
+    check(int(rt.eval("SIM.lampList[1] and SIM.lampList[1].radius or 0")) == int(rt.eval("TREK.Config.DeckLight[4]")),
+          "deck lights: the lamps are not at the deck's radius")
+    for w in rt.warnings():
+        fail(f"deck lights: {w}")
+    print(f"deck lights: {rooms} rooms on her decks and the field station, {lamps_n} lamps, "
+          "every square within reach of one in its own room")
+
+
 def speed_check():
     """A server whose speed anti-cheat kicks or bans is set to log, unless the
     owner chose to leave it. Every board and every step to the cockpit is a
@@ -14551,7 +14700,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, phaser_charge_mp, deck_lights, multiplayer)
 
 
 def main():

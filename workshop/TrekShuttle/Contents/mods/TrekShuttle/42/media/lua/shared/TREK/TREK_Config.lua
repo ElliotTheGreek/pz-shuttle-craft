@@ -1230,6 +1230,12 @@ C.ShieldReportMax = 100
 -- renders full -- the white is simply white. Radius and position are read
 -- once, when a lamp is hung; colour is changed in place.
 C.CabinLight = { 0.92, 0.96, 1.0, 8 }
+-- The Adirondack's and the field station's lamps: the same white, further.
+-- Their lights are always on, night and day: a starship does not dim.
+C.DeckLight = { 0.95, 0.98, 1.0, 10 }
+-- No floor square of a deck further than this from a lamp in its own room
+-- (squares, either way). Walls stop light, so every room is lit on its own.
+C.DeckLampReach = 3
 -- A lamp every this many squares of a Jefferies tube (JEFFERIES.md).
 C.TubeLampEvery = 5
 C.PadLight = { 0.70, 0.88, 1.0, 6 }

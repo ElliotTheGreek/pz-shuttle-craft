@@ -370,3 +370,11 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
 were outdoors and it rained inside (1.10.0). Every deck and tube floor square
 gets the invisible `C.RoofTile` above it (`AS.roofOver`; DEV_GUIDE.md,
 "a runtime-generated interior is not a building").
+
+**Lit room by room, always.** Lamps went on a four-square grid across the deck;
+a room the grid missed had none, and its walls kept its neighbours' light out,
+so it was dark at night (1.10.1). `AC.lampSpots(k)` gives every room -- a
+connected run of one room type -- a lamp at its middle and more until every
+square is within `C.DeckLampReach` (3) of one, at `C.DeckLight` (radius 10).
+The field station's floor is a deck of the same layout and is lit the same
+way. `deck_lights()` checks all 44 rooms.

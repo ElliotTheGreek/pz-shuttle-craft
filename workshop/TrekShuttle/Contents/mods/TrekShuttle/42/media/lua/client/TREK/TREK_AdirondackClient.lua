@@ -86,6 +86,90 @@ end
 local lamps = {}       -- "k,x,y" -> IsoLightSource
 local lampCheck = 0
 
+--- Where deck k's lamps hang, worked out once: { {lx, ly}, ... }.
+---
+--- **Room by room, not a grid.** Lamps used to go every fourth square across
+--- the deck, wherever that landed in a room; a room the grid missed had
+--- none, its walls kept its neighbours' light out, and at night it was dark
+--- (1.10.1, the author: "always on and bright"). Each room -- a connected
+--- run of squares of one room type, since every cabin shares its type --
+--- gets a lamp at its middle, then one on any square still further than
+--- C.DeckLampReach from a lamp of its own.
+local lampSpots = {}
+function AC.lampSpots(k)
+    if lampSpots[k] then return lampSpots[k] end
+    local deck = L.decks[k]
+    local out = {}
+    if not deck then return out end
+    local seen = {}
+    local function rid(lx, ly)
+        if lx < 0 or ly < 0 or lx >= L.W or ly >= L.H then return nil end
+        local r = deck.grid[ly + 1][lx + 1]
+        return (r and r > 0) and r or nil
+    end
+    local reach = C.DeckLampReach
+    for sy = 0, L.H - 1 do
+        for sx = 0, L.W - 1 do
+            local r = rid(sx, sy)
+            if r and not seen[sx .. "," .. sy] then
+                -- One room: flood its squares.
+                local squares, stack = {}, { { sx, sy } }
+                seen[sx .. "," .. sy] = true
+                local cx, cy = 0, 0
+                while #stack > 0 do
+                    local p = table.remove(stack)
+                    table.insert(squares, p)
+                    cx, cy = cx + p[1], cy + p[2]
+                    for _, d in ipairs({ { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }) do
+                        local nx, ny = p[1] + d[1], p[2] + d[2]
+                        if rid(nx, ny) == r and not seen[nx .. "," .. ny] then
+                            seen[nx .. "," .. ny] = true
+                            table.insert(stack, { nx, ny })
+                        end
+                    end
+                end
+                cx, cy = cx / #squares, cy / #squares
+                table.sort(squares, function(a, b)
+                    if a[2] ~= b[2] then return a[2] < b[2] end
+                    return a[1] < b[1]
+                end)
+                -- The middle first: the room's own square nearest its centre.
+                local best, bd = nil, nil
+                for _, p in ipairs(squares) do
+                    local d = (p[1] - cx) ^ 2 + (p[2] - cy) ^ 2
+                    if not bd or d < bd then best, bd = p, d end
+                end
+                local mine = { best }
+                -- Then any square still out of reach gets one reach further in:
+                -- the square at `reach` from it towards the middle, if that
+                -- is in the room, else itself.
+                local function covered(p)
+                    for _, l in ipairs(mine) do
+                        if math.abs(l[1] - p[1]) <= reach and math.abs(l[2] - p[2]) <= reach then
+                            return true
+                        end
+                    end
+                    return false
+                end
+                for _, p in ipairs(squares) do
+                    if not covered(p) then
+                        local dx = (cx > p[1]) and 1 or ((cx < p[1]) and -1 or 0)
+                        local dy = (cy > p[2]) and 1 or ((cy < p[2]) and -1 or 0)
+                        local q = { p[1] + dx * math.min(reach, math.abs(cx - p[1])),
+                                    p[2] + dy * math.min(reach, math.abs(cy - p[2])) }
+                        q = { math.floor(q[1] + 0.5), math.floor(q[2] + 0.5) }
+                        if rid(q[1], q[2]) ~= r then q = p end
+                        table.insert(mine, q)
+                    end
+                end
+                for _, l in ipairs(mine) do table.insert(out, l) end
+            end
+        end
+    end
+    lampSpots[k] = out
+    return out
+end
+
 local function lightDeck(k)
     local cell = U.cell()
     if not cell then return end
@@ -101,7 +185,7 @@ local function lightDeck(k)
             end
         end
     end
-    local c = C.CabinLight
+    local c = C.DeckLight
     -- And the tubes that leave or reach this deck: a lamp every few squares
     -- of crawlway and one over each hideout's table.
     for _, tube in ipairs(L.tubes or {}) do
@@ -121,18 +205,17 @@ local function lightDeck(k)
             end
         end
     end
-    for ly = 1, L.H - 1, 4 do
-        for lx = 1, L.W - 1, 4 do
-            local key = k .. "," .. lx .. "," .. ly
-            if not lamps[key] and A.inside(k, lx, ly) then
-                local x, y = A.at(k, lx, ly)
-                lamps[key] = U.try("light.add", function()
-                    return cell:addLamppost(x, y, A.Z, c[1], c[2], c[3], c[4])
-                end)
-            end
+    for _, p in ipairs(AC.lampSpots(k)) do
+        local key = k .. "," .. p[1] .. "," .. p[2]
+        if not lamps[key] then
+            local x, y = A.at(k, p[1], p[2])
+            lamps[key] = U.try("light.add", function()
+                return cell:addLamppost(x, y, A.Z, c[1], c[2], c[3], c[4])
+            end)
         end
     end
 end
+AC.lightDeck = lightDeck
 
 ---------------------------------------------------------------------------
 -- Arriving

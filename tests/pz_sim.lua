@@ -4251,6 +4251,23 @@ function sendSyncPlayerFields(player, mask)
     table.insert(SIM.syncedFields, { who = player.name, mask = mask })
 end
 
+--- A weapon's charge, chambered round and jam (SyncHandWeaponFieldsPacket),
+--- and an item's other fields such as its condition, pushed to the player
+--- carrying it. Only from the server.
+SIM.weaponSyncs = 0
+function syncHandWeaponFields(player, item)
+    if not isServer() then return end
+    SIM.weaponSyncs = SIM.weaponSyncs + 1
+    py_replicate("weaponFields", { x = 0, y = 0, z = 0, who = player.name, id = item.id,
+                                   ammo = item.ammo, chambered = item.chambered,
+                                   jammed = item.jammed })
+end
+function syncItemFields(player, item)
+    if not isServer() then return end
+    py_replicate("weaponFields", { x = 0, y = 0, z = 0, who = player.name, id = item.id,
+                                   condition = item.condition })
+end
+
 --- The item's mod data, pushed to the player carrying it. Only from the
 --- server, and only to that player: another client's copy of somebody
 --- else's pockets does not exist to update.
