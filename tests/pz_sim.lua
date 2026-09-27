@@ -821,9 +821,15 @@ local function doorToggle(self)
 end
 --- ToggleDoorActual returns at once for a nil character (the bytecode's
 --- first test), so a test that closes a door with nobody passed sees it stay.
+--- Any other character moves it, and then is asked isLocalPlayer() as if it
+--- were a player: a zombie throws, after the door has moved (IsoDoor
+--- ToggleDoorActual, the double-door branch; seen on a dedicated server).
 function ObjectMT:ToggleDoor(chr)
     if not chr then return end
     doorToggle(self)
+    if type(chr) == "table" and chr.simZombie then
+        error("NullPointerException: Cannot invoke IsoPlayer.isLocalPlayer() because player is null")
+    end
 end
 function ObjectMT:ToggleDoorSilent() doorToggle(self) end
 function ObjectMT:getOppositeSquare()
@@ -2801,7 +2807,7 @@ end
 SIM.chat = {}
 SIM.nextZombieId = 100
 
-local ZedMT = {}
+local ZedMT = { simZombie = true }
 ZedMT.__index = ZedMT
 function ZedMT:getX() return self.x end
 function ZedMT:getY() return self.y end
@@ -2832,12 +2838,32 @@ function ZedMT:getDescriptor()
     return { setVoicePrefix = function(_, v) z.voice = v end }
 end
 function ZedMT:getEmitter() return { stopSoundByName = function() end, stopAll = function() end } end
-function ZedMT:resetModel() self.resets = (self.resets or 0) + 1 end
+--- The engine's ModelManager.Reset, as build 42 does it: on a client, a body
+--- whose persistent outfit was never applied is dressed in it first --
+--- dressInPersistentOutfitID, which clears the skin, the hair and every
+--- item visual. A copy that reached a client from the server comes that way
+--- (VirtualZombieManager.createRealZombieAlways(outfitID, ...)), so the first
+--- reset after our dressing undressed the crew on every client (1.10.0).
+function ZedMT:resetModel()
+    self.resets = (self.resets or 0) + 1
+    if SIM_ROLE == "client" and not self.persistentInit and (self.outfitID or 0) ~= 0 then
+        self:dressInPersistentOutfitID(self.outfitID)
+    end
+end
+function ZedMT:isPersistentOutfitInit() return self.persistentInit == true end
+function ZedMT:getPersistentOutfitID() return self.outfitID or 0 end
+function ZedMT:dressInPersistentOutfitID(id)
+    -- A body stripped after we dressed it, even for a frame: SIM.strips.
+    if #self.visuals > 0 then SIM.strips = (SIM.strips or 0) + 1 end
+    self.visuals, self.body, self.skin, self.hair = {}, {}, nil, nil
+    self.outfitID, self.persistentInit = id, true
+end
 function ZedMT:getWornItems() return { clear = function() end } end
 function ZedMT:getItemVisuals()
     local z = self
     return { clear = function() z.visuals = {} end,
-             add = function(_, iv) table.insert(z.visuals, iv.type) end }
+             add = function(_, iv) table.insert(z.visuals, iv.type) end,
+             size = function() return #z.visuals end }
 end
 function ZedMT:getHumanVisual()
     local z = self
@@ -2895,7 +2921,10 @@ end
 
 function SIM.newZed(x, y, z, female, id, remote)
     local zed = setmetatable({ x = x, y = y, z = z, female = female, onlineID = id,
-                               remote = remote, modData = {}, vars = {}, visuals = {}, body = {} },
+                               remote = remote, modData = {}, vars = {}, visuals = {}, body = {},
+                               -- The outfit's id, applied where it was spawned and not yet on
+                               -- a client's copy (ZedMT:resetModel).
+                               outfitID = 7, persistentInit = SIM_ROLE ~= "client" },
                              ZedMT)
     table.insert(SIM.zombies, zed)
     return zed

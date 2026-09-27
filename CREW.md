@@ -332,6 +332,20 @@ These come from the Bandits framework and the bytecode (research of
     Clothes, hair and mod data are applied on each client from our mod data.
   - The id both sides share is `getOnlineID()`. In single player it is a
     counter in the body's mod data.
+  - **A client's copy has not had its spawn outfit applied yet.** The
+    engine applies it at the body's next model reset or add
+    (`ModelManager.Reset` -> `dressInPersistentOutfitID`), which clears the
+    skin, the hair and every item visual. In 1.10.0 our own `resetModel`
+    was that reset, so in multiplayer every crew member was undressed the
+    moment we dressed them (seen on a dedicated server at the field
+    station). `CC.dress` now applies the spawn outfit first, and a body
+    found with nothing on is dressed again. The sim models the engine's
+    reset (`ZedMT:resetModel`, `SIM.strips`).
+- **Doors.** The crew open the auto doors too, but a door is always toggled
+  with the nearest *player* aboard. `ToggleDoor` given a zombie moves the
+  door and then asks it `isLocalPlayer()`, so every crew door threw a Java
+  stack trace into the server log (1.10.0). The sim's `ToggleDoor` throws
+  the same way.
 - **Pacifying.** `setUseless(true)` is network-synced and stops them
   noticing anybody. In multiplayer it is set only while they stand still,
   as Bandits does.

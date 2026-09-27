@@ -71,6 +71,17 @@ end
 --- Makes a zombie look like this crew member. Bandits' cleanup first -- the
 --- blood, the dirt, the holes and the rot all come off -- then the person.
 function CC.dress(z, e)
+    -- **A client's copy has not had its spawn outfit applied yet**, and the
+    -- engine applies it at the next model reset or add (ModelManager.Reset
+    -- -> dressInPersistentOutfitID), clearing the skin, the hair and every
+    -- item visual. Our own resetModel below was that reset: in multiplayer
+    -- every crew member was undressed the moment they were dressed (1.10.0).
+    -- Applied here first, the engine has nothing left to do.
+    U.try("crew.outfitInit", function()
+        if not z:isPersistentOutfitInit() then
+            z:dressInPersistentOutfitID(z:getPersistentOutfitID())
+        end
+    end)
     local hv = z:getHumanVisual()
     U.try("crew.clean", function()
         hv:removeDirt()
@@ -276,6 +287,11 @@ function CC.update(z)
     local e = K.entry(z)
     if not e then return end
     local lookKey = e.id .. ":" .. tostring(e.sp) .. e.div
+    -- Undressed behind our back (anything that re-applies the empty spawn
+    -- outfit): dressed again.
+    if looked[z] == lookKey and U.try("crew.worn", function() return z:getItemVisuals():size() end) == 0 then
+        looked[z] = nil
+    end
     if looked[z] ~= lookKey then
         looked[z] = lookKey
         CC.dress(z, e)

@@ -891,15 +891,19 @@ function AS.serviceDoors()
             end
         end
     end
-    -- And the crew: a door opens for them too (TREK_CrewServer). ToggleDoor
-    -- takes any character; for a zombie the clients play no sound, and a
-    -- door a crew member opens is usually one somebody is watching anyway.
+    -- And the crew: a door opens for them too (TREK_CrewServer). But the
+    -- door is always toggled by a *player*: ToggleDoor takes any character
+    -- and then asks it isLocalPlayer() as if it were one -- after the door
+    -- has moved, so it worked, but every crew member's door threw a Java
+    -- stack trace into the server log (1.10.0, seen on a dedicated server).
+    local players = {}
+    for _, a in ipairs(aboard) do table.insert(players, a) end
     if TREK.CrewServer then
         for _, b in ipairs(TREK.CrewServer.bodies()) do
-            table.insert(aboard, { p = b.z, x = b.x, y = b.y })
+            table.insert(aboard, { x = b.x, y = b.y })
         end
     end
-    if #aboard == 0 then return 0 end
+    if #players == 0 then return 0 end
 
     local moved = 0
     for _, d in ipairs(doors()) do
@@ -911,8 +915,9 @@ function AS.serviceDoors()
             -- square, an N door the north edge.
             local cx, cy = x, y + 0.5
             if north then cx, cy = x + 0.5, y end
-            local who, dist = nearest(here, cx, cy)
-            if dist then
+            local _, dist = nearest(here, cx, cy)
+            local who = nearest(players, cx, cy)
+            if dist and who then
                 local sq = U.square(x, y, A.Z, false)
                 local door = sq and doorOn(sq, d[5])
                 if door then

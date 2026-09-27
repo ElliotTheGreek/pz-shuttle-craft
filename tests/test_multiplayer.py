@@ -12992,6 +12992,16 @@ def crew_multiplayer():
         check(bodies >= n and known >= n and dressed >= n,
               f"crew mp: {name} has {bodies} bodies, {known} known, {dressed} dressed, of {n}")
         check(int(c.eval("SIM.clientWorldEdit or 0")) == 0, f"crew mp: {name}'s client edited the world")
+    for name, c in (("alice", A), ("bob", B)):
+        check(int(c.eval("SIM.strips or 0")) == 0,
+              f"crew mp: {name}'s engine stripped a dressed crew member (its spawn outfit, never applied)")
+    # Undressed behind our back (the spawn outfit applied again): dressed again.
+    B.run("""for _, z in ipairs(SIM.zombies) do
+        if TREK.Crew.entry(z) then z:dressInPersistentOutfitID(7) SIM.wiped = z break end
+    end""")
+    net.pump(20)
+    check(B.eval("#SIM.wiped.visuals > 0 and SIM.wiped.skin ~= nil") is True,
+          "crew mp: a body stripped by the engine's outfit stayed undressed")
     # Bob's copies moved because Alice walked them.
     moved = int(B.eval("""(function()
         local n = 0
