@@ -495,9 +495,7 @@ local function buildRoof()
             local x, y = at(ox, oy)
             local deck = U.square(x, y, C.CabinZ, false)
             if deck and U.try("roofDeck", function() return deck:getFloor() ~= nil end) then
-                local sq = U.square(x, y, C.CabinZ + 1, false)
-                local have = sq and U.findSprite(sq, C.RoofTile)
-                if not have and U.addFloor(x, y, C.CabinZ + 1, C.RoofTile) then made = made + 1 end
+                if U.addRoof(x, y, C.CabinZ + 1, C.RoofTile) then made = made + 1 end
             end
         end
     end

@@ -677,6 +677,8 @@ function ObjectMT:getSprite()
 end
 -- Sprite name -> { flag = true }: what a test says a vanilla tile carries.
 SIM.tileProps = SIM.tileProps or {}
+-- Vanilla's invisible floor: the sky plane's tile and every roof of ours.
+SIM.tileProps["invisible_01_0"] = { solidfloor = true, attachedFloor = true }
 
 function ObjectMT:getModData() return self.modData end
 function ObjectMT:getSquare() return self.square end
@@ -1013,7 +1015,8 @@ function SquareMT:isOutside()
         local above = SIM.peekSquare(self.x, self.y, z)
         if above then
             for _, o in ipairs(above.objects) do
-                if o.isFloor then return false end
+                local t = SIM.tileProps[o.spriteName]
+                if o.isFloor or (t and t.solidfloor) then return false end
             end
         end
     end
@@ -1140,7 +1143,12 @@ function SquareMT:addFloor(sprite)
     -- which is the climb that tipped her over and left her stuck.
     f.physicalAt = (SIM.physicsTick or 0) + (SIM.floorPhysicsLag or 3)
     table.insert(self.objects, 1, f)
-    if isServer() then
+    -- SIM.floorsStayOnServer: the engine as it is. IsoGridSquare.addFloor
+    -- sends nothing; a client standing there sees the floor only when it
+    -- next loads that ground. Off by default because every older scenario
+    -- builds the cabin and the decks with it and has the player arrive
+    -- after, which in the game is exactly a fresh load.
+    if isServer() and not SIM.floorsStayOnServer then
         py_replicate("floor", { x = self.x, y = self.y, z = self.z, sprite = sprite })
     elseif isClient() then
         -- The sky plane is the one thing a client may lay, and it is counted
@@ -1445,6 +1453,13 @@ function LampMT:setB(v) self.b = v end
 function LampMT:getR() return self.r end
 function LampMT:setActive(v) self.active = v == true end
 function LampMT:isActive() return self.active ~= false end
+--- The engine's re-roof of one column (IsoCell.checkHaveRoof). The sim
+--- works a square's roof out when asked (SquareMT:isOutside), so this only
+--- counts that it was asked.
+function cell:checkHaveRoof(x, y)
+    SIM.roofChecks = (SIM.roofChecks or 0) + 1
+end
+
 function cell:addLamppost(x, y, z, r, g, b, radius)
     SIM.lamps = SIM.lamps + 1
     SIM.lampsLive = SIM.lampsLive + 1

@@ -61,7 +61,7 @@ local TAG = "adk"
 -- Bumped when what an existing object needs changes (doors registered,
 -- containers stocked, sinks with water): a deck built by an older one is
 -- repaired in place on the next visit, without anything being rebuilt.
-AS.FIT = 6
+AS.FIT = 7
 
 function AS.state()
     local s = ModData.getOrCreate(A.StateKey)
@@ -79,9 +79,7 @@ local function ownedByTube(x, y) return A.tubeOwns(x, y) ~= nil end
 --- engine they were outdoors and it rained in the corridors (1.10.0).
 --- Returns true when one was laid.
 local function roofOver(x, y)
-    local sq = U.square(x, y, A.Z + 1, false)
-    if sq and U.findSprite(sq, C.RoofTile) then return false end
-    return U.addFloor(x, y, A.Z + 1, C.RoofTile) ~= nil
+    return U.addRoof(x, y, A.Z + 1, C.RoofTile)
 end
 AS.roofOver = roofOver
 

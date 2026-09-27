@@ -435,7 +435,42 @@ function U.clearSquare(sq, removeFloor)
     return removed
 end
 
---- Adds the floor for a square, creating the square if needed.
+--- A roof over a square: the invisible floor one storey up that makes the
+--- square below it indoors to the engine (C.RoofTile; DEV_GUIDE.md, "a
+--- runtime-generated interior is not a building").
+---
+--- **Sent, not laid.** `IsoGridSquare.addFloor` changes only this machine's
+--- copy of the world: on a server nobody already standing there is told, and
+--- they see the new floor only when they next load that ground from
+--- scratch. The first roofs were laid that way, while the player stood on
+--- the deck being refitted, and it went on raining on their screen (1.10.1).
+--- This sends it as an object, which a client adds and re-roofs for
+--- (AddItemToMapPacket runs checkHaveRoof), and re-roofs the server's own.
+---
+--- A roof laid the old way is taken up and sent again, once: it is the one
+--- untagged. Returns true when it sent one.
+function U.addRoof(x, y, z, sprite)
+    local sq = U.square(x, y, z, true)
+    if not sq then return false end
+    local have = U.findSprite(sq, sprite)
+    if have then
+        local md = U.try("roof.md", function() return have:getModData() end)
+        if md and md.TREK == "roof" then return false end
+        U.try("roof.old", function() sq:transmitRemoveItemFromSquare(have) end)
+    end
+    local obj = U.try("roof.new", function() return IsoObject.new(sq, sprite, "") end)
+    if not obj then return false end
+    U.try("roof.tag", function() obj:getModData().TREK = "roof" end)
+    local sent = U.try("roof.add", function()
+        sq:transmitAddObjectToSquare(obj, -1)
+        return true
+    end) == true
+    if sent then U.try("roof.check", function() getCell():checkHaveRoof(x, y) end) end
+    return sent
+end
+
+--- Adds the floor for a square, creating the square if needed. **On this
+--- machine only** -- see U.addRoof: a server's addFloor tells nobody.
 function U.addFloor(x, y, z, sprite)
     local sq = U.square(x, y, z, true)
     if not sq then return nil end

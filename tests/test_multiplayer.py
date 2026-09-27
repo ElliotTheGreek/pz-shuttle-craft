@@ -14651,6 +14651,59 @@ def deck_lights():
           "every square within reach of one in its own room")
 
 
+def adk_roof_mp():
+    """The roof reaches a player already aboard. IsoGridSquare.addFloor tells
+    nobody (SIM.floorsStayOnServer is the engine as it is), and the first
+    roofs were laid that way while the player stood on the deck being
+    refitted: the server had a roof and their screen went on raining
+    (1.10.1). A roof is sent now, and one laid the old way is sent again."""
+    net = Net("mp", clients=("crew",))
+    srv, cl = net.server, net.clients["crew"]
+    for rt in (srv, cl):
+        rt.run("SIM.player('crew', 1000.5, 1000.5, 0).onlineID = 1")
+    net.start()
+    for rt in (srv, cl):
+        rt.run(ADK_SETUP)
+        rt.run("""local A, L = TREK.Adirondack, TREK.Adirondack.Layout
+            local x, y = A.at(1, math.floor(L.W / 2), math.floor(L.H / 2))
+            local p = SIM.players[1]
+            p.x, p.y, p.z, p.streamX, p.streamY = x + 0.5, y + 0.5, A.Z, x + 0.5, y + 0.5""")
+    # The world as 1.10.1 left it: her deck, and a roof on the server alone.
+    srv.run("""SIM.floorsStayOnServer = true
+        local A, L, C, U = TREK.Adirondack, TREK.Adirondack.Layout, TREK.Config, TREK.Util
+        for _, f in ipairs(L.decks[1].floors) do
+            local x, y = A.at(1, f[1], f[2])
+            U.square(x, y, A.Z + 1, true):addFloor(C.RoofTile)
+        end
+        TREK.AdirondackServer.state().fit[1] = nil""")
+    roofless = """(function()
+        local A, L, C = TREK.Adirondack, TREK.Adirondack.Layout, TREK.Config
+        local n, missing = 0, 0
+        for _, f in ipairs(L.decks[1].floors) do
+            local x, y = A.at(1, f[1], f[2])
+            n = n + 1
+            local sq = SIM.peekSquare(x, y, A.Z + 1)
+            local has = false
+            for _, o in ipairs(sq and sq.objects or {}) do
+                if o.spriteName == C.RoofTile then has = true end
+            end
+            if not has then missing = missing + 1 end
+        end
+        return n .. "/" .. missing
+    end)()"""
+    n, missing = map(int, cl.eval(roofless).split("/"))
+    check(missing == n, f"adk roof mp: the client already had {n - missing} roof square(s) before the refit")
+    srv.run("TREK.AdirondackServer.buildDeck(1)")
+    net.pump(6)
+    n, missing = map(int, cl.eval(roofless).split("/"))
+    check(n > 100 and missing == 0, f"adk roof mp: {missing} of {n} roof squares never reached the player aboard")
+    check(int(srv.eval("SIM.roofChecks or 0")) > 0, "adk roof mp: the server never re-roofed its own squares")
+    for name, rt in (("server", srv), ("crew", cl)):
+        for w in rt.warnings():
+            fail(f"adk roof mp ({name}): {w}")
+    print(f"adk roof mp: all {n} roof squares of a deck refitted around a player reach them, the old unsent roof sent again")
+
+
 def speed_check():
     """A server whose speed anti-cheat kicks or bans is set to log, unless the
     owner chose to leave it. Every board and every step to the cockpit is a
@@ -14700,7 +14753,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, phaser_charge_mp, deck_lights, multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, multiplayer)
 
 
 def main():

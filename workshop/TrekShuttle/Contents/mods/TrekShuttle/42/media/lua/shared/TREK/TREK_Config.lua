@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 30
+C.BuildRev = 31
 
 ---------------------------------------------------------------------------
 -- The tape shelf

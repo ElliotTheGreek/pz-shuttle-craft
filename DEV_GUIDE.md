@@ -486,6 +486,17 @@ in `buildDeck` and `buildTube`, `AS.FIT` 6 for decks built before it), and
 the sweep skips anything `A.locate` answers for; `adk_roof()` checks all
 3,689 of their floor squares.
 
+**And a roof has to be sent.** `IsoGridSquare.addFloor` changes only the
+machine it runs on: a server's tells nobody, and a client sees the floor only
+when it next loads that ground from scratch. The first roofs were laid with
+it while the player stood on the deck being refitted, and it went on raining
+on their screen. `U.addRoof` sends the tile as an object
+(`transmitAddObjectToSquare`; the client's AddItemToMapPacket runs
+`checkHaveRoof`), re-roofs the server's own column, tags it `roof`, and takes
+up and resends any untagged one. The sim had `addFloor` replicating, kinder
+than the engine; `SIM.floorsStayOnServer` is the engine as it is, and
+`adk_roof_mp()` uses it.
+
 ### `U.clearSquare` keeps two things on purpose, and a migration has to name them
 
 **New in this mod.** `clearSurroundings` strips the ring around the cabin
