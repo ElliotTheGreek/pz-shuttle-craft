@@ -1003,6 +1003,23 @@ function SquareMT:getZ() return self.z end
 --- squares a test put in one (SIM.room) are in any.
 function SquareMT:getRoomDef() return self.roomDef end
 
+--- The engine's idea of outdoors (IsoGridSquare.isOutside, the exterior
+--- flag): set unless the square is in a room or has a roof, and a roof is a
+--- solid floor on any storey above it (IsoCell.checkHaveRoof). Rain falls
+--- and soaks the player on an outside square.
+function SquareMT:isOutside()
+    if self.roomDef then return false end
+    for z = self.z + 1, 31 do
+        local above = SIM.peekSquare(self.x, self.y, z)
+        if above then
+            for _, o in ipairs(above.objects) do
+                if o.isFloor then return false end
+            end
+        end
+    end
+    return true
+end
+
 function SquareMT:getObjects()
     local all = {}
     for _, o in ipairs(self.objects) do table.insert(all, o) end
@@ -1375,6 +1392,8 @@ end
 function SIM.rawSquare(x, y, z)
     return squares[key(x, y, z)] or (z == 0 and ground(x, y, z)) or newSquare(x, y, z)
 end
+--- A square that already exists, or nil: never makes one.
+function SIM.peekSquare(x, y, z) return squares[key(x, y, z)] end
 
 local cell = {}
 function cell:getGridSquare(x, y, z)

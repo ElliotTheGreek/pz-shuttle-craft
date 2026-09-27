@@ -943,4 +943,36 @@ function TREK_Room()
     return ok
 end
 
+--- What this machine's copy of a water fixture holds, logged the first time
+--- each is right-clicked aboard. The menu offers Drink and Fill only when the
+--- copy *here* has a water store with water in it; the server's copy is not
+--- asked. A dry sink in multiplayer (1.10.0) is read off the client log.
+local waterSeen = {}
+function Core.logWaterFixture(obj)
+    local md = U.try("waterMd", function() return obj:getModData() end)
+    local tag = md and md.TREK
+    if not tag or not C.WaterTags[tag] or waterSeen[obj] then return false end
+    waterSeen[obj] = true
+    U.log("water here: %s has a store %s, capacity %s, holding %s, hasFluid %s",
+          tostring(tag),
+          tostring(U.try("waterComp", function() return obj:getFluidContainer() ~= nil end)),
+          tostring(U.try("waterCap", function() return obj:getFluidCapacity() end)),
+          tostring(U.try("waterAmt", function() return obj:getFluidAmount() end)),
+          tostring(U.try("waterHas", function() return obj:hasFluid() end)))
+    return true
+end
+
+Events.OnFillWorldObjectContextMenu.Add(function(playerNum, context, worldobjects)
+    U.try("waterLog", function()
+        for _, o in ipairs(worldobjects or {}) do
+            local sq = o:getSquare()
+            if sq and U.isAboard(sq:getX(), sq:getY(), sq:getZ()) then
+                for i = 0, sq:getObjects():size() - 1 do
+                    Core.logWaterFixture(sq:getObjects():get(i))
+                end
+            end
+        end
+    end)
+end)
+
 return Core

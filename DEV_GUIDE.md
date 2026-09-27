@@ -473,6 +473,15 @@ climbing, rain, temperature and the camera's cutaway all read it. Before
 relying on any of them, ask what `getBuilding()` answers out here — it is
 always `null`.
 
+**Rain is one of them, and it has a cure.** It rained inside the shuttle
+(1.10.0). A square is outdoors (`isOutside`, the `exterior` flag) unless it has
+a room or `haveRoof`, and `haveRoof` means a solid floor on some storey above
+(`IsoCell.checkHaveRoof`, which `addFloor` runs itself). The cabin has neither,
+so the build lays `C.RoofTile` -- vanilla's invisible floor, the sky plane's
+tile -- one storey over every square with deck (`buildRoof`), and the sky sweep
+skips the interior so it never lifts it. The sim models the rule
+(`SquareMT:isOutside`) and `cabin_roof()` checks it.
+
 ### `U.clearSquare` keeps two things on purpose, and a migration has to name them
 
 **New in this mod.** `clearSurroundings` strips the ring around the cabin

@@ -14379,6 +14379,59 @@ def installations_multiplayer():
     print("installations multiplayer: alice installs, the server keeps it and bob's client is told, "
           "and bob replicates on the core's power")
 
+def cabin_roof():
+    """No rain in the shuttle. The cabin is runtime deck over the void with no
+    room, so the engine counted it as outdoors and it rained inside (1.10.0);
+    an invisible floor one storey up is its roof. The sky sweep, which lifts
+    the same tile after a flight, leaves it be."""
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('crew', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "cabin roof, beaming up"):
+        return
+    outside = """(function()
+        local C, U = TREK.Config, TREK.Util
+        local n, out = 0, 0
+        for ox = 0, C.CabinW do for oy = 0, C.CabinL do
+            if C.inShape(ox, oy) then
+                local x, y = U.at(ox, oy)
+                local sq = SIM.rawSquare(x, y, C.CabinZ)
+                n = n + 1
+                if sq:isOutside() then out = out + 1 end
+            end
+        end end
+        return n .. "/" .. out
+    end)()"""
+    n, out = map(int, rt.eval(outside).split("/"))
+    check(n > 10 and out == 0, f"cabin roof: {out} of {n} deck squares are outdoors, so it rains aboard")
+    check(rt.eval(f"SIM.rawSquare(math.floor({P}:getX()), math.floor({P}:getY()), {P}:getZ()):isOutside()") is False,
+          "cabin roof: the pad the player stands on is outdoors")
+    # The sweep that lifts a crashed flight's plane, run right over her.
+    rt.run("""local cx, cy = TREK.Util.at(2, 3)
+        local job = {}
+        for _ = 1, 400 do if TREK.Sky.sweepArea(cx, cy, job) then break end end""")
+    n, out = map(int, rt.eval(outside).split("/"))
+    check(out == 0, f"cabin roof: the sky sweep took the roof off {out} square(s)")
+    # A cabin from before the roof gets one when it is brought up to date.
+    rt.run("""local C, U = TREK.Config, TREK.Util
+        for ox = -1, C.CabinW + 1 do for oy = -1, C.CabinL + 1 do
+            local x, y = U.at(ox, oy)
+            local sq = SIM.peekSquare(x, y, C.CabinZ + 1)
+            if sq then sq.objects = {} end
+        end end
+        U.state().rev = C.BuildRev - 1""")
+    net.pump(200)
+    n, out = map(int, rt.eval(outside).split("/"))
+    check(out == 0, f"cabin roof: an older cabin brought up to date still has {out} outdoor square(s)")
+    for w in rt.warnings():
+        fail(f"cabin roof: {w}")
+    print(f"cabin roof: all {n} deck squares indoors, through the sky sweep and an upgrade from the last build")
+
+
 def speed_check():
     """A server whose speed anti-cheat kicks or bans is set to log, unless the
     owner chose to leave it. Every board and every step to the cockpit is a
@@ -14428,7 +14481,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, multiplayer)
 
 
 def main():
