@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 29
+C.BuildRev = 30
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -268,6 +268,14 @@ C.TransporterRechargeSecs  = 150
 -- The tile is vanilla. invisible_01_0's only two properties are attachedFloor
 -- and solidfloor: a floor that is solid and cannot be seen.
 C.SkyTile = "invisible_01_0"
+
+-- The cabin's roof: the same tile, one storey above the deck. A square is
+-- indoors to the engine only with a room or a roof (IsoGridSquare
+-- RecalcProperties: roomId, or haveRoof), and haveRoof is a solid floor
+-- somewhere above (IsoCell.checkHaveRoof, which addFloor runs). The cabin has
+-- neither, so it rained inside her and the rain soaked the crew (1.10.0).
+-- Invisible, so nothing is drawn over the deck.
+C.RoofTile = C.SkyTile
 
 -- Bullet units per z level, read straight out of BaseVehicle.setDebugZ's
 -- bytecode: it computes fastfloor(origin.y / 2.4494900703430176). Three times

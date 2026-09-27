@@ -486,6 +486,25 @@ local function buildFloor()
     return made
 end
 
+--- A roof over every square with deck, one storey up, so the engine counts
+--- the cabin as indoors: no rain inside, and nobody soaked (C.RoofTile).
+local function buildRoof()
+    local made = 0
+    for ox = -1, C.CabinW + 1 do
+        for oy = -1, C.CabinL + 1 do
+            local x, y = at(ox, oy)
+            local deck = U.square(x, y, C.CabinZ, false)
+            if deck and U.try("roofDeck", function() return deck:getFloor() ~= nil end) then
+                local sq = U.square(x, y, C.CabinZ + 1, false)
+                local have = sq and U.findSprite(sq, C.RoofTile)
+                if not have and U.addFloor(x, y, C.CabinZ + 1, C.RoofTile) then made = made + 1 end
+            end
+        end
+    end
+    return made
+end
+B.buildRoof = buildRoof
+
 --- Walls are derived from the floor plan rather than hard-coded. A wall lives
 --- on the north or west edge of its own square, so a hull edge facing east or
 --- south is drawn on the square just outside the cabin.
@@ -1571,7 +1590,13 @@ function B.refillWater()
     -- fixture's store is emptied rather than merely left to run down. When
     -- the power comes back the next minute's pass fills it again.
     -- `emptyFluid` syncs itself on a server, as addFluid does.
-    if TREK.Power.dark() then
+    local dark = TREK.Power.dark() == true
+    if dark ~= B.waterDark then
+        B.waterDark = dark
+        U.log(dark and "water: the ship is dark, so the pumps are off and the sink, head and shower are dry"
+                   or "water: power is back; the sink, head and shower are filling")
+    end
+    if dark then
         eachWaterFixture(function(o)
             if waterCapacity(o) > 0 and (U.try("waterHave", function()
                     return o:getFluidAmount() end) or 0) > 0 then
@@ -1726,6 +1751,7 @@ function B.buildCabin()
         { "refitCabin", B.refitCabin },
         { "clearFootprint", clearFootprint },
         { "buildFloor",     buildFloor },
+        { "buildRoof",      buildRoof },
         { "buildWalls",     buildWalls },
         { "furnish", function()
               claimed = {}
