@@ -117,8 +117,20 @@ So a server-side file guarded by `if isClient() then return end` runs in
   route to it is admin-gated. [HIGH]
 - A client may move its own character (`teleportTo` / `setX` + `setLastX`).
   On a server with the speed anti-cheat enabled (`AntiCheatSpeed`, default
-  **kick**), **each long jump is one strike**; **4 uncleared strikes kick**;
-  **one strike clears every 150 s**. [HIGH]
+  **kick**), **4 uncleared strikes kick**, and **one long jump is two or
+  three strikes, not one**: the check (`NetworkCharacterAI$SpeedChecker`)
+  keeps reporting the jump's speed until it next measures, and every
+  position packet in between is judged on it. Seen on a dedicated server
+  (1.10.0): a non-admin's hatch boarding was 3 strikes in 0.8 s, and
+  walking forward to the cockpit two more, and she was kicked. Admins are
+  never checked, which is how it went unseen. [HIGH]
+- **So the mod relaxes it** (sandbox *Speed anti-cheat*, default *Relax for
+  the transporter*): `S.relaxSpeedCheck` sets `AntiCheatSpeed` from kick or
+  ban to log with `getServerOptions():putOption`, which the anti-cheat reads
+  live. In memory only; the `.ini` is untouched. Checked at start and every
+  minute. *Leave it as set* keeps the server's own setting, and then the
+  charges below ration beams -- sized for one strike a jump, so on a
+  kicking server they are too generous. [HIGH]
 - Anything moving a character faster than **20 tiles/second** on average is a
   strike every second: hands-on flight as built (90 tiles/s at 1x) would be
   kicked in about four seconds. [HIGH]

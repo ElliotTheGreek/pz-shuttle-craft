@@ -840,6 +840,42 @@ function S.chargesLimited()
     return speed == 1 or speed == 2
 end
 
+--- Sets the server's speed anti-cheat from kick or ban to log, unless the
+--- owner chose to leave it (sandbox SpeedCheck 2). Every board, beam, lift
+--- and step to the cockpit is a long jump, and build 42 counts one jump as
+--- two or three strikes of the four that kick -- the check keeps reporting
+--- the jump's speed until it next measures -- so on a kicking server an
+--- ordinary player was removed for walking forward to the cockpit (1.10.0,
+--- seen on a dedicated server; an admin is never checked). There is no
+--- teleport a non-admin may make (MULTIPLAYER.md, "Moving players").
+--- Held in memory only: the server's .ini is not written, and a restart
+--- reads it and relaxes it again.
+function S.relaxSpeedCheck()
+    if not isServer() then return false end
+    local mode = U.try("sandboxSpeedCheck", function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.SpeedCheck
+    end)
+    if tonumber(mode) == 2 then return false end
+    local speed = tonumber(U.try("antiCheatSpeed", function()
+        return getServerOptions():getOption("AntiCheatSpeed")
+    end))
+    if speed ~= 1 and speed ~= 2 then return false end
+    U.try("relaxSpeedCheck", function() getServerOptions():putOption("AntiCheatSpeed", "3") end)
+    U.log("speed anti-cheat set from %s to log (3) for the transporter; sandbox Speed anti-cheat "
+          .. "= Leave it as set keeps the server's own", speed == 1 and "ban (1)" or "kick (2)")
+    return true
+end
+
+-- Checked at start and every minute after, in case an admin reloads the
+-- server's options.
+local relaxTick = 0
+Events.OnTick.Add(function()
+    relaxTick = relaxTick - 1
+    if relaxTick > 0 then return end
+    relaxTick = 3600
+    U.try("relaxSpeedCheck", S.relaxSpeedCheck)
+end)
+
 local function chargeOf(name)
     local now = getTimestampMs()
     local c = charges[name]

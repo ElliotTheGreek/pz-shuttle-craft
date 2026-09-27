@@ -2994,6 +2994,9 @@ function getServerOptions()
             if name == "AntiCheatSpeed" then return tostring(SIM.antiCheatSpeed) end
             return nil
         end,
+        putOption = function(_, name, value)
+            if name == "AntiCheatSpeed" then SIM.antiCheatSpeed = tonumber(value) end
+        end,
     }
 end
 -- StartState is Commissioned here, not the game's default of Cold: every
@@ -3003,7 +3006,9 @@ end
 -- WildDilithium is None for the same reason: the simulated map is grass from
 -- edge to edge, and crystals sprouting beside every older scenario would
 -- change what its tricorder sees. wild_dilithium() turns it on.
-SandboxVars = { TrekShuttle = { Access = 1, TransporterLimit = 1, StartState = 2,
+-- SpeedCheck is Leave it as set (not the game's Relax) so the charge
+-- scenarios see a kicking server; speed_check() checks the relaxing.
+SandboxVars = { TrekShuttle = { Access = 1, TransporterLimit = 1, SpeedCheck = 2, StartState = 2,
                                 WildDilithium = 3 } }
 
 -- The world's map folders, void map included.

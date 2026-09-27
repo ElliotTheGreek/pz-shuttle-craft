@@ -14379,6 +14379,40 @@ def installations_multiplayer():
     print("installations multiplayer: alice installs, the server keeps it and bob's client is told, "
           "and bob replicates on the core's power")
 
+def speed_check():
+    """A server whose speed anti-cheat kicks or bans is set to log, unless the
+    owner chose to leave it. Every board and every step to the cockpit is a
+    long jump, and one jump is two or three strikes of the four that kick
+    (1.10.0: an ordinary player removed for walking forward to the cockpit)."""
+    net = Net("mp", clients=("alice",))
+    srv = net.server
+    # The game's own reading of a missing value is the default: relax.
+    srv.run("SandboxVars.TrekShuttle.SpeedCheck = nil; SIM.antiCheatSpeed = 2")
+    srv.run("SIM.player('alice', 2000.5, 2000.5, 0)")
+    net.clients["alice"].run("SIM.player('alice', 2000.5, 2000.5, 0)")
+    net.start()
+    net.pump(4)
+    check(int(srv.eval("SIM.antiCheatSpeed")) == 3,
+          f"speed check: a kicking server was left at {srv.eval('SIM.antiCheatSpeed')}")
+    check(srv.eval("TREK.Server.chargesLimited()") is False,
+          "speed check: beams still rationed once the check only logs")
+    for mode, before, after in ((1, 1, 3), (1, 4, 4), (1, 3, 3), (2, 2, 2), (2, 1, 1)):
+        srv.run(f"SandboxVars.TrekShuttle.SpeedCheck = {mode}; SIM.antiCheatSpeed = {before}; "
+                "TREK.Server.relaxSpeedCheck()")
+        got = int(srv.eval("SIM.antiCheatSpeed"))
+        check(got == after, f"speed check: sandbox {mode} turned AntiCheatSpeed {before} into {got}, not {after}")
+    # A client never touches the server's options.
+    A = net.clients["alice"]
+    A.run("SIM.antiCheatSpeed = 2; SandboxVars.TrekShuttle.SpeedCheck = 1")
+    check(A.eval("TREK.Server == nil or not TREK.Server.relaxSpeedCheck()") is True,
+          "speed check: a client relaxed the anti-cheat")
+    for name, rt in (("server", srv), ("alice", A)):
+        for w in rt.warnings():
+            fail(f"speed check ({name}): {w}")
+    print("speed check: kick and ban relaxed to log by default, log and off left alone, "
+          "and an owner's Leave it as set respected")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -14394,7 +14428,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
-            contraband, contraband_multiplayer, multiplayer)
+            contraband, contraband_multiplayer, speed_check, multiplayer)
 
 
 def main():

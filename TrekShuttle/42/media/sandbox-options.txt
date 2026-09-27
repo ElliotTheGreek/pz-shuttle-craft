@@ -12,6 +12,11 @@ option TrekShuttle.TransporterLimit = {
     page = TrekShuttle, translation = TrekShuttle.TransporterLimit, valueTranslation = TrekShuttle.TransporterLimit,
 }
 
+option TrekShuttle.SpeedCheck = {
+    type = enum, numValues = 2, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.SpeedCheck, valueTranslation = TrekShuttle.SpeedCheck,
+}
+
 option TrekShuttle.TorpedoFire = {
     type = enum, numValues = 2, default = 1,
     page = TrekShuttle, translation = TrekShuttle.TorpedoFire, valueTranslation = TrekShuttle.TorpedoFire,

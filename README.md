@@ -92,12 +92,13 @@ player and the in-game Host settings add it for you; a dedicated server's
 log says `the 'TrekShuttle' map is not loaded`, and the view outside the cabin
 shows grass and trees.
 
-Eleven sandbox options, on the **Shuttlecraft** page:
+Twelve sandbox options, on the **Shuttlecraft** page:
 
 | Option | Choices | Default |
 |---|---|---|
 | **Who may use the shuttle** | *Everyone*, or *Owner and crew*: the first player to use it owns it; the owner or an admin adds crew from the aboard menu (**Shuttlecraft ▸ Crew**). Anyone may always beam down or step out. | Everyone |
 | **Transporter charges** | *Match anti-cheat*: when `AntiCheatSpeed` is set to kick or ban, each player gets 3 beams with one back every 150 seconds, and a fourth is refused ("recharging") instead of the server kicking them. *Always unlimited*: never refused. | Match anti-cheat |
+| **Speed anti-cheat** | *Relax for the transporter*: a server whose `AntiCheatSpeed` kicks or bans is set to log while it runs (the `.ini` is not changed). Boarding, beaming, the lifts and walking forward to the cockpit each move a player a long way at once, and a kicking server removes ordinary players after one or two of them. *Leave it as set*: the server's own setting, and the transporter charges below. | Relax for the transporter |
 | **Photon torpedo fire** | *Full*: the torpedo burns, and the fire spreads. *Blast only*: the explosion and the kill without the fire. | Full |
 | **Replicator** | *Patterns and energy*: it makes what the ship has scanned, and each one spends from a reserve that only dilithium refills. *Unrestricted*: anything in the catalogue, immediately, for nothing. *Off*: the machine is scenery, and says so. | Patterns and energy |
 | **Emergency Medical Hologram** | *Full*: the Doctor as designed, cure included. *Off*: the sick bay's station is inactive and says so. There is deliberately no setting that keeps him and removes the cure -- a server owner who does not want the cure turns him off. | Full |
@@ -109,9 +110,12 @@ Eleven sandbox options, on the **Shuttlecraft** page:
 | **Hydroponics tend themselves** | *Yes*: the Adirondack's trays are watered and kept free of pests. *No*: they need tending like any crop. | Yes |
 
 Every beam moves a character a long way at once, and the speed anti-cheat
-counts each one. If your players want unlimited beaming, set
-`AntiCheatSpeed=3` (log) or `4` (disabled) in the server's `.ini`, or choose
-*Always unlimited* only with one of those.
+counts each one as two or three of the four strikes that kick. By default
+the mod sets it to log while the server runs (*Speed anti-cheat*). An owner
+who chooses *Leave it as set* on a kicking server will see players rationed,
+and the charges below were sized for one strike a beam, which is not what
+the engine does; `AntiCheatSpeed=3` (log) or `4` (disabled) is the reliable
+answer there. Admins are never checked, so test with an ordinary account.
 
 ## Playing
 
