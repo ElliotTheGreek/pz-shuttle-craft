@@ -10964,6 +10964,38 @@ def armoury():
           "rifles sling, and the holster is one")
 
 
+def map_dot():
+    """The helm hides the player's dot while a course is picked -- and must
+    never leave it hidden. The map saves its settings when it closes, so a
+    map closed before the helm used to save "no player" for good (the author,
+    2026-09-27: no red dot on the map anywhere)."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 1000.5, 1000.5, 0)")
+    net.start()
+    net.pump(2)
+    rt.run("TREK.Travel.openHelm(SIM.players[1])")
+    check(rt.eval("ISWorldMap_instance and ISWorldMap_instance.showPlayers") is False,
+          "map dot: the helm's map still shows the character in the void")
+    # The map goes first -- a course laid in, Escape, M -- then the helm.
+    rt.run("ISWorldMap_instance:close(); if TREK.Travel.window then TREK.Travel.window:close() end")
+    check(rt.eval("SIM.mapSettings.Players") is True,
+          "map dot: the map closed under the helm saved 'no player' to its settings")
+    rt.run("ISWorldMap.ShowWorldMap(0)")
+    check(rt.eval("ISWorldMap_instance.showPlayers") is True,
+          "map dot: the next map opened without the player's dot")
+    rt.run("ISWorldMap_instance:close()")
+    # A save the old bug already reached is repaired when the map opens.
+    rt.run("SIM.mapSettings.Players = false; ISWorldMap.ShowWorldMap(0)")
+    check(rt.eval("ISWorldMap_instance.showPlayers") is True,
+          "map dot: a map saved without the player's dot was not repaired")
+    rt.run("ISWorldMap_instance:close()")
+    for w in rt.warnings():
+        fail(f"map dot: {w}")
+    print("map dot: the helm hides the player's dot and gives it back, whichever "
+          "closes first; a map already saved without it is repaired")
+
+
 def phaser_multiplayer():
     """A cut on a server with two clients: the server fells it, both
     clients lose it, the watcher sees and hears the beam, and a client that
@@ -13522,7 +13554,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
-            transcripts_multiplayer, phaser, phaser_multiplayer, armoury, traits, traits_multiplayer, species_look, creation_look,
+            transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
             contraband, contraband_multiplayer, multiplayer)
 

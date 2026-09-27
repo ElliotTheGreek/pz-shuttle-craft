@@ -3043,19 +3043,38 @@ ISWorldMap_instance = nil
 --- Opens the map. The real one builds a UIWorldMap and hands out the API off
 --- it; there is no global symbols object, which is why TREK_MapContacts has
 --- to hook the open at all.
+--- The map's saved settings, as WorldMapSettings keeps them on disk: vanilla's
+--- close() writes them (saveSettings) and a new map is built from them
+--- (restoreSettings), so a setting left wrong at close outlives the session.
+SIM.mapSettings = { Players = true, HideUnvisited = true }
+
 function ISWorldMap.ShowWorldMap(playerNum, centerX, centerY, zoom)
     local symbols = newSymbolsAPI()
-    ISWorldMap_instance = {
+    ISWorldMap_instance = setmetatable({
         playerNum = playerNum,
         centerX = centerX, centerY = centerY, zoom = zoom,
+        showPlayers = SIM.mapSettings.Players,
+        hideUnvisitedAreas = SIM.mapSettings.HideUnvisited,
         mapAPI = {
             getSymbolsAPIv2 = function() return symbols end,
             uiToWorldX = function(_, x) return x end,
             uiToWorldY = function(_, y) return y end,
+            centerOn = function() end,
+            setZoom = function() end,
         },
-    }
+    }, { __index = ISWorldMap })
     SIM.map = ISWorldMap_instance
     return ISWorldMap_instance
+end
+
+function ISWorldMap:setShowPlayers(show) self.showPlayers = show end
+function ISWorldMap:setHideUnvisitedAreas(hide) self.hideUnvisitedAreas = hide end
+
+--- ISWorldMap.lua:1157: saveSettings first, then the rest of closing.
+function ISWorldMap:close()
+    SIM.mapSettings.Players = self.showPlayers
+    SIM.mapSettings.HideUnvisited = self.hideUnvisitedAreas
+    self:onClose()
 end
 
 function ISWorldMap:onClose()

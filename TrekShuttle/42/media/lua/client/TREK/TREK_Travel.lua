@@ -271,6 +271,53 @@ function ISWorldMap:onMouseUp(x, y)
 end
 
 ---------------------------------------------------------------------------
+-- The map's own settings, given back before the map writes them down
+---------------------------------------------------------------------------
+-- The helm hides the player's dot and lifts the fog while a course is being
+-- picked, and TREKHelmWindow:close() puts both back. But **ISWorldMap:close()
+-- saves the map's settings to disk** (saveSettings: WorldMap.Players, among
+-- others), and every later map in every session is built from that file
+-- (restoreSettings). When the map closed before the helm did -- a course
+-- laid in, Escape, M -- it saved "no player" for good, and the dot was gone
+-- from every map after, aboard or not (the author, 2026-09-27). So the
+-- settings are given back here, first, and only then does the map save.
+function T.restoreMapSettings(map)
+    if not map then return end
+    if T.restoreShowPlayers ~= nil and map.setShowPlayers then
+        map:setShowPlayers(T.restoreShowPlayers)
+    end
+    if T.restoreHideUnvisited ~= nil and map.setHideUnvisitedAreas then
+        map:setHideUnvisitedAreas(T.restoreHideUnvisited)
+    end
+end
+
+local baseClose = ISWorldMap.close
+if baseClose then
+    function ISWorldMap:close()
+        U.try("travel.mapRestore", T.restoreMapSettings, self)
+        return baseClose(self)
+    end
+end
+
+-- And a save that already lost its dot gets it back. Vanilla has no player
+-- toggle outside debug mode, so a map with the player hidden while nobody is
+-- at the helm is only ever this bug's leftovers.
+local baseShow = ISWorldMap.ShowWorldMap
+if baseShow then
+    function ISWorldMap.ShowWorldMap(...)
+        local r = baseShow(...)
+        U.try("travel.mapRepair", function()
+            local map = ISWorldMap_instance
+            if map and not T.picking and map.showPlayers == false and map.setShowPlayers then
+                map:setShowPlayers(true)
+                U.log("travel: the map had lost the player's dot; put back")
+            end
+        end)
+        return r
+    end
+end
+
+---------------------------------------------------------------------------
 -- Markers drawn over the map while the helm is open
 ---------------------------------------------------------------------------
 local function marker(map, wx, wy, r, g, b, label)
