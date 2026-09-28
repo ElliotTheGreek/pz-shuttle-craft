@@ -101,6 +101,16 @@ vanilla's own vambrace and bunny ears, which land on the forearm and the head.
 - **The engine recycles `IsoZombie` objects.** What `TREK_Borg` remembers is
   keyed on the persistent outfit id, and a body reused for an ordinary zombie
   loses the idle.
+- **The Default list is rolled 0 to 100, in order, and stops at 100**
+  (`getRandomOutfitInSetList`, called with `false` by
+  `getRandomDefaultOutfit`). Vanilla's five Generic outfits are 20 each at the
+  top, so they fill it: **an entry appended to the end is never picked**. The
+  first build did exactly that and no Borg ever spawned. They go in first now,
+  `B.reach` works out their real share by the same rule, the log line says it
+  in per cent, and a WARN fires if it is zero.
+- **Default is only for zombies no map zone claims.** A zone with its own
+  definition (a trailer park, a restaurant) dresses its dead from that, so in
+  some places the Borg share is lower than the headline.
 - **`ZombiesZoneDefinition` is read once**, at the first pick (`checkDirty`),
   and cached. The entries are applied at load and again at
   `OnInitGlobalModData`, which comes before any zombie is dressed.
@@ -115,6 +125,13 @@ vanilla's own vambrace and bunny ears, which land on the forearm and the head.
 
 ## 5. What would have bitten you
 
+- **Built 2026-09-27, first played the same evening: no Borg.** The entries
+  were appended to the Default list, past the 100 that vanilla's Generic
+  outfits already fill, so the engine's roll never reached them. The test had
+  asserted only that the entries were *in the list*: true, and no evidence
+  that anything could pick them. The simulation's list now opens with
+  vanilla's Generic outfits and the test asks for the share the engine's roll
+  gives. The mutation that appends them again is caught.
 - A test run reported the crew section's *"stray zombies left aboard"* once.
   It fails about one run in eighteen **without this change too**; it is the
   crew churning during the check, not the Borg.
@@ -159,5 +176,5 @@ in sight, several should be Borg.
 5. **On a server**, another player sees the same Borg.
 6. **Sandbox None**, in a new world: no Borg at all.
 
-If one looks wrong, grep `console.txt` for `borg:` (the chances the world
-loaded with) and `Failed to load asset` (a mesh or texture path).
+If one looks wrong, or none come, grep `console.txt` for `borg:` (the per cent
+of the dead the world loaded with, and a WARN if it is none) and `Failed to load asset` (a mesh or texture path).

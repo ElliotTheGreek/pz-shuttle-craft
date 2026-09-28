@@ -51,9 +51,31 @@ B.entries = {
     assimilated = { name = C.BorgAssimilated, chance = C.BorgAssimilatedChance },
 }
 
---- Puts both entries in the Default table (once) at the sandbox's share. The
---- entries are tables the engine reads by reference at its first pick, so
---- setting their chance again before then is enough.
+--- The share of the dead an entry really gets, in per cent, by the engine's
+--- own roll (ZombiesZoneDefinition.getRandomOutfitInSetList, called with
+--- false from getRandomDefaultOutfit): one number from 0 to 100, walked down
+--- the list in order, adding each chance -- the entries that fit the sex and
+--- need no room. **Anything past 100 is never reached**, and vanilla's five
+--- Generic outfits are 20 each at the top of the list: an entry appended to
+--- the end never spawns at all, which is how the first build shipped.
+function B.reach(entry, female)
+    local list = ZombiesZoneDefinition and ZombiesZoneDefinition.Default or {}
+    local before = 0
+    for _, e in ipairs(list) do
+        local fits = e.room == nil and (e.gender == nil or e.gender == (female and "female" or "male"))
+        if e == entry then
+            if not fits then return 0 end
+            return math.max(0, math.min(100, before + e.chance) - math.min(100, before))
+        end
+        if fits then before = before + (tonumber(e.chance) or 0) end
+    end
+    return 0
+end
+
+--- Puts both entries in the Default table (once) at the sandbox's share,
+--- **first**, so the engine's roll reaches them (B.reach). The entries are
+--- tables the engine reads by reference at its first pick, so setting their
+--- chance again before then is enough.
 function B.apply(quiet)
     local k = B.scale()
     B.entries.drone.chance = C.BorgDroneChance * k
@@ -65,8 +87,8 @@ function B.apply(quiet)
         return false
     end
     if not B.added then
-        table.insert(list, B.entries.drone)
-        table.insert(list, B.entries.assimilated)
+        table.insert(list, 1, B.entries.assimilated)
+        table.insert(list, 1, B.entries.drone)
         B.added = true
     end
     return true
@@ -78,8 +100,13 @@ end
 B.apply(true)
 Events.OnInitGlobalModData.Add(function()
     if B.apply() then
-        U.log("borg: %s drones and %s assimilated in vanilla's Default outfits (sandbox scale %s)",
-            tostring(B.entries.drone.chance), tostring(B.entries.assimilated.chance), tostring(B.scale()))
+        local d, a = B.reach(B.entries.drone, false), B.reach(B.entries.assimilated, false)
+        U.log("borg: %s%% of the dead drones and %s%% assimilated, where vanilla's Default outfits dress them "
+            .. "(sandbox scale %s)", tostring(d), tostring(a), tostring(B.scale()))
+        if B.scale() > 0 and (d <= 0 or a <= 0) then
+            U.warnOnce("borg.unreachable", "the Borg are in the Default list where the engine's roll never "
+                .. "reaches them: no Borg will spawn")
+        end
     end
 end)
 

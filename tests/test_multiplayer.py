@@ -14762,6 +14762,13 @@ def borg():
     check(borg_row(rt, "TrekBorgDrone") == "1,0.15", f"borg: drones in Default are {borg_row(rt, 'TrekBorgDrone')}")
     check(borg_row(rt, "TrekBorgAssimilated") == "1,0.35",
           f"borg: assimilated in Default are {borg_row(rt, 'TrekBorgAssimilated')}")
+    # And the engine's roll reaches them: appended after vanilla's Generic
+    # outfits they were never picked at all (the first build).
+    for sex in ("false", "true"):
+        got = rt.eval(f"TREK.Borg.reach(TREK.Borg.entries.drone, {sex}) .. ',' .. "
+                      f"TREK.Borg.reach(TREK.Borg.entries.assimilated, {sex})")
+        check(got == "0.15,0.35", f"borg: the engine's roll gives drones and assimilated {got} per cent "
+                                  f"(female={sex}), not 0.15,0.35")
     # Loaded again (another OnInitGlobalModData): still once each.
     rt.fire("OnInitGlobalModData", False)
     check(borg_row(rt, "TrekBorgDrone") == "1,0.15", "borg: a second world-data load added the drones again")

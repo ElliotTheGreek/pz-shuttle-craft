@@ -3273,7 +3273,12 @@ end
 -- Vanilla's zombie outfit table (shared/NPCs/ZombiesZoneDefinition.lua), as
 -- far as the mod touches it: the Default list, with a line of vanilla's own.
 ZombiesZoneDefinition = ZombiesZoneDefinition or {
-    Default = { { name = "Generic01", chance = 20 }, { name = "Police", chance = 0.25 } },
+    -- Its head as vanilla's is: five Generic outfits at 20, which already
+    -- fill the engine's roll of 0-100 (BORG.md 4), then the rarer ones.
+    Default = { { name = "Generic01", chance = 20 }, { name = "Generic02", chance = 20 },
+                { name = "Generic03", chance = 20 }, { name = "Generic_Skirt", gender = "female", chance = 20 },
+                { name = "Generic04", chance = 20 }, { name = "Generic05", chance = 20 },
+                { name = "Police", chance = 0.25 }, { name = "Bathrobe", chance = 10, room = "bathroom" } },
 }
 
 SandboxVars = SandboxVars or {}
