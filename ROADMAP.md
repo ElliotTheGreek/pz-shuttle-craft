@@ -53,6 +53,7 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | Building and moving furniture aboard | `BUILDING.md` | Built 2026-09-27, not played |
 | Installations: a warp core, replicator and EMH station in your own house | `INSTALLATIONS.md` | Built 2026-09-27, not played |
 | Contraband | `CONTRABAND.md` | Built, not played. **Needs a new world** |
+| The Borg among the dead: assimilated civilians and drones, their walk | `BORG.md` | Built 2026-09-27, not played. **Needs a new world** |
 | Dedicated server | `MULTIPLAYER.md` | Loads cleanly; **nobody has played on it** |
 
 ---
@@ -90,6 +91,8 @@ each guide's own *Not yet seen* section has the detail.
     replicator that will not move.
 13. **Installations** (`INSTALLATIONS.md` 8): the kits from the station's
     stores, a core loaded in a house, a replicator and the Doctor on it.
+14. **The Borg** (`BORG.md` 7): sandbox on Common, a town's worth of dead;
+    their look, the pieces in place, the walk, a corpse.
 
 ### 2.2 The two-player session
 

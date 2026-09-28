@@ -57,5 +57,11 @@
     "Sandbox_TrekShuttle.HydroponicsWater": "Hydroponics tend themselves",
     "Sandbox_TrekShuttle.HydroponicsWater_tooltip": "Crops in the Adirondack's hydroponic trays are watered and kept free of pests and disease by the ship: plant them and harvest them. Off, they need tending like any other crop. Crops planted in the ground are never tended.",
     "Sandbox_TrekShuttle.HydroponicsWater_option1": "Yes",
-    "Sandbox_TrekShuttle.HydroponicsWater_option2": "No"
+    "Sandbox_TrekShuttle.HydroponicsWater_option2": "No",
+    "Sandbox_TrekShuttle.Borg": "Borg among the dead",
+    "Sandbox_TrekShuttle.Borg_tooltip": "How many of the dead the nanoprobes finished with: assimilated civilians with an eyepiece and a cranial plate, and drones in armour. They walk upright and never run. As common as police is about one zombie in two hundred. A change reaches zombies made after the world is next loaded; the dead already walking keep what they are.",
+    "Sandbox_TrekShuttle.Borg_option1": "As common as police",
+    "Sandbox_TrekShuttle.Borg_option2": "Scarce",
+    "Sandbox_TrekShuttle.Borg_option3": "Common",
+    "Sandbox_TrekShuttle.Borg_option4": "None"
 }

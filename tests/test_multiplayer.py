@@ -14738,6 +14738,95 @@ def speed_check():
           "and an owner's Leave it as set respected")
 
 
+def borg_row(rt, name):
+    """How many times an outfit is in vanilla's Default list, and its chance."""
+    return rt.eval(f"""(function()
+        local n, c = 0, -1
+        for _, e in ipairs(ZombiesZoneDefinition.Default) do
+            if e.name == "{name}" then n = n + 1; c = e.chance end
+        end
+        return n .. "," .. c
+    end)()""")
+
+
+def borg():
+    """The Borg among the dead (BORG.md): two outfits in vanilla's Default
+    list at the sandbox's share, and their walk -- decided from the outfit
+    alone, never by asking an undressed zombie (the getter would dress it in
+    an outfit of this machine's own choosing), and taken away again when the
+    engine recycles the body for an ordinary zombie."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('walker', 3000.5, 3000.5, 0)")
+    net.start()
+    check(borg_row(rt, "TrekBorgDrone") == "1,0.15", f"borg: drones in Default are {borg_row(rt, 'TrekBorgDrone')}")
+    check(borg_row(rt, "TrekBorgAssimilated") == "1,0.35",
+          f"borg: assimilated in Default are {borg_row(rt, 'TrekBorgAssimilated')}")
+    # Loaded again (another OnInitGlobalModData): still once each.
+    rt.fire("OnInitGlobalModData", False)
+    check(borg_row(rt, "TrekBorgDrone") == "1,0.15", "borg: a second world-data load added the drones again")
+    # The sandbox scales both, and None is none.
+    rt.run("SandboxVars.TrekShuttle.Borg = 3")
+    rt.fire("OnInitGlobalModData", False)
+    check(borg_row(rt, "TrekBorgDrone") == "1,0.6", f"borg: Common drones are {borg_row(rt, 'TrekBorgDrone')}")
+    rt.run("SandboxVars.TrekShuttle.Borg = 4")
+    rt.fire("OnInitGlobalModData", False)
+    check(borg_row(rt, "TrekBorgAssimilated") == "1,0.0" or borg_row(rt, "TrekBorgAssimilated") == "1,0",
+          f"borg: None leaves {borg_row(rt, 'TrekBorgAssimilated')}")
+    rt.run("SandboxVars.TrekShuttle.Borg = 1")
+    rt.fire("OnInitGlobalModData", False)
+
+    rt.run("""SIM.randomDressed = 0
+        borgDrone = SIM.zombie(3004.5, 3000.5, 0, false, "TrekBorgDrone")
+        borgCiv = SIM.zombie(3005.5, 3000.5, 0, false, "TrekBorgAssimilated")
+        plainZed = SIM.zombie(3006.5, 3000.5, 0, false, "Generic01")
+        crawler = SIM.zombie(3007.5, 3000.5, 0, false, "TrekBorgDrone"); crawler.crawling = true
+        undressed = SIM.zombie(3008.5, 3000.5, 0, false, "TrekBorgDrone"); undressed.dressRandom = true""")
+    net.pump(3)
+    for z in ("borgDrone", "borgCiv"):
+        check(rt.eval(f"{z}.walkType") == "TrekBorg", f"borg: {z} walks as {rt.eval(f'{z}.walkType')}")
+        check(rt.eval(f"{z}.vars.TrekBorg") is True, f"borg: {z} has no TrekBorg variable for its idle")
+    check(rt.eval("plainZed.walkType") is None, "borg: an ordinary zombie was given the Borg walk")
+    check(rt.eval("crawler.walkType") is None, "borg: a crawling Borg was stood up")
+    check(int(rt.eval("SIM.randomDressed")) == 0,
+          "borg: a zombie still due its random outfit was asked its name, which dresses it on this machine")
+    check(rt.eval("undressed.walkType") is None, "borg: an undressed zombie was taken for a Borg")
+    # The engine dresses it (its own random pick came out Borg): now it walks.
+    rt.run("undressed.dressRandom = false")
+    net.pump(2)
+    check(rt.eval("undressed.walkType") == "TrekBorg", "borg: a zombie dressed late never got its walk")
+    # The body is recycled for an ordinary zombie: a new outfit id, and the
+    # Borg idle goes with the old one.
+    rt.run('borgDrone.outfit, borgDrone.outfitID, borgDrone.walkType = "Generic02", 99, "1"')
+    net.pump(2)
+    check(rt.eval("borgDrone.vars.TrekBorg") is False, "borg: a recycled body kept the Borg idle")
+    check(rt.eval("borgDrone.walkType") == "1", "borg: a recycled body was given the Borg walk again")
+    for w in rt.warnings():
+        fail(f"borg: {w}")
+
+    # Two machines: the server knows from the spawn, the client only once the
+    # outfit is applied to its copy, and both walk it the same.
+    net = Net("mp", clients=("watcher",))
+    srv, cl = net.server, net.clients["watcher"]
+    for rt in (srv, cl):
+        rt.run("SIM.player('watcher', 3000.5, 3000.5, 0).onlineID = 1")
+    net.start()
+    for name, rt in (("server", srv), ("watcher", cl)):
+        check(borg_row(rt, "TrekBorgDrone") == "1,0.15", f"borg mp ({name}): drones are {borg_row(rt, 'TrekBorgDrone')}")
+    srv.run('mpBorg = SIM.zombie(3004.5, 3000.5, 0, false, "TrekBorgDrone")')
+    cl.run('mpBorg = SIM.zombie(3004.5, 3000.5, 0, true, "TrekBorgDrone"); mpBorg.persistentInit = false')
+    net.pump(3)
+    check(srv.eval("mpBorg.walkType") == "TrekBorg", "borg mp: the server's copy does not walk as a Borg")
+    check(cl.eval("mpBorg.walkType") is None, "borg mp: the client decided before its copy was dressed")
+    cl.run("mpBorg.persistentInit = true")
+    net.pump(2)
+    check(cl.eval("mpBorg.walkType") == "TrekBorg", "borg mp: the client's copy never walked as a Borg")
+    for name, rt in (("server", srv), ("watcher", cl)):
+        for w in rt.warnings():
+            fail(f"borg mp ({name}): {w}")
+    print("borg: two outfits in vanilla's list at the sandbox's share; the walk from the outfit, on every machine")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -14753,7 +14842,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, multiplayer)
 
 
 def main():

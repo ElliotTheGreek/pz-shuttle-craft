@@ -58,7 +58,7 @@ MOD_ITEM = re.compile(r"^TrekShuttle\.([A-Za-z0-9_]+)$")
 script = "".join(
     open(os.path.join(MOD, "media", "scripts", fn), encoding="utf-8").read()
     for fn in ("trekshuttle.txt", "trekweapons.txt", "trekarms.txt",
-               "trekfarming.txt", "trekcontraband.txt")
+               "trekfarming.txt", "trekcontraband.txt", "trekborg.txt")
     if os.path.isfile(os.path.join(MOD, "media", "scripts", fn)))
 # Anchored to the end of the line, as the model and fluid patterns are: a real
 # declaration is "item Foo" and nothing else, so prose in a comment that
@@ -397,6 +397,10 @@ for name in sorted(mod_clothing):
                             f"disk; the garment draws untextured")
     for folder in re.findall(r"<m_(?:Underlay)?MasksFolder>([^<]+)</m_(?:Underlay)?MasksFolder>",
                              body):
+        # "none" is vanilla's own word for no masks folder (the vambraces,
+        # the gorgets and 100-odd more), not a path.
+        if folder.strip().lower() == "none":
+            continue
         rel_folder = folder.strip().replace("\\", "/")
         for root in (PZ, os.path.join(MOD, "media")):
             candidate = os.path.join(root, *rel_folder.split("/")[1:]) \
@@ -1342,6 +1346,49 @@ try:
         print("field station: no vanilla map at", FSITE.MAP, "-- site not checked")
 except SystemExit as e:
     failures.append(f"field station: {e}")
+
+# The Borg among the dead (BORG.md). Five files have to agree and none of them
+# says so when they do not: an outfit whose item GUID names nothing is a
+# zombie with that piece missing, an outfit name the Lua does not know is a
+# Borg that shambles, and a walk node matching the wrong walk type is a Borg
+# that walks like everybody else.
+_cfg = open(os.path.join(MOD, "media", "lua", "shared", "TREK", "TREK_Config.lua"), encoding="utf-8").read()
+_bcfg = dict(re.findall(r'^C\.(Borg\w+)\s*=\s*"([^"]+)"', _cfg, re.M))
+_common = open(os.path.join(ROOT, "TrekShuttle", "common", "media", "clothing", "clothing.xml"),
+               encoding="utf-8").read()
+_borg_block = _common[_common.find("gen_borg.py: the Borg outfits"):_common.find("gen_borg.py: end")]
+_outfits = re.findall(r"<m_Name>([^<]+)</m_Name>", _borg_block)
+for _want in (_bcfg.get("BorgDrone"), _bcfg.get("BorgAssimilated")):
+    if not _want or _outfits.count(_want) != 2:
+        failures.append(f"borg: outfit {_want} is not in common clothing.xml once per sex "
+                        f"(found {_outfits}) -- run tools/gen_borg.py")
+_known_guids = set(vanilla_guids)
+for _f in glob.glob(os.path.join(CLOTHING_DIR, "*.xml")):
+    _g = re.search(r"<m_GUID>([^<]+)</m_GUID>", open(_f, encoding="utf-8-sig").read())
+    if _g:
+        _known_guids.add(_g.group(1).strip().lower())
+_bguids = re.findall(r"<itemGUID>([^<]+)</itemGUID>", _borg_block)
+if len(_bguids) < 20:
+    failures.append(f"borg: only {len(_bguids)} item GUIDs in the Borg outfits; the pattern has stopped matching")
+for _g in _bguids:
+    if _g.strip().lower() not in _known_guids:
+        failures.append(f"borg: an outfit names item GUID {_g}, which no clothing XML carries")
+for _set in ("walktoward", "walktoward-network", "pathfind"):
+    _p = os.path.join(ROOT, "TrekShuttle", "common", "media", "AnimSets", "zombie", _set, "trekborgwalk.xml")
+    _body = open(_p, encoding="utf-8").read() if os.path.isfile(_p) else ""
+    if f"<m_Value>{_bcfg.get('BorgWalkType')}</m_Value>" not in _body:
+        failures.append(f"borg: AnimSets/zombie/{_set}/trekborgwalk.xml does not match walk type "
+                        f"{_bcfg.get('BorgWalkType')}")
+_idle = os.path.join(ROOT, "TrekShuttle", "common", "media", "AnimSets", "zombie", "idle", "trekborgidle.xml")
+if f"<m_Name>{_bcfg.get('BorgVariable')}</m_Name>" not in (open(_idle, encoding="utf-8").read()
+                                                          if os.path.isfile(_idle) else ""):
+    failures.append(f"borg: the idle node does not match variable {_bcfg.get('BorgVariable')}")
+_head = open(os.path.join(CLOTHING_DIR, "TrekBorg_Head.xml"), encoding="utf-8").read()
+if "<m_HatCategory>nohair" not in _head:
+    failures.append("borg: the head implant has no nohair hat category, so the Borg keep their hair "
+                    "(HairStyles.getAlternateForHat)")
+if "<m_Masks>6</m_Masks>" not in open(os.path.join(CLOTHING_DIR, "TrekBorg_Arm.xml"), encoding="utf-8").read():
+    failures.append("borg: the prosthetic does not mask the right hand (CharacterMask part 6)")
 
 print(f"checked {checked_sprites} sprite names and {checked_items} item ids, "
       f"{len(mod_items)} mod items, {len(mod_models)} models, "

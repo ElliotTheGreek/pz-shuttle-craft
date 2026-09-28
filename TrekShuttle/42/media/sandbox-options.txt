@@ -61,3 +61,8 @@ option TrekShuttle.HydroponicsWater = {
     type = enum, numValues = 2, default = 1,
     page = TrekShuttle, translation = TrekShuttle.HydroponicsWater, valueTranslation = TrekShuttle.HydroponicsWater,
 }
+
+option TrekShuttle.Borg = {
+    type = enum, numValues = 4, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.Borg, valueTranslation = TrekShuttle.Borg,
+}

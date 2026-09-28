@@ -109,5 +109,15 @@
     "TrekShuttle.TrekRomulanDisruptor": "Romulan Disruptor",
     "TrekShuttle.TrekPolaronRifle": "Jem'Hadar Polaron Rifle",
     "TrekShuttle.TrekCardassianPhaser": "Cardassian Phaser",
-    "TrekShuttle.TrekHolster": "Starfleet Phaser Holster"
+    "TrekShuttle.TrekHolster": "Starfleet Phaser Holster",
+    "TrekShuttle.TrekBorg_Suit_M": "Borg Exosuit",
+    "TrekShuttle.TrekBorg_Skin_M": "Borg Nanoprobe Pallor",
+    "TrekShuttle.TrekBorg_Suit_F": "Borg Exosuit",
+    "TrekShuttle.TrekBorg_Skin_F": "Borg Nanoprobe Pallor",
+    "TrekShuttle.TrekBorg_Head": "Borg Cranial Implant",
+    "TrekShuttle.TrekBorg_Arm": "Borg Prosthetic",
+    "TrekShuttle.TrekBorg_Cuirass": "Borg Chest Armour",
+    "TrekShuttle.TrekBorg_Gorget": "Borg Neck Armour",
+    "TrekShuttle.TrekBorg_Shoulder": "Borg Shoulder Armour",
+    "TrekShuttle.TrekBorg_Knee": "Borg Knee Armour"
 }

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A Borg walks (BORG.md): upright, even, unhurried, the living's own walk
+     slowed. Its walk type is TrekBorg, set in every process from its outfit
+     (TREK_Borg). A zombie is moved by its animation's root motion, so this
+     speed scale is its speed: a Borg never runs. The same node is in
+     walktoward, walktoward-network and pathfind. -->
+<animNode>
+	<m_Name>TrekBorgWalk</m_Name>
+	<m_AnimName>Bob_Walk</m_AnimName>
+	<m_deferredBoneAxis>Y</m_deferredBoneAxis>
+	<m_SpeedScale>0.78</m_SpeedScale>
+	<m_BlendTime>0.25</m_BlendTime>
+	<m_Conditions>
+		<m_Name>zombieWalkType</m_Name>
+		<m_Type>STRING</m_Type>
+		<m_Value>TrekBorg</m_Value>
+	</m_Conditions>
+	<m_Events>
+		<m_EventName>Footstep</m_EventName>
+		<m_TimePc>0.15</m_TimePc>
+		<m_ParameterValue>walk</m_ParameterValue>
+	</m_Events>
+	<m_Events>
+		<m_EventName>Footstep</m_EventName>
+		<m_TimePc>0.6</m_TimePc>
+		<m_ParameterValue>walk</m_ParameterValue>
+	</m_Events>
+</animNode>

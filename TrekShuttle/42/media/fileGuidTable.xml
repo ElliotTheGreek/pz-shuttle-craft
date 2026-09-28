@@ -84,4 +84,44 @@
 		<path>media/clothing/clothingItems/TrekHolster.xml</path>
 		<guid>abd1ae2d-c38d-566d-9884-e578dee2d3e7</guid>
 	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBorg_Suit_M.xml</path>
+		<guid>9dbc1f6f-f8d6-5fa5-85c2-20068d68319e</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBorg_Skin_M.xml</path>
+		<guid>a801a5c8-31e1-50ad-abcf-48d61155cffb</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBorg_Suit_F.xml</path>
+		<guid>d5fdaa69-b8ed-5506-ad43-31509ea4ef83</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBorg_Skin_F.xml</path>
+		<guid>3e75d7ab-b8f4-5a9f-8f45-826deaf8923f</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBorg_Head.xml</path>
+		<guid>c5358d7c-81ba-5fe5-82a2-6156bfd515be</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBorg_Arm.xml</path>
+		<guid>5abd055e-e2f2-5680-a720-e7888480b389</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBorg_Cuirass.xml</path>
+		<guid>5c2628a3-cae2-51cc-b834-87bc6d60bbb6</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBorg_Gorget.xml</path>
+		<guid>5d68b5ed-8b91-5d72-892a-fb3b41ad5cc5</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBorg_Shoulder.xml</path>
+		<guid>14e6e768-8dc5-5fb1-8ceb-d85d9fa6e1c9</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBorg_Knee.xml</path>
+		<guid>09a2c8ba-d5a6-51bd-b3f0-bc16b978fe46</guid>
+	</files>
 </fileGuidTable>

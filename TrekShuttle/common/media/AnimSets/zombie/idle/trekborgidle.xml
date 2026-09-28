@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A Borg standing (BORG.md): still and upright, the player's idle, not the
+     zombie sway. TrekBorg is set in every process from its outfit
+     (TREK_Borg); one condition more than vanilla's idle, so it outranks it. -->
+<animNode>
+	<m_Name>TrekBorgIdle</m_Name>
+	<m_AnimName>Bob_Idle</m_AnimName>
+	<m_deferredBoneAxis>Y</m_deferredBoneAxis>
+	<m_SpeedScale>0.60</m_SpeedScale>
+	<m_BlendTime>0.35</m_BlendTime>
+	<m_randomAdvanceFraction>0.50</m_randomAdvanceFraction>
+	<m_Conditions>
+		<m_Name>TrekBorg</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>true</m_Value>
+	</m_Conditions>
+	<m_Transitions>
+		<m_Target>TrekBorgWalk</m_Target>
+		<m_AnimName>Bob_IdleToWalk</m_AnimName>
+	</m_Transitions>
+</animNode>

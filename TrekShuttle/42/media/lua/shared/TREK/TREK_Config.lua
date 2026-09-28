@@ -2355,4 +2355,27 @@ C.FieldStation = {
     serviceTicks = 30,
 }
 
+---------------------------------------------------------------------------
+-- The Borg among the dead (BORG.md)
+---------------------------------------------------------------------------
+-- The two outfits tools/gen_borg.py writes into common clothing.xml. The
+-- server hands them out like any other outfit; the names are how every
+-- process knows a Borg when it sees one.
+C.BorgDrone = "TrekBorgDrone"
+C.BorgAssimilated = "TrekBorgAssimilated"
+-- Their share of the dead, in vanilla's own units: ZombiesZoneDefinition
+-- .Default's `chance`, where each Generic outfit is 20 and Police is 0.25. At
+-- the default the two together are about one zombie in two hundred, as common
+-- as a policeman: met on most outings, never a crowd. Sandbox
+-- `TrekShuttle.Borg` scales both.
+C.BorgDroneChance = 0.15
+C.BorgAssimilatedChance = 0.35
+C.BorgScale = { 1.0, 0.3, 4.0, 0 }        -- As police (default), Scarce, Common, None
+-- Their walk: the living's (Bob_Walk), slowed. A zombie is moved by its
+-- animation's root motion (IsoGameCharacter.doDeferredMovement), so the walk
+-- is also the speed: a Borg never runs, whatever the sandbox's zombie speed.
+-- The nodes are common/media/AnimSets/zombie/*/trekborg*.xml.
+C.BorgWalkType = "TrekBorg"
+C.BorgVariable = "TrekBorg"
+
 return C

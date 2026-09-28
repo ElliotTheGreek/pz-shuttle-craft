@@ -2815,8 +2815,35 @@ IsoPlayer = { getPlayers = function() return jlist(SIM.players) end }
 ---------------------------------------------------------------------------
 -- Zombies
 ---------------------------------------------------------------------------
-function SIM.zombie(x, y, z, remote)
-    local zed = { x = x, y = y, z = z, remote = remote }
+-- What every zombie answers about its outfit, as IsoZombie does (BORG.md):
+--
+--   * getOutfitName() **dresses the zombie itself** when it is still due a
+--     random outfit (bytecode, bci 0-11) -- on a client that is an outfit of
+--     the client's own choosing, not the server's. SIM.randomDressed counts
+--     it, so a test can prove the mod never asked too early;
+--   * on a client, a copy whose persistent outfit has not been applied yet
+--     has no outfit at all (HumanVisual.getOutfit() is null) and answers nil.
+ZedOutfitMT = {}
+ZedOutfitMT.__index = ZedOutfitMT
+function ZedOutfitMT:shouldDressInRandomOutfit() return self.dressRandom == true end
+function ZedOutfitMT:getOutfitName()
+    if self.dressRandom then
+        self.dressRandom = false
+        self.outfit = "SIM_RandomOutfit"
+        SIM.randomDressed = (SIM.randomDressed or 0) + 1
+    end
+    if SIM_ROLE == "client" and not self.persistentInit then return nil end
+    return self.outfit
+end
+function ZedOutfitMT:getPersistentOutfitID() return self.outfitID or 0 end
+function ZedOutfitMT:isCrawling() return self.crawling == true end
+function ZedOutfitMT:setWalkType(v) self.walkType = v end
+function ZedOutfitMT:setVariable(k, v) self.vars[k] = v end
+function ZedOutfitMT:getVariableBoolean(k) return self.vars[k] == true end
+function SIM.zombie(x, y, z, remote, outfit)
+    local zed = setmetatable({ x = x, y = y, z = z, remote = remote, vars = {}, visuals = {}, body = {},
+                               modData = {}, outfit = outfit or "Generic01", outfitID = 1,
+                               persistentInit = true }, ZedOutfitMT)
     function zed:getX() return self.x end
     function zed:getY() return self.y end
     function zed:getZ() return self.z end
@@ -2841,7 +2868,7 @@ end
 SIM.chat = {}
 SIM.nextZombieId = 100
 
-local ZedMT = { simZombie = true }
+local ZedMT = setmetatable({ simZombie = true }, { __index = ZedOutfitMT })
 ZedMT.__index = ZedMT
 function ZedMT:getX() return self.x end
 function ZedMT:getY() return self.y end
@@ -2864,8 +2891,6 @@ end
 function ZedMT:setUseless(v) self.useless = v end
 function ZedMT:setNoTeeth(v) self.noTeeth = v end
 function ZedMT:setAvoidDamage(v) self.avoidDamage = v end
-function ZedMT:setWalkType(v) self.walkType = v end
-function ZedMT:setVariable(k, v) self.vars[k] = v end
 function ZedMT:getVariableString(k) return tostring(self.vars[k]) end
 function ZedMT:getDescriptor()
     local z = self
@@ -2885,7 +2910,6 @@ function ZedMT:resetModel()
     end
 end
 function ZedMT:isPersistentOutfitInit() return self.persistentInit == true end
-function ZedMT:getPersistentOutfitID() return self.outfitID or 0 end
 function ZedMT:dressInPersistentOutfitID(id)
     -- A body stripped after we dressed it, even for a frame: SIM.strips.
     if #self.visuals > 0 then SIM.strips = (SIM.strips or 0) + 1 end
@@ -3246,6 +3270,12 @@ end
 --- battery or holds a lit torch; and otherwise opened through a timed action.
 --- The dark refusal is the whole reason TREK_MapView exists, so it is here
 --- exactly, and a map "opened" in the dark leaves SIM.tooDark set.
+-- Vanilla's zombie outfit table (shared/NPCs/ZombiesZoneDefinition.lua), as
+-- far as the mod touches it: the Default list, with a line of vanilla's own.
+ZombiesZoneDefinition = ZombiesZoneDefinition or {
+    Default = { { name = "Generic01", chance = 20 }, { name = "Police", chance = 0.25 } },
+}
+
 SandboxVars = SandboxVars or {}
 SandboxVars.Map = SandboxVars.Map or { AllowWorldMap = true, MapNeedsLight = true }
 function ISWorldMap.IsAllowed() return SandboxVars.Map.AllowWorldMap == true end
