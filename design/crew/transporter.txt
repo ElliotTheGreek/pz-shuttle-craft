@@ -281,11 +281,11 @@ chief: We could beam them any time. They could reach us. So they stayed.
 
 = e_argue
 chief: The captain argued. Came down here herself. Stood on the pad.
-     | Vale stood right there and argued with them on an open channel.
+     | Titus stood right there and argued with them on an open channel.
 other: And she let them stay? | She didn't order them up?
 chief: She could have. She asked instead. She said it was their call.
      | She said the work mattered. She said please be careful.
-other: That sounds like her. | That's Vale.
+other: That sounds like her. | That's Titus.
 -> e_june
 
 = e_june
@@ -712,11 +712,11 @@ chief: I said, welcome home, Lieutenant. What else is there?
 
 = vale
 chief: The captain came through that door at a run. I've never seen her run.
-     | Vale got here in ninety seconds. From the ready room. Four decks.
+     | Titus got here in ninety seconds. From the ready room. Four decks.
 other: What did she say? | What happened?
 chief: Nothing. Put her arms round her. Held on. Neither of them said a word.
      | She said, you stubborn, stubborn woman. And then she hugged her.
-other: The captain hugged someone? | Vale? Our Vale?
+other: The captain hugged someone? | Titus? Our Titus?
 chief: Don't tell anyone I told you. | I didn't see it. I was very busy.
 -> tapes
 

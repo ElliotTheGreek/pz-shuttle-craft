@@ -195,7 +195,7 @@ host: I'll get a third glass. | I knew I liked you, {sec}.
 = toast
 host: To the Adirondack. | To getting home.
     | To whoever's still down there.
-guest: To the eleven. | To Captain Vale, who needs a drink more than we do.
+guest: To the eleven. | To Captain Titus, who needs a drink more than we do.
     | To comms coming back.
 sec: To the eleven. | To the ones still down there.
 ...
@@ -236,7 +236,7 @@ org: Right. Talent night. Who's in? | I need acts. Talent night, Friday.
     | Sign-up sheet. Talent night. Don't all rush.
 a: Is this actually happening? | You're really doing this?
     | Didn't the last one end with a fire alarm?
-org: Captain Vale approved it. Morale. She used the word morale twice.
+org: Captain Titus approved it. Morale. She used the word morale twice.
     | It's happening. The captain says we need it.
 -> trivia 2, acts 3
 
@@ -909,7 +909,7 @@ cook: It's replicated. It doesn't move. It can't. | It's a pattern. It's dead.
 sec: He said that is exactly the problem. At volume.
     | He called it the gagh of a coward.
 c: Is he still in there? | I heard shouting from Deck 3.
-sec: He's in the lounge telling everybody. | He's writing a complaint to Vale.
+sec: He's in the lounge telling everybody. | He's writing a complaint to Titus.
 -> thrown 1, fix 2
 
 = thrown
@@ -935,10 +935,10 @@ sec: This is an emergency. | I'd call this an emergency.
 c: What did he write to the captain? | Did he actually file a complaint?
 sec: Three pages. I've seen it. It opens with a battle poem.
     | He filed it. It rhymes. In Klingon.
-cook: What did Vale say? | Has the captain answered?
+cook: What did Titus say? | Has the captain answered?
 sec: She wrote back one line. Noted. Eat the pie.
     | She said she'd review it after the warp core is fixed.
-c: That's the most Captain Vale thing I've ever heard. | Classic Vale.
+c: That's the most Captain Titus thing I've ever heard. | Classic Titus.
 -> grieg 1, bargain 1
 
 = grieg

@@ -1,0 +1,62 @@
+{
+  "id": "POST",
+  "order": 20,
+  "title": "Why is this ship here?",
+  "notes": [
+    "The posting, and the order that left the world undefended (LORE.md 1c: Miri, the",
+    "Uxbridge determination). She followed the order; she says so once, flatly, and does",
+    "not dwell. Never the word Douwd: that is Tucker Gold's, and gated in WORLD."
+  ],
+  "tiers": [{"id": "1"}],
+  "entry": [{"go": "01"}],
+  "nodes": [
+    {
+      "id": "01",
+      "tier": "1",
+      "lines": [
+        { "text": "The first survey logged this world as a sensor fault." },
+        { "text": "Nobody believed an Earth this close. The 1990s, near enough." },
+        { "text": "So we came to look. Quietly. No relay, nothing filed." },
+        { "text": "Observe only. That was the order, and I followed it." }
+      ],
+      "options": [
+        { "text": "Why observe only?", "go": "02" },
+        { "text": "Who gave that order?", "go": "03" }
+      ]
+    },
+    {
+      "id": "02",
+      "tier": "1",
+      "lines": [
+        { "text": "Because it's happened before, and we were told to leave it alone." },
+        { "text": "Kirk found another Earth once. It's filed as the Miri anomaly." },
+        { "text": "Picard found a man living in a world he'd made out of grief." },
+        { "text": "He walked away and let it run. That's case law now." },
+        { "text": "Parallel development, non-interference. It's all sound." }
+      ],
+      "options": [
+        { "text": "And now?", "go": "04" }
+      ]
+    },
+    {
+      "id": "03",
+      "tier": "1",
+      "lines": [
+        { "text": "Starfleet Command, through a file with my name on it." },
+        { "text": "I could have argued. I read the file and agreed with it." }
+      ],
+      "options": [
+        { "text": "And now?", "go": "04" }
+      ]
+    },
+    {
+      "id": "04",
+      "tier": "1",
+      "lines": [
+        { "voice": "note", "text": "She looks at the viewscreen. The planet is dark on it." },
+        { "text": "Now I think that order is why nobody down there had a chance." },
+        { "text": "I followed it anyway. I'd like that on the record." }
+      ]
+    }
+  ]
+}

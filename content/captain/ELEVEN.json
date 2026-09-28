@@ -1,0 +1,75 @@
+{
+  "id": "ELEVEN",
+  "order": 50,
+  "title": "The eleven",
+  "notes": [
+    "The surface team who stayed for the fieldwork (LORE.md 1b). The ship calls them the",
+    "eleven; Shepard was one of them and came up on 9 July, so ten are still down there,",
+    "less whoever has been brought home. She let them stay. The padd by her chair is the",
+    "crew's own detail (design/crew/bridge.txt)."
+  ],
+  "tiers": [{"id": "1"}, {"id": "2", "requires": ["rescued>=1"]}, {"id": "3", "requires": ["elevenDone"]}],
+  "entry": [{"go": "01"}],
+  "nodes": [
+    {
+      "id": "01",
+      "tier": "1",
+      "lines": [
+        { "text": "Eleven of my people were on the surface in February." },
+        { "text": "Shepard's survey team. When the ship went dark they stayed." },
+        { "text": "I could have ordered them up. I let them finish the work." },
+        { "text": "Shepard came up in July. The other ten are still down there." }
+      ],
+      "options": [
+        { "text": "Why did you let them stay?", "go": "02" },
+        { "text": "Has anyone come back?", "go": "20" },
+        { "text": "Who are they?", "go": "30" },
+        { "text": "Can I help find them?", "go": "03" }
+      ]
+    },
+    {
+      "id": "02",
+      "tier": "1",
+      "lines": [
+        { "text": "Because the work was good and I thought we had time." },
+        { "text": "And because they asked. People don't often ask, in this chair." },
+        { "text": "I'd do it differently now." }
+      ],
+      "options": [
+        { "text": "Has anyone come back?", "go": "20" },
+        { "text": "Can I help find them?", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "tier": "1",
+      "lines": [
+        { "text": "Each of them carries a beacon. When one goes off, we hear it." },
+        { "text": "So does your shuttle, if her core is loaded and she's listening." },
+        { "text": "Get to them, and we'll do the rest from up here." }
+      ]
+    },
+    {
+      "id": "20",
+      "tier": "2",
+      "lines": [
+        { "text": "Some of them, yes. Up the transporter, one at a time." },
+        { "text": "Somebody down there has been finding them and calling us." },
+        { "voice": "note", "text": "She looks at you a moment longer than she needs to." },
+        { "text": "Whoever that is has my thanks. Whether they want it or not." }
+      ],
+      "options": [
+        { "text": "Who are they?", "go": "30" }
+      ]
+    },
+    {
+      "id": "30",
+      "tier": "3",
+      "lines": [
+        { "text": "Their names are on a padd by my chair. I cross nobody off." },
+        { "text": "Shepard gave you the list. You'll know it as well as I do." },
+        { "text": "If you hear a beacon, it's one of them. Nobody else has one." }
+      ]
+    }
+  ]
+}

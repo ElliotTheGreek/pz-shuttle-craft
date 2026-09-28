@@ -92,7 +92,8 @@ anything that touches the story.
 **Never:**
 - real actors' likenesses, or impersonating canon characters as speakers;
 - a speaker who *is* Shepard, the Doctor or Okafor (they belong to the comms
-  channel and the tapes; the crew may **mention** them);
+  channel and the tapes; the crew may **mention** them), or Captain Titus (she
+  sits on the bridge and speaks only in her own panel, `CAPTAIN.md`);
 - the Changeling stated as fact;
 - anything cruel about the dead;
 - lines over **80 characters**. They are drawn over a head, so split long
@@ -106,7 +107,7 @@ Original characters. The crew mention them, and only generic crew roles speak.
 
 | Who | What |
 |---|---|
-| **Captain Imogen Vale** | Human, commanding officer. Steady, dry, tired, and has not slept properly since February. |
+| **Captain Imogen Titus** | Human, commanding officer. Steady, dry, tired, and has not slept properly since February. Speaks in no scene: her words are her own panel's (`CAPTAIN.md`). |
 | **Cmdr. Okafor** | The Section 31 officer (COMMS.md). The crew know him as the quiet one from Starfleet Intelligence liaison. The rumours are worse. |
 | **Lt. Cmdr. Tovin Rhel** | Bajoran chief engineer. Has taken the sabotage personally. Talks to the warp core. |
 | **Dr. Sela Anwar** | Human chief medical officer. Works alongside the EMH and argues with him constantly and fondly. |
@@ -363,6 +364,9 @@ These depend on the engine and have not been seen yet:
    did not parse until 2026-09-27 (a `--` in a comment) and the game dropped
    it, so any walk seen before then was not this one.
 2. **Sitting:** does the sit pose hold, and at the right spot in the chair?
+   The captain showed it sat turned 90 degrees (2026-09-28): `Bob_SatChair`'s
+   deferred bone is a quarter turn from the idle's, and the blend turned the
+   body. The sit node now takes no deferred rotation (`CAPTAIN.md` 8).
 3. **Pathfinding:** does it find its way over runtime-built decks and
    through the auto doors?
 4. **Looks:** does the species look render on a zombie body, and does the

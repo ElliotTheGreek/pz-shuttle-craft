@@ -1,0 +1,61 @@
+{
+  "id": "COUNTY",
+  "order": 40,
+  "title": "What happened down there?",
+  "notes": [
+    "Late June: the county died in two days, watched from orbit. Tier 2 is the Doctor's",
+    "half a signature (the channel's SCIENCE). The dead were people (LORE.md 1c); she",
+    "does not joke about them and does not preach about them either."
+  ],
+  "tiers": [{"id": "1"}, {"id": "2", "requires": ["scienceDone"]}],
+  "entry": [{"go": "01"}],
+  "nodes": [
+    {
+      "id": "01",
+      "tier": "1",
+      "lines": [
+        { "text": "Late June. Two days. We watched it from orbit." },
+        { "text": "It started in Knox County and went out from there." },
+        { "voice": "note", "text": "She doesn't say what the sensors counted." },
+        { "text": "Nothing in our database spreads like that. Nothing natural." },
+        { "text": "Five months after somebody blinded this ship. I don't like that." }
+      ],
+      "options": [
+        { "text": "What are they now? The dead.", "go": "02" },
+        { "text": "What did the Doctor find?", "go": "20" },
+        { "text": "What does your medical staff say?", "go": "03", "forbids": ["scienceDone"] }
+      ]
+    },
+    {
+      "id": "02",
+      "tier": "1",
+      "lines": [
+        { "text": "Dead. The ones that walk are dead, whatever they look like." },
+        { "text": "Doctor Anwar is sure of that much. They don't come back." },
+        { "text": "Every one of them lived in that county a month ago." },
+        { "text": "The crew don't joke about them. I'd take it badly if you did." }
+      ],
+      "options": [
+        { "text": "What did the Doctor find?", "go": "20" }
+      ]
+    },
+    {
+      "id": "03",
+      "tier": "1",
+      "lines": [
+        { "text": "That it isn't in any database we carry. They're still working." },
+        { "text": "Shepard has the Doctor on it too. He'll call her before me." }
+      ]
+    },
+    {
+      "id": "20",
+      "tier": "2",
+      "lines": [
+        { "text": "The Doctor found morphogenic markers in the samples." },
+        { "text": "Chemistry for changing shape. And something else he couldn't place." },
+        { "text": "He says he's reading half a signature. He hates saying it." },
+        { "text": "I can support the chemistry, he said. Not the author." }
+      ]
+    }
+  ]
+}

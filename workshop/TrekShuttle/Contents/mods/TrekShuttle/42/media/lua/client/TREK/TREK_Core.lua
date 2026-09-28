@@ -171,6 +171,9 @@ local DENIALS = {
     commsGone         = "IGUI_TREK_CommsGone",
     commsStale        = "IGUI_TREK_CommsStale",
     commsBusy         = "IGUI_TREK_CommsBusy",
+    -- Captain Titus (CAPTAIN.md).
+    captainFar        = "IGUI_TREK_CaptFar",
+    captainStale      = "IGUI_TREK_CaptStale",
     -- The ledger's own refusals carry numbers and are shown from
     -- POWER_DENIALS below; these are the words if one ever arrives bare.
     noPower           = "IGUI_TREK_NoPowerBare",

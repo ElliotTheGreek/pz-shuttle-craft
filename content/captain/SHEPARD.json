@@ -1,0 +1,68 @@
+{
+  "id": "SHEPARD",
+  "order": 60,
+  "title": "Lieutenant Shepard",
+  "notes": [
+    "Before the first call she defers: Shepard's story is Shepard's (CAPTAIN.md 4.6, 9.2).",
+    "After it, she is glad and dry about it. After STAY, the February argument from the",
+    "other side: she ordered Shepard up on an open channel and was refused. Tier 1 closes",
+    "once they have met, so it does not stay NEW for a player who never needed it."
+  ],
+  "tiers": [{"id": "1", "forbids": ["met"]}, {"id": "2", "requires": ["met"]}, {"id": "3", "requires": ["stayed"]}],
+  "entry": [{"go": "10", "requires": ["met"]}, {"go": "01"}],
+  "nodes": [
+    {
+      "id": "01",
+      "tier": "1",
+      "lines": [
+        { "text": "Lucy Shepard. Cultural survey. The shuttle you came up in is hers." },
+        { "text": "She's aboard, and she's safe." },
+        { "text": "She'll want to talk to you herself. I'll let her." },
+        { "text": "It's her story before it's mine. She'll call your shuttle." },
+        { "text": "Her logs are on the tape shelf in your cabin. Watch them." }
+      ],
+      "options": [
+        { "text": "Why is her shuttle full of furniture?", "go": "02" }
+      ]
+    },
+    {
+      "id": "02",
+      "tier": "1",
+      "lines": [
+        { "text": "She says you can't understand a people from orbit." },
+        { "text": "Her department calls it method. My quartermaster calls it clutter." }
+      ]
+    },
+    {
+      "id": "10",
+      "tier": "2",
+      "lines": [
+        { "text": "She's been calling you. Good. She needed somebody to talk to." },
+        { "text": "Somebody who's been down there. I only watched it on a screen." },
+        { "text": "If you haven't watched her logs yet, they're on your shelf." }
+      ],
+      "options": [
+        { "text": "Why did she stay down so long?", "go": "20" },
+        { "text": "Why is her shuttle full of furniture?", "go": "12" }
+      ]
+    },
+    {
+      "id": "12",
+      "tier": "2",
+      "lines": [
+        { "text": "She says you can't understand a people from orbit." },
+        { "text": "Her department calls it method. My quartermaster calls it clutter." }
+      ]
+    },
+    {
+      "id": "20",
+      "tier": "3",
+      "lines": [
+        { "text": "I ordered her up in February. On an open channel." },
+        { "text": "She said no in front of the whole bridge, and gave her reasons." },
+        { "text": "She was right about the work. I was right about the danger." },
+        { "text": "We've agreed not to discuss which of those mattered more." }
+      ]
+    }
+  ]
+}

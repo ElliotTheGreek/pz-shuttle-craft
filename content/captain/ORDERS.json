@@ -1,0 +1,95 @@
+{
+  "id": "ORDERS",
+  "order": 100,
+  "title": "What would you do in my place?",
+  "notes": [
+    "The in-fiction hint (CAPTAIN.md 4.10). She never orders; she says what she would do.",
+    "The route takes the first thing that is true, in the order a new player needs it:",
+    "a dark ship, a fragment to convert, a live beacon, no probe yet, the field station",
+    "once, then her being herself. The field station's directions are the crew's own",
+    "(design/crew/field_office.txt): the electronics shop in Muldraugh, the stockroom,",
+    "the breaker box.",
+    "The tapes come second, told once or until log one is watched: the user asked that she point players at Shepard's shelf (2026-09-28)."
+  ],
+  "tiers": [{"id": "1"}],
+  "entry": [{"go": "DARK", "requires": ["shipDark"]}, {"go": "TAPES", "forbids": ["me:toldTapes", "watched:TREK_LogOne"]}, {"go": "FRAG", "requires": ["carrying"]}, {"go": "BEACON", "requires": ["distressLive"]}, {"go": "PROBE", "forbids": ["probed"]}, {"go": "STATION", "forbids": ["me:toldStation"]}, {"go": ["REST1", "REST2", "REST3"]}],
+  "nodes": [
+    {
+      "id": "DARK",
+      "tier": "1",
+      "lines": [
+        { "text": "Your shuttle's dark. She needs dilithium before anything else." },
+        { "text": "It turns up in open country, never in town. Your tricorder finds it." },
+        { "text": "Carry it back and load the core. Everything else waits on that." }
+      ]
+    },
+    {
+      "id": "TAPES",
+      "tier": "1",
+      "mark": ["toldTapes"],
+      "lines": [
+        { "text": "Shepard kept a log while she was down there. Six entries, on tape." },
+        { "text": "They're on the shelf by the television in her shuttle." },
+        { "text": "She left them for whoever found the shuttle. Start with the first." },
+        { "text": "Everything I can tell you, she tells better. She was there." }
+      ]
+    },
+    {
+      "id": "FRAG",
+      "tier": "1",
+      "lines": [
+        { "text": "You're carrying one of those recordings. Call Shepard." },
+        { "text": "She can put it on tape. In your pocket it's one bad day from lost." }
+      ]
+    },
+    {
+      "id": "BEACON",
+      "tier": "1",
+      "lines": [
+        { "text": "One of mine is down there with a beacon running. I'd go." },
+        { "text": "Take a medkit. They're hurt, or they wouldn't be calling." }
+      ]
+    },
+    {
+      "id": "PROBE",
+      "tier": "1",
+      "lines": [
+        { "text": "Use your sensors. A probe finds what a long walk won't." },
+        { "text": "Launch one from the shuttle and see what it brings back." }
+      ]
+    },
+    {
+      "id": "STATION",
+      "tier": "1",
+      "mark": ["toldStation"],
+      "lines": [
+        { "text": "Shepard's team kept a field office in Muldraugh." },
+        { "text": "The electronics shop. The stockroom, behind the breaker box." },
+        { "text": "It's staffed. They could use the company, and so could you." }
+      ]
+    },
+    {
+      "id": "REST1",
+      "tier": "1",
+      "lines": [
+        { "text": "Sleep. Eat. Keep the core loaded." },
+        { "text": "That's all the wisdom this chair has, most days." }
+      ]
+    },
+    {
+      "id": "REST2",
+      "tier": "1",
+      "lines": [
+        { "text": "Nothing's on fire today. Take the day. I would, if I could." }
+      ]
+    },
+    {
+      "id": "REST3",
+      "tier": "1",
+      "lines": [
+        { "text": "Keep the beacon frequencies open. My people are still down there." },
+        { "text": "And come up for a meal now and then. Grieg cooks on Thursdays." }
+      ]
+    }
+  ]
+}

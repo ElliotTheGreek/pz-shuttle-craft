@@ -34,7 +34,7 @@ b: Four minutes. I have hair, {a}. I have a lot of hair.
 a: Shepard had a bath in her shuttle. A real bathtub.
     | You know the Adirondack has one bathtub? In the captain's quarters.
 b: Please don't tell me that. | I didn't need to know that.
-    | And does Vale ever use it?
+    | And does Titus ever use it?
 a: Never. She sleeps four hours and showers sonic like the rest of us.
     | Rumour says she keeps plants in it.
 -> compromise 2, quiet 1
@@ -756,8 +756,8 @@ a: That nobody's coming. That we're stuck here. Forever, maybe.
 b: That's not forever. That's today. | That's a lot to carry on your own.
 ...
 a: Yeah. | Maybe.
-b: You know the captain goes? Every week. | Even Vale sees her, I heard.
-a: The captain? | Vale goes to counselling?
+b: You know the captain goes? Every week. | Even Titus sees her, I heard.
+a: The captain? | Titus goes to counselling?
 b: Tuesday mornings. She doesn't hide it. She says it's maintenance.
     | She told the senior staff. She said if she can, we can.
 a: Huh. | That's... actually reassuring.

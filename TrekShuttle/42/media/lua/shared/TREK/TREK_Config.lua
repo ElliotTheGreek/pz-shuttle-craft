@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.10.1"
+C.Version   = "1.11.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -2094,6 +2094,39 @@ function C.commsFirstDay()
     local days = v and C.CommsFirstDays[math.floor(v)]
     if days == nil then return C.CommsFirstContactDay end
     return days
+end
+
+---------------------------------------------------------------------------
+-- Captain Titus (CAPTAIN.md)
+---------------------------------------------------------------------------
+-- She sits on the Adirondack's bridge, Deck 1, in the layout's captain_chair.
+C.CaptainDeck = 1
+-- How far from her chair a player may talk to her, in squares. The bridge is
+-- small; this is the whole of its middle and none of the ready room.
+C.CaptainReach = 5
+-- A right-click lands on the floor square under the cursor, and she is a tall
+-- figure in a chair (DEV_GUIDE.md, *A right-click lands on the floor*): the
+-- option is offered this many squares round the chair.
+C.CaptainMenuMargin = 2
+-- What she remembers of each player, in the server's copy of their mod data:
+-- { heard = { ["FEB:1"] = true }, marks = { named = true } }. Bounded by her
+-- tree, so it cannot grow (CAPTAIN.md 5.3).
+C.CaptainKey = "TREKCaptain"
+-- Rescues credited to a player that earn her trust with the truth, under the
+-- sandbox's default (CAPTAIN.md 2).
+C.CaptainTruthRescues = 2
+-- Sandbox *Captain tells the truth*: 1 once Shepard has told it, 2 once
+-- Shepard has told it or the player has watched her last log or brought
+-- C.CaptainTruthRescues of the crew home, 3 from the first conversation.
+C.CaptainTruthDefault = 2
+
+function C.captainTruth()
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.CaptainTruth
+    end)
+    v = ok and tonumber(v) or nil
+    if v == 1 or v == 2 or v == 3 then return v end
+    return C.CaptainTruthDefault
 end
 
 ---------------------------------------------------------------------------

@@ -483,5 +483,17 @@
     "IGUI_TREK_EmhDetoxedNote": "The EMH has detoxed %1.",
     "IGUI_TREK_EmhDependent": "Dependent: %1",
     "IGUI_TREK_EmhOfferDetox": "%1 has asked the EMH to detox you. It costs %2 units of the reserve.",
-    "IGUI_TREK_EmhNoHabit": "Nothing in your blood that should not be there. Congratulations."
+    "IGUI_TREK_EmhNoHabit": "Nothing in your blood that should not be there. Congratulations.",
+    "IGUI_TREK_PromotionDue": "Captain Titus would like to see you on the Adirondack's bridge. (%1)",
+    "IGUI_TREK_CaptSpeak": "Speak with Captain Titus",
+    "IGUI_TREK_CaptTitle": "Captain Titus - U.S.S. Adirondack",
+    "IGUI_TREK_CaptFar": "Captain Titus is too far away. Step closer to her chair.",
+    "IGUI_TREK_CaptStale": "The conversation moved on. Ask her again.",
+    "IGUI_TREK_CaptBack": "Back to the topics",
+    "IGUI_TREK_CaptBye": "That's all, Captain",
+    "IGUI_TREK_CaptClose": "Close",
+    "IGUI_TREK_CaptNew": "NEW",
+    "IGUI_TREK_CaptWaiting": "...",
+    "IGUI_TREK_CaptAddressNone": "friend",
+    "IGUI_TREK_CaptJoypadHint": "B: close"
 }

@@ -55,6 +55,11 @@ CS.BarkReach = 3.2
 CS.BarkCrewGap = 45000
 CS.BarkPlayerGap = 14000
 CS.IdleGap = 30000
+-- The captain: how long she stays in her chair before the director so much
+-- as thinks about her (in effect, for as long as anybody is on the bridge),
+-- and how soon a captain who has gone is seated again.
+CS.CaptainStays = 2 ^ 40
+CS.CaptainRespawn = 5000
 -- Scenes.
 CS.ScenesPerDeck = 2
 CS.SceneGapMin, CS.SceneGapMax = 15000, 40000
@@ -181,6 +186,7 @@ end
 
 local function despawn(m, why)
     release(m)
+    if m.captain then CS.captainId = nil end
     live[m.id] = nil
     K.state().crew[m.id] = nil
     dirty = true
@@ -196,18 +202,23 @@ CS.despawn = despawn
 local chooseSpot
 
 --- Brings one crew member aboard deck k: out of a lift car, or -- `atPost`
---- -- already at a spot, as if they had been there all shift.
-local function spawn(k, atPost)
+--- -- already at a spot, as if they had been there all shift. `captain` is
+--- Captain Titus, sat in her own chair (CAPTAIN.md 5.5).
+local function spawn(k, atPost, captain)
     local lx, ly = K.liftSquare(k)
     local post = nil
-    if atPost then
+    if captain then
+        post = K.captainPost()
+        if not post then return nil end
+        lx, ly = post.x, post.y
+    elseif atPost then
         post = chooseSpot({ e = { deck = k, job = "any" } })
         if post then lx, ly = post.x, post.y end
     end
     local x, y = A.at(k, lx, ly)
     local sq = U.square(x, y, A.Z, false)
     if not sq or not U.try("crew.floor", function() return sq:getFloor() ~= nil end) then return nil end
-    local female = rnd(2) == 0
+    local female = captain and true or rnd(2) == 0
     local list = U.try("crew.spawn", function()
         return addZombiesInOutfit(x, y, A.Z, 1, K.Outfit, female and 100 or 0,
                                   false, false, false, false, false, false, 1.0)
@@ -238,7 +249,14 @@ local function spawn(k, atPost)
     end
     U.try("crew.mark", function() z:getModData().TREKCrewServer = true end)
     id = tostring(id)
-    local e = K.newMember(k, U.try("crew.female", function() return z:isFemale() end) == true)
+    local e
+    if captain then
+        e = {}
+        for key, v in pairs(K.Captain) do e[key] = v end
+        e.deck = k
+    else
+        e = K.newMember(k, U.try("crew.female", function() return z:isFemale() end) == true)
+    end
     e.id = id
     local m = { id = id, z = z, e = e, tasks = between(CS.TasksMin, CS.TasksMax + 1),
                 barkAt = now() - rnd(CS.BarkCrewGap) }
@@ -253,6 +271,11 @@ local function spawn(k, atPost)
             setStep(m, { k = "stand", x = post.x, y = post.y, fx = post.fx, fy = post.fy })
         end
         m.state, m.untilAt = "stay", now() + between(CS.StayMin, CS.StayMax)
+        if captain then
+            -- She does not leave her post while anybody is on the bridge.
+            m.captain, m.untilAt = true, now() + CS.CaptainStays
+            CS.captainId = id
+        end
     else
         setStep(m, { k = "stand", x = lx, y = ly, fx = lx + 2, fy = ly + 2 })
         m.state, m.untilAt = "stay", now() + between(2000, 6000)
@@ -382,7 +405,8 @@ end
 local function idleOn(k)
     local out = {}
     for _, m in pairs(live) do
-        if m.e.deck == k and not m.scene and not m.leaving and m.state == "stay" and m.x then
+        if m.e.deck == k and not m.scene and not m.leaving and m.state == "stay" and m.x
+           and not m.captain then
             table.insert(out, m)
         end
     end
@@ -596,7 +620,8 @@ local function barkAt(p, t)
     if not k then return end
     local best, bd = nil, nil
     for _, m in pairs(live) do
-        if m.e.deck == k and not m.scene and m.x and t - (m.barkAt or 0) >= CS.BarkCrewGap then
+        if m.e.deck == k and not m.scene and m.x and not m.captain
+           and t - (m.barkAt or 0) >= CS.BarkCrewGap then
             local d = U.dist2(m.x, m.y, px, py)
             if d <= CS.BarkReach * CS.BarkReach and (not bd or d < bd) then best, bd = m, d end
         end
@@ -694,8 +719,18 @@ function CS.tick()
 
     for k in pairs(on) do
         if TREK.AdirondackServer and TREK.AdirondackServer.deckCurrent(k) then
+            -- Captain Titus first, so nobody else is sat in her chair.
+            if k == C.CaptainDeck and A.siteOf(k) == "adk" and not CS.captainId
+               and t >= (CS.nextCaptain or 0) then
+                CS.nextCaptain = t + CS.CaptainRespawn
+                if spawn(k, true, true) then
+                    U.log("crew: Captain Titus is on the bridge")
+                end
+            end
             local count = 0
-            for _, m in pairs(live) do if m.e.deck == k then count = count + 1 end end
+            for _, m in pairs(live) do
+                if m.e.deck == k and not m.captain then count = count + 1 end
+            end
             -- Somebody has just come onto an empty deck: most of its crew are
             -- already at their posts. The rest come by the lift over time.
             if count == 0 and not staffed[k] then

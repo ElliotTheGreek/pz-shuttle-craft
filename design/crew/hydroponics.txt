@@ -149,11 +149,11 @@ bot: I've got a sign-up sheet with sixty names on it.
     | The waiting list for the first harvest is longer than the holodeck's.
 cmd: Sixty. | You're joking.
     | Sixty people signed up for tea?
-bot: Sixty-three. The captain's on it. | Sixty-one, and one of them is Vale.
+bot: Sixty-three. The captain's on it. | Sixty-one, and one of them is Titus.
 -> captain 3, bergamot 1
 
 = captain
-cmd: Captain Vale signed a sign-up sheet. | Vale put her name down for tea?
+cmd: Captain Titus signed a sign-up sheet. | Titus put her name down for tea?
 bot: Under a false name. I recognised the handwriting.
     | Third line. She wrote small. I think she was embarrassed.
 third: Good for her. | She's earned it.
@@ -386,8 +386,8 @@ third: ... That smell. Oh, that smell. | That's real. That's real coffee.
 eng: Who gets the first cup? | So who drinks it first?
 bot: K'teral. No question. | Her. She grew it as much as we did.
     | K'teral. Then the captain. Then whoever's still standing.
-eng: Not the captain? | Vale might want it.
-bot: Vale would give it to K'teral herself. You know she would.
+eng: Not the captain? | Titus might want it.
+bot: Titus would give it to K'teral herself. You know she would.
     | The captain drinks tea. She'll get the tea.
 third: Water, grounds, a mug. That's the whole recipe?
     | Is that all it takes? Water and grounds?

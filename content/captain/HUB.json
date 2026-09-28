@@ -1,0 +1,167 @@
+{
+  "id": "HUB",
+  "notes": [
+    "How a conversation with Captain Titus opens, comes back to the topics, and ends.",
+    "Her voice (CAPTAIN.md 1): steady, dry, tired, plain. She owns her decisions and",
+    "does not make speeches. She never says who the player is (CAPTAIN.md 6); %1 is",
+    "how she addresses them, built from what they have told her and their rank.",
+    "The promotion nodes are the only thing she does rather than says (CAPTAIN.md",
+    "4.13): a rank the player's rescues have earned, given in person."
+  ],
+  "entry": [{"go": "FIRST", "forbids": ["me:introduced"]}, {"go": "COMMISSION", "requires": ["promotionDue"], "forbids": ["ranked"]}, {"go": "PROMOTE", "requires": ["promotionDue"]}, {"go": "TOLD", "requires": ["revealDone"], "forbids": ["me:toldReveal"]}, {"go": ["AGAIN1", "AGAIN2", "AGAIN3", "AGAIN4"]}],
+  "home": [{"go": "COMMISSION", "requires": ["promotionDue"], "forbids": ["ranked"]}, {"go": "PROMOTE", "requires": ["promotionDue"]}, {"go": ["HOME1", "HOME2", "HOME3"]}],
+  "bye": [{"go": ["BYE1", "BYE2", "BYE3", "BYE4"]}],
+  "nodes": [
+    {
+      "id": "FIRST",
+      "mark": ["introduced"],
+      "lines": [
+        { "voice": "note", "text": "She looks up from a padd. She doesn't get up." },
+        { "text": "You came up off Lieutenant Shepard's shuttle. The pad logged it." },
+        { "text": "Imogen Titus. I command this ship, for what that's worth now." },
+        { "text": "I don't get many visitors from the surface. Sit, if you like." },
+        { "text": "And you are?" }
+      ],
+      "options": [
+        { "text": "%3.", "go": "NAMED", "mark": ["named"] },
+        { "text": "I'd rather not say yet.", "go": "UNNAMED" },
+        { "text": "Does it matter?", "go": "UNNAMED" }
+      ]
+    },
+    {
+      "id": "NAMED",
+      "lines": [
+        { "text": "%1. Thank you. I'll remember it." },
+        { "text": "Ask me what you need to. I'll tell you what I can." }
+      ]
+    },
+    {
+      "id": "UNNAMED",
+      "lines": [
+        { "text": "Not to me. Plenty of people down there had reasons." },
+        { "text": "Ask me what you need to. I'll tell you what I can." }
+      ]
+    },
+    {
+      "id": "COMMISSION",
+      "promote": true,
+      "lines": [
+        { "voice": "note", "text": "She stands up for this one." },
+        { "text": "You've been bringing my people home. I know about every one." },
+        { "text": "A captain out of contact acts on her own authority. So I will." },
+        { "text": "As of today you hold a field commission. %2." },
+        { "text": "I don't care what you were before. You're one of mine now." }
+      ],
+      "options": [
+        { "text": "Thank you, Captain.", "go": "HUB" },
+        { "text": "I didn't do it for a rank.", "go": "COMMISSIONX" },
+        { "text": "Does Starfleet know?", "go": "PROMOTEQ" }
+      ]
+    },
+    {
+      "id": "COMMISSIONX",
+      "lines": [
+        { "text": "I know. That's why you have one." }
+      ]
+    },
+    {
+      "id": "PROMOTE",
+      "promote": true,
+      "lines": [
+        { "voice": "note", "text": "She stands for this one too." },
+        { "text": "More of mine came up the transporter because of you." },
+        { "text": "%2, as of now. Rhel is machining the pips. Wear them." },
+        { "text": "Half my bridge officers haven't done what you've done this month." }
+      ],
+      "options": [
+        { "text": "Thank you, Captain.", "go": "HUB" },
+        { "text": "Is this real?", "go": "PROMOTEQ" }
+      ]
+    },
+    {
+      "id": "PROMOTEQ",
+      "lines": [
+        { "text": "On this ship it's real. I signed it myself." },
+        { "text": "If Starfleet ever hears from us, they can argue with me." }
+      ]
+    },
+    {
+      "id": "TOLD",
+      "mark": ["toldReveal"],
+      "lines": [
+        { "voice": "note", "text": "She reads your face before you say anything." },
+        { "text": "Shepard's told you. I can see it on you." },
+        { "text": "Sit down, %1. Ask me anything you want about it." }
+      ]
+    },
+    {
+      "id": "AGAIN1",
+      "lines": [
+        { "text": "%1. Sit down. What do you need?" }
+      ]
+    },
+    {
+      "id": "AGAIN2",
+      "lines": [
+        { "voice": "note", "text": "She puts the padd face down on the arm of the chair." },
+        { "text": "Back again. Good. Go ahead." }
+      ]
+    },
+    {
+      "id": "AGAIN3",
+      "lines": [
+        { "text": "%1. Tell me you've eaten today, and then ask." }
+      ]
+    },
+    {
+      "id": "AGAIN4",
+      "lines": [
+        { "voice": "note", "text": "The helm officer finds somewhere else to be." },
+        { "text": "You have the chair next to mine, %1. What is it?" }
+      ]
+    },
+    {
+      "id": "HOME1",
+      "lines": [
+        { "text": "What else?" }
+      ]
+    },
+    {
+      "id": "HOME2",
+      "lines": [
+        { "text": "Go on." }
+      ]
+    },
+    {
+      "id": "HOME3",
+      "lines": [
+        { "text": "Anything else, %1?" }
+      ]
+    },
+    {
+      "id": "BYE1",
+      "lines": [
+        { "text": "Go carefully down there." }
+      ]
+    },
+    {
+      "id": "BYE2",
+      "lines": [
+        { "text": "Eat something. That isn't a suggestion." }
+      ]
+    },
+    {
+      "id": "BYE3",
+      "lines": [
+        { "voice": "note", "text": "She turns the padd back over." },
+        { "text": "Come back when you have news. Or when you don't." }
+      ]
+    },
+    {
+      "id": "BYE4",
+      "lines": [
+        { "text": "Dismissed, %1. That's a joke. Mostly." }
+      ]
+    }
+  ]
+}

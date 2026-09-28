@@ -3453,7 +3453,21 @@ local function derivable(name)
         SIM.uiText = SIM.uiText or {}
         table.insert(SIM.uiText, tostring(text))
     end
-    function cls:insertNewLineOfButtons() end
+    -- Both of vanilla's ways to put a row on the stick, recorded, so a test
+    -- can see what a controller can reach. insertNewListOfButtons was missing
+    -- until the captain's panel called it: a call the engine has and the
+    -- simulation does not throws here and passes in the game, which is the
+    -- lucky way round, and still a hole.
+    function cls:insertNewLineOfButtons(...)
+        self.joypadButtonsY = self.joypadButtonsY or {}
+        table.insert(self.joypadButtonsY, { ... })
+    end
+    function cls:insertNewListOfButtons(list)
+        self.joypadButtonsY = self.joypadButtonsY or {}
+        table.insert(self.joypadButtonsY, list)
+    end
+    function cls:clearJoypadFocus() end
+    function cls:setJoypadFocusTopLeft() end
     function cls:setISButtonForB(b) self.ISButtonB = b end
     return cls
 end

@@ -54,6 +54,7 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | Installations: a warp core, replicator and EMH station in your own house | `INSTALLATIONS.md` | Built 2026-09-27, not played |
 | Contraband | `CONTRABAND.md` | Built, not played. **Needs a new world** |
 | The Borg among the dead: assimilated civilians and drones, their walk | `BORG.md` | Built 2026-09-27, not played. **Needs a new world** |
+| Captain Titus on the bridge: the story so far, as she will tell it; promotions in person | `CAPTAIN.md` | **Played** 2026-09-28 ("working well"). Sat sideways; fixed, not yet seen |
 | Dedicated server | `MULTIPLAYER.md` | Loads cleanly; **nobody has played on it** |
 
 ---
@@ -93,6 +94,8 @@ each guide's own *Not yet seen* section has the detail.
     stores, a core loaded in a house, a replicator and the Doctor on it.
 14. **The Borg** (`BORG.md` 7): sandbox on Common, a town's worth of dead;
     their look, the pieces in place, the walk, a corpse.
+15. **Captain Titus** (`CAPTAIN.md` 8): sit down with her on Deck 1, walk her
+    topics, be commissioned after a rescue, and watch log six to hear the rest.
 
 ### 2.2 The two-player session
 
@@ -175,6 +178,8 @@ Ideas, not a plan. One line each, and each points at where its reasoning is.
 - How an uncertain contact should read on the map (`MAP_MARKERS.md` 6).
 - The death screen: vanilla's lines until the ship is found, then the three
   lines (`LORE.md` 1d, parked).
+- **Captain Titus**: a night post at the ready-room desk, and whether she ever
+  asks the player to do something rather than only answering (`CAPTAIN.md` 9).
 
 **Tapes** (`LORE.md` 5). Written so far: the talent night, Tuvix, the six
 logs, the six fragments, the ensign's log, Uxbridge, Morn, Kim's exam, the

@@ -276,7 +276,10 @@ local function carryOut(z, e)
             z:setLastY(y + off[2])
         end)
     end
-    if facedSeq[z] ~= step.seq and step.fx then
+    -- A sitter is held facing the way the seat looks on every update, not
+    -- only on arrival: blending into the sit pose can turn a body (the sit
+    -- node's comment), and a turn applied after the one face would stick.
+    if step.fx and (facedSeq[z] ~= step.seq or step.k == "sit") then
         facedSeq[z] = step.seq
         local fx, fy = A.at(k, step.fx, step.fy)
         U.try("crew.face", function() z:faceLocationF(fx + 0.5, fy + 0.5) end)

@@ -1,6 +1,6 @@
 # Sickbay, the Medical Lab and the CMO's office (CREW.md 4).
 # Doctors and nurses are `medical`, lab techs `sciences`, patients `any`.
-# Never a speaker: Shepard, the Doctor, Okafor. Anwar, Vale, Rhel, th'Zoran,
+# Never a speaker: Shepard, the Doctor, Okafor. Anwar, Titus, Rhel, th'Zoran,
 # Tren and Grieg are mentioned by name, not by pronoun.
 
 # ---------------------------------------------------------------------------
@@ -932,12 +932,12 @@ nurse: ... Smiling. So who won?
 -> bet 2, end_scene 2, captain 2
 
 = captain
-medic: Remember when Captain Vale came down to referee?
+medic: Remember when Captain Titus came down to referee?
      | Did you hear the captain had to settle one last week?
-nurse: The analgesic thing? I heard Vale sat between them.
-     | Vale came down? For an argument about gauze?
-medic: Vale listened for ten minutes and said they were both right.
-     | Vale heard them out, said both were right, and left.
+nurse: The analgesic thing? I heard Titus sat between them.
+     | Titus came down? For an argument about gauze?
+medic: Titus listened for ten minutes and said they were both right.
+     | Titus heard them out, said both were right, and left.
 nurse: That's why the captain's the captain.
      | Then they argued about which one was more right.
 medic: For another hour.
@@ -1047,9 +1047,9 @@ doc: That sounds like him. Careful to the last decimal.
 = close_q
 ...
 tech2: Does the captain know?
-     | Has Captain Vale seen these?
+     | Has Captain Titus seen these?
 doc: The captain has everything we have. Every day.
-   | Vale reads every report. Asks for these ones first.
+   | Titus reads every report. Asks for these ones first.
 tech: Shepard's soil samples from March make a decent control.
     | Lieutenant Shepard's spring baselines are helping, actually.
 doc: Good. Use them. Anything from before June is precious.

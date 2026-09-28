@@ -1,0 +1,51 @@
+{
+  "id": "WHO",
+  "order": 10,
+  "title": "Who are you?",
+  "notes": [
+    "Her, and the ship as it is now. The crew's talk (design/crew/) has described her for",
+    "weeks: the ration board with her at the bottom, walking the decks at night, Tren's",
+    "list. Nothing here may contradict it."
+  ],
+  "tiers": [{"id": "1"}],
+  "entry": [{"go": "01"}],
+  "nodes": [
+    {
+      "id": "01",
+      "tier": "1",
+      "lines": [
+        { "text": "Imogen Titus. Six years in this chair." },
+        { "text": "A hundred and forty-one crew. A science ship, about Voyager's size." },
+        { "text": "We were sent to watch this planet and write down what we saw." },
+        { "text": "I thought it would be the quietest posting of my career." }
+      ],
+      "options": [
+        { "text": "What's the ship like now?", "go": "02" },
+        { "text": "How are you holding up?", "go": "03" }
+      ]
+    },
+    {
+      "id": "02",
+      "tier": "1",
+      "lines": [
+        { "text": "Stuck, and running. The core's fine. Food is rationed, not short." },
+        { "text": "Replicator time is on a board in the mess. I'm at the bottom." },
+        { "text": "The holodeck's rationed too. The crew have opinions about that." },
+        { "text": "They're good people. They go to work. That's most of it." }
+      ],
+      "options": [
+        { "text": "How are you holding up?", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "tier": "1",
+      "lines": [
+        { "voice": "note", "text": "She takes a moment over that." },
+        { "text": "I sleep when the ship does. She doesn't, much." },
+        { "text": "Ask Counselor Tren and you'll get a longer answer." },
+        { "text": "Ask me something else." }
+      ]
+    }
+  ]
+}

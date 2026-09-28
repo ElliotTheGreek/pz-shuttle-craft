@@ -189,7 +189,7 @@ def main():
     # dialogue per line of file; a hand edit that reflowed a file would turn a
     # one-sentence rewrite into a whole-file diff.
     import content
-    files = content.tape_files() + content.thread_files()
+    files = content.tape_files() + content.thread_files() + content.captain_files()
     if len(files) < 30:
         fail(f"only {len(files)} files in content/: the loader is looking in the wrong place")
     for p in files:
@@ -220,6 +220,8 @@ def main():
             fail(f"{t} is issued by the story and also stocked on the shelf "
                  f"from the first build -- a fragment on day one gives the chain away")
 
+    captain_checks()
+
     if failures:
         print(f"{len(failures)} PROBLEM(S):")
         for f in failures:
@@ -229,6 +231,162 @@ def main():
     print(f"comms: 14 broken trees refused for the right reason; the mod's "
           f"{len(gen_comms.THREADS)} threads and {nodes} nodes pass and match "
           f"what is on disk; {len(used)} keys all have text; the system flags agree")
+    print(f"captain: {CAPTAIN_REFUSALS} broken trees refused for the right reason; her "
+          f"{len(CAPT_TOPICS)} topics pass, gate their spoilers and match what is on disk; "
+          f"her conditions agree with TREK_Captain.lua")
+
+
+# ---------------------------------------------------------------------------
+# Captain Titus (CAPTAIN.md, tools/gen_captain.py)
+# ---------------------------------------------------------------------------
+import gen_captain  # noqa: E402
+
+CAPT_HUB, CAPT_TOPICS = gen_captain.load()
+CAPTAIN_REFUSALS = 0
+
+
+def capt_good():
+    """A hub and one topic that pass, to be broken one way at a time."""
+    def ln(t, voice="captain"):
+        return {"voice": voice, "text": t}
+
+    def arm(go, requires=(), forbids=()):
+        return {"go": go if isinstance(go, list) else [go],
+                "requires": list(requires), "forbids": list(forbids)}
+
+    def nd(nid, lines, options=(), tier=None, mark=(), promote=False):
+        return {"id": nid, "tier": tier, "lines": lines, "options": list(options),
+                "mark": list(mark), "promote": promote}
+
+    def op(text, go, requires=(), forbids=(), mark=()):
+        return {"text": text, "go": go, "requires": list(requires),
+                "forbids": list(forbids), "mark": list(mark)}
+
+    hub = {"id": "HUB", "order": 0, "title": "", "requires": [], "forbids": [], "tiers": [],
+           "entry": [arm("HELLO")], "home": [arm("HELLO")], "bye": [arm("GOODBYE")],
+           "nodes": [nd("HELLO", [ln("Hello.")], mark=["introduced"]),
+                     nd("GOODBYE", [ln("Goodbye.")])]}
+    topic = {"id": "T", "order": 1, "title": "A topic", "requires": [], "forbids": [],
+             "tiers": [{"id": "1", "requires": [], "forbids": []},
+                       {"id": "T", "requires": ["truth"], "forbids": []}],
+             "entry": [arm("01")], "home": [], "bye": [],
+             "nodes": [nd("01", [ln("Ask, %1.")], tier="1",
+                          options=[op("Tell me.", "02"), op("Who?", "HUB"),
+                                   op("Only if introduced.", "02", requires=["me:introduced"])]),
+                       nd("02", [ln("A Changeling.")], tier="T")]}
+    return hub, [topic]
+
+
+def capt_refused(hub, topics, why, label):
+    global CAPTAIN_REFUSALS
+    try:
+        gen_captain.validate(hub, topics, TAPES)
+    except gen_captain.Refused as exc:
+        if why not in str(exc):
+            fail(f"captain, {label}: refused, but not for '{why}': {exc}")
+        else:
+            CAPTAIN_REFUSALS += 1
+        return
+    fail(f"captain, {label}: the generator wrote a tree that should have been refused")
+
+
+def captain_checks():
+    try:
+        gen_captain.validate(*capt_good(), TAPES)
+    except gen_captain.Refused as exc:
+        fail(f"captain: the good tree is refused: {exc}")
+
+    def broken(fn, why, label):
+        hub, topics = capt_good()
+        fn(hub, topics)
+        capt_refused(hub, topics, why, label)
+
+    # The spoiler gate: the one mistake that gives the story away.
+    broken(lambda h, t: t[0]["tiers"][1].update(requires=[]),
+           "does not wait on 'truth'", "the Changeling named in an ungated tier")
+    broken(lambda h, t: t[0]["nodes"][0]["options"].append(
+               {"text": "Was it Tucker?", "go": "02", "requires": [], "forbids": [], "mark": []}),
+           "does not wait on 'goldDone'", "Tucker Gold named in an option")
+    broken(lambda h, t: t[0]["nodes"][0]["options"][0].update(go="99"),
+           "not a node of T", "an orphan go")
+    broken(lambda h, t: t[0]["nodes"].append(
+               {"id": "03", "tier": "1", "lines": [{"voice": "captain", "text": "Alone."}],
+                "options": [], "mark": [], "promote": False}),
+           "cannot be reached", "a node nobody reaches")
+    broken(lambda h, t: t[0]["nodes"][0].update(tier=None),
+           "needs a tier", "a topic node with no tier")
+    broken(lambda h, t: t[0]["nodes"][0].update(tier="9"),
+           "is not one T declares", "a tier the topic does not declare")
+    broken(lambda h, t: t[0]["nodes"][0]["options"][0].update(requires=["nothingSetsThis"]),
+           "neither she nor the channel knows", "a condition nobody answers")
+    broken(lambda h, t: t[0]["nodes"][0]["options"][2].update(requires=["me:neverMarked"]),
+           "which no node or option marks", "a mark nothing sets")
+    broken(lambda h, t: t[0].update(title="An extremely long topic title for a button"),
+           "over 32", "a title too wide for its button")
+    broken(lambda h, t: t[0]["nodes"][0]["options"][0].update(text="Tell me \u2014 now."),
+           "must be ASCII", "an option that will not upper-case")
+    broken(lambda h, t: t[0]["nodes"][0]["lines"][0].update(text="Ask, %3."),
+           "is not one she may use", "her line using your name token")
+    broken(lambda h, t: t[0]["nodes"][0]["options"][0].update(text="Tell me, %1."),
+           "is hers, not yours", "your option using her token")
+    broken(lambda h, t: h["bye"][0].update(requires=["truth"]),
+           "must be unconditional", "a goodbye that can fail")
+    broken(lambda h, t: h["nodes"][1].update(id="BYE"),
+           "not node ids", "a node named like a target")
+    broken(lambda h, t: t[0]["nodes"][0]["lines"][0].update(text="x" * 71),
+           "over 70", "a line too long for the panel")
+
+    # What is on disk is what the generator writes now.
+    try:
+        gen_captain.validate(CAPT_HUB, CAPT_TOPICS, TAPES)
+    except gen_captain.Refused as exc:
+        fail(f"captain: the mod's own tree is refused: {exc}")
+        return
+    if len(CAPT_TOPICS) < 10:
+        fail(f"captain: only {len(CAPT_TOPICS)} topics came out of content/captain")
+
+    def capt(path):
+        return {k: v for k, v in json.loads(path.read_text(encoding="utf-8")).items()
+                if k.startswith(gen_captain.PREFIX)}
+
+    real_lua, real_js = gen_captain.outputs(ROOT / "TrekShuttle/42")
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        (base / "media/lua/shared/TREK").mkdir(parents=True)
+        (base / "media/lua/shared/Translate/EN").mkdir(parents=True)
+        lua, js = gen_captain.outputs(base)
+        gen_captain.write_lua(lua, CAPT_HUB, CAPT_TOPICS)
+        gen_captain.write_text(js, gen_captain.build(CAPT_HUB, CAPT_TOPICS))
+        if lua.read_text(encoding="utf-8") != real_lua.read_text(encoding="utf-8"):
+            fail("captain: TREK_CaptainTree.lua is not what tools/gen_captain.py writes now -- run it")
+        if capt(js) != capt(real_js):
+            fail("captain: Print_Text.json is not what tools/gen_captain.py writes now -- run it")
+    tree = real_lua.read_text(encoding="utf-8")
+    text = capt(real_js)
+    used = set(re.findall(r'"(Print_Text_TREK_CAPT_[A-Za-z0-9_]+)"', tree))
+    if len(used) < 200 or len(text) < 200:
+        fail(f"captain: only {len(used)} keys in the tree and {len(text)} in the text: "
+             f"the pattern has stopped matching")
+    for k in sorted(used - set(text)):
+        fail(f"captain: the tree names {k} and Print_Text.json has no text for it")
+    for k in sorted(set(text) - used):
+        fail(f"captain: Print_Text.json has {k} and her tree never names it")
+
+    # The conditions the generator trusts are the ones TREK_Captain.check answers.
+    code = (ROOT / "TrekShuttle/42/media/lua/shared/TREK/TREK_Captain.lua").read_text(encoding="utf-8")
+    answered = set(re.findall(r'cond == "(\w+)"', code))
+    answered |= {m + ">=" for m in re.findall(r'cond:match\("\^(\w+)>=', code)}
+    want = set()
+    for p in gen_captain.CAPTAIN_DYNAMIC:
+        m = re.match(r"^\^(\w+)", p.pattern)
+        want.add(m.group(1) + (">=" if ">=" in p.pattern else ""))
+    if len(want) < 6 or len(answered) < 6:
+        fail(f"captain: {len(want)} conditions in the generator and {len(answered)} in the "
+             f"Lua: the pattern has stopped matching")
+    for c in sorted(want - answered):
+        fail(f"captain: gen_captain.py trusts TREK_Captain.check to answer '{c}' and it does not")
+    for c in sorted(answered - want):
+        fail(f"captain: TREK_Captain.check answers '{c}' and the generator does not know it")
 
 
 if __name__ == "__main__":

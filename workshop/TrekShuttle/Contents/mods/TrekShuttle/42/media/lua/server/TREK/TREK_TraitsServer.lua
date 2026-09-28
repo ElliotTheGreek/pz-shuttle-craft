@@ -104,6 +104,11 @@ function S.earnedRank(player)
 end
 
 --- A rescue credited to this character. Called by TREK_Missions.
+---
+--- **The rank is earned here and given by the captain** (CAPTAIN.md 4.13):
+--- a rescue that earns one tells the player she wants to see them, and
+--- TREK_CaptainServer confers it on the bridge. Nothing is lost by waiting --
+--- `earnedRank` is worked out from the count whenever she asks.
 function S.onRescue(player)
     if not alive(player) then return end
     local data = md(player)
@@ -112,11 +117,10 @@ function S.onRescue(player)
     local was = T.rank(player)
     local now = S.earnedRank(player)
     if now > was then
-        S.setRank(player, now)
-        T.note(player, "IGUI_TREK_Promoted", getText("UI_trait_trek_" .. C.Ranks[now]),
+        T.note(player, "IGUI_TREK_PromotionDue", getText("UI_trait_trek_" .. C.Ranks[now]),
                255, 220, 120)
-        U.log("traits: %s promoted to %s (%d rescue(s))", Ship.usernameOf(player),
-              C.Ranks[now], data[C.RescuesKey])
+        U.log("traits: %s has earned %s (%d rescue(s)); the captain will see them",
+              Ship.usernameOf(player), C.Ranks[now], data[C.RescuesKey])
     end
 end
 

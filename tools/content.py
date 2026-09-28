@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTENT = ROOT / "content"
 TAPES_DIR = CONTENT / "tapes"
 COMMS_DIR = CONTENT / "comms"
+CAPTAIN_DIR = CONTENT / "captain"
 
 
 # ---------------------------------------------------------------------------
@@ -31,6 +32,11 @@ def tape_files():
 
 def thread_files():
     return sorted(COMMS_DIR.glob("*.json"))
+
+
+def captain_files():
+    """Captain Titus's topics and HUB.json (CAPTAIN.md, tools/gen_captain.py)."""
+    return sorted(CAPTAIN_DIR.glob("*.json"))
 
 
 def load_tapes():

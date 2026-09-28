@@ -1,0 +1,63 @@
+{
+  "id": "FEB",
+  "order": 30,
+  "title": "What happened in February?",
+  "notes": [
+    "9 February: warp and impulse cut from inside. Intact, crewed, fed, going nowhere;",
+    "long-range dark since; the transporters work (LORE.md 1b). Nothing about who."
+  ],
+  "tiers": [{"id": "1"}],
+  "entry": [{"go": "01"}],
+  "nodes": [
+    {
+      "id": "01",
+      "tier": "1",
+      "lines": [
+        { "text": "Ninth of February, oh-three-forty. Warp and impulse went together." },
+        { "text": "Not a fault. Somebody aboard cut them, and knew where to cut." },
+        { "text": "Rhel has been over it a hundred times. Clean work. Nobody saw." },
+        { "text": "We have power, air, food and transporters. We can't leave." }
+      ],
+      "options": [
+        { "text": "Can't you call for help?", "go": "02" },
+        { "text": "How long to repair her?", "go": "03" },
+        { "text": "Who did it?", "go": "04" }
+      ]
+    },
+    {
+      "id": "02",
+      "tier": "1",
+      "lines": [
+        { "text": "Long-range went dark the same hour. It hasn't come back." },
+        { "text": "Starfleet doesn't know we're here. There was nothing to file." },
+        { "text": "Nobody is coming. I say it out loud so I stop listening for them." }
+      ],
+      "options": [
+        { "text": "How long to repair her?", "go": "03" },
+        { "text": "Who did it?", "go": "04" }
+      ]
+    },
+    {
+      "id": "03",
+      "tier": "1",
+      "lines": [
+        { "text": "Rhel says a year, with a starbase. We don't have a starbase." },
+        { "text": "He talks to the core at night. I don't stop him." },
+        { "text": "The transporters are what matter. They're how we reach anyone." }
+      ],
+      "options": [
+        { "text": "Can't you call for help?", "go": "02" },
+        { "text": "Who did it?", "go": "04" }
+      ]
+    },
+    {
+      "id": "04",
+      "tier": "1",
+      "lines": [
+        { "text": "I have a hundred and forty-one suspects and no proof." },
+        { "text": "Whoever it was didn't want us gone. They wanted us blind." },
+        { "text": "Ask me about the county. That's when it started to make sense." }
+      ]
+    }
+  ]
+}

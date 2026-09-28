@@ -57,5 +57,16 @@
     "Sandbox_TrekShuttle.HydroponicsWater": "Hydroponics tend themselves",
     "Sandbox_TrekShuttle.HydroponicsWater_tooltip": "Crops in the Adirondack's hydroponic trays are watered and kept free of pests and disease by the ship: plant them and harvest them. Off, they need tending like any other crop. Crops planted in the ground are never tended.",
     "Sandbox_TrekShuttle.HydroponicsWater_option1": "Yes",
-    "Sandbox_TrekShuttle.HydroponicsWater_option2": "No"
+    "Sandbox_TrekShuttle.HydroponicsWater_option2": "No",
+    "Sandbox_TrekShuttle.Borg": "Borg among the dead",
+    "Sandbox_TrekShuttle.Borg_tooltip": "How many of the dead the nanoprobes finished with: assimilated civilians with an eyepiece and a cranial plate, and drones in armour. They walk upright and never run. As common as police is about one zombie in two hundred. A change reaches zombies made after the world is next loaded; the dead already walking keep what they are.",
+    "Sandbox_TrekShuttle.Borg_option1": "As common as police",
+    "Sandbox_TrekShuttle.Borg_option2": "Scarce",
+    "Sandbox_TrekShuttle.Borg_option3": "Common",
+    "Sandbox_TrekShuttle.Borg_option4": "None",
+    "Sandbox_TrekShuttle.CaptainTruth": "Captain tells the truth",
+    "Sandbox_TrekShuttle.CaptainTruth_tooltip": "When Captain Titus, on the Adirondack's bridge, will tell a player what her people believe caused the plague. Until then she tells them everything else and says there is more. 'When it is earned' is once Shepard has told it on the channel, or the player has watched Shepard's last log, or has brought two of the crew home.",
+    "Sandbox_TrekShuttle.CaptainTruth_option1": "Only once Shepard has told it",
+    "Sandbox_TrekShuttle.CaptainTruth_option2": "When it is earned",
+    "Sandbox_TrekShuttle.CaptainTruth_option3": "From the first conversation"
 }

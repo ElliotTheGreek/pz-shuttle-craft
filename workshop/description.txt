@@ -17,6 +17,9 @@ A cabin with a helm, a working galley, running water, a biobed, a sick bay, a re
 THE U.S.S. ADIRONDACK
 A working starship in orbit. Beam across from the shuttle and ride the turbolifts between five decks: the Bridge, the Lounge, Galley and crew quarters, the Transporter Room and Sickbay, Main Engineering, and Hydroponics. Fifty new pieces of Starfleet furniture -- seats, beds, doors that open as you walk up, and stocked lockers. She has a crew: officers of every division and several species ride the lifts, walk to their posts, sit, and talk about the ship, the county and you.
 
+CAPTAIN TITUS
+Sit down with the Adirondack's captain on her bridge and ask what happened here. She tells you what the ship knows as the story unfolds, marks what is new, points you where to look -- and keeps one thing back until you have earned it.
+
 JEFFERIES TUBES AND CONTRABAND
 Crawl between the Adirondack's decks through Jefferies tubes, over the stars. Three hideouts off them hold what the off-watch crew keep from the first officer: ketracel-white, felicium, Trellium-D, the Ktarian game, latinum -- and other cultures' weapons. Some of it is habit-forming; the Doctor will detox you.
 
@@ -48,7 +51,7 @@ THE DOCTOR
 An Emergency Medical Hologram treats what the hypospray and regenerator cannot, for energy. He is the only cure for a zombie bite: one whole crystal and twelve hours aboard.
 
 SPECIES, PROFESSIONS AND RANK
-Play a Vulcan, Klingon, Andorian, Betazoid, Trill, Bajoran, Talaxian, Orion, android or liberated Borg -- each with its own strengths, price, look and home cooking -- or a human. Seven Starfleet professions: command, helm, engineering, security, medical, science and cultural survey, each with its own perk and kit. New traits: Transporter Phobia, Spacesick, Real Food Only, Starfleet Academy, Holo-historian. Rescue downed ensigns to rise from Ensign through Lieutenant (j.g.), Lieutenant and Lieutenant Commander to Commander.
+Play a Vulcan, Klingon, Andorian, Betazoid, Trill, Bajoran, Talaxian, Orion, android or liberated Borg -- each with its own strengths, price, look and home cooking -- or a human. Seven Starfleet professions: command, helm, engineering, security, medical, science and cultural survey, each with its own perk and kit. New traits: Transporter Phobia, Spacesick, Real Food Only, Starfleet Academy, Holo-historian. Rescue downed ensigns to rise from Ensign through Lieutenant (j.g.), Lieutenant and Lieutenant Commander to Commander -- promoted in person by the captain.
 
 SHIELDS
 Nothing dead gets within ten tiles of the landed ship. They are pushed back, not killed. Raise them at the helm.
@@ -64,7 +67,7 @@ QUICK GUIDE
 - Phasers: right-click a tree or a locked door to cut through it.
 
 MULTIPLAYER
-Fully multiplayer compatible and server-authoritative: everyone shares one shuttle and one Adirondack. Dedicated servers: add the map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY. Single player and in-game hosting add it for you. The sandbox Shuttlecraft page covers access, transporter charges, torpedo fire, the replicator, the start mode, wild dilithium, the Doctor, hover height, first contact, phaser cutting and hydroponics.
+Fully multiplayer compatible and server-authoritative: everyone shares one shuttle and one Adirondack. Dedicated servers: add the map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY. Single player and in-game hosting add it for you. The sandbox Shuttlecraft page covers access, transporter charges, torpedo fire, the replicator, the start mode, wild dilithium, the Doctor, hover height, first contact, the captain's secret, phaser cutting and hydroponics.
 
 REQUIREMENTS
 Build 42. The hull needs three tiles by five of clear ground to land. One shuttle per world.

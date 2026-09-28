@@ -11354,14 +11354,28 @@ def traits():
     # --- rank from rescues ----------------------------------------------------
     fresh_traits(rt)
     rt.run(f"{P}.modData = {{ TREKTraitsRev = TREK.Config.TraitsInitRev }}")
+    # **Earned by the rescue, given by the captain** (CAPTAIN.md 4.13): a
+    # rescue says she wants to see them and changes no trait; captain() is
+    # where the rank is conferred.
+    rt.run("SIM.notes = {}")
     rt.run(f"TREK.TraitsServer.onRescue({P})")
-    check(has_trait(rt, "rank_ensign"), "traits: a first rescue gave no field commission")
+    check(not has_trait(rt, "rank_ensign"),
+          "traits: a first rescue commissioned the rescuer without the captain")
+    check(any("IGUI_TREK_PromotionDue" in n for n in rt.notes()),
+          f"traits: a first rescue did not send them to the captain: {rt.notes()}")
+    check(rt.eval(f"TREK.Captain.promotionDue({P})") is True,
+          "traits: a first rescue left no promotion due")
     for _ in range(2):
         rt.run(f"TREK.TraitsServer.onRescue({P})")
+    check(int(rt.eval(f"TREK.TraitsServer.earnedRank({P})")) == 2,
+          "traits: three rescues did not earn a lieutenant (j.g.)")
+    rt.run(f"TREK.TraitsServer.setRank({P}, 2)")
     check(has_trait(rt, "rank_ltjg") and not has_trait(rt, "rank_ensign"),
-          "traits: three rescues did not make a lieutenant (j.g.), or left the old pip")
+          "traits: setting lieutenant (j.g.) left another pip")
     check(int(rt.eval("(TREK.Traits.rank(SIM.players[1]))")) == 2,
           "traits: rank() does not read the rank back")
+    check(rt.eval(f"TREK.Captain.promotionDue({P})") is False,
+          "traits: a rank given still reads as due")
 
     # --- the transporter ------------------------------------------------------
     fresh_traits(rt)
@@ -11620,17 +11634,15 @@ def traits_multiplayer():
     check(stat(kira, "kira", "UNHAPPINESS") == 50,
           "traits mp: a client judged a meal itself")
 
-    # A promotion: the server's trait set, synced, and a note to the rescuer.
+    # A rescue: a promotion due, told to the rescuer alone. The rank itself
+    # is the captain's to give (captain_multiplayer).
     srv.run(f"TREK.TraitsServer.onRescue({who(srv, 'kira')})")
     net.pump(4)
-    check(srv.eval(f"{who(srv, 'kira')}:hasTrait(TREK_Registries.Traits.rank_ensign)") is True,
-          "traits mp: the server's copy was not commissioned")
-    synced = [str(srv.eval(f"SIM.syncedFields[{i}].who")) for i in
-              range(1, int(srv.eval("#SIM.syncedFields")) + 1)]
-    check("kira" in synced, "traits mp: a rank change was never sent with sendSyncPlayerFields")
-    check(any("IGUI_TREK_Promoted" in n for n in kira.notes()),
+    check(srv.eval(f"TREK.Captain.promotionDue({who(srv, 'kira')})") is True,
+          "traits mp: the server's copy has no promotion due")
+    check(any("IGUI_TREK_PromotionDue" in n for n in kira.notes()),
           f"traits mp: the rescuer's client said {kira.notes()}")
-    check(not any("IGUI_TREK_Promoted" in n for n in odo.notes()),
+    check(not any("IGUI_TREK_PromotionDue" in n for n in odo.notes()),
           "traits mp: somebody else was told about the promotion")
 
     # A client never grants XP: the engine's addXp does nothing there.
@@ -13041,6 +13053,508 @@ def crew_multiplayer():
     print(f"crew multiplayer: the server brought {n} aboard; alice walked them, bob saw them "
           f"move; both dressed them and heard them")
 
+
+
+# --- Captain Titus (CAPTAIN.md) ------------------------------------------------------
+
+CAPT_NEAR = """(function()
+    -- An open square inside the bridge two south of her chair: in reach, and
+    -- not the chair itself.
+    local Cap, A = TREK.Captain, TREK.Adirondack
+    local k, lx, ly = Cap.chair()
+    for _, d in ipairs({ {0, 2}, {1, 2}, {-1, 2}, {0, 3}, {2, 1}, {-2, 1} }) do
+        local x, y = lx + d[1], ly + d[2]
+        if A.inside(k, x, y) and not TREK.Crew.busy(k)[x .. "," .. y] then return x, y end
+    end
+end)()"""
+
+
+def capt_goto(rt, who=1, far=False):
+    """Stands a player on the bridge beside her chair, or on the bridge and out
+    of her reach."""
+    if far:
+        rt.run(f"""(function()
+            local Cap, A, C = TREK.Captain, TREK.Adirondack, TREK.Config
+            local k, cx, cy = Cap.chair()
+            local L = A.Layout
+            for ly = 0, L.H - 1 do for lx = 0, L.W - 1 do
+                if A.inside(k, lx, ly) and not TREK.Crew.busy(k)[lx .. "," .. ly]
+                   and (lx - cx) ^ 2 + (ly - cy) ^ 2 > (C.CaptainReach + 2) ^ 2 then
+                    local x, y = A.at(k, lx, ly)
+                    local p = SIM.players[{who}]
+                    p.x, p.y, p.z, p.lastZ = x + 0.5, y + 0.5, A.Z, A.Z
+                    return
+                end
+            end end
+        end)()""")
+        return
+    lx, ly = rt.eval(CAPT_NEAR)
+    rt.run(f"""(function()
+        local A = TREK.Adirondack
+        local x, y = A.at(TREK.Config.CaptainDeck, {int(lx)}, {int(ly)})
+        local p = SIM.players[{who}]
+        p.x, p.y, p.z, p.lastZ = x + 0.5, y + 0.5, A.Z, A.Z
+    end)()""")
+
+
+def capt_menu(rt, at_chair=True):
+    """Right-clicks her chair (or a square well away from it) and returns the
+    labels: the way a player reaches her."""
+    rt.run(f"""
+        local Cap = TREK.Captain
+        local x, y = Cap.chairSquare()
+        if not {str(at_chair).lower()} then x, y = x - 7, y end
+        local p = SIM.players[1]
+        SIM.aim.dx = x + 0.5 - p.x
+        SIM.aim.dy = y + 0.5 - p.y
+        captMenu = SIM.contextMenu()
+        TREK.CaptainUI.fillMenu(0, captMenu, {{}}, false)
+    """)
+    return str(rt.eval("captMenu:labels()"))
+
+
+def capt_reply(rt, field="node"):
+    v = rt.eval(f"TREK.CaptainUI.reply and TREK.CaptainUI.reply.{field}")
+    return None if v is None else (str(v) if not isinstance(v, bool) else v)
+
+
+def capt_ask(rt, args, pump=None):
+    rt.run(f"""(function()
+        local r = TREK.CaptainUI.reply
+        local a = {args}
+        a.node = a.node or (r and r.node)
+        TREK.Core.send(SIM.players[1], "captainAsk", a)
+    end)()""")
+    if pump:
+        pump(4)
+
+
+def capt_topics(rt):
+    """The hub's topics as the panel has them: [(id, new)]."""
+    n = int(rt.eval("TREK.CaptainUI.reply and TREK.CaptainUI.reply.topics "
+                    "and #TREK.CaptainUI.reply.topics or 0"))
+    return [(str(rt.eval(f"TREK.CaptainUI.reply.topics[{i}].id")),
+             rt.eval(f"TREK.CaptainUI.reply.topics[{i}].new") is True) for i in range(1, n + 1)]
+
+
+def capt_avail(rt):
+    """The options offered on the node the panel is showing, as option indices."""
+    n = int(rt.eval("#(TREK.CaptainUI.reply and TREK.CaptainUI.reply.avail or {})"))
+    return [int(rt.eval(f"TREK.CaptainUI.reply.avail[{i}]")) for i in range(1, n + 1)]
+
+
+def capt_goes(rt):
+    """Where each offered option goes: [node id]."""
+    return [str(rt.eval(f"TREK_CaptainTree.nodes[TREK.CaptainUI.reply.node].options[{i}].go"))
+            for i in capt_avail(rt)]
+
+
+def capt_index(rt, go):
+    """The option index on the current node that goes to `go`, if offered."""
+    for i in capt_avail(rt):
+        if str(rt.eval(f"TREK_CaptainTree.nodes[TREK.CaptainUI.reply.node].options[{i}].go")) == go:
+            return i
+    return None
+
+
+def capt_watch(rt, name, tape="TREK_LogSix"):
+    """Has the server's copy of a player hear every line of a tape, which is
+    what a real viewing does (TREK_Comms.watched)."""
+    rt.run(f"""(function()
+        local data = getZomboidRadio():getRecordedMedia():getMediaData("{tape}")
+        for _, p in ipairs(SIM.players) do
+            if p.name == "{name}" then
+                for _, ln in ipairs(data.lines) do p:addKnownMediaLine(ln.text) end
+            end
+        end
+    end)()""")
+
+
+CAPT_SAID = """
+    -- Every crewSay the director sends, by speaker id, so a test can see
+    -- that the captain never speaks in a scene or a bark.
+    captSaid = {}
+    local toAll = TREK.Net.toAll
+    TREK.Net.toAll = function(cmd, args)
+        if cmd == "crewSay" then captSaid[tostring(args.id)] = true end
+        return toAll(cmd, args)
+    end
+"""
+
+
+def capt_body(rt):
+    """(her crew id, her step kind, step x, step y, name) or Nones."""
+    got = rt.eval("""(function()
+        for id, e in pairs(TREK.Crew.state().crew) do
+            if e.captain then
+                local st = e.step or {}
+                return id, st.k, st.x, st.y, e.name
+            end
+        end
+    end)()""")
+    return got if isinstance(got, tuple) else (None,) * 5
+
+
+def captain():
+    """Captain Titus: sat in her chair and never in a scene, offered at her
+    chair and nowhere else, a conversation that opens, lists her topics with
+    their NEW marks, keeps her secret until the sandbox's gate opens, confers a
+    promotion a rescue earned, says goodbye, and changes nothing in the story."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('solo', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run(ADK_SETUP)
+    P = "SIM.players[1]"
+    to_adirondack(net, rt, P)
+    if died(rt, "captain, beaming across"):
+        return
+    capt_goto(rt)
+    net.pump(40)
+    check(rt.eval(f"TREK.Captain.inReach({P})") is True, "captain: beside her chair is out of reach")
+    check(adk_where(rt) == int(rt.eval("TREK.Config.CaptainDeck")), "captain: not on her deck")
+
+    # --- her body -------------------------------------------------------------
+    rt.run(CREW_FAST)
+    rt.run(CAPT_SAID)
+    net.pump(600)
+    cid, kind, sx, sy, name = capt_body(rt)
+    ck, clx, cly, _ = rt.eval("TREK.Captain.chair()")
+    check(cid is not None, "captain: nobody is sat in the captain's chair")
+    check(str(name) == "Captain Titus", f"captain: the chair holds {name!r}")
+    check(kind == "sit" and (sx, sy) == (clx, cly),
+          f"captain: her step is {kind} at {sx},{sy}, not sitting in her chair at {clx},{cly}")
+    n_capt = int(rt.eval("(function() local n = 0 for _, e in pairs(TREK.Crew.state().crew) "
+                         "do if e.captain then n = n + 1 end end return n end)()"))
+    check(n_capt == 1, f"captain: {n_capt} captains on the bridge")
+    net.pump(2400)
+    cid2 = capt_body(rt)[0]
+    check(cid2 == cid, "captain: she left her chair (or was replaced) while you were on the bridge")
+    check(int(rt.eval("TREK.CrewServer.stats.lines")) > 0,
+          "captain: the bridge crew never spoke, so 'she never did' proves nothing")
+    check(rt.eval(f'captSaid["{cid}"]') is None,
+          "captain: she spoke a crew line; her words are her panel's alone")
+    others = int(rt.eval("""(function() local n = 0
+        for _, e in pairs(TREK.Crew.state().crew) do
+            if e.deck == TREK.Config.CaptainDeck and not e.captain then n = n + 1 end
+        end return n end)()"""))
+    check(others <= int(rt.eval("TREK.Crew.Population[TREK.Config.CaptainDeck]")),
+          f"captain: {others} crew besides her; she was counted against the deck")
+
+    # --- the way in ------------------------------------------------------------
+    speak = "IGUI_TREK_CaptSpeak"
+    check(speak in capt_menu(rt), "captain: right-clicking her chair offers nothing")
+    check(speak not in capt_menu(rt, at_chair=False),
+          "captain: she is offered on a square well away from her chair")
+    capt_goto(rt, far=True)
+    net.pump(2)
+    labels = capt_menu(rt)
+    check(speak in labels and rt.eval(f'captMenu:find("{speak}").notAvailable') is True,
+          "captain: from across the bridge she is hidden or live, not greyed with a reason")
+    # And the server refuses it too: the menu is a courtesy, the check is the server's.
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.send({P}, 'captainTalk', {{}})")
+    net.pump(4)
+    check(rt.eval("TREK.CaptainServer.sessions.solo") is None
+          and any("IGUI_TREK_CaptFar" in n for n in rt.notes()),
+          f"captain: the server opened a conversation from across the bridge: {rt.notes()}")
+    capt_goto(rt)
+    net.pump(2)
+
+    # --- first meeting ----------------------------------------------------------
+    flags_before = str(rt.eval("""(function()
+        local d, out = TREK.Comms.store(), {}
+        for k in pairs(d.flags) do table.insert(out, k) end
+        for k in pairs(d.fired) do table.insert(out, "fired:" .. k) end
+        table.sort(out) return table.concat(out, ",") .. "#" .. tostring(d.rescued)
+    end)()"""))
+    capt_menu(rt)
+    rt.run(f'captMenu:click("{speak}")')
+    net.pump(4)
+    check(rt.eval("TREK.CaptainUI.window ~= nil") is True, "captain: speaking to her opened no panel")
+    check(capt_reply(rt) == "HUB_FIRST", f"captain: she opened with {capt_reply(rt)}, not an introduction")
+    check(len(capt_avail(rt)) == 3, f"captain: {capt_avail(rt)} answers to 'and you are?'")
+    check(rt.eval("TREK.CaptainUI.window.optBtns[1].visible") is True,
+          "captain: the panel shows none of the answers")
+    rt.run("TREK.CaptainUI.window.optBtns[1]:click()")
+    net.pump(4)
+    check(capt_reply(rt) == "HUB_NAMED", f"captain: giving your name went to {capt_reply(rt)}")
+    check(rt.eval(f"TREK.Captain.record({P}).marks.named") is True,
+          "captain: she was told a name and did not keep it")
+    topics = capt_topics(rt)
+    check(len(topics) >= 10, f"captain: only {len(topics)} topics on her list")
+    check(all(new for _, new in topics), "captain: a topic nobody has asked about is not NEW")
+    check(rt.eval("TREK.CaptainUI.window.topicBtns[1].visible") is True,
+          "captain: the panel shows none of her topics")
+    shown = int(rt.eval("(function() local n = 0 for _, b in ipairs(TREK.CaptainUI.window.topicBtns) "
+                        "do if b.visible then n = n + 1 end end return n end)()"))
+    check(shown == len(topics), f"captain: {shown} topic buttons for {len(topics)} topics")
+
+    # --- a topic, and back -------------------------------------------------------
+    capt_ask(rt, '{ topic = "FEB" }', net.pump)
+    check(capt_reply(rt) == "FEB_01", f"captain: February opened on {capt_reply(rt)}")
+    # A stale answer whose option number is also on offer here -- a double
+    # click landing on the next screen. Only the node check can refuse it; the
+    # offered check alone would take it (DEV_GUIDE.md, two guards that cover
+    # each other).
+    rt.run("SIM.notes = {}")
+    capt_ask(rt, '{ node = "HUB_FIRST", o = 1 }', net.pump)
+    check(capt_reply(rt) == "FEB_01" and any("IGUI_TREK_CaptStale" in n for n in rt.notes()),
+          f"captain: an answer to the introduction moved February to {capt_reply(rt)}")
+    capt_ask(rt, "{ back = true }", net.pump)
+    check(str(capt_reply(rt)).startswith("HUB_HOME"), f"captain: back went to {capt_reply(rt)}")
+    check(dict(capt_topics(rt)).get("FEB") is False, "captain: February is still NEW once heard")
+
+    # --- refused, and said so ------------------------------------------------------
+    rt.run("SIM.notes = {}")
+    capt_ask(rt, '{ node = "HUB_FIRST", o = 1 }', net.pump)
+    check(any("IGUI_TREK_CaptStale" in n for n in rt.notes()),
+          f"captain: an answer to a node long gone was not refused out loud: {rt.notes()}")
+    capt_ask(rt, '{ topic = "NOPE" }', net.pump)
+    check(str(capt_reply(rt)).startswith("HUB_HOME"), "captain: a topic that is not hers moved the talk")
+
+    # --- the secret, under the sandbox's default --------------------------------------
+    rt.run("SandboxVars.TrekShuttle.CaptainTruth = nil")
+    capt_ask(rt, '{ topic = "WHODID" }', net.pump)
+    goes = capt_goes(rt)
+    check("WHODID_T1" not in goes, "captain: she named the Changeling to a stranger")
+    check("WHODID_05" in goes, "captain: the truth is shut and she does not say there is more")
+    capt_ask(rt, f'{{ o = {1} }}', net.pump)
+    check(capt_reply(rt) == "WHODID_01", "captain: an option she never offered was taken")
+    # Two rescues earn it (C.CaptainTruthRescues). The rank they are worth is
+    # held level, or the next step is -- rightly -- a commission.
+    rt.run(f"{P}:getModData()[TREK.Config.RescuesKey] = TREK.Config.CaptainTruthRescues")
+    rt.run(f"TREK.TraitsServer.setRank({P}, TREK.TraitsServer.earnedRank({P}))")
+    capt_ask(rt, "{ back = true }", net.pump)
+    check(dict(capt_topics(rt)).get("WHODID") is True,
+          "captain: the truth opened and 'Who did this?' is not NEW")
+    capt_ask(rt, '{ topic = "WHODID" }', net.pump)
+    i = capt_index(rt, "WHODID_T1")
+    check(i is not None, "captain: two rescues did not earn the truth")
+    fresh = [int(rt.eval(f"TREK.CaptainUI.reply.fresh[{k}]"))
+             for k in range(1, int(rt.eval("#TREK.CaptainUI.reply.fresh")) + 1)]
+    check(i in fresh, "captain: the question that opened is not marked fresh")
+    if i is not None:
+        capt_ask(rt, f"{{ o = {i} }}", net.pump)
+        check(capt_reply(rt) == "WHODID_T1", f"captain: the truth went to {capt_reply(rt)}")
+        said = str(rt.eval("(function() local out = {} for _, r in ipairs("
+                           "TREK.CaptainUI.window:speech(400)) do "
+                           "if r.text then table.insert(out, r.text) end end "
+                           "return table.concat(out, '~') end)()"))
+        check("WHODID_T1_L2" in said, f"captain: the panel does not draw her lines: {said[:200]}")
+    rt.run(f"{P}:getModData()[TREK.Config.RescuesKey] = 0")
+    rt.run(f"TREK.TraitsServer.setRank({P}, 0)")
+
+    # --- the three settings, and the tape --------------------------------------------
+    def truth():
+        return rt.eval(f"TREK.Captain.truth({P})") is True
+    rt.run("SandboxVars.TrekShuttle.CaptainTruth = 1")
+    capt_watch(rt, "solo")
+    rt.run(f"{P}:getModData()[TREK.Config.RescuesKey] = 5")
+    check(not truth(), "captain: 'only once Shepard has told it' opened on a tape and five rescues")
+    rt.run("TREK.Comms.store().flags.revealDone = true")
+    check(truth(), "captain: 'only once Shepard has told it' stayed shut after the reveal")
+    rt.run("TREK.Comms.store().flags.revealDone = nil")
+    rt.run(f"{P}:getModData()[TREK.Config.RescuesKey] = 0")
+    rt.run("SandboxVars.TrekShuttle.CaptainTruth = 2")
+    check(truth(), "captain: 'when it is earned' ignored Shepard's last log")
+    rt.run(f"{P}.knownLines = nil")
+    check(not truth(), "captain: 'when it is earned' opened with nothing earned")
+    rt.run("SandboxVars.TrekShuttle.CaptainTruth = 3")
+    check(truth(), "captain: 'from the first conversation' stayed shut")
+    rt.run("SandboxVars.TrekShuttle.CaptainTruth = nil")
+
+    # --- a tier opening makes an old topic NEW again -----------------------------------
+    capt_ask(rt, "{ back = true }", net.pump)
+    capt_ask(rt, '{ topic = "COUNTY" }', net.pump)
+    capt_ask(rt, "{ back = true }", net.pump)
+    check(dict(capt_topics(rt)).get("COUNTY") is False, "captain: the county stays NEW once heard")
+    rt.run("TREK.Comms.store().flags.scienceDone = true")
+    capt_ask(rt, '{ topic = "COUNTY" }', net.pump)
+    capt_ask(rt, "{ back = true }", net.pump)
+    # One question into it, and it is NEW until that question is asked.
+    check(dict(capt_topics(rt)).get("COUNTY") is True,
+          "captain: the Doctor's findings opened a tier and the county is not NEW")
+    capt_ask(rt, '{ topic = "COUNTY" }', net.pump)
+    j = capt_index(rt, "COUNTY_20")
+    check(j is not None, "captain: the Doctor's findings are not offered after the science call")
+    if j is not None:
+        capt_ask(rt, f"{{ o = {j} }}", net.pump)
+    capt_ask(rt, "{ back = true }", net.pump)
+    check(dict(capt_topics(rt)).get("COUNTY") is False, "captain: asked, and the county is still NEW")
+    rt.run("TREK.Comms.store().flags.scienceDone = nil")
+
+    # --- a promotion, in person -----------------------------------------------------------
+    rt.run(f"TREK.TraitsServer.onRescue({P})")
+    check(not has_trait(rt, "rank_ensign"), "captain: the rescue commissioned them by itself")
+    rt.run("SIM.notes = {}")
+    capt_ask(rt, '{ topic = "YOU" }', net.pump)
+    capt_ask(rt, "{ back = true }", net.pump)
+    check(capt_reply(rt) == "HUB_COMMISSION", f"captain: a promotion was due and she said {capt_reply(rt)}")
+    check(has_trait(rt, "rank_ensign"), "captain: the commission did not give the rank")
+    check(any("IGUI_TREK_Promoted" in n for n in rt.notes()), "captain: the commission was not announced")
+    said = str(rt.eval("(function() local out = {} for _, r in ipairs("
+                       "TREK.CaptainUI.window:speech(400)) do "
+                       "if r.text then table.insert(out, r.text) end end "
+                       "return table.concat(out, '~') end)()"))
+    check("UI_trait_trek_rank_ensign" in said, f"captain: her %2 is not the new rank: {said[:240]}")
+    rt.run("TREK.CaptainUI.window.optBtns[1]:click()")
+    net.pump(4)
+    check(str(capt_reply(rt)).startswith("HUB_HOME"), "captain: a commission twice")
+    check(rt.eval(f"TREK.Captain.promotionDue({P})") is False, "captain: given, and still due")
+    # Two more rescues: a lieutenant (j.g.), said as a promotion, not a commission.
+    for _ in range(2):
+        rt.run(f"TREK.TraitsServer.onRescue({P})")
+    rt.run("TREK.CaptainUI.window:onBye()")
+    net.pump(4)
+    check(capt_reply(rt, "ended") is True, "captain: goodbye did not end the conversation")
+    check(rt.eval("TREK.CaptainServer.sessions.solo") is None, "captain: a goodbye kept the session")
+    check(rt.eval("TREK.CaptainUI.window.closeBtn ~= nil") is True, "captain: the panel lost its close")
+    rt.run("TREK.CaptainUI.window:close()")
+    rt.run(f"TREK.CaptainUI.open({P})")
+    net.pump(4)
+    check(capt_reply(rt) == "HUB_PROMOTE", f"captain: a second promotion opened on {capt_reply(rt)}")
+    check(has_trait(rt, "rank_ltjg") and not has_trait(rt, "rank_ensign"),
+          "captain: the promotion did not make a lieutenant (j.g.)")
+
+    # --- she changes nothing in the story -------------------------------------------------
+    flags_after = str(rt.eval("""(function()
+        local d, out = TREK.Comms.store(), {}
+        for k in pairs(d.flags) do table.insert(out, k) end
+        for k in pairs(d.fired) do table.insert(out, "fired:" .. k) end
+        table.sort(out) return table.concat(out, ",") .. "#" .. tostring(d.rescued)
+    end)()"""))
+    check(flags_before == flags_after,
+          f"captain: talking to her changed the channel's story: {flags_before} -> {flags_after}")
+
+    # --- walking away ends it ----------------------------------------------------------
+    capt_goto(rt, far=True)
+    net.pump(200)
+    check(rt.eval("TREK.CaptainServer.sessions.solo") is None,
+          "captain: a player who walked away still holds a conversation")
+    rt.run("if TREK.CaptainUI.window then TREK.CaptainUI.window:prerender() end")
+    check(rt.eval("TREK.CaptainUI.window") is None, "captain: the panel stayed open across the bridge")
+
+    # --- and with nobody in the chair --------------------------------------------------
+    rt.run("""
+        TREK.CrewServer.nextCaptain = 1e15
+        for _, m in pairs(TREK.CrewServer.live()) do
+            if m.captain then TREK.CrewServer.despawn(m, "test") end
+        end
+    """)
+    capt_goto(rt)
+    net.pump(4)
+    check(capt_body(rt)[0] is None, "captain: could not empty her chair for the test")
+    rt.run(f"TREK.CaptainUI.open({P})")
+    net.pump(4)
+    check(capt_reply(rt) is not None and str(capt_reply(rt)).startswith("HUB_"),
+          "captain: with no body in the chair there was no conversation (CAPTAIN.md 5.5)")
+
+    for w in rt.warnings():
+        fail(f"captain: {w}")
+    print(f"captain: sat in her chair through {2400} ticks and never in a scene; offered at her "
+          f"chair, greyed across the bridge; {len(topics)} topics, NEW until heard and again when "
+          f"a tier opens; the truth kept under each setting until earned; a commission and a "
+          f"promotion in person; goodbye; the story untouched; talks with nobody in the chair")
+
+
+def captain_multiplayer():
+    """Two players, two conversations, one captain: private replies, the
+    server's copy of each player asked, a promotion synced to its owner."""
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    srv.run("SIM.player('alice', 2000.5, 2000.5, 0); SIM.player('bob', 2003.5, 2000.5, 0)")
+    A.run("SIM.player('alice', 2000.5, 2000.5, 0); SIM.ownsZombies = true")
+    B.run("SIM.player('bob', 2003.5, 2000.5, 0)")
+    net.start()
+    for rt in net.all():
+        rt.run(ADK_SETUP)
+    P = "SIM.players[1]"
+    for c in (A, B):
+        c.run(f"TREK.Transport.beamUp({P})")
+    net.pump(220)
+    for c in (A, B):
+        c.run(f"TREK.AdirondackClient.beamTo({P})")
+    net.pump(320)
+    for c in (A, B):
+        capt_goto(c)
+    net.pump(20)
+    srv.run(CREW_FAST)
+    net.pump(400)
+    cid = capt_body(srv)[0]
+    check(cid is not None, "captain mp: the server seated no captain")
+    for name, c in (("alice", A), ("bob", B)):
+        check(c.eval(f'TREK.Crew.state().crew["{cid}"] and TREK.Crew.state().crew["{cid}"].name') ==
+              "Captain Titus", f"captain mp: {name}'s client does not know the captain")
+
+    # Both at once.
+    for c in (A, B):
+        c.run(f"TREK.CaptainUI.open({P})")
+    net.pump(6)
+    for name, c in (("alice", A), ("bob", B)):
+        check(capt_reply(c) == "HUB_FIRST", f"captain mp: {name} was greeted with {capt_reply(c)}")
+    A.run("TREK.CaptainUI.window.optBtns[1]:click()")
+    net.pump(6)
+    check(capt_reply(A) == "HUB_NAMED", "captain mp: alice's answer went nowhere")
+    check(capt_reply(B) == "HUB_FIRST", "captain mp: alice's answer moved bob's conversation")
+    check(srv.eval("TREK.Captain.record((function() for _, p in ipairs(SIM.players) do "
+                   "if p.name == 'alice' then return p end end end)()).marks.named") is True,
+          "captain mp: the server's copy of alice does not remember her name")
+    check(srv.eval("TREK.Captain.record((function() for _, p in ipairs(SIM.players) do "
+                   "if p.name == 'bob' then return p end end end)()).marks.named") is None,
+          "captain mp: bob was named by alice's answer")
+    B.run("TREK.CaptainUI.window.optBtns[2]:click()")
+    net.pump(6)
+
+    # Bob has watched Shepard's last log -- on the server's copy of him, which
+    # is the copy that learns a tape (TREK_Comms.watched). Alice has not.
+    capt_watch(srv, "bob")
+    for c in (A, B):
+        capt_ask(c, '{ topic = "WHODID" }')
+    net.pump(6)
+    check("WHODID_T1" not in capt_goes(A), "captain mp: alice was offered the truth bob earned")
+    check("WHODID_T1" in capt_goes(B), "captain mp: bob watched the log and was not offered the truth")
+    # A client that watched the tape itself proves nothing to the server.
+    capt_watch(A, "alice")
+    capt_ask(A, "{ back = true }")
+    net.pump(6)
+    capt_ask(A, '{ topic = "WHODID" }')
+    net.pump(6)
+    check("WHODID_T1" not in capt_goes(A),
+          "captain mp: alice's own client decided she had watched the log")
+    # And naming the truth option by hand is refused.
+    A.run("SIM.notes = {}")
+    capt_ask(A, "{ o = 1 }")
+    net.pump(6)
+    check(capt_reply(A) == "WHODID_01" and any("IGUI_TREK_CaptStale" in n for n in A.notes()),
+          "captain mp: alice took an option she was never offered")
+
+    # A promotion: the server's traits, synced, and the note to alice alone.
+    srv.run("TREK.TraitsServer.onRescue((function() for _, p in ipairs(SIM.players) do "
+            "if p.name == 'alice' then return p end end end)())")
+    A.run("SIM.notes = {}")
+    B.run("SIM.notes = {}")
+    capt_ask(A, "{ back = true }")
+    net.pump(6)
+    check(capt_reply(A) == "HUB_COMMISSION", f"captain mp: alice's due commission became {capt_reply(A)}")
+    check(srv.eval("(function() for _, p in ipairs(SIM.players) do if p.name == 'alice' then "
+                   "return p:hasTrait(TREK_Registries.Traits.rank_ensign) end end end)()") is True,
+          "captain mp: the server's copy of alice was not commissioned")
+    synced = [str(srv.eval(f"SIM.syncedFields[{i}].who")) for i in
+              range(1, int(srv.eval("#SIM.syncedFields")) + 1)]
+    check("alice" in synced, "captain mp: the rank was never sent with sendSyncPlayerFields")
+    check(any("IGUI_TREK_Promoted" in n for n in A.notes()), f"captain mp: alice was told {A.notes()}")
+    check(not any("IGUI_TREK_Promoted" in n for n in B.notes()),
+          "captain mp: bob was told about alice's promotion")
+    check(capt_reply(B) == "WHODID_T1" or str(capt_reply(B)).startswith("WHODID"),
+          "captain mp: alice's promotion moved bob's conversation")
+
+    for name, rt in (("server", srv), ("alice", A), ("bob", B)):
+        check(int(rt.eval("SIM.clientWorldEdit or 0")) == 0, f"captain mp: {name} edited the world")
+        for w in rt.warnings():
+            fail(f"captain mp ({name}): {w}")
+    print("captain multiplayer: two conversations at once, each private; the truth asked of the "
+          "server's copy of each player; a stale option refused; a commission synced to its owner")
 
 
 # --- hydroponics (FARMING.md) --------------------------------------------------------
@@ -14848,7 +15362,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
-            adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, farming,
+            adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
             contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, multiplayer)
 
 

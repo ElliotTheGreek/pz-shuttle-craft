@@ -1,0 +1,45 @@
+{
+  "id": "CURE",
+  "order": 90,
+  "title": "Is there a cure?",
+  "notes": [
+    "What the ship can do and cannot (EMH.md: a crystal, twelve hours aboard). Tier 2 is",
+    "the channel's ARCHIVE: Phlox's omicron note, paperwork rather than a miracle."
+  ],
+  "tiers": [{"id": "1"}, {"id": "2", "requires": ["archiveDone"]}],
+  "entry": [{"go": "01"}],
+  "nodes": [
+    {
+      "id": "01",
+      "tier": "1",
+      "lines": [
+        { "text": "For a bite, yes, if you're quick. The Doctor aboard your shuttle." },
+        { "text": "It costs a whole dilithium crystal and twelve hours aboard." },
+        { "text": "Stay on the ship while he works. Leave, and it's lost." },
+        { "text": "For the county, no. Nobody can undo what happened down there." }
+      ],
+      "options": [
+        { "text": "Where did the cure come from?", "go": "20" },
+        { "text": "Where did the cure come from?", "go": "02", "forbids": ["archiveDone"] }
+      ]
+    },
+    {
+      "id": "02",
+      "tier": "1",
+      "lines": [
+        { "text": "Ask Shepard. The Doctor's been reading old files for her." },
+        { "text": "He reads everything. It's his least irritating habit." }
+      ]
+    },
+    {
+      "id": "20",
+      "tier": "2",
+      "lines": [
+        { "text": "A medical log from 2153. Doctor Phlox, on Enterprise." },
+        { "text": "Omicron radiation, against a machine that rebuilds the body." },
+        { "text": "Nobody read it for two hundred and eighty years. The Doctor did." },
+        { "text": "It's paperwork, not a miracle. I'll take paperwork." }
+      ]
+    }
+  ]
+}

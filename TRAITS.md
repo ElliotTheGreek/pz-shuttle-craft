@@ -587,6 +587,11 @@ is added and removed on the server, sent with `sendSyncPlayerFields(0x07)`,
 and announced to that player alone. A native is unranked until their first
 rescue, and then holds a field commission whatever they told Shepard.
 
+**Given in person since 2026-09-28** (`CAPTAIN.md` 4.13): a rescue that earns
+a rank tells the rescuer Captain Titus wants to see them, and she confers it
+on the Adirondack's bridge -- a field commission for the unranked, a promotion
+otherwise. A Starfleet profession's starting rank is still given at creation.
+
 ### 4.6 The looks
 
 The engine's three mechanisms, as 2.4 found them, all saved with the

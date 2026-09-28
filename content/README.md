@@ -5,6 +5,7 @@ Lua file holds a line of it.
 
 ```
 content/tapes/<TAPE_ID>.json    one file per VHS tape on (or issued to) the shelf
+content/captain/<TOPIC>.json    one file per topic of Captain Titus's, and HUB.json (CAPTAIN.md)
 content/comms/<THREAD>.json     one file per Adirondack channel thread
 ```
 
@@ -13,6 +14,7 @@ After editing anything here, regenerate, then run the checks:
 ```sh
 python tools/gen_tapes.py TrekShuttle/42     # tapes  -> TREK_Tapes.lua + Recorded_Media.json
 python tools/gen_comms.py TrekShuttle/42     # comms  -> TREK_CommsTree.lua + Print_Text.json
+python tools/gen_captain.py TrekShuttle/42   # captain -> TREK_CaptainTree.lua + Print_Text.json
 python tests/test_comms.py                   # the tree, and that what is on disk is current
 python tests/test_assets.py                  # every tape key, both ways
 ```

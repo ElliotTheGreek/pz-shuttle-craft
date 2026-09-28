@@ -316,6 +316,33 @@ function K.spots(k)
     return reachable
 end
 
+---------------------------------------------------------------------------
+-- The captain (CAPTAIN.md 5.5)
+---------------------------------------------------------------------------
+-- Captain Imogen Titus: always in her chair on the bridge while anybody is on
+-- Deck 1. Her look is fixed, not rolled: the crew have described her for
+-- weeks, and she should be the same woman every time somebody meets her.
+K.Captain = {
+    div = "command", job = "captain", sp = false, f = true,
+    name = "Captain Titus", skin = 2, hair = "Bun", beard = "", hc = 6,
+    captain = true,
+}
+
+--- Her post: the sit step in the first captain_chair on C.CaptainDeck, or nil.
+function K.captainPost()
+    local k = C.CaptainDeck
+    local deck = L.decks[k]
+    if not deck then return nil end
+    for _, o in ipairs(deck.objects) do
+        if o[5] == "captain_chair" then
+            local st = STEP[o[6]] or { 0, 1 }
+            return { kind = "sit", k = k, x = o[1], y = o[2], face = o[6],
+                     fx = o[1] + st[1] * 3, fy = o[2] + st[2] * 3 }
+        end
+    end
+    return nil
+end
+
 --- A lift car square on deck k to come aboard at and leave by.
 function K.liftSquare(k, rnd)
     rnd = rnd or zr

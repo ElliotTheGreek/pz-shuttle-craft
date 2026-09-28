@@ -41,7 +41,7 @@ IG = json.load(open(os.path.join(MOD, "media", "lua", "shared", "Translate",
 # own labels, and a harness that only knew IG_UI would call every one of them
 # missing.
 TEXT = dict(IG)
-for _cat in ("Print_Text", "Recorded_Media"):
+for _cat in ("Print_Text", "Recorded_Media", "UI"):
     _path = os.path.join(MOD, "media", "lua", "shared", "Translate", "EN", _cat + ".json")
     if os.path.isfile(_path):
         TEXT.update(json.load(open(_path, encoding="utf-8")))
@@ -1028,6 +1028,130 @@ def power_gauge():
           "and in her seat, blinks EMERGENCY POWER when dark, and is gone in the street")
 
 
+def captain_panel():
+    """Captain Titus's panel (CAPTAIN.md 5.6): every node in her tree drawn
+    with every option it has showing, and the hub with every topic -- the
+    worst each state can be -- at the panel's size, with a controller.
+
+    Every node rather than a sample: her lines are written in content/ by
+    hand, one at a time, and the only check on how they wrap and whether an
+    option fits its button is a render of that node.
+    """
+    texture_files["on"] = True
+    lua, missing = make_lua()
+    lua.execute(r"""
+        require "TREK/TREK_CaptainUI"
+        TREK.Captain.inReach = function() return true end
+        player.getDescriptor = function()
+            return { getForename = function() return "Wilhelmina" end,
+                     getSurname = function() return "Featherstonehaugh-Smythe" end }
+        end
+        player.hasTrait = function() return false end
+        TREK.CaptainUI.reply = nil
+        win = TREKCaptainWindow:new(40, 40, player)
+        win:createChildren()
+        TREK.CaptainUI.window = win
+
+        -- The controller rows hold exactly what is shown.
+        function stickProblems()
+            local out = {}
+            for _, row in ipairs(win.joypadButtonsY or {}) do
+                for _, b in ipairs(row) do
+                    if not b.visible and b ~= win.closeBtn then
+                        table.insert(out, "hidden " .. tostring(b.title))
+                    end
+                end
+            end
+            local shown = 0
+            for _, c in ipairs(win.children) do
+                if c.visible and c ~= win.closeBtn then shown = shown + 1 end
+            end
+            local onStick = 0
+            for _, row in ipairs(win.joypadButtonsY or {}) do onStick = onStick + #row end
+            if shown > 0 and onStick < shown then
+                table.insert(out, shown .. " shown, " .. onStick .. " on the stick")
+            end
+            return table.concat(out, "; ")
+        end
+
+        -- Every node, in a stable order.
+        nodeIds = {}
+        for id in pairs(TREK_CaptainTree.nodes) do table.insert(nodeIds, id) end
+        table.sort(nodeIds)
+        function showNode(id, ended)
+            local nd = TREK_CaptainTree.nodes[id]
+            local avail = {}
+            for i = 1, #(nd.options or {}) do table.insert(avail, i) end
+            local topics = nil
+            if TREK.Captain.isList(id) and not ended then
+                topics = {}
+                for _, t in ipairs(TREK_CaptainTree.order) do
+                    table.insert(topics, { id = t, new = true })
+                end
+            end
+            TREK.CaptainUI.reply = { node = id, avail = avail, fresh = { 1 }, topics = topics,
+                                     named = true, ended = ended }
+            win:layout()
+        end
+    """)
+    win = lua.globals().win
+    ids = lua.globals().nodeIds
+    n = len(ids)
+    if n < 60:
+        failures.append(f"captain: only {n} nodes in her tree reached the harness")
+    worst_rows = 0
+    for i in range(1, n + 1):
+        nid = str(ids[i])
+        ended = bool(lua.eval(f'TREK.Captain.isBye("{nid}")'))
+        lua.execute(f'showNode("{nid}", {str(ended).lower()})')
+        label = f"captain {nid}"
+        draws = run_frames(lua, label)
+        check_bounds(lua, draws, label)
+        # Her words must all fit the speech area: a line dropped off the
+        # bottom is a sentence the player never reads.
+        rows = int(lua.eval("#(function() local out = {} for _, r in ipairs("
+                            "win:speech(620 - 56 - 28 - 96 - 12)) do if r.text then "
+                            "table.insert(out, r) end end return out end)()"))
+        gaps = int(lua.eval(f"#TREK_CaptainTree.nodes['{nid}'].lines"))
+        worst_rows = max(worst_rows, rows)
+        if rows * 16 + gaps * 6 > 232 - 14:
+            failures.append(f"captain: {nid} wraps to {rows} rows, more than her speech area holds")
+        texts = [str(d.extra) for d in draws if d.kind == "text"]
+        for key in ("Print_Text_TREK_CAPT_", "IGUI_TREK_"):
+            for t in texts:
+                if t.startswith(key):
+                    failures.append(f"captain: {nid} drew the raw key {t!r}")
+        probs = str(lua.eval("stickProblems()"))
+        if probs:
+            failures.append(f"captain: {nid}'s controller rows: {probs}")
+        nopts = int(lua.eval(f"#(TREK_CaptainTree.nodes['{nid}'].options or {{}})"))
+        shown = int(lua.eval("(function() local k = 0 for _, b in ipairs(win.optBtns) do "
+                             "if b.visible then k = k + 1 end end return k end)()"))
+        if not ended and not bool(lua.eval(f'TREK.Captain.isList("{nid}")')) and shown != nopts:
+            failures.append(f"captain: {nid} has {nopts} options and the panel shows {shown}")
+
+    # The hub with every topic: each has a button, NEW is said, B closes.
+    lua.execute('showNode("HUB_AGAIN1", false)')
+    draws = run_frames(lua, "captain hub")
+    check_bounds(lua, draws, "captain hub")
+    topics = int(lua.eval("#TREK_CaptainTree.order"))
+    shown = int(lua.eval("(function() local k = 0 for _, b in ipairs(win.topicBtns) do "
+                         "if b.visible then k = k + 1 end end return k end)()"))
+    if shown != topics:
+        failures.append(f"captain: {topics} topics and {shown} buttons on the hub")
+    if not any(TEXT["IGUI_TREK_CaptNew"].upper() in str(d.extra) for d in draws if d.kind == "text"):
+        failures.append("captain: every topic is new and the panel never says NEW")
+    if not bool(lua.eval("win.byeBtn.visible")):
+        failures.append("captain: the hub has no way to say goodbye")
+    if not bool(lua.eval("rawequal(win.ISButtonB, win.closeBtn)")):
+        failures.append("captain: B does not close her panel")
+    for key in sorted(set(missing)):
+        failures.append(f"captain: the panel asked for {key}, which has no text")
+    print(f"captain: all {n} nodes of her tree draw inside her panel, their options on "
+          f"buttons that fit and on the stick; the worst wraps to {worst_rows} rows; the hub "
+          f"shows all {topics} topics and says NEW")
+
+
 def main():
     power_gauge()
     for textures in (True, False):
@@ -1951,6 +2075,7 @@ def main():
           "control for its own reason and leaving all of them on the stick")
 
     padd_screen()
+    captain_panel()
 
     # --- the textures the console loads exist -----------------------------
     src = open(os.path.join(MOD, "media", "lua", "client", "TREK", "TREK_Helm.lua"),

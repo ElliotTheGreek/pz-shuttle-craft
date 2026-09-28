@@ -1,0 +1,81 @@
+{
+  "id": "WORLD",
+  "order": 80,
+  "title": "What is this world?",
+  "notes": [
+    "LORE.md 1c. The towns grew by themselves; the names are a coincidence; a wrong street",
+    "name is canon; the calendar is never explained; dilithium lies in wild ground. She",
+    "rates the Q theory and never says it was wrong (COMMS.md 6.3). Tier 3 is Tucker Gold",
+    "as Shepard told it to her, and only after the channel's GOLD."
+  ],
+  "tiers": [{"id": "1"}, {"id": "2", "requires": ["clueTold"]}, {"id": "3", "requires": ["goldDone"]}],
+  "entry": [{"go": "01"}],
+  "nodes": [
+    {
+      "id": "01",
+      "tier": "1",
+      "lines": [
+        { "text": "A copy of Earth that grew up on its own, as far as we can tell." },
+        { "text": "The same river, the same falls. Towns where the boats have to stop." },
+        { "text": "They even called it Kentucky. Not every name came out the same." },
+        { "text": "A wrong street name is on file as a finding, not a mistake." }
+      ],
+      "options": [
+        { "text": "How is that possible?", "go": "02" },
+        { "text": "What about their calendar?", "go": "03" },
+        { "text": "Why is there dilithium here?", "go": "04" },
+        { "text": "Shepard found recordings down there.", "go": "20" },
+        { "text": "Shepard told me who made it.", "go": "30" }
+      ]
+    },
+    {
+      "id": "02",
+      "tier": "1",
+      "lines": [
+        { "text": "Hodgkin's Law says similar worlds make similar people." },
+        { "text": "Here somebody seems to have built the laboratory for it." },
+        { "text": "Starfleet's file says a Q did it. It's a respectable theory." },
+        { "text": "I rate it. Most sensible people hold it." }
+      ]
+    },
+    {
+      "id": "03",
+      "tier": "1",
+      "lines": [
+        { "text": "Their calendar says 1993. Mine says 2435." },
+        { "text": "A copy of Earth ought to have kept pace. It didn't." },
+        { "text": "Shepard checked it four times. Nobody ever explained Miri either." }
+      ]
+    },
+    {
+      "id": "04",
+      "tier": "1",
+      "lines": [
+        { "text": "It lies in open country. Fields and woods. Never in town." },
+        { "text": "Nobody can tell me why. It's useful, so we use it." },
+        { "text": "Your tricorder will find it. Your core will thank you." }
+      ]
+    },
+    {
+      "id": "20",
+      "tier": "2",
+      "lines": [
+        { "text": "Holograms, very old. Somebody recorded himself, long ago." },
+        { "text": "Shepard wants every one of them. So do I, if I'm honest." },
+        { "text": "She can put each one on tape for the shelf in your cabin." },
+        { "text": "Bring them to her. In a pocket, they're easy to lose." }
+      ]
+    },
+    {
+      "id": "30",
+      "tier": "3",
+      "lines": [
+        { "text": "Tucker Gold. The man in the recordings." },
+        { "text": "He copied the land, and the people on it, for one woman." },
+        { "text": "Then he put the power down and grew old with her." },
+        { "voice": "note", "text": "She's quiet for a moment." },
+        { "text": "The place was made. The people weren't. Shepard's words, and mine." }
+      ]
+    }
+  ]
+}

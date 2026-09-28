@@ -1,0 +1,133 @@
+{
+  "id": "WHODID",
+  "order": 70,
+  "title": "Who did this?",
+  "notes": [
+    "The heart of the recap, governed by the discretion rule (CAPTAIN.md 2). She has",
+    "known since 9 July what her exobiologist worked out. Until `truth` holds she declines",
+    "honestly and the question stays on the list; the sandbox's Captain tells the truth",
+    "decides what it takes. Tier T is the only place in her tree the Changeling is named,",
+    "and gen_captain.py refuses the word anywhere its tier does not wait on `truth`."
+  ],
+  "tiers": [{"id": "1"}, {"id": "2", "requires": ["denialDone"]}, {"id": "T", "requires": ["truth"]}],
+  "entry": [{"go": "01"}],
+  "nodes": [
+    {
+      "id": "01",
+      "tier": "1",
+      "lines": [
+        { "text": "Somebody cut our engines in February and went away." },
+        { "text": "In June the county below us died in two days." },
+        { "text": "We were never the target. We were the witnesses." },
+        { "text": "They blinded us first, so nobody would see it done." }
+      ],
+      "options": [
+        { "text": "Who do your people think it was?", "go": "T1" },
+        { "text": "Who do your people think it was?", "go": "05", "forbids": ["truth"] },
+        { "text": "What are the theories?", "go": "02" },
+        { "text": "Was it Section 31?", "go": "03" }
+      ]
+    },
+    {
+      "id": "02",
+      "tier": "1",
+      "lines": [
+        { "text": "Two, aboard, and sensible people hold both." },
+        { "text": "Section 31. That was Shepard's, and she argued it well." },
+        { "text": "Or somebody on this ship, for reasons of their own." },
+        { "text": "That second one is the one that keeps me walking the decks." }
+      ],
+      "options": [
+        { "text": "Was it Section 31?", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "tier": "1",
+      "lines": [
+        { "text": "Shepard's case: a hidden posting, a Federation bioweapon on file." },
+        { "text": "Section 31 has done this kind of thing before. It's on record." },
+        { "text": "I don't rule it out. I don't put my name to it either." }
+      ],
+      "options": [
+        { "text": "Has anyone asked them?", "go": "20" }
+      ]
+    },
+    {
+      "id": "05",
+      "tier": "1",
+      "lines": [
+        { "voice": "note", "text": "She considers you for a long moment." },
+        { "text": "My exobiologist has a theory. I've read it. I've signed nothing." },
+        { "text": "It names a suspect I can't prove, and it would frighten people." },
+        { "text": "Shepard's logs are on the shelf in her shuttle. Watch all six." }
+      ]
+    },
+    {
+      "id": "20",
+      "tier": "2",
+      "lines": [
+        { "text": "You've spoken to Commander Okafor. So you know what he is." },
+        { "text": "He told me what he told you. They were blindsided too." },
+        { "text": "I believe him. He had every reason to lie and didn't bother." },
+        { "text": "Which leaves us with nobody. That's worse." }
+      ],
+      "options": [
+        { "text": "I pushed him hard.", "go": "21", "requires": ["pressed"] },
+        { "text": "Then who?", "go": "T1" },
+        { "text": "Then who?", "go": "05", "forbids": ["truth"] }
+      ]
+    },
+    {
+      "id": "21",
+      "tier": "2",
+      "lines": [
+        { "text": "I heard. He said you were thorough." },
+        { "text": "From Okafor that's a compliment. Don't expect another." }
+      ],
+      "options": [
+        { "text": "Then who?", "go": "T1" },
+        { "text": "Then who?", "go": "05", "forbids": ["truth"] }
+      ]
+    },
+    {
+      "id": "T1",
+      "tier": "T",
+      "lines": [
+        { "text": "All right. Here is what my people think. I think they're right." },
+        { "text": "One of the Changelings left the Great Link, on purpose." },
+        { "text": "It knew what Section 31 did to its people. The virus." },
+        { "text": "It spent sixty years alone, turning that into something else." }
+      ],
+      "options": [
+        { "text": "Into what?", "go": "T2" },
+        { "text": "Why here?", "go": "T3" }
+      ]
+    },
+    {
+      "id": "T2",
+      "tier": "T",
+      "lines": [
+        { "text": "The Founders' virus to break a body down." },
+        { "text": "Borg nanoprobes to put it back together and keep it moving." },
+        { "text": "No Queen. Nothing telling it what it's for." },
+        { "text": "What walks down there is a Collective with no Queen." },
+        { "text": "The Doctor could only read half of it. There are two halves." }
+      ],
+      "options": [
+        { "text": "Why here?", "go": "T3" }
+      ]
+    },
+    {
+      "id": "T3",
+      "tier": "T",
+      "lines": [
+        { "text": "Because this world is a copy of Earth, and nobody guards it." },
+        { "text": "Same bodies. Same towns. A rehearsal." },
+        { "voice": "note", "text": "When she goes on, her voice is flatter." },
+        { "text": "What comes after Kentucky is the Federation." },
+        { "text": "We were told not to interfere. It read the same order we did." }
+      ]
+    }
+  ]
+}

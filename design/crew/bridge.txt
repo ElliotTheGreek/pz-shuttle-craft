@@ -646,7 +646,7 @@ ops: I know. I'd ask anyway. | Still. Somebody has to ask.
 = captain
 ops: The captain asks every morning. Before she asks anything else.
    | The captain comes by after. Doesn't say anything. Just checks.
-cmd: She would. | Of course she does. | That's Vale.
+cmd: She would. | Of course she does. | That's Titus.
 -> close
 
 = close
@@ -715,7 +715,7 @@ third: Thirty seconds of a sailing program. It was very nice sailing.
 -> captain 2, end_off 1
 
 = captain
-on: Where's the captain? | Is Vale still up?
+on: Where's the captain? | Is Titus still up?
 off: Went to her ready room at oh-two-hundred. Hasn't come out.
    | Walked the decks all night. Said she'd sleep. I don't believe her.
 third: She'll be up. She's always up. | She never sleeps. You know that.
@@ -751,7 +751,7 @@ cast: ops=operations, helm=helm
 weight: 2
 
 = start
-ops: Has the captain eaten today? | Did you see Vale this morning?
+ops: Has the captain eaten today? | Did you see Titus this morning?
    | Anyone seen the captain eat anything?
 helm: Coffee. Two, at least. | She had soup. Some of it.
     | Not since yesterday, as far as I know.
@@ -1152,7 +1152,7 @@ weight: 3
 
 = start
 junior: Is the captain in? I was told to report.
-      | Ensign reporting as ordered. Is Captain Vale here?
+      | Ensign reporting as ordered. Is Captain Titus here?
       | Sorry, sir. I was told to report to the ready room.
 cmd: She's on deck nine. She'll be back. | Not yet. Sit down. She'll come.
    | She's walking the decks. You'll wait. Everyone does.

@@ -386,7 +386,7 @@ A menu, not a plan. Each line says what it would give the player.
 | **Cargo bay and shuttlebay** | crates, antigrav sleds, a second shuttle under repair, a hangar door | Somewhere to land the shuttle *inside* her, and bulk storage. |
 | **Armoury / security office** | weapons locker, brig cell with a forcefield | **The armoury is built** off the bridge (`ARMOURY.md` 6). The brig is not; it is a story hook (Okafor?). |
 | ~~**Arboretum / hydroponics**~~ | **Built**: Deck 5 (section 7, `FARMING.md`) | |
-| **Captain's quarters and observation lounge** | bigger quarters, a long window table | Captain Vale, and the view of the planet at night. |
+| **Captain's quarters and observation lounge** | bigger quarters, a long window table | Captain Titus, and the view of the planet at night. |
 | ~~**Jefferies tubes**~~ | **Built**, with three hideouts (`JEFFERIES.md`) | |
 | **Gym / sparring room** | mats, a bat'leth rack | The sprained-wrist patients come from here. |
 

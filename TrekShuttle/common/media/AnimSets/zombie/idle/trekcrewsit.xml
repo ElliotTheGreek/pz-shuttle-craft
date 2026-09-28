@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A crew member seated: the player's sat-in-a-chair pose. Two conditions,
-     so it outranks the standing idle when TrekSit is set. -->
+     so it outranks the standing idle when TrekSit is set.
+
+     No deferred rotation or movement. Bob_SatChair's Translation_Data bone,
+     the one the engine reads a turn from, is not rotated the way the standing
+     idle's is (a quarter turn apart), so blending into this pose swung it
+     90 degrees and the engine turned the sitter by that much, for good: the
+     captain sat sideways in her chair (CAPTAIN.md 8). A seated body neither
+     turns nor slides, so it takes neither from the animation. -->
 <animNode>
 	<m_Name>TrekCrewSit</m_Name>
 	<m_AnimName>Bob_SatChair</m_AnimName>
 	<m_deferredBoneAxis>Y</m_deferredBoneAxis>
+	<m_useDeferedRotation>false</m_useDeferedRotation>
+	<m_useDeferredMovement>false</m_useDeferredMovement>
 	<m_BlendTime>0.40</m_BlendTime>
 	<m_Looped>true</m_Looped>
 	<m_Conditions>

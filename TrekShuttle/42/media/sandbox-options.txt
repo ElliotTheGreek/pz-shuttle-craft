@@ -66,3 +66,8 @@ option TrekShuttle.Borg = {
     type = enum, numValues = 4, default = 1,
     page = TrekShuttle, translation = TrekShuttle.Borg, valueTranslation = TrekShuttle.Borg,
 }
+
+option TrekShuttle.CaptainTruth = {
+    type = enum, numValues = 3, default = 2,
+    page = TrekShuttle, translation = TrekShuttle.CaptainTruth, valueTranslation = TrekShuttle.CaptainTruth,
+}

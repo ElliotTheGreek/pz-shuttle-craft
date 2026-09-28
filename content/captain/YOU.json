@@ -1,0 +1,44 @@
+{
+  "id": "YOU",
+  "order": 110,
+  "title": "What do you make of me?",
+  "notes": [
+    "She reads the uniform the way anybody would and commits to nothing (CAPTAIN.md 6,",
+    "COMMS.md 6.1). What the player told Shepard is not stored, so she cannot know it."
+  ],
+  "tiers": [{"id": "1"}],
+  "entry": [{"go": "01", "requires": ["uniform"]}, {"go": "02"}],
+  "nodes": [
+    {
+      "id": "01",
+      "tier": "1",
+      "lines": [
+        { "text": "You're wearing the uniform. I'll take that at face value." },
+        { "text": "Where you got it is your business." }
+      ],
+      "options": [
+        { "text": "And if I'm not Starfleet?", "go": "03" }
+      ]
+    },
+    {
+      "id": "02",
+      "tier": "1",
+      "lines": [
+        { "text": "You don't dress like one of mine. That's all right." },
+        { "text": "You came up off Shepard's shuttle and you've kept her flying." },
+        { "text": "I've had worse recommendations." }
+      ],
+      "options": [
+        { "text": "And if I am Starfleet?", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "tier": "1",
+      "lines": [
+        { "text": "Then you're a long way from home, like the rest of us." },
+        { "text": "I don't need to know what you were. I care what you do next." }
+      ]
+    }
+  ]
+}
