@@ -69,5 +69,7 @@
     "Tooltip_TREK_RomulanDisruptor": "A Romulan sidearm: light, accurate, and cruel on a critical hit. It never runs down.",
     "Tooltip_TREK_PolaronRifle": "A Jem'Hadar polaron rifle. It hits as hard as anything aboard and does not care who hears it. Slings across the back.",
     "Tooltip_TREK_CardassianPhaser": "A Cardassian sidearm: compact and dependable, with a bright yellow bolt. It never runs down.",
-    "Tooltip_TREK_Holster": "A Starfleet belt holster. Any pistol rides in it: a phaser, a disruptor, or the M9 you found in town."
+    "Tooltip_TREK_Holster": "A Starfleet belt holster. Any pistol rides in it: a phaser, a disruptor, or the M9 you found in town.",
+    "Tooltip_TREK_PatternEnhancer": "Starfleet transporter equipment. Three standing together give a lock where none could be had.",
+    "Tooltip_TREK_NanoprobeSample": "Borg nanoprobes, taken off one of the dead. The Doctor can calibrate against it."
 }

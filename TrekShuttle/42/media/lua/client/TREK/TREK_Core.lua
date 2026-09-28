@@ -174,6 +174,21 @@ local DENIALS = {
     -- Captain Titus (CAPTAIN.md).
     captainFar        = "IGUI_TREK_CaptFar",
     captainStale      = "IGUI_TREK_CaptStale",
+    -- Boarding clearance (ACCESS.md). The beam's own refusals, and the
+    -- enhancers' and the screening's.
+    accTrust          = "IGUI_TREK_AccTrustBare",
+    accLock           = "IGUI_TREK_AccLockTip",
+    accScreen         = "IGUI_TREK_AccScreenTip",
+    accLockDone       = "IGUI_TREK_AccLockDone",
+    accLockRunning    = "IGUI_TREK_AccLockRunning",
+    accNeedThree      = "IGUI_TREK_AccNeedThree",
+    accDeployOutside  = "IGUI_TREK_AccDeployOutside",
+    accDeployRoom     = "IGUI_TREK_AccDeployRoom",
+    accScreenNone     = "IGUI_TREK_AccScreenNone",
+    accScreenDone     = "IGUI_TREK_AccScreenDone",
+    accScreenUnasked  = "IGUI_TREK_AccScreenUnasked",
+    accScreenInfected = "IGUI_TREK_AccScreenInfected",
+    accNoSample       = "IGUI_TREK_AccNoSample",
     -- The ledger's own refusals carry numbers and are shown from
     -- POWER_DENIALS below; these are the words if one ever arrives bare.
     noPower           = "IGUI_TREK_NoPowerBare",

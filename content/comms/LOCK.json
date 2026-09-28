@@ -1,0 +1,74 @@
+{
+  "id": "LOCK",
+  "priority": 16,
+  "title": "Why we can't take you",
+  "kind": "incoming",
+  "notes": [
+    "Boarding clearance (ACCESS.md 1, 3). After the first rescue's debrief.",
+    "The fiction for the gate: she locks onto combadges, and the player has none.",
+    "Names all three places an enhancer is, without a map reference: the debrief",
+    "site (marked), the station in Muldraugh, and whatever the probes find.",
+    "Must not mention a Changeling: this can ring long before the reveal."
+  ],
+  "requires": ["lockDue", "met"],
+  "forbids": ["quiet"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. The ensign you brought up has been talking. About you." }
+      ],
+      "options": [
+        { "text": "What about me?", "go": "02" },
+        { "text": "Good things, I hope.", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "You'll have wondered why we don't just beam you up." },
+        { "voice": "shepard", "text": "She finds people by their combadges. Her sensors are half blind." },
+        { "voice": "shepard", "text": "To her you're one more body down there. She can't pick you out." }
+      ],
+      "options": [
+        { "text": "So I'm stuck down here.", "go": "03" },
+        { "text": "Then send me a combadge.", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "Not stuck. Pattern enhancers: three rods, stood round you." },
+        { "voice": "shepard", "text": "They give the transporter something to hold on to." },
+        { "voice": "shepard", "text": "The ensign's away kit had one. It went down where they fell." },
+        { "voice": "shepard", "text": "I've marked it. The survey team kept spares in Muldraugh." },
+        { "voice": "shepard", "text": "And the probes will pick up anything else that came down." }
+      ],
+      "options": [
+        { "text": "Three rods. Fine.", "go": "04" },
+        { "text": "And then?", "go": "04" }
+      ]
+    },
+    {
+      "id": "04",
+      "lines": [
+        { "voice": "shepard", "text": "Stand them round you, out in the open, and stay with them." },
+        { "voice": "shepard", "text": "It takes a while, and they hum. The dead will come to it." },
+        { "voice": "shepard", "text": "And the Captain wants her own people home first." }
+      ],
+      "options": [
+        { "text": "Understood.", "go": "05" },
+        { "text": "They hum. Wonderful.", "go": "05" }
+      ]
+    },
+    {
+      "id": "05",
+      "lines": [
+        { "voice": "shepard", "text": "Bring them up. Then come up yourself. Shepard out." }
+      ]
+    }
+  ]
+}

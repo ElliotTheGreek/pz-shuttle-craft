@@ -2,12 +2,13 @@
 
     python tools/gen_map_symbols.py TrekShuttle/42
 
-Three 64x64 glyphs, the size and shape of vanilla's own (`media/ui/
+Four 64x64 glyphs, the size and shape of vanilla's own (`media/ui/
 LootableMaps/map_*.png`, ninety-two of them, all 64x64):
 
     TrekContactDilithium   a crystal      -- what the probes are looking for
     TrekContactPersonnel   a Starfleet delta -- 1.7's downed ensign
     TrekContactClue        a hexagon       -- a holo fragment (LORE.md 1c)
+    TrekContactSalvage     three squares   -- a pattern enhancer (ACCESS.md)
 
 They are registered from `media/lua/shared/Definitions/TrekMapSymbols.lua`,
 which is how vanilla registers its own -- `MapSymbolDefinitions.getInstance()
@@ -159,10 +160,33 @@ def hexagon():
     return img
 
 
+SALVAGE_FILL = (236, 108, 44, 255)
+SALVAGE_CORE = (255, 204, 150, 255)
+
+
+def enhancers():
+    """A pattern enhancer's site (ACCESS.md): three rods standing in a
+    triangle, which is how they stand when a lock is held -- in a burnt
+    orange nothing else on the map uses."""
+    img = Image(SIZE, SIZE, (0, 0, 0, 0))
+    cx, cy = SIZE / 2.0, SIZE / 2.0 + 3
+    r = 17
+    for i in range(3):
+        a = -math.pi / 2 + i * 2 * math.pi / 3
+        x, y = cx + r * math.cos(a), cy + r * math.sin(a)
+        fill_polygon(img, [(x - 7, y - 7), (x + 7, y - 7), (x + 7, y + 7), (x - 7, y + 7)],
+                     SALVAGE_FILL)
+        fill_polygon(img, [(x - 3, y - 3), (x + 3, y - 3), (x + 3, y + 3), (x - 3, y + 3)],
+                     SALVAGE_CORE)
+    outline(img)
+    return img
+
+
 SYMBOLS = {
     "TrekContactDilithium": crystal,
     "TrekContactPersonnel": delta,
     "TrekContactClue": hexagon,
+    "TrekContactSalvage": enhancers,
 }
 
 # **Never a category of our own.** These went in a "Starfleet" category and

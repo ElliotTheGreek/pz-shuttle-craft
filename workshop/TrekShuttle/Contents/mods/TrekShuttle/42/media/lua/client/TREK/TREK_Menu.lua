@@ -31,6 +31,8 @@ require "TREK/TREK_Travel"
 require "TREK/TREK_Probes"
 require "TREK/TREK_Power"
 require "TREK/TREK_AdirondackClient"
+require "TREK/TREK_Access"
+require "TREK/TREK_AccessUI"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -210,8 +212,15 @@ local function aboardMenu(context, player, worldobjects, test)
         menu:addOption(getText("IGUI_TREK_ToCockpit"), worldobjects, M.onToCockpit, player)
     end
     -- The U.S.S. Adirondack, by the shuttle's own transporter.
-    menu:addOption(getText("IGUI_TREK_BeamToAdirondack"), worldobjects,
-                   TREK.AdirondackClient.onBeamTo, player)
+    local toAdk = menu:addOption(getText("IGUI_TREK_BeamToAdirondack"), worldobjects,
+                                 TREK.AdirondackClient.onBeamTo, player)
+    -- Until the clearance is earned (ACCESS.md), greyed with the reason.
+    local why = TREK.Access and TREK.Access.refusal(player)
+    if why then
+        toAdk.notAvailable = true
+        toAdk.toolTip = ISWorldObjectContextMenu.addToolTip()
+        toAdk.toolTip.description = TREK.AccessUI and TREK.AccessUI.tip(why) or why
+    end
     menu:addOption(getText("IGUI_TREK_BookmarkHere"), worldobjects,
                    M.onBookmarkHere, player)
     menu:addOption(getText("IGUI_TREK_Sensors"), worldobjects, M.onSensors,

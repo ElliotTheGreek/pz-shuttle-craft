@@ -568,11 +568,11 @@ end
 --- this sweep, if one is in range (LORE.md 1c). The same arithmetic as the
 --- ensign's: the ship knows the exact square it placed the fragment on, and
 --- every client holds the contact store.
-local function clueFix(sw)
+local function clueFix(sw, kind)
     if not TREK.Probes then return nil end
     local best = nil
     for _, c in ipairs(TREK.Probes.contacts()) do
-        if c.kind == "clue" and c.placed and not TREK.Probes.isResolved(c.status)
+        if c.kind == (kind or "clue") and c.placed and not TREK.Probes.isResolved(c.status)
            and (c.z or 0) >= sw.zBottom and (c.z or 0) <= sw.zTop then
             local dx, dy = c.x + 0.5 - sw.x, c.y + 0.5 - sw.y
             local dist = math.sqrt(dx * dx + dy * dy)
@@ -611,6 +611,8 @@ function M.serviceSweep()
             personnel = personnelFix(sweep),
             -- A holo fragment on the ground, found by its fix.
             clue = clueFix(sweep),
+            -- A pattern enhancer's site (ACCESS.md), the same arithmetic.
+            salvage = clueFix(sweep, "salvage"),
         }
         M.lastSweep = result
         sweep = nil
@@ -661,7 +663,7 @@ end
 ---------------------------------------------------------------------------
 TREKTricorderWindow = ISPanelJoypad:derive("TREKTricorderWindow")
 
-local TW, TH = 360, 470
+local TW, TH = 360, 490
 local SIDE, TOPH, BOTH, PAD, R = 56, 26, 16, 14, 22
 local PLOT = 210
 
@@ -811,6 +813,19 @@ function TREKTricorderWindow:drawPlot()
         self:drawRectBorder(px - 5, py - 5, 11, 11, 1, 0.31, 0.84, 0.94)
         self:drawRect(px - 2, py - 2, 5, 5, 1, 0.82, 0.97, 1.0)
     end
+
+    -- **A pattern enhancer** (ACCESS.md), as three dots in a triangle -- the
+    -- way they stand when a lock is held, and a fifth shape rather than a
+    -- fifth shade.
+    local e = result.salvage
+    if e then
+        local px = cx + (e.dx / result.radius) * half
+        local py = cy + (e.dy / result.radius) * half
+        local c = P.orange
+        self:drawRect(px - 1.5, py - 6, 4, 4, 1, c[1], c[2], c[3])
+        self:drawRect(px - 6, py + 2, 4, 4, 1, c[1], c[2], c[3])
+        self:drawRect(px + 3, py + 2, 4, 4, 1, c[1], c[2], c[3])
+    end
 end
 
 function TREKTricorderWindow:render()
@@ -844,6 +859,8 @@ function TREKTricorderWindow:render()
         self:drawDilithium(cx, y, result)
         self:drawPersonnel(cx, y + 18, result)
         self:drawClue(cx, y + (result.personnel and 36 or 18), result)
+        self:drawSalvage(cx, y + 18 * (1 + (result.personnel and 1 or 0)
+                                       + (result.clue and 1 or 0)), result)
         return
     end
 
@@ -872,6 +889,8 @@ function TREKTricorderWindow:render()
     self:drawDilithium(cx, y, result)
     self:drawPersonnel(cx, y + 18, result)
     self:drawClue(cx, y + (result.personnel and 36 or 18), result)
+    self:drawSalvage(cx, y + 18 * (1 + (result.personnel and 1 or 0)
+                                   + (result.clue and 1 or 0)), result)
 
     if self.joyfocus then
         self:drawTextRight(string.upper(getText("IGUI_TREK_MedJoypadHint")),
@@ -914,6 +933,19 @@ function TREKTricorderWindow:drawClue(cx, y, result)
                   c[1], c[2], c[3], 1, UIFont.Small)
     self:drawTextRight(getText("IGUI_TREK_SweepPersonnelAt", tostring(g.dist),
                                g.compass), self.width - PAD, y,
+                       P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
+end
+
+--- The salvage line: only when a site is in range, like the fragment's.
+function TREKTricorderWindow:drawSalvage(cx, y, result)
+    local e = result and result.salvage
+    if not e then return end
+    local c = P.orange
+    H.pill(self, cx, y + 3, 22, 9, c, true, true)
+    self:drawText(string.upper(getText("IGUI_TREK_SweepSalvage")), cx + 30, y,
+                  c[1], c[2], c[3], 1, UIFont.Small)
+    self:drawTextRight(getText("IGUI_TREK_SweepPersonnelAt", tostring(e.dist),
+                               e.compass), self.width - PAD, y,
                        P.text[1], P.text[2], P.text[3], 1, UIFont.Small)
 end
 

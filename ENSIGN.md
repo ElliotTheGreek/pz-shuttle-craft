@@ -50,6 +50,10 @@ Every ensign is rolled male or female, so this guide says "the ensign" and
    needle and a splint first, and further down the list on each rescue after.
    The rescue is also credited to the rescuer and counts toward their rank
    (`TRAITS.md` 4.5): the first earns a field commission.
+   And it counts toward the *Adirondack*'s trust (`ACCESS.md`): under the
+   sandbox's default the first rescue brings a debrief -- where the ensign's
+   away kit, with a pattern enhancer in it, went down -- and the second the
+   Doctor's rule about screening.
 
 If the clock runs out first, the beacon stops, the mark leaves the map, the
 figure is taken away, and the crew are told. No second chance on that

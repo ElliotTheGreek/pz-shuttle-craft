@@ -43,6 +43,7 @@ require "TREK/TREK_Power"
 require "TREK/TREK_Core"
 require "TREK/TREK_Helm"
 require "TREK/TREK_MedKit"
+require "TREK/TREK_Access"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -128,7 +129,7 @@ TREK.Ship.onChange(onShipChange)
 ---------------------------------------------------------------------------
 TREKEMHWindow = ISPanelJoypad:derive("TREKEMHWindow")
 
-local EW, EH = 420, 594
+local EW, EH = 420, 628
 local SIDE, TOPH, BOTH, PAD, RAD = 56, 26, 16, 14, 22
 local FACE = 96
 
@@ -176,7 +177,8 @@ function TREKEMHWindow:createChildren()
     self.findingsY = self.faceY + FACE + 12
 
     local btnH, gap = 28, 6
-    local row4 = self.height - BOTH - PAD - btnH
+    local row5 = self.height - BOTH - PAD - btnH
+    local row4 = row5 - gap - btnH
     local row3 = row4 - gap - btnH
     local row2 = row3 - gap - btnH
     local row1 = row2 - gap - btnH
@@ -211,12 +213,19 @@ function TREKEMHWindow:createChildren()
     self.detoxBtn:initialise()
     self:addChild(self.detoxBtn)
 
-    self.readoutBtn = TREKLcarsButton:new(cx, row4, (cw - gap) / 2, btnH,
+    -- The biofilter screening (ACCESS.md): yourself only, and only once the
+    -- story has asked for it.
+    self.screenBtn = TREKLcarsButton:new(cx, row4, cw, btnH, "", self,
+        TREKEMHWindow.onScreen, P.blue)
+    self.screenBtn:initialise()
+    self:addChild(self.screenBtn)
+
+    self.readoutBtn = TREKLcarsButton:new(cx, row5, (cw - gap) / 2, btnH,
         getText("IGUI_TREK_EmhReadout"), self, TREKEMHWindow.onReadout, P.gold)
     self.readoutBtn:initialise()
     self:addChild(self.readoutBtn)
 
-    self.dismissBtn = TREKLcarsButton:new(cx + (cw - gap) / 2 + gap, row4,
+    self.dismissBtn = TREKLcarsButton:new(cx + (cw - gap) / 2 + gap, row5,
         (cw - gap) / 2, btnH, getText("IGUI_TREK_EmhDismiss"), self,
         TREKEMHWindow.onDismiss, P.lilac)
     self.dismissBtn:initialise()
@@ -229,6 +238,7 @@ function TREKEMHWindow:createChildren()
     self:insertNewLineOfButtons(self.treatBtn)
     self:insertNewLineOfButtons(self.cureBtn)
     self:insertNewLineOfButtons(self.detoxBtn)
+    self:insertNewLineOfButtons(self.screenBtn)
     self:insertNewLineOfButtons(self.readoutBtn, self.dismissBtn)
     self:setISButtonForB(self.closeBtn)
 
@@ -533,6 +543,21 @@ function TREKEMHWindow:render()
         or getText("IGUI_TREK_EmhDetox", tostring(C.EmhDetoxCost))
     self.detoxBtn.enable = not off and detoxWhy == nil
 
+    -- The screening is always the player's own: another crewman's sample and
+    -- body are theirs to bring.
+    local screenWhy = blocked
+    if not screenWhy then
+        if row and not row.own then
+            screenWhy = "accScreenSelf"
+        else
+            screenWhy = TREK.Access.screenRefusal(self.player)
+        end
+    end
+    self.screenBtn.title = screenWhy
+        and getText(M.BUTTON_TEXT[screenWhy] or "IGUI_TREK_EmhBtnScreenDone")
+        or getText("IGUI_TREK_EmhScreen", tostring(C.ScreenCost))
+    self.screenBtn.enable = not off and screenWhy == nil
+
     -- The full readout is vanilla's health panel at doctor level, opened on
     -- this client. It is UI on a body, not a change to one, so there is no
     -- command behind it -- a handler whose only job is to answer "yes" is a
@@ -574,6 +599,11 @@ function TREKEMHWindow:onDetox()
     if not row then return end
     says(row.own and "IGUI_TREK_EmhDetoxing" or "IGUI_TREK_EmhAsking", row.name)
     Core.send(self.player, "emhDetox", { who = row.own and "" or row.name })
+end
+
+function TREKEMHWindow:onScreen()
+    says("IGUI_TREK_EmhScreening")
+    Core.send(self.player, "accessScreen", {})
 end
 
 --- Vanilla's health panel, at the Doctor level the medical tricorder uses.
@@ -672,6 +702,13 @@ M.BUTTON_TEXT = {
     emhNotInfected = "IGUI_TREK_EmhBtnNotInfected",
     emhCuring      = "IGUI_TREK_EmhBtnCuring",
     emhClean       = "IGUI_TREK_EmhBtnClean",
+    -- The screening (ACCESS.md).
+    accScreenNone     = "IGUI_TREK_EmhBtnScreenNone",
+    accScreenDone     = "IGUI_TREK_EmhBtnScreenDone",
+    accScreenUnasked  = "IGUI_TREK_EmhBtnScreenUnasked",
+    accScreenInfected = "IGUI_TREK_EmhBtnScreenInfected",
+    accNoSample       = "IGUI_TREK_EmhBtnNoSample",
+    accScreenSelf     = "IGUI_TREK_EmhBtnScreenSelf",
 }
 
 -- Why a control is greyed, in the player's own words, keyed the way the

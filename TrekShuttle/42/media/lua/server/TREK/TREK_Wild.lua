@@ -145,6 +145,10 @@ function Wild.service()
     for _, p in ipairs(U.players()) do
         local ok, px, py = pcall(function()
             if p:isDead() or U.isInteriorPlayer(p) then return nil end
+            -- Aboard the Adirondack or the field station is not on foot in
+            -- the county either: their decks stand over void cells, and the
+            -- ground under them was being seeded as countryside.
+            if TREK.Adirondack and TREK.Adirondack.siteOfPlayer(p) then return nil end
             return math.floor(p:getX() / C.WildPlot), math.floor(p:getY() / C.WildPlot)
         end)
         if ok and px then

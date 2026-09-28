@@ -77,6 +77,9 @@ SYSTEM_FLAGS = {
     "lostDue",       # an ensign was lost since the last word about it
     "clueSeen",      # a probe has reported a clue site
     "commissioned",  # day zero has happened
+    "lockDue",       # the debrief: the lock and the enhancers are known (ACCESS.md)
+    "screenDue",     # the Doctor's biofilter rule is known
+    "lockedDue",     # the Adirondack has her lock on the crew
 }
 
 # Conditions answered by the server at the moment they are asked, never

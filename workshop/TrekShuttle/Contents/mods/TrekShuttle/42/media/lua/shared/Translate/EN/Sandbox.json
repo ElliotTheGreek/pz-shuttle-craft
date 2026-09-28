@@ -68,5 +68,16 @@
     "Sandbox_TrekShuttle.CaptainTruth_tooltip": "When Captain Titus, on the Adirondack's bridge, will tell a player what her people believe caused the plague. Until then she tells them everything else and says there is more. 'When it is earned' is once Shepard has told it on the channel, or the player has watched Shepard's last log, or has brought two of the crew home.",
     "Sandbox_TrekShuttle.CaptainTruth_option1": "Only once Shepard has told it",
     "Sandbox_TrekShuttle.CaptainTruth_option2": "When it is earned",
-    "Sandbox_TrekShuttle.CaptainTruth_option3": "From the first conversation"
+    "Sandbox_TrekShuttle.CaptainTruth_option3": "From the first conversation",
+    "Sandbox_TrekShuttle.AdirondackAccess": "Adirondack access",
+    "Sandbox_TrekShuttle.AdirondackAccess_tooltip": "Whether the shuttle's transporter can reach the U.S.S. Adirondack from the start. Earned: the crew bring her people home, recover three pattern enhancers and hold a transporter lock, and each player passes the Doctor's biofilter screening. Rescues only: the rescues alone. A world that had already been aboard her keeps its access.",
+    "Sandbox_TrekShuttle.AdirondackAccess_option1": "Earned",
+    "Sandbox_TrekShuttle.AdirondackAccess_option2": "Open from the start",
+    "Sandbox_TrekShuttle.AdirondackAccess_option3": "Rescues only",
+    "Sandbox_TrekShuttle.AdirondackRescues": "Rescues before the Adirondack",
+    "Sandbox_TrekShuttle.AdirondackRescues_tooltip": "How many downed crew the ship has to bring home before the Adirondack will spend a transporter lock on the players.",
+    "Sandbox_TrekShuttle.AdirondackRescues_option1": "1",
+    "Sandbox_TrekShuttle.AdirondackRescues_option2": "2",
+    "Sandbox_TrekShuttle.AdirondackRescues_option3": "3",
+    "Sandbox_TrekShuttle.AdirondackRescues_option4": "5"
 }

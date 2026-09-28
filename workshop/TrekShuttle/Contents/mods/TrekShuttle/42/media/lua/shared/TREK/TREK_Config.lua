@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.11.0"
+C.Version   = "1.12.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -1475,6 +1475,10 @@ C.ContactKinds = {
     -- result, beside a crystal and a survivor. The contact carries the
     -- fragment's number, and is placed and retired the way a crystal is.
     clue = true,
+    -- A pattern enhancer's site (ACCESS.md): an ensign's debrief, or a
+    -- probe's fourth result while the lock is owed. Placed and recovered the
+    -- way a crystal is; the contact carries the item.
+    salvage = true,
 }
 
 -- The contacts' common lifecycle (PROBES.md, MAP_MARKERS.md):
@@ -1510,6 +1514,7 @@ C.ContactSymbols = {
     dilithium = "TrekContactDilithium",
     downedPersonnel = "TrekContactPersonnel",
     clue = "TrekContactClue",
+    salvage = "TrekContactSalvage",
 }
 
 -- What each kind is called in the sensor menu.
@@ -1526,6 +1531,7 @@ C.ContactLabels = {
     dilithium = "IGUI_TREK_Contact_dilithium",
     downedPersonnel = "IGUI_TREK_Contact_downedPersonnel",
     clue = "IGUI_TREK_Contact_clue",
+    salvage = "IGUI_TREK_Contact_salvage",
 }
 
 ---------------------------------------------------------------------------
@@ -2130,6 +2136,74 @@ function C.captainTruth()
 end
 
 ---------------------------------------------------------------------------
+-- Boarding clearance: earning the Adirondack (ACCESS.md)
+---------------------------------------------------------------------------
+-- The ship's record: what the story has told, the lock, the enhancers
+-- recovered, the station's enhancer and a lock being held. Its own key,
+-- published when it changes (DEV_GUIDE: *State that is transmitted whole
+-- cannot hold a list that grows* -- this one does not grow, but it changes on
+-- a different clock from the ship).
+C.AccessKey = "TREK_Access_v1"
+-- Screening, per character, in the server's copy of their mod data; and the
+-- owning client's mirror of it (the contraband's arrangement).
+C.ScreenKey = "TREKScreened"
+C.ScreenMirrorKey = "TREKScreenedSeen"
+
+-- Sandbox *Adirondack access*: 1 earned (every key), 2 open from the start,
+-- 3 rescues only. An absent value is the feature as designed.
+C.AccessEarned, C.AccessOpen, C.AccessRescuesOnly = 1, 2, 3
+function C.accessMode()
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.AdirondackAccess
+    end)
+    v = ok and tonumber(v) or nil
+    if v == 1 or v == 2 or v == 3 then return v end
+    return C.AccessEarned
+end
+
+-- Sandbox *Rescues before the Adirondack*: an index into these.
+C.AccessRescueSteps = { 1, 2, 3, 5 }
+C.AccessRescueDefault = 3
+function C.accessRescues()
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.AdirondackRescues
+    end)
+    v = ok and tonumber(v) or nil
+    return C.AccessRescueSteps[v and math.floor(v) or 0] or C.AccessRescueSteps[C.AccessRescueDefault]
+end
+
+-- The two items. Never replicated: the whole point is going out for them.
+C.EnhancerItem = "TrekShuttle.TrekPatternEnhancer"
+C.NanoprobeItem = "TrekShuttle.TrekNanoprobeSample"
+C.EnhancersNeeded = 3
+
+-- The first rescue's debrief: where the away kit went down, from the crew.
+C.DebriefMinDistance = 120
+C.DebriefMaxDistance = 320
+C.DebriefSpread = 40
+
+-- Of a probe's finds while an enhancer is owed, how many are a salvage site.
+C.ProbeSalvageShare = 0.4
+-- Debris strewn round a probe's crash site: vanilla scrap, a few squares out.
+C.SalvageDebris = { "Base.ScrapMetal", "Base.SheetMetal", "Base.ElectronicsScrap" }
+
+-- The field station's enhancer lies in this room of its first deck.
+C.StationEnhancerRoom = "Stores"
+
+-- The lock: three enhancers round the deployer, held by the crew.
+C.LockRadius = 2
+C.LockHoldRange = 8
+C.LockMinutes = 20
+C.LockBeaconMinutes = 5
+C.LockBeaconRadius = 60
+C.LockBeaconVolume = 60
+-- A lift offered when the lock resolves is good for this long, in game hours.
+C.LockLiftHours = 0.5
+
+-- The Doctor's biofilter screening, in reserve units.
+C.ScreenCost = 50
+
+---------------------------------------------------------------------------
 -- Traits: species, divisions and rank (TRAITS.md)
 ---------------------------------------------------------------------------
 -- The ids are registered in media/registries.lua and read through
@@ -2360,7 +2434,11 @@ for _, id in ipairs({ "TrekShuttle.TrekKetracelWhite", "TrekShuttle.TrekFelicium
                       "TrekShuttle.TrekTrelliumD", "TrekShuttle.TrekCordrazine",
                       "TrekShuttle.TrekKtarianGame", "TrekShuttle.TrekLatinumStrip",
                       "TrekShuttle.TrekKanar", "TrekShuttle.TrekSaurianBrandy",
-                      "TrekShuttle.TrekAldebaranWhiskey" }) do
+                      "TrekShuttle.TrekAldebaranWhiskey",
+                      -- Boarding clearance (ACCESS.md): going out for them
+                      -- is the whole point.
+                      "TrekShuttle.TrekPatternEnhancer",
+                      "TrekShuttle.TrekNanoprobeSample" }) do
     C.ReplicatorBlocked[id] = true
 end
 

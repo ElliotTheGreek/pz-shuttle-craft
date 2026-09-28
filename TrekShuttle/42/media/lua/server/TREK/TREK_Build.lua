@@ -1142,6 +1142,15 @@ function B.servicePowerBus(bill)
         U.log("power bus: %s", want and "on" or "off -- the galley is dark")
     end
 
+    -- A running generator in a building poisons it (TREK_AdirondackServer's
+    -- bus says how). The shuttle's stands on the hull ring outside the cabin's
+    -- shape, which no room should ever include; if one does, say so.
+    local b = U.try("busBuilding", function() return sq:getBuilding() end)
+    if b then
+        U.warnOnce("busBuilding", "power bus: the shuttle's bus square is in a building; "
+                   .. "a running generator there poisons the cabin")
+    end
+
     if not exteriorNoted and SandboxVars and SandboxVars.AllowExteriorGenerator == false then
         exteriorNoted = true
         U.log("power bus: this server has AllowExteriorGenerator off, so the galley "

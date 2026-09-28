@@ -1,0 +1,44 @@
+{
+  "id": "LOCKED",
+  "priority": 18,
+  "title": "We have you",
+  "kind": "incoming",
+  "notes": [
+    "Boarding clearance (ACCESS.md 3.10). The lock has resolved.",
+    "Short: the payoff is the beam itself, not the call."
+  ],
+  "requires": ["lockedDue", "met"],
+  "forbids": ["quiet"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. We have you. She's got a lock and she's keeping it." }
+      ],
+      "options": [
+        { "text": "Finally.", "go": "02" },
+        { "text": "Now what?", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "shepard", "text": "Anyone the Doctor has passed can come up whenever they like." },
+        { "voice": "shepard", "text": "From the shuttle, same as the ensigns did." }
+      ],
+      "options": [
+        { "text": "See you soon.", "go": "03" },
+        { "text": "I'll hold you to that.", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "shepard", "text": "Welcome home. Nearly. Shepard out." }
+      ]
+    }
+  ]
+}

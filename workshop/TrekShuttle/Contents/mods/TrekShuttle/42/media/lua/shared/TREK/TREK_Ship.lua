@@ -124,8 +124,11 @@ function Ship.worldOrigin(player)
         local pz = U.try("originZ", function() return player:getZ() end)
         -- Below the Muldraugh stockroom a player is *at* the stockroom as
         -- far as the map is concerned (FIELD_STATION.md 3): their return
-        -- point, written by both ends when they went down.
-        local below = TREK.Adirondack ~= nil and TREK.Adirondack.onStation(player)
+        -- point, written by both ends when they went down. Aboard the
+        -- Adirondack the same: her decks are in the void, and where they
+        -- beamed up from is the honest answer -- which matters now a lock
+        -- lifts them straight off the map (ACCESS.md 3.10).
+        local below = TREK.Adirondack ~= nil and TREK.Adirondack.siteOfPlayer(player) ~= nil
         if px and py and not below and not U.isAboard(px, py, pz) then
             return math.floor(px), math.floor(py)
         end

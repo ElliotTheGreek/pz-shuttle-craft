@@ -121,6 +121,9 @@ end
 ---   rescued, name -- an ensign was brought up
 ---   lost, name    -- an ensign's beacon stopped
 ---   clue          -- a probe found a clue site
+---   accessLock    -- the debrief: the lock and the enhancers are known
+---   accessScreen  -- the Doctor's biofilter rule is known
+---   accessLocked  -- the Adirondack has her lock on the crew
 function S.event(kind, name)
     local d = Cm.store()
     if kind == "rescued" then
@@ -137,6 +140,13 @@ function S.event(kind, name)
         d.flags.lostDue = true
     elseif kind == "clue" then
         d.flags.clueSeen = true
+    -- Boarding clearance (ACCESS.md): the story's three reveals.
+    elseif kind == "accessLock" then
+        d.flags.lockDue = true
+    elseif kind == "accessScreen" then
+        d.flags.screenDue = true
+    elseif kind == "accessLocked" then
+        d.flags.lockedDue = true
     else
         U.log("WARN comms: unknown event %s", tostring(kind))
         return

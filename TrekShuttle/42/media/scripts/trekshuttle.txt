@@ -2908,6 +2908,51 @@ module TrekShuttle
     }
 
     /*  ------------------------------------------------------------------
+        Boarding clearance (ACCESS.md). A pattern enhancer: three of them,
+        standing round a player, give the Adirondack a transporter lock she
+        cannot get from a body with no combadge. A nanoprobe sample: what the
+        Borg among the dead carry, and what the Doctor calibrates his
+        biofilter against. Both from tools/gen_access.py, and neither is ever
+        replicated.  */
+    item TrekPatternEnhancer
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Pattern Enhancer,
+        DisplayCategory = Junk,
+        Icon = TREK_PatternEnhancer,
+        Weight = 1.0,
+        WorldStaticModel = TrekPatternEnhancerModel,
+        Tooltip = Tooltip_TREK_PatternEnhancer,
+    }
+
+    item TrekNanoprobeSample
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Nanoprobe Sample,
+        DisplayCategory = Junk,
+        Icon = TREK_NanoprobeSample,
+        Weight = 0.1,
+        WorldStaticModel = TrekNanoprobeSampleModel,
+        Tooltip = Tooltip_TREK_NanoprobeSample,
+    }
+
+    model TrekPatternEnhancerModel
+    {
+        mesh = TREK_PatternEnhancer,
+        texture = TREK_PatternEnhancer,
+        scale = 1.0,
+    }
+
+    model TrekNanoprobeSampleModel
+    {
+        mesh = TREK_NanoprobeSample,
+        texture = TREK_NanoprobeSample,
+        scale = 1.0,
+    }
+
+    /*  ------------------------------------------------------------------
         What a species looks like (TRAITS.md 2.4). Hidden clothing items the
         server lays on a character as body visuals, exactly as vanilla's
         stubble is: never in an inventory, never dropped or taken off, saved

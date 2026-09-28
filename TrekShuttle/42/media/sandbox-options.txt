@@ -71,3 +71,13 @@ option TrekShuttle.CaptainTruth = {
     type = enum, numValues = 3, default = 2,
     page = TrekShuttle, translation = TrekShuttle.CaptainTruth, valueTranslation = TrekShuttle.CaptainTruth,
 }
+
+option TrekShuttle.AdirondackAccess = {
+    type = enum, numValues = 3, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.AdirondackAccess, valueTranslation = TrekShuttle.AdirondackAccess,
+}
+
+option TrekShuttle.AdirondackRescues = {
+    type = enum, numValues = 4, default = 3,
+    page = TrekShuttle, translation = TrekShuttle.AdirondackRescues, valueTranslation = TrekShuttle.AdirondackRescues,
+}

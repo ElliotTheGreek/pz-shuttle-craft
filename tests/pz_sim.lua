@@ -1036,6 +1036,10 @@ function SquareMT:getFloor()
     return nil
 end
 function SquareMT:isSolid() return self.solid end
+--- The building a square's room belongs to, or nil. The engine gives a
+--- runtime-enclosed area one (WorldRegionToMetaGrid); a test that needs one
+--- sets `building` to a table with isToxic/setToxic.
+function SquareMT:getBuilding() return self.building end
 function SquareMT:isSolidTrans() return false end
 --- A wall on the square's north or west edge. A test marks `wallN` or
 --- `wallW`; the flight's obstacle guard asks exactly this, the way vanilla's
@@ -2882,6 +2886,12 @@ function ZedMT:setStaggerBack() end
 function ZedMT:isRemoteZombie() return self.remote == true end
 function ZedMT:getOnlineID() return self.onlineID or -1 end
 function ZedMT:getModData() return self.modData end
+-- What a corpse is looted from: the engine rolls it in onKilled, before
+-- OnZombieDead fires (ACCESS.md 8).
+function ZedOutfitMT:getInventory()
+    if not self.inventory then self.inventory = SIM.container(40) end
+    return self.inventory
+end
 function ZedMT:isDead() return self.dead == true end
 function ZedMT:isFemale() return self.female == true end
 function ZedMT:getCurrentSquare()
@@ -3066,8 +3076,10 @@ end
 -- change what its tricorder sees. wild_dilithium() turns it on.
 -- SpeedCheck is Leave it as set (not the game's Relax) so the charge
 -- scenarios see a kicking server; speed_check() checks the relaxing.
+-- AdirondackAccess is Open, not the game's Earned, for the StartState reason:
+-- every older scenario beams straight across to her. access() sets Earned.
 SandboxVars = { TrekShuttle = { Access = 1, TransporterLimit = 1, SpeedCheck = 2, StartState = 2,
-                                WildDilithium = 3 } }
+                                WildDilithium = 3, AdirondackAccess = 2 } }
 
 -- The world's map folders, void map included.
 function getLotDirectories()

@@ -319,7 +319,8 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
   and never throws out a locker with something in it.
 - **Moves** are server-granted (`toAdirondack`, `fromAdirondack` and `turbolift` in
   TREK_Server's MOVES):
-  - The shuttle's aboard menu has *Beam to the U.S.S. Adirondack*.
+  - The shuttle's aboard menu has *Beam to the U.S.S. Adirondack*, once the
+    crew have earned it (`ACCESS.md`; greyed with the reason until then).
   - Aboard her, the right-click menu has *Beam back to the shuttle*, and the
     *Turbolift* inside a lift car.
 - **Kept on the deck**: a step over a wall is put back, the same way the cabin does it.

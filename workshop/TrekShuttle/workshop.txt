@@ -18,7 +18,7 @@ description=- The landed shuttle is a four-seat vehicle. From the pilot's seat, 
 description=- Everything she does runs on the dilithium crystal in her warp core. An on-screen gauge shows what is left; at zero she goes dark. Load crystals by right-clicking the core.
 description=
 description=THE U.S.S. ADIRONDACK
-description=A working starship in orbit. Beam across from the shuttle and ride the turbolifts between five decks: the Bridge, the Lounge, Galley and crew quarters, the Transporter Room and Sickbay, Main Engineering, and Hydroponics. Fifty new pieces of Starfleet furniture -- seats, beds, doors that open as you walk up, and stocked lockers. She has a crew: officers of every division and several species ride the lifts, walk to their posts, sit, and talk about the ship, the county and you.
+description=A working starship in orbit. Earn your way aboard -- bring her crew home, recover three pattern enhancers, hold a transporter lock and pass the Doctor's biofilter (or open her from the start in the sandbox) -- then ride the turbolifts between five decks: the Bridge, the Lounge, Galley and crew quarters, the Transporter Room and Sickbay, Main Engineering, and Hydroponics. Fifty new pieces of Starfleet furniture -- seats, beds, doors that open as you walk up, and stocked lockers. She has a crew: officers of every division and several species ride the lifts, walk to their posts, sit, and talk about the ship, the county and you.
 description=
 description=CAPTAIN TITUS
 description=Sit down with the Adirondack's captain on her bridge and ask what happened here. She tells you what the ship knows as the story unfolds, marks what is new, points you where to look -- and keeps one thing back until you have earned it.
@@ -70,7 +70,7 @@ description=- Distress calls: accept one at the sensor console and a life sign i
 description=- Phasers: right-click a tree or a locked door to cut through it.
 description=
 description=MULTIPLAYER
-description=Fully multiplayer compatible and server-authoritative: everyone shares one shuttle and one Adirondack. Dedicated servers: add the map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY. Single player and in-game hosting add it for you. The sandbox Shuttlecraft page covers access, transporter charges, torpedo fire, the replicator, the start mode, wild dilithium, the Doctor, hover height, first contact, the captain's secret, phaser cutting and hydroponics.
+description=Fully multiplayer compatible and server-authoritative: everyone shares one shuttle and one Adirondack. Dedicated servers: add the map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY. Single player and in-game hosting add it for you. The sandbox Shuttlecraft page covers access, transporter charges, torpedo fire, the replicator, the start mode, wild dilithium, the Doctor, hover height, first contact, the captain's secret, Adirondack access, phaser cutting and hydroponics.
 description=
 description=REQUIREMENTS
 description=Build 42. The hull needs three tiles by five of clear ground to land. One shuttle per world.

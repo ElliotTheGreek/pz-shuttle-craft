@@ -842,6 +842,56 @@ def padd_screen():
         failures.append("padd screen: the six fragments are not all listed, in "
                         "order, once the channel has mentioned them")
 
+    # --- the clearance tab (ACCESS.md 5) -------------------------------------------
+    # A checklist that names a step only once the story has: drawn before
+    # anything is told, with the lock being held, and cleared.
+    lua.execute("""
+        win = TREKPaddScreen:new(0, 0, player, padd); win:createChildren()
+        SandboxVars.TrekShuttle.AdirondackAccess = 1
+        TREK.Comms.store().rescued = 1
+        win:setTab("clearance")
+    """)
+    d = state("clearance, nothing told")
+    if TEXT["IGUI_TREK_AccHeading"] not in texts(d):
+        failures.append("padd screen: the clearance tab has no heading")
+    one = run_frames(lua, "padd screen, clearance, one frame", 1)
+    if sum(1 for t in texts(one) if t == "[?] " + TEXT["IGUI_TREK_AccRowUnknown"]) != 2:
+        failures.append("padd screen: the clearance tab does not hold two unrevealed steps back")
+    leaks = [t for t in texts(d) if TEXT["IGUI_TREK_AccRowParts"].split("%1")[0] in t
+             or TEXT["IGUI_TREK_AccRowScreen"] in t]
+    if leaks:
+        failures.append(f"padd screen: the clearance tab names a step the story has not told: {leaks}")
+    crew = "[ ] " + TEXT["IGUI_TREK_AccRowCrew"].replace("%1", "1").replace("%2", "3")
+    if crew not in texts(d):
+        failures.append(f"padd screen: the clearance tab does not count her crew home ({texts(d)})")
+    lua.execute("""
+        local a = TREK.Access.store()
+        a.told.lock, a.recovered = true, 3
+        a.job = { progress = 7 }
+        TREK.Comms.store().rescued = 3
+    """)
+    d = state("clearance, a lock being held")
+    held = "[ ] " + TEXT["IGUI_TREK_AccRowHolding"].replace("%1", "7").replace("%2", "20")
+    if held not in texts(d):
+        failures.append("padd screen: a lock being held is not on the clearance tab with its minutes")
+    parts = "[x] " + TEXT["IGUI_TREK_AccRowParts"].replace("%1", "3").replace("%2", "3")
+    if parts not in texts(d):
+        failures.append("padd screen: three enhancers recovered are not ticked")
+    lua.execute("""
+        local a = TREK.Access.store()
+        a.job, a.lock, a.told.screen = nil, true, true
+        player.md[TREK.Config.ScreenKey] = true
+    """)
+    d = state("clearance, cleared")
+    if "[x] " + TEXT["IGUI_TREK_AccRowCleared"] not in texts(d):
+        failures.append("padd screen: a cleared player's checklist is not ticked off")
+    lua.execute("""
+        SandboxVars.TrekShuttle.AdirondackAccess = nil
+        TREK.Access.store().lock, TREK.Access.store().told = nil, {}
+        player.md[TREK.Config.ScreenKey] = nil
+        win:setTab("library")
+    """)
+
     # --- a controller ------------------------------------------------------------
     lua.execute('''
         reachable = {}
@@ -1802,6 +1852,26 @@ def main():
     if win.detoxBtn.enable:
         failures.append("emh: Detox is live on a patient with no habit "
                         "(CONTRABAND.md)")
+    # The screening (ACCESS.md): greyed, and saying why, until the story has
+    # asked for one; live, and fitting its button, once it has and there is
+    # a sample to screen against.
+    if win.screenBtn.enable:
+        failures.append("emh: Screening is live before anybody asked for one")
+    if win.screenBtn.title != IG["IGUI_TREK_EmhBtnScreenUnasked"]:
+        failures.append(f"emh: the unasked screening reads {win.screenBtn.title!r}")
+    lua.execute("""
+        TREK.Access.store().told.screen = true
+        sampleHeld = { getFullType = function() return TREK.Config.NanoprobeItem end }
+        player.getInventory = function()
+            return { getAllTypeRecurse = function()
+                return { size = function() return 1 end, get = function() return sampleHeld end }
+            end }
+        end
+    """)
+    check_bounds(lua, run_frames(lua, "emh, a screening"), "emh, a screening")
+    if not win.screenBtn.enable:
+        failures.append("emh: Screening is greyed with a sample in hand and the rule told")
+    lua.execute("TREK.Access.store().told.screen = nil; player.getInventory = nil")
 
     # --- and now a patient worth treating ------------------------------------
     lua.execute("""

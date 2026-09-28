@@ -497,6 +497,25 @@ up and resends any untagged one. The sim had `addFloor` replicating, kinder
 than the engine; `SIM.floorsStayOnServer` is the engine as it is, and
 `adk_roof_mp()` uses it.
 
+**And a roofed deck is a building, which a generator poisons.** Build 42
+makes an area enclosed at runtime into a room and a building
+(`WorldRegionToMetaGrid.updateSquares`), and a *running* generator on a square
+that is in a room and not `exterior` makes the whole building toxic -- both
+that pass and `IsoGenerator.update` call `IsoBuilding.setToxic`, and every
+character whose square is in it is poisoned and drowsy (`updateInternal`, bci
+146-255). The galley's hidden power bus had stood on the range's own square
+since the Adirondack was built; harmless while her decks were `exterior`, and
+fumes across the field station the day they were roofed (2026-09-28, "it got
+much worse near the warp core" -- it did not; toxicity is building-wide). The
+bus now stands **one level below the range** (`AS.busSquare`), where there are
+no walls and so no room, and the vertical power range is at least 1 in every
+sandbox. A save with the old bus has it taken off and the building's flag
+cleared (`setToxic` syncs itself from a server). The shuttle's bus is on the
+hull ring outside the cabin's shape and logs a WARN if that ever changes.
+**Before fixing "it is outdoors" for a runtime interior, list what keys on
+indoors** -- this file's own rule, which the roof fix did not apply to the
+generator.
+
 ### `U.clearSquare` keeps two things on purpose, and a migration has to name them
 
 **New in this mod.** `clearSurroundings` strips the ring around the cabin
@@ -2390,6 +2409,7 @@ python tools/gen_species.py                       # the species looks (TRAITS.md
 python tools/gen_borg.py                          # the Borg among the dead: look, outfits, sheets (BORG.md)
 python tools/gen_captain.py TrekShuttle/42        # Captain Titus: her tree and Print_Text.json (refuses a spoiler out of its gate)
 python tools/gen_captain_art.py TrekShuttle/42    # her portrait, rendered from her body and uniform
+python tools/gen_access.py TrekShuttle/42         # the pattern enhancer and the nanoprobe sample (ACCESS.md)
 python tools/gen_farm_icons.py                    # hydroponics item icons, keyed from their raws
 python tools/gen_contraband_icons.py              # contraband item icons, keyed from their raws
 python tools/gen_crew_talk.py                     # the crew's talk (design/crew -> TREK_CrewTalk.lua)
@@ -2493,6 +2513,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **Stuck on the pad, then put back outside** | The server never reported the cabin ready. Look for `[TREK] cabin ready` in the server's log and `arrival tick` lines on the client. |
 | **The phaser runs out** | The sweep is not seeing it. `TREK_Phaser()` reports how many it found; zero while one is in your hands means the inventory lookup is wrong. |
 | **Grass, trees or zombies outside the cabin or the Adirondack** | The void map is not loaded (log: `the 'TrekShuttle' map is not loaded`). In single player the map is not under `common/media/maps` -- the engine never reads it from `42/`; on a server, add it to `Map=`. Or the save generated those cells before the map was loaded: test in a new world. |
+| **Poisoned and drowsy aboard the Adirondack or the field station** | A running generator inside a room: the galley's power bus back on the range's square, or another generator carried aboard. See *And a roofed deck is a building* above. `power bus: moved off the galley range` in the log is the migration running. |
 | **The map will not open at night, or in the shuttle** | The sandbox's *Map needs light* and no light to read by. Aboard, in her seats or with a tricorder or PADD it opens anyway (`TREK_MapView`); out in the dark with none of those it is vanilla's refusal, a "too dark" note over the head. |
 | **The map opens on an empty black picture** | It was centred on the character in the void. `TREK_MapView` centres it on the ship aboard; if this returns, `MV.open` is not being reached. |
 | **The Jefferies crawl or the crew's walk never plays** | An AnimSets XML file failed to parse and the game dropped it: `grep "not permitted\|PZXmlParserException" console.txt`. `tests/test_assets.py` parses them all. |
@@ -2707,7 +2728,7 @@ notes have since been answered in play.
 | 1.7.0 | energy: the ledger, the gauge, the dark ship, the cold start, wild dilithium, the galley made real |
 | 1.8.0 | species, Starfleet professions and rank; the phaser's own model, beam and cutting |
 | 1.9.0 | the U.S.S. Adirondack, her crew and hydroponics |
-| since 1.9.0 | the Jefferies tubes and hideouts, Turbolift Phobia, contraband, the armoury, the field station, building aboard, the map at night, installations, the Borg among the dead, Captain Titus (not yet released) |
+| since 1.9.0 | the Jefferies tubes and hideouts, Turbolift Phobia, contraband, the armoury, the field station, building aboard, the map at night, installations, the Borg among the dead, Captain Titus, boarding clearance (not yet released) |
 
 `modversion` in `mod.info` and `C.Version` in `TREK_Config.lua` are the same
 number, and `tests/test_assets.py` fails if they are not -- they had drifted a
@@ -3227,6 +3248,16 @@ a replicator and an EMH station, installed anywhere in the world; each core
 its own power store (pool `i<id>`) in a registry the existing machines now
 ask as a third place to be. Eleven mutations caught.
 
+**The 2026-09-28 boarding clearance, 1.12.0** (`ACCESS.md`): the Adirondack
+is earned -- her crew brought home, three pattern enhancers recovered and held
+while she resolves a lock, and each player through the Doctor's biofilter with
+a nanoprobe sample off one of the Borg -- with a Clearance tab on the PADD that
+names a step only once the story has. Old worlds that were already visiting her
+are grandfathered. It found that a player aboard her counted as standing in the
+void for anything measured from the crew (`Ship.worldOrigin`, now the return
+point, as at the field station). Twenty-seven mutations, one at a time, all
+caught. **Not seen in game.**
+
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
 
@@ -3327,6 +3358,9 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_Captain.lua          Captain Titus: he
 TrekShuttle/42/media/lua/shared/TREK/TREK_CaptainTree.lua      her conversation (generated by tools/gen_captain.py)
 TrekShuttle/42/media/lua/server/TREK/TREK_CaptainServer.lua    her conversations, one per player, and promotions
 TrekShuttle/42/media/lua/client/TREK/TREK_CaptainUI.lua        the right-click at her chair, and her panel
+TrekShuttle/42/media/lua/shared/TREK/TREK_Access.lua           boarding clearance: the three keys, the refusal, the PADD's rows (ACCESS.md)
+TrekShuttle/42/media/lua/server/TREK/TREK_AccessServer.lua     the debrief, the enhancers, the Borg's sample, screening, the lock
+TrekShuttle/42/media/lua/client/TREK/TREK_AccessUI.lua         Deploy, the notes, the lift at the lock, the screening mirror
 content/captain/*.json                                         what she says (content/README.md)
 TrekShuttle/common/media/AnimSets/zombie/*/trekborg*.xml        the Borg walk and idle
 tools/figure_render.py                                         a posed character with garments and attachments, rendered

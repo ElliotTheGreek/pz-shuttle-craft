@@ -19,9 +19,9 @@ T.voices = {
 }
 
 -- The order threads are considered in, which is their priority.
-T.order = { "FIRST", "THANKS", "LOST", "CLUE", "STAY", "ELEVEN", "SCIENCE", "DENIAL", "ARCHIVE", "REVEAL", "GOLD", "GRIEF", "CONVERT", "QUIET", "RESUME" }
+T.order = { "FIRST", "THANKS", "LOST", "CLUE", "STAY", "ELEVEN", "SCIENCE", "DENIAL", "ARCHIVE", "REVEAL", "GOLD", "GRIEF", "CONVERT", "QUIET", "RESUME", "LOCK", "SCREEN", "LOCKED" }
 
-T.systemFlags = { "clueSeen", "commissioned", "lostDue", "thanksDue" }
+T.systemFlags = { "clueSeen", "commissioned", "lockDue", "lockedDue", "lostDue", "screenDue", "thanksDue" }
 
 T.threads = {
     FIRST = { title = "Print_Text_TREK_COMM_FIRST_Title", kind = "incoming", entries = { "FIRST_01", "FIRST_01M", "FIRST_01MM" }, requires = {}, forbids = { "quiet" }, retry = true, repeatable = false, day = 7 },
@@ -39,6 +39,9 @@ T.threads = {
     CONVERT = { title = "Print_Text_TREK_COMM_CONVERT_Title", kind = "hail", entries = { "CONVERT_01" }, requires = { "carrying" }, forbids = {}, retry = true, repeatable = true, cooldown = 1 },
     QUIET = { title = "Print_Text_TREK_COMM_QUIET_Title", kind = "hail", entries = { "QUIET_01" }, requires = { "met" }, forbids = { "quiet" }, retry = true, repeatable = true, cooldown = 24 },
     RESUME = { title = "Print_Text_TREK_COMM_RESUME_Title", kind = "hail", entries = { "RESUME_01" }, requires = { "quiet" }, forbids = {}, retry = true, repeatable = false },
+    LOCK = { title = "Print_Text_TREK_COMM_LOCK_Title", kind = "incoming", entries = { "LOCK_01" }, requires = { "lockDue", "met" }, forbids = { "quiet" }, retry = true, repeatable = false },
+    SCREEN = { title = "Print_Text_TREK_COMM_SCREEN_Title", kind = "incoming", entries = { "SCREEN_01" }, requires = { "screenDue", "met" }, forbids = { "quiet" }, retry = true, repeatable = false },
+    LOCKED = { title = "Print_Text_TREK_COMM_LOCKED_Title", kind = "incoming", entries = { "LOCKED_01" }, requires = { "lockedDue", "met" }, forbids = { "quiet" }, retry = true, repeatable = false },
 }
 
 T.nodes = {
@@ -464,6 +467,45 @@ T.nodes = {
     } },
     ["RESUME_02"] = { thread = "RESUME", lines = { { v = "shepard", k = "Print_Text_TREK_COMM_RESUME_02_L1" }, { v = "shepard", k = "Print_Text_TREK_COMM_RESUME_02_L2" } }, clears = { "quiet" }, terminal = true },
     ["RESUME_03"] = { thread = "RESUME", lines = { { v = "shepard", k = "Print_Text_TREK_COMM_RESUME_03_L1" } }, terminal = true },
+    ["LOCK_01"] = { thread = "LOCK", lines = { { v = "card", k = "Print_Text_TREK_COMM_LOCK_01_L1" }, { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_01_L2" } }, options = {
+        { k = "Print_Text_TREK_COMM_LOCK_01_O1", go = "LOCK_02" },
+        { k = "Print_Text_TREK_COMM_LOCK_01_O2", go = "LOCK_02" },
+    }, timeout = 60, silence = "LOCK_02" },
+    ["LOCK_02"] = { thread = "LOCK", lines = { { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_02_L1" }, { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_02_L2" }, { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_02_L3" } }, options = {
+        { k = "Print_Text_TREK_COMM_LOCK_02_O1", go = "LOCK_03" },
+        { k = "Print_Text_TREK_COMM_LOCK_02_O2", go = "LOCK_03" },
+    } },
+    ["LOCK_03"] = { thread = "LOCK", lines = { { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_03_L1" }, { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_03_L2" }, { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_03_L3" }, { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_03_L4" }, { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_03_L5" } }, options = {
+        { k = "Print_Text_TREK_COMM_LOCK_03_O1", go = "LOCK_04" },
+        { k = "Print_Text_TREK_COMM_LOCK_03_O2", go = "LOCK_04" },
+    } },
+    ["LOCK_04"] = { thread = "LOCK", lines = { { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_04_L1" }, { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_04_L2" }, { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_04_L3" } }, options = {
+        { k = "Print_Text_TREK_COMM_LOCK_04_O1", go = "LOCK_05" },
+        { k = "Print_Text_TREK_COMM_LOCK_04_O2", go = "LOCK_05" },
+    } },
+    ["LOCK_05"] = { thread = "LOCK", lines = { { v = "shepard", k = "Print_Text_TREK_COMM_LOCK_05_L1" } }, terminal = true },
+    ["SCREEN_01"] = { thread = "SCREEN", lines = { { v = "card", k = "Print_Text_TREK_COMM_SCREEN_01_L1" }, { v = "shepard", k = "Print_Text_TREK_COMM_SCREEN_01_L2" } }, options = {
+        { k = "Print_Text_TREK_COMM_SCREEN_01_O1", go = "SCREEN_02" },
+        { k = "Print_Text_TREK_COMM_SCREEN_01_O2", go = "SCREEN_02" },
+    }, timeout = 60, silence = "SCREEN_02" },
+    ["SCREEN_02"] = { thread = "SCREEN", lines = { { v = "emh", k = "Print_Text_TREK_COMM_SCREEN_02_L1" }, { v = "emh", k = "Print_Text_TREK_COMM_SCREEN_02_L2" }, { v = "emh", k = "Print_Text_TREK_COMM_SCREEN_02_L3" } }, options = {
+        { k = "Print_Text_TREK_COMM_SCREEN_02_O1", go = "SCREEN_03" },
+        { k = "Print_Text_TREK_COMM_SCREEN_02_O2", go = "SCREEN_03" },
+    } },
+    ["SCREEN_03"] = { thread = "SCREEN", lines = { { v = "emh", k = "Print_Text_TREK_COMM_SCREEN_03_L1" }, { v = "emh", k = "Print_Text_TREK_COMM_SCREEN_03_L2" }, { v = "emh", k = "Print_Text_TREK_COMM_SCREEN_03_L3" } }, options = {
+        { k = "Print_Text_TREK_COMM_SCREEN_03_O1", go = "SCREEN_04" },
+        { k = "Print_Text_TREK_COMM_SCREEN_03_O2", go = "SCREEN_04" },
+    } },
+    ["SCREEN_04"] = { thread = "SCREEN", lines = { { v = "emh", k = "Print_Text_TREK_COMM_SCREEN_04_L1" }, { v = "shepard", k = "Print_Text_TREK_COMM_SCREEN_04_L2" } }, terminal = true },
+    ["LOCKED_01"] = { thread = "LOCKED", lines = { { v = "card", k = "Print_Text_TREK_COMM_LOCKED_01_L1" }, { v = "shepard", k = "Print_Text_TREK_COMM_LOCKED_01_L2" } }, options = {
+        { k = "Print_Text_TREK_COMM_LOCKED_01_O1", go = "LOCKED_02" },
+        { k = "Print_Text_TREK_COMM_LOCKED_01_O2", go = "LOCKED_02" },
+    }, timeout = 60, silence = "LOCKED_02" },
+    ["LOCKED_02"] = { thread = "LOCKED", lines = { { v = "shepard", k = "Print_Text_TREK_COMM_LOCKED_02_L1" }, { v = "shepard", k = "Print_Text_TREK_COMM_LOCKED_02_L2" } }, options = {
+        { k = "Print_Text_TREK_COMM_LOCKED_02_O1", go = "LOCKED_03" },
+        { k = "Print_Text_TREK_COMM_LOCKED_02_O2", go = "LOCKED_03" },
+    } },
+    ["LOCKED_03"] = { thread = "LOCKED", lines = { { v = "shepard", k = "Print_Text_TREK_COMM_LOCKED_03_L1" } }, terminal = true },
 }
 
 return T

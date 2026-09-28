@@ -10270,6 +10270,23 @@ def wild_dilithium():
         check(wild_count(rt, at, at) == 0,
               f"wild: {wild_count(rt, at, at)} crystals were put down on {label}")
 
+    # --- not under the field station, or the Adirondack ----------------------
+    # Their decks stand over void cells, and the ground under them is not the
+    # county: the first visit to the station seeded seven crystals there.
+    sx, sy, sz = rt.eval("TREK.Adirondack.liftSpot(TREK.FieldStation.firstDeck())")
+    rt.run(f"local p = {P}; p.x, p.y, p.z = {sx}.5, {sy}.5, {sz}")
+    net.pump(60)
+    check(rt.eval(f"TREK.Util.chunkLoaded({sx} + 30, {sy} + 30, 0)") is True,
+          "wild: the ground under the field station never loaded, so this checks nothing")
+    # Stood back on the deck's level: with no deck built here the simulated
+    # player falls to the grass while the ground loads.
+    rt.run(f"local p = {P}; p.x, p.y, p.z = {sx}.5, {sy}.5, {sz}")
+    check(rt.eval(f"TREK.Adirondack.onStation({P})") is True,
+          "wild: the player is not on the field station, so this checks nothing")
+    rt.fire("EveryTenMinutes")
+    check(wild_count(rt, int(sx), int(sy)) == 0,
+          f"wild: {wild_count(rt, int(sx), int(sy))} crystals were put down under the field station")
+
     # --- the sandbox ----------------------------------------------------------
     check(rt.eval("TREK.Wild.oneIn()") == C("WildPlentifulOneIn"), "wild: Plentiful is not the default here")
     rt.run("SandboxVars.TrekShuttle.WildDilithium = 2")
@@ -13796,24 +13813,46 @@ def farming():
     check(tank.count("TrekShuttle.TrekSerpentWorm") == 2,
           f"farming: a hungry tank after 4 days holds {tank.count('TrekShuttle.TrekSerpentWorm')} worms, not 2")
 
-    # Deck 2's galley range is a stove, with a power bus on its square.
+    # Deck 2's galley range is a stove, with its power bus one level below it:
+    # a running generator on a square in a room poisons the building, and a
+    # roofed deck's squares are in one (ACCESS.md's play-test, 2026-09-28).
     adk_visit(net, rt, 2)
-    stove = str(rt.eval("""(function()
+    bus_probe = """(function()
         local A = TREK.Adirondack
         for _, o in ipairs(A.Layout.decks[2].objects) do
             if o[5] == "galley_range" then
                 local x, y = A.at(2, o[1], o[2])
-                local cls, gen = "?", false
+                local cls, on, below = "?", 0, 0
                 for _, obj in ipairs(SIM.rawSquare(x, y, A.Z).objects) do
                     if obj.spriteName == o[3] then cls = obj.class end
-                    if obj.class == "IsoGenerator" then gen = true end
+                    if obj.class == "IsoGenerator" then on = on + 1 end
                 end
-                return cls .. "/" .. tostring(gen)
+                for _, obj in ipairs(SIM.rawSquare(x, y, A.Z - 1).objects) do
+                    if obj.class == "IsoGenerator" then below = below + 1 end
+                end
+                return cls .. "/" .. on .. "/" .. below
             end
         end
         return "none"
-    end)()"""))
-    check(stove == "IsoStove/true", f"farming: the galley range is {stove}")
+    end)()"""
+    stove = str(rt.eval(bus_probe))
+    check(stove == "IsoStove/0/1", f"farming: the galley range is {stove} (class/buses on it/buses below)")
+    # A save from before this: the bus on the range, the deck poisoned.
+    rt.run("""
+        local A = TREK.Adirondack
+        local x, y = TREK.AdirondackServer.busSquare(2)
+        local sq = SIM.rawSquare(x, y, A.Z)
+        busBuilding = { toxic = true }
+        function busBuilding:isToxic() return self.toxic end
+        function busBuilding:setToxic(v) self.toxic = v end
+        sq.building = busBuilding
+        local g = IsoGenerator.new(instanceItem(TREK.Config.PowerBusItem), getCell(), sq)
+        g:setActivated(true)
+        TREK.AdirondackServer.servicePowerBus(2)
+    """)
+    stove = str(rt.eval(bus_probe))
+    check(stove == "IsoStove/0/1", f"farming: an old save's bus was not moved below the range ({stove})")
+    check(rt.eval("busBuilding.toxic") is False, "farming: moving the old bus left the deck poisoned")
     # And a cupboard beside it with something to cook in.
     ware = farm_items(rt, 2, "galley_cupboard")
     for thing in ("Base.Pot", "Base.Bowl", "Base.Mugl", "Base.KitchenKnife", "Base.Tortilla"):
@@ -15348,6 +15387,521 @@ def borg():
     print("borg: two outfits in vanilla's list at the sandbox's share; the walk from the outfit, on every machine")
 
 
+def acc_refusal(rt, who=1):
+    return rt.eval(f"TREK.Access.refusal(SIM.players[{who}])")
+
+
+def acc_rows(rt, who=1):
+    """The PADD's checklist, as 'done:key:a1' strings (done is x, blank or ?)."""
+    return str(rt.eval(f"""(function()
+        local out = {{}}
+        for _, r in ipairs(TREK.Access.rows(SIM.players[{who}])) do
+            local d = r.done == true and "x" or (r.done == false and " " or "?")
+            local k = r.key:gsub("IGUI_TREK_AccRow", "")
+            table.insert(out, d .. ":" .. k .. ":" .. tostring(r.a1 or ""))
+        end
+        return table.concat(out, "|")
+    end)()"""))
+
+
+def acc_on_square(rt, x, y, z, item):
+    return int(rt.eval(f"""(function()
+        local sq = SIM.peekSquare({x}, {y}, {z})
+        local n = 0
+        for _, w in ipairs(sq and sq.worldObjects or {{}}) do
+            if w.item and w.item.fullType == "{item}" then n = n + 1 end
+        end
+        return n
+    end)()"""))
+
+
+def acc_salvage(rt, source):
+    return rt.eval(f"""(function()
+        for _, c in ipairs(TREK.Probes.contacts()) do
+            if c.kind == "salvage" and c.source == "{source}" then return c.id end
+        end
+    end)()""")
+
+
+def acc_menu_option(rt, ctx, key):
+    """(present, greyed, tooltip) of the option whose name contains `key`."""
+    got = rt.eval(f"""(function()
+        for _, o in ipairs({ctx}:all()) do
+            if o.name:find("{key}", 1, true) then
+                return tostring(o.notAvailable == true) .. "|" ..
+                       tostring(o.toolTip and o.toolTip.description or "")
+            end
+        end
+        return nil
+    end)()""")
+    if got is None:
+        return False, None, None
+    greyed, tip = str(got).split("|", 1)
+    return True, greyed == "true", tip
+
+
+def acc_give(rt, name, item, n=1):
+    rt.run(f"for _, p in ipairs(SIM.players) do if p.name == '{name}' then "
+           f"for _ = 1, {n} do p.inventory:AddItem('{item}') end end end")
+
+
+def access():
+    """Boarding clearance (ACCESS.md): the Adirondack is earned.
+
+    The three keys in the order the story asks for them, each refused by the
+    server for the same reason the menu greys with; the debrief once; the
+    field station's enhancer placed once and counted when taken; the probe's
+    salvage result, never first; the Borg's sample on the authority; the
+    Doctor's screening; and the lock -- deployed, paused, broken, held and
+    resolved, lifting the cleared straight up.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0); SandboxVars.TrekShuttle.AdirondackAccess = 1")
+    net.start()
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    store = lambda f: rt.eval(f"TREK.Access.store().{f}")
+    ENH, SAMPLE = str(C("EnhancerItem")), str(C("NanoprobeItem"))
+
+    check(store("checked") is True, "access: the grandfather check never ran")
+    check(store("grandfathered") is None, "access: a fresh world was grandfathered")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "access, beaming up"):
+        return
+
+    # --- the gate, before anything is earned ---------------------------------
+    check(acc_refusal(rt) == "accTrust",
+          f"access: a fresh crew is refused {acc_refusal(rt)!r}, not accTrust")
+    aboard_menu(rt)
+    present, greyed, tip = acc_menu_option(rt, "aboardCtx", "IGUI_TREK_BeamToAdirondack")
+    check(present and greyed, "access: Beam to the Adirondack is not greyed before it is earned")
+    check(tip is not None and "IGUI_TREK_AccTrustTip" in tip,
+          f"access: the greyed beam says {tip!r}, not how many of her crew are home")
+    check(rt.eval(f"(TREK.AdirondackClient.beamTo({P}))") is False,
+          "access: the client asked to beam across with nothing earned")
+    rt.run(f'TREK.Core.send({P}, "move", {{ kind = "toAdirondack", token = 991 }})')
+    net.pump(4)
+    check(any("IGUI_TREK_AccTrustBare" in n for n in rt.notes()),
+          "access: the server granted, or refused in silence, a beam across with nothing earned")
+    check(adk_where(rt) is None, "access: the player reached the Adirondack with nothing earned")
+    check(acc_rows(rt) == " :Crew:0|?:Unknown:|?:Unknown:| :Cleared:",
+          f"access: the PADD's checklist before anything is earned reads {acc_rows(rt)!r}")
+
+    # --- the first rescue: its debrief --------------------------------------
+    TX, TY = 2600, 2600
+    mid = accept_call(rt, net, P, TX, TY)
+    walk_to(rt, TX + 12.5, TY + 0.5)
+    tick_missions(rt)
+    ex, ey = rt.eval("TREK.Probes.mission().ex"), rt.eval("TREK.Probes.mission().ey")
+    if ex is None:
+        fail("access: the ensign was never placed")
+        return
+    ex, ey = int(ex), int(ey)
+    walk_to(rt, ex + 1.5, ey + 0.5)
+    rt.run(f'TREK.Core.send({P}, "rescueEnsign", {{ id = "{mid}" }})')
+    net.pump(6)
+    debrief = acc_salvage(rt, "debrief")
+    check(debrief is not None, "access: the first rescue brought no debrief")
+    check(rt.eval("TREK.Access.store().told.lock") is True, "access: the debrief left the lock untold")
+    check(rt.eval("TREK.Comms.store().flags.lockDue") is True,
+          "access: the channel never heard of the debrief")
+    check(any("IGUI_TREK_AccDebriefAt" in n for n in rt.notes()), "access: the debrief said nothing")
+    check(any("IGUI_TREK_PromotionWaits" in n for n in rt.notes())
+          and not any("IGUI_TREK_PromotionDue" in n for n in rt.notes()),
+          "access: a field commission sent the player to a bridge they cannot reach")
+    if debrief is None:
+        return
+    dx = int(rt.eval(f'TREK.Probes.byId("{debrief}").x'))
+    dy = int(rt.eval(f'TREK.Probes.byId("{debrief}").y'))
+    gap = ((dx - ex) ** 2 + (dy - ey) ** 2) ** 0.5
+    lo, hi, sp = int(C("DebriefMinDistance")), int(C("DebriefMaxDistance")), int(C("DebriefSpread"))
+    check(lo - sp * 1.5 <= gap <= hi + sp * 1.5,
+          f"access: the kit went down {gap:.0f} squares from the ensign, outside {lo}..{hi}")
+    rt.run("TREK.AccessServer.serviceStory(); TREK.AccessServer.serviceStory()")
+    n = int(rt.eval('(function() local n = 0 for _, c in ipairs(TREK.Probes.contacts()) do '
+                    'if c.kind == "salvage" then n = n + 1 end end return n end)()'))
+    check(n == 1, f"access: {n} debrief sites after a second look; there is one away kit")
+    check(rt.eval("TREK.Access.store().told.screen") is None,
+          "access: the Doctor's rule came with the first rescue, not the second")
+    check(acc_rows(rt) == " :Crew:1| :Parts:0| :Lock:|?:Unknown:| :Cleared:",
+          f"access: the checklist after the debrief reads {acc_rows(rt)!r}")
+
+    # --- the debrief site: placed, found, taken, counted --------------------
+    walk_to(rt, dx + 0.5, dy + 0.5)
+    rt.run("TREK.Server.serviceContacts()")
+    check(rt.eval(f'TREK.Probes.byId("{debrief}").placed') is True,
+          "access: standing on the debrief site placed nothing")
+    px = int(rt.eval(f'TREK.Probes.byId("{debrief}").x'))
+    py = int(rt.eval(f'TREK.Probes.byId("{debrief}").y'))
+    check(acc_on_square(rt, px, py, 0, ENH) == 1, "access: no pattern enhancer lies at the debrief site")
+    walk_to(rt, px + 6.5, py + 0.5)
+    rt.run(f"""
+        TREK.MedKit.lastSweepAt = nil
+        TREK.MedKit.lastSweep = nil
+        TREK.MedKit.startSweep({P})
+        for _ = 1, 5000 do if not TREK.MedKit.serviceSweep() then break end end
+    """)
+    got = rt.eval("TREK.MedKit.lastSweep and TREK.MedKit.lastSweep.salvage "
+                  "and (TREK.MedKit.lastSweep.salvage.dist .. ' ' .. TREK.MedKit.lastSweep.salvage.compass)")
+    check(got == "6 W", f"access: the tricorder six squares east of the site read it as {got!r}")
+    rt.run(f"SIM.rawSquare({px}, {py}, 0).worldObjects = {{}}; {P}.inventory:AddItem('{ENH}')")
+    rt.run("TREK.Server.serviceContacts()")
+    net.pump(2)
+    check(str(rt.eval(f'TREK.Probes.byId("{debrief}").status')) == "recovered",
+          "access: taking the enhancer left the site live")
+    check(int(store("recovered")) == 1, f"access: {store('recovered')} enhancers counted after the first")
+    check(any("IGUI_TREK_AccRecovered" in n for n in rt.notes()), "access: a recovered enhancer said nothing")
+
+    # --- the probe's salvage result ------------------------------------------
+    rt.run("local s = TREK.Util.state(); s.probeEverFound = nil; TREK.Config.ProbeSalvageShare = 1")
+    rt.run("TREK.Probes.begin(2000, 2000, 0, 150, 1); TREK.Server.serviceProbe()")
+    check(acc_salvage(rt, "probe") is None,
+          "access: the first probe of a save found a salvage site, not the crystal")
+    rt.run("TREK.Probes.begin(2000, 2000, 0, 150, 1); TREK.Server.serviceProbe()")
+    wreck = acc_salvage(rt, "probe")
+    check(wreck is not None, "access: a probe with an enhancer owed never found a salvage site")
+    rt.run("TREK.Probes.begin(2000, 2000, 0, 150, 1); TREK.Server.serviceProbe()")
+    n = int(rt.eval('(function() local n = 0 for _, c in ipairs(TREK.Probes.contacts()) do '
+                    'if c.kind == "salvage" and c.source == "probe" then n = n + 1 end end return n end)()'))
+    check(n == 1, f"access: {n} live salvage sites at once; one at a time")
+    rt.run("TREK.Config.ProbeSalvageShare = 0.4")
+    if wreck is not None:
+        wx = int(rt.eval(f'TREK.Probes.byId("{wreck}").x'))
+        wy = int(rt.eval(f'TREK.Probes.byId("{wreck}").y'))
+        walk_to(rt, wx + 0.5, wy + 0.5)
+        rt.run("TREK.Server.serviceContacts()")
+        cx = int(rt.eval(f'TREK.Probes.byId("{wreck}").x'))
+        cy = int(rt.eval(f'TREK.Probes.byId("{wreck}").y'))
+        debris = int(rt.eval(f"""(function()
+            local n = 0
+            for dx = -3, 3 do for dy = -3, 3 do
+                local sq = SIM.peekSquare({cx} + dx, {cy} + dy, 0)
+                for _, w in ipairs(sq and sq.worldObjects or {{}}) do
+                    for _, id in ipairs(TREK.Config.SalvageDebris) do
+                        if w.item and w.item.fullType == id then n = n + 1 end
+                    end
+                end
+            end end
+            return n
+        end)()"""))
+        check(debris >= 2, f"access: a probe's crash site has {debris} pieces of wreckage round it")
+        rt.run(f"SIM.rawSquare({cx}, {cy}, 0).worldObjects = {{}}; {P}.inventory:AddItem('{ENH}')")
+        rt.run("TREK.Server.serviceContacts()")
+        check(int(store("recovered")) == 2, f"access: {store('recovered')} counted after the crash site's")
+
+    # --- the field station's -------------------------------------------------
+    rt.run("""
+        accDeckCurrent = TREK.AdirondackServer.deckCurrent
+        TREK.AdirondackServer.deckCurrent = function() return true end
+        local k = TREK.FieldStation.firstDeck()
+        accStation = {}
+        for _, p in ipairs(TREK.AccessServer.roomSquares(k, TREK.Config.StationEnhancerRoom)) do
+            local x, y = TREK.Adirondack.at(k, p[1], p[2])
+            local sq = SIM.rawSquare(x, y, TREK.Adirondack.Z)
+            local f = SIM.object("floor"); f.isFloor, f.square = true, sq
+            table.insert(sq.objects, 1, f)
+            table.insert(accStation, { x, y })
+        end
+    """)
+    n_room = int(rt.eval("#accStation"))
+    check(n_room >= 4, f"access: the field station's {C('StationEnhancerRoom')} has {n_room} squares")
+    st = lambda f: rt.eval(f"TREK.Access.store().station.{f}")
+    if n_room > 0:
+        sx, sy = int(rt.eval("accStation[1][1]")), int(rt.eval("accStation[1][2]"))
+        walk_to(rt, 2000.5, 2000.5)
+        rt.run("TREK.AccessServer.serviceStation()")
+        check(st("placed") is None,
+              "access: the station's enhancer was placed with nobody near its deck")
+        walk_to(rt, sx + 0.5, sy + 0.5, int(rt.eval("TREK.Adirondack.Z")))
+        rt.run("TREK.AccessServer.serviceStation(); TREK.AccessServer.serviceStation()")
+        check(st("placed") is True, "access: the station's enhancer was never placed")
+        if st("placed"):
+            z = int(st("z"))
+            check(acc_on_square(rt, int(st("x")), int(st("y")), z, ENH) == 1,
+                  "access: the station's enhancer is not on its square, or is there twice")
+            rt.run("TREK.AccessServer.serviceStation()")
+            check(int(store("recovered")) == 2,
+                  "access: the station's enhancer counted before anybody took it")
+            rt.run(f"SIM.rawSquare({int(st('x'))}, {int(st('y'))}, {z}).worldObjects = {{}}; "
+                   f"{P}.inventory:AddItem('{ENH}')")
+            rt.run("TREK.AccessServer.serviceStation(); TREK.AccessServer.serviceStation()")
+            check(st("taken") is True and int(store("recovered")) == 3,
+                  f"access: taking the station's enhancer counted {store('recovered')}, not 3")
+    rt.run("TREK.AdirondackServer.deckCurrent = accDeckCurrent")
+    check(rt.eval("TREK.AccessServer.salvageOwed()") is False,
+          "access: a probe would go on finding enhancers with a full set in hand")
+    rt.run(f"local inv = {P}.inventory for i = #inv.items, 1, -1 do "
+           f"if inv.items[i].fullType == '{ENH}' then table.remove(inv.items, i) end end")
+    check(rt.eval("TREK.AccessServer.salvageOwed()") is True,
+          "access: with the set lost, no probe would ever find another")
+    for _ in range(3):
+        rt.run(f"{P}.inventory:AddItem('{ENH}')")
+    check(acc_rows(rt).startswith(" :Crew:1|x:Parts:3| :Lock:"),
+          f"access: with three recovered the checklist reads {acc_rows(rt)!r}")
+
+    # --- the Borg's sample ----------------------------------------------------
+    rt.run("""
+        SIM.randomDressed = 0
+        accBorg = SIM.zombie(2010.5, 2000.5, 0, false, "TrekBorgDrone")
+        accPlain = SIM.zombie(2011.5, 2000.5, 0, false, "Generic01")
+        accUndressed = SIM.zombie(2012.5, 2000.5, 0, false, "TrekBorgDrone")
+        accUndressed.dressRandom = true
+        SIM.fire("OnZombieDead", accBorg)
+        SIM.fire("OnZombieDead", accPlain)
+        SIM.fire("OnZombieDead", accUndressed)
+    """)
+    has_sample = lambda z: int(rt.eval(f"""(function() local n = 0
+        for _, it in ipairs({z}:getInventory().items) do
+            if it.fullType == "{SAMPLE}" then n = n + 1 end end return n end)()"""))
+    check(has_sample("accBorg") == 1, "access: a dead Borg carries no nanoprobe sample")
+    check(has_sample("accPlain") == 0, "access: an ordinary zombie carried a nanoprobe sample")
+    check(has_sample("accUndressed") == 0,
+          "access: an undressed zombie was given a sample")
+    check(int(rt.eval("SIM.randomDressed or 0")) == 0,
+          "access: a zombie still due its random outfit was asked its name, which dresses it")
+    rt.run("SandboxVars.TrekShuttle.Borg = 4; accNone = SIM.zombie(2013.5, 2000.5, 0, false, 'TrekBorgDrone'); "
+           "SIM.fire('OnZombieDead', accNone); SandboxVars.TrekShuttle.Borg = 1")
+    check(has_sample("accNone") == 0, "access: a sample dropped with no Borg in the sandbox")
+
+    # --- screening ------------------------------------------------------------
+    station = (int(C("EmhStation").x), int(C("EmhStation").y))
+    walk_to(rt, 2000.5, 2000.5)
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    stand_at(rt, net, station[0] - 1, station[1])
+    rt.run(f'TREK.Core.send({P}, "accessScreen", {{}})')
+    net.pump(4)
+    check(any("IGUI_TREK_AccScreenUnasked" in n for n in rt.notes()),
+          "access: a screening before anybody asked for one was not refused by name")
+    rt.run("TREK.CommsServer.event('rescued', 'Second'); TREK.AccessServer.serviceStory()")
+    check(rt.eval("TREK.Access.store().told.screen") is True,
+          "access: the second rescue did not bring the Doctor's rule")
+    check(rt.eval("TREK.Comms.store().flags.screenDue") is True,
+          "access: the channel never heard the Doctor's rule")
+    rt.run(f'TREK.Core.send({P}, "accessScreen", {{}})')
+    net.pump(4)
+    check(any("IGUI_TREK_AccNoSample" in n for n in rt.notes()),
+          "access: a screening with no sample was not refused")
+    rt.run(f"{P}.inventory:AddItem('{SAMPLE}'); {P}:getBodyDamage():setInfected(true)")
+    rt.run(f'TREK.Core.send({P}, "accessScreen", {{}})')
+    net.pump(4)
+    check(any("IGUI_TREK_AccScreenInfected" in n for n in rt.notes()),
+          "access: an infected patient was screened")
+    rt.run(f"{P}:getBodyDamage():setInfected(false)")
+    power0 = float(rt.eval("TREK.Power.reserve()"))
+    rt.run(f'TREK.Core.send({P}, "accessScreen", {{}})')
+    net.pump(4)
+    check(rt.eval(f"{P}:getModData()[TREK.Config.ScreenKey]") is True,
+          "access: a clean patient with a sample was not screened")
+    check(inventory_count(rt, SAMPLE) == 0, "access: the screening did not use the sample")
+    spent = power0 - float(rt.eval("TREK.Power.reserve()"))
+    check(abs(spent - float(C("ScreenCost"))) < 1e-6,
+          f"access: a screening cost {spent}, not {C('ScreenCost')}")
+    rt.run(f"{P}.inventory:AddItem('{SAMPLE}')")
+    rt.run(f'TREK.Core.send({P}, "accessScreen", {{}})')
+    net.pump(4)
+    check(any("IGUI_TREK_AccScreenDone" in n for n in rt.notes()) and inventory_count(rt, SAMPLE) == 1,
+          "access: a second screening was not refused, or took a second sample")
+
+    # --- deploying ------------------------------------------------------------
+    rt.run("TREK.Comms.store().rescued = 3")
+    rt.run(f'TREK.Core.send({P}, "accessDeploy", {{}})')
+    net.pump(4)
+    check(any("IGUI_TREK_AccDeployOutside" in n for n in rt.notes()),
+          "access: the enhancers were deployed aboard the shuttle")
+    GX, GY = 2200, 2200
+    walk_to(rt, GX + 0.5, GY + 0.5)
+    rt.run(f"local inv = {P}.inventory for i = #inv.items, 1, -1 do "
+           f"if inv.items[i].fullType == '{ENH}' then table.remove(inv.items, i) break end end")
+    rt.run(f'TREK.Core.send({P}, "accessDeploy", {{}})')
+    net.pump(4)
+    check(any("IGUI_TREK_AccNeedThree" in n for n in rt.notes()),
+          "access: two enhancers were deployed as a set")
+    rt.run(f"{P}.inventory:AddItem('{ENH}'); TREK.Comms.store().rescued = 2")
+    rt.run(f'TREK.Core.send({P}, "accessDeploy", {{}})')
+    net.pump(4)
+    check(rt.eval("TREK.Access.store().job") is None,
+          "access: a lock was started before her crew were home")
+    rt.run("TREK.Comms.store().rescued = 3")
+    rt.run(f'TREK.Core.send({P}, "accessDeploy", {{}})')
+    net.pump(4)
+    job = lambda f: rt.eval(f"TREK.Access.store().job and TREK.Access.store().job.{f}")
+    check(job("progress") == 0, "access: deploying three enhancers out in the open started no lock")
+    check(inventory_count(rt, ENH) == 0, "access: deploying left enhancers in the pack")
+    sqs = [(int(job(f"sq[{i}][1]") or 0), int(job(f"sq[{i}][2]") or 0)) for i in (1, 2, 3)]
+    check(all(acc_on_square(rt, x, y, 0, ENH) == 1 for x, y in sqs) and len(set(sqs)) == 3,
+          f"access: the three enhancers are not standing on three squares ({sqs})")
+    yaw = rt.eval(f"(function() for _, w in ipairs(SIM.rawSquare({sqs[0][0]}, {sqs[0][1]}, 0).worldObjects) do "
+                  f"if w.item and w.item.fullType == '{ENH}' then return w.item.worldZRotation end end end)()")
+    check(yaw == 0, f"access: a deployed enhancer stands at {yaw} degrees")
+
+    # --- holding: paused with nobody near, humming, broken when one moves ----
+    walk_to(rt, GX + 20.5, GY + 0.5)
+    rt.run("TREK.AccessServer.serviceLock(); TREK.AccessServer.serviceLock()")
+    check(job("progress") == 0 and job("paused") is True,
+          "access: the lock ran with nobody standing with it")
+    walk_to(rt, GX + 0.5, GY + 0.5)
+    sounds0 = int(rt.eval("#SIM.worldSounds"))
+    rt.run("TREK.AccessServer.serviceLock()")
+    check(job("progress") == 1, "access: the lock did not run with the crew standing in it")
+    check(int(rt.eval("#SIM.worldSounds")) == sounds0 + 1
+          and int(rt.eval("SIM.worldSounds[#SIM.worldSounds].radius")) == int(C("LockBeaconRadius")),
+          "access: the enhancers did not hum when the lock started")
+    rt.run("TREK.AccessServer.serviceLock()")
+    check(int(rt.eval("#SIM.worldSounds")) == sounds0 + 1, "access: the enhancers hummed every minute")
+    rt.run(f"SIM.rawSquare({sqs[1][0]}, {sqs[1][1]}, 0).worldObjects = {{}}")
+    rt.run("TREK.AccessServer.serviceLock()")
+    net.pump(2)
+    check(rt.eval("TREK.Access.store().job") is None, "access: moving an enhancer did not break the lock")
+    check(any("IGUI_TREK_AccLockBroken" in n for n in rt.notes()), "access: a broken lock said nothing")
+    check(rt.eval("TREK.Access.store().lock") is None, "access: a broken lock was kept")
+
+    # --- again, held to the end: the lock, and the lift ----------------------
+    rt.run(f"SIM.rawSquare({sqs[0][0]}, {sqs[0][1]}, 0).worldObjects = {{}}; "
+           f"SIM.rawSquare({sqs[2][0]}, {sqs[2][1]}, 0).worldObjects = {{}}; "
+           f"for _ = 1, 3 do {P}.inventory:AddItem('{ENH}') end")
+    rt.run(f'TREK.Core.send({P}, "accessDeploy", {{}})')
+    net.pump(4)
+    sqs = [(int(job(f"sq[{i}][1]") or 0), int(job(f"sq[{i}][2]") or 0)) for i in (1, 2, 3)]
+    minutes = int(C("LockMinutes"))
+    rt.run(f"for _ = 1, {minutes - 1} do TREK.AccessServer.serviceLock() end")
+    check(rt.eval("TREK.Access.store().lock") is None, "access: the lock resolved early")
+    check(" :Holding:" in acc_rows(rt), f"access: a lock being held is not on the checklist ({acc_rows(rt)})")
+    rt.run("TREK.AccessServer.serviceLock()")
+    check(rt.eval("TREK.Access.store().lock") is True, "access: twenty minutes held did not give her a lock")
+    check(all(acc_on_square(rt, x, y, 0, ENH) == 0 for x, y in sqs),
+          "access: the enhancers were not spent by the lock")
+    check(rt.eval("TREK.Comms.store().flags.lockedDue") is True,
+          "access: the channel never heard of the lock")
+    net.pump(320)
+    pad_deck = int(rt.eval("TREK.Adirondack.Layout.pad.deck"))
+    check(adk_where(rt) == pad_deck,
+          f"access: the cleared player was not lifted to her pad (on deck {adk_where(rt)})")
+    check(any("IGUI_TREK_PromotionDue" in n for n in rt.notes()),
+          "access: lifted with a commission waiting, and not told she wants to see them")
+    ox, oy = rt.eval(f"TREK.Ship.worldOrigin({P})")
+    check(ox is not None and abs(float(ox) - GX) < 3 and abs(float(oy) - GY) < 3,
+          f"access: lifted from the lock, the player's place on the map is {ox},{oy}")
+    rt.run(f'TREK.Core.send({P}, "move", {{ kind = "lockBeam", token = 992 }})')
+    net.pump(4)
+    check(any("IGUI_TREK_WrongPlace" in n for n in rt.notes()),
+          "access: the lock's lift was granted twice")
+    check(acc_refusal(rt) is None, f"access: with every key earned the beam is refused {acc_refusal(rt)!r}")
+    check(acc_rows(rt).endswith("x:Cleared:"), f"access: the checklist once cleared reads {acc_rows(rt)!r}")
+
+    # A new character is a new body: screening again, the ship's keys kept.
+    rt.run(f"TREK.AdirondackClient.beamBack({P})")
+    net.pump(320)
+    rt.run(f"{P}:getModData()[TREK.Config.ScreenKey] = nil")
+    check(acc_refusal(rt) == "accScreen", f"access: an unscreened character is refused {acc_refusal(rt)!r}")
+    rt.run(f'TREK.Core.send({P}, "move", {{ kind = "toAdirondack", token = 993 }})')
+    net.pump(4)
+    check(any("IGUI_TREK_AccScreenTip" in n for n in rt.notes()),
+          "access: the server let an unscreened character across")
+    rt.run(f"{P}:getModData()[TREK.Config.ScreenKey] = true")
+    check(rt.eval(f"TREK.AdirondackClient.beamTo({P})") is True,
+          "access: a cleared player could not ask to beam across from the shuttle")
+    net.pump(320)
+    check(adk_where(rt) == pad_deck, "access: a cleared player beamed from the shuttle did not arrive")
+
+    for w in rt.warnings():
+        fail(f"access: {w}")
+
+    # --- the sandbox, and a world that was already visiting her ----------------
+    rt.run(f"{P}:getModData()[TREK.Config.ScreenKey] = nil; TREK.Access.store().lock = nil")
+    for mode in (2, 3):
+        rt.run(f"SandboxVars.TrekShuttle.AdirondackAccess = {mode}")
+        check(acc_refusal(rt) is None,
+              f"access: sandbox {mode} with the rescues done refuses {acc_refusal(rt)!r}")
+    rt.run("TREK.Comms.store().rescued = 0")
+    check(acc_refusal(rt) == "accTrust", "access: Rescues only asked for no rescues")
+    rt.run("SandboxVars.TrekShuttle.AdirondackAccess = 1")
+
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0); SandboxVars.TrekShuttle.AdirondackAccess = 1")
+    rt.run("ModData.getOrCreate('TREK_Adirondack').decks = { [1] = 1 }")
+    net.start()
+    check(rt.eval("TREK.Access.store().grandfathered") is True,
+          "access: a world whose server had built her decks was not grandfathered")
+    check(acc_refusal(rt) is None, f"access: a grandfathered crew is refused {acc_refusal(rt)!r}")
+    check(acc_rows(rt) == "x:Open:", f"access: a grandfathered checklist reads {acc_rows(rt)!r}")
+    rt.run("TREK.Access.store().grandfathered = nil; TREK.AccessServer.checkGrandfather()")
+    check(rt.eval("TREK.Access.store().grandfathered") is None,
+          "access: the grandfather check ran again after the world's first load")
+    for w in rt.warnings():
+        fail(f"access (grandfathered): {w}")
+
+    print("access: the beam greyed and refused for her crew, the lock, then the screening; the first rescue's "
+          "debrief marks one enhancer, the station holds one and the probes find the rest (never first, one at a "
+          "time, again if lost); a dead Borg carries a sample on the authority; the Doctor screens the clean once "
+          "for a sample; the lock pauses, hums, breaks and resolves, spending the enhancers and lifting the "
+          "cleared; the sandbox and an old world open it")
+
+
+def access_multiplayer():
+    """The server's copy decides a screening; the mirror reaches only its own
+    client; one lock for two players, and its lift only for the screened."""
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    GX, GY = 3000, 3000
+    srv.run(f"SIM.player('alice', {GX}.5, {GY}.5, 0); SIM.player('bob', {GX}.5, {GY + 2}.5, 0)")
+    A.run(f"SIM.player('alice', {GX}.5, {GY}.5, 0)")
+    B.run(f"SIM.player('bob', {GX}.5, {GY + 2}.5, 0)")
+    for rt in net.all():
+        rt.run("SandboxVars.TrekShuttle.AdirondackAccess = 1")
+    net.start()
+    ENH = str(srv.eval("TREK.Config.EnhancerItem"))
+    srv.run("local d = TREK.Comms.store(); d.rescued = 3; TREK.Comms.publish(); "
+            "local a = TREK.Access.store(); a.told.lock = true; a.told.screen = true; TREK.Access.publish()")
+    net.pump(4)
+    check(A.eval("TREK.Access.store().told.screen") is True, "access mp: alice's client never got the record")
+
+    # The server's copy decides: a client that believes it is screened is not.
+    srv.run("TREK.Access.store().lock = true")
+    A.run("SIM.players[1]:getModData()[TREK.Config.ScreenMirrorKey] = true")
+    check(srv.eval("TREK.Access.refusal(SIM.players[1])") == "accScreen",
+          "access mp: the server took alice for screened on her client's word")
+    srv.run("TREK.Access.store().lock = nil")
+    A.run("SIM.players[1]:getModData()[TREK.Config.ScreenMirrorKey] = nil")
+    srv.run("SIM.players[1]:getModData()[TREK.Config.ScreenKey] = true; "
+            "TREK.AccessServer.publishMine(SIM.players[1])")
+    net.pump(4)
+    check(A.eval("SIM.players[1]:getModData()[TREK.Config.ScreenMirrorKey]") is True,
+          "access mp: alice's client never heard she was screened")
+    check(B.eval("SIM.players[1]:getModData()[TREK.Config.ScreenMirrorKey]") is None,
+          "access mp: alice's screening reached bob's own character")
+    B.run("TREK.AccessUI.ask(SIM.players[1])")
+    net.pump(4)
+    check(B.eval("SIM.players[1]:getModData()[TREK.Config.ScreenMirrorKey]") is False,
+          "access mp: bob asked the server about himself and was not answered")
+
+    # One lock, two players: alice deploys, both hold, only alice goes up.
+    acc_give(srv, "alice", ENH, 3)
+    acc_give(A, "alice", ENH, 3)
+    A.run("TREK.AccessUI.onDeploy(SIM.players[1])")
+    net.pump(4)
+    check(srv.eval("TREK.Access.store().job ~= nil") is True, "access mp: alice's deploy started no lock")
+    check(B.eval("TREK.Access.store().job ~= nil") is True, "access mp: bob's client never saw the lock start")
+    check(any("IGUI_TREK_AccLockStarted" in n for n in B.notes()),
+          "access mp: bob was not told a lock was started")
+    minutes = int(srv.eval("TREK.Config.LockMinutes"))
+    srv.run(f"for _ = 1, {minutes} do TREK.AccessServer.serviceLock() end")
+    net.pump(360)
+    check(srv.eval("TREK.Access.store().lock") is True, "access mp: two players holding did not give her a lock")
+    check(adk_where(A) is not None, "access mp: screened alice was not lifted to the Adirondack")
+    check(adk_where(B) is None, "access mp: unscreened bob was lifted anyway")
+    check(any("IGUI_TREK_AccLeftBehind" in n for n in B.notes()),
+          "access mp: bob was left behind without a word")
+    for name, rt in (("server", srv), ("alice", A), ("bob", B)):
+        for w in rt.warnings():
+            fail(f"access mp ({name}): {w}")
+    print("access multiplayer: the server's copy decides a screening and tells only its owner; one lock for two "
+          "players, and the lift only for the screened")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -15363,7 +15917,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, multiplayer)
 
 
 def main():

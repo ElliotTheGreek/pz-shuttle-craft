@@ -59,7 +59,7 @@ Everything the ship does runs on the dilithium crystal in her warp core, and one
 - Run dry in the air and she makes an emergency landing as soon as there is room. Run dry in orbit with crew aboard and she brings them down herself.
 
 A working starship in orbit you can teleport to and explore - the U.S.S Adirondack
-From the shuttle's aboard menu, Beam to the U.S.S. Adirondack. Ride the turbolifts between five decks:
+She has to be earned first (sandbox: Adirondack access). She can't lock onto somebody with no combadge: bring her crew home from distress calls, recover three pattern enhancers (the first rescue's debrief, the field station and your probes find them), deploy them outdoors and hold the triangle while she resolves a lock, and pass the Doctor's biofilter screening with a nanoprobe sample off one of the Borg among the dead. The PADD's Clearance tab tracks it. Once cleared, from the shuttle's aboard menu, Beam to the U.S.S. Adirondack. Ride the turbolifts between five decks:
 - Deck 1 -- the Bridge and the Ready Room
 - Deck 2 -- the Lounge and bar, the Galley with a working range, and crew quarters with beds you can sleep in
 - Deck 3 -- the Transporter Room and Sickbay, with the CMO's office and lab
@@ -147,7 +147,7 @@ Nothing dead gets within ten tiles of the landed ship. They are shoved back, not
 This mod is multiplayer compatible.
 FOR SERVER OWNERS
 The mod is server-authoritative: the ship, the cabin, the Adirondack, their stores and the hull live on the server and every player sees the same ones. Add its map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY -- so the space outside the cabin is black instead of wilderness with zombies in it. Single player and the in-game Host settings add it for you.
-Sandbox options on the Shuttlecraft page cover who may use the shuttle, transporter charges, torpedo fire, the replicator, how the shuttle starts, dilithium in the wild, the Doctor, hover height, when the Adirondack first calls, phaser cutting, and whether the hydroponic trays tend themselves.
+Sandbox options on the Shuttlecraft page cover who may use the shuttle, transporter charges, torpedo fire, the replicator, how the shuttle starts, dilithium in the wild, the Doctor, hover height, when the Adirondack first calls, how the Adirondack is earned and how many rescues it takes, phaser cutting, and whether the hydroponic trays tend themselves.
 Transporter charges: with the speed anti-cheat on, each player gets 3 beams with one back every 150 seconds, so the server never kicks anybody for beaming. Set AntiCheatSpeed to 3 or 4, or choose Always unlimited, for unlimited beaming.
 
 GUIDE

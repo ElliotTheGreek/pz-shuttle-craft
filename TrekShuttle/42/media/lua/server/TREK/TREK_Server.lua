@@ -985,7 +985,12 @@ local MOVES = {
     -- pad is the shuttle's transporter, and costs what a beam costs; back is
     -- the Adirondack's, and costs the ship nothing. The lift is a walk.
     -- `from` is where the player must be standing to ask.
-    toAdirondack   = { cost = 1, access = true, energy = "BeamCost", from = "shuttle" },
+    toAdirondack   = { cost = 1, access = true, energy = "BeamCost", from = "shuttle",
+                       clearance = true },
+    -- The lift at a resolved lock (ACCESS.md 3.10): straight up from the
+    -- triangle, once, for somebody the lock offered it to. Her transporter,
+    -- so it costs the shuttle nothing.
+    lockBeam       = { cost = 0, from = "lockSite" },
     fromAdirondack = { cost = 1, from = "adirondack" },
     turbolift      = { cost = 0, from = "decks" },
     -- The field station (FIELD_STATION.md 3): down from the panel behind
@@ -999,6 +1004,9 @@ local MOVES = {
 local function movesFrom(player, where)
     if not where then return true end
     if where == "shuttle" then return U.isInteriorPlayer(player) end
+    if where == "lockSite" then
+        return TREK.AccessServer ~= nil and TREK.AccessServer.takeLift(player)
+    end
     local A = TREK.Adirondack
     if not A then return false end
     if where == "adirondack" then return A.onAdirondack(player) end
@@ -1025,6 +1033,14 @@ Net.onServer("move", function(player, args)
     if not movesFrom(player, rule.from) then
         deny(player, "wrongPlace", { kind = kind })
         return
+    end
+    -- Boarding clearance (ACCESS.md): the same refusal the menu greys with.
+    if rule.clearance and TREK.Access then
+        local why = TREK.Access.refusal(player)
+        if why then
+            deny(player, why, { kind = kind })
+            return
+        end
     end
     local s = U.state()
     -- The ramp only exists when she is on the ground. While she is flying the
@@ -1071,7 +1087,7 @@ Net.onServer("move", function(player, args)
     -- (DEV_GUIDE: *Single player cannot test a fix that both ends apply*).
     -- This handler runs before the move, so the player is still standing
     -- where they are leaving from.
-    if kind == "beamUp" or kind == "hatchIn" or kind == "stationDown" then
+    if kind == "beamUp" or kind == "hatchIn" or kind == "stationDown" or kind == "lockBeam" then
         local px = U.try("moveFromX", function() return player:getX() end)
         local py = U.try("moveFromY", function() return player:getY() end)
         local pz = U.try("moveFromZ", function() return player:getZ() end)
@@ -1092,7 +1108,8 @@ Net.onServer("move", function(player, args)
     -- Every kind that takes somebody apart and puts them back together:
     -- a descent is a beam to the landing site (TRAITS.md 3.4).
     if TREK.TraitsServer and (kind == "beamUp" or kind == "beamDown" or kind == "descend"
-                              or kind == "toAdirondack" or kind == "fromAdirondack") then
+                              or kind == "toAdirondack" or kind == "fromAdirondack"
+                              or kind == "lockBeam") then
         U.try("traits.beam", TREK.TraitsServer.onBeam, player, kind)
     end
     if TREK.TraitsServer and (kind == "turbolift" or kind == "stationDown" or kind == "stationUp") then
@@ -2798,6 +2815,8 @@ local function placeContact(contact)
     contact.status = "investigated"
     U.log("contact %s: %s is on the ground at %d,%d",
           contact.id, what, contact.x, contact.y)
+    -- A crash site's wreckage (ACCESS.md 3.4).
+    if TREK.AccessServer then U.try("access.placed", TREK.AccessServer.onPlaced, contact, best) end
     return true
 end
 
@@ -2835,7 +2854,8 @@ function S.serviceContacts()
             changed = true
             U.log("contact %s at %d,%d is outside the world; retired",
                   contact.id, contact.x, contact.y)
-        elseif (contact.kind == "dilithium" or contact.kind == "clue")
+        elseif (contact.kind == "dilithium" or contact.kind == "clue"
+                or contact.kind == "salvage")
                and not Probes.isResolved(contact.status) then
             if not contact.placed then
                 -- No proximity pre-check. There was one -- skip contacts no
@@ -2851,6 +2871,10 @@ function S.serviceContacts()
                 contact.status = "recovered"
                 changed = true
                 U.log("contact %s: the crystal has been recovered", contact.id)
+                -- A pattern enhancer counts toward the lock (ACCESS.md 5).
+                if TREK.AccessServer then
+                    U.try("access.recovered", TREK.AccessServer.onRecovered, contact)
+                end
             end
         end
     end
@@ -2945,9 +2969,19 @@ function S.serviceProbe()
         -- The third result: a holo fragment's site, once Shepard has been
         -- met and while any of the six is still owed. Never the first probe
         -- of a save -- that one is the crystal the ship needs.
-        local clue = s.probeEverFound and S.clueFor and S.clueFor()
+        -- The fourth: a pattern enhancer's crash site, while the lock is owed
+        -- (ACCESS.md 3.4). Also never the first probe of a save.
+        local salvage = s.probeEverFound and TREK.AccessServer ~= nil
+                        and TREK.AccessServer.salvageFor()
+        local clue = not salvage and s.probeEverFound and S.clueFor and S.clueFor()
         local contact
-        if clue then
+        if salvage then
+            contact = Probes.addContact("salvage", cx, cy, 0, done.id, true)
+            if contact then
+                contact.item = C.EnhancerItem
+                contact.source = "probe"
+            end
+        elseif clue then
             contact = Probes.addContact("clue", cx, cy, 0, done.id, true)
             if contact then
                 contact.fragment = clue

@@ -740,16 +740,59 @@ end
 -- the ship's reserve; hers is the same, on the galley range's own square, so
 -- the stove and the stasis units nearby have power, billed to her warp core --
 -- or, on a field station sublevel, to the station's (FIELD_STATION.md 6).
-function AS.servicePowerBus(k)
-    local pool = A.siteOf(k) or "adk"
+--
+-- **It stands one level below the range, not on it.** Build 42 turns an area
+-- enclosed at runtime into a room and a building (WorldRegionToMetaGrid
+-- .updateSquares), and a running generator on a square that is in a room and
+-- not `exterior` makes that building toxic -- updateSquares and
+-- IsoGenerator.update both call IsoBuilding.setToxic -- which is the fumes
+-- that left a player poisoned and drowsy on the field station. The decks were
+-- exterior until they were roofed against the rain (1.10.x); from then on the
+-- bus poisoned the whole deck. Below the deck there are no walls, so no room
+-- and no building, and it is one level away: the vertical power range is at
+-- least 1 in every sandbox (SandboxOptions, GeneratorVerticalPowerRange 1..15).
+function AS.busSquare(k)
     local range = nil
     for _, o in ipairs(L.decks[k].objects) do
         if o[5] == "galley_range" then range = o break end
     end
     if not range then return nil end
     local x, y = A.at(k, range[1], range[2])
-    if not U.chunkLoaded(x, y, A.Z) then return nil end
+    return x, y
+end
+
+--- Takes a bus off the range's own square, where the builds before this one
+--- put it, and clears the fumes it left in the building (setToxic syncs itself
+--- from a server: GameServer.sendToxicBuilding).
+local function moveOldBus(x, y)
     local sq = U.square(x, y, A.Z, false)
+    if not sq then return end
+    local old = {}
+    U.eachObject(sq, function(o)
+        if instanceof(o, "IsoGenerator") then table.insert(old, o) end
+    end)
+    for _, o in ipairs(old) do
+        U.try("adk.busOld", function()
+            o:setActivated(false)
+            sq:transmitRemoveItemFromSquare(o)
+        end)
+    end
+    if #old > 0 then
+        U.try("adk.busAir", function()
+            local b = sq:getBuilding()
+            if b and b:isToxic() then b:setToxic(false) end
+        end)
+        U.log("power bus: moved off the galley range at %d,%d, and the air cleared", x, y)
+    end
+end
+
+function AS.servicePowerBus(k)
+    local pool = A.siteOf(k) or "adk"
+    local x, y = AS.busSquare(k)
+    if not x then return nil end
+    if not U.chunkLoaded(x, y, A.Z) then return nil end
+    moveOldBus(x, y)
+    local sq = U.square(x, y, A.Z - 1, true)
     if not sq then return nil end
     local gen = nil
     U.eachObject(sq, function(o)

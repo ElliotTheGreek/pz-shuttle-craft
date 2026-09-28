@@ -38,6 +38,7 @@ require "TREK/TREK_Ship"
 require "TREK/TREK_Core"
 require "TREK/TREK_Adirondack"
 require "TREK/TREK_FieldStation"
+require "TREK/TREK_Access"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -314,11 +315,30 @@ function AC.beamTo(player)
     if not player then return false end
     if not U.isInteriorPlayer(player) then return false, "not aboard" end
     if busy() then busyNote(player) return false, "busy" end
+    -- Boarding clearance (ACCESS.md): said here, and refused again by the
+    -- server for the same reason.
+    local why = TREK.Access.refusal(player)
+    if why then
+        U.note(player, TREK.AccessUI and TREK.AccessUI.tip(why) or why, 255, 170, 90)
+        return false, why
+    end
     Core.requestMove(player, "toAdirondack", function(p)
         AC.pending = { player = p, dir = "to", tries = 0 }
         local cost = Core.grantedCost
         U.note(p, cost and getText("IGUI_TREK_Energizing", tostring(math.floor(cost)))
                         or getText("IGUI_TREK_Energising"))
+    end)
+    return true
+end
+
+--- Straight up from a resolved lock (ACCESS.md 3.10): the server offered it,
+--- and grants it once.
+function AC.liftFromLock(player)
+    if not player then return false end
+    if busy() then busyNote(player) return false, "busy" end
+    Core.requestMove(player, "lockBeam", function(p)
+        AC.pending = { player = p, dir = "lock", tries = 0 }
+        U.note(p, getText("IGUI_TREK_Energising"))
     end)
     return true
 end
@@ -387,7 +407,15 @@ local function servicePending()
     AC.pending = nil
     local p = job.player
 
-    if job.dir == "to" then
+    if job.dir == "lock" then
+        -- Off the map from where they stand, which is where they are on it
+        -- while aboard her; the server wrote the same before the move.
+        Ship.setReturnPoint(p, p:getX(), p:getY(), p:getZ())
+        Ship.playerData(p).aboard = false
+        local x, y, _, deck = A.padSpot()
+        beginArrival(p, x, y, deck)
+        U.log("beaming to the Adirondack from the lock")
+    elseif job.dir == "to" then
         -- Off the shuttle as far as the shuttle is concerned: the crew check
         -- that keeps a flying ship up counts people in her cabin.
         Ship.playerData(p).aboard = false

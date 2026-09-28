@@ -1,0 +1,60 @@
+{
+  "id": "SCREEN",
+  "priority": 17,
+  "title": "The Doctor's condition",
+  "kind": "incoming",
+  "notes": [
+    "Boarding clearance (ACCESS.md 3.5-3.7). After the second rescue, or the lock.",
+    "The Doctor's biofilter: a nanoprobe sample off one of the Borg among the dead.",
+    "Must not name a Changeling or the weapon's author: this can ring before the",
+    "reveal. What is walking around could walk aboard, and that is enough."
+  ],
+  "requires": ["screenDue", "met"],
+  "forbids": ["quiet"],
+  "nodes": [
+    {
+      "id": "01",
+      "lines": [
+        { "voice": "card", "text": "INCOMING: U.S.S. ADIRONDACK" },
+        { "voice": "shepard", "text": "Shepard. Before you come up, the Doctor has a condition." }
+      ],
+      "options": [
+        { "text": "Of course he does.", "go": "02" },
+        { "text": "What is it?", "go": "02" }
+      ],
+      "timeout": 60,
+      "silence": "02"
+    },
+    {
+      "id": "02",
+      "lines": [
+        { "voice": "emh", "text": "It is the Captain's condition. I merely agree with it." },
+        { "voice": "emh", "text": "Whatever is walking around down there could walk aboard in you." },
+        { "voice": "emh", "text": "So you pass my biofilter first. Any of my stations will do." }
+      ],
+      "options": [
+        { "text": "What do you need?", "go": "03" },
+        { "text": "I'm not infected.", "go": "03" }
+      ]
+    },
+    {
+      "id": "03",
+      "lines": [
+        { "voice": "emh", "text": "The filter has to be calibrated, and for that I need a sample." },
+        { "voice": "emh", "text": "Some of the dead are more machine than corpse. Nanoprobes." },
+        { "voice": "emh", "text": "Put one down, bring me what it carries, and I will screen you." }
+      ],
+      "options": [
+        { "text": "Charming.", "go": "04" },
+        { "text": "I'll get you one.", "go": "04" }
+      ]
+    },
+    {
+      "id": "04",
+      "lines": [
+        { "voice": "emh", "text": "And come to me clean. I do not screen a patient mid-cure." },
+        { "voice": "shepard", "text": "You heard him. Shepard out." }
+      ]
+    }
+  ]
+}

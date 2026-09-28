@@ -13,6 +13,8 @@
       * **History** -- every call the ship has had, replayed from node ids.
       * **Library** -- this PADD's books and transcripts, and the six
         fragments in order.
+      * **Clearance** -- what the Adirondack asks before she will take you
+        (ACCESS.md 5): a checklist that names a step only once the story has.
 
     **A PADD is a container for the library and a window onto the channel**
     (PADD.md 12.1). The books and transcripts shown are the ones on the PADD
@@ -42,6 +44,7 @@ require "TREK/TREK_Padd"
 require "TREK/TREK_PaddActions"
 require "TREK/TREK_Comms"
 require "TREK/TREK_Helm"
+require "TREK/TREK_Access"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -64,12 +67,13 @@ local LINEH = 22
 local OPTIONS = 4         -- option buttons on the channel view
 local FONT = UIFont.Medium
 
-S.TABS = { "channel", "history", "library" }
+S.TABS = { "channel", "history", "library", "clearance" }
 -- Spelled out rather than built, so every key is a literal the asset check
 -- can find (tests/test_assets.py reads getText calls out of the source).
 S.TAB_KEYS = { channel = "IGUI_TREK_PaddTab_channel",
                history = "IGUI_TREK_PaddTab_history",
-               library = "IGUI_TREK_PaddTab_library" }
+               library = "IGUI_TREK_PaddTab_library",
+               clearance = "IGUI_TREK_PaddTab_clearance" }
 
 --- The screen's size: most of the screen, and never less than a Deck's.
 function S.size()
@@ -188,7 +192,7 @@ function TREKPaddScreen:createChildren()
                           getText("IGUI_TREK_PaddReadBtn"), TREKPaddScreen.onRead, Pal.gold)
 
     self:insertNewLineOfButtons(self.tabBtns[1], self.tabBtns[2], self.tabBtns[3],
-                                self.upBtn, self.downBtn)
+                                self.tabBtns[4], self.upBtn, self.downBtn)
     self:insertNewListOfButtons({ self.list })
     self:insertNewLineOfButtons(self.readBtn)
     self:insertNewLineOfButtons(self.actionBtn)
@@ -204,6 +208,9 @@ function TREKPaddScreen:textBox()
     local top = self.bodyY + 30
     if self.tab == "channel" then
         return cx, top, self.width - cx - PAD, self.optY - PAD - top - 18
+    end
+    if self.tab == "clearance" then
+        return cx, top, self.width - cx - PAD, self.bottom - top
     end
     local x = cx + LISTW + PAD
     return x, top, self.width - x - PAD, self.bottom - top
@@ -343,6 +350,7 @@ function TREKPaddScreen:content()
         end
         return getText("IGUI_TREK_CommsNever"), {}
     end
+    if self.tab == "clearance" then return self:clearance() end
     local row = self.list.items[self.list.selected]
     local item = row and row.item
     if not item then return self.tab == "history" and getText("IGUI_TREK_CommsNoHistory")
@@ -362,6 +370,25 @@ function TREKPaddScreen:content()
         return getText("IGUI_TREK_FragmentN", tostring(item.n)), self:fragmentDetail(item.n)
     end
     return item.text or "", {}
+end
+
+--- The clearance checklist (ACCESS.md 5): a box and a line per step, and a
+--- step the story has not revealed says only that it is there.
+function TREKPaddScreen:clearance()
+    local out = {}
+    for _, r in ipairs(TREK.Access.rows(self.player)) do
+        local box, c
+        if r.done == true then
+            box, c = "[x] ", Pal.blue
+        elseif r.done == false then
+            box, c = "[ ] ", Pal.peach
+        else
+            box, c = "[?] ", { Pal.dim[1] * 1.6, Pal.dim[2] * 1.6, Pal.dim[3] * 1.6 }
+        end
+        table.insert(out, { text = box .. getText(r.key, r.a1 or "", r.a2 or ""),
+                            r = c[1], g = c[2], b = c[3] })
+    end
+    return getText("IGUI_TREK_AccHeading"), out
 end
 
 function TREKPaddScreen:rowTranscript(row)
@@ -567,6 +594,10 @@ function TREKPaddScreen:rebuildLines()
     local x, _, w, _ = self:textBox()
     local sig = self.tab .. "|" .. tostring(self.list.selected) .. "|" .. tostring(heading)
                 .. "|" .. tostring(#rows) .. "|" .. tostring(w)
+    -- The checklist keeps its length as its numbers move.
+    if self.tab == "clearance" then
+        for _, r in ipairs(rows) do sig = sig .. "|" .. tostring(r.text) end
+    end
     if sig == self.linesSig then return end
     local live = self.tab == "channel"
     self.linesSig = sig
@@ -765,6 +796,8 @@ function S.open(player, padd)
         return nil
     end
     if S.window then U.try("padd.closeOld", function() S.window:close() end) end
+    -- The clearance tab reads this character's screening from the server.
+    if TREK.AccessUI then U.try("padd.accessAsk", TREK.AccessUI.ask, player) end
     local w = U.try("padd.open", function()
         local sw, sh = S.size()
         local vw = U.try("padd.vw", function() return getCore():getScreenWidth() end) or sw + 40

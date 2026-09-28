@@ -117,8 +117,12 @@ function S.onRescue(player)
     local was = T.rank(player)
     local now = S.earnedRank(player)
     if now > was then
-        T.note(player, "IGUI_TREK_PromotionDue", getText("UI_trait_trek_" .. C.Ranks[now]),
-               255, 220, 120)
+        -- She gives it in person, so a player who cannot yet beam across to
+        -- her is told it will wait rather than sent to a bridge they cannot
+        -- reach (ACCESS.md). The lock tells them again when it lifts them.
+        local waits = TREK.Access ~= nil and TREK.Access.refusal(player) ~= nil
+        T.note(player, waits and "IGUI_TREK_PromotionWaits" or "IGUI_TREK_PromotionDue",
+               getText("UI_trait_trek_" .. C.Ranks[now]), 255, 220, 120)
         U.log("traits: %s has earned %s (%d rescue(s)); the captain will see them",
               Ship.usernameOf(player), C.Ranks[now], data[C.RescuesKey])
     end
