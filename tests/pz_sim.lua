@@ -4076,6 +4076,51 @@ package.preload["Vehicles/ISUI/ISVehicleSeatUI"] = function() return true end
 UIFont = { Small = 1, Medium = 2 }
 
 ---------------------------------------------------------------------------
+-- Attached locations and the hotbar's slot table (the shoulder lamp)
+---------------------------------------------------------------------------
+-- AttachedLocations is a Java class in every process: named groups of named
+-- locations, each naming the body-model attachment it hangs from. The
+-- hotbar's table is plain Lua that vanilla loads from client/Hotbar/, so it
+-- exists on a client and nowhere else -- on a server a require of it would
+-- find nothing, which is why the mod's slot file returns before asking.
+do
+    local groups = {}
+    AttachedLocations = {
+        getGroup = function(name)
+            local g = groups[name]
+            if not g then
+                g = { locations = {} }
+                function g:getOrCreateLocation(id)
+                    local loc = self.locations[id]
+                    if not loc then
+                        loc = { id = id }
+                        function loc:setAttachmentName(a) self.attachment = a end
+                        function loc:getAttachmentName() return self.attachment end
+                        self.locations[id] = loc
+                    end
+                    return loc
+                end
+                function g:getLocation(id) return self.locations[id] end
+                groups[name] = g
+            end
+            return g
+        end,
+    }
+end
+if SIM_ROLE ~= "server" then
+    -- Vanilla's own entries matter only in that they are there: the mod's
+    -- slot must add to the table, not replace it.
+    ISHotbarAttachDefinition = {
+        { type = "SmallBeltLeft", name = "Belt Left", animset = "belt left",
+          attachments = { Knife = "Belt Left Upside" } },
+        { type = "WebbingRight", name = "Webbing Right", animset = "holster right",
+          attachments = { Walkie = "Webbing Right Walkie" } },
+    }
+    ISHotbarAttachDefinition.replacements = {}
+    package.preload["Hotbar/ISHotbarAttachDefinition"] = function() return true end
+end
+
+---------------------------------------------------------------------------
 -- Timed actions (PADD.md)
 ---------------------------------------------------------------------------
 -- Modelled on what build 42 actually does, read out of its bytecode:

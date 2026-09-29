@@ -1,6 +1,7 @@
 {
     "IGUI_TREK_Name": "Shuttlecraft",
     "IGUI_TREK_BeamUp": "Beam up to the shuttle",
+    "IGUI_HotbarAttachment_TrekShoulder": "Shoulder",
     "IGUI_TREK_BeamDown": "Beam down",
     "IGUI_TREK_CallDown": "Call the shuttle down here",
     "IGUI_TREK_Recall": "Send the shuttle back up",

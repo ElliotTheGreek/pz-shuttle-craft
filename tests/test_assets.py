@@ -775,11 +775,15 @@ for ref in re.findall(r"^\s*WeaponSprite\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.
 
 # A weapon on the back is drawn at bone x the body's attachment x the weapon's
 # own attachment of the same name (AttachedModelName sets self = parent), and
-# the back slots hang it by its Y, a katana's length. A blade whose length is
-# its X -- the bat'leth -- stands on edge across the shoulders like horns
-# unless its model carries its own attachment for every back slot its
+# the back slots hang it by its Y, a katana's length, with its X standing out
+# from the back. Every vanilla weapon is a thin line in X (the widest, the
+# canoe paddle, is 0.123), so the slots never had to lay anything flat. A
+# mesh broader than that across X -- the bat'leth, first as a crescent whose
+# length was X (horns across the shoulders), now held by one end with its
+# bow along X -- needs its own attachment for every back slot its
 # AttachmentType can land in: the Back slot's, and the Bag replacement's for
 # when a pack is worn. Both lists are read from vanilla, not written here.
+VANILLA_WIDEST_X = 0.123
 from preview_model import parse_x  # noqa: E402
 
 _hotbar = open(os.path.join(PZ, "lua", "client", "Hotbar", "ISHotbarAttachDefinition.lua"),
@@ -809,21 +813,67 @@ for item in re.finditer(r"^\s*item\s+(\w+)\s*\{(.*?)^\s*\}", script, re.M | re.S
     path = os.path.join(MOD, "media", "models_X", *mesh.split("/")) + ".x"
     if not os.path.isfile(path):
         continue
-    xs, ys = zip(*[(v[0], v[1]) for v in parse_x(path)[0]])
-    if max(xs) - min(xs) <= max(ys) - min(ys):
+    xs = [v[0] for v in parse_x(path)[0]]
+    if max(xs) - min(xs) <= VANILLA_WIDEST_X:
         continue
     _checked_wide += 1
     for name in sorted(_back[kind.group(1)]):
         if not re.search(r"attachment\s+%s\s*\{" % name, block):
             failures.append(
-                f"{item.group(1)}: its mesh is wider than it is long and it goes "
+                f"{item.group(1)}: its mesh is {max(xs) - min(xs):.3f} across X, "
+                f"broader than any vanilla weapon, and it goes "
                 f"on the back ({kind.group(1)}), but {sprite.group(1)} has no "
                 f"`attachment {name}` of its own -- it will stand on edge across "
-                f"the shoulders. tools/gen_batleth.py writes the bat'leth's.")
+                f"or out from the back. tools/gen_batleth.py writes the bat'leth's.")
 if _checked_wide < 1:
     failures.append("back slots: no wide back-slung weapon was found to check -- "
                     "the bat'leth should be one; the item or model pattern has "
                     "stopped matching")
+
+# The Shoulder slot (ITEMS.md) is three joins, each silent when it breaks: a
+# uniform that does not provide the slot has no Shoulder on its hotbar; a body
+# attachment vanilla's bodies do not have puts the lamp nowhere; and a lamp
+# model with no attachment of its own of that name hangs where the walkie
+# goes, on the chest, facing sideways. The names are read from TREK_Config.
+_cfg = open(os.path.join(MOD, "media", "lua", "shared", "TREK", "TREK_Config.lua"),
+            encoding="utf-8").read()
+_c = lambda key: (re.search(r'^C\.%s\s*=\s*"([^"]+)"' % key, _cfg, re.M) or [None, None])[1]
+_slot, _kind, _body_att = _c("ShoulderSlot"), _c("ShoulderLampKind"), _c("ShoulderAttachment")
+_issue = re.search(r"^C\.UniformIssue\s*=\s*\{(.*?)\}", _cfg, re.M | re.S)
+_uniforms = re.findall(r'"TrekShuttle\.(\w+)"', _issue.group(1)) if _issue else []
+if not (_slot and _kind and _body_att) or len(_uniforms) != 6:
+    failures.append(f"shoulder slot: read slot={_slot} kind={_kind} attachment={_body_att} "
+                    f"and {len(_uniforms)} uniforms out of TREK_Config.lua -- the "
+                    f"pattern has stopped matching")
+else:
+    _items = {m.group(1): m.group(2) for m in
+              re.finditer(r"^\s*item\s+(\w+)\s*\{(.*?)^\s*\}", script, re.M | re.S)}
+    for _u in _uniforms:
+        _prov = re.search(r"^\s*AttachmentsProvided\s*=\s*([\w;]+)\s*,", _items.get(_u, ""), re.M)
+        if not (_prov and _slot in _prov.group(1).split(";")):
+            failures.append(f"{_u} does not provide the {_slot} slot, so a player wearing "
+                            f"it has nowhere on the hotbar to put the shoulder lamp")
+    _chars = open(os.path.join(PZ, "scripts", "generated", "models_characters.txt"),
+                  encoding="utf-8", errors="replace").read()
+    for _bm in ("MaleBody", "FemaleBody"):
+        _bb = re.search(r"model %s\s*\{(.*?)\n    \}" % _bm, _chars, re.S)
+        if not (_bb and re.search(r"attachment\s+%s\s*\{" % _body_att, _bb.group(1))):
+            failures.append(f"shoulder slot: vanilla's {_bm} has no attachment {_body_att}; "
+                            f"the lamp would hang from nothing")
+    _lamps = 0
+    for _name, _body in _items.items():
+        if not re.search(r"^\s*AttachmentType\s*=\s*%s\s*," % _kind, _body, re.M):
+            continue
+        _lamps += 1
+        _model = re.search(r"^\s*StaticModel\s*=\s*(\w+)", _body, re.M)
+        _mb = _blocks.get(_model.group(1)) if _model else None
+        if not (_mb and re.search(r"attachment\s+%s\s*\{" % _body_att, _mb)):
+            failures.append(f"{_name}: its model has no `attachment {_body_att}` of its own, "
+                            f"so on the shoulder it hangs as a walkie does, on the chest. "
+                            f"tools/gen_shoulderlamp.py writes it.")
+    if _lamps != 1:
+        failures.append(f"shoulder slot: {_lamps} items have AttachmentType = {_kind}, not "
+                        f"the one shoulder lamp")
 
 # The animation set is global and closed: a mod borrows a name or gets nothing.
 SWING_ANIMS = set(re.findall(r"^\s*SwingAnim\s*=\s*(\w+)\s*,", vanilla, re.M))

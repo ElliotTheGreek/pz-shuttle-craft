@@ -1892,6 +1892,13 @@ skinning, no animation files. Vanilla's `Katana` model block is four lines.
   stroke. Real-world scale is not the test; the sprite is. Check the **bounding
   box**, not the constant you set — the bat'leth's arc bulges past its own
   chord, so `SPAN = 0.46` drew 0.531 across, wider than a baseball bat is long.
+  **And the bracket depends on where the fist is.** All of that was a bat'leth
+  held by its middle, span across the hand. The author's verdict on the result
+  (2026-09-29) was "too short and fat", and that it should be held on one side
+  for the reach: held by the grip over an outer hand-hole, its span is
+  *length* along +Y, the katana's bracket (0.627) applies, and it is 0.676
+  long by 0.295 across its bow. Which side of it faces the swing is read off
+  `Bob_AttackBat` from above, not guessed (`FLIP` in `gen_batleth.py`).
 - **An item with an `AttachmentType` needs a 32×32 icon, not 64×64.** It is the
   only kind vanilla's hotbar draws, and `ISHotbar.lua:52` places it at
   `slotX + tex:getWidth() / 2` — the slot's left edge plus *half the texture's
@@ -2002,6 +2009,15 @@ Bip01_L_Hand       mean x = +0.369      Bip01_R_Hand       mean x = -0.369
 The wearer's left is **+X**. No handedness convention, no cross product, no
 argument: the file says so, in the bone names, and reading the skin weights
 took four lines.
+
+**And forward is where the toes point** (the shoulder lamp, 2026-09-29).
+`tools/gen_shoulderlamp.py` solves where the lamp sits from the skeleton. Its
+first render put the lamp against the collar, and the idle's elbows -- which
+hang *behind* the neck -- made the rig look as if it faced +Z, so the "fix"
+turned forward round. A check against `Bip01_R_Toe0` minus `Bip01_R_Foot`
+refused it before anything was drawn: the rig faces -Z, the direction had been
+right, and the fault was the point it was aimed at. The generator reads
+forward from the toes now, and a torso close-up of both bodies was the judge.
 
 The general shape, and it is the same one as *The bytecode is the
 documentation* a level up: **when an asset encodes the answer, read the asset.**
@@ -2424,6 +2440,7 @@ python tools/gen_captain.py TrekShuttle/42        # Captain Titus: her tree and 
 python tools/gen_captain_art.py TrekShuttle/42    # her portrait, rendered from her body and uniform
 python tools/gen_access.py TrekShuttle/42         # the pattern enhancer and the nanoprobe sample (ACCESS.md)
 python tools/gen_backpack.py TrekShuttle/42       # the field pack: texture, icon, worn and hand clothing XMLs, GUID rows
+python tools/gen_shoulderlamp.py TrekShuttle/42   # the shoulder lamp: mesh, texture, 32px icon, its shoulder attachment solved, worn sheet
 python tools/gen_farm_icons.py                    # hydroponics item icons, keyed from their raws
 python tools/gen_contraband_icons.py              # contraband item icons, keyed from their raws
 python tools/gen_crew_talk.py                     # the crew's talk (design/crew -> TREK_CrewTalk.lua)
@@ -2511,11 +2528,12 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **Loot is stocked, but in the wrong piece of furniture** | The entry's `loot` is hung on a sprite that is not what the comment beside it claims. Look the sprite up in `tools/_catalog/tiles.json` and read `CustomName`. No test can catch this one. |
 | **A container is missing item types** | Container capacity. `AddItems` drops items silently once full. Use `U.stockEach`, which reads the container back and reports what did not land. |
 | **A weapon is equipped and the hand is empty** | `WeaponSprite` names no model, the model block is not in `module Base`, or the mesh/texture is not on disk. `tests/test_assets.py` checks all four. The log names the model block itself as the failed asset when the module is wrong. |
-| **A slung weapon stands on edge across the shoulders, or points into the chest in hand** | The mesh's length is not its +Y. On the back, the model needs its own attachment named for each back slot (`blade_back`, `big_blade_back_bag`); in hand, the blade has to run +Y from the grip. `test_assets.py` fails a wide back-slung weapon with no back attachments. See *A weapon model is a static mesh*. |
+| **A slung weapon stands on edge across the shoulders, or points into the chest in hand** | The mesh's length is not its +Y, or it is broader across X than anything vanilla hangs. On the back, the model needs its own attachment named for each back slot (`blade_back`, `big_blade_back_bag`); in hand, the blade has to run +Y from the grip. `test_assets.py` fails a back-slung weapon over 0.123 across X with no back attachments. See *A weapon model is a static mesh*. |
 | **A weapon swings with no animation** | `SwingAnim` is not one of the nine names vanilla uses. |
 | **A new blade reads as a machete / cleaver / stick** | Its silhouette is not saying what it is. Render it (`tools/preview_model.py`) -- this is invisible in a section list. See *A blade is its silhouette*. |
 | **A weapon icon is a thin sliver next to the rest of the set** | It is being drawn upright in a square frame. Tilt it, as vanilla draws every blade; `tools/vet_icons.py` shows the whole set and the fill percentages tell you at once. |
-| **A weapon is twice the size of the character holding it** | The mesh's own dimensions are its scale; `WeaponLength` changes nothing. Read the **bounding box** the generator prints, not the span constant — an arc bulges past its chord. Vanilla's widest weapon mesh is 0.123 across. |
+| **A weapon is twice the size of the character holding it** | The mesh's own dimensions are its scale; `WeaponLength` changes nothing. Read the **bounding box** the generator prints, not the span constant — an arc bulges past its chord. Vanilla's widest weapon mesh is 0.123 across; its katana is 0.627 long. |
+| **A blade hits with its back** | The cutting edge faces away from the swing. Render the weapon through the attack animation from above (the bat'leth used `Bob_AttackBat`) and turn it half a turn about Y if the back leads -- a turn, not a mirror, so no face winds wrong. |
 | **An icon overlaps the next hotbar slot** | Its item has an `AttachmentType` and a 64×64 icon. Vanilla's hotbar assumes 32×32; see *A weapon model is a static mesh*. |
 | **A drink has no effect, or the wrong one** | The effects are on the *fluid*, not the item; a `ThirstChange` on the vessel is ignored. `Fluid.Get("name")`, never `FluidType.<name>` -- a modded fluid is `FluidType.Modded`. |
 | **A vessel will not accept its own drink** | The `Fluids { }` whitelist inside its `FluidContainer` is missing or names the fluid wrongly; the log says `Cannot find fluid`. |
@@ -3385,6 +3403,8 @@ TrekShuttle/42/media/lua/client/TREK/TREK_AccessUI.lua         Deploy, the notes
 TrekShuttle/42/media/lua/shared/TREK/TREK_Raids.lua            raids: the record, who may accept, the buffer (RAIDS.md)
 TrekShuttle/42/media/lua/server/TREK/TREK_RaidsServer.lua      the request, the outpost's camp, the waves, the outcome, home
 TrekShuttle/42/media/lua/client/TREK/TREK_RaidsUI.lua          the Captain's request panel, the strip, the beams out and home
+TrekShuttle/42/media/lua/shared/TREK/TREK_ShoulderLamp.lua     the shoulder lamp's attached location, on vanilla's webbing_right_walkie
+TrekShuttle/42/media/lua/client/TREK/TREK_ShoulderLampSlot.lua the Shoulder hotbar slot every uniform provides
 content/captain/*.json                                         what she says (content/README.md)
 TrekShuttle/common/media/AnimSets/zombie/*/trekborg*.xml        the Borg walk and idle
 tools/figure_render.py                                         a posed character with garments and attachments, rendered

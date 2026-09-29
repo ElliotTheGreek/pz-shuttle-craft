@@ -15,20 +15,26 @@ blade below the holes, the struts between them, the grip bar above -- each a
 front and back face with rims, because the shape is a 2D silhouette given
 thickness and every edge is then one function of the distance along the arc.
 
-**The tips point along +Y, away from the fist.** The origin is the middle of
-the grip bar, where the hands go, and a weapon's +Y is the direction the blade
-goes from the hand (vanilla's katana runs from -0.05 at the pommel to +0.58).
-The first version had its tips on -Y, so it was held back to front with both
-points in the wielder's chest.
+**It is held at one end, and its length is +Y.** A weapon's +Y is the
+direction the blade goes from the fist (vanilla's katana runs from -0.05 at the
+pommel to +0.58), and the origin is where the fist closes. Until 2026-09-29 the
+fist was on the middle of the grip bar with the crescent lying across it, tips
+on +Y either side: short, fat, and all of its reach spent sideways ("it is too
+short and fat ... we should be holding it on one side not the middle"). Now
+the fist is on the bar over one outer hand-hole (`GRIP_T`), and the mesh is
+turned so the line from there to the *far* tip is +Y. The near tip and its back
+point sit a short way behind the fist, as a bat'leth held for reach does. (The
+first version of all had its tips on -Y, points in the wielder's chest.)
 
 **On the back it needs its own attachments.** The back slots hang a weapon by
-its Y axis, a katana's length, and a bat'leth's length is its X: with no
-attachment of its own it stood on edge across the shoulders like horns. The
-engine draws an attached item at bone x the character's attachment x *the
-item's own attachment of the same name* (`AttachedModelName` sets self =
-parent; `transformToParent`, and `invertAttachmentSelfTransformZ` is never set),
-so `blade_back` and `big_blade_back_bag` in `trekweapons.txt` turn it flat onto
-the back or the pack. `BACK_MOUNTS` below is where those numbers come from.
+its Y axis, a katana's length, and the bat'leth's length is its Y now too --
+but its crescent bows along X, so hung as it comes the tips would stand out
+from the back. The engine draws an attached item at bone x the character's
+attachment x *the item's own attachment of the same name* (`AttachedModelName`
+sets self = parent; `transformToParent`, and `invertAttachmentSelfTransformZ`
+is never set), so `blade_back` and `big_blade_back_bag` in `trekweapons.txt`
+lay it flat onto the back or the pack. `BACK_MOUNTS` below is where those
+numbers come from.
 
 Two things about weapon models that cost other people time (see DEV_GUIDE and
 the comment on TrekPhaser in trekshuttle.txt):
@@ -42,7 +48,7 @@ the comment on TrekPhaser in trekshuttle.txt):
     The hull and the helm are Z-up, so this is the opposite of every other
     mesh in this repo and is the easy thing to get wrong.
 
-The blade is authored in metres, tip to tip along its chord, because the
+The blade is authored in model units, tip to tip along its chord, because the
 engine takes the mesh at face value and vanilla's `scale` lines exist only for
 meshes authored in centimetres.
 """
@@ -79,32 +85,52 @@ UP_AXIS = "y"
 # crescent that replaced it has its tips falling rather than bulging past the
 # chord, so the chord *is* the width now, and it is set to the width that was
 # seen. Real-world scale was never the test; the sprite is.
-SPAN = 0.37
-THICK = 0.016                   # blade thickness, in metres
-SEGMENTS = 160                  # samples along the arc, before the breakpoints
+#
+# All of that was about a blade held by its middle, whose span is width. Held
+# at one end (2026-09-29) the span is *length*, pointing away from the fist the
+# way a katana's does, and the bracket is vanilla's long blades: the katana is
+# 0.627 long. A real bat'leth is about 116 cm to a katana's 100, so the chord
+# is set to come out a little longer than the katana, and the print below
+# gives the bounding box to check it against.
+SPAN = 0.70
+THICK = 0.014                   # blade thickness, in model units
+SEGMENTS = 200                  # samples along the arc, before the breakpoints
 
 # The centreline's heading, from the grip out to each tip: it turns slowly
 # through the grip and fast in the tips, which is what makes a bat'leth a
 # shallow crescent with swept points rather than an arch. Degrees at the
-# middle of the arc (TURN_LIN) and extra by the tip (TURN_TIP).
-TURN_LIN = 44.0
-TURN_TIP = 30.0
+# middle of the arc (TURN_LIN) and extra by the tip (TURN_TIP). Flatter than
+# the first crescent's 44 and 30, which read as fat once it was long.
+TURN_LIN = 27.0
+TURN_TIP = 20.0
+
+# Where the fist closes: on the grip bar over the outer hand-hole, at this |t|
+# (half-arc-lengths from the middle), on the +t side. Toward the hole's outer
+# end, because the point of holding it by one side is the reach.
+GRIP_T = 0.40
+# Which way the cutting edge faces in the hand: a half turn about Y (not a
+# mirror, so no face winds the wrong way). True because of Bob_AttackBat: seen
+# from above, the swing carries the blade clockwise, and unturned the grip bar
+# led and the cutting edge trailed -- the back of the blade hit first. Turned,
+# the concave edge and its spikes lead through the whole sweep.
+FLIP = True
 
 # How it hangs on the back: per character attachment, the model's own
 # `rotate` and where the blade's centre goes, in that attachment's frame.
 # Both of vanilla's back slots on Bip01_BackPack have their frame's +X
-# pointing straight out of the back and +Y down it (the katana's length), so
-# (0, 90, 90) lays the crescent flat on the back with its length where a
-# katana's would be: over the right shoulder to the left hip, grip bar to the
-# outside. With a pack the slot is nearly vertical, so it is turned 25 degrees
-# more, stood 0.12 off the back to sit on the pack's face (the hiking bag's
-# back is at +0.238 against the slot's +0.103), and brought 0.1 across to the
-# middle of it. Judged on figure_render renders of the male body in Bob_Idle,
-# with and without M_HikingBag; the same renderer reproduced the first
-# version's horns from a screenshot before these were chosen.
+# pointing straight out of the back and +Y down it (the katana's length). The
+# blade's length is already its Y, so (0, 90, 0) only turns its bow (X) off
+# the back and across it, laying the crescent flat with its length where a
+# katana's would be: over the right shoulder to the left hip. With a pack the
+# slot is nearly vertical, so it is turned 25 degrees more, stood 0.12 off the
+# back to sit on the pack's face (the hiking bag's back is at +0.238 against
+# the slot's +0.103), and brought 0.1 across to the middle of it. Judged on
+# figure_render renders of the male body in Bob_Idle, with and without
+# M_HikingBag; the same renderer reproduced the first version's horns from a
+# screenshot before these were chosen.
 BACK_MOUNTS = (
-    ("blade_back", (0.0, 90.0, 90.0), (0.02, 0.18, 0.0)),
-    ("big_blade_back_bag", (25.0, 90.0, 90.0), (0.12, 0.14, 0.1)),
+    ("blade_back", (0.0, 90.0, 0.0), (0.02, 0.18, 0.0)),
+    ("big_blade_back_bag", (25.0, 90.0, 0.0), (0.12, 0.14, 0.1)),
 )
 
 # Texture regions: (x0, y0, x1, y1)
@@ -177,14 +203,16 @@ def centreline(t):
 # over three holes (the middle one under the hands), struts between them, a
 # short back point where the bar ends, a spike off the cutting edge below the
 # outer strut, and long tips that are the cutting edge carried on and thinned.
+# Every height is about 0.7 of the first crescent's: the same shape, sleeker.
 GRIP_END = 0.56                     # the bar and the holes stop here
 HOLES = ((0.0, 0.13), (0.19, 0.50))  # |t| ranges cut through the blade
-TOP, BAR = 0.16, 0.065              # the bar's back edge, and its depth
-HOLE_LO = -0.11                     # the holes' lower edge
-LOW = -0.18                         # the cutting edge through the middle
-POINT = (0.56, 0.645, 0.665, 0.27)  # back point: rises, peaks, falls; height
-SPIKE = (0.43, 0.53, 0.555, -0.44)  # the spike: the same, below
+TOP, BAR = 0.115, 0.048             # the bar's back edge, and its depth
+HOLE_LO = -0.078                    # the holes' lower edge
+LOW = -0.125                        # the cutting edge through the middle
+POINT = (0.56, 0.645, 0.665, 0.19)  # back point: rises, peaks, falls; height
+SPIKE = (0.43, 0.53, 0.555, -0.30)  # the spike: the same, below
 TIP_FROM = 0.665                    # where the blade starts thinning to the tip
+TIP_BACK = 0.035                    # the back edge where the tip begins
 
 
 def in_hole(a):
@@ -198,8 +226,8 @@ def top(a):
     if a <= pk:                      # a long rise and a short fall: it leans out
         return TOP + (h - TOP) * (a - r0) / (pk - r0)
     if a <= r1:
-        return h + (0.05 - h) * (a - pk) / (r1 - pk)
-    return 0.05 * max(0.0, (1.0 - a) / (1.0 - r1)) ** 0.8
+        return h + (TIP_BACK - h) * (a - pk) / (r1 - pk)
+    return TIP_BACK * max(0.0, (1.0 - a) / (1.0 - r1)) ** 0.8
 
 
 def low(a):
@@ -223,26 +251,43 @@ def breakpoints():
     return sorted(ts)
 
 
+def hand_frame():
+    """(fist, e, d): the fist's point in the authoring frame, and the unit
+    vectors that become the model's +X and +Y. d runs from the fist to the far
+    tip, so that is where the blade points out of the hand; e is d turned a
+    quarter clockwise, which keeps (e, d, z) right-handed -- a rotation, not a
+    mirror, so no face winds the wrong way."""
+    (cx, cy), _, (nx, ny) = centreline(GRIP_T)
+    grip_mid = TOP - BAR / 2.0                  # the middle of the bar's depth
+    fist = (cx + nx * grip_mid, cy + ny * grip_mid)
+    far = centreline(-1.0)[0]
+    dx, dy = far[0] - fist[0], far[1] - fist[1]
+    ln = math.hypot(dx, dy)
+    d = (dx / ln, dy / ln)
+    return fist, (d[1], -d[0]), d
+
+
 def build_mesh(path, texture_file):
-    """The blade in the authoring frame (convex up), then turned half a turn
-    about X -- tips to +Y, the flat faces swapped -- which is a rotation, so no
-    face winds the wrong way, and scaled so tip to tip is SPAN."""
+    """The blade in the authoring frame (convex up), then carried into the
+    hand's frame (`hand_frame`): the fist at the origin, the far tip up +Y.
+    Scaled so tip to tip is SPAN."""
     m = MeshBuilder(TEX_W, TEX_H, up_axis=UP_AXIS)
     ts = breakpoints()
     tip = centreline(1.0)[0]
     k = SPAN / (2.0 * tip[0])
     half = THICK / 2.0
-    grip_mid = (TOP + TOP - BAR) / 2.0          # the hands' line: the origin
+    fist, e, d = hand_frame()
+    turn = -1.0 if FLIP else 1.0                # half a turn about Y
 
     def P(t, n, z):
         (cx, cy), _, (nx, ny) = centreline(t)
-        x, y = cx + nx * n, cy + ny * n - grip_mid
-        return (x * k, -y * k, -z)
+        x, y = cx + nx * n - fist[0], cy + ny * n - fist[1]
+        return (turn * (x * e[0] + y * e[1]) * k, (x * d[0] + y * d[1]) * k, turn * z)
 
     def N(t, n_sign=0.0, along=0.0, z=0.0):
         _, (tx, ty), (nx, ny) = centreline(t)
         v = (nx * n_sign + tx * along, ny * n_sign + ty * along)
-        return (v[0], -v[1], -z)
+        return (turn * (v[0] * e[0] + v[1] * e[1]), v[0] * d[0] + v[1] * d[1], turn * z)
 
     def face(pts, uvs, normal):
         """Four points and their texel uvs; wound the way the rest of this
@@ -324,7 +369,8 @@ def build_mesh(path, texture_file):
     xs = [v[0] for v in m.verts]
     ys = [v[1] for v in m.verts]
     bbox = (max(xs) - min(xs), max(ys) - min(ys), THICK)
-    return nv, nf, (min(ys), max(ys)), bbox
+    centre = ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0, 0.0)
+    return nv, nf, (min(ys), max(ys)), bbox, centre
 
 
 def build_icon(mesh_path, tex_path, out, render_size=512, icon=32, margin=0.10,
@@ -388,15 +434,13 @@ def build_icon(mesh_path, tex_path, out, render_size=512, icon=32, margin=0.10,
             if (r, g, b) == bg:
                 px[x, y] = (r, g, b, 0)
 
-    # Tilted, because a bat'leth is a shallow crescent: 2.3 times as wide as
-    # it is tall, which in a square icon is mostly empty. Vanilla's own blades
+    # Tilted, because a bat'leth is long and thin -- over twice as long as it
+    # is deep -- which in a square icon is mostly empty. Vanilla's own blades
     # are all drawn on the diagonal for the same reason. This is a rotation of
     # the finished render, not of the model -- the mesh is what goes in the
-    # hand and it must stay level.
-    #
-    # Turned over first: the mesh has its tips on +Y, away from the hand, which
-    # renders them pointing up; a bat'leth is shown the way it hangs on a
-    # wall, back up and tips down.
+    # hand and it must stay as it is. Since it is held by one end (+Y from the
+    # fist) the half turn and the tilt together lay it corner to corner, back
+    # up, the way it hangs on a wall.
     src = src.rotate(180)
     if tilt:
         src = src.rotate(tilt, resample=PILImage.BICUBIC, expand=True)
@@ -424,15 +468,14 @@ def rotate_xyz(p, rot):
     return (x, y, z)
 
 
-def write_model_block(script, y_lo, y_hi):
+def write_model_block(script, centre):
     """Writes TrekBatlethModel into trekweapons.txt with its back attachments.
 
     An item's own attachment is applied as T(offset) * rotateXYZ(rotate) to
     the mesh, so the offset that puts the blade's centre at `where` is
     `where - R(centre)`. Worked out here from the mesh just built, because a
     number typed into the script would be right only until the next change of
-    shape moved the centre."""
-    centre = (0.0, (y_lo + y_hi) / 2.0, 0.0)
+    shape moved the centre -- as holding it by one end did."""
     lines = ["    model TrekBatlethModel", "    {",
              "        mesh = weapons/2handed/TREK_Batleth,",
              "        texture = weapons/2handed/TREK_Batleth,"]
@@ -527,16 +570,16 @@ if __name__ == "__main__":
     tex = os.path.join(tex_dir, "TREK_Batleth.png")
     mesh = os.path.join(mesh_dir, "TREK_Batleth.x")
     build_texture(tex)
-    nv, nf, (y_lo, y_hi), bbox = build_mesh(mesh, "TREK_Batleth.png")
-    print(f"bat'leth: {nv} verts, {nf} faces, span {SPAN} m, "
-          f"y {y_lo:.3f} (back point) to {y_hi:.3f} (tips) from the grip")
-    print(f"  bbox    {bbox[0]:.3f} across x {bbox[1]:.3f} deep x "
-          f"{bbox[2]:.3f} thick  (vanilla's widest weapon mesh is the canoe "
-          f"paddle at 0.123 across; a machete is 0.335 long)")
+    nv, nf, (y_lo, y_hi), bbox, centre = build_mesh(mesh, "TREK_Batleth.png")
+    print(f"bat'leth: {nv} verts, {nf} faces, chord {SPAN}, "
+          f"y {y_lo:.3f} (behind the fist) to {y_hi:.3f} (the far tip)")
+    print(f"  bbox    {bbox[0]:.3f} across x {bbox[1]:.3f} long x "
+          f"{bbox[2]:.3f} thick  (vanilla's katana is 0.063 x 0.627; its "
+          f"widest weapon mesh is the canoe paddle at 0.123 across)")
     print(f"  mesh    {mesh}")
     print(f"  texture {tex}")
     write_model_block(os.path.join(root, "media", "scripts", "trekweapons.txt"),
-                      y_lo, y_hi)
+                      centre)
     build_icon(mesh, tex,
                os.path.join(root, "media", "textures", "Item_TREK_Batleth.png"))
     render_worn(mesh, tex, os.path.join(root, "media", "scripts", "trekweapons.txt"),

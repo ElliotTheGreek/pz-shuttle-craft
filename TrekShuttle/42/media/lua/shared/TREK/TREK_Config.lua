@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 32
+C.BuildRev = 33
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -1984,6 +1984,28 @@ C.PaddIssue = 2
 -- makes one there.
 C.PackItem = "TrekShuttle.TrekBackpack"
 C.PackIssue = 1
+
+---------------------------------------------------------------------------
+-- The shoulder lamp (ITEMS.md)
+---------------------------------------------------------------------------
+-- A flashlight that clips to the right shoulder of any Starfleet uniform, on
+-- the mod's own hotbar slot (TREK_ShoulderLamp.lua). Two in the armoury,
+-- one for each of the first two people out of the hatch. New worlds only,
+-- like every other change to what a locker holds; the replicator knows the
+-- pattern from the first day, so an existing save makes them there.
+C.ShoulderLampItem = "TrekShuttle.TrekShoulderLamp"
+C.ShoulderLampIssue = 2
+
+-- The slot: the hotbar type every uniform provides (AttachmentsProvided in
+-- trekshuttle.txt), the lamp's AttachmentType, and the attached location it
+-- hangs from. The location is the mod's own name on vanilla's body
+-- attachment `webbing_right_walkie`, which sits at the same point on both
+-- bodies; the lamp model's own attachment of that name lifts it onto the
+-- shoulder (tools/gen_shoulderlamp.py).
+C.ShoulderSlot = "TrekShoulder"
+C.ShoulderLampKind = "TrekShoulderLamp"
+C.ShoulderLocation = "Trek Shoulder Lamp"
+C.ShoulderAttachment = "webbing_right_walkie"
 
 -- Reading off a PADD takes a fifth of the time the same book takes on paper,
 -- after the vanilla rules -- sandbox minutes per page, Fast and Slow Reader,

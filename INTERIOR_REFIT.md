@@ -175,7 +175,7 @@ All three are `furniture_storage_02_11` — Locker, facing W, capacity 40.
 
 | Square | Tag | `special` | `loot` | `cap` | Ends up holding |
 |---|---|---|---|---|---|
-| 3,0 | `armoury` | `phasers`, `uniforms`, `padds`, `packs` | `weapons` | 8 | 4 phasers, 2 each of the 4 blades, 1 of each of the 6 uniforms, 2 PADDs, 1 field pack |
+| 3,0 | `armoury` | `phasers`, `uniforms`, `padds`, `packs`, `lamps` | `weapons` | 8 | 4 phasers, 2 each of the 4 blades, 1 of each of the 6 uniforms, 2 PADDs, 1 field pack, 2 shoulder lamps |
 | 3,1 | `provisions` | — | `food` | 27 | 27 from the 18-item food list: the dishes and the drinks |
 | 3,2 | `medical` | `medkit` | `medical` | 8 | 3 each of the 4 instruments |
 
@@ -186,7 +186,8 @@ in step.
 because a container can owe more than one guarantee and four phasers and one
 uniform of each division are two different counts. The locker ends up at 25.8
 of its 40 units — 2.4 of phasers, 15.0 of blades, 8.4 of uniforms — so nothing
-is dropped for want of room, and `U.stockEach` reads it back either way.
+is dropped for want of room, and `U.stockEach` reads it back either way. With
+the PADDs, the field pack and the two shoulder lamps (2026-09-29) it is 28.0.
 
 It is the armoury and not a wardrobe of its own because the cabin has three
 Starfleet lockers and none of them is a slop chest: 3,0 is where the crew's
@@ -480,7 +481,7 @@ All seven static checks pass. None of this has been seen in a game.
    the pad to every fitting: the bow row via a seat square, the galley down the
    port passage, the sick bay aft.
 2. **The three lockers.** 4 phasers, 2 of each blade, the six uniforms and
-   two PADDs and a field pack at 3,0; 27 dishes and drinks at 3,1; 3 of each instrument at 3,2. `TREK_Stock()` names every
+   two PADDs, a field pack and two shoulder lamps at 3,0; 27 dishes and drinks at 3,1; 3 of each instrument at 3,2. `TREK_Stock()` names every
    container and how full it is.
 3. **The five empty ones** are openable and empty — not unopenable, which is
    what a missing `container = true` looks like.

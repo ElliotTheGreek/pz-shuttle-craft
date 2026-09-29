@@ -32,7 +32,7 @@ Every item id below is `TrekShuttle.<id>`.
 | Jem'Hadar polaron rifle | `TrekPolaronRifle` | Blue-white bolt. Slings. A hideout; the trophy case |
 | Cardassian phaser | `TrekCardassianPhaser` | Yellow bolt, compact. Holsters. A hideout; the trophy case |
 | Starfleet phaser holster | `TrekHolster` | A belt holster any pistol rides in. The Adirondack's armoury |
-| Bat'leth | `TrekBatleth` | Klingon blade, two-handed. Grip bar on the back over three hand-holes, four points; lies flat on the back or the pack (`tools/gen_batleth.py`, `design/art/weapons/batleth_worn.png`) |
+| Bat'leth | `TrekBatleth` | Klingon blade, two-handed, a little longer than a katana. Grip bar on the back over three hand-holes, four points; held by the grip over one outer hole, so the rest of it is reach (MaxRange 1.5), with the cutting edge leading the swing; lies flat on the back or the pack (`tools/gen_batleth.py`, `design/art/weapons/batleth_worn.png`) |
 | Mek'leth | `TrekMekleth` | Klingon short blade |
 | Lirpa | `TrekLirpa` | Vulcan polearm |
 | Ushaan-tor | `TrekUshaanTor` | Andorian ice-miner's blade |
@@ -46,6 +46,7 @@ Every item id below is `TrekShuttle.<id>`.
 | Medical Tricorder | `TrekMedTricorder` | Diagnoses |
 | Tricorder | `TrekTricorder` | Scanning tool |
 | PADD | `TrekPADD` | Personal: holds its own library and comms |
+| Starfleet Shoulder Lamp | `TrekShoulderLamp` | A flashlight that clips to the right shoulder of any Starfleet uniform, on the uniform's own **Shoulder** hotbar slot, so both hands stay free. Right-click it to turn it on. Takes an ordinary battery and runs twice as long on one as a flashlight does. Can be held in hand like a flashlight. Two in the shuttle's armoury |
 
 ### Food: dishes
 
@@ -259,7 +260,7 @@ The loot lists:
 
 | Container | Where | Holds |
 |---|---|---|
-| **Armoury** locker | starboard, bow | 4 Phasers, the 6 uniforms (1 each), 2 PADDs, 1 Field Pack, then the `weapons` list filled to 8 blades |
+| **Armoury** locker | starboard, bow | 4 Phasers, the 6 uniforms (1 each), 2 PADDs, 1 Field Pack, 2 Shoulder Lamps, then the `weapons` list filled to 8 blades |
 | **Provisions** locker | starboard | `food` list, filled to 27 items |
 | **Medical** locker | starboard | 1 of each medical instrument, then the `medical` list, to 8 items |
 | Tape shelf | bow | the 12 recordings above, one tape each |

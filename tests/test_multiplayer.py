@@ -638,6 +638,13 @@ def single_player():
           len(packs) == rt.eval("TREK.Config.PackIssue") == 1,
           f"single player: the armoury at 3,0 holds {len(packs)} of {pack}, "
           f"not the one field pack (special = \"packs\")")
+    # The shoulder lamps: exactly the issue, counted for the same reason.
+    lamp = rt.eval("TREK.Config.ShoulderLampItem")
+    lamps = [x for x in armoury if x == lamp]
+    check(lamp == "TrekShuttle.TrekShoulderLamp" and
+          len(lamps) == rt.eval("TREK.Config.ShoulderLampIssue") == 2,
+          f"single player: the armoury at 3,0 holds {len(lamps)} of {lamp}, "
+          f"not the two shoulder lamps (special = \"lamps\")")
     # Starfleet issue only. Five of the cabin's containers are the player's own
     # shelves and start empty, so at build time everything aboard is ours; a
     # vanilla id in here means a ship list grew one back.
@@ -16279,6 +16286,62 @@ def raids_multiplayer():
           "and each home to their own place")
 
 
+def lamp_slot(rt):
+    """The Shoulder slot as this process sees it: the location's attachment,
+    and how many hotbar entries of the slot's type there are (-1: no table)."""
+    return rt.eval("""(function()
+        local C = TREK.Config
+        local loc = AttachedLocations.getGroup("Human"):getLocation(C.ShoulderLocation)
+        local n = -1
+        if ISHotbarAttachDefinition then
+            n = 0
+            for _, def in ipairs(ISHotbarAttachDefinition) do
+                if def.type == C.ShoulderSlot
+                        and def.attachments[C.ShoulderLampKind] == C.ShoulderLocation then
+                    n = n + 1
+                end
+            end
+        end
+        return (loc and loc:getAttachmentName() or "none") .. "," .. n
+    end)()""")
+
+
+def shoulder_lamp():
+    """The shoulder lamp's slot (ITEMS.md): the location in every process,
+    because the engine draws attached models on every client and keeps the
+    attachment on the server; the hotbar entry on clients only, once, beside
+    vanilla's rather than in place of them."""
+    net = Net("sp")
+    rt = net.server
+    net.start()
+    want = rt.eval("TREK.Config.ShoulderAttachment")
+    check(want == "webbing_right_walkie",
+          f"shoulder lamp: the slot hangs from {want}, not vanilla's webbing_right_walkie")
+    check(lamp_slot(rt) == f"{want},1",
+          f"shoulder lamp: single player sees {lamp_slot(rt)}, not the location and one slot")
+    check(rt.eval("#ISHotbarAttachDefinition") == 3,
+          "shoulder lamp: vanilla's hotbar entries did not survive the mod's")
+    # Loaded twice -- a second require after package.loaded is cleared, which is
+    # what a Lua reload does -- it must still be one slot, not two.
+    rt.run('package.loaded["TREK/TREK_ShoulderLampSlot"] = nil; require "TREK/TREK_ShoulderLampSlot"')
+    check(lamp_slot(rt).endswith(",1"),
+          f"shoulder lamp: loaded twice, single player has {lamp_slot(rt)} Shoulder slots")
+
+    net = Net("mp", clients=("alice", "bob"))
+    for i, (name, c) in enumerate(net.clients.items(), 1):
+        for rt in (net.server, c):
+            rt.run(f"SIM.player('{name}', {2000 + i}.5, 2000.5, 0).onlineID = {i}")
+    net.start()
+    check(lamp_slot(net.server) == f"{want},-1",
+          f"shoulder lamp: the server sees {lamp_slot(net.server)}, not the location and "
+          f"no hotbar table")
+    for name, c in net.clients.items():
+        check(lamp_slot(c) == f"{want},1",
+              f"shoulder lamp: {name} sees {lamp_slot(c)}, not the location and one slot")
+    print("  shoulder lamp: the location everywhere, one Shoulder slot on each client")
+
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -16294,7 +16357,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, multiplayer)
 
 
 def main():
