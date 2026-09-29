@@ -4,18 +4,18 @@ A Star Trek Starfleet Type 6 shuttlecraft and the starship U.S.S. Adirondack for
 3 new medical items: Hypospray, Dermal Regenerator, Medical Tricorder.
 18 new foods and drinks: Ration Pack, Gagh, Leola Root Stew, Plomeek Soup, Jumja Stick, Andorian Tuber, Oskoid, Wing-Slug Roll, Hasperat, Rokeg Blood Pie, Chadre'kab, Raktajino, Earl Grey, Romulan Ale, Bloodwine, Andorian Ale, Balso Tonic, Nutrient Suspension.
 22 new farming items: seven alien seeds, their produce, dried and ground ingredients, and live serpent worms.
-Plus a Tricorder, a PADD, six Starfleet uniforms, a Starfleet field pack and dilithium crystals.
+Plus a Tricorder, a PADD, six Starfleet uniforms, a Starfleet field pack, a shoulder lamp and dilithium crystals.
 
 A SHUTTLE YOU CAN LIVE IN AND TRAVEL IN
 A cabin with a helm, a working galley, running water, a biobed, a sick bay, a replicator, a warp core and Starfleet lockers.
-- Right-click anywhere -> Shuttlecraft -> Beam up to the shuttle.
+- Right-click anywhere -> Shuttlecraft -> Beam up to the shuttle. Everyone nearby sees you sparkle away.
 - At the helm, click the map to lay in a course, then Take her down. You are beamed to the site and she follows.
 - Right-click open ground to call her down (she needs 3x5 clear tiles).
 - The landed shuttle is a four-seat vehicle. From the pilot's seat, Take her up and fly her by driving. The pilot fires photon torpedoes: hold right mouse to aim.
 - Everything she does runs on the dilithium crystal in her warp core. An on-screen gauge shows what is left; at zero she goes dark. Load crystals by right-clicking the core.
 
 THE U.S.S. ADIRONDACK
-A working starship in orbit. Earn your way aboard -- bring her crew home, recover three pattern enhancers, hold a transporter lock and pass the Doctor's biofilter (or open her from the start in the sandbox) -- then ride the turbolifts between five decks: the Bridge, the Lounge, Galley and crew quarters, the Transporter Room and Sickbay, Main Engineering, and Hydroponics. Fifty new pieces of Starfleet furniture -- seats, beds, doors that open as you walk up, and stocked lockers. She has a crew: officers of every division and several species ride the lifts, walk to their posts, sit, and talk about the ship, the county and you.
+A working starship in orbit. Earn your way aboard -- bring her crew home, recover three pattern enhancers, hold a transporter lock and pass the Doctor's biofilter (or open her from the start in the sandbox) -- then ride the turbolifts between five decks: the Bridge, the Lounge, Galley and crew quarters, the Transporter Room and Sickbay, Main Engineering, and Hydroponics. Fifty new pieces of Starfleet furniture. She has a crew: officers of every division and several species ride the lifts, walk to their posts, sit, and talk about the ship, the county and you.
 
 CAPTAIN TITUS
 Sit down with the Adirondack's captain on her bridge and ask what happened here. She tells you what the ship knows as the story unfolds, marks what is new, points you where to look -- and keeps one thing back until you have earned it.

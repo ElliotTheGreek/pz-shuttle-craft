@@ -2,7 +2,7 @@ A Star Trek Starfleet Type 6 shuttlecraft for Project Zomboid Build 42 -- single
 
 5 new weapon items
 - Phaser -- never runs out of charge, never jams, far quieter than a firearm; cuts down trees and cuts through any locked door
-- Bat'leth
+- Bat'leth -- two-handed and longer than a katana, held by one end for reach
 - Mek'leth
 - Lirpa
 - Ushaan-tor
@@ -39,13 +39,13 @@ Plus the shuttle's photon torpedoes, fired from the pilot's seat.
 - Prepared: dried tea, bergamot zest, Klingon coffee beans, ground Klingon coffee, dried hasperat peppers, a pot of plomeek, a pot of leola root stew
 - Live serpent worms
 
-Plus a Tricorder, a PADD, six Starfleet uniforms (duty and dress, in command red, operations gold and sciences teal) and dilithium crystals.
+Plus a Tricorder, a PADD, six Starfleet uniforms (duty and dress, in command red, operations gold and sciences teal), a Starfleet field pack, a shoulder lamp that clips to any uniform's shoulder so both hands stay free (it takes an ordinary battery and lasts twice as long as a flashlight), and dilithium crystals.
 
 A functional shuttle you can live in and use to travel around
 One cabin with the helm, a galley whose fridge, oven and microwave really work, running water that keeps running after the mains shut off, a biobed to sleep on, a sick bay, a replicator, a warp core, and a row of Starfleet lockers. A TV that plays your tapes.
 
 Operate the shuttle like this:
-- Right-click anywhere -> Shuttlecraft -> Beam up to the shuttle. You arrive on the transporter pad.
+- Right-click anywhere -> Shuttlecraft -> Beam up to the shuttle. You arrive on the transporter pad. Every beam is a column of sparkles where you leave and where you arrive, and everyone nearby sees it.
 - Right-click aboard for the Shuttlecraft menu: the helm, beam down, log this position, step out of the hatch, go forward to the cockpit.
 - At the helm, click the map to lay in a course or pick a logged position (the map is fully revealed at the helm), then Take her down. You are beamed to the site and the ship follows. If there is no room, you are beamed straight back aboard with the reason.
 - Right-click open ground to call her down. She needs 3x5 tiles of clear ground and tells you when she hasn't got them. Right-click the hull to board her or send her back up.

@@ -1796,8 +1796,10 @@ module TrekShuttle
         drew nothing in hand at all -- `WeaponSprite` does not resolve the way
         `StaticModel` does. That file has the log line and the reasoning.  */
 
-    /*  The bat'leth: a two-handed crescent swung from the middle, so it hits
-        like an axe and sweeps like a bat. Strong, but a long way short of
+    /*  The bat'leth: a long two-handed crescent held by the grip over one of
+        its outer hand-holes, so the rest of it -- longer than a katana -- is
+        reach, and it sweeps like a bat. MaxRange 1.5 is that reach: above the
+        katana's 1.4, short of a spear's 1.6. Strong, but a long way short of
         vanilla's katana (8.0 flat, which is the best melee weapon in the
         game); this sits above the machete and below that, and pays for it in
         a slow swing and real stamina. MaxHitcount 3 is the crescent: the
@@ -1824,7 +1826,7 @@ module TrekShuttle
         CritDmgMultiplier = 5.0,
         CriticalChance = 30.0,
         MinRange = 0.61,
-        MaxRange = 1.4,
+        MaxRange = 1.5,
         MinAngle = 0.7,
         MaxHitcount = 3,
         Swingtime = 3.5,
@@ -2534,6 +2536,7 @@ module TrekShuttle
         Weight = 1.2,
         WorldStaticModel = BoilerSuit_Ground,
         Tags = base:ripclothingcotton,
+        AttachmentsProvided = TrekShoulder,
         Tooltip = Tooltip_TREK_UniformDuty,
     }
 
@@ -2552,6 +2555,7 @@ module TrekShuttle
         Weight = 1.2,
         WorldStaticModel = BoilerSuit_Ground,
         Tags = base:ripclothingcotton,
+        AttachmentsProvided = TrekShoulder,
         Tooltip = Tooltip_TREK_UniformDuty,
     }
 
@@ -2570,6 +2574,7 @@ module TrekShuttle
         Weight = 1.2,
         WorldStaticModel = BoilerSuit_Ground,
         Tags = base:ripclothingcotton,
+        AttachmentsProvided = TrekShoulder,
         Tooltip = Tooltip_TREK_UniformDuty,
     }
 
@@ -2589,6 +2594,7 @@ module TrekShuttle
         Weight = 1.6,
         WorldStaticModel = Dress_Long_Ground,
         Tags = base:ripclothingcotton,
+        AttachmentsProvided = TrekShoulder,
         Tooltip = Tooltip_TREK_UniformDress,
     }
 
@@ -2608,6 +2614,7 @@ module TrekShuttle
         Weight = 1.6,
         WorldStaticModel = Dress_Long_Ground,
         Tags = base:ripclothingcotton,
+        AttachmentsProvided = TrekShoulder,
         Tooltip = Tooltip_TREK_UniformDress,
     }
 
@@ -2627,6 +2634,7 @@ module TrekShuttle
         Weight = 1.6,
         WorldStaticModel = Dress_Long_Ground,
         Tags = base:ripclothingcotton,
+        AttachmentsProvided = TrekShoulder,
         Tooltip = Tooltip_TREK_UniformDress,
     }
 
@@ -2668,6 +2676,73 @@ module TrekShuttle
         WorldStaticModel = HikingBag_Ground,
         AttachmentsProvided = BedrollBottom,
         Tooltip = Tooltip_TREK_Backpack,
+    }
+
+    /*  The shoulder lamp (ITEMS.md): the away team's light, clipped to the
+        right shoulder so both hands stay free.
+
+        A flashlight in every respect the engine cares about -- vanilla's
+        angle-head torch is the pattern -- because a light carried on the body
+        is one the engine already knows how to draw:
+        IsoGameCharacter.getActiveLightItems walks both hands **and every
+        attached item** (bci 18-50), and an attached item gets vanilla's own
+        Turn On from its right-click (ISInventoryPaneContextMenu, isAttachedItem).
+        `base:flashlight` is the tag vanilla's InsertBattery and RemoveBattery
+        recipes take, so it runs on an ordinary battery; UseDelta is half the
+        hand torch's, so one lasts twice as long.
+
+        The slot is the mod's own. Every uniform provides `TrekShoulder`
+        (`AttachmentsProvided`), TREK_ShoulderLamp.lua defines it for the
+        hotbar and names its location, and the location hangs on vanilla's
+        own body attachment `webbing_right_walkie` -- the same point on both
+        bodies, high on the right of the chest -- so no vanilla model is
+        touched. Where the lamp sits from there, up on the shoulder and facing
+        forward, is TrekShoulderLampModel's own attachment of that name, which
+        tools/gen_shoulderlamp.py solves from the skeleton and renders onto
+        both bodies in design/art/shoulderlamp/. The icon is 32x32 because it
+        has an AttachmentType (DEV_GUIDE, A weapon model is a static mesh).  */
+    item TrekShoulderLamp
+    {
+        DisplayCategory = LightSource,
+        ItemType = base:drainable,
+        DisplayName = Starfleet Shoulder Lamp,
+        Icon = TREK_ShoulderLamp,
+        Weight = 0.3,
+        ActivatedItem = true,
+        DisappearOnUse = false,
+        KeepOnDeplete = true,
+        LightDistance = 18,
+        LightStrength = 1.8,
+        TorchCone = true,
+        TorchDot = 0.55,
+        UseDelta = 0.003,
+        cantBeConsolided = true,
+        primaryAnimMask = HoldingAngleTorchRight,
+        secondaryAnimMask = HoldingAngleTorchLeft,
+        StaticModel = TrekShoulderLampModel,
+        WorldStaticModel = TrekShoulderLampModel,
+        Tags = base:flashlight,
+        AttachmentType = TrekShoulderLamp,
+        SoundMap = Activate FlashlightOn,
+        SoundMap = Deactivate FlashlightOff,
+        Tooltip = Tooltip_TREK_ShoulderLamp,
+    }
+
+    model TrekShoulderLampModel
+    {
+        mesh = TREK_ShoulderLamp,
+        texture = TREK_ShoulderLamp,
+        scale = 1.0,
+        attachment webbing_right_walkie
+        {
+            offset = -0.0503 0.0776 -0.0482,
+            rotate = 61.6764 66.1116 -61.7394,
+        }
+        attachment Bip01_Prop2
+        {
+            offset = 0.0 0.0 0.0,
+            rotate = -90.0 0.0 0.0,
+        }
     }
 
     /*  The downed ensign (ENSIGN.md): six figures, one per body and division.

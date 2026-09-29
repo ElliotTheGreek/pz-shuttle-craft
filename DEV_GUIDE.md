@@ -2202,6 +2202,30 @@ Tilt the result if the object is long and thin -- a square icon holding a 2.3:1
 crescent is mostly empty, which is why vanilla draws its blades on the
 diagonal.
 
+### A chain of generated frames drifts unless every link is anchored
+
+**New in this mod, with the transporter's sparkles (`BEAM.md` 2).** An
+animation from an image model means asking for each frame from the one before
+it, so it really moves -- and a plain chain wears away within two links: each
+generation copies a little of the small, soft input it was handed, and the
+third frame came back blurry with half its glints. Three things kept seven
+frames one effect:
+
+- **Anchor every link to the first frame.** `compose-images` takes two: the
+  previous frame for the motion, frame 00 as the style reference, and the
+  prompt says which is which.
+- **Normalise before feeding forward.** The model returns whatever size and
+  framing it likes (848x1264 against 720x1456, the column off centre); fed
+  forward, that compounds. Find the subject by its content and put it back in
+  one place at one size first -- the same function the baker uses.
+- **Pass it small.** The image is base64 typed into the call; 128x256 is
+  enough for the model to see what to continue from, and it answers at full
+  size anyway.
+
+And say what the thing is **not**: the first sparkle column came back as a
+figure, the second as a glass tube, and the prompt that worked lists "no
+outline, no rim, no tube, no human shape".
+
 ### Item icons: generate on magenta, key it, vet it at 32px
 
 Image models paint backgrounds; they do not emit alpha. So every icon is
@@ -2412,6 +2436,7 @@ python tools/gen_helm.py    TrekShuttle/42   # the deleted helm console prop
 python tools/bake_phaser.py                      # the phaser mesh+texture from its TRELLIS raw (once; pip deps)
 python tools/gen_phaser.py  TrekShuttle/42       # the phaser: mesh, icon, review sheet, four sounds
 python tools/gen_phaser_beam.py TrekShuttle/42   # the beam strip and spark, and their sheet
+python tools/gen_beam.py   TrekShuttle/42        # the transporter's sparkle frames, from Gemini's chain (BEAM.md)
 python tools/gen_batleth.py TrekShuttle/42   # mesh, texture and icon
 python tools/gen_mekleth.py TrekShuttle/42        # and lirpa, ushaantor
 python tools/meshbbox.py --vanilla spear          # measure vanilla, or ours
@@ -2619,6 +2644,8 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A channel line shows as `Print_Text_TREK_COMM_...`** | `Print_Text.json` is out of step with the tree: run `tools/gen_comms.py`. `tests/test_comms.py` fails when they disagree. |
 | **Reading a tape off the PADD relieves boredom once and then nothing** | The lines are being applied faster than vanilla's thirty-tick debounce. See *An effect the engine debounces has to be paced*. |
 | **A tape the story issued never reaches the shelf** | It is owed until the cabin is loaded -- `comms: the ship has been issued ...` and later `tape: ... is on the shelf`. A full shelf keeps it owed and says so once. |
+| **Somebody beams and no sparkles show** | Leaving is the server's `beamFx` from the `move` handler, so a kind missing from `C.BeamFxKinds` never sparkles; arriving is the moving client's watcher (`TREK.BeamFX.watch`, set in `moveGranted`) and the server relays it only inside `C.BeamFx.arrivalWindowMs`. `TREK_BeamFX()` reports what is showing. See `BEAM.md`. |
+| **The character stays visible under the transporter's sparkles** | Working as designed: the engine's line-of-sight pass sets every visible character's alpha each frame, so Lua cannot fade them (`BEAM.md` 4). The column covers them at its peak. |
 | **No world right-click and no aiming, suddenly, and nothing in the log** | A UI element as big as the screen is up. The engine treats the mouse as "over the UI" by the element's rectangle alone, whatever its Lua `isMouseOver` says. See *An overlay that covers the screen takes the world's mouse away*. |
 | **A drug's menu reads `ContextMenu_TREK_Inject`, or *Eat*** | The first is `Translate/EN/ContextMenu.json` not loading; the second is a `HungerChange` that is not 0, which sends vanilla's menu down its Eat branch instead of the custom word. See `CONTRABAND.md` 5. |
 | **A hooked player's Doctor offers no Detox, or a PADD no flashing light** | Their client never got `contraState`: the record is the server's, and the panel and the menu read the client's mirror of it. `contraband mp` in `tests/test_multiplayer.py` is the check. |
@@ -3376,6 +3403,9 @@ TrekShuttle/42/media/lua/client/TREK/TREK_Shadow.lua           her shadow on the
 TrekShuttle/42/media/lua/client/TREK/TREK_Torpedo.lua          aiming, the reticle, the projectile
 TrekShuttle/42/media/lua/shared/TREK/TREK_PhaserCut.lua        the phaser's cut: rules, the timed action, the world change
 TrekShuttle/42/media/lua/client/TREK/TREK_PhaserFX.lua         the beam, the bolts, the hum and the light
+TrekShuttle/42/media/lua/shared/TREK/TREK_Beam.lua            the transporter as seen: which moves, which frame when (BEAM.md)
+TrekShuttle/42/media/lua/server/TREK/TREK_BeamServer.lua      a departure announced, an arrival relayed
+TrekShuttle/42/media/lua/client/TREK/TREK_BeamFX.lua          the arrival watcher and the sparkle column's overlay
 TrekShuttle/42/media/lua/client/TREK/TREK_ProbeUI.lua          the sensor console: probes, contacts, distress calls
 TrekShuttle/42/media/lua/shared/TREK/TREK_Tapes.lua            every tape's RecMedia entry (generated by tools/gen_tapes.py)
 TrekShuttle/42/media/lua/server/TREK/TREK_Energy.lua           the ledger every charge goes through; dark and back (ENERGY.md)

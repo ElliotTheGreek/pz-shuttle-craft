@@ -81,6 +81,11 @@ Net.onClient("moveGranted", function(args)
     -- What the move cost the ship, for the transporter's own note to show
     -- (ENERGY.md 3.1). Set only for the length of the call.
     Core.grantedCost = args.cost
+    -- A beam: where they stand now, so the arrival can be seen (BEAM.md).
+    -- Before onGranted, because a recover moves them inside it.
+    if TREK.BeamFX and TREK.Beam and TREK.Beam.isBeam(job.kind) then
+        U.try("beamFx.watch", TREK.BeamFX.watchFrom, job.player)
+    end
     job.onGranted(job.player)
     Core.grantedCost = nil
 end)

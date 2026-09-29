@@ -783,6 +783,9 @@ local SPECIALS = {
     -- The field pack: one, for whoever goes out first. The replicator makes
     -- the rest.
     packs = { items = { C.PackItem }, copies = function() return C.PackIssue end },
+    -- Two shoulder lamps, one each for the first two out of the hatch; the
+    -- replicator makes the rest.
+    lamps = { items = { C.ShoulderLampItem }, copies = function() return C.ShoulderLampIssue end },
 }
 
 --- Stocks one authored container. Returns true when something went in.

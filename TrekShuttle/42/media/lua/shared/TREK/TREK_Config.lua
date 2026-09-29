@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.13.0"
+C.Version   = "1.14.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -228,6 +228,37 @@ C.ShieldsDefault = true
 -- teleport, and a second and a half of dematerialising reads as a transporter
 -- and gives the halo note time to be seen. Ticks.
 C.BeamDelay = 90
+
+-- The sparkle column a beam is seen as (BEAM.md), on everybody's screen. The
+-- frames are media/ui/TREK_Beam_00..06, four of shimmer and three of fade,
+-- drawn by tools/gen_beam.py from Gemini's chain in design/art/beam.
+--
+-- Which moves are a transporter: a lift, the turbolift and the hatch are
+-- walks, and sparkle for nobody.
+C.BeamFxKinds = {
+    beamUp = true, beamDown = true, descend = true, recover = true,
+    toAdirondack = true, fromAdirondack = true, lockBeam = true,
+    raidIn = true, raidOut = true,
+}
+C.BeamFx = {
+    buildMs = 110,      -- each of the three build-up frames (the fade, backwards)
+    shimmerMs = 85,     -- each of the four shimmer frames, round and round
+    fadeMs = 150,       -- each of the three fade frames
+    -- Leaving: shimmer until the character is seen to go, or this long after
+    -- the beam was granted if they never are (another machine's player who
+    -- walks out of range). C.BeamDelay is 1.5 s; this is that and some.
+    outMaxMs = 2300,
+    -- Arriving: shimmer this long over the newcomer, then fade off them.
+    inHoldMs = 800,
+    -- A character this far from where they were has been beamed. Tiles.
+    jump = 2.5,
+    -- How tall the glow's core stands, in storeys, and how opaque it is drawn.
+    height = 0.85,
+    alpha = 0.95,
+    -- An arrival reported this long after the beam was granted is refused by
+    -- the server: it only relays arrivals it sent somebody on.
+    arrivalWindowMs = 60000,
+}
 
 -- How far a beam-down may miss by when the exact square is occupied.
 C.BeamScatter = 6

@@ -1126,6 +1126,11 @@ Net.onServer("move", function(player, args)
     -- Home from a raid: no longer in it (RAIDS.md 5).
     if kind == "raidOut" and TREK.RaidsServer then U.try("raids.returned", TREK.RaidsServer.onReturned, player) end
 
+    -- The column goes up where they stand, on every screen (BEAM.md). Here,
+    -- because this is the one moment every kind of beam passes through while
+    -- the character is still where they are leaving from.
+    if TREK.BeamServer then U.try("beam.departing", TREK.BeamServer.departing, player, kind) end
+
     Net.toClient(player, "moveGranted", { kind = kind, token = args.token,
                                           cost = energy > 0 and energy or nil })
 end)

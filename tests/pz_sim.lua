@@ -3438,12 +3438,18 @@ local function derivable(name)
     function cls:setVisible(v) self.visible = v end
     function cls:addChild(c) c.parent = self; table.insert(self.children, c) end
     function cls:getWidth() return self.width end
-    -- The phaser's sparks, recorded; everything else drawn this way is not.
+    -- The phaser's sparks and the transporter's frames, recorded apart --
+    -- a harness that lumped them together could not tell a beam from a
+    -- bolt (DEV_GUIDE, *A test harness must record the distinctions the
+    -- code makes*); everything else drawn this way is not.
     function cls:drawTextureScaled(tex, x, y, w, h, a, r, g, b)
         if tex and tex.path and tex.path:find("Phaser") then
             SIM.sprites = SIM.sprites or {}
             table.insert(SIM.sprites, { tex = tex.path, x = x, y = y, w = w, h = h,
                                         r = r, g = g, b = b })
+        elseif tex and tex.path and tex.path:find("TREK_Beam_") then
+            SIM.beamDraws = SIM.beamDraws or {}
+            table.insert(SIM.beamDraws, { tex = tex.path, x = x, y = y, w = w, h = h, a = a })
         end
     end
     -- Four corners: the phaser's beam is a quad from the emitter to the

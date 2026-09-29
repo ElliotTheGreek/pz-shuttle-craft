@@ -16341,6 +16341,274 @@ def shoulder_lamp():
     print("  shoulder lamp: the location everywhere, one Shoulder slot on each client")
 
 
+def beam_frames(rt, phase, departed="nil", upto=4000, step=10):
+    """The frames an effect shows, in order, with repeats run together."""
+    out = []
+    for ms in range(0, upto, step):
+        f = rt.eval(f"(TREK.Beam.frameAt('{phase}', {ms}, {departed}))")
+        f = None if f is None else int(f)
+        if not out or out[-1] != f:
+            out.append(f)
+    return out
+
+
+def beam_effect(rt, key):
+    return rt.eval(f'TREK.BeamFX.effects["{key}"]')
+
+
+def beam():
+    """The transporter as it is seen, single player (BEAM.md).
+
+    The timeline, then a real beam up from the ground: a column where they
+    stood that stays there when they go, a second one where they arrive, the
+    overlay out of the mouse's way, and nothing for a move that is a walk or
+    for an arrival nobody was sent on.
+    """
+    # --- every beam kind is a move the server really grants ------------------
+    # A kind spelt wrong here is a transporter that never sparkles, and nothing
+    # else would ever say so.
+    server_src = open(os.path.join(LUA, "server", "TREK", "TREK_Server.lua"),
+                      encoding="utf-8").read()
+    moves = re.search(r"^local MOVES = \{(.*?)^\}", server_src, re.M | re.S)
+    kinds = set(re.findall(r"^\s+(\w+)\s*=\s*\{", moves.group(1), re.M)) if moves else set()
+    check(len(kinds) >= 10, f"beam: read only {len(kinds)} move kinds out of TREK_Server's "
+                            "MOVES -- the pattern has stopped matching")
+
+    net = Net("sp")
+    rt = net.server
+    P = "SIM.players[1]"
+    rt.run("SIM.player('crewman', 6000.5, 6000.5, 0)")
+    net.start()
+    net.pump(5)
+
+    fx_kinds = set(str(k) for k in rt.eval("TREK.Config.BeamFxKinds").keys())
+    for k in sorted(fx_kinds - kinds):
+        fail(f"beam: C.BeamFxKinds names {k!r}, which is not a move the server grants")
+    for walk in ("hatchIn", "hatchOut", "turbolift", "stationDown", "stationUp"):
+        check(rt.eval(f"TREK.Beam.isBeam('{walk}')") is False,
+              f"beam: {walk} is a walk, and sparkles as if it were a transporter")
+
+    # --- the timeline -------------------------------------------------------
+    out = beam_frames(rt, "out")
+    check(out[:3] == [6, 5, 4],
+          f"beam: leaving does not build up from nothing (6, 5, 4): {out[:6]}")
+    check(out[-4:] == [4, 5, 6, None],
+          f"beam: leaving does not fade 4, 5, 6 and end: {out[-6:]}")
+    check(set(out[3:-4]) == {0, 1, 2, 3},
+          f"beam: the shimmer is not the four shimmer frames: {sorted(set(out[3:-4]))}")
+    early = beam_frames(rt, "out", departed=100)
+    check(early[:3] == [6, 5, 4] and early[3] == 0,
+          f"beam: a character gone before the column built cut the build short: {early[:6]}")
+    gone = beam_frames(rt, "out", departed=900)
+    fade_at = [ms for ms in range(400, 4000, 10)
+               if rt.eval(f"(TREK.Beam.frameAt('out', {ms}, 900))") == 4]
+    check(fade_at and fade_at[0] == 900,
+          f"beam: the fade did not start the moment they were seen to go (900 ms): "
+          f"{fade_at[:1]}")
+    check(gone[-1] is None, "beam: a column whose character went never ended")
+    arrive = beam_frames(rt, "in")
+    check(arrive[0] in (0, 1, 2, 3),
+          f"beam: an arrival starts at frame {arrive[0]}, not at full strength -- the "
+          "character would be seen standing there before the sparkles")
+    check(arrive[-4:] == [4, 5, 6, None], f"beam: an arrival does not fade and end: {arrive[-6:]}")
+    every = {f for f in out + early + gone + arrive if f is not None}
+    check(every <= set(range(7)), f"beam: a frame outside 0-6 was asked for: {sorted(every)}")
+
+    # --- a real beam up from the ground ------------------------------------
+    rt.run("TREK.BeamFX.effects = {}; SIM.beamDraws = {}")
+    x0, y0, _ = pos(rt)
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(2)
+    e = beam_effect(rt, "-1:out")
+    if e is None:
+        fail("beam: beaming up raised no column where the player stood")
+        return
+    check(abs(float(e.x) - x0) < 0.6 and abs(float(e.y) - y0) < 0.6,
+          f"beam: the column went up at {e.x},{e.y}, not under the player at {x0},{y0}")
+    rt.run("SIM.renderFrame()")
+    draws = int(rt.eval("#SIM.beamDraws"))
+    check(draws >= 1, "beam: the column is announced and never drawn")
+    if draws:
+        d = rt.eval("SIM.beamDraws[1]")
+        fx = float(rt.eval(f"isoToScreenX(0, {x0}, {y0}, 0)"))
+        fy = float(rt.eval(f"isoToScreenY(0, {x0}, {y0}, 0)"))
+        check(abs(float(d.x) + float(d.w) / 2 - fx) < 0.5,
+              "beam: the column is not centred on the character")
+        # The glow's foot is 0.94 of the frame down (tools/gen_beam.py CORE,
+        # centred), and it belongs at the character's feet.
+        check(abs((fy - float(d.y)) / float(d.h) - 0.94) < 0.03,
+              "beam: the column does not stand on the character's feet")
+        check(abs(float(d.h) - 2 * float(d.w)) < 0.5,
+              "beam: the column is not drawn at the frames' 1:2")
+    for mx, my in ((960, 540), (200, 900), (1700, 120)):
+        check(rt.eval(f"SIM.uiUnderMouse({mx}, {my})") is None,
+              f"beam: the column's overlay covers the screen at {mx},{my}; the world "
+              "gets no right-click and no aiming while it is up")
+
+    # Tick by tick, and look the moment they land: an arrival column lasts
+    # about a second, and a look taken later finds nothing to check.
+    for _ in range(300):
+        net.pump(1)
+        if at_pad(rt):
+            break
+    net.pump(2)   # the watcher sees the move on the tick after it
+    check(at_pad(rt), f"beam: the beam up never arrived; the player is at {pos(rt)}")
+    e = beam_effect(rt, "-1:out")
+    check(e is not None, "beam: the leaving column was gone before the player arrived")
+    if e is not None:
+        check(e.departedMs is not None,
+              "beam: the player went and the column never noticed -- it would shimmer "
+              "on to its time limit over nobody")
+        check(abs(float(e.x) - x0) < 0.6,
+              "beam: the column followed the player across the map instead of fading "
+              "where they stood")
+        went = e.departedMs
+        net.pump(6)
+        e2 = beam_effect(rt, "-1:out")
+        if e2 is not None and went is not None:
+            check(e2.departedMs == went,
+                  "beam: the moment they went kept moving -- the column went on looking "
+                  "for them and put its own fade off to the time limit")
+            now_ms = int(rt.eval("getTimestampMs()")) - int(e2.startMs)
+            frame = rt.eval(f"(TREK.Beam.frameAt('out', {now_ms}, {e2.departedMs}))")
+            check(frame is None or int(frame) in (4, 5, 6),
+                  f"beam: {now_ms} ms in and a tenth of a second after they went, the "
+                  f"column is on frame {frame}, not fading")
+    i = beam_effect(rt, "-1:in")
+    check(i is not None, "beam: arriving on the pad showed no column")
+    if i is not None:
+        px, py, _ = pos(rt)
+        check(abs(float(i.x) - px) < 1.5 and abs(float(i.y) - py) < 1.5,
+              f"beam: the arrival column is at {i.x},{i.y}, not on the pad at {px},{py}")
+    check(rt.eval("TREK.BeamFX.watch") is None,
+          "beam: still watching for an arrival that has happened")
+    net.pump(int(rt.eval("TREK.Beam.longestMs()")) // 16 + 5)
+    check(int(rt.eval("TREK.BeamFX.count()")) == 0,
+          "beam: a column is still up long after the beam")
+
+    # --- a recover: the one beam that moves them inside onGranted -------------
+    # The way home from a landing with no room puts them on the pad in the same
+    # call that grants it, so where they stood has to be noted before that call
+    # or the watcher starts from the pad and never sees them arrive.
+    rt.run(f"TREK.Transport.beamDown({P})")
+    net.pump(220)
+    check(not at_pad(rt), f"beam: the beam down never left the pad; at {pos(rt)}")
+    rt.run(f"TREK.BeamFX.effects = {{}}; TREK.Transport.recoverAboard({P})")
+    for _ in range(40):
+        net.pump(1)
+        if beam_effect(rt, "-1:in") is not None:
+            break
+    check(beam_effect(rt, "-1:in") is not None,
+          "beam: beamed home to the pad after a landing with no room, and no column "
+          "showed them arrive")
+    net.pump(int(rt.eval("TREK.Beam.longestMs()")) // 16 + 5)
+
+    # --- nobody sent, nothing relayed ----------------------------------------
+    rt.run(f"TREK.BeamFX.effects = {{}}; TREK.Net.send({P}, 'beamedIn', {{ x = 1, y = 1, z = 0 }})")
+    net.pump(2)
+    check(beam_effect(rt, "-1:in") is None,
+          "beam: the server relayed an arrival it never sent anybody on")
+
+    for w in rt.warnings():
+        fail(f"beam: {w}")
+    print("  beam: the timeline, a column up where they stood and down where they "
+          "came in, the overlay out of the way, walks and forged arrivals ignored")
+
+
+def beam_multiplayer():
+    """Two players: bob sees alice's column go up and come down (BEAM.md).
+
+    The departure is the server's to announce and the arrival alice's client's
+    to report, so this is the test that both reach somebody else -- and that
+    alice's own arrival, which she shows at once, is not shown twice when the
+    server relays it back.
+    """
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    for rt in net.all():
+        rt.run("SandboxVars.TrekShuttle.Access = 2")
+    srv.run("SIM.player('alice', 4000.5, 4000.5, 0).onlineID = 1; "
+            "SIM.player('bob', 4003.5, 4000.5, 0).onlineID = 2")
+    A.run("SIM.player('alice', 4000.5, 4000.5, 0).onlineID = 1")
+    # Bob's machine knows alice as a remote character a few squares away.
+    B.run("SIM.player('bob', 4003.5, 4000.5, 0).onlineID = 2; "
+          "SIM.player('alice', 4000.5, 4000.5, 0).onlineID = 1")
+    net.start()
+    P = "SIM.players[1]"
+
+    # Every column alice's machine is asked to show, and the table each ask
+    # left showing -- her own arrival and the server's relay of it land in one
+    # tick here, so only the calls themselves can tell a restart from a keep.
+    A.run("""beamStarts = {}
+        local start = TREK.BeamFX.start
+        TREK.BeamFX.start = function(args)
+            local e = start(args)
+            table.insert(beamStarts, { key = TREK.Beam.key(args.id, args.phase), e = e })
+            return e
+        end""")
+    A.run(f"TREK.Transport.beamUp({P})")
+    net.pump(3)
+    e = beam_effect(B, "1:out")
+    check(e is not None, "beam mp: bob saw no column when alice beamed up")
+    if e is not None:
+        check(abs(float(e.x) - 4000.5) < 0.6,
+              f"beam mp: bob's column for alice is at {e.x}, not where she stood")
+    check(beam_effect(A, "1:out") is not None,
+          "beam mp: alice saw no column over herself as she left")
+
+    # On bob's machine alice goes when her position does.
+    net.pump(95)
+    B.run("SIM.players[2].x, SIM.players[2].y = 9000.5, 9000.5")
+    net.pump(3)
+    e = beam_effect(B, "1:out")
+    if e is not None:
+        check(e.departedMs is not None,
+              "beam mp: bob's column never saw alice go, and shimmers on over nobody")
+
+    for _ in range(300):
+        net.pump(1)
+        if at_pad(A) and beam_effect(A, "1:in") is not None:
+            break
+    # Bob's copy of alice follows her to the pad, as her position packets
+    # would carry it; then her report reaches the server and its relay bob.
+    ax, ay, az = pos(A)
+    B.run(f"SIM.players[2].x, SIM.players[2].y, SIM.players[2].z = {ax}, {ay}, {az}")
+    net.pump(3)
+    mine = beam_effect(A, "1:in")
+    check(mine is not None, "beam mp: alice saw no column over herself arriving")
+    theirs = beam_effect(B, "1:in")
+    check(theirs is not None,
+          "beam mp: bob never heard of alice's arrival -- the server did not relay it")
+    if mine is not None and theirs is not None:
+        check(abs(float(theirs.x) - float(mine.x)) < 0.01
+              and abs(float(theirs.y) - float(mine.y)) < 0.01,
+              "beam mp: bob's arrival column is not where alice's client said she arrived")
+    # Her client showed it the tick she landed; the relay came back after, and
+    # must have kept the same column (compared in Lua: lupa hands Python a
+    # fresh proxy every time).
+    asks = int(A.eval('(function() local n = 0 for _, s in ipairs(beamStarts) do '
+                      'if s.key == "1:in" then n = n + 1 end end return n end)()'))
+    check(asks == 2, f"beam mp: alice's machine was asked to show her arrival {asks} "
+                     "time(s), not twice (her own watcher, then the server's relay)")
+    if asks == 2:
+        check(A.eval('(function() local a, b for _, s in ipairs(beamStarts) do '
+                     'if s.key == "1:in" then if a then b = s.e else a = s.e end end end '
+                     'return rawequal(a, b) end)()') is True,
+              "beam mp: the server's relay restarted alice's own arrival column -- she "
+              "saw it twice")
+
+    # --- bob cannot make sparkles on demand -----------------------------------
+    B.run(f"TREK.Net.send({P}, 'beamedIn', {{ x = 4003, y = 4000, z = 0 }})")
+    net.pump(3)
+    check(beam_effect(A, "2:in") is None,
+          "beam mp: bob reported an arrival with no beam behind it and alice was shown it")
+
+    for rt, name in ((srv, "server"), (A, "alice"), (B, "bob")):
+        for w in rt.warnings():
+            fail(f"beam mp ({name}): {w}")
+    print("  beam mp: alice's column up and down on bob's screen, her own arrival "
+          "shown once, bob's forged arrival shown to nobody")
+
 
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
@@ -16357,7 +16625,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, multiplayer)
 
 
 def main():

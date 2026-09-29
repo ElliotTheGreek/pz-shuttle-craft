@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.13.0"
+C.Version   = "1.14.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 32
+C.BuildRev = 33
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -228,6 +228,37 @@ C.ShieldsDefault = true
 -- teleport, and a second and a half of dematerialising reads as a transporter
 -- and gives the halo note time to be seen. Ticks.
 C.BeamDelay = 90
+
+-- The sparkle column a beam is seen as (BEAM.md), on everybody's screen. The
+-- frames are media/ui/TREK_Beam_00..06, four of shimmer and three of fade,
+-- drawn by tools/gen_beam.py from Gemini's chain in design/art/beam.
+--
+-- Which moves are a transporter: a lift, the turbolift and the hatch are
+-- walks, and sparkle for nobody.
+C.BeamFxKinds = {
+    beamUp = true, beamDown = true, descend = true, recover = true,
+    toAdirondack = true, fromAdirondack = true, lockBeam = true,
+    raidIn = true, raidOut = true,
+}
+C.BeamFx = {
+    buildMs = 110,      -- each of the three build-up frames (the fade, backwards)
+    shimmerMs = 85,     -- each of the four shimmer frames, round and round
+    fadeMs = 150,       -- each of the three fade frames
+    -- Leaving: shimmer until the character is seen to go, or this long after
+    -- the beam was granted if they never are (another machine's player who
+    -- walks out of range). C.BeamDelay is 1.5 s; this is that and some.
+    outMaxMs = 2300,
+    -- Arriving: shimmer this long over the newcomer, then fade off them.
+    inHoldMs = 800,
+    -- A character this far from where they were has been beamed. Tiles.
+    jump = 2.5,
+    -- How tall the glow's core stands, in storeys, and how opaque it is drawn.
+    height = 0.85,
+    alpha = 0.95,
+    -- An arrival reported this long after the beam was granted is refused by
+    -- the server: it only relays arrivals it sent somebody on.
+    arrivalWindowMs = 60000,
+}
 
 -- How far a beam-down may miss by when the exact square is occupied.
 C.BeamScatter = 6
@@ -1984,6 +2015,28 @@ C.PaddIssue = 2
 -- makes one there.
 C.PackItem = "TrekShuttle.TrekBackpack"
 C.PackIssue = 1
+
+---------------------------------------------------------------------------
+-- The shoulder lamp (ITEMS.md)
+---------------------------------------------------------------------------
+-- A flashlight that clips to the right shoulder of any Starfleet uniform, on
+-- the mod's own hotbar slot (TREK_ShoulderLamp.lua). Two in the armoury,
+-- one for each of the first two people out of the hatch. New worlds only,
+-- like every other change to what a locker holds; the replicator knows the
+-- pattern from the first day, so an existing save makes them there.
+C.ShoulderLampItem = "TrekShuttle.TrekShoulderLamp"
+C.ShoulderLampIssue = 2
+
+-- The slot: the hotbar type every uniform provides (AttachmentsProvided in
+-- trekshuttle.txt), the lamp's AttachmentType, and the attached location it
+-- hangs from. The location is the mod's own name on vanilla's body
+-- attachment `webbing_right_walkie`, which sits at the same point on both
+-- bodies; the lamp model's own attachment of that name lifts it onto the
+-- shoulder (tools/gen_shoulderlamp.py).
+C.ShoulderSlot = "TrekShoulder"
+C.ShoulderLampKind = "TrekShoulderLamp"
+C.ShoulderLocation = "Trek Shoulder Lamp"
+C.ShoulderAttachment = "webbing_right_walkie"
 
 -- Reading off a PADD takes a fifth of the time the same book takes on paper,
 -- after the vanilla rules -- sandbox minutes per page, Fast and Slow Reader,

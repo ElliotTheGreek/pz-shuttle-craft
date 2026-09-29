@@ -32,10 +32,12 @@
 
     The bat'leth's two back attachments are not optional. An item on the back
     is drawn at bone x the body's attachment x the item's own attachment of
-    the same name, and the back slots hang a weapon by its Y, where a
-    bat'leth's length is its X: without them it stood on edge across the
-    shoulders like horns. tools/gen_batleth.py writes that block, from the
-    mesh it builds; do not edit it here.  */
+    the same name. The back slots hang a weapon by its Y, which is the
+    bat'leth's length since it is held by one end, but its crescent bows
+    along X and would stand out from the back without them (when it was held
+    by the middle its length was X, and it stood across the shoulders like
+    horns). tools/gen_batleth.py writes that block, from the mesh it builds;
+    do not edit it here.  */
 
 module Base
 {
@@ -45,13 +47,13 @@ module Base
         texture = weapons/2handed/TREK_Batleth,
         attachment blade_back
         {
-            offset = 0.02 0.18 -0.068,
-            rotate = 0.0 90.0 90.0,
+            offset = 0.02 -0.0073 0.0329,
+            rotate = 0.0 90.0 0.0,
         }
         attachment big_blade_back_bag
         {
-            offset = 0.12 0.1688 0.0383,
-            rotate = 25.0 90.0 90.0,
+            offset = 0.12 -0.0436 0.0506,
+            rotate = 25.0 90.0 0.0,
         }
     }
 
