@@ -124,6 +124,9 @@ function IU.fillWorldMenu(playerNum, context, worldobjects, test)
     if not x then return end
     local id, m = IN.clickedMachine(nil, x, y, z, 1)
     if not id then return end
+    -- A raid's machines are lent for the fight and go with it: nothing to
+    -- dismantle (the server refuses it too, instRaid).
+    if m.raid then return end
     if test then return ISWorldObjectContextMenu.setTest() end
     local opt = context:addOption(getText("IGUI_TREK_InstDismantle", getText(IU.NAME[m.kind])),
                                   worldobjects, IU.onDismantle, player, id)

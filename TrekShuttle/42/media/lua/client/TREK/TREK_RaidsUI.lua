@@ -466,8 +466,18 @@ Net.onClient("raidWon", function(args)
     note("IGUI_TREK_RaidWonNote", tostring(args.secs or 60))
 end)
 
-Net.onClient("raidLost", function()
-    warn("IGUI_TREK_RaidLostNote")
+-- Why it was lost: a note that only said "lost" hid a raid timed out
+-- mid-fight behind the look of a defeat.
+local LOST = { time = "IGUI_TREK_RaidLostTime", left = "IGUI_TREK_RaidLostLeft" }
+
+Net.onClient("raidLost", function(args)
+    warn(LOST[args and args.why] or "IGUI_TREK_RaidLostNote")
+end)
+
+-- The raid's dead standing now, by online id: this machine keeps the pace
+-- and the hunt of any it simulates (TREK_Raids, Rd.drive).
+Net.onClient("raidZeds", function(args)
+    Rd.setZedIds(args and args.list)
 end)
 
 Net.onClient("raidReturn", function(args)

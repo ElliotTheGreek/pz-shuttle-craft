@@ -8,9 +8,11 @@
       * the request: made, warned about, declined, lapsed;
       * accepting: who is in, where each goes home to (on the server's copy of
         the player), and the move there;
-      * the outpost's camp, built once a raider has loaded its ground;
-      * the waves, the count, the outcome, the rewards;
-      * home again, and the scenery taken away.
+      * the outpost's camp, built once a raider has loaded its ground, with
+        real machines lent from the installations registry;
+      * the waves -- beamed in all round the raiders, as many as the cap
+        allows, sprinting and hunting -- the count, the outcome, the rewards;
+      * home again, and the machines taken away.
 
     Built for the outpost first (RAIDS.md 11): the camp stands on the real
     map, where the engine's pathing is its own. The Adirondack and the field
@@ -30,6 +32,9 @@ require "TREK/TREK_Ship"
 require "TREK/TREK_Raids"
 require "TREK/TREK_Access"
 require "TREK/TREK_Adirondack"
+require "TREK/TREK_World"
+require "TREK/TREK_Installations"
+require "TREK/TREK_InstallationsServer"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -37,6 +42,9 @@ local U = TREK.Util
 local Net = TREK.Net
 local Ship = TREK.Ship
 local Rd = TREK.Raids
+local W = TREK.World
+local IN = TREK.Installations
+local IS = TREK.InstallationsServer
 
 local S = {}
 TREK.RaidsServer = S
@@ -215,7 +223,8 @@ Net.onServer("raidAccept", function(player, args)
         local r = d.request
         raid = { id = r.id, kind = r.kind, state = "arriving", tx = r.tx, ty = r.ty, tz = 0,
                  members = {}, n = math.floor(C.RaidBase[r.kind] * C.raidScale()),
-                 released = 0, alive = 0, killed = 0, acceptedAt = now, lastPresent = now }
+                 released = 0, alive = 0, killed = 0, acceptedAt = now,
+                 acceptedMs = nowMs(), lastPresentMs = nowMs() }
         d.raid = raid
         d.request = nil
     end
@@ -311,9 +320,98 @@ local function clearWild(sq)
     return #doomed
 end
 
+--- The squares of the camp that must be good ground, from its centre: where
+--- the raider is put down, every square of every machine, and where the
+--- Doctor stands in front of his station.
+function S.campKeep()
+    local out = { { 0, 0 }, { C.OutpostStand[1], C.OutpostStand[2] } }
+    for _, m in ipairs(C.OutpostInstalls) do
+        for _, t in ipairs(IN.Sprites[m[1]].W) do
+            table.insert(out, { m[2] + t[1], m[3] + t[2] })
+        end
+        if m[1] == "emh_station" then
+            local dx, dy = IS.doctorSquare(m[2], m[3], "W")
+            table.insert(out, { dx, dy })
+        end
+    end
+    return out
+end
+
+--- The squares a camp's clearing covers, as { { dx, dy } } from its centre:
+--- a disc of C.OutpostClearing, and C.OutpostSpokes straight alleys
+--- C.OutpostSpokeWidth wide running C.OutpostSpokeLength on out from its edge
+--- -- a sun and its rays (played 2026-09-29: somewhere to run down, turn
+--- and fire back along). The rays are turned by the camp's own spokeAngle,
+--- rolled once, so no two camps are the same.
+function S.clearShape(camp)
+    if not camp.spokeAngle then camp.spokeAngle = roll(3600) / 3600 * 2 * math.pi end
+    local R = C.OutpostClearing
+    local seen, out = {}, {}
+    local function add(dx, dy)
+        local key = dx .. "," .. dy
+        if not seen[key] then
+            seen[key] = true
+            table.insert(out, { dx, dy })
+        end
+    end
+    for dy = -R, R do
+        for dx = -R, R do
+            if dx * dx + dy * dy <= R * R then add(dx, dy) end
+        end
+    end
+    local half = (C.OutpostSpokeWidth - 1) / 2
+    for i = 0, C.OutpostSpokes - 1 do
+        local a = camp.spokeAngle + i * 2 * math.pi / C.OutpostSpokes
+        local ux, uy = math.cos(a), math.sin(a)
+        for t = R - 1, R + C.OutpostSpokeLength, 0.5 do
+            for w = -half, half, 0.5 do
+                add(math.floor(ux * t - uy * w + 0.5), math.floor(uy * t + ux * w + 0.5))
+            end
+        end
+    end
+    return out
+end
+
+-- Per camp, the squares of its clearing already done. The server's alone and
+-- never published: it runs to a couple of thousand keys, and the raid record
+-- goes to every client whenever it changes (DEV_GUIDE, *State that is
+-- transmitted whole*). Lost with a restart, which only means the next pass
+-- looks at every square again.
+local clearedOf = setmetatable({}, { __mode = "k" })
+
+--- Clears the wilderness off every loaded square of the camp's clearing
+--- (S.clearShape) not cleared yet, so nobody fights in the bushes. Only what
+--- grows or blows there goes (clearWild); anything built stays. A square
+--- whose ground is not loaded is left for the next pass: returns how many
+--- things went and how many squares are still to do.
+function S.clearAround(camp)
+    local done = clearedOf[camp] or {}
+    clearedOf[camp] = done
+    local took, left = 0, 0
+    for _, d in ipairs(S.clearShape(camp)) do
+        local key = d[1] .. "," .. d[2]
+        if not done[key] then
+            local x, y = camp.cx + d[1], camp.cy + d[2]
+            if U.chunkLoaded(x, y, camp.z) then
+                -- Every square: clearWild only ever takes wilderness, so a
+                -- square with something built on it keeps that and loses its
+                -- tree.
+                took = took + clearWild(U.square(x, y, camp.z, false))
+                done[key] = true
+            else
+                left = left + 1
+            end
+        end
+    end
+    camp.clearLeft = left
+    if left == 0 then clearedOf[camp] = nil end
+    return took, left
+end
+
 --- The best centre for the camp within C.OutpostSearch of (tx, ty): the
---- square whose whole camp area has the most good ground, as long as its pad
---- squares are good and at least nine in ten of the rest are. Nil when the
+--- square whose whole camp area has the most good ground, as long as its
+--- kept squares (S.campKeep) are good and at least nine in ten of the rest
+--- are. Nil when the
 --- ground is not all loaded yet ("cannot tell"), false when it is and there
 --- is nowhere.
 function S.findCamp(tx, ty, z)
@@ -345,15 +443,16 @@ function S.findCamp(tx, ty, z)
         return sat[d2][c2] - sat[b - 1][c2] - sat[d2][a - 1] + sat[b - 1][a - 1]
     end
     local need = math.ceil((2 * H + 1) ^ 2 * 0.9)
+    local keep = S.campKeep()
     local best, bestN, bestD = nil, -1, nil
     for cy = ty - R, ty + R do
         for cx = tx - R, tx + R do
-            local padOk = true
-            for _, p in ipairs(C.OutpostPad) do
+            local keepOk = true
+            for _, p in ipairs(keep) do
                 local gj, gi = cy + p[2] - y0 + 1, cx + p[1] - x0 + 1
-                if not (good[gj] and good[gj][gi]) then padOk = false end
+                if not (good[gj] and good[gj][gi]) then keepOk = false break end
             end
-            if padOk then
+            if keepOk then
                 local n = count(cx, cy)
                 local dd = (cx - tx) ^ 2 + (cy - ty) ^ 2
                 if n >= need and (n > bestN or (n == bestN and dd < bestD)) then
@@ -388,26 +487,25 @@ local function stockCrate(obj, crystal)
     if crystal then c:AddItem(C.DilithiumItem) end
 end
 
---- Builds the camp at (cx, cy). The pad and the machines are recorded, to
---- be taken away when the raid is over; the tents and crates stay.
+--- Builds the camp at (cx, cy). The machines are real installations,
+--- recorded against the raid to be taken away when it is over; the tents
+--- and crates stay.
 function S.buildCamp(raid, cx, cy, z)
-    raid.camp = { cx = cx, cy = cy, z = z, scenery = {} }
-    -- A clearing first: the trees and the undergrowth off the whole camp.
-    local H, cleared = C.OutpostClear, 0
-    for dy = -H, H do
-        for dx = -H, H do
-            -- Every square: clearWild only ever takes wilderness, so a square
-            -- with something built on it keeps that and loses its tree.
-            cleared = cleared + clearWild(U.square(cx + dx, cy + dy, z, false))
+    raid.camp = { cx = cx, cy = cy, z = z, scenery = {}, machines = {} }
+    -- A clearing first: the trees and the undergrowth off the camp and a
+    -- wide ring round it, where the fight is.
+    local cleared = S.clearAround(raid.camp)
+    for _, m in ipairs(C.OutpostInstalls) do
+        -- The core arrives with a crystal burning, as the shuttle's does once
+        -- loaded: a full reserve, no spares, lit.
+        local extra = { raid = raid.id, owner = "Captain Titus" }
+        if m[1] == "warp_core" then
+            extra.power, extra.crystals, extra.dark = C.PowerMax, 0, false
         end
+        local id, rec = IS.place(m[1], cx + m[2], cy + m[3], z, "W", extra)
+        table.insert(raid.camp.machines, id)
+        if m[1] == "warp_core" then raid.camp.coreX, raid.camp.coreY = IN.centre(rec) end
     end
-    local function keep(dx, dy, sprite)
-        if placeTile(cx + dx, cy + dy, z, sprite) then
-            table.insert(raid.camp.scenery, { x = cx + dx, y = cy + dy, z = z, sprite = sprite })
-        end
-    end
-    for _, p in ipairs(C.OutpostPad) do keep(p[1], p[2], p[3]) end
-    for _, p in ipairs(C.OutpostMachines) do keep(p[1], p[2], p[3]) end
     for _, p in ipairs(C.OutpostTents) do
         -- A tent's front square is a container and its back is not;
         -- createContainersFromSpriteProperties makes one only where the
@@ -440,54 +538,130 @@ local function removeScenery(list)
     end
 end
 
+--- A world item of this full type lying on the square (the Doctor), or nil.
+local function worldItemOn(sq, fullType)
+    return U.try("raids.worldItem", function()
+        local list = sq:getWorldObjects()
+        for i = 0, list:size() - 1 do
+            local w = list:get(i)
+            local it = w and w:getItem()
+            if it and it:getFullType() == fullType then return w end
+        end
+        return nil
+    end)
+end
+
+--- Takes one lent machine away, now where its ground is loaded and later
+--- where it is not.
+function S.takeMachine(id)
+    local d = Rd.store()
+    for _, left in ipairs(IS.remove(id)) do table.insert(d.removals, left) end
+end
+
 local function serviceRemovals()
     local d = Rd.store()
     for i = #d.removals, 1, -1 do
         local s = d.removals[i]
         if U.chunkLoaded(s.x, s.y, s.z) then
             local sq = U.square(s.x, s.y, s.z, false)
-            local found = sq and U.findSprite(sq, s.sprite)
+            local found = nil
+            if sq and s.item then found = worldItemOn(sq, s.item)
+            elseif sq and s.sprite then found = U.findSprite(sq, s.sprite) end
             if found then U.try("raids.remove", function() sq:transmitRemoveItemFromSquare(found) end) end
             table.remove(d.removals, i)
         end
     end
+    -- A lent machine with no raid of its own running -- a save closed in the
+    -- middle of one -- goes the same way.
+    local live = d.raid and d.raid.id
+    local stray = {}
+    for id, m in pairs(IN.state().machines) do
+        if m.raid and m.raid ~= live then table.insert(stray, id) end
+    end
+    for _, id in ipairs(stray) do S.takeMachine(id) end
 end
 
 ---------------------------------------------------------------------------
 -- The waves, and the end
 ---------------------------------------------------------------------------
---- The raid's own dead still standing, by the server's zombie list.
+--- The raid's own dead still standing, by the server's zombie list: how
+--- many, and "id:pace,..." for the clients (Rd.setZedIds).
 function S.standing(raid)
-    local n = 0
+    local n, ids = 0, {}
     U.try("raids.count", function()
         local list = getCell():getZombieList()
         for i = 0, list:size() - 1 do
             local z = list:get(i)
-            if z and not z:isDead() and z:getModData()[C.RaidZedKey] == raid.id then n = n + 1 end
+            if z and not z:isDead() and z:getModData()[C.RaidZedKey] == raid.id then
+                n = n + 1
+                local id = z:getOnlineID()
+                if id and id >= 0 then table.insert(ids, id .. ":" .. (Rd.paceOf(z) or "walk")) end
+            end
         end
     end)
-    return n
+    return n, table.concat(ids, ",")
 end
 
-local function spawnOne(raid)
+--- Ground one can be beamed onto: a floor, nothing solid or standing on it,
+--- no water.
+local function standable(sq)
+    if not sq or not W.squareIsClear(sq) then return false end
+    return U.try("raids.water", function()
+        return not sq:getFloor():getSprite():getProperties():has(IsoFlagType.water)
+    end) == true
+end
+
+--- Where the next one comes down: somewhere in a ring round the camp's warp
+--- core, from every side -- the purge vents where the power is. Round the
+--- core and not the raider (played 2026-09-29), so a raider can fall back to
+--- the edge of the clearing and have them all in front. Nil when nowhere on
+--- the ring will do.
+function S.spawnSquare(camp)
+    local ox, oy = camp.coreX or camp.cx + 0.5, camp.coreY or camp.cy + 0.5
+    local lo, hi = C.RaidSpawnMin, C.RaidSpawnMax
+    for _ = 1, 16 do
+        local a = roll(3600) / 3600 * 2 * math.pi
+        local r = lo + roll((hi - lo) * 10 + 1) / 10
+        local x = math.floor(ox + math.cos(a) * r)
+        local y = math.floor(oy + math.sin(a) * r)
+        if U.chunkLoaded(x, y, camp.z) and standable(U.square(x, y, camp.z, false)) then return x, y end
+    end
+    return nil
+end
+
+--- One of the dead, beamed in round the camp's warp core. A runner is never a Borg
+--- (they never run, BORG.md); a walker is a Borg C.RaidBorgShare of the time.
+local function spawnOne(raid, runner)
     local camp = raid.camp
+    local x, y = S.spawnSquare(camp)
+    if not x then return 0 end
     local outfit
-    if roll(100) < math.floor(C.RaidBorgShare * 100) then
+    if not runner and roll(100) < math.floor(C.RaidBorgShare * 100) then
         outfit = roll(2) == 0 and C.BorgDrone or C.BorgAssimilated
     else
         outfit = C.RaidOutfits[roll(#C.RaidOutfits) + 1]
     end
-    local p = C.OutpostPad[roll(#C.OutpostPad) + 1]
+    local pace = runner and "run" or "walk"
     local list = U.try("raids.spawn", function()
-        return addZombiesInOutfit(camp.cx + p[1], camp.cy + p[2], camp.z, 1, outfit, 50)
+        return addZombiesInOutfit(x, y, camp.z, 1, outfit, 50)
     end)
     local got = 0
     U.try("raids.tagZed", function()
         for i = 0, list:size() - 1 do
-            list:get(i):getModData()[C.RaidZedKey] = raid.id
+            local zed = list:get(i)
+            zed:getModData()[C.RaidZedKey] = raid.id
+            Rd.markZed(zed, pace)
+            U.try("raids.drive", Rd.drive, zed)
             got = got + 1
         end
     end)
+    if got > 0 then
+        -- The transporter's column where it comes down, on every screen
+        -- (BEAM.md): fixed to the square, since a zombie has no player id.
+        raid.beamed = (raid.beamed or 0) + 1
+        Net.toAll("beamFx", { id = "raid" .. raid.beamed, phase = "in", fixed = true,
+                              x = x + 0.5, y = y + 0.5, z = camp.z })
+    end
     return got
 end
 
@@ -522,7 +696,10 @@ local function reward(p)
     if TREK.TraitsServer then U.try("raids.rank", TREK.TraitsServer.onRescue, p) end
 end
 
-local function finish(raid, won)
+--- Ends the fight. `why` says what lost it, for the raiders' note: "time"
+--- (C.RaidHardLimitMs), "left" (nobody there for C.RaidAbandonMs) or
+--- "ground" (nowhere to build the camp).
+local function finish(raid, won, why)
     local d = Rd.store()
     raid.state = won and "won" or "lost"
     raid.endMs = nowMs() + (won and C.RaidLootMs or 3000)
@@ -531,8 +708,8 @@ local function finish(raid, won)
     end
     d.nextAt = U.worldHours() + interval()
     Rd.publish()
-    Net.toAll(won and "raidWon" or "raidLost", { secs = won and math.floor(C.RaidLootMs / 1000) or 0 })
-    U.log("raids: %s %s", raid.id, won and "is won" or "is lost")
+    Net.toAll(won and "raidWon" or "raidLost", { secs = won and math.floor(C.RaidLootMs / 1000) or 0, why = why })
+    U.log("raids: %s %s%s", raid.id, won and "is won" or "is lost", why and (" (" .. why .. ")") or "")
 end
 
 --- Every raider still in it goes home; the pad and machines go; it is over.
@@ -542,13 +719,20 @@ local function close(raid)
         local p = playerNamed(name)
         if p and alive(p) then S.sendHome(p) end
     end
-    if raid.camp then removeScenery(raid.camp.scenery) end
+    if raid.camp then
+        -- A camp built before the 2026-09-29 rework carried its pad and
+        -- scenery machines here.
+        removeScenery(raid.camp.scenery)
+        for _, id in ipairs(raid.camp.machines or {}) do S.takeMachine(id) end
+    end
     d.raid = nil
+    Net.toAll("raidZeds", { list = "" })
     Rd.publish()
     U.log("raids: %s is over", raid.id)
 end
 
-local lastWaveMs = 0
+-- When the last wave came (real ms); on S so a test can time the next.
+S.lastWaveMs = 0
 
 --- The fast clock: the camp once its ground is there, the waves, the win,
 --- the loot window.
@@ -563,16 +747,17 @@ function S.serviceRaid()
         if cx == nil then return end
         if cx == false then
             U.log("WARN raids: no ground for an outpost near %d,%d; the lock slipped", raid.tx, raid.ty)
-            finish(raid, false)
+            finish(raid, false, "ground")
             return
         end
         S.buildCamp(raid, cx, cy, raid.tz)
         raid.state = "live"
         raid.startedAt = U.worldHours()
-        raid.lastPresent = raid.startedAt
-        -- The first wave one interval from now, not this instant: a raider
-        -- materialising into the first four is a raider who never saw the camp.
-        lastWaveMs = nowMs()
+        raid.startedMs = nowMs()
+        raid.lastPresentMs = raid.startedMs
+        -- The first wave a moment from now, not this instant: a raider
+        -- materialising into the first dozen is a raider who never saw the camp.
+        S.lastWaveMs = nowMs() - C.RaidWaveMs + C.RaidFirstWaveMs
         Rd.publish()
         for name in pairs(raid.members) do
             local p = playerNamed(name)
@@ -585,18 +770,38 @@ function S.serviceRaid()
     end
     if raid.state == "live" then
         local now = nowMs()
-        if now - lastWaveMs < C.RaidWaveMs then return end
-        lastWaveMs = now
-        raid.alive = S.standing(raid)
-        if (raid.released or 0) >= raid.n and raid.alive == 0 then
+        local alive, ids = S.standing(raid)
+        if alive ~= raid.alive then
+            raid.alive = alive
+            Net.toAll("raidZeds", { list = ids })
+            Rd.publish()
+        end
+        -- One wave at a time (played 2026-09-29: a second dozen on top of the
+        -- first was a death): the next waits until every one of the last is
+        -- down, and then C.RaidWaveMs more -- the clock restarts every look
+        -- that finds one standing.
+        if alive > 0 then
+            S.lastWaveMs = now
+            return
+        end
+        if (raid.released or 0) >= raid.n then
             finish(raid, true)
             return
         end
-        if #present(raid) > 0 and raid.released < raid.n and raid.alive < C.RaidAliveCap then
-            local k = math.min(C.RaidWaveSize, raid.n - raid.released, C.RaidAliveCap - raid.alive)
-            for _ = 1, k do raid.released = raid.released + spawnOne(raid) end
-            raid.alive = S.standing(raid)
-        end
+        if now - S.lastWaveMs < C.RaidWaveMs then return end
+        local here = present(raid)
+        if #here == 0 then return end
+        S.lastWaveMs = now
+        -- The clearing's edge, where its ground was not loaded at the build.
+        if (raid.camp.clearLeft or 0) > 0 then S.clearAround(raid.camp) end
+        raid.wave = (raid.wave or 0) + 1
+        local k = math.min(C.raidWaveSize(raid.wave), raid.n - raid.released)
+        -- Exactly C.RaidRunnerShare of every wave runs, never left to the
+        -- dice: a wave that rolled mostly runners left nowhere to fall back to.
+        local runners = math.floor(k * C.RaidRunnerShare + 0.5)
+        for i = 1, k do raid.released = raid.released + spawnOne(raid, i <= runners) end
+        raid.alive, ids = S.standing(raid)
+        Net.toAll("raidZeds", { list = ids })
         Rd.publish()
         return
     end
@@ -605,15 +810,21 @@ function S.serviceRaid()
     end
 end
 
---- The minute clock for a running raid: abandoned, or too long.
+--- A running raid's limits, in real time: abandoned, or too long. They were
+--- game minutes, and a game hour is two and a half real minutes at the
+--- default day length -- the first raid long enough to need it was ended
+--- mid-fight, five waves in, "lost" (played 2026-09-29).
 function S.serviceLimits()
     local raid = Rd.raid()
     if not raid or not Rd.joinable(raid) then return end
-    local now = U.worldHours()
-    if #present(raid) > 0 then raid.lastPresent = now end
-    if now - (raid.lastPresent or now) > C.RaidAbandonMinutes / 60
-       or now - (raid.startedAt or raid.acceptedAt or now) > C.RaidHardLimitMinutes / 60 then
-        finish(raid, false)
+    local now = nowMs()
+    raid.acceptedMs = raid.acceptedMs or now
+    raid.lastPresentMs = raid.lastPresentMs or now
+    if #present(raid) > 0 then raid.lastPresentMs = now end
+    if now - (raid.startedMs or raid.acceptedMs) > C.RaidHardLimitMs then
+        finish(raid, false, "time")
+    elseif now - raid.lastPresentMs > C.RaidAbandonMs then
+        finish(raid, false, "left")
     end
 end
 
@@ -631,7 +842,6 @@ end)
 ---------------------------------------------------------------------------
 Events.EveryOneMinute.Add(function()
     U.try("raids.schedule", S.serviceSchedule)
-    U.try("raids.limits", S.serviceLimits)
 end)
 
 local tick = 0
@@ -639,6 +849,7 @@ Events.OnTick.Add(function()
     tick = tick + 1
     if tick < 30 then return end
     tick = 0
+    U.try("raids.limits", S.serviceLimits)
     U.try("raids.raid", S.serviceRaid)
 end)
 

@@ -188,6 +188,76 @@ local function removeDoctor(m)
 end
 
 ---------------------------------------------------------------------------
+-- Placing and taking away: the one way a machine enters or leaves the world
+---------------------------------------------------------------------------
+--- Puts a machine in the registry and in the world, its squares already
+--- checked. `extra` is copied onto the record: an owner, a raid's id, a
+--- core's starting power. A core with no power given starts empty and dark.
+--- Returns its id and record.
+function IS.place(kind, x, y, z, facing, extra)
+    local s = IN.state()
+    local id = tostring(s.next)
+    s.next = s.next + 1
+    local m = { kind = kind, x = x, y = y, z = z, facing = facing or "W" }
+    if kind == "warp_core" then m.power, m.crystals, m.dark = 0, 0, true end
+    for k, v in pairs(extra or {}) do m[k] = v end
+    s.machines[id] = m
+    for _, t in ipairs(IN.Sprites[kind][m.facing]) do
+        local sq = U.square(x + t[1], y + t[2], z, false)
+        if sq then placeTile(sq, t[3], id) end
+    end
+    if kind == "emh_station" then placeDoctor(m) end
+    IS.publish()
+    return id, m
+end
+
+--- Takes a machine out of the registry and off its loaded squares, the
+--- Doctor with his station. Returns what could not be reached because its
+--- ground is not loaded: { { x, y, z, sprite } or { x, y, z, item } }, for
+--- the caller to take later.
+function IS.remove(id)
+    id = tostring(id)
+    local s = IN.state()
+    local m = s.machines[id]
+    if not m then return {} end
+    local left = {}
+    for _, t in ipairs(IN.Sprites[m.kind][m.facing or "W"] or {}) do
+        local x, y = m.x + t[1], m.y + t[2]
+        local sq = U.chunkLoaded(x, y, m.z) and U.square(x, y, m.z, false)
+        if sq then
+            local doomed = {}
+            U.eachObject(sq, function(o)
+                local md = U.try("in.md", function() return o:getModData() end)
+                if md and md.TREK == IN.TAG and tostring(md.TREKInst) == id then table.insert(doomed, o) end
+            end)
+            for _, o in ipairs(doomed) do
+                U.try("in.remove", function() sq:transmitRemoveItemFromSquare(o) end)
+            end
+        else
+            table.insert(left, { x = x, y = y, z = m.z, sprite = t[3] })
+        end
+    end
+    if m.kind == "emh_station" then
+        local dx, dy = doctorSpot(m)
+        if U.chunkLoaded(dx, dy, m.z) then
+            removeDoctor(m)
+        else
+            table.insert(left, { x = dx, y = dy, z = m.z, item = C.EmhItem })
+        end
+    end
+    s.machines[id] = nil
+    IS.publish()
+    return left
+end
+
+--- The square the Doctor stands on in front of a station at x, y facing
+--- `facing`: for a caller laying out room for him.
+function IS.doctorSquare(x, y, facing)
+    local dx, dy = doctorSpot({ x = x, y = y, facing = facing or "W" })
+    return dx, dy
+end
+
+---------------------------------------------------------------------------
 -- Installing
 ---------------------------------------------------------------------------
 Net.onServer("installMachine", function(player, args)
@@ -243,20 +313,8 @@ Net.onServer("installMachine", function(player, args)
         U.try("in.syncInv", function() sendRemoveItemFromContainer(inv, item) end)
     end
 
-    local s = IN.state()
-    local id = tostring(s.next)
-    s.next = s.next + 1
-    local m = { kind = kind, x = x, y = y, z = z, facing = facing, owner = nameOf(player) }
-    if kind == "warp_core" then
-        -- Empty: dilithium goes in by hand, as the shuttle's does.
-        m.power, m.crystals, m.dark = 0, 0, true
-    end
-    s.machines[id] = m
-    for i, t in ipairs(shape[facing]) do
-        placeTile(squares[i], t[3], id)
-    end
-    if kind == "emh_station" then placeDoctor(m) end
-    IS.publish()
+    -- Empty: dilithium goes in by hand, as the shuttle's does.
+    local id = IS.place(kind, x, y, z, facing, { owner = nameOf(player) })
     Net.toClient(player, "machineInstalled", { kind = kind, id = id,
                                               core = IN.coreFor(x, y, z) ~= nil or kind == "warp_core" })
     U.log("installations: %s installed a %s at %d,%d,%d (id %s)", nameOf(player), kind, x, y, z, id)
@@ -271,6 +329,12 @@ Net.onServer("dismantleMachine", function(player, args)
     local s = IN.state()
     local m = s.machines[id]
     if not m then return end
+    -- A raid's machines are the ship's, lent for the fight, and go with it
+    -- (RAIDS.md 3.1): a kit off one would be a free warp core in a field.
+    if m.raid then
+        deny(player, "instRaid")
+        return
+    end
     -- In reach of one of its squares, on this machine's copy of the player.
     local px = U.try("in.px", function() return player:getX() end)
     local py = U.try("in.py", function() return player:getY() end)
@@ -304,22 +368,7 @@ Net.onServer("dismantleMachine", function(player, args)
         end
     end
 
-    for _, xy in ipairs(IN.squares(m)) do
-        local sq = U.square(xy[1], xy[2], m.z, false)
-        if sq then
-            local doomed = {}
-            U.eachObject(sq, function(o)
-                local md = U.try("in.md", function() return o:getModData() end)
-                if md and md.TREK == IN.TAG and tostring(md.TREKInst) == id then table.insert(doomed, o) end
-            end)
-            for _, o in ipairs(doomed) do
-                U.try("in.remove", function() sq:transmitRemoveItemFromSquare(o) end)
-            end
-        end
-    end
-    if m.kind == "emh_station" then removeDoctor(m) end
-    s.machines[id] = nil
-    IS.publish()
+    IS.remove(id)
     Net.toClient(player, "machineDismantled", { kind = m.kind, crystals = crystals })
     U.log("installations: %s dismantled the %s at %d,%d,%d (id %s)", nameOf(player), m.kind, m.x, m.y, m.z, id)
 end)

@@ -22,6 +22,9 @@ exist because they were broken* and `MULTIPLAYER.md` apply to every line.
   home from a landing with no room, to and from the Adirondack, the lift at a
   resolved lock, out to a raid and home. Not the hatch, the turbolift or the
   field station's lift, which are walks (`C.BeamFxKinds`).
+- **A raid's dead** (`RAIDS.md` 4): each one arrives under a column, sent by
+  the raid server as a `beamFx` with `fixed = true` -- an arrival on a square,
+  which follows nobody, because a zombie has no player id to follow.
 - **The character is not faded under it.** See section 4.
 
 ---
@@ -102,7 +105,7 @@ oldest were deleted, with the author's go-ahead, to make room.
   Adirondack and a raid.
 - **The server relays only arrivals it sent somebody on**: one per granted
   beam, within `arrivalWindowMs`. A client cannot make sparkles on demand.
-- **Following.** A column follows its character -- one of this machine's own
+- **Following.** A `fixed` column follows nothing. Any other follows its character -- one of this machine's own
   players, or anybody the engine knows by that online id. A leaving column
   stops following, and starts to fade, the moment its character is seen to
   go: a jump, a change of storey, or vanishing from this machine. If that is

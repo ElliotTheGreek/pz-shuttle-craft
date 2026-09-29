@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.14.0"
+C.Version   = "1.15.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -2305,21 +2305,46 @@ end
 C.RaidOfferHours = 5
 C.RaidWarnMinutes = { 60, 10 }
 
--- The buffer: patterns in it, and more for each raider who joins.
-C.RaidBase = { outpost = 30 }
-C.RaidPerPlayer = 10
--- Waves: this many at a time, this often (real milliseconds), never more
--- than the cap of the raid's own standing.
-C.RaidWaveSize = 4
-C.RaidWaveMs = 20000
-C.RaidAliveCap = 14
+-- The buffer: patterns in it, and more for each raider who joins. Sized to
+-- be a real fight for somebody holding a phaser (played 2026-09-29: four
+-- every twenty seconds was a stroll).
+C.RaidBase = { outpost = 80 }
+C.RaidPerPlayer = 30
+-- Waves, one at a time -- the next comes C.RaidWaveMs (real milliseconds)
+-- after the last of the one before is down; the first comes
+-- C.RaidFirstWaveMs after the camp stands. They build: the first is
+-- C.RaidWaveFirst, each after it C.RaidWaveGrowth more, never more than
+-- C.RaidWaveMax (6, 8, 10 ... -- played 2026-09-29: twelve from the start
+-- was too many to get going).
+C.RaidWaveFirst = 6
+C.RaidWaveGrowth = 2
+C.RaidWaveMax = 24
+C.RaidWaveMs = 8000
+C.RaidFirstWaveMs = 4000
+--- How many come in wave n (1, 2, ...).
+function C.raidWaveSize(n)
+    return math.min(C.RaidWaveMax, C.RaidWaveFirst + C.RaidWaveGrowth * (math.max(1, n) - 1))
+end
+-- Where they materialise: beamed in all round the camp's warp core, no
+-- nearer than C.RaidSpawnMin and no further than C.RaidSpawnMax squares --
+-- inside the clearing (C.OutpostClearing), with room at its edge to fall
+-- back to.
+C.RaidSpawnMin = 6
+C.RaidSpawnMax = 14
+-- Exactly this share of every wave sprints -- half, so there is room to
+-- fall back (played 2026-09-29) -- and the rest walk. The Borg walk and never
+-- run (BORG.md), so they are drawn from the walkers, this share of them.
+-- Every one comes straight for a raider.
+C.RaidRunnerShare = 0.5
 C.RaidBorgShare = 0.6
 C.RaidOutfits = { "Generic01", "Generic02", "Generic03", "Generic04", "Generic05" }
 -- How close to the site a raider has to be to count as present, and how long
--- a raid with nobody present, or at all, may run (game minutes).
+-- a raid with nobody present, or at all, may run -- in real milliseconds:
+-- game minutes pass at the day length's pace, and one game hour ended a raid
+-- mid-fight after two and a half real minutes.
 C.RaidPresentRange = 60
-C.RaidAbandonMinutes = 5
-C.RaidHardLimitMinutes = 60
+C.RaidAbandonMs = 2 * 60 * 1000
+C.RaidHardLimitMs = 30 * 60 * 1000
 -- After the last one falls, real milliseconds to loot before the beam home.
 C.RaidLootMs = 60000
 -- How long a raider's client waits at the site for the camp, in ticks.
@@ -2329,20 +2354,32 @@ C.RaidArriveTicks = 1800
 C.RaidPatternsPerWin = 3
 
 -- The outpost (RAIDS.md 3.1): where it goes, and what stands in it, as
--- { dx, dy, sprite } from the pad's first square. Built on wild ground in a
+-- { dx, dy, sprite } from the camp's centre. Built on wild ground in a
 -- clear square of side 2 * C.OutpostClear + 1, searched for within
 -- C.OutpostSearch of the site the request named.
 C.OutpostMinDistance = 300
 C.OutpostMaxDistance = 1200
 C.OutpostClear = 5
+-- Trees, bushes and grass cleared this far round the camp's centre -- the
+-- camp's own 5 and fifty feet more -- so the fight is not in the bushes.
+C.OutpostClearing = 20
+-- And rays out of it: this many straight alleys, this wide, running this far
+-- on from the clearing's edge -- somewhere to run down, turn and fire back
+-- along.
+C.OutpostSpokes = 8
+C.OutpostSpokeWidth = 3
+C.OutpostSpokeLength = 25
 C.OutpostSearch = 20
-C.OutpostPad = { { 0, 0, "trek_adirondack_02_148" }, { 0, 1, "trek_adirondack_02_149" } }
--- Scenery: the installation kits' tiles, tagged and in no registry, so none
--- of them works and none can be taken; removed when the raid ends.
-C.OutpostMachines = {
-    { -4, -3, "trek_adirondack_02_162" }, { -4, -2, "trek_adirondack_02_163" },
-    { -3, -3, "trek_adirondack_02_164" }, { -3, -2, "trek_adirondack_02_165" },
-    { 3, -3, "trek_adirondack_02_158" }, { 4, -3, "trek_adirondack_02_160" },
+-- Machines the ship lends the camp for the fight: real installations
+-- (INSTALLATIONS.md) in the registry, tagged with the raid's id, so the
+-- replicator makes things and the Doctor treats; the core arrives with one
+-- crystal burning. None can be dismantled, and all go when the raid is over.
+-- { kind, dx, dy }, each backed onto the west (a station's Doctor stands one
+-- square east of it).
+C.OutpostInstalls = {
+    { "warp_core", -4, -3 },
+    { "replicator", 3, -3 },
+    { "emh_station", 3, -1 },
 }
 -- What stays: two small tents (vanilla's, two squares each) and four metal
 -- crates, stocked from C.RaidLoot.
@@ -2357,8 +2394,8 @@ C.RaidLoot = {
 }
 -- The chance, in per cent, that one crate holds a dilithium crystal.
 C.RaidCrystalChance = 25
--- Where a raider is put down, from the pad's first square: clear of it.
-C.OutpostStand = { 0, 4 }
+-- Where a raider is put down, from the camp's centre.
+C.OutpostStand = { 0, 0 }
 
 ---------------------------------------------------------------------------
 -- Traits: species, divisions and rank (TRAITS.md)

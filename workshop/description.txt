@@ -48,7 +48,7 @@ THE REPLICATOR
 Makes any item in the game -- vanilla, patches and other mods -- once the ship holds its pattern, paid for in dilithium energy. Scan what you carry to teach it. It cannot make dilithium.
 
 RAIDS
-When the transporter's pattern buffer overflows, Captain Titus calls for help. Accept and you are beamed to an outpost where the dead pour out of the pad in waves. Clear it, loot the crates, and go home.
+When the transporter's pattern buffer overflows, Captain Titus calls for help. Accept and you are beamed to an outpost where the dead beam in round its warp core in growing waves, half running. Clear it, loot the crates, and go home.
 
 THE DOCTOR
 An Emergency Medical Hologram treats what the hypospray and regenerator cannot, for energy. He is the only cure for a zombie bite: one whole crystal and twelve hours aboard.

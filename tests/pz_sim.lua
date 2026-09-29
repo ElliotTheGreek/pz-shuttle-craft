@@ -2888,7 +2888,23 @@ function ZedMT:setX(v) self.x = v end
 function ZedMT:setY(v) self.y = v end
 function ZedMT:setLastX() end
 function ZedMT:setLastY() end
-function ZedMT:setTarget() end
+function ZedMT:setTarget(t) self.target = t end
+function ZedMT:getTarget() return self.target end
+-- IsoZombie.spotted(target, forced): what a zombie hunting somebody is set
+-- to. Counted, so a test can tell a hunt that is renewed every tick.
+function ZedMT:spotted(t)
+    self.target = t
+    self.spottedCount = (self.spottedCount or 0) + 1
+end
+-- doSprinter: speed type 1 and a sprint walk, on this machine's copy only --
+-- the engine sends the walk on from whichever machine simulates it. Its
+-- speed modifier is re-rolled on every call, so calling it every tick
+-- would jitter: counted.
+function ZedMT:doSprinter()
+    self.speedType, self.walkType = 1, "sprint1"
+    self.sprints = (self.sprints or 0) + 1
+end
+function ZedMT:getSpeedType() return self.speedType or 2 end
 function ZedMT:setStaggerBack() end
 function ZedMT:isRemoteZombie() return self.remote == true end
 function ZedMT:getOnlineID() return self.onlineID or -1 end

@@ -15969,10 +15969,12 @@ def raid_on(rt, x, y, z, sprite):
 def raids():
     """Raids (RAIDS.md), the outpost: a request only for a cleared crew, its
     warnings, lapse and decline; accepting beams the player to a camp built
-    on wild ground once they have loaded it; waves from its pad at their
-    size, pace and cap; the win, paid once, and the loot window; home to the
-    cabin they left; the pad and machines taken away and the tents and crates
-    left; a raid abandoned, and one retreated from."""
+    on wild ground once they have loaded it, with a real warp core (one
+    crystal burning), replicator and Doctor lent for the fight; waves beamed
+    in all round the raider at their size, pace and cap, sprinting and
+    hunting; the win, paid once, and the loot window; home to the cabin they
+    left; the machines taken away and the tents and crates left; a raid
+    abandoned, and one retreated from."""
     P = "SIM.players[1]"
     net = Net("sp")
     rt = net.server
@@ -16047,7 +16049,7 @@ def raids():
     # has some and the nearest, best one (the site itself) has one under its
     # pad. The camp has to go where its pad can stand, and clear the rest.
     rt.run("""local r = TREK.Raids.request()
-        local R = TREK.Config.OutpostSearch + TREK.Config.OutpostClear + 6
+        local R = TREK.Config.OutpostSearch + TREK.Config.OutpostClearing + 3
         for dx = -R, R do for dy = -R, R do
             local sq = SIM.rawSquare(r.tx + dx, r.ty + dy, 0)
             local tree = SIM.object("e_americanholly_1_3", "IsoTree"); tree.square = sq
@@ -16075,38 +16077,105 @@ def raids():
     tx, ty = int(raid("tx")), int(raid("ty"))
     check(abs(cx - tx) <= int(C("OutpostSearch")) and abs(cy - ty) <= int(C("OutpostSearch")),
           f"raids: the camp at {cx},{cy} is outside the search round {tx},{ty}")
-    for dx, dy, spr in (([0, 0, "trek_adirondack_02_148"]), ([0, 1, "trek_adirondack_02_149"]),
-                        ([-4, -3, "trek_adirondack_02_162"]), ([3, -3, "trek_adirondack_02_158"]),
-                        ([4, -3, "trek_adirondack_02_160"]), ([-4, 3, "camping_01_2"]),
-                        ([-3, 3, "camping_01_3"])):
-        check(raid_on(rt, cx + dx, cy + dy, cz, spr) == "raid",
-              f"raids: {spr} is not standing, tagged, at {dx},{dy} from the pad")
+    for dx, dy, spr, tag in ((-4, -3, "trek_adirondack_02_162", "inst"), (-3, -2, "trek_adirondack_02_165", "inst"),
+                             (3, -3, "trek_adirondack_02_158", "inst"), (3, -1, "trek_adirondack_02_160", "inst"),
+                             (-4, 3, "camping_01_2", "raid"), (-3, 3, "camping_01_3", "raid")):
+        check(raid_on(rt, cx + dx, cy + dy, cz, spr) == tag,
+              f"raids: {spr} is not standing, tagged {tag}, at {dx},{dy} from the camp's centre")
+    check(raid_on(rt, cx, cy, cz, "trek_adirondack_02_148") is False, "raids: the camp still has a pad")
+    keep = str(rt.eval("""(function() local out = {}
+        for _, k in ipairs(TREK.RaidsServer.campKeep()) do table.insert(out, k[1] .. "," .. k[2]) end
+        return table.concat(out, ";") end)()"""))
+    check("4,-1" in keep.split(";") and "-3,-2" in keep.split(";") and "3,-3" in keep.split(";"),
+          f"raids: the camp's search does not keep the machines' and the Doctor's squares clear: {keep}")
+    lent = rt.eval(f"""(function() local out = {{}}
+        for id, m in pairs(TREK.Installations.state().machines) do
+            if m.raid == "{rid}" then table.insert(out, m.kind .. "@" .. (m.x - {cx}) .. "," .. (m.y - {cy})) end
+        end
+        table.sort(out) return table.concat(out, ";") end)()""")
+    check(lent == "emh_station@3,-1;replicator@3,-3;warp_core@-4,-3",
+          f"raids: the camp's machines are not the three lent installations: {lent!r}")
+    core = rt.eval(f"""(function() for id, m in pairs(TREK.Installations.state().machines) do
+        if m.raid == "{rid}" and m.kind == "warp_core" then return id end end end)()""")
+    pool = f"i{core}"
+    check(float(rt.eval(f"TREK.Power.reserve('{pool}')")) == float(C("PowerMax"))
+          and rt.eval(f"TREK.Power.dark('{pool}')") is False and int(rt.eval(f"TREK.Power.crystals('{pool}')")) == 0,
+          f"raids: the camp's core is not lit on one crystal: reserve {rt.eval(f'TREK.Power.reserve(\"{pool}\")')}, "
+          f"dark {rt.eval(f'TREK.Power.dark(\"{pool}\")')}, spares {rt.eval(f'TREK.Power.crystals(\"{pool}\")')}")
+    doctors = int(rt.eval(f"""(function() local n = 0
+        for _, w in ipairs(SIM.rawSquare({cx} + 4, {cy} - 1, {cz}).worldObjects or {{}}) do
+            local it = w.getItem and w:getItem() or w.item
+            if it and it:getFullType() == TREK.Config.EmhItem then n = n + 1 end
+        end return n end)()"""))
+    check(doctors == 1, f"raids: {doctors} Doctors stand in front of the camp's station")
+    # The Doctor is up and treats, on the camp's core.
+    rt.run(f"{P}.x, {P}.y = {cx} + 4.5, {cy} + 0.5")
+    check(rt.eval(f"TREK.EMH.isUp({P})") is True and rt.eval(f"TREK.EMH.refusal({P})") is None,
+          f"raids: the camp's Doctor refuses: {rt.eval(f'TREK.EMH.refusal({P})')}")
+    check(rt.eval(f"TREK.Power.poolOf({P})") == pool, "raids: the camp's machines are not on the camp's core")
+    # The replicator makes things, billed to the camp's core and not the ship.
+    rt.run(f"{P}.x, {P}.y = {cx} + 4.5, {cy} - 2.5")
+    before = float(rt.eval(f"TREK.Power.reserve('{pool}')"))
+    held = carrying(rt, "TrekShuttle.TrekRationPack")
+    rt.run(f"TREK.Core.send({P}, 'replicate', {{ id = 'TrekShuttle.TrekRationPack', count = 1 }})")
+    net.pump(4)
+    check(carrying(rt, "TrekShuttle.TrekRationPack") == held + 1, "raids: the camp's replicator made nothing")
+    check(float(rt.eval(f"TREK.Power.reserve('{pool}')")) < before, "raids: the camp's ration cost its core nothing")
+    # Lent, not given: no dismantling, from the menu or by asking.
+    rt.run(f"{P}.x, {P}.y = {cx} - 1.5, {cy} - 2.5")
+    rt.run(f"TREK.Net.send({P}, 'dismantleMachine', {{ id = '{core}' }})")
+    net.pump(2)
+    check(rt.eval(f"TREK.Installations.state().machines['{core}']") is not None
+          and any("IGUI_TREK_InstRaid" in n for n in rt.notes()),
+          "raids: the camp's warp core was dismantled into a free kit")
+    rt.run(f"SIM.aim.dx, SIM.aim.dy = -1, 0; raidCtx = SIM.contextMenu(); "
+           f"SIM.fire('OnPreFillWorldObjectContextMenu', 0, raidCtx, {{}}, false)")
+    check("IGUI_TREK_InstDismantle" not in str(rt.eval("raidCtx:deepLabels()")),
+          "raids: the camp's machines offer Dismantle")
+    rt.run(f"{P}.x, {P}.y = {cx} + 0.5, {cy} + 0.5")
     trees = int(rt.eval(f"""(function()
-        local n = 0
-        for dx = -TREK.Config.OutpostClear, TREK.Config.OutpostClear do
-            for dy = -TREK.Config.OutpostClear, TREK.Config.OutpostClear do
-                local sq = SIM.peekSquare({cx} + dx, {cy} + dy, {cz})
+        local n, R = 0, TREK.Config.OutpostClearing
+        for dx = -R, R do
+            for dy = -R, R do
+                local sq = dx * dx + dy * dy <= R * R and SIM.peekSquare({cx} + dx, {cy} + dy, {cz})
                 for _, o in ipairs(sq and sq.objects or {{}}) do
-                    if o.class == "IsoTree" then n = n + 1 end
+                    if o.class == "IsoTree" or o.spriteName == "blends_grassoverlays_01_16" then n = n + 1 end
                 end
             end
         end
         return n
     end)()"""))
-    check(trees == 0, f"raids: {trees} trees are still standing in the camp")
-    fences = int(rt.eval(f"""(function()
+    check(trees == 0, f"raids: {trees} trees and tufts still stand within the clearing round the camp")
+    beyond = int(rt.eval(f"""(function()
+        local C, camp = TREK.Config, TREK.Raids.raid().camp
+        local R, a = C.OutpostClearing + 2, camp.spokeAngle + math.pi / C.OutpostSpokes
+        local sq = SIM.peekSquare(math.floor({cx} + math.cos(a) * R + 0.5), math.floor({cy} + math.sin(a) * R + 0.5), {cz})
         local n = 0
-        for dx = -TREK.Config.OutpostClear, TREK.Config.OutpostClear do
-            for dy = -TREK.Config.OutpostClear, TREK.Config.OutpostClear do
-                local sq = SIM.peekSquare({cx} + dx, {cy} + dy, {cz})
-                for _, o in ipairs(sq and sq.objects or {{}}) do
-                    if o.spriteName == "fencing_01_4" then n = n + 1 end
+        for _, o in ipairs(sq and sq.objects or {{}}) do if o.class == "IsoTree" then n = n + 1 end end
+        return n
+    end)()"""))
+    check(beyond == 1, "raids: the clearing ran on past its edge, between the rays")
+    # Every fence the wood was given inside the clearing is still standing.
+    fences = str(rt.eval(f"""(function()
+        local n, lost, R = 0, 0, TREK.Config.OutpostClearing
+        for dx = -R, R do
+            for dy = -R, R do
+                local x, y = {cx} + dx, {cy} + dy
+                if dx * dx + dy * dy <= R * R and (x - {tx}) % 6 == 0 and (y - {ty}) % 6 == 0 then
+                    local found = false
+                    for _, o in ipairs(SIM.peekSquare(x, y, {cz}).objects) do
+                        if o.spriteName == "fencing_01_4" then found = true end
+                    end
+                    n = n + 1
+                    if not found then lost = lost + 1 end
                 end
             end
         end
-        return n
+        return n .. "," .. lost
     end)()"""))
-    check(fences >= 1, "raids: the camp cleared something somebody built")
+    placed, lost = (int(v) for v in fences.split(","))
+    check(placed > 10 and lost == 0,
+          f"raids: the clearing took {lost} of the {placed} fences somebody built inside it")
     stocked = int(rt.eval(f"""(function()
         local n = 0
         for _, p in ipairs(TREK.Config.OutpostCrates) do
@@ -16124,21 +16193,86 @@ def raids():
     check(any("IGUI_TREK_RaidArrived" in n for n in rt.notes()), "raids: the arrival said nothing")
     check(rt.eval(f"TREK.RaidsUI.stripText({P}) ~= nil") is True, "raids: no strip on screen during the raid")
 
-    # --- the waves: size, pace, cap ---------------------------------------------
+    # --- the waves: beamed in all round, as many as the cap allows ---------------
     check(raid_zeds(rt, rid)[0] == 0, "raids: the dead came out before the raider had seen the camp")
-    raid_wave(net, rt)
-    n, pts = raid_zeds(rt, rid)
-    check(n == int(C("RaidWaveSize")), f"raids: the first wave was {n}, not {C('RaidWaveSize')}")
-    check(all(abs(x - cx) <= 1 and abs(y - cy) <= 2 for x, y in pts),
-          f"raids: the dead came out somewhere other than the pad ({pts[:3]})")
+    # Fallen back to the edge of the clearing before the first wave.
+    rt.run(f"{P}.x, {P}.y = {cx} + 16.5, {cy} - 1.5")
+    first_at = int(rt.eval("TREK.RaidsServer.lastWaveMs")) + int(C("RaidWaveMs"))
+    built_at = first_at - int(C("RaidFirstWaveMs"))
+    check(net.clock - built_at < int(C("RaidFirstWaveMs")) - 500,
+          "raids: the camp stood too long ago to time the first wave from")
+    net.clock = first_at - 500
     rt.run("TREK.RaidsServer.serviceRaid()")
-    check(raid_zeds(rt, rid)[0] == n, "raids: a second wave came before its time")
-    cap = int(C("RaidAliveCap"))
-    most = 0
-    for _ in range(6):
+    check(raid_zeds(rt, rid)[0] == 0, "raids: the first wave came before its moment")
+    net.clock += 516
+    rt.run("TREK.RaidsServer.serviceRaid()")
+    net.pump(2)
+    n, pts = raid_zeds(rt, rid)
+    w1, w2 = int(rt.eval("TREK.Config.raidWaveSize(1)")), int(rt.eval("TREK.Config.raidWaveSize(2)"))
+    check(w1 == int(C("RaidWaveFirst")) and w2 == w1 + int(C("RaidWaveGrowth")),
+          f"raids: the waves run {w1}, {w2}, not building from {C('RaidWaveFirst')}")
+    check(int(rt.eval("TREK.Config.raidWaveSize(1000)")) == int(C("RaidWaveMax")),
+          "raids: the waves grow past their largest")
+    check(n == w1, f"raids: the first wave was {n}, not {w1}")
+    lo, hi = int(C("RaidSpawnMin")), int(C("RaidSpawnMax"))
+    # Round the warp core, not round the raider, who has fallen back to the
+    # edge of the clearing.
+    kx, ky = cx - 4 + 1, cy - 3 + 1
+    dists = [((x + 0.5 - kx) ** 2 + (y + 0.5 - ky) ** 2) ** 0.5 for x, y in pts]
+    check(all(lo - 1.5 <= d <= hi + 1.5 for d in dists),
+          f"raids: the dead came down outside the ring round the warp core ({[round(d, 1) for d in dists]})")
+    import math as _m
+    sides = {int(((_m.atan2(y + 0.5 - ky, x + 0.5 - kx) + _m.pi) / (_m.pi / 2))) % 4 for x, y in pts}
+    check(len(sides) >= 3, f"raids: the dead came down on {len(sides)} side(s) of the core, not all round")
+    px, py, _ = pos(rt)
+    check(all(x + 0.5 < px - 1 for x, _ in pts),
+          f"raids: with the raider at the clearing's edge, the dead still came down round them")
+    check(len(set(pts)) >= n // 2, f"raids: the dead came down on {len(set(pts))} squares -- one point, not a ring")
+    columns = int(rt.eval("(function() local n = 0 for _, e in pairs(TREK.BeamFX.effects) do "
+                          "if e.fixed and e.phase == 'in' then n = n + 1 end end return n end)()"))
+    check(columns == n, f"raids: {columns} transporter columns for {n} of the dead beaming in")
+    # Every one hunts the raider; the runners sprint, the Borg never do, and
+    # nobody's speed is rolled again every tick.
+    net.pump(40)
+    zed = lambda expr: rt.eval(f"""(function() local out = {{}}
+        for _, z in ipairs(SIM.zombies) do
+            if z.modData[TREK.Config.RaidZedKey] == "{rid}" and not z.dead then table.insert(out, {expr}) end
+        end return table.concat(out, ";") end)()""")
+    hunted = str(zed("tostring(z.target == SIM.players[1])")).split(";")
+    check(hunted and all(h == "true" for h in hunted), f"raids: not every one of the dead is coming for the raider: {hunted}")
+    runs = [r.split(":") for r in str(zed("(z.outfit or '?') .. ':' .. (z.sprints or 0)")).split(";")]
+    borg = {str(C("BorgDrone")), str(C("BorgAssimilated"))}
+    want = round(n * float(C("RaidRunnerShare")))
+    got = sum(1 for _, k in runs if int(k) > 0)
+    check(got == want, f"raids: {got} of the first wave's {n} sprint, not {want}: {runs}")
+    check(all(int(k) == 0 for o, k in runs if o in borg), f"raids: a Borg was made to sprint: {runs}")
+    check(all(int(k) <= 1 for _, k in runs), f"raids: a runner's speed was rolled again and again: {runs}")
+    # One wave at a time: none more while one of the last is standing, however
+    # long; the next a wave's interval after the last one falls, and not before.
+    for _ in range(4):
         raid_wave(net, rt)
-        most = max(most, raid_zeds(rt, rid)[0])
-    check(most == cap, f"raids: {most} of the raid's own stood at once, the cap is {cap}")
+    check(raid_zeds(rt, rid)[0] == n, "raids: a second wave came with the first still standing")
+    rt.run(f"""local k = 0 for _, z in ipairs(SIM.zombies) do
+        if z.modData[TREK.Config.RaidZedKey] == "{rid}" and not z.dead then
+            k = k + 1 if k > 1 then z.dead = true end end end""")
+    raid_wave(net, rt)
+    check(raid_zeds(rt, rid)[0] == 1, "raids: a wave came with one of the last still standing")
+    raid_kill_all(rt, rid)
+    rt.run("TREK.RaidsServer.serviceRaid()")
+    net.clock += int(C("RaidWaveMs")) - 500
+    rt.run("TREK.RaidsServer.serviceRaid()")
+    check(raid_zeds(rt, rid)[0] == 0, "raids: the next wave did not wait its interval after the last one fell")
+    net.clock += 516
+    rt.run("TREK.RaidsServer.serviceRaid()")
+    cap = raid_zeds(rt, rid)[0]
+    check(cap == w2, f"raids: the second wave was {cap}, not {w2} -- it did not build on the first")
+    # A long fight is not a lost one: game hours pass at the day length's pace
+    # (one is two and a half real minutes by default), and a raid still being
+    # fought must outlast them. Game time ended the first real one mid-fight.
+    rt.run("SIM.advanceHours(3); TREK.RaidsServer.serviceLimits()")
+    net.clock += 10 * 60 * 1000
+    rt.run("TREK.RaidsServer.serviceLimits()")
+    check(raid("state") == "live", f"raids: a raid still being fought ended after three game hours ({raid('state')!r})")
     released = 0
     early = False
     for _ in range(60):
@@ -16163,14 +16297,28 @@ def raids():
     # --- home again, and the camp taken down ------------------------------------
     net.clock += int(C("RaidLootMs"))
     rt.run("TREK.RaidsServer.serviceRaid()")
+    # Taken as the raid closes, not by the sweep for strays a tick later:
+    # that sweep is the second chance, and would cover for the first.
+    check(rt.eval("""(function() for _, m in pairs(TREK.Installations.state().machines) do
+        if m.raid then return false end end return true end)()""") is True,
+          "raids: the lent machines outlived the raid that closed")
     net.pump(260)
     check(at_pad(rt), f"raids: the raider was not returned to the cabin they left ({pos(rt)})")
     check(rt.eval("TREK.Raids.raid() == nil") is True, "raids: a finished raid is still on the record")
     check(rt.eval(f"{P}:getModData()[TREK.Config.RaidReturnKey] == nil") is True,
           "raids: the way home was kept after it was used")
-    check(raid_on(rt, cx, cy, cz, "trek_adirondack_02_148") is False, "raids: the pad was left in the field")
     check(raid_on(rt, cx - 4, cy - 3, cz, "trek_adirondack_02_162") is False,
           "raids: a warp core was left in the field")
+    check(raid_on(rt, cx + 3, cy - 1, cz, "trek_adirondack_02_160") is False,
+          "raids: a Doctor's station was left in the field")
+    check(rt.eval(f"""(function() for _, m in pairs(TREK.Installations.state().machines) do
+        if m.raid then return false end end return true end)()""") is True,
+          "raids: a lent machine is still in the installations registry")
+    check(int(rt.eval(f"""(function() local n = 0
+        for _, w in ipairs(SIM.rawSquare({cx} + 4, {cy} - 1, {cz}).worldObjects or {{}}) do
+            local it = w.getItem and w:getItem() or w.item
+            if it and it:getFullType() == TREK.Config.EmhItem then n = n + 1 end
+        end return n end)()""")) == 0, "raids: the Doctor was left standing in the field")
     check(raid_on(rt, cx - 3, cy + 3, cz, "camping_01_3") == "raid", "raids: the tents went with the pad")
     check(store("nextAt") is not None, "raids: nothing scheduled after the raid")
 
@@ -16182,8 +16330,13 @@ def raids():
         pcx, pcy = int(raid("camp.cx")), int(raid("camp.cy"))
         walk_to(rt, pcx + 150.5, pcy + 0.5)
         net.pump(4)
-        rt.run("SIM.advanceHours((TREK.Config.RaidAbandonMinutes + 1) / 60); TREK.RaidsServer.serviceLimits()")
+        net.clock += int(C("RaidAbandonMs")) - 1000
+        rt.run("TREK.RaidsServer.serviceLimits()")
+        check(raid("state") == "live", f"raids: a raid was given up on before its time ({raid('state')!r})")
+        net.clock += 2000
+        rt.run("TREK.RaidsServer.serviceLimits()")
         check(raid("state") == "lost", f"raids: a raid with nobody at it is {raid('state')!r}")
+        check(any("IGUI_TREK_RaidLostLeft" in n for n in rt.notes()), "raids: an abandoned raid did not say why it ended")
         check(int(rt.eval(f"{P}:getModData()[TREK.Config.RescuesKey] or 0")) == 1,
               "raids: a lost raid counted toward rank")
         net.clock += 5000
@@ -16204,6 +16357,24 @@ def raids():
                   "for _ in pairs(r.members) do return false end return true end)()") is True,
           "raids: a raider who beamed out is still counted in it")
 
+    # --- too long: half an hour of real time, fought or not --------------------------
+    rid = raid_request(rt, net)
+    rt.run("TREK.RaidsUI.open(SIM.players[1]); TREK.RaidsUI.window:onAccept()")
+    net.pump(240)
+    if raid("state") == "live":
+        net.clock = int(raid("startedMs")) + int(C("RaidHardLimitMs")) - 1000
+        rt.run("TREK.RaidsServer.serviceLimits()")
+        check(raid("state") == "live", f"raids: a raid ended before its limit ({raid('state')!r})")
+        net.clock += 2000
+        rt.run("TREK.RaidsServer.serviceLimits()")
+        check(raid("state") == "lost" and any("IGUI_TREK_RaidLostTime" in n for n in rt.notes()),
+              f"raids: a raid past its limit is {raid('state')!r}, or did not say it ran out of time")
+        net.clock += 5000
+        rt.run("TREK.RaidsServer.serviceRaid()")
+        net.pump(260)
+    else:
+        fail(f"raids: the long raid's camp was never built ({raid('state')!r})")
+
     # --- off -----------------------------------------------------------------------
     rid = raid_request(rt, net)
     rt.run("SandboxVars.TrekShuttle.Raids = 1")
@@ -16219,13 +16390,82 @@ def raids():
     net.pump(4)
     check(any("IGUI_TREK_WrongPlace" in n for n in rt.notes()), "raids: a player in no raid was beamed to one")
 
+    # --- the rays: straight alleys out of the clearing, the wood left between -------
+    rt.run(f"""local p = {P}
+        p.x, p.y, p.streamX, p.streamY = 4000.5, 4000.5, 4000.5, 4000.5
+        rayCamp = {{ cx = 4000, cy = 4000, z = 0, spokeAngle = 0.3 }}
+        local C = TREK.Config
+        rayProbe = {{}}
+        for i = 0, C.OutpostSpokes - 1 do
+            local a = 0.3 + i * 2 * math.pi / C.OutpostSpokes
+            local b = a + math.pi / C.OutpostSpokes
+            for _, t in ipairs({{ C.OutpostClearing + 3, C.OutpostClearing + C.OutpostSpokeLength - 1 }}) do
+                table.insert(rayProbe, {{ "ray", math.floor(4000 + math.cos(a) * t + 0.5), math.floor(4000 + math.sin(a) * t + 0.5) }})
+            end
+            -- Either side of the middle line, halfway along: the ray's width.
+            local t, h = C.OutpostClearing + math.floor(C.OutpostSpokeLength / 2), (C.OutpostSpokeWidth - 1) / 2
+            for _, w in ipairs({{ -h, h }}) do
+                table.insert(rayProbe, {{ "side", math.floor(4000 + math.cos(a) * t - math.sin(a) * w + 0.5),
+                                                  math.floor(4000 + math.sin(a) * t + math.cos(a) * w + 0.5) }})
+            end
+            table.insert(rayProbe, {{ "between", math.floor(4000 + math.cos(b) * (C.OutpostClearing + 8) + 0.5),
+                                                 math.floor(4000 + math.sin(b) * (C.OutpostClearing + 8) + 0.5) }})
+        end
+        table.insert(rayProbe, {{ "beyond", math.floor(4000 + math.cos(0.3) * (C.OutpostClearing + C.OutpostSpokeLength + 3) + 0.5),
+                                            math.floor(4000 + math.sin(0.3) * (C.OutpostClearing + C.OutpostSpokeLength + 3) + 0.5) }})
+        for _, q in ipairs(rayProbe) do
+            local sq = SIM.rawSquare(q[2], q[3], 0)
+            local tree = SIM.object("e_americanholly_1_3", "IsoTree"); tree.square = sq
+            table.insert(sq.objects, tree)
+        end
+        TREK.RaidsServer.clearAround(rayCamp)""")
+    rays = str(rt.eval("""(function() local out = {}
+        for _, q in ipairs(rayProbe) do
+            local n = 0
+            for _, o in ipairs(SIM.rawSquare(q[2], q[3], 0).objects) do if o.class == "IsoTree" then n = n + 1 end end
+            table.insert(out, q[1] .. "=" .. n)
+        end return table.concat(out, ";") end)()"""))
+    probes = [r.split("=") for r in rays.split(";")]
+    spokes = int(C("OutpostSpokes"))
+    check(sum(1 for k, v in probes if k == "side") == 2 * spokes and all(v == "0" for k, v in probes if k == "side"),
+          f"raids: a ray is narrower than {C('OutpostSpokeWidth')} squares: {rays}")
+    check(sum(1 for k, v in probes if k == "ray") == 2 * spokes and all(v == "0" for k, v in probes if k == "ray"),
+          f"raids: a ray out of the clearing still has trees in it: {rays}")
+    check(all(v == "1" for k, v in probes if k in ("between", "beyond")),
+          f"raids: the wood between the rays, or past their ends, was cleared too: {rays}")
+    check(rt.eval("rayCamp.clearLeft") == 0, "raids: a clearing on loaded ground left squares to do")
+
+    # --- a clearing half on ground not loaded yet ------------------------------------
+    # Cleared where it can be now, the rest left and not forgotten: cleared
+    # once somebody's being there loads it.
+    rt.run(f"""local p = {P}
+        p.x, p.y, p.streamX, p.streamY = 5000.5, 5000.5, 5000.5, 5000.5
+        clearCamp = {{ cx = 5060, cy = 5000, z = 0 }}
+        for dx = -TREK.Config.OutpostClearing, TREK.Config.OutpostClearing do
+            local sq = SIM.rawSquare(5060 + dx, 5000, 0)
+            local tree = SIM.object("e_americanholly_1_3", "IsoTree"); tree.square = sq
+            table.insert(sq.objects, tree)
+        end""")
+    trees_on = lambda: int(rt.eval("""(function() local n = 0
+        for dx = -TREK.Config.OutpostClearing, TREK.Config.OutpostClearing do
+            for _, o in ipairs(SIM.rawSquare(5060 + dx, 5000, 0).objects) do
+                if o.class == "IsoTree" then n = n + 1 end end end return n end)()"""))
+    rt.run("clearTook, clearLeft = TREK.RaidsServer.clearAround(clearCamp)")
+    half = trees_on()
+    check(int(rt.eval("clearLeft")) > 0 and 0 < half < 2 * int(C("OutpostClearing")) + 1,
+          f"raids: a clearing half on unloaded ground left {rt.eval('clearLeft')} squares and {half} trees")
+    rt.run(f"{P}.x, {P}.y, {P}.streamX, {P}.streamY = 5060.5, 5000.5, 5060.5, 5000.5")
+    rt.run("clearTook, clearLeft = TREK.RaidsServer.clearAround(clearCamp)")
+    check(int(rt.eval("clearLeft")) == 0 and trees_on() == 0,
+          f"raids: the rest of the clearing was never cleared once loaded ({trees_on()} trees)")
+
     for w in rt.warnings():
         fail(f"raids: {w}")
     print(f"raids: a request only once a player is cleared, warned and lapsed and declined; accepted, a camp "
-          f"{gap:.0f} squares out on wild ground with its pad, machines, tents and stocked crates; waves of "
-          f"{C('RaidWaveSize')} from the pad, capped at {cap}, {n_at_accept} in all; the win paid once and a "
-          f"loot window; home to the cabin, the pad and machines gone and the tents left; lost when abandoned, "
-          f"and a retreat")
+          f"{gap:.0f} squares out on wild ground with a lit core, a working replicator and Doctor, tents and "
+          f"stocked crates; waves from {C('RaidWaveFirst')} up beamed in all round, sprinting and hunting, one at a "
+          f"time, {n_at_accept} in all; the win paid once and a loot window; home to the cabin, the machines "
+          f"gone and the tents left; lost when abandoned, and a retreat")
 
 
 def raids_multiplayer():
@@ -16235,7 +16475,7 @@ def raids_multiplayer():
     net = Net("mp", clients=("alice", "bob"))
     srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
     srv.run("SIM.player('alice', 3000.5, 3000.5, 0); SIM.player('bob', 3010.5, 3000.5, 0)")
-    A.run("SIM.player('alice', 3000.5, 3000.5, 0)")
+    A.run("SIM.player('alice', 3000.5, 3000.5, 0); SIM.ownsZombies = true")
     B.run("SIM.player('bob', 3010.5, 3000.5, 0)")
     for rt in net.all():
         rt.run("SandboxVars.TrekShuttle.Raids = 4")
@@ -16258,6 +16498,24 @@ def raids_multiplayer():
     for name, rt in (("alice", A), ("bob", B)):
         x, y, _ = pos(rt)
         check(abs(x - cx) < 6 and abs(y - cy) < 6, f"raids mp: {name} is at {x:.0f},{y:.0f}, not the camp")
+    # The first wave: alice's machine simulates the dead, so it is hers that
+    # has to keep a runner running and hunting -- the server's copy is not
+    # the one that moves -- and bob's remote copies are left alone.
+    raid_wave(net, srv)
+    net.pump(40)
+    runners = str(srv.eval(f"""(function() local out = {{}}
+        for _, z in ipairs(SIM.zombies) do
+            if z.modData[TREK.Config.RaidZedKey] == "{rid}" and (z.sprints or 0) > 0 then
+                table.insert(out, z.onlineID) end
+        end return table.concat(out, ",") end)()""") or "")
+    check(runners != "", "raids mp: nothing in the first wave was a runner on the server")
+    for name, rt, want in (("alice", A, True), ("bob", B, False)):
+        got = rt.eval(f"""(function() local all = true
+            for id in ("{runners}"):gmatch("%d+") do
+                local z = SIM.findZed(tonumber(id))
+                if not z or z:getSpeedType() ~= 1 or z.target == nil then all = false end
+            end return all end)()""")
+        check(got is want, f"raids mp: {name}'s copies of the runners {'do not' if want else 'do'} sprint and hunt")
     n = int(raid("n"))
     for _ in range(80):
         raid_kill_all(srv, rid)

@@ -426,6 +426,7 @@
     "IGUI_TREK_InstFarTip": "Stand beside it",
     "IGUI_TREK_InstFar": "Stand beside where it goes",
     "IGUI_TREK_InstOurs": "Not aboard: install it somewhere of yours",
+    "IGUI_TREK_InstRaid": "The ship lent that for the purge: it goes back when the purge is over",
     "IGUI_TREK_InstBlocked": "Something is in the way there",
     "IGUI_TREK_InstSafehouse": "That is somebody else's safehouse",
     "IGUI_TREK_InstNoKit": "You are not carrying the kit",
@@ -547,7 +548,7 @@
     "IGUI_TREK_PromotionWaits": "Rank earned: %1. Captain Titus will give it to you in person, once the Adirondack can take you aboard.",
     "IGUI_TREK_RaidTitle": "Request: Captain Titus",
     "IGUI_TREK_RaidNothing": "Nothing is asked of you now.",
-    "IGUI_TREK_RaidAskOutpost": "The pattern buffer is full, and I won't purge it onto my decks. We're offloading it through the pad at one of our supply caches. What comes out will walk. I'd like you there when it does.",
+    "IGUI_TREK_RaidAskOutpost": "The pattern buffer is full, and I won't purge it onto my decks. We're dumping it at one of our supply caches, and the transporter will scatter it all around whoever is standing there. What comes out will run. I'd like you there when it does -- bring everything you have.",
     "IGUI_TREK_RaidAskJoin": "The purge at the outpost is under way and your people are in it. I can put you beside them.",
     "IGUI_TREK_RaidUnderway": "Buffer at %1 percent -- %2 still to come or standing",
     "IGUI_TREK_RaidWhere": "The outpost: %1 tiles %2 of you.",
@@ -572,8 +573,10 @@
     "IGUI_TREK_RaidLapsed": "The request has passed. The ship will manage without you.",
     "IGUI_TREK_RaidDeclinedAll": "Everyone declined. The ship will manage without you.",
     "IGUI_TREK_RaidJoined": "%1 has beamed to the outpost.",
-    "IGUI_TREK_RaidArrived": "The outpost. The pad is warming up.",
+    "IGUI_TREK_RaidArrived": "The outpost. The purge is coming -- they will beam in all around you.",
     "IGUI_TREK_RaidNoCamp": "The lock slipped before the outpost was ready. Beaming you home.",
     "IGUI_TREK_RaidWonNote": "The buffer is clear. Take what you need -- home in %1 seconds.",
-    "IGUI_TREK_RaidLostNote": "The ship is taking over the purge. Beaming you home."
+    "IGUI_TREK_RaidLostNote": "The ship is taking over the purge. Beaming you home.",
+    "IGUI_TREK_RaidLostTime": "The purge has run half an hour -- the ship is taking it over. Beaming you home.",
+    "IGUI_TREK_RaidLostLeft": "Nobody is holding the outpost -- the ship is taking over the purge. Beaming you home."
 }

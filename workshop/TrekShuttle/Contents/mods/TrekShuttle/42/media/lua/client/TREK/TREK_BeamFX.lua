@@ -87,7 +87,7 @@ function FX.start(args)
     local e = FX.effects[key]
     if e and t - e.startMs < DUPLICATE_MS then return e end
     e = { id = args.id, phase = args.phase, x = args.x, y = args.y, z = args.z or 0,
-          startMs = t }
+          startMs = t, fixed = args.fixed == true }
     FX.effects[key] = e
     ensureOverlay()
     return e
@@ -114,6 +114,9 @@ end
 --- Moves an effect with its character, and marks a leaving one departed the
 --- moment they are gone.
 local function follow(e, t)
+    -- A column on a square rather than over a player: a raid's dead beaming
+    -- in, which no online id names.
+    if e.fixed then return end
     if e.phase == "out" and e.departedMs then return end
     e.char = e.char or character(e.id)
     local x, y, z = position(e.char)

@@ -112,6 +112,7 @@ local DENIALS = {
     instSafehouse = "IGUI_TREK_InstSafehouse",
     instNoKit     = "IGUI_TREK_InstNoKit",
     instNoCore    = "IGUI_TREK_InstNoCore",
+    instRaid      = "IGUI_TREK_InstRaid",
     notLanded     = "IGUI_TREK_NotLanded",
     bookmarksFull = "IGUI_TREK_BookmarksFull",
     crewSeated    = "IGUI_TREK_CrewSeated",

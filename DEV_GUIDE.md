@@ -3322,7 +3322,16 @@ caught. **Not seen in game.**
 when the pattern buffer overflows; Accept beams the player to an outpost built
 on wild ground, the dead stream from its pad in waves, and home again after.
 The outpost only: the field station and the Adirondack wait on a pathing check
-aboard. Twenty-six mutations, all caught. **Not seen in game.**
+aboard. Twenty-six mutations, all caught. **Played 2026-09-29**: it worked,
+and four things came back -- the pad looked half built, the dead were too
+few and too timid for a phaser, and the Doctor "did not work" because the
+camp's machines were scenery (*A prop that nothing opens is worse than no
+prop*, again). The pad is gone; the dead are beamed in all round the raiders
+under the transporter's column, far more of them, most sprinting and every
+one hunting; and the core, replicator and Doctor are real installations lent
+for the fight, the core lit on one crystal. Played again the same evening:
+hard enough to kill the author, so a wave now waits until the last is all
+down. `RAIDS.md` 3.1 and 4.
 
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
