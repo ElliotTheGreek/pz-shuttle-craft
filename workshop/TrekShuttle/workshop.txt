@@ -7,7 +7,7 @@ description=11 new weapons: Phaser and Phaser Rifle (never run dry, far quieter 
 description=3 new medical items: Hypospray, Dermal Regenerator, Medical Tricorder.
 description=18 new foods and drinks: Ration Pack, Gagh, Leola Root Stew, Plomeek Soup, Jumja Stick, Andorian Tuber, Oskoid, Wing-Slug Roll, Hasperat, Rokeg Blood Pie, Chadre'kab, Raktajino, Earl Grey, Romulan Ale, Bloodwine, Andorian Ale, Balso Tonic, Nutrient Suspension.
 description=22 new farming items: seven alien seeds, their produce, dried and ground ingredients, and live serpent worms.
-description=Plus a Tricorder, a PADD, six Starfleet uniforms and dilithium crystals.
+description=Plus a Tricorder, a PADD, six Starfleet uniforms, a Starfleet field pack and dilithium crystals.
 description=
 description=A SHUTTLE YOU CAN LIVE IN AND TRAVEL IN
 description=A cabin with a helm, a working galley, running water, a biobed, a sick bay, a replicator, a warp core and Starfleet lockers.
@@ -50,6 +50,9 @@ description=
 description=THE REPLICATOR
 description=Makes any item in the game -- vanilla, patches and other mods -- once the ship holds its pattern, paid for in dilithium energy. Scan what you carry to teach it. It cannot make dilithium.
 description=
+description=RAIDS
+description=When the transporter's pattern buffer overflows, Captain Titus calls for help. Accept and you are beamed to an outpost where the dead pour out of the pad in waves. Clear it, loot the crates, and go home.
+description=
 description=THE DOCTOR
 description=An Emergency Medical Hologram treats what the hypospray and regenerator cannot, for energy. He is the only cure for a zombie bite: one whole crystal and twelve hours aboard.
 description=
@@ -70,7 +73,7 @@ description=- Distress calls: accept one at the sensor console and a life sign i
 description=- Phasers: right-click a tree or a locked door to cut through it.
 description=
 description=MULTIPLAYER
-description=Fully multiplayer compatible and server-authoritative: everyone shares one shuttle and one Adirondack. Dedicated servers: add the map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY. Single player and in-game hosting add it for you. The sandbox Shuttlecraft page covers access, transporter charges, torpedo fire, the replicator, the start mode, wild dilithium, the Doctor, hover height, first contact, the captain's secret, Adirondack access, phaser cutting and hydroponics.
+description=Fully multiplayer compatible and server-authoritative: everyone shares one shuttle and one Adirondack. Dedicated servers: add the map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY. Single player and in-game hosting add it for you. Every feature has its settings on the sandbox Shuttlecraft page.
 description=
 description=REQUIREMENTS
 description=Build 42. The hull needs three tiles by five of clear ground to land. One shuttle per world.

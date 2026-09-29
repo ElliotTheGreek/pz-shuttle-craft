@@ -26,10 +26,16 @@
     The item that uses this stays in module TrekShuttle, in trekshuttle.txt,
     and refers to it by bare name.
 
-    No `attachment` blocks. Both of the two that matter -- `Bip01_Prop2` for
-    the hand and `world` for the ground -- are optional, and their six offsets
-    each can only honestly be set by looking at the weapon in a fist. Vanilla's
-    Katana is the baseline to copy from when that happens.  */
+    `Bip01_Prop2` (the hand) and `world` (the ground) are optional and left
+    out: their offsets can only honestly be set by looking at the weapon in a
+    fist. Vanilla's Katana is the baseline to copy from when that happens.
+
+    The bat'leth's two back attachments are not optional. An item on the back
+    is drawn at bone x the body's attachment x the item's own attachment of
+    the same name, and the back slots hang a weapon by its Y, where a
+    bat'leth's length is its X: without them it stood on edge across the
+    shoulders like horns. tools/gen_batleth.py writes that block, from the
+    mesh it builds; do not edit it here.  */
 
 module Base
 {
@@ -37,6 +43,16 @@ module Base
     {
         mesh = weapons/2handed/TREK_Batleth,
         texture = weapons/2handed/TREK_Batleth,
+        attachment blade_back
+        {
+            offset = 0.02 0.18 -0.068,
+            rotate = 0.0 90.0 90.0,
+        }
+        attachment big_blade_back_bag
+        {
+            offset = 0.12 0.1688 0.0383,
+            rotate = 25.0 90.0 90.0,
+        }
     }
 
     model TrekMeklethModel

@@ -2630,6 +2630,46 @@ module TrekShuttle
         Tooltip = Tooltip_TREK_UniformDress,
     }
 
+    /*  The Starfleet field pack (ITEMS.md): vanilla's hiking bag rig in the
+        ship's colours, with the delta on the lid. tools/gen_backpack.py writes
+        the texture, the icon, the three clothing XMLs (worn, and one for each
+        hand it is carried in) and their GUID rows.
+
+        Copied from Bag_NormalHikingBag, one step up: the big hiking bag's
+        capacity and weight reduction on a lighter bag with a lighter step,
+        because it is Starfleet synthetics rather than canvas -- and not the
+        ALICE pack's 28, because the replicator makes one for energy. No fire
+        tags for the same reason: it does not burn like canvas.
+
+        HikingBag_Ground names no texture, so a pack on the floor wears the
+        clothing's: the same charcoal and gold as on the back.  */
+    item TrekBackpack
+    {
+        DisplayCategory = Bag,
+        ItemType = base:container,
+        DisplayName = Starfleet Field Pack,
+        Icon = TREK_Backpack,
+        Weight = 1.0,
+        AttachmentReplacement = Bag,
+        BloodLocation = Bag,
+        CanBeEquipped = base:back,
+        CanHaveHoles = false,
+        Capacity = 22,
+        CloseSound = CloseBag,
+        ClothingItem = TrekBackpack,
+        EquipSound = EquipBackpackLarge,
+        OpenSound = OpenBag,
+        PutInSound = PutItemInBag,
+        ReplaceInPrimaryHand = TrekBackpack_RHand holdingbagright,
+        ReplaceInSecondHand = TrekBackpack_LHand holdingbagleft,
+        RunSpeedModifier = 0.97,
+        SoundParameter = EquippedBaggageContainer HikingBag,
+        WeightReduction = 80,
+        WorldStaticModel = HikingBag_Ground,
+        AttachmentsProvided = BedrollBottom,
+        Tooltip = Tooltip_TREK_Backpack,
+    }
+
     /*  The downed ensign (ENSIGN.md): six figures, one per body and division.
 
         A Furniture item standing on the ground, the way the Doctor does, and

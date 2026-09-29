@@ -124,4 +124,16 @@
 		<path>media/clothing/clothingItems/TrekBorg_Knee.xml</path>
 		<guid>09a2c8ba-d5a6-51bd-b3f0-bc16b978fe46</guid>
 	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBackpack.xml</path>
+		<guid>bc67eb4f-a2cb-584f-9c1e-69fc952b3d14</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBackpack_RHand.xml</path>
+		<guid>6f9f46e3-6a1f-548e-8aa6-4d08fc76759a</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekBackpack_LHand.xml</path>
+		<guid>be1168be-a0f5-594c-94ff-ff9a99192f0e</guid>
+	</files>
 </fileGuidTable>

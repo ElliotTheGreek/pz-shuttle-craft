@@ -69,6 +69,9 @@ Fifty new pieces of Starfleet furniture: seats you sit in, beds, doors that open
 She has a crew. Starfleet officers of every division and several species come and go by the turbolifts, walk to their posts, sit down, and talk to each other about the ship, the county and you -- and they notice when you are out of uniform.
 Beam back to the shuttle from the right-click menu whenever you like.
 
+Raids: when the pattern buffer overflows
+Once the Adirondack can beam you, Captain Titus will sometimes call for help: the transporter's pattern buffer is full, and she is purging it through a supply outpost in the county rather than onto her decks. Her request opens with where the outpost is, how many to expect and five hours to answer; right-click anywhere to reopen it. Get ready, then Accept: you are beamed to a camp of tents and crates round a transporter pad, and the dead come out of the pad in waves. Clear the buffer (the strip at the top shows it), loot the crates, and you are beamed home to exactly where you were. Beam out of the raid any time from the right-click menu. A win teaches the replicator new patterns and counts toward your rank.
+
 Hydroponics aboard the Adirondack
 Take the turbolift to Deck 5 and grow seven alien crops in hydroponic trays under grow lights, then cook the species dishes from scratch instead of replicating them.
 - Tea bush and bergamot -- dry the leaves, zest the bergamot and brew your own Earl Grey
@@ -147,7 +150,7 @@ Nothing dead gets within ten tiles of the landed ship. They are shoved back, not
 This mod is multiplayer compatible.
 FOR SERVER OWNERS
 The mod is server-authoritative: the ship, the cabin, the Adirondack, their stores and the hull live on the server and every player sees the same ones. Add its map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY -- so the space outside the cabin is black instead of wilderness with zombies in it. Single player and the in-game Host settings add it for you.
-Sandbox options on the Shuttlecraft page cover who may use the shuttle, transporter charges, torpedo fire, the replicator, how the shuttle starts, dilithium in the wild, the Doctor, hover height, when the Adirondack first calls, how the Adirondack is earned and how many rescues it takes, phaser cutting, and whether the hydroponic trays tend themselves.
+Sandbox options on the Shuttlecraft page cover who may use the shuttle, transporter charges, torpedo fire, the replicator, how the shuttle starts, dilithium in the wild, the Doctor, hover height, when the Adirondack first calls, how the Adirondack is earned and how many rescues it takes, how often raids come and how big they are, phaser cutting, and whether the hydroponic trays tend themselves.
 Transporter charges: with the speed anti-cheat on, each player gets 3 beams with one back every 150 seconds, so the server never kicks anybody for beaming. Set AntiCheatSpeed to 3 or 4, or choose Always unlimited, for unlimited beaming.
 
 GUIDE

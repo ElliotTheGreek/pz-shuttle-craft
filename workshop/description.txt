@@ -4,7 +4,7 @@ A Star Trek Starfleet Type 6 shuttlecraft and the starship U.S.S. Adirondack for
 3 new medical items: Hypospray, Dermal Regenerator, Medical Tricorder.
 18 new foods and drinks: Ration Pack, Gagh, Leola Root Stew, Plomeek Soup, Jumja Stick, Andorian Tuber, Oskoid, Wing-Slug Roll, Hasperat, Rokeg Blood Pie, Chadre'kab, Raktajino, Earl Grey, Romulan Ale, Bloodwine, Andorian Ale, Balso Tonic, Nutrient Suspension.
 22 new farming items: seven alien seeds, their produce, dried and ground ingredients, and live serpent worms.
-Plus a Tricorder, a PADD, six Starfleet uniforms and dilithium crystals.
+Plus a Tricorder, a PADD, six Starfleet uniforms, a Starfleet field pack and dilithium crystals.
 
 A SHUTTLE YOU CAN LIVE IN AND TRAVEL IN
 A cabin with a helm, a working galley, running water, a biobed, a sick bay, a replicator, a warp core and Starfleet lockers.
@@ -47,6 +47,9 @@ Cold Start: the shuttle lands near you, dark and empty. Find the first crystal, 
 THE REPLICATOR
 Makes any item in the game -- vanilla, patches and other mods -- once the ship holds its pattern, paid for in dilithium energy. Scan what you carry to teach it. It cannot make dilithium.
 
+RAIDS
+When the transporter's pattern buffer overflows, Captain Titus calls for help. Accept and you are beamed to an outpost where the dead pour out of the pad in waves. Clear it, loot the crates, and go home.
+
 THE DOCTOR
 An Emergency Medical Hologram treats what the hypospray and regenerator cannot, for energy. He is the only cure for a zombie bite: one whole crystal and twelve hours aboard.
 
@@ -67,7 +70,7 @@ QUICK GUIDE
 - Phasers: right-click a tree or a locked door to cut through it.
 
 MULTIPLAYER
-Fully multiplayer compatible and server-authoritative: everyone shares one shuttle and one Adirondack. Dedicated servers: add the map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY. Single player and in-game hosting add it for you. The sandbox Shuttlecraft page covers access, transporter charges, torpedo fire, the replicator, the start mode, wild dilithium, the Doctor, hover height, first contact, the captain's secret, Adirondack access, phaser cutting and hydroponics.
+Fully multiplayer compatible and server-authoritative: everyone shares one shuttle and one Adirondack. Dedicated servers: add the map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY. Single player and in-game hosting add it for you. Every feature has its settings on the sandbox Shuttlecraft page.
 
 REQUIREMENTS
 Build 42. The hull needs three tiles by five of clear ground to land. One shuttle per world.
