@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.12.0"
+C.Version   = "1.13.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 31
+C.BuildRev = 32
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -1974,6 +1974,17 @@ C.PaddType = "TrekPADD"
 -- replicator knows the pattern from the first day, and makes them blank.
 C.PaddIssue = 2
 
+---------------------------------------------------------------------------
+-- The field pack (ITEMS.md)
+---------------------------------------------------------------------------
+-- A Starfleet backpack: vanilla's hiking bag rig in the ship's colours
+-- (tools/gen_backpack.py). One in the armoury, beside the uniforms. New
+-- worlds only, like every other change to what a locker holds; the
+-- replicator knows the pattern from the first day, so an existing save
+-- makes one there.
+C.PackItem = "TrekShuttle.TrekBackpack"
+C.PackIssue = 1
+
 -- Reading off a PADD takes a fifth of the time the same book takes on paper,
 -- after the vanilla rules -- sandbox minutes per page, Fast and Slow Reader,
 -- reading glasses, sitting down -- have all been applied. The author's
@@ -2202,6 +2213,99 @@ C.LockLiftHours = 0.5
 
 -- The Doctor's biofilter screening, in reserve units.
 C.ScreenCost = 50
+
+---------------------------------------------------------------------------
+-- Raids: when the pattern buffer overflows (RAIDS.md)
+---------------------------------------------------------------------------
+-- The record: the standing request and the raid in progress, published when
+-- they change. Small and bounded: one of each at most.
+C.RaidKey = "TREK_Raids_v1"
+-- Where a raider goes home to, on the server's copy of the player.
+C.RaidReturnKey = "TREKRaidReturn"
+-- What the raid's own objects and dead are tagged with.
+C.RaidTag = "raid"
+C.RaidZedKey = "TREKRaid"
+
+-- Sandbox *Raids*: 1 off, 2 rare, 3 normal, 4 frequent. An absent value is
+-- the feature as designed.
+C.RaidsOff, C.RaidsRare, C.RaidsNormal, C.RaidsFrequent = 1, 2, 3, 4
+function C.raidsMode()
+    local ok, v = pcall(function() return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.Raids end)
+    v = ok and tonumber(v) or nil
+    if v == 1 or v == 2 or v == 3 or v == 4 then return v end
+    return C.RaidsNormal
+end
+-- Game hours from the first cleared player to the first request, and the
+-- gap between one raid ending and the next request, in days (min, max).
+C.RaidFirstHours = { [2] = 72, [3] = 48, [4] = 1 }
+C.RaidIntervalDays = { [2] = { 5, 8 }, [3] = { 3, 5 }, [4] = { 0.5, 1 } }
+
+-- Sandbox *Raid size*: 1 small, 2 normal, 3 large -- a scale on the buffer.
+C.RaidSizeScale = { 0.6, 1.0, 1.5 }
+function C.raidScale()
+    local ok, v = pcall(function() return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.RaidSize end)
+    v = ok and tonumber(v) or nil
+    return C.RaidSizeScale[v or 2] or 1.0
+end
+
+-- How long a request stands, and when the countdown warns, in game minutes.
+C.RaidOfferHours = 5
+C.RaidWarnMinutes = { 60, 10 }
+
+-- The buffer: patterns in it, and more for each raider who joins.
+C.RaidBase = { outpost = 30 }
+C.RaidPerPlayer = 10
+-- Waves: this many at a time, this often (real milliseconds), never more
+-- than the cap of the raid's own standing.
+C.RaidWaveSize = 4
+C.RaidWaveMs = 20000
+C.RaidAliveCap = 14
+C.RaidBorgShare = 0.6
+C.RaidOutfits = { "Generic01", "Generic02", "Generic03", "Generic04", "Generic05" }
+-- How close to the site a raider has to be to count as present, and how long
+-- a raid with nobody present, or at all, may run (game minutes).
+C.RaidPresentRange = 60
+C.RaidAbandonMinutes = 5
+C.RaidHardLimitMinutes = 60
+-- After the last one falls, real milliseconds to loot before the beam home.
+C.RaidLootMs = 60000
+-- How long a raider's client waits at the site for the camp, in ticks.
+C.RaidArriveTicks = 1800
+-- What a raid won pays each raider: replicator patterns (from the rescue
+-- list, in order) and a rescue's credit toward rank.
+C.RaidPatternsPerWin = 3
+
+-- The outpost (RAIDS.md 3.1): where it goes, and what stands in it, as
+-- { dx, dy, sprite } from the pad's first square. Built on wild ground in a
+-- clear square of side 2 * C.OutpostClear + 1, searched for within
+-- C.OutpostSearch of the site the request named.
+C.OutpostMinDistance = 300
+C.OutpostMaxDistance = 1200
+C.OutpostClear = 5
+C.OutpostSearch = 20
+C.OutpostPad = { { 0, 0, "trek_adirondack_02_148" }, { 0, 1, "trek_adirondack_02_149" } }
+-- Scenery: the installation kits' tiles, tagged and in no registry, so none
+-- of them works and none can be taken; removed when the raid ends.
+C.OutpostMachines = {
+    { -4, -3, "trek_adirondack_02_162" }, { -4, -2, "trek_adirondack_02_163" },
+    { -3, -3, "trek_adirondack_02_164" }, { -3, -2, "trek_adirondack_02_165" },
+    { 3, -3, "trek_adirondack_02_158" }, { 4, -3, "trek_adirondack_02_160" },
+}
+-- What stays: two small tents (vanilla's, two squares each) and four metal
+-- crates, stocked from C.RaidLoot.
+C.OutpostTents = { { -4, 3, "camping_01_2" }, { -3, 3, "camping_01_3" },
+                   { 3, 3, "camping_01_2" }, { 4, 3, "camping_01_3" } }
+C.OutpostCrates = { { -2, -4 }, { -1, -4 }, { 1, -4 }, { 2, -4 } }
+C.OutpostCrateSprite = "constructedobjects_01_46"
+C.RaidLoot = {
+    "TrekShuttle.TrekHypospray", "TrekShuttle.TrekDermalRegen", "TrekShuttle.TrekRationPack",
+    "Base.Bandage", "Base.Antibiotics", "Base.Pills", "Base.Disinfectant",
+    "TrekShuttle.TrekRationPack",
+}
+-- The chance, in per cent, that one crate holds a dilithium crystal.
+C.RaidCrystalChance = 25
+-- Where a raider is put down, from the pad's first square: clear of it.
+C.OutpostStand = { 0, 4 }
 
 ---------------------------------------------------------------------------
 -- Traits: species, divisions and rank (TRAITS.md)

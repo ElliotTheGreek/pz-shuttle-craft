@@ -1202,6 +1202,92 @@ def captain_panel():
           f"shows all {topics} topics and says NEW")
 
 
+def raid_panel():
+    """The Captain's request (RAIDS.md 2): a request with its countdown, a
+    raid to join, a refusal, and the strip at the top of the screen -- each in
+    bounds, every label on its button, and on the stick."""
+    texture_files["on"] = True
+    lua, missing = make_lua()
+    lua.execute(r"""
+        require "TREK/TREK_CaptainUI"
+        require "TREK/TREK_RaidsUI"
+        SandboxVars.TrekShuttle.AdirondackAccess = 2
+        local d = TREK.Raids.store()
+        d.request = { id = "raid:1", kind = "outpost", tx = 3000, ty = 3000,
+                      lapseAt = TREK.Util.worldHours() + 4.2, declined = {}, warned = {} }
+        TREK.RaidsUI.call = { id = "raid:1", n = 40, distance = 1058, compass = "NE" }
+        win = TREKRaidPanel:new(40, 40, player)
+        win:createChildren()
+    """)
+    win = lua.globals().win
+    texts = lambda d: [str(x.extra) for x in d if x.kind == "text"]
+
+    d = run_frames(lua, "raid panel, a request")
+    check_bounds(lua, d, "raid panel, a request")
+    if not win.acceptBtn.enable or win.acceptBtn.title != IG["IGUI_TREK_RaidAccept"]:
+        failures.append(f"raid panel: a cleared player is offered {win.acceptBtn.title!r}, "
+                        f"enabled={win.acceptBtn.enable}")
+    left = IG["IGUI_TREK_RaidLeft"].split("%1")[0]
+    if not any(t.startswith(left) for t in texts(d)):
+        failures.append("raid panel: the countdown is not on the panel")
+    where = IG["IGUI_TREK_RaidWhere"].split("%1")[0]
+    if not any(t.startswith(where) for t in texts(d)):
+        failures.append("raid panel: the request does not say where the outpost is")
+    lua.execute("sent = {}; TREK.Net.send = function(p, cmd, args) table.insert(sent, cmd) return true end")
+    lua.execute("win.acceptBtn:click()")
+    if str(lua.eval("sent[1]")) != "raidAccept":
+        failures.append("raid panel: Accept does not ask to accept")
+
+    lua.execute("""
+        SandboxVars.TrekShuttle.AdirondackAccess = 1
+        win = TREKRaidPanel:new(40, 40, player); win:createChildren()
+    """)
+    win = lua.globals().win
+    check_bounds(lua, run_frames(lua, "raid panel, not cleared"), "raid panel, not cleared")
+    if win.acceptBtn.enable or win.acceptBtn.title != IG["IGUI_TREK_RaidClearance"]:
+        failures.append(f"raid panel: an uncleared player is offered {win.acceptBtn.title!r}")
+
+    lua.execute("""
+        SandboxVars.TrekShuttle.AdirondackAccess = 2
+        local d = TREK.Raids.store()
+        d.request = nil
+        d.raid = { id = "raid:1", kind = "outpost", state = "live", members = { someone = true },
+                   n = 40, released = 12, alive = 5 }
+        win = TREKRaidPanel:new(40, 40, player); win:createChildren()
+    """)
+    win = lua.globals().win
+    check_bounds(lua, run_frames(lua, "raid panel, joining"), "raid panel, joining")
+    if win.acceptBtn.title != IG["IGUI_TREK_RaidJoin"] or win.declineBtn.enable:
+        failures.append("raid panel: a raid under way is not offered as Join, or Decline is live")
+    lua.execute("""
+        reachable = {}
+        for _, row in ipairs(win.joypadButtonsY) do for _, b in ipairs(row) do reachable[b] = true end end
+        unreachable = {}
+        for _, c in ipairs(win.children) do
+            if c.onclick and not reachable[c] and c ~= win.ISButtonB then table.insert(unreachable, c.title or "?") end
+        end
+    """)
+    un = lua.globals().unreachable
+    for i in range(1, len(un) + 1):
+        failures.append(f"raid panel: button {un[i]!r} cannot be reached with a controller")
+
+    lua.execute("""
+        TREK.Raids.store().raid.members[player:getUsername()] = true
+        win = TREKRaidStrip:new(player)
+    """)
+    d = run_frames(lua, "raid strip")
+    check_bounds(lua, d, "raid strip")
+    strip = IG["IGUI_TREK_RaidStrip"].split("%1")[0].upper()
+    if not any(strip in t for t in texts(d)):
+        failures.append("raid strip: the buffer is not on the strip during a raid")
+    if float(lua.globals().win.width) > 400:
+        failures.append("raid strip: it is wide enough to take the world's mouse away")
+    for key in sorted(set(missing)):
+        failures.append(f"raid panel: getText({key!r}) has no text in any translation file")
+    print("raid panel: a request with where, how many and the countdown; a refusal on its button; a raid "
+          "to join; the strip; all in bounds and on the stick")
+
+
 def main():
     power_gauge()
     for textures in (True, False):
@@ -2146,6 +2232,7 @@ def main():
 
     padd_screen()
     captain_panel()
+    raid_panel()
 
     # --- the textures the console loads exist -----------------------------
     src = open(os.path.join(MOD, "media", "lua", "client", "TREK", "TREK_Helm.lua"),

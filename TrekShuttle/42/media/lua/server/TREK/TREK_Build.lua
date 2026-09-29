@@ -780,6 +780,9 @@ local SPECIALS = {
     -- Two PADDs, blank (PADD.md). A PADD is personal -- the library is on
     -- the item -- so two means a crew of two each carries one.
     padds = { items = { C.PaddItem }, copies = function() return C.PaddIssue end },
+    -- The field pack: one, for whoever goes out first. The replicator makes
+    -- the rest.
+    packs = { items = { C.PackItem }, copies = function() return C.PackIssue end },
 }
 
 --- Stocks one authored container. Returns true when something went in.

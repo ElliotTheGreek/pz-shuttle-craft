@@ -448,6 +448,10 @@ for _, id in ipairs({ "TrekShuttle.TrekPhaser", "TrekShuttle.TrekHypospray",
                       "TrekShuttle.TrekPADD" }) do
     scriptItem(id, { name = bareType(id), category = "Starfleet", weight = 0.6 })
 end
+-- The field pack, at its script's weight: the armoury's sum is checked
+-- against a locker that drops what does not fit.
+scriptItem("TrekShuttle.TrekBackpack",
+           { name = "TrekBackpack", category = "Starfleet", weight = 1.0 })
 
 -- What a rescue teaches the ship (C.RescuePatterns). Real vanilla ids, in the
 -- catalogue so R.learn() can find their rows: a reward checked against a
@@ -694,6 +698,9 @@ function ObjectMT:createContainersFromSpriteProperties()
        or self.spriteName:find("medical") or self.spriteName:find("shelving")
        or self.spriteName:find("military") or self.spriteName:find("machinery")
        or self.spriteName:find("CONTAINER")
+       -- A raid's outpost (RAIDS.md 3.1): the metal crate, and a small
+       -- tent's front half -- its back half holds nothing, as in the tileset.
+       or self.spriteName == "constructedobjects_01_46" or self.spriteName == "camping_01_3"
        or (SIM.containerSprites and SIM.containerSprites[self.spriteName]) then
         self.container = SIM.container(40)
         self.container.parentObject = self

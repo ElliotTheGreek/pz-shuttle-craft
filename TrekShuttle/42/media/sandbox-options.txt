@@ -81,3 +81,13 @@ option TrekShuttle.AdirondackRescues = {
     type = enum, numValues = 4, default = 3,
     page = TrekShuttle, translation = TrekShuttle.AdirondackRescues, valueTranslation = TrekShuttle.AdirondackRescues,
 }
+
+option TrekShuttle.Raids = {
+    type = enum, numValues = 4, default = 3,
+    page = TrekShuttle, translation = TrekShuttle.Raids, valueTranslation = TrekShuttle.Raids,
+}
+
+option TrekShuttle.RaidSize = {
+    type = enum, numValues = 3, default = 2,
+    page = TrekShuttle, translation = TrekShuttle.RaidSize, valueTranslation = TrekShuttle.RaidSize,
+}

@@ -189,6 +189,11 @@ local DENIALS = {
     accScreenUnasked  = "IGUI_TREK_AccScreenUnasked",
     accScreenInfected = "IGUI_TREK_AccScreenInfected",
     accNoSample       = "IGUI_TREK_AccNoSample",
+    -- Raids (RAIDS.md).
+    raidOff           = "IGUI_TREK_RaidOff",
+    raidGone          = "IGUI_TREK_RaidGone",
+    raidAlready       = "IGUI_TREK_RaidAlready",
+    raidClearance     = "IGUI_TREK_RaidClearance",
     -- The ledger's own refusals carry numbers and are shown from
     -- POWER_DENIALS below; these are the words if one ever arrives bare.
     noPower           = "IGUI_TREK_NoPowerBare",

@@ -32,7 +32,7 @@ Every item id below is `TrekShuttle.<id>`.
 | Jem'Hadar polaron rifle | `TrekPolaronRifle` | Blue-white bolt. Slings. A hideout; the trophy case |
 | Cardassian phaser | `TrekCardassianPhaser` | Yellow bolt, compact. Holsters. A hideout; the trophy case |
 | Starfleet phaser holster | `TrekHolster` | A belt holster any pistol rides in. The Adirondack's armoury |
-| Bat'leth | `TrekBatleth` | Klingon blade, two-handed |
+| Bat'leth | `TrekBatleth` | Klingon blade, two-handed. Grip bar on the back over three hand-holes, four points; lies flat on the back or the pack (`tools/gen_batleth.py`, `design/art/weapons/batleth_worn.png`) |
 | Mek'leth | `TrekMekleth` | Klingon short blade |
 | Lirpa | `TrekLirpa` | Vulcan polearm |
 | Ushaan-tor | `TrekUshaanTor` | Andorian ice-miner's blade |
@@ -92,8 +92,18 @@ trekcontraband.txt`). What each does, and what is in the hideouts, is section
 |---|---|
 | Starfleet Uniform (Command / Operations / Sciences) | `TrekUniformDutyCommand`, `…Operations`, `…Science` |
 | Starfleet Dress Uniform (Command / Operations / Sciences) | `TrekUniformDressCommand`, `…Operations`, `…Science` |
+| Starfleet Field Pack | `TrekBackpack` |
 
-Together these six are `C.UniformIssue`.
+Together the six uniforms are `C.UniformIssue`.
+
+**The field pack** is a backpack: vanilla's hiking bag rig in charcoal and
+Starfleet grey with a gold delta on the lid, capacity 22, weight reduction 80,
+weight 1.0 (a step up from the hiking bag, short of the ALICE pack). Worn,
+carried in either hand, and on the ground it wears the same texture.
+`tools/gen_backpack.py` writes the texture, the icon, its three clothing XMLs
+(worn, right hand, left hand) and their GUID rows; `design/art/backpack/` has
+the sheet it was judged on. One is issued in the shuttle's armoury
+(`C.PackIssue`); the replicator makes more.
 
 **Species looks** are worn items, chosen at character creation, and are not
 found anywhere in the world:
@@ -249,7 +259,7 @@ The loot lists:
 
 | Container | Where | Holds |
 |---|---|---|
-| **Armoury** locker | starboard, bow | 4 Phasers, the 6 uniforms (1 each), 2 PADDs, then the `weapons` list filled to 8 blades |
+| **Armoury** locker | starboard, bow | 4 Phasers, the 6 uniforms (1 each), 2 PADDs, 1 Field Pack, then the `weapons` list filled to 8 blades |
 | **Provisions** locker | starboard | `food` list, filled to 27 items |
 | **Medical** locker | starboard | 1 of each medical instrument, then the `medical` list, to 8 items |
 | Tape shelf | bow | the 12 recordings above, one tape each |

@@ -991,6 +991,10 @@ local MOVES = {
     -- triangle, once, for somebody the lock offered it to. Her transporter,
     -- so it costs the shuttle nothing.
     lockBeam       = { cost = 0, from = "lockSite" },
+    -- A raid (RAIDS.md): out to it, and home again, by her transporter. Paid
+    -- for by nobody, and asked only by a raider.
+    raidIn         = { cost = 0, from = "raidMember" },
+    raidOut        = { cost = 0, from = "raidMember" },
     fromAdirondack = { cost = 1, from = "adirondack" },
     turbolift      = { cost = 0, from = "decks" },
     -- The field station (FIELD_STATION.md 3): down from the panel behind
@@ -1006,6 +1010,9 @@ local function movesFrom(player, where)
     if where == "shuttle" then return U.isInteriorPlayer(player) end
     if where == "lockSite" then
         return TREK.AccessServer ~= nil and TREK.AccessServer.takeLift(player)
+    end
+    if where == "raidMember" then
+        return TREK.RaidsServer ~= nil and TREK.RaidsServer.isMember(player)
     end
     local A = TREK.Adirondack
     if not A then return false end
@@ -1109,12 +1116,15 @@ Net.onServer("move", function(player, args)
     -- a descent is a beam to the landing site (TRAITS.md 3.4).
     if TREK.TraitsServer and (kind == "beamUp" or kind == "beamDown" or kind == "descend"
                               or kind == "toAdirondack" or kind == "fromAdirondack"
-                              or kind == "lockBeam") then
+                              or kind == "lockBeam" or kind == "raidIn" or kind == "raidOut") then
         U.try("traits.beam", TREK.TraitsServer.onBeam, player, kind)
     end
     if TREK.TraitsServer and (kind == "turbolift" or kind == "stationDown" or kind == "stationUp") then
         U.try("traits.lift", TREK.TraitsServer.onLift, player)
     end
+
+    -- Home from a raid: no longer in it (RAIDS.md 5).
+    if kind == "raidOut" and TREK.RaidsServer then U.try("raids.returned", TREK.RaidsServer.onReturned, player) end
 
     Net.toClient(player, "moveGranted", { kind = kind, token = args.token,
                                           cost = energy > 0 and energy or nil })

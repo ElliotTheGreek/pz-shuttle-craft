@@ -1864,9 +1864,22 @@ skinning, no animation files. Vanilla's `Katana` model block is four lines.
 - The two attachments, `Bip01_Prop2` (in the hand) and `world` (on the
   ground), are **optional** — omit them and the engine uses a default. Their
   offsets can only honestly be set by looking at the weapon in a fist.
-- Where a blade *hangs* when slung is not on the weapon model at all. The
-  item's `AttachmentType` routes through `ISHotbarAttachDefinition.lua` and
-  `AttachedLocations.lua` to an attachment on the **character** model.
+- Where a blade *hangs* when slung starts on the character: the item's
+  `AttachmentType` routes through `ISHotbarAttachDefinition.lua` and
+  `AttachedLocations.lua` to an attachment on the **character** model. **And
+  it ends on the weapon.** The engine draws it at bone x the body's attachment
+  x *the weapon model's own attachment of the same name*
+  (`AttachedModelName.<init>` sets self = parent; `transformToParent`, where
+  `invertAttachmentSelfTransformZ` is never set, so it is not inverted), each
+  built as `T(offset) * rotateXYZ(rotate)`. The back slots hang a weapon by its
+  Y, a katana's length; the bat'leth's length is its X, so with no
+  `blade_back` of its own it stood on edge across the shoulders like a pair of
+  horns (found in play, 2026-09-28). Vanilla's sword blades carry a
+  `knife_shoulder` for the same reason. `tools/figure_render.py` reproduced
+  the horns from the screenshot before the fix was chosen, and
+  `gen_batleth.py` writes the block and renders `batleth_worn.png` from it.
+  A round katana cannot show a quarter-turn error about its own length:
+  calibrate against something flat.
 - **The mesh's own dimensions are its size in game; `WeaponLength` is a reach
   stat and scales nothing.** `tools/meshbbox.py` measures any `.x` file, ours
   or the game's, so this bracket is checkable rather than remembered:
@@ -2410,6 +2423,7 @@ python tools/gen_borg.py                          # the Borg among the dead: loo
 python tools/gen_captain.py TrekShuttle/42        # Captain Titus: her tree and Print_Text.json (refuses a spoiler out of its gate)
 python tools/gen_captain_art.py TrekShuttle/42    # her portrait, rendered from her body and uniform
 python tools/gen_access.py TrekShuttle/42         # the pattern enhancer and the nanoprobe sample (ACCESS.md)
+python tools/gen_backpack.py TrekShuttle/42       # the field pack: texture, icon, worn and hand clothing XMLs, GUID rows
 python tools/gen_farm_icons.py                    # hydroponics item icons, keyed from their raws
 python tools/gen_contraband_icons.py              # contraband item icons, keyed from their raws
 python tools/gen_crew_talk.py                     # the crew's talk (design/crew -> TREK_CrewTalk.lua)
@@ -2497,6 +2511,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **Loot is stocked, but in the wrong piece of furniture** | The entry's `loot` is hung on a sprite that is not what the comment beside it claims. Look the sprite up in `tools/_catalog/tiles.json` and read `CustomName`. No test can catch this one. |
 | **A container is missing item types** | Container capacity. `AddItems` drops items silently once full. Use `U.stockEach`, which reads the container back and reports what did not land. |
 | **A weapon is equipped and the hand is empty** | `WeaponSprite` names no model, the model block is not in `module Base`, or the mesh/texture is not on disk. `tests/test_assets.py` checks all four. The log names the model block itself as the failed asset when the module is wrong. |
+| **A slung weapon stands on edge across the shoulders, or points into the chest in hand** | The mesh's length is not its +Y. On the back, the model needs its own attachment named for each back slot (`blade_back`, `big_blade_back_bag`); in hand, the blade has to run +Y from the grip. `test_assets.py` fails a wide back-slung weapon with no back attachments. See *A weapon model is a static mesh*. |
 | **A weapon swings with no animation** | `SwingAnim` is not one of the nine names vanilla uses. |
 | **A new blade reads as a machete / cleaver / stick** | Its silhouette is not saying what it is. Render it (`tools/preview_model.py`) -- this is invisible in a section list. See *A blade is its silhouette*. |
 | **A weapon icon is a thin sliver next to the rest of the set** | It is being drawn upright in a square frame. Tilt it, as vanilla draws every blade; `tools/vet_icons.py` shows the whole set and the fill percentages tell you at once. |
@@ -3258,6 +3273,12 @@ void for anything measured from the crew (`Ship.worldOrigin`, now the return
 point, as at the field station). Twenty-seven mutations, one at a time, all
 caught. **Not seen in game.**
 
+**The 2026-09-28 raids, 1.13.0** (`RAIDS.md`): Captain Titus asks for help
+when the pattern buffer overflows; Accept beams the player to an outpost built
+on wild ground, the dead stream from its pad in waves, and home again after.
+The outpost only: the field station and the Adirondack wait on a pathing check
+aboard. Twenty-six mutations, all caught. **Not seen in game.**
+
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
 
@@ -3361,6 +3382,9 @@ TrekShuttle/42/media/lua/client/TREK/TREK_CaptainUI.lua        the right-click a
 TrekShuttle/42/media/lua/shared/TREK/TREK_Access.lua           boarding clearance: the three keys, the refusal, the PADD's rows (ACCESS.md)
 TrekShuttle/42/media/lua/server/TREK/TREK_AccessServer.lua     the debrief, the enhancers, the Borg's sample, screening, the lock
 TrekShuttle/42/media/lua/client/TREK/TREK_AccessUI.lua         Deploy, the notes, the lift at the lock, the screening mirror
+TrekShuttle/42/media/lua/shared/TREK/TREK_Raids.lua            raids: the record, who may accept, the buffer (RAIDS.md)
+TrekShuttle/42/media/lua/server/TREK/TREK_RaidsServer.lua      the request, the outpost's camp, the waves, the outcome, home
+TrekShuttle/42/media/lua/client/TREK/TREK_RaidsUI.lua          the Captain's request panel, the strip, the beams out and home
 content/captain/*.json                                         what she says (content/README.md)
 TrekShuttle/common/media/AnimSets/zombie/*/trekborg*.xml        the Borg walk and idle
 tools/figure_render.py                                         a posed character with garments and attachments, rendered

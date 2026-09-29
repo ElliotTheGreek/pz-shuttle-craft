@@ -261,6 +261,37 @@ GUID_TABLE = os.path.join(MOD, "media", "fileGuidTable.xml")
 mod_clothing = set(re.findall(r"^\s*ClothingItem\s*=\s*([A-Za-z0-9_]+)\s*,",
                               script, re.M))
 
+# A bag names two more garments, the ones it becomes in a hand
+# (`ReplaceInPrimaryHand = X holdingbagright`). They are clothing items reached
+# by GUID like any other, so an unknown one is a bag that vanishes when it is
+# picked up. A mod bag carried as vanilla's garment is the other failure: the
+# field pack would turn into a blue hiking bag in the hand. So every hand
+# garment of a mod bag must be the mod's own, and joins the chain below.
+VANILLA_CLOTHING = {os.path.splitext(f)[0].lower() for f in
+                    (os.listdir(os.path.join(PZ, "clothing", "clothingItems"))
+                     if os.path.isdir(os.path.join(PZ, "clothing", "clothingItems"))
+                     else [])}
+_bag_chunks = re.split(r"^\s*item\s+([A-Za-z0-9_]+)\s*$", script, flags=re.M)
+hand_garments = 0
+for _name, _body in zip(_bag_chunks[1::2], _bag_chunks[2::2]):
+    _worn = re.search(r"^\s*ClothingItem\s*=\s*([A-Za-z0-9_]+)\s*,", _body, re.M)
+    for _ref in re.findall(r"^\s*ReplaceIn(?:Primary|Second)Hand\s*=\s*([A-Za-z0-9_]+)\s",
+                           _body, re.M):
+        hand_garments += 1
+        if _ref.lower() in VANILLA_CLOTHING:
+            if _worn and _worn.group(1).lower() not in VANILLA_CLOTHING:
+                failures.append(f"{_name} is worn as the mod's {_worn.group(1)} "
+                                f"and carried as vanilla's {_ref}; it changes "
+                                f"into a vanilla bag in the hand")
+        else:
+            mod_clothing.add(_ref)
+if re.search(r"^\s*ReplaceInPrimaryHand\s*=", script, re.M) and hand_garments == 0:
+    failures.append("ReplaceInPrimaryHand is in the scripts and no hand "
+                    "garment was read; the pattern has stopped matching")
+if hand_garments and len(VANILLA_CLOTHING) < 1000:
+    failures.append(f"only {len(VANILLA_CLOTHING)} vanilla clothing items "
+                    f"were listed; the hand garment check proves nothing")
+
 # Everything the installed game ships, so a mod path or GUID cannot collide
 # with one. `FileGuidTable.mergeFrom` is a plain ArrayList.addAll with no
 # de-duplication at all, so a clash is resolved by whichever row is found
@@ -741,6 +772,58 @@ for ref in re.findall(r"^\s*WeaponSprite\s*=\s*([A-Za-z0-9_]+)\s*,", script, re.
     elif not re.search(r"model\s+%s\s*\n?\s*\{" % ref, vanilla):
         failures.append(f"WeaponSprite = {ref} is neither a mod model nor a "
                         f"vanilla one; the weapon draws nothing in hand")
+
+# A weapon on the back is drawn at bone x the body's attachment x the weapon's
+# own attachment of the same name (AttachedModelName sets self = parent), and
+# the back slots hang it by its Y, a katana's length. A blade whose length is
+# its X -- the bat'leth -- stands on edge across the shoulders like horns
+# unless its model carries its own attachment for every back slot its
+# AttachmentType can land in: the Back slot's, and the Bag replacement's for
+# when a pack is worn. Both lists are read from vanilla, not written here.
+from preview_model import parse_x  # noqa: E402
+
+_hotbar = open(os.path.join(PZ, "lua", "client", "Hotbar", "ISHotbarAttachDefinition.lua"),
+               encoding="utf-8", errors="replace").read()
+_locs = dict(re.findall(r'getOrCreateLocation\("([^"]+)"\):setAttachmentName\("([^"]+)"\)',
+                        open(os.path.join(PZ, "lua", "shared", "NPCs", "AttachedLocations.lua"),
+                             encoding="utf-8", errors="replace").read()))
+_back = {}
+for table in re.findall(r'type = "(?:Back|Bag)",.*?(?:attachments|replacement) = \{(.*?)\}',
+                        _hotbar, re.S):
+    for kind, loc in re.findall(r'(\w+)\s*=\s*"([^"]+)"', table):
+        if loc in _locs:
+            _back.setdefault(kind, set()).add(_locs[loc])
+if len(_back) < 5 or "BigBlade" not in _back:
+    failures.append(f"back slots: read {len(_back)} attachment types out of vanilla's "
+                    f"ISHotbarAttachDefinition -- the pattern has stopped matching")
+_blocks = {m.group(1): m.group(2) for m in
+           re.finditer(r"^\s*model\s+([A-Za-z0-9_]+)\s*\{(.*?)^    \}", script, re.M | re.S)}
+_checked_wide = 0
+for item in re.finditer(r"^\s*item\s+(\w+)\s*\{(.*?)^\s*\}", script, re.M | re.S):
+    kind = re.search(r"^\s*AttachmentType\s*=\s*(\w+)", item.group(2), re.M)
+    sprite = re.search(r"^\s*WeaponSprite\s*=\s*(\w+)", item.group(2), re.M)
+    if not (kind and sprite and kind.group(1) in _back and sprite.group(1) in _blocks):
+        continue
+    block = _blocks[sprite.group(1)]
+    mesh = re.search(r"mesh\s*=\s*([\w/]+)", block).group(1)
+    path = os.path.join(MOD, "media", "models_X", *mesh.split("/")) + ".x"
+    if not os.path.isfile(path):
+        continue
+    xs, ys = zip(*[(v[0], v[1]) for v in parse_x(path)[0]])
+    if max(xs) - min(xs) <= max(ys) - min(ys):
+        continue
+    _checked_wide += 1
+    for name in sorted(_back[kind.group(1)]):
+        if not re.search(r"attachment\s+%s\s*\{" % name, block):
+            failures.append(
+                f"{item.group(1)}: its mesh is wider than it is long and it goes "
+                f"on the back ({kind.group(1)}), but {sprite.group(1)} has no "
+                f"`attachment {name}` of its own -- it will stand on edge across "
+                f"the shoulders. tools/gen_batleth.py writes the bat'leth's.")
+if _checked_wide < 1:
+    failures.append("back slots: no wide back-slung weapon was found to check -- "
+                    "the bat'leth should be one; the item or model pattern has "
+                    "stopped matching")
 
 # The animation set is global and closed: a mod borrows a name or gets nothing.
 SWING_ANIMS = set(re.findall(r"^\s*SwingAnim\s*=\s*(\w+)\s*,", vanilla, re.M))
@@ -1389,6 +1472,22 @@ if "<m_HatCategory>nohair" not in _head:
                     "(HairStyles.getAlternateForHat)")
 if "<m_Masks>6</m_Masks>" not in open(os.path.join(CLOTHING_DIR, "TrekBorg_Arm.xml"), encoding="utf-8").read():
     failures.append("borg: the prosthetic does not mask the right hand (CharacterMask part 6)")
+
+# A literal per-cent sign in a translation. The engine's formatter reads "%1%"
+# as a malformed format specifier and draws "60$s%": the probe console had it
+# in 1.4 and the raid strip in 1.13. Write "percent". Every value in every
+# translation file: a "%" is only ever the start of %1..%9.
+_pct_files = 0
+for _f in sorted(os.listdir(TR)):
+    if not _f.endswith(".json"):
+        continue
+    _pct_files += 1
+    for _k, _v in json.load(open(os.path.join(TR, _f), encoding="utf-8")).items():
+        if isinstance(_v, str) and re.search(r"%(?![1-9])", _v):
+            failures.append(f"{_f}: {_k} has a literal per-cent sign, which the engine "
+                            f"draws as a broken format ({_v!r}); write 'percent'")
+if _pct_files < 5:
+    failures.append(f"only {_pct_files} translation files found for the per-cent check")
 
 print(f"checked {checked_sprites} sprite names and {checked_items} item ids, "
       f"{len(mod_items)} mod items, {len(mod_models)} models, "

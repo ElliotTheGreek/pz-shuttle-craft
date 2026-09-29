@@ -2,12 +2,33 @@
 
     python tools/gen_batleth.py TrekShuttle/42
 
-A bat'leth is a crescent held by grips on its *inner* edge, with four points:
-a curving tip at each end and a spike part-way along each outer lobe. It is
-drawn here as a flat ribbon of quads following an arc -- an outer edge, an
-inner edge, a front and back face between them, and a rim joining the two --
-because the shape is entirely a 2D silhouette given thickness, and building it
-that way keeps every vertex on a curve that can be described in one line.
+A bat'leth is a shallow crescent held by a wrapped bar along its *convex back*,
+over three hand-holes cut through the blade; the cutting edge is the concave
+side and the long swept tips. Its four points are those two tips and a spike
+off the cutting edge at each end, and where the grip bar ends it juts into a
+short back point. The first version had all of that inside out -- grips on the
+concave edge, spikes on the back, no holes -- and read in game as a pair of
+horns; the props in the Wikipedia article's photograph are what this follows.
+
+It is drawn as a flat ribbon of bands following a curved centreline -- the
+blade below the holes, the struts between them, the grip bar above -- each a
+front and back face with rims, because the shape is a 2D silhouette given
+thickness and every edge is then one function of the distance along the arc.
+
+**The tips point along +Y, away from the fist.** The origin is the middle of
+the grip bar, where the hands go, and a weapon's +Y is the direction the blade
+goes from the hand (vanilla's katana runs from -0.05 at the pommel to +0.58).
+The first version had its tips on -Y, so it was held back to front with both
+points in the wielder's chest.
+
+**On the back it needs its own attachments.** The back slots hang a weapon by
+its Y axis, a katana's length, and a bat'leth's length is its X: with no
+attachment of its own it stood on edge across the shoulders like horns. The
+engine draws an attached item at bone x the character's attachment x *the
+item's own attachment of the same name* (`AttachedModelName` sets self =
+parent; `transformToParent`, and `invertAttachmentSelfTransformZ` is never set),
+so `blade_back` and `big_blade_back_bag` in `trekweapons.txt` turn it flat onto
+the back or the pack. `BACK_MOUNTS` below is where those numbers come from.
 
 Two things about weapon models that cost other people time (see DEV_GUIDE and
 the comment on TrekPhaser in trekshuttle.txt):
@@ -27,6 +48,7 @@ meshes authored in centimetres.
 """
 import math
 import os
+import re
 import sys
 
 from meshbuild import MeshBuilder
@@ -51,25 +73,45 @@ UP_AXIS = "y"
 # long, and it spanned the character hip to hip.
 #
 # So the bracket is not "as long as a katana" but "as wide as a machete is
-# long": 0.32 puts the bounding box at ~0.37, the widest a cross-body blade
-# reads at before it starts wearing the character rather than the other way
-# round. Real-world scale was never the test; the sprite is.
-SPAN = 0.32
-ARC = math.radians(78.0)        # half-angle swept by the crescent
+# long": the old arch's 0.32 chord drew a 0.369 bounding box, the widest a
+# cross-body blade reads at before it starts wearing the character rather than
+# the other way round, and it was seen at that size in play (2026-09-20). The
+# crescent that replaced it has its tips falling rather than bulging past the
+# chord, so the chord *is* the width now, and it is set to the width that was
+# seen. Real-world scale was never the test; the sprite is.
+SPAN = 0.37
 THICK = 0.016                   # blade thickness, in metres
-SEGMENTS = 96                   # samples along the arc
+SEGMENTS = 160                  # samples along the arc, before the breakpoints
 
-# The silhouette below was authored against a 0.46 m span in absolute metres,
-# so every width is divided through by this and multiplied back by SPAN. Change
-# SPAN alone without it and the crescent keeps its thickness while losing its
-# reach -- a slender blade becomes a chunky one, which is a different weapon.
-AUTHORED_SPAN = 0.46
+# The centreline's heading, from the grip out to each tip: it turns slowly
+# through the grip and fast in the tips, which is what makes a bat'leth a
+# shallow crescent with swept points rather than an arch. Degrees at the
+# middle of the arc (TURN_LIN) and extra by the tip (TURN_TIP).
+TURN_LIN = 44.0
+TURN_TIP = 30.0
+
+# How it hangs on the back: per character attachment, the model's own
+# `rotate` and where the blade's centre goes, in that attachment's frame.
+# Both of vanilla's back slots on Bip01_BackPack have their frame's +X
+# pointing straight out of the back and +Y down it (the katana's length), so
+# (0, 90, 90) lays the crescent flat on the back with its length where a
+# katana's would be: over the right shoulder to the left hip, grip bar to the
+# outside. With a pack the slot is nearly vertical, so it is turned 25 degrees
+# more, stood 0.12 off the back to sit on the pack's face (the hiking bag's
+# back is at +0.238 against the slot's +0.103), and brought 0.1 across to the
+# middle of it. Judged on figure_render renders of the male body in Bob_Idle,
+# with and without M_HikingBag; the same renderer reproduced the first
+# version's horns from a screenshot before these were chosen.
+BACK_MOUNTS = (
+    ("blade_back", (0.0, 90.0, 90.0), (0.02, 0.18, 0.0)),
+    ("big_blade_back_bag", (25.0, 90.0, 90.0), (0.12, 0.14, 0.1)),
+)
 
 # Texture regions: (x0, y0, x1, y1)
 R_BLADE = (0, 0, 128, 40)       # polished steel, bright along the edge
 R_RIM = (0, 40, 128, 56)        # the ground edge, lighter still
-R_GRIP = (0, 56, 128, 88)       # wrapped leather on the inner edge
-R_DARK = (0, 88, 128, 128)      # blued steel behind the grips
+R_GRIP = (0, 56, 128, 88)       # wrapped leather on the back bar
+R_DARK = (0, 88, 128, 128)      # blued steel inside the hand-holes
 
 STEEL = (188, 196, 204, 255)
 STEEL_LIT = (232, 238, 244, 255)
@@ -110,118 +152,179 @@ def build_texture(path):
     img.save(path)
 
 
-def profile(t):
-    """Blade half-widths at arc parameter t in -1..1.
+def centreline(t):
+    """Point, tangent and convex-side normal of the arc at t in -1..1.
 
-    Returns (outward, inward, is_grip). `outward` is the cutting edge, which
-    carries the two lobes and their spikes; `inward` is the held edge, which
-    is nearly straight and is where the hands go.
-    """
+    Measured in half-arc-lengths from the middle of the grip, in the authoring
+    frame: the crescent bows upwards and its tips fall to either side. Heading
+    is integrated numerically because it is a cubic in t, not a circle."""
     a = abs(t)
+    steps = max(1, int(a * 400))
+    x = y = 0.0
+    for i in range(steps):
+        u = (i + 0.5) / steps * a
+        phi = math.radians(TURN_LIN * u + TURN_TIP * u ** 3)
+        x += math.cos(phi) * a / steps
+        y -= math.sin(phi) * a / steps
+    phi = math.radians(TURN_LIN * a + TURN_TIP * a ** 3)
+    s = 1.0 if t >= 0 else -1.0
+    tangent = (math.cos(phi), -s * math.sin(phi))
+    return (s * x, y), tangent, (-tangent[1], tangent[0])
 
-    # Taper to a point at both tips. Everything else is measured from a body
-    # that is widest between the spike and the tip.
-    tip = 1.0 if a < 0.86 else max(0.0, (1.0 - a) / 0.14)
 
-    out = 0.052 + 0.030 * math.cos(math.pi * t)     # broad through the middle
-    # The spikes: a narrow bump on each lobe, which is what stops the
-    # silhouette reading as a plain crescent.
-    spike = math.exp(-((a - 0.60) / 0.055) ** 2)
-    out += 0.085 * spike
-    out *= tip
+# The silhouette, as distances from the centreline along its convex-side
+# normal, in half-arc-lengths; a = |t|. Read against the props: a wrapped bar
+# over three holes (the middle one under the hands), struts between them, a
+# short back point where the bar ends, a spike off the cutting edge below the
+# outer strut, and long tips that are the cutting edge carried on and thinned.
+GRIP_END = 0.56                     # the bar and the holes stop here
+HOLES = ((0.0, 0.13), (0.19, 0.50))  # |t| ranges cut through the blade
+TOP, BAR = 0.16, 0.065              # the bar's back edge, and its depth
+HOLE_LO = -0.11                     # the holes' lower edge
+LOW = -0.18                         # the cutting edge through the middle
+POINT = (0.56, 0.645, 0.665, 0.27)  # back point: rises, peaks, falls; height
+SPIKE = (0.43, 0.53, 0.555, -0.44)  # the spike: the same, below
+TIP_FROM = 0.665                    # where the blade starts thinning to the tip
 
-    inn = 0.040 * tip
 
-    # Every number above is in metres at AUTHORED_SPAN. Scaling them here keeps
-    # the crescent's proportions whatever SPAN is set to.
-    k = SPAN / AUTHORED_SPAN
-    out *= k
-    inn *= k
+def in_hole(a):
+    return any(lo < a < hi for lo, hi in HOLES)
 
-    # Three hand positions: one at the centre, one on each lobe inboard of the
-    # spike. They are only a texture change -- cutting notches into the held
-    # edge would weaken the silhouette at the size this is actually seen.
-    is_grip = a < 0.13 or (0.30 < a < 0.46)
-    return out, inn, is_grip
+
+def top(a):
+    r0, pk, r1, h = POINT
+    if a <= r0:
+        return TOP
+    if a <= pk:                      # a long rise and a short fall: it leans out
+        return TOP + (h - TOP) * (a - r0) / (pk - r0)
+    if a <= r1:
+        return h + (0.05 - h) * (a - pk) / (r1 - pk)
+    return 0.05 * max(0.0, (1.0 - a) / (1.0 - r1)) ** 0.8
+
+
+def low(a):
+    r0, pk, r1, h = SPIKE
+    base = LOW if a <= TIP_FROM else LOW * max(0.0, (1.0 - a) / (1.0 - TIP_FROM)) ** 1.2
+    if r0 < a <= pk:
+        return LOW + (h - LOW) * (a - r0) / (pk - r0)
+    if pk < a < r1:
+        return h + (LOW - 0.01 - h) * (a - pk) / (r1 - pk)
+    return base
+
+
+def breakpoints():
+    """Every |t| the silhouette turns a corner at, so it is sampled there."""
+    ks = {0.0, 1.0, GRIP_END, TIP_FROM, *POINT[:3], *SPIKE[:3]}
+    for lo, hi in HOLES:
+        ks.update((lo, hi))
+    ts = {(-1.0 + 2.0 * i / SEGMENTS) for i in range(SEGMENTS + 1)}
+    for k in ks:
+        ts.update((k, -k))
+    return sorted(ts)
 
 
 def build_mesh(path, texture_file):
-    # MeshBuilder.place() maps (east, north, height) through whichever up-axis
-    # the model wants, which is the right helper for something sitting on the
-    # ground and the wrong one here: a blade has no "north". Going through it
-    # authored the crescent lying flat with its thickness pointing at the sky,
-    # which the preview caught immediately and no amount of reading the source
-    # would have. So the vertices are written in the model's own axes, named:
-    #
-    #   X  across   tip to tip
-    #   Y  depth    the height of the crescent -- Y is up for weapon meshes
-    #   Z  thick    the flat of the blade
-    #
-    # which stands the blade up in its own plane, the way it is held.
+    """The blade in the authoring frame (convex up), then turned half a turn
+    about X -- tips to +Y, the flat faces swapped -- which is a rotation, so no
+    face winds the wrong way, and scaled so tip to tip is SPAN."""
     m = MeshBuilder(TEX_W, TEX_H, up_axis=UP_AXIS)
-
-    def V(across, depth, thick):
-        return (across, depth, thick)
-
-    # Radius chosen so the chord between the two tips is SPAN.
-    radius = (SPAN / 2.0) / math.sin(ARC)
+    ts = breakpoints()
+    tip = centreline(1.0)[0]
+    k = SPAN / (2.0 * tip[0])
     half = THICK / 2.0
+    grip_mid = (TOP + TOP - BAR) / 2.0          # the hands' line: the origin
 
-    def edge(t):
-        """Outer and inner edge points, in the blade plane, at parameter t."""
-        ang = t * ARC
-        out, inn, grip = profile(t)
-        c, s = math.cos(ang), math.sin(ang)
-        # x runs tip to tip, y is the depth of the crescent. Centred so the
-        # middle grip sits on the origin, which is where the hand goes.
-        cx, cy = radius * s, radius * c - radius
-        return ((cx + out * s, cy + out * c),
-                (cx - inn * s, cy - inn * c), grip)
+    def P(t, n, z):
+        (cx, cy), _, (nx, ny) = centreline(t)
+        x, y = cx + nx * n, cy + ny * n - grip_mid
+        return (x * k, -y * k, -z)
 
-    ts = [(-1.0 + 2.0 * i / SEGMENTS) for i in range(SEGMENTS + 1)]
-    pts = [edge(t) for t in ts]
+    def N(t, n_sign=0.0, along=0.0, z=0.0):
+        _, (tx, ty), (nx, ny) = centreline(t)
+        v = (nx * n_sign + tx * along, ny * n_sign + ty * along)
+        return (v[0], -v[1], -z)
 
-    for i in range(SEGMENTS):
-        (o0, i0, g0), (o1, i1, g1) = pts[i], pts[i + 1]
-        region = R_GRIP if (g0 and g1) else R_BLADE
-        fu0, fu1 = (i / float(SEGMENTS)), ((i + 1) / float(SEGMENTS))
+    def face(pts, uvs, normal):
+        """Four points and their texel uvs; wound the way the rest of this
+        mod's meshes are (cross of the first two edges against the normal)."""
+        a, b, c = pts[0], pts[1], pts[2]
+        e1 = [b[i] - a[i] for i in range(3)]
+        e2 = [c[i] - a[i] for i in range(3)]
+        cr = (e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2],
+              e1[0] * e2[1] - e1[1] * e2[0])
+        if sum(cr[i] * normal[i] for i in range(3)) > 0:
+            pts, uvs = pts[::-1], uvs[::-1]
+        whole = (0, 0, TEX_W, TEX_H)
+        fr = [(u / TEX_W, v / TEX_H) for u, v in uvs]
+        m.tri(pts[0], pts[1], pts[2], whole, normal, (fr[0], fr[1], fr[2]))
+        m.tri(pts[0], pts[2], pts[3], whole, normal, (fr[0], fr[2], fr[3]))
 
-        # Front and back faces. Wound opposite ways so both are outward-facing;
-        # MeshBuilder.quad maps its four points to fixed texture corners, so
-        # the normal is passed explicitly rather than inferred from winding --
-        # reversing the points to turn a face around also turns its artwork
-        # over, which is what put the shuttle's registry on upside down.
-        m.quad(V(o0[0], o0[1], half), V(o1[0], o1[1], half),
-               V(i1[0], i1[1], half), V(i0[0], i0[1], half),
-               region, V(0, 0, 1))
-        m.quad(V(i0[0], i0[1], -half), V(i1[0], i1[1], -half),
-               V(o1[0], o1[1], -half), V(o0[0], o0[1], -half),
-               region, V(0, 0, -1))
+    def u_of(t):
+        return 2.0 + 124.0 * (t + 1.0) / 2.0
 
-        # The cutting edge and the held edge, as rims of THICK depth.
-        ox, oy = o1[0] - o0[0], o1[1] - o0[1]
-        ln = math.hypot(ox, oy) or 1.0
-        nrm = V(oy / ln, -ox / ln, 0)
-        m.quad(V(o0[0], o0[1], -half), V(o1[0], o1[1], -half),
-               V(o1[0], o1[1], half), V(o0[0], o0[1], half), R_RIM, nrm)
-        ix, iy = i1[0] - i0[0], i1[1] - i0[1]
-        ln = math.hypot(ix, iy) or 1.0
-        nrm = V(-iy / ln, ix / ln, 0)
-        m.quad(V(i0[0], i0[1], half), V(i1[0], i1[1], half),
-               V(i1[0], i1[1], -half), V(i0[0], i0[1], -half),
-               R_RIM if not (g0 and g1) else R_GRIP, nrm)
+    def band(t0, t1, lo0, hi0, lo1, hi1, region, lit_low):
+        """Front and back faces of one band between two samples."""
+        x0, y0, x1, y1 = region
+        vlo, vhi = (y0 + 1, y1 - 1) if lit_low else (y1 - 1, y0 + 1)
+        u0, u1 = u_of(t0), u_of(t1)
+        for z, nz in ((half, 1.0), (-half, -1.0)):
+            face([P(t0, lo0, z), P(t1, lo1, z), P(t1, hi1, z), P(t0, hi0, z)],
+                 [(u0, vlo), (u1, vlo), (u1, vhi), (u0, vhi)], N(0.0, z=nz))
+
+    def rim(t0, t1, n0, n1, outward, region):
+        """The edge along the arc at offset n, facing +n (outward=1) or -n."""
+        x0, y0, x1, y1 = region
+        u0, u1, vm = u_of(t0), u_of(t1), (y0 + y1) / 2.0
+        tm = (t0 + t1) / 2.0
+        face([P(t0, n0, -half), P(t1, n1, -half), P(t1, n1, half), P(t0, n0, half)],
+             [(u0, vm - 3), (u1, vm - 3), (u1, vm + 3), (u0, vm + 3)],
+             N(tm, n_sign=outward))
+
+    def cap(t, lo, hi, along):
+        """The end wall of a hole, across the arc at t, facing along +-t."""
+        x0, y0, x1, y1 = R_DARK
+        u, vm = u_of(t), (y0 + y1) / 2.0
+        face([P(t, lo, -half), P(t, hi, -half), P(t, hi, half), P(t, lo, half)],
+             [(u, vm - 4), (u, vm + 4), (u + 2, vm + 4), (u + 2, vm - 4)],
+             N(t, along=along))
+
+    hole_hi = TOP - BAR
+    for t0, t1 in zip(ts, ts[1:]):
+        a0, a1, am = abs(t0), abs(t1), abs((t0 + t1) / 2.0)
+        lo0, lo1, hi0, hi1 = low(a0), low(a1), top(a0), top(a1)
+        if am < GRIP_END:
+            hole = in_hole(am)
+            band(t0, t1, lo0, HOLE_LO, lo1, HOLE_LO, R_BLADE, True)
+            band(t0, t1, hole_hi, hi0, hole_hi, hi1, R_GRIP, True)
+            if hole:
+                rim(t0, t1, HOLE_LO, HOLE_LO, 1.0, R_DARK)
+                rim(t0, t1, hole_hi, hole_hi, -1.0, R_DARK)
+            else:                    # a strut: steel between the bar and blade
+                band(t0, t1, HOLE_LO, hole_hi, HOLE_LO, hole_hi, R_BLADE, False)
+            rim(t0, t1, hi0, hi1, 1.0, R_GRIP)
+        else:
+            band(t0, t1, lo0, hi0, lo1, hi1, R_BLADE, True)
+            rim(t0, t1, hi0, hi1, 1.0, R_RIM)
+        rim(t0, t1, lo0, lo1, -1.0, R_RIM)
+
+    # The end walls of the holes, wherever a hole meets a strut.
+    for t in ts:
+        a = abs(t)
+        if a >= GRIP_END:
+            continue
+        for lo, hi in HOLES:
+            for edge, into in ((lo, 1.0), (hi, -1.0)):
+                if lo == 0.0 and edge == 0.0:
+                    continue        # the middle hole runs straight through 0
+                if abs(a - edge) < 1e-9:
+                    s = 1.0 if t >= 0 else -1.0
+                    cap(t, HOLE_LO, hole_hi, into * s)
 
     nv, nf = m.emit(path, "TREKBatleth", texture_file)
-
-    # The number that actually matters is not SPAN but the bounding box the
-    # engine sees: the arc bulges past its own chord, and it was that gap
-    # (0.46 asked for, 0.531 drawn) that made the blade read oversized while
-    # the constant said it was in vanilla's bracket. Report it, and compare it
-    # with the widest weapon vanilla ships.
-    xs = [p for (o, i, _) in pts for p in (o[0], i[0])]
-    ys = [p for (o, i, _) in pts for p in (o[1], i[1])]
+    xs = [v[0] for v in m.verts]
+    ys = [v[1] for v in m.verts]
     bbox = (max(xs) - min(xs), max(ys) - min(ys), THICK)
-    return nv, nf, radius, bbox
+    return nv, nf, (min(ys), max(ys)), bbox
 
 
 def build_icon(mesh_path, tex_path, out, render_size=512, icon=32, margin=0.10,
@@ -290,6 +393,11 @@ def build_icon(mesh_path, tex_path, out, render_size=512, icon=32, margin=0.10,
     # are all drawn on the diagonal for the same reason. This is a rotation of
     # the finished render, not of the model -- the mesh is what goes in the
     # hand and it must stay level.
+    #
+    # Turned over first: the mesh has its tips on +Y, away from the hand, which
+    # renders them pointing up; a bat'leth is shown the way it hangs on a
+    # wall, back up and tips down.
+    src = src.rotate(180)
     if tilt:
         src = src.rotate(tilt, resample=PILImage.BICUBIC, expand=True)
 
@@ -306,6 +414,109 @@ def build_icon(mesh_path, tex_path, out, render_size=512, icon=32, margin=0.10,
           f"px of drawn content)")
 
 
+def rotate_xyz(p, rot):
+    """JOML's rotateXYZ, as makeAttachmentTransform applies it: Rx Ry Rz."""
+    x, y, z = p
+    ax, ay, az = (math.radians(a) for a in rot)
+    x, y = x * math.cos(az) - y * math.sin(az), x * math.sin(az) + y * math.cos(az)
+    x, z = x * math.cos(ay) + z * math.sin(ay), -x * math.sin(ay) + z * math.cos(ay)
+    y, z = y * math.cos(ax) - z * math.sin(ax), y * math.sin(ax) + z * math.cos(ax)
+    return (x, y, z)
+
+
+def write_model_block(script, y_lo, y_hi):
+    """Writes TrekBatlethModel into trekweapons.txt with its back attachments.
+
+    An item's own attachment is applied as T(offset) * rotateXYZ(rotate) to
+    the mesh, so the offset that puts the blade's centre at `where` is
+    `where - R(centre)`. Worked out here from the mesh just built, because a
+    number typed into the script would be right only until the next change of
+    shape moved the centre."""
+    centre = (0.0, (y_lo + y_hi) / 2.0, 0.0)
+    lines = ["    model TrekBatlethModel", "    {",
+             "        mesh = weapons/2handed/TREK_Batleth,",
+             "        texture = weapons/2handed/TREK_Batleth,"]
+    for name, rot, where in BACK_MOUNTS:
+        c = rotate_xyz(centre, rot)
+        off = tuple(round(w - ci, 4) + 0.0 for w, ci in zip(where, c))
+        lines += [f"        attachment {name}", "        {",
+                  "            offset = %s %s %s," % off,
+                  "            rotate = %s %s %s," % rot, "        }"]
+    lines.append("    }")
+    raw = open(script, "rb").read().decode("utf-8")
+    nl = "\r\n" if "\r\n" in raw else "\n"
+    pat = re.compile(r"    model TrekBatlethModel\r?\n    \{.*?\r?\n    \}", re.S)
+    if len(pat.findall(raw)) != 1:
+        raise SystemExit(f"  FAILED: TrekBatlethModel not found once in {script}")
+    new = pat.sub(lambda _: nl.join(lines), raw)
+    open(script, "wb").write(new.encode("utf-8"))
+    print(f"  script  {script} (TrekBatlethModel, "
+          f"{', '.join(n for n, _, _ in BACK_MOUNTS)})")
+
+
+def character_attachments(names, body="MaleBody"):
+    """(offset, rotate) of each named attachment on vanilla's body model."""
+    from figure_render import PZ
+    src = open(os.path.join(PZ, "scripts", "generated", "models_characters.txt")).read()
+    block = re.search(r"model %s\s*\{(.*?)\n    \}" % body, src, re.S).group(1)
+    out = {}
+    for name in names:
+        m = re.search(r"attachment %s\s*\{(.*?)\}" % name, block, re.S).group(1)
+        num = lambda key: tuple(float(v) for v in
+                                re.search(key + r"\s*=\s*([-\d. ]+),", m).group(1).split())
+        out[name] = (num("offset"), num("rotate"))
+    return out
+
+
+def render_worn(mesh, tex, script, out):
+    """The sheet the back mounts were judged on: the blade on each back slot
+    and in the two-handed idle, drawn by the engine's rule from the numbers
+    now in the script -- bone x the body's attachment x the blade's own, each
+    T(offset) * rotateXYZ(rotate) -- on the male body, with the pack for the
+    pack's slot. Written every run, so it cannot go stale."""
+    from PIL import Image as PILImage
+    from figure_render import PZ, Pose, Figure, render
+    from preview_model import parse_x
+
+    def att(p, o_r):
+        o, r = o_r
+        return tuple(a + b for a, b in zip(rotate_xyz(p, r), o))
+
+    text = open(script).read()
+    block = re.search(r"model TrekBatlethModel\s*\{(.*?)\n    \}", text, re.S).group(1)
+    own = {}
+    for name, _, _ in BACK_MOUNTS:
+        m = re.search(r"attachment %s\s*\{(.*?)\}" % name, block, re.S).group(1)
+        num = lambda key: tuple(float(v) for v in
+                                re.search(key + r"\s*=\s*([-\d. ]+),", m).group(1).split())
+        own[name] = (num("offset"), num("rotate"))
+    body = character_attachments(own)
+    verts, faces, uvs = parse_x(mesh)
+    skin = os.path.join(PZ, "textures", "Body", "MaleBody01.png")
+    pack = (os.path.join(PZ, "models_X", "Skinned", "Backpacks", "M_HikingBag.X"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(tex))),
+                         "clothes", "trek", "backpack.png"))
+    rows = []
+    for name in own:
+        fig = Figure(Pose("M", "Bob_Idle.X"))
+        fig.body(skin)
+        if "bag" in name:
+            fig.garment(*pack)
+        placed = [att(att(v, own[name]), body[name]) for v in verts]
+        fig.static(placed, faces, uvs, tex, "Bip01_BackPack")
+        rows.append([render(fig, size=240, yaw=y, pitch=30, ss=2) for y in (180, 135, 90, 45)])
+    fig = Figure(Pose("M", "Bob_IdleBat.X"))
+    fig.body(skin)
+    fig.static(verts, faces, uvs, tex, "Bip01_Prop2")
+    rows.append([render(fig, size=240, yaw=y, pitch=30, ss=2) for y in (0, 45, 90, -45)])
+    sheet = PILImage.new("RGB", (240 * 4, 240 * len(rows)))
+    for j, row in enumerate(rows):
+        for i, tile in enumerate(row):
+            sheet.paste(tile, (i * 240, j * 240))
+    sheet.save(out)
+    print(f"  worn    {out} (rows: {', '.join(own)}, in hand)")
+
+
 if __name__ == "__main__":
     root = sys.argv[1] if len(sys.argv) > 1 else "TrekShuttle/42"
     mesh_dir = os.path.join(root, "media", "models_X", "weapons", "2handed")
@@ -316,13 +527,17 @@ if __name__ == "__main__":
     tex = os.path.join(tex_dir, "TREK_Batleth.png")
     mesh = os.path.join(mesh_dir, "TREK_Batleth.x")
     build_texture(tex)
-    nv, nf, radius, bbox = build_mesh(mesh, "TREK_Batleth.png")
-    print(f"bat'leth: {nv} verts, {nf} faces, span {SPAN} m, arc radius "
-          f"{radius:.3f} m")
+    nv, nf, (y_lo, y_hi), bbox = build_mesh(mesh, "TREK_Batleth.png")
+    print(f"bat'leth: {nv} verts, {nf} faces, span {SPAN} m, "
+          f"y {y_lo:.3f} (back point) to {y_hi:.3f} (tips) from the grip")
     print(f"  bbox    {bbox[0]:.3f} across x {bbox[1]:.3f} deep x "
           f"{bbox[2]:.3f} thick  (vanilla's widest weapon mesh is the canoe "
           f"paddle at 0.123 across; a machete is 0.335 long)")
     print(f"  mesh    {mesh}")
     print(f"  texture {tex}")
+    write_model_block(os.path.join(root, "media", "scripts", "trekweapons.txt"),
+                      y_lo, y_hi)
     build_icon(mesh, tex,
                os.path.join(root, "media", "textures", "Item_TREK_Batleth.png"))
+    render_worn(mesh, tex, os.path.join(root, "media", "scripts", "trekweapons.txt"),
+                os.path.join("design", "art", "weapons", "batleth_worn.png"))

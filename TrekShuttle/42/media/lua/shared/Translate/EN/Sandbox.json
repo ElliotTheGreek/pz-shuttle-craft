@@ -79,5 +79,16 @@
     "Sandbox_TrekShuttle.AdirondackRescues_option1": "1",
     "Sandbox_TrekShuttle.AdirondackRescues_option2": "2",
     "Sandbox_TrekShuttle.AdirondackRescues_option3": "3",
-    "Sandbox_TrekShuttle.AdirondackRescues_option4": "5"
+    "Sandbox_TrekShuttle.AdirondackRescues_option4": "5",
+    "Sandbox_TrekShuttle.Raids": "Raids",
+    "Sandbox_TrekShuttle.Raids_tooltip": "How often Captain Titus asks for help when the transporter's pattern buffer overflows. A request comes only to players the Adirondack can beam aboard, and lasts five hours; accepting beams you to the fight and home again after. Frequent brings the first request an hour after a player is cleared.",
+    "Sandbox_TrekShuttle.Raids_option1": "Off",
+    "Sandbox_TrekShuttle.Raids_option2": "Rare",
+    "Sandbox_TrekShuttle.Raids_option3": "Normal",
+    "Sandbox_TrekShuttle.Raids_option4": "Frequent",
+    "Sandbox_TrekShuttle.RaidSize": "Raid size",
+    "Sandbox_TrekShuttle.RaidSize_tooltip": "How many of the dead a raid's pattern buffer holds.",
+    "Sandbox_TrekShuttle.RaidSize_option1": "Small",
+    "Sandbox_TrekShuttle.RaidSize_option2": "Normal",
+    "Sandbox_TrekShuttle.RaidSize_option3": "Large"
 }

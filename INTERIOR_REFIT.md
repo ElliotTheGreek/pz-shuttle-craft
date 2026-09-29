@@ -175,7 +175,7 @@ All three are `furniture_storage_02_11` — Locker, facing W, capacity 40.
 
 | Square | Tag | `special` | `loot` | `cap` | Ends up holding |
 |---|---|---|---|---|---|
-| 3,0 | `armoury` | `phasers`, `uniforms`, `padds` | `weapons` | 8 | 4 phasers, 2 each of the 4 blades, 1 of each of the 6 uniforms, 2 PADDs |
+| 3,0 | `armoury` | `phasers`, `uniforms`, `padds`, `packs` | `weapons` | 8 | 4 phasers, 2 each of the 4 blades, 1 of each of the 6 uniforms, 2 PADDs, 1 field pack |
 | 3,1 | `provisions` | — | `food` | 27 | 27 from the 18-item food list: the dishes and the drinks |
 | 3,2 | `medical` | `medkit` | `medical` | 8 | 3 each of the 4 instruments |
 
@@ -480,7 +480,7 @@ All seven static checks pass. None of this has been seen in a game.
    the pad to every fitting: the bow row via a seat square, the galley down the
    port passage, the sick bay aft.
 2. **The three lockers.** 4 phasers, 2 of each blade, the six uniforms and
-   two PADDs at 3,0; 27 dishes and drinks at 3,1; 3 of each instrument at 3,2. `TREK_Stock()` names every
+   two PADDs and a field pack at 3,0; 27 dishes and drinks at 3,1; 3 of each instrument at 3,2. `TREK_Stock()` names every
    container and how full it is.
 3. **The five empty ones** are openable and empty — not unopenable, which is
    what a missing `container = true` looks like.

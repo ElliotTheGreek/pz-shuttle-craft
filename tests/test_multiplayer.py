@@ -629,6 +629,15 @@ def single_player():
     print(f"  wardrobe: the armoury at 3,0 holds "
           f"{len([x for x in armoury if 'Uniform' in x])} uniforms among "
           f"{len(armoury)} items")
+    # The field pack: exactly the issue, in the armoury. Counted rather than
+    # merely present, so a rule that stocks it twice (or a loot list that grew
+    # it) is caught as well as one that forgot it.
+    pack = rt.eval("TREK.Config.PackItem")
+    packs = [x for x in armoury if x == pack]
+    check(pack == "TrekShuttle.TrekBackpack" and
+          len(packs) == rt.eval("TREK.Config.PackIssue") == 1,
+          f"single player: the armoury at 3,0 holds {len(packs)} of {pack}, "
+          f"not the one field pack (special = \"packs\")")
     # Starfleet issue only. Five of the cabin's containers are the player's own
     # shelves and start empty, so at build time everything aboard is ours; a
     # vanilla id in here means a ship list grew one back.
@@ -15902,6 +15911,374 @@ def access_multiplayer():
           "players, and the lift only for the screened")
 
 
+def raid_zeds(rt, raid_id, alive_only=True):
+    """The raid's own dead in this runtime: (count, list of (x, y))."""
+    got = rt.eval(f"""(function()
+        local out = {{}}
+        for _, z in ipairs(SIM.zombies) do
+            if z.modData and z.modData[TREK.Config.RaidZedKey] == "{raid_id}"
+               and (not {str(alive_only).lower()} or not z.dead) then
+                table.insert(out, math.floor(z.x) .. "," .. math.floor(z.y))
+            end
+        end
+        return table.concat(out, ";")
+    end)()""")
+    pts = [tuple(int(v) for v in s.split(",")) for s in str(got or "").split(";") if s]
+    return len(pts), pts
+
+
+def raid_kill_all(rt, raid_id):
+    rt.run(f"""for _, z in ipairs(SIM.zombies) do
+        if z.modData and z.modData[TREK.Config.RaidZedKey] == "{raid_id}" then z.dead = true end
+    end""")
+
+
+def raid_wave(net, rt):
+    """One wave's worth of real time, and the fast clock."""
+    net.clock += int(rt.eval("TREK.Config.RaidWaveMs")) + 16
+    rt.run("TREK.RaidsServer.serviceRaid()")
+    net.pump(2)
+
+
+def raid_request(rt, net):
+    """A request, made now. Returns its id."""
+    rt.run("""local d = TREK.Raids.store(); d.request, d.raid = nil, nil
+              d.nextAt = SIM.worldAgeHours; TREK.RaidsServer.serviceSchedule()""")
+    net.pump(4)
+    return rt.eval("TREK.Raids.request() and TREK.Raids.request().id")
+
+
+def raid_on(rt, x, y, z, sprite):
+    return rt.eval(f"""(function()
+        local sq = SIM.peekSquare({x}, {y}, {z})
+        if not sq then return false end
+        for _, o in ipairs(sq.objects) do
+            if o.spriteName == "{sprite}" then return o.modData and o.modData.TREK or "untagged" end
+        end
+        return false
+    end)()""")
+
+
+def raids():
+    """Raids (RAIDS.md), the outpost: a request only for a cleared crew, its
+    warnings, lapse and decline; accepting beams the player to a camp built
+    on wild ground once they have loaded it; waves from its pad at their
+    size, pace and cap; the win, paid once, and the loot window; home to the
+    cabin they left; the pad and machines taken away and the tents and crates
+    left; a raid abandoned, and one retreated from."""
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 2000.5, 2000.5, 0); SandboxVars.TrekShuttle.Raids = 4")
+    net.start()
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    store = lambda f: rt.eval(f"TREK.Raids.store().{f}")
+
+    # --- not before clearance --------------------------------------------------
+    rt.run("SandboxVars.TrekShuttle.AdirondackAccess = 1")
+    rt.run("TREK.RaidsServer.serviceSchedule()")
+    check(store("nextAt") is None, "raids: a request was scheduled for a crew she cannot lock onto")
+    rt.run("SandboxVars.TrekShuttle.AdirondackAccess = 2")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(rt, "raids, beaming up"):
+        return
+
+    # --- scheduled, then made --------------------------------------------------
+    rt.run("TREK.RaidsServer.serviceSchedule()")
+    due = store("nextAt")
+    check(due is not None and abs(float(due) - float(rt.eval("SIM.worldAgeHours")) - 1) < 1e-6,
+          f"raids: Frequent's first request is due at {due}, not an hour after clearance")
+    rt.run("TREK.RaidsServer.serviceSchedule()")
+    check(rt.eval("TREK.Raids.request() == nil") is True, "raids: a request came before it was due")
+    rt.run("SIM.advanceHours(1); TREK.RaidsServer.serviceSchedule()")
+    net.pump(4)
+    req = rt.eval("TREK.Raids.request()")
+    check(req is not None, "raids: no request came when it was due")
+    if req is None:
+        return
+    tx, ty = int(rt.eval("TREK.Raids.request().tx")), int(rt.eval("TREK.Raids.request().ty"))
+    gap = ((tx - 2000) ** 2 + (ty - 2000) ** 2) ** 0.5
+    check(int(C("OutpostMinDistance")) - 2 <= gap <= int(C("OutpostMaxDistance")) + 2,
+          f"raids: the outpost is {gap:.0f} squares from the crew")
+    check(any("IGUI_TREK_RaidCallNote" in n for n in rt.notes()), "raids: a request came in and nobody was told")
+    check(rt.eval("TREK.RaidsUI.window ~= nil") is True, "raids: the Captain's request panel did not open")
+    first = str(rt.eval("TREK.Raids.request().id"))
+    rt.run("TREK.RaidsServer.serviceSchedule()")
+    check(str(rt.eval("TREK.Raids.request().id")) == first, "raids: a second request replaced the first")
+
+    # --- warned, and lapsed ------------------------------------------------------
+    rt.run("TREK.Raids.request().lapseAt = SIM.worldAgeHours + 0.5; TREK.RaidsServer.serviceSchedule()")
+    net.pump(2)
+    check(any("IGUI_TREK_RaidWarn" in n for n in rt.notes()), "raids: nobody was warned an hour before")
+    rt.run("SIM.advanceHours(0.6); TREK.RaidsServer.serviceSchedule()")
+    net.pump(2)
+    check(rt.eval("TREK.Raids.request() == nil") is True, "raids: an unanswered request never lapsed")
+    check(any("IGUI_TREK_RaidLapsed" in n for n in rt.notes()), "raids: a request lapsed in silence")
+    check(store("nextAt") is not None and float(store("nextAt")) > float(rt.eval("SIM.worldAgeHours")),
+          "raids: a lapse scheduled nothing after it")
+
+    # --- declined by everybody who could come -----------------------------------
+    rid = raid_request(rt, net)
+    rt.run("TREK.RaidsUI.window:onDecline()")
+    net.pump(4)
+    check(rt.eval("TREK.Raids.request() == nil") is True, "raids: every cleared player declined and it stood")
+
+    # --- refused by the server for a player she cannot lock onto ----------------
+    rid = raid_request(rt, net)
+    rt.run("SandboxVars.TrekShuttle.AdirondackAccess = 1")
+    rt.run(f'TREK.Core.send({P}, "raidAccept", {{ id = "{rid}" }})')
+    net.pump(4)
+    check(any("IGUI_TREK_RaidClearance" in n for n in rt.notes()) and rt.eval("TREK.Raids.raid() == nil") is True,
+          "raids: the server let an uncleared player accept")
+    rt.run("SandboxVars.TrekShuttle.AdirondackAccess = 2")
+
+    # --- accepted: out to the outpost -------------------------------------------
+    # A wood, as the first play found it: a tree and a tuft of grass on every
+    # square round the site, which the ship may clear -- and something
+    # somebody built every six squares, which it may not, so every candidate
+    # has some and the nearest, best one (the site itself) has one under its
+    # pad. The camp has to go where its pad can stand, and clear the rest.
+    rt.run("""local r = TREK.Raids.request()
+        local R = TREK.Config.OutpostSearch + TREK.Config.OutpostClear + 6
+        for dx = -R, R do for dy = -R, R do
+            local sq = SIM.rawSquare(r.tx + dx, r.ty + dy, 0)
+            local tree = SIM.object("e_americanholly_1_3", "IsoTree"); tree.square = sq
+            local tuft = SIM.object("blends_grassoverlays_01_16"); tuft.square = sq
+            table.insert(sq.objects, tree); table.insert(sq.objects, tuft)
+            if dx % 6 == 0 and dy % 6 == 0 then
+                local fence = SIM.object("fencing_01_4"); fence.square = sq
+                table.insert(sq.objects, fence)
+            end
+        end end""")
+    rt.run("TREK.RaidsUI.open(SIM.players[1]); TREK.RaidsUI.window:onAccept()")
+    net.pump(4)
+    raid = lambda f: rt.eval(f"TREK.Raids.raid() and TREK.Raids.raid().{f}")
+    check(raid("state") == "arriving", f"raids: accepting left the raid {raid('state')!r}")
+    check(rt.eval(f"{P}:getModData()[TREK.Config.RaidReturnKey].kind") == "cabin",
+          "raids: the server did not write down that the player left from the cabin")
+    n_at_accept = int(raid("n"))
+    want_n = int((int(C("RaidBase.outpost")) + int(C("RaidPerPlayer"))) * float(rt.eval("TREK.Config.raidScale()")))
+    check(n_at_accept == want_n, f"raids: the buffer holds {n_at_accept}, not {want_n}")
+    net.pump(240)
+    check(raid("state") == "live", f"raids: the camp was never built (the raid is {raid('state')!r})")
+    if raid("state") != "live":
+        return
+    cx, cy, cz = int(raid("camp.cx")), int(raid("camp.cy")), int(raid("camp.z"))
+    tx, ty = int(raid("tx")), int(raid("ty"))
+    check(abs(cx - tx) <= int(C("OutpostSearch")) and abs(cy - ty) <= int(C("OutpostSearch")),
+          f"raids: the camp at {cx},{cy} is outside the search round {tx},{ty}")
+    for dx, dy, spr in (([0, 0, "trek_adirondack_02_148"]), ([0, 1, "trek_adirondack_02_149"]),
+                        ([-4, -3, "trek_adirondack_02_162"]), ([3, -3, "trek_adirondack_02_158"]),
+                        ([4, -3, "trek_adirondack_02_160"]), ([-4, 3, "camping_01_2"]),
+                        ([-3, 3, "camping_01_3"])):
+        check(raid_on(rt, cx + dx, cy + dy, cz, spr) == "raid",
+              f"raids: {spr} is not standing, tagged, at {dx},{dy} from the pad")
+    trees = int(rt.eval(f"""(function()
+        local n = 0
+        for dx = -TREK.Config.OutpostClear, TREK.Config.OutpostClear do
+            for dy = -TREK.Config.OutpostClear, TREK.Config.OutpostClear do
+                local sq = SIM.peekSquare({cx} + dx, {cy} + dy, {cz})
+                for _, o in ipairs(sq and sq.objects or {{}}) do
+                    if o.class == "IsoTree" then n = n + 1 end
+                end
+            end
+        end
+        return n
+    end)()"""))
+    check(trees == 0, f"raids: {trees} trees are still standing in the camp")
+    fences = int(rt.eval(f"""(function()
+        local n = 0
+        for dx = -TREK.Config.OutpostClear, TREK.Config.OutpostClear do
+            for dy = -TREK.Config.OutpostClear, TREK.Config.OutpostClear do
+                local sq = SIM.peekSquare({cx} + dx, {cy} + dy, {cz})
+                for _, o in ipairs(sq and sq.objects or {{}}) do
+                    if o.spriteName == "fencing_01_4" then n = n + 1 end
+                end
+            end
+        end
+        return n
+    end)()"""))
+    check(fences >= 1, "raids: the camp cleared something somebody built")
+    stocked = int(rt.eval(f"""(function()
+        local n = 0
+        for _, p in ipairs(TREK.Config.OutpostCrates) do
+            local sq = SIM.peekSquare({cx} + p[1], {cy} + p[2], {cz})
+            for _, o in ipairs(sq and sq.objects or {{}}) do
+                if o.container and #o.container.items > 0 then n = n + 1 end
+            end
+        end
+        return n
+    end)()"""))
+    check(stocked == 4, f"raids: {stocked} of the four crates were stocked")
+    px, py, _ = pos(rt)
+    sx, sy = cx + int(C("OutpostStand[1]")), cy + int(C("OutpostStand[2]"))
+    check(int(px) == sx and int(py) == sy, f"raids: the raider stands at {px:.0f},{py:.0f}, not {sx},{sy}")
+    check(any("IGUI_TREK_RaidArrived" in n for n in rt.notes()), "raids: the arrival said nothing")
+    check(rt.eval(f"TREK.RaidsUI.stripText({P}) ~= nil") is True, "raids: no strip on screen during the raid")
+
+    # --- the waves: size, pace, cap ---------------------------------------------
+    check(raid_zeds(rt, rid)[0] == 0, "raids: the dead came out before the raider had seen the camp")
+    raid_wave(net, rt)
+    n, pts = raid_zeds(rt, rid)
+    check(n == int(C("RaidWaveSize")), f"raids: the first wave was {n}, not {C('RaidWaveSize')}")
+    check(all(abs(x - cx) <= 1 and abs(y - cy) <= 2 for x, y in pts),
+          f"raids: the dead came out somewhere other than the pad ({pts[:3]})")
+    rt.run("TREK.RaidsServer.serviceRaid()")
+    check(raid_zeds(rt, rid)[0] == n, "raids: a second wave came before its time")
+    cap = int(C("RaidAliveCap"))
+    most = 0
+    for _ in range(6):
+        raid_wave(net, rt)
+        most = max(most, raid_zeds(rt, rid)[0])
+    check(most == cap, f"raids: {most} of the raid's own stood at once, the cap is {cap}")
+    released = 0
+    early = False
+    for _ in range(60):
+        if int(raid("released") or 0) >= n_at_accept and raid_zeds(rt, rid)[0] > 0:
+            raid_wave(net, rt)
+            early = early or raid("state") != "live"
+        raid_kill_all(rt, rid)
+        raid_wave(net, rt)
+        if raid("state") != "live":
+            break
+    check(not early, "raids: the raid was won with its dead still standing")
+    released = int(raid("released") or 0)
+    check(raid("state") == "won", f"raids: killing every one of them left the raid {raid('state')!r}")
+    check(released == n_at_accept, f"raids: {released} came out of a buffer of {n_at_accept}")
+    check(any("IGUI_TREK_RaidWonNote" in n for n in rt.notes()), "raids: a won raid said nothing")
+    check(rt.eval('TREK.Replicator.knows("Base.Antibiotics")') is True, "raids: a won raid taught no patterns")
+    check(int(rt.eval(f"{P}:getModData()[TREK.Config.RescuesKey] or 0")) == 1,
+          "raids: a won raid did not count toward rank")
+    raid_wave(net, rt)
+    check(raid("state") == "won", "raids: the loot window was cut short")
+
+    # --- home again, and the camp taken down ------------------------------------
+    net.clock += int(C("RaidLootMs"))
+    rt.run("TREK.RaidsServer.serviceRaid()")
+    net.pump(260)
+    check(at_pad(rt), f"raids: the raider was not returned to the cabin they left ({pos(rt)})")
+    check(rt.eval("TREK.Raids.raid() == nil") is True, "raids: a finished raid is still on the record")
+    check(rt.eval(f"{P}:getModData()[TREK.Config.RaidReturnKey] == nil") is True,
+          "raids: the way home was kept after it was used")
+    check(raid_on(rt, cx, cy, cz, "trek_adirondack_02_148") is False, "raids: the pad was left in the field")
+    check(raid_on(rt, cx - 4, cy - 3, cz, "trek_adirondack_02_162") is False,
+          "raids: a warp core was left in the field")
+    check(raid_on(rt, cx - 3, cy + 3, cz, "camping_01_3") == "raid", "raids: the tents went with the pad")
+    check(store("nextAt") is not None, "raids: nothing scheduled after the raid")
+
+    # --- abandoned: nobody stays, it is lost and pays nothing --------------------
+    rid = raid_request(rt, net)
+    rt.run("TREK.RaidsUI.open(SIM.players[1]); TREK.RaidsUI.window:onAccept()")
+    net.pump(240)
+    if raid("state") == "live":
+        pcx, pcy = int(raid("camp.cx")), int(raid("camp.cy"))
+        walk_to(rt, pcx + 150.5, pcy + 0.5)
+        net.pump(4)
+        rt.run("SIM.advanceHours((TREK.Config.RaidAbandonMinutes + 1) / 60); TREK.RaidsServer.serviceLimits()")
+        check(raid("state") == "lost", f"raids: a raid with nobody at it is {raid('state')!r}")
+        check(int(rt.eval(f"{P}:getModData()[TREK.Config.RescuesKey] or 0")) == 1,
+              "raids: a lost raid counted toward rank")
+        net.clock += 5000
+        rt.run("TREK.RaidsServer.serviceRaid()")
+        net.pump(260)
+        check(at_pad(rt), "raids: the raider of a lost raid was not sent home")
+    else:
+        fail(f"raids: the second raid's camp was never built ({raid('state')!r})")
+
+    # --- a retreat ------------------------------------------------------------------
+    rid = raid_request(rt, net)
+    rt.run("TREK.RaidsUI.open(SIM.players[1]); TREK.RaidsUI.window:onAccept()")
+    net.pump(240)
+    rt.run(f'TREK.Core.send({P}, "raidHome", {{}})')
+    net.pump(260)
+    check(at_pad(rt), "raids: beaming out of a raid did not bring the player home")
+    check(rt.eval("(function() local r = TREK.Raids.raid() if not r then return true end "
+                  "for _ in pairs(r.members) do return false end return true end)()") is True,
+          "raids: a raider who beamed out is still counted in it")
+
+    # --- off -----------------------------------------------------------------------
+    rid = raid_request(rt, net)
+    rt.run("SandboxVars.TrekShuttle.Raids = 1")
+    rt.run(f'TREK.Core.send({P}, "raidAccept", {{ id = "{rid}" }})')
+    net.pump(4)
+    check(any("IGUI_TREK_RaidOff" in n for n in rt.notes()) and rt.eval("TREK.Raids.raid() == nil") is True,
+          "raids: a request was accepted with raids off")
+    rt.run("SandboxVars.TrekShuttle.Raids = 4")
+    rt.run("SandboxVars.TrekShuttle.Raids = 1; local d = TREK.Raids.store(); d.raid = nil; "
+           "d.request = nil; d.nextAt = SIM.worldAgeHours; TREK.RaidsServer.serviceSchedule()")
+    check(rt.eval("TREK.Raids.request() == nil") is True, "raids: Off still asked for help")
+    rt.run(f'TREK.Core.send({P}, "move", {{ kind = "raidIn", token = 994 }})')
+    net.pump(4)
+    check(any("IGUI_TREK_WrongPlace" in n for n in rt.notes()), "raids: a player in no raid was beamed to one")
+
+    for w in rt.warnings():
+        fail(f"raids: {w}")
+    print(f"raids: a request only once a player is cleared, warned and lapsed and declined; accepted, a camp "
+          f"{gap:.0f} squares out on wild ground with its pad, machines, tents and stocked crates; waves of "
+          f"{C('RaidWaveSize')} from the pad, capped at {cap}, {n_at_accept} in all; the win paid once and a "
+          f"loot window; home to the cabin, the pad and machines gone and the tents left; lost when abandoned, "
+          f"and a retreat")
+
+
+def raids_multiplayer():
+    """A request on both machines; each raider beamed out and home to their
+    own place; one joining mid-raid; the waves on the server; no client
+    edits the world."""
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    srv.run("SIM.player('alice', 3000.5, 3000.5, 0); SIM.player('bob', 3010.5, 3000.5, 0)")
+    A.run("SIM.player('alice', 3000.5, 3000.5, 0)")
+    B.run("SIM.player('bob', 3010.5, 3000.5, 0)")
+    for rt in net.all():
+        rt.run("SandboxVars.TrekShuttle.Raids = 4")
+    net.start()
+    rid = raid_request(srv, net)
+    check(rid is not None, "raids mp: no request on the server")
+    for name, rt in (("alice", A), ("bob", B)):
+        check(any("IGUI_TREK_RaidCallNote" in n for n in rt.notes()), f"raids mp: {name} was never asked")
+        check(rt.eval("TREK.Raids.request() ~= nil") is True, f"raids mp: {name}'s client has no request")
+    A.run("TREK.RaidsUI.window:onAccept()")
+    net.pump(260)
+    raid = lambda f: srv.eval(f"TREK.Raids.raid() and TREK.Raids.raid().{f}")
+    check(raid("state") == "live", f"raids mp: alice's raid is {raid('state')!r}")
+    if raid("state") != "live":
+        return
+    cx, cy = int(raid("camp.cx")), int(raid("camp.cy"))
+    check(B.eval("select(3, TREK.Raids.offer(SIM.players[1]))") is True, "raids mp: bob is not offered the join")
+    B.run("TREK.RaidsUI.open(SIM.players[1]); TREK.RaidsUI.window:onAccept()")
+    net.pump(260)
+    for name, rt in (("alice", A), ("bob", B)):
+        x, y, _ = pos(rt)
+        check(abs(x - cx) < 6 and abs(y - cy) < 6, f"raids mp: {name} is at {x:.0f},{y:.0f}, not the camp")
+    n = int(raid("n"))
+    for _ in range(80):
+        raid_kill_all(srv, rid)
+        raid_wave(net, srv)
+        if raid("state") != "live":
+            break
+    check(raid("state") == "won", f"raids mp: the raid ended {raid('state')!r}")
+    check(int(raid("released")) == n, f"raids mp: {raid('released')} of {n} came out")
+    check(raid_zeds(A, rid, alive_only=False)[0] == 0,
+          "raids mp: a client's copy of a zombie carries the raid's tag -- only the server's should")
+    # Somebody has built on the square alice left from: she comes home beside it.
+    for rt in (srv, A):
+        rt.run("SIM.rawSquare(3000, 3000, 0).solid = true")
+    net.clock += int(srv.eval("TREK.Config.RaidLootMs"))
+    srv.run("TREK.RaidsServer.serviceRaid()")
+    net.pump(300)
+    for name, rt, hx in (("alice", A, 3000), ("bob", B, 3010)):
+        x, y, _ = pos(rt)
+        check(abs(x - hx) < 4 and abs(y - 3000) < 4, f"raids mp: {name} came home to {x:.0f},{y:.0f}")
+    ax, ay, _ = pos(A)
+    check((int(ax), int(ay)) != (3000, 3000), "raids mp: alice was put back inside something built on her square")
+    for name, rt in (("server", srv), ("alice", A), ("bob", B)):
+        for w in rt.warnings():
+            fail(f"raids mp ({name}): {w}")
+    print("raids multiplayer: the request on both machines; alice out, bob joining her, the waves on the server, "
+          "and each home to their own place")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -15917,7 +16294,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, multiplayer)
 
 
 def main():
