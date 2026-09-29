@@ -5,7 +5,7 @@ every screen that can see them: it builds up where they stand, shimmers, and
 fades where they stood once they have gone; and where they arrive it is there
 at full strength the moment they are, shimmers over them, and fades off them.
 
-**Built 2026-09-29. Not yet seen in game.** `DEV_GUIDE.md`'s *Rules that
+**Built 2026-09-29, and played the same day**: the author tested it and it passed. `DEV_GUIDE.md`'s *Rules that
 exist because they were broken* and `MULTIPLAYER.md` apply to every line.
 
 ---
@@ -181,13 +181,11 @@ The harness records beam draws apart from the phaser's sparks
 
 ## 6. Not yet seen
 
-1. **The look**, day and night, on grass and on a pale floor. Is the column
-   the right height (`C.BeamFx.height`) and opacity (`C.BeamFx.alpha`)?
-2. **The timing** against the real move: does the leaving column fade the
-   moment the character goes?
-3. **Aboard**: the arrival on the shuttle's pad while the cabin builds, and
-   the Adirondack's pad.
-4. **Two players**: the other player's columns.
+Played 2026-09-29 and passed: the look, the timing against the real move,
+and arriving aboard. Left:
+
+1. **Two players**: the other player's columns, which only a second person
+   can confirm.
 
 ## 7. Open
 

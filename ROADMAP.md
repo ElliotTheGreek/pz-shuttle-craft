@@ -29,7 +29,9 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | Photon torpedoes | `PHOTON_TORPEDOS.md` | **Played** with a mouse. Controller aim is built and has not been held |
 | Phaser: model, bolts, cutting trees and doors | `PHASERS.md` | **Played**. Holstering (2026-09-27) not yet seen |
 | The armoury: phaser rifle, Klingon, Romulan, Jem'Hadar and Cardassian arms, the Starfleet holster, the room off the bridge, the hideouts' arms | `ARMOURY.md` | **Played** 2026-09-27 ("it works well"); `ARMOURY.md` 9's checks not yet itemised. The hideouts' arms **need a new world** |
-| Blades: bat'leth, mek'leth, lirpa, ushaan-tor | `DEV_GUIDE.md` | **Played**, at the right size |
+| Blades: bat'leth, mek'leth, lirpa, ushaan-tor | `DEV_GUIDE.md` | **Played**, at the right size. The bat'leth held by one end, longer and sleeker, **played** 2026-09-29 |
+| The shoulder lamp | `ITEMS.md` | **Played** 2026-09-29 |
+| The transporter as it is seen: sparkles leaving and arriving | `BEAM.md` | **Played** 2026-09-29. Another player's columns not yet confirmed with two people |
 | Galley food and drinks | `ITEMS.md` | **Played** |
 | Interior refit (4x6 cabin, three lockers) | `INTERIOR_REFIT.md` | Built. Only the television is **played** (it plays tapes). The migration from a 6x9 save has not been seen |
 | Replicator | `REPLICATOR.md` | **Played** (loads, 4913 items, places). The fixed right-click menu and the tree panel have not been seen since |
