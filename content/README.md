@@ -1,4 +1,4 @@
-# content/ — every word the player reads in a tape or a call
+# content/: every word the player reads in a tape or a call
 
 All the writing lives here, and only here. The generators read it; no Python or
 Lua file holds a line of it.
@@ -30,7 +30,7 @@ the screen, and names the node.
 structure: voices, `codes`, `go`, `requires`, `sets`, node ids. Change those
 only on purpose, because they are the game.
 
-`notes` are the writing notes -- why a tape or a call exists, what canon it must
+`notes` are the writing notes: why a tape or a call exists, what canon it must
 respect, what it must not do. Read them before rewording anything in the file.
 They never reach the game.
 
@@ -49,7 +49,7 @@ They never reach the game.
 4. **Testimony, not narration.** Every tape is somebody talking, or a camera left
    running. Nobody explains the plot to the viewer.
 5. **Options are characterisation, not a quiz.** No option is correct. At least
-   one in every node is what a tired, frightened person actually says -- usually
+   one in every node is what a tired, frightened person actually says, usually
    shorter and ruder than the others.
 6. **Never confirm who the player is.** She believes them or she does not.
 7. **The canon is LORE.md 1a-1d.** Dates come from `gen_tapes.py`'s `NOW_YEAR`;
@@ -61,7 +61,7 @@ The lines were drafted fast and some read machine-written. The tells to take out
 
 - **Tidy triplets** ("the land, the river, the falls") and matched pairs used as
   rhythm rather than meaning.
-- **Aphorism endings** -- a line that closes a thought with a quotable moral
+- **Aphorism endings**: a line that closes a thought with a quotable moral
   ("That's the whole problem with being a historian").
 - **Announcing the feeling** instead of showing what the person does.
 - **"It's not X. It's Y."** reversals, and "that's the point" / "and that

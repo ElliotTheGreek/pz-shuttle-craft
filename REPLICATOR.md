@@ -2,7 +2,7 @@
 
 **Built. Carried into a game on 2026-09-20, three times: it loads, it
 places, and the three looks cost one real bug, a rebuilt fixture and two size
-cuts. The power behind it -- dilithium and the warp core -- is now the whole
+cuts. The power behind it (dilithium and the warp core) is now the whole
 ship's power system (`ENERGY.md`, 1.7.0), and the Adirondack has
 replicators of her own, running on her own store (`ADIRONDACK.md` 9).**
 
@@ -82,14 +82,14 @@ The pattern set is published separately, and only when it changes.
 | | |
 |---|---|
 | `shared/TREK/TREK_Replicator.lua` | the catalogue, the blocklist, the patterns, what a thing costs, where the machine stands |
-| `shared/TREK/TREK_Power.lua` | **the ship's reserve and the crystal it burns**, below the line that separates it from the device cells -- which are a different thing entirely |
+| `shared/TREK/TREK_Power.lua` | **the ship's reserve and the crystal it burns**, below the line that separates it from the device cells, which are a different thing entirely |
 | `server/TREK/TREK_Server.lua` | the three handlers, the run, `S.replicatorReport()` |
 | `server/TREK/TREK_Build.lua` | `furnishReplicator()`, which stands the machine on its square once, and `removeLegacyBerth()`, which takes out the counter it used to lean on |
 | `client/TREK/TREK_ReplicatorUI.lua` | the panel, both menus, the replies |
 | `shared/TREK/TREK_Config.lua` | every number, and the sandbox values |
-| `TREK_Config.lua` | `C.ReplicatorSpot` -- 0,5, and **no layout entry at all**: the machine owns the square |
+| `TREK_Config.lua` | `C.ReplicatorSpot`: 0,5, and **no layout entry at all**: the machine owns the square |
 | `server/Items/TrekDilithium.lua` | where crystals spawn in the world, and nothing else |
-| `client/TREK/TREK_WarpCore.lua` | the core's menu -- *Load a dilithium crystal*, *Take a crystal* -- and the replies |
+| `client/TREK/TREK_WarpCore.lua` | the core's menu (*Load a dilithium crystal*, *Take a crystal*) and the replies |
 | `shared/TREK/TREK_InteriorLayout.lua` | **no entry for 1,3 or 0,5**, and a comment at each saying why: both machines own their squares |
 | `tools/gen_warpcore.py` | the core's mesh and texture, and the renders it was judged on |
 | `client/TREK/TREK_MedKit.lua` | the tricorder's mineral pass, which is how a player finds one |
@@ -115,8 +115,8 @@ would be a list of the items somebody thought of.
 
 ### The reserve, and the crystal that fills it
 
-`TREK_Power.lua`, below the line. One number in the ship state -- `s.power`,
-0..`C.PowerMax` -- spent by everything aboard that costs power (`ENERGY.md` 3:
+`TREK_Power.lua`, below the line. One number in the ship state, `s.power`,
+0..`C.PowerMax`, spent by everything aboard that costs power (`ENERGY.md` 3:
 beams, flight, shields, the Doctor, probes, the galley). It is the *ship's*
 power rather than the replicator's, which is why it does not live in
 `TREK_Replicator.lua` and why `R.energy()` is one line that asks
@@ -124,7 +124,7 @@ power rather than the replicator's, which is why it does not live in
 
 **Nothing refills it for free.** It was twenty units every ten game minutes
 for one revision, which made the replicator a machine you *waited at* rather
-than one you fuelled -- a cooldown wearing a hat, which is the exact thing the
+than one you fuelled: a cooldown wearing a hat, which is the exact thing the
 cost model was chosen to avoid. The reserve is now one crystal, burning:
 
 | | |
@@ -132,7 +132,7 @@ cost model was chosen to avoid. The reserve is now one crystal, burning:
 | `C.DilithiumCharge` | **5000**, and `C.PowerMax` is the same number: the reserve *is* one crystal, so the most it can hold is one crystal |
 | `C.DilithiumIssue` | **3** spares aboard a new ship, issued once |
 | `C.DilithiumItem` | `TrekShuttle.TrekDilithium`; `C.DilithiumType` is the bare `TrekDilithium`, for the engine's recursive search |
-| `C.DilithiumSpot` | 1,3 -- the core's square, a constant rather than a layout tag, because **there is no fitting there**: the machine owns it |
+| `C.DilithiumSpot` | 1,3, the core's square, a constant rather than a layout tag, because **there is no fitting there**: the machine owns it |
 | `C.WarpCoreItem` | the world model that stands on it |
 | `C.CoreRange` | how close you stand to work it. The replicator's number, deliberately: two fixtures a pace apart with different reaches would read as a bug |
 | `C.CrystalScanRadius` | **20** tiles, against the lifesign sweep's 40 |
@@ -144,7 +144,7 @@ afternoon would turn every replication into a sum.
 
 **Every charge goes through one ledger** now, `TREK.Energy.energize`
 (`ENERGY.md` 3.1), which pays with `P.pay`. The replicator checks
-`P.canPay(cost)` first -- the reserve plus the spares -- and pays after, for
+`P.canPay(cost)` first (the reserve plus the spares) and pays after, for
 what actually landed. `P.pay` runs the burning crystal to zero first and takes
 only the shortfall from the next spare, so **nothing left in a crystal is
 lost** (`ENERGY.md` V1; it used to be, when the swap set the reserve to full).
@@ -152,15 +152,15 @@ It burns nothing on a client. An engineer aboard makes every charge 10%
 cheaper (`TRAITS.md` 4.4), and that discount is applied inside `P.pay`.
 
 `P.burnCrystal()` is `P.takeCrystal()` plus a full reserve, and taking one is
-now a decrement rather than a removal from a container -- the read-back that
+now a decrement rather than a removal from a container; the read-back that
 used to guard it has moved to the one place an item still changes hands, which
 is a player loading a crystal into the core. An infinite power supply is the
 failure both versions exist to stop.
 
 ### One refusal, not two
 
-`IGUI_TREK_RepNoCrystal`, with the numbers in it. There was a second one --
-"not enough in the reserve" -- for a low reserve with spares still aboard, and
+`IGUI_TREK_RepNoCrystal`, with the numbers in it. There was a second one
+("not enough in the reserve") for a low reserve with spares still aboard, and
 **it could never fire**: a fresh crystal is 5000 and the dearest thing in the
 game is 1500, so whenever a spare exists the swap covers the cost. It was
 deleted rather than kept for symmetry. If the numbers are ever tuned so one
@@ -178,7 +178,7 @@ that would have worked.
 world's loot. Twelve vanilla tables weighted 0.2 to 0.6 on vanilla's own scale
 (a diamond in `JewelryGems` is 1): a jeweller's gem case, a pawn shop, a few
 electrical shelves, a metal shop, tool crates, a garage. That list is doing
-the same job the tricorder does -- telling a player where to go -- so it is
+the same job the tricorder does (telling a player where to go), so it is
 worth keeping it somewhere a person would guess.
 
 The file deliberately does not `require` any of the mod's own code: it runs at
@@ -186,13 +186,13 @@ world generation, and a load-order dependency there would be an empty world
 with nothing said about it. It reads its own result back and logs how many
 tables it found, because a vanilla table renamed in a patch would take the
 crystal out of the world in silence. `tests/test_assets.py` checks all twelve
-names against the **installed** game -- the same check, happening before a
+names against the **installed** game: the same check, happening before a
 world is generated rather than after.
 
 ### The warp core
 
-The mod's own model standing at `C.DilithiumSpot` -- 1,3, amidships in the
-port passage -- with **no layout entry at all**, exactly like the replicator's
+The mod's own model standing at `C.DilithiumSpot` (1,3, amidships in the
+port passage) with **no layout entry at all**, exactly like the replicator's
 square. `tools/gen_warpcore.py` authors it: a dark base, a lower housing, a
 banded plasma column, an articulation collar with a lit violet window in it,
 and a capped top. The crystal in that window is the point of the shape: the
@@ -202,7 +202,7 @@ It was a vanilla Tool Cabinet for one revision. That worked, and it looked
 like a tool cabinet.
 
 **What it holds is a number, not a container**, and that is not a compromise
-to apologise for -- it is forced, and then it turns out to be better:
+to apologise for; it is forced, and then it turns out to be better:
 
 - a container in this engine comes from a **tile sprite's properties**, so a
   custom model cannot have one at all;
@@ -253,8 +253,8 @@ dilithium is the one item in the mod where losing one to that would matter.
 
 The tricorder's sweep has a second pass. It walks the squares within
 `C.CrystalScanRadius`, counts crystals lying on the ground *and* inside any
-container on the square -- which is where every crystal in the world actually
-starts -- and plots each trace as a ring with a bright middle, against **its
+container on the square (which is where every crystal in the world actually
+starts) and plots each trace as a ring with a bright middle, against **its
 own radius** rather than the lifesign one. A trace plotted against the longer
 radius reads as much nearer than it is, on the one instrument a player walks
 by.
@@ -266,7 +266,7 @@ could not see the ship's own dilithium would be a strange instrument to carry
 aboard her.
 
 **And from the air it reads downwards.** A sweep reads the deck it is standing
-on, and three levels up that deck is empty sky -- every zombie in the county is
+on, and three levels up that deck is empty sky: every zombie in the county is
 at z 0 and every crystal with them, so the honest answer from the cockpit at
 cruise was "nothing anywhere". Taken from a seat in the shuttle the sweep
 walks every level from the ground up to the ship, and the panel is titled
@@ -280,7 +280,7 @@ on a hit is one a player cannot learn to look for.
 ### What the ship already knows
 
 Every item declared in `module TrekShuttle`, seeded by `R.seedDefaults()` on
-each authority start -- not once, so an item added to the mod later is a
+each authority start, not once, so an item added to the mod later is a
 pattern in an existing save with no migration. It publishes only when
 something was new.
 
@@ -292,7 +292,7 @@ torpedo warhead, the hull, the deleted helm console, the power bus, the Doctor
 and his station, the six ensign figures), **dilithium**, which is the point of
 the whole arrangement, balso tonic for canon's sake, and every piece of
 contraband (`CONTRABAND.md`). **The engine's own filter does not catch any of
-them** -- they are not obsolete, not hidden and not in `Moveables` -- which is
+them**: they are not obsolete, not hidden and not in `Moveables`, which is
 precisely why the list exists.
 
 Add to it rather than to a filter: a server owner reading the config should
@@ -306,7 +306,7 @@ client: without that check the command is an item printer.
 
 ### Where it is in the ship
 
-`C.ReplicatorSpot` -- 0,5, the aft end of the galley. A constant rather than a
+`C.ReplicatorSpot`: 0,5, the aft end of the galley. A constant rather than a
 tag in the layout, because **there is no fitting on that square**:
 `tests/test_layout.py` fails if anything is authored onto it, if it falls
 outside the hull or onto the pad, or if there is no square beside it to work
@@ -314,8 +314,8 @@ it from.
 
 It was a steel counter for two revisions, with the model hanging over it and
 replicated items going into the counter's own container. `B.refitCabin` takes
-that counter out of a save that still has one -- it is tagged, and
-`U.clearSquare` keeps tagged things by policy, so nothing else ever would --
+that counter out of a save that still has one (it is tagged, and
+`U.clearSquare` keeps tagged things by policy, so nothing else ever would)
 and spills what was in it onto the pad.
 
 ### The machine
@@ -329,12 +329,12 @@ readout.
 `SCALE` is that dial and it has moved twice, both times because the author
 stood next to the thing in game and said it was too big: `0.86 * 0.9` now.
 There is one number rather than a set of hand-tuned dimensions so that the
-niche shrinks with the body -- a unit whose opening stayed put would end up a
+niche shrinks with the body; a unit whose opening stayed put would end up a
 letterbox.
 
 **It stands square because it is told to.** Both machines are dropped world
 models, and `IsoWorldInventoryObject`'s constructor writes
-`Rand.Next(0, 360)` into an item's yaw when nobody has set one -- right for a
+`Rand.Next(0, 360)` into an item's yaw when nobody has set one: right for a
 hammer on the floor, wrong for a machine bolted to a bulkhead. `TREK_Build`
 zeroes all three rotations on placement *and* on every later build pass, which
 is the only thing that will ever reach a crooked machine in an existing save.
@@ -342,7 +342,7 @@ The rotations are saved with the item, so the server setting them is enough
 for every client.
 
 It was a wall alcove hanging over the counter for two revisions, and that was
-wrong in both of the ways it could be. It *looked* wrong -- too tall, too
+wrong in both of the ways it could be. It *looked* wrong: too tall, too
 dark, and floating over a piece of furniture doing its work for it. And a
 model drawn above its own square **cannot be right-clicked at all**, because a
 click resolves to the floor square under the cursor: the first version could
@@ -360,7 +360,7 @@ against a 122-row catalogue with a name too long for its column.
 in, then the items in one, with Back out of it. It was a button that cycled
 one category per press, which against the seventy-eight a real game has is not
 a control at all. Each category row says how many of its items the ship has
-patterns for -- the number a player is actually looking for -- and **a toggle
+patterns for (the number a player is actually looking for), and **a toggle
 narrows the whole panel to those**, categories included: one the ship has no
 pattern in is not worth walking into, so it is not offered.
 
@@ -375,7 +375,7 @@ player concludes an item is not in the game.
 | | |
 |---|---|
 | The item is created | **Server**, on a validated `replicate` |
-| Who may use it | **Server** -- alive, the ship's `canUse`, standing at the machine |
+| Who may use it | **Server**: alive, the ship's `canUse`, standing at the machine |
 | The pattern set | **Server**, its own mod data key, shared by the crew |
 | The reserve | **Server**, ship state, one number. A client that has not been told yet reads it as *full*, so a panel opened before the first sync does not grey its own button |
 | The crystals | **Server**, ship state: one number, `s.crystals`, beside the reserve (*The warp core*, above) |
@@ -388,8 +388,8 @@ player concludes an item is not in the game.
   and the inventory a scan reads is the server's copy of it.
 - **What is made is counted.** The inventory is measured before and after
   every single item, because `instanceItem` answers nil for an obsolete item
-  that slipped the filter and a container at capacity drops what it is handed
-  -- and from the server's side both look exactly like success.
+  that slipped the filter and a container at capacity drops what it is handed,
+  and from the server's side both look exactly like success.
 - **The player is charged for what landed**, not for what they asked for.
 - **An absent sandbox option means the feature as designed**, and here that is
   the *restrictive* reading. This is the opposite way round from
@@ -416,12 +416,12 @@ it). Do not re-derive these.
 | `ISTextEntryBox:new("", x, y, w, h)` with `.onTextChange` assigned on the instance | `ISChat.lua:162,171` |
 | `instanceItem(id)` works on the server and is the only creation path this mod uses | `DEV_GUIDE.md`, *The jar is not the API* |
 | An item added to a container already in the world reaches clients with `sendAddItemToContainer` | `MULTIPLAYER.md` |
-| **A server may put an item in a player's inventory on a validated command**: `player:getInventory():AddItem(item)` then `sendAddItemToContainer(player:getInventory(), item)`. This is the engine's own idiom, not an invention -- vanilla does it a dozen times in one file | `server/ClientCommands.lua:187,206,651,699,718,914,1211` |
+| **A server may put an item in a player's inventory on a validated command**: `player:getInventory():AddItem(item)` then `sendAddItemToContainer(player:getInventory(), item)`. This is the engine's own idiom, not an invention; vanilla does it a dozen times in one file | `server/ClientCommands.lua:187,206,651,699,718,914,1211` |
 | **A right-click resolves to the floor square under the cursor**, so a model drawn above its own square cannot be clicked | seen in game, 2026-09-20; `DEV_GUIDE.md` |
-| `container:getAllTypeRecurse(type)` compares the **bare** type, which is not namespaced -- so anything counting mod items filters the results on the full id as well | the phaser's sweep, the medical set's `carried`, and `P.crystals` |
+| `container:getAllTypeRecurse(type)` compares the **bare** type, which is not namespaced, so anything counting mod items filters the results on the full id as well | the phaser's sweep, the medical set's `carried`, and `P.crystals` |
 | A distribution is added by appending an id and a weight to `ProceduralDistributions.list[name].items`, from `Events.OnPreDistributionMerge` | `server/Items/ProceduralDistributions.lua`, and every loot mod on the Workshop |
 | Vanilla's procedural tables are indented with **tabs**, one level, inside `ProceduralDistributions.list` | the installed `ProceduralDistributions.lua` |
-| A tile's container comes from its sprite properties -- `location_business_machinery_01_33` is a Tool Cabinet of capacity 20 | `tools/import_tbx_layout.py` output |
+| A tile's container comes from its sprite properties: `location_business_machinery_01_33` is a Tool Cabinet of capacity 20 | `tools/import_tbx_layout.py` output |
 | `square:getWorldObjects()` is what is lying on the ground; each answers `getItem()` | the tricorder's mineral pass |
 
 ### The call site that does not count
@@ -457,8 +457,8 @@ caught**; the first pass caught eighteen. Four of the five holes that took
 were branches nothing exercised: a client writing the crystal count (a guard
 every write in `TREK_Power` has and no test had ever asked for), the read-back
 that catches a `Remove` which did nothing, the full-pack path where a crystal
-is made and counted before the ship's number goes down, and -- the familiar
-one -- a freshly placed core's angle, masked because the check ran after a
+is made and counted before the ship's number goes down, and (the familiar
+one) a freshly placed core's angle, masked because the check ran after a
 rebuild had already straightened it. The same masking caught the replicator's
 own yaw check an hour earlier, which is the lesson: **a check that runs after
 a self-healing pass is a check of the self-healing pass.**
@@ -467,7 +467,7 @@ The fifth is the same lesson wearing a different hat, and it is the better
 story. Deleting the guard that refuses an empty-handed player broke nothing:
 the code falls through, reaches for a crystal that is not there, and **the
 read-back further down catches the damage and denies with the very same
-message**. Same note, same outcome, one stray WARN -- and a `SIM.log = {}` in
+message**. Same note, same outcome, one stray WARN, and a `SIM.log = {}` in
 a later block of the test had wiped that warning before the end-of-test sweep
 ever ran. The check now asserts, at that exact moment, that an empty-handed
 refusal is silent in the log: *a refusal is not a fault, and the difference
@@ -477,7 +477,7 @@ underneath it.*
 **Twenty-one mutations were run for the dilithium work, and the first
 pass caught eleven of twenty.** Every one of the nine misses was a hole in the
 tests rather than a mutation not worth catching, and four of them were the
-expensive kind -- a check that passed for a reason that had nothing to do with
+expensive kind: a check that passed for a reason that had nothing to do with
 what it claimed:
 
 - **the blocklist check was vacuous.** It asserted the crystal is not in the
@@ -487,13 +487,13 @@ what it claimed:
 - **the crystal count was tested against the test's own helper**, which
   re-implemented the filter it was meant to be checking. It asks
   `TREK.Power.crystals()` now, and the impostor it offers the ship is
-  another mod's `TrekDilithium` -- a wrench proves nothing, because the
+  another mod's `TrekDilithium`; a wrench proves nothing, because the
   engine's bare-type search never returns one;
 - **the harness could not tell an outline from a filled rect.** Both were
   recorded as `rect`, so the tricorder's crystal rings were invisible to the
   test: a plot that drew no traces at all passed. They are recorded apart now,
   and the trace at the edge of the mineral radius has to land on the edge of
-  the plot -- which is what catches a trace plotted against the wrong radius;
+  the plot, which is what catches a trace plotted against the wrong radius;
 - **the crystal sweep had no test at all.** The panel test injects a result
   and draws it; nothing walked the world. `replicator()` now drops a crystal
   on the floor, leaves the ship's own stocked, puts a third well out of range,
@@ -502,11 +502,11 @@ what it claimed:
 The check on the loot tables was mutated too, and found its own bug first:
 the pattern reading vanilla's file matched nothing, so all twelve perfectly
 good table names were reported missing. Both sides of that comparison have a
-sanity check now, which is the general form -- *a comparison against an empty
+sanity check now, which is the general form: *a comparison against an empty
 set is not a passing test, it is a broken one*.
 
 Before that, **nineteen mutations were checked against the replicator itself
-and all nineteen caught** -- and three of those found tests that were passing
+and all nineteen caught**, and three of those found tests that were passing
 for the wrong reason:
 
 - the quantity check was "proved" by the reserve, because 999 hammers cost
@@ -541,7 +541,7 @@ now.
   wrong method name over two thousand items is two thousand Java stack traces
   and a game that looks crashed.
 - **The panel's first open builds the catalogue.** A few thousand items, once
-  per process. If that is ever felt as a hitch, build it at load instead --
+  per process. If that is ever felt as a hitch, build it at load instead,
   but measure before believing it.
 - **A dropped world model picks its own yaw.** Both machines did, for a
   revision each. See *The machine*, above.
@@ -557,7 +557,7 @@ now.
   like a full tank*, which is the trade.
 - **The bare type is not namespaced.** `getAllTypeRecurse("TrekDilithium")`
   will happily hand you another mod's crystal. Filter on the full id, every
-  time -- the phaser and the medical set do the same.
+  time; the phaser and the medical set do the same.
 - **A new fitting is scenery in the simulation until `pz_sim.lua` is told.**
   Its container comes from a list of substrings in the sprite name, and the
   chamber's `..._machinery_...` matched none of them: the cabinet was placed,
@@ -575,12 +575,12 @@ now.
 
 - it loads, and the catalogue is **4913 items in 78 categories**, with no WARN
   anywhere and no pause worth the name;
-- **19 patterns** seed on world load -- the ship's own gear;
+- **19 patterns** seed on world load: the ship's own gear;
 - the model places and is drawn exactly where its vertices put it, which is
   the half of a world model that cannot be checked outside the game;
 - **it could not be right-clicked at all.** A click resolves to the floor
   square under the cursor, and the model was hanging over the counter, so the
-  menu -- keyed to the machine's square -- was never offered. `DEV_GUIDE.md`
+  menu (keyed to the machine's square) was never offered. `DEV_GUIDE.md`
   has it under *A right-click lands on the floor, not on the picture*;
 - and the fixture was wrong: a dark slab floating over a steel counter that
   was doing its work for it. It is a whole machine now, standing on the deck,
@@ -594,13 +594,13 @@ Still to settle, in the order worth checking:
 2. **Whether it looks like it belongs**, now that it is a full-height unit in
    the galley row rather than a box on a bench.
 3. **The tree under 78 categories.** Open one, come back, and try the
-   known-only toggle -- the root should then list only categories the ship has
+   known-only toggle; the root should then list only categories the ship has
    patterns in.
 4. **The panel under 4913 rows.** Typing should stay responsive; the filter
    walks a precomputed array, but that is reasoning until somebody types.
 5. **The warp core.** A **fresh world** is needed: both the ship's three
    spare crystals and the crystals out in the town are placed when the world
-   is made. It stands amidships in the port passage at 1,3 -- a banded blue
+   is made. It stands amidships in the port passage at 1,3: a banded blue
    column with a violet crystal lit in its collar. Right-click it: *Load a
    dilithium crystal* and *Take a crystal* should both name how many the ship
    is holding, and *Load* should be greyed until you are carrying one.
@@ -614,8 +614,8 @@ Still to settle, in the order worth checking:
    numbers.
 7. **The tricorder as a prospecting tool.** Sweep inside the ship first: the
    *Dilithium* line should read 3, from the core, which proves it reads the
-   ship's own crystals. Then sweep in a town -- an electronics store, a pawn
-   shop, a garage -- and walk to a ring on the plot.
+   ship's own crystals. Then sweep in a town (an electronics store, a pawn
+   shop, a garage) and walk to a ring on the plot.
 8. **A survey from the air.** Take her up, sit at the controls and sweep. The
    panel should be titled **Ground Survey** and the plot should fill with the
    zombies and the crystals *below* her rather than with nothing at all. On
@@ -638,7 +638,7 @@ Still to settle, in the order worth checking:
 "probably fine and **not** something to assume", and recommended measuring it
 before shipping. Measuring it was not necessary: `Ship.commit()` transmits
 the whole table on every change, and `S.serviceVehicle` commits every time the
-shuttle is driven one square -- about once a second while anybody is flying
+shuttle is driven one square, about once a second while anybody is flying
 her. Two thousand patterns would have gone down the wire with each of those.
 
 They have their own key and are transmitted only when one is learned. The
@@ -650,8 +650,8 @@ The plan recommended a pattern buffer *instead of* an energy budget, on the
 grounds that patterns limit the more interesting thing (what you can make
 rather than how fast). The author asked for both, and both is better: the
 pattern is a progression and the reserve is a budget, and neither one is a
-cooldown wearing a hat. The plan's own alternative -- "worth keeping as a
-later layer on top of patterns" -- turned out to be the design.
+cooldown wearing a hat. The plan's own alternative ("worth keeping as a
+later layer on top of patterns") turned out to be the design.
 
 ### Half a machine leaning on a counter
 
@@ -662,8 +662,8 @@ replicator should "arrive as a right-click on an object every save already
 has", which was good advice about *migration* and bad advice about what the
 thing is.
 
-The author said it twice -- remove the counter, the replicator is the whole
-thing -- and was right twice. What it cost to leave it in:
+The author said it twice (remove the counter, the replicator is the whole
+thing) and was right twice. What it cost to leave it in:
 
 - the model had to float, because a floor-standing unit would be drawn through
   the counter, and a floating model cannot be clicked;
@@ -678,10 +678,10 @@ underneath it to work is not a fixture yet.
 
 ### A model drawn above its own square cannot be clicked
 
-The alcove was finished, placed, drawn correctly -- and completely unusable. A
+The alcove was finished, placed, drawn correctly, and completely unusable. A
 right-click resolves to the floor square under the cursor; the model hangs a
 metre and a half above its own square, so aiming at the lit recess named a
-square one or two tiles north-west, and the menu -- keyed to the berth -- was
+square one or two tiles north-west, and the menu (keyed to the berth) was
 never offered.
 
 Nothing was broken, nothing was logged and every test passed, because the
@@ -697,8 +697,8 @@ real capacity, the container as the single source of truth, stocked on the
 build, read by the server. It was also, on screen, **a tool cabinet in a
 spaceship**.
 
-The obvious fix -- stand the mod's own model on the same square and keep the
-cabinet underneath for its container -- is the replicator's counter all over
+The obvious fix (stand the mod's own model on the same square and keep the
+cabinet underneath for its container) is the replicator's counter all over
 again, and the author had already said twice what he thought of that. The
 engine does not leave a third option: a container comes from a *tile sprite's*
 properties, so a custom model cannot have one.
@@ -711,8 +711,8 @@ that the forced answer was the better one:
   client's panel knows the spare count already**;
 - the read-backs that made the container safe (does the item really exist,
   did the Remove really happen) collapse into one integer with one writer;
-- and the two operations a player actually wanted -- *put a crystal in*, *take
-  one out* -- are now named options on a menu rather than a drag into a grid
+- and the two operations a player actually wanted (*put a crystal in*, *take
+  one out*) are now named options on a menu rather than a drag into a grid
   that happens to accept anything else you drop on it.
 
 The one thing genuinely lost is that you can no longer see the crystals
@@ -723,8 +723,8 @@ the option text carries the count.
 
 The power system shipped with two refusals: *not enough in the reserve* when
 spares were still aboard, and *no dilithium* when they were not. The first one
-was unreachable from the day it was written -- the swap always covers the cost
--- and nothing said so, because an unreachable branch is not a failing test,
+was unreachable from the day it was written (the swap always covers the cost),
+and nothing said so, because an unreachable branch is not a failing test,
 it is a quiet one.
 
 What found it was a mutation: deleting the branch broke nothing. That is the

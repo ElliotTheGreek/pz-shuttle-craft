@@ -5,8 +5,8 @@ Build 42 map-symbol API before committing to an implementation. Confirm
 creation, transmission, save/load, and removal semantics, and avoid
 admin/debug-only calls."*
 
-This is that research. **Sections 1-5 are the findings; section 6 is built**
--- the store, its bounds, the map view and two-client publication
+This is that research. **Sections 1-5 are the findings; section 6 is built**:
+the store, its bounds, the map view and two-client publication
 (`TREK_Probes.lua`, `TREK_MapContacts.lua`). Contacts are made by probes
 (`PROBES.md`), distress calls (`ENSIGN.md`) and clue sites (`COMMS.md` 9).
 
@@ -21,13 +21,13 @@ method exist, may Lua call it, and under what condition.
 There are **two** unrelated systems, and the one with the promising name is
 the wrong one. Map *symbols* (the pen-and-stamp annotations on the world map)
 are Lua-exposed, take world coordinates, persist, and replicate between
-players — but **the parts that make them shared and persistent are not
+players, but **the parts that make them shared and persistent are not
 reachable from Lua**. Map *markers* are Lua-exposed and simple, but transient,
 unshared, and their only vanilla Lua call site is a main-menu test branch.
 
-So the mod should **own the contacts itself** — which is what the roadmap
+So the mod should **own the contacts itself** (which is what the roadmap
 already specifies, a separate bounded mod-data store with a request/receive
-handshake — and use the engine's symbols as **presentation only**, rebuilt
+handshake) and use the engine's symbols as **presentation only**, rebuilt
 from that store whenever the map opens. That costs nothing the roadmap was not
 already paying, and it removes every dependency on an engine path this project
 cannot verify.
@@ -62,7 +62,7 @@ WorldMapClient          WorldMapServer          WorldMapSymbolNetworkInfo
 
 ---
 
-## 3. Map symbols — right shape, unreachable half
+## 3. Map symbols: right shape, unreachable half
 
 Reached as `mapUI.mapAPI:getSymbolsAPIv2()`, where `mapAPI` is
 `UIWorldMap:getAPIv3()`.
@@ -70,7 +70,7 @@ Reached as `mapUI.mapAPI:getSymbolsAPIv2()`, where `mapAPI` is
 **The good half is genuinely good:**
 
 - `addTexture(symbolId, worldX, worldY)` and `addUntranslatedText(text,
-  layerID, worldX, worldY)` — and the coordinates really are **world squares**,
+  layerID, worldX, worldY)`, and the coordinates really are **world squares**,
   the same ones the mod already speaks: `ISWorldMapSymbols.lua:131` builds them
   with `mapAPI:uiToWorldX(x, y)` before calling `addTexture`.
 - The returned symbol takes `setRGBA(r,g,b,a)` and `setAnchor(0.5, 0.5)`.
@@ -83,7 +83,7 @@ Reached as `mapUI.mapAPI:getSymbolsAPIv2()`, where `mapAPI` is
       "media/ui/LootableMaps/map_arroweast.png", "Locations")
   ```
   so a Starfleet contact glyph is one line in a file of our own.
-- The call sites are **ordinary player UI** — `ISWorldMapSymbols.lua` is the
+- The call sites are **ordinary player UI**: `ISWorldMapSymbols.lua` is the
   symbol palette the player uses with the map open, not anything under
   `DebugUIs/` or an editor. That is the provenance check that mattered.
 
@@ -91,9 +91,9 @@ Reached as `mapUI.mapAPI:getSymbolsAPIv2()`, where `mapAPI` is
 
 | Wanted | Method | Reachable from Lua? |
 |---|---|---|
-| make it shared | `sendShareSymbol(symbol, WorldMapSymbolNetworkInfo)` | **no** — the second argument's class is not exposed, and **no vanilla Lua calls it at all** |
-| who can see it | `setVisibleToEveryone` / `ToFaction` / `ToSafehouse` / `addPlayer` | **no** — all on `WorldMapSymbolNetworkInfo` |
-| server persistence | `WorldMapServer.writeSavefile()` → `servermap_symbols.bin` | **no** — `WorldMapServer` is not exposed |
+| make it shared | `sendShareSymbol(symbol, WorldMapSymbolNetworkInfo)` | **no**: the second argument's class is not exposed, and **no vanilla Lua calls it at all** |
+| who can see it | `setVisibleToEveryone` / `ToFaction` / `ToSafehouse` / `addPlayer` | **no**: all on `WorldMapSymbolNetworkInfo` |
+| server persistence | `WorldMapServer.writeSavefile()` → `servermap_symbols.bin` | **no**: `WorldMapServer` is not exposed |
 
 `sendModifySymbol` *is* called from ordinary Lua
 (`ISWorldMapSymbols.lua:449`), but it only pushes a change to a symbol that is
@@ -102,36 +102,36 @@ already shared; it cannot make one.
 So the engine has a complete shared-annotation system and **Lua is given the
 drawing end of it and not the sharing end.** Building the mod's contacts on
 `sendShareSymbol` would mean calling a method with no vanilla Lua call site,
-taking an argument Lua cannot construct — which is precisely the shape
+taking an argument Lua cannot construct, which is precisely the shape
 `DEV_GUIDE.md` spends three sections warning about.
 
 ---
 
-## 4. Map markers — wrong tool
+## 4. Map markers: wrong tool
 
 `mapAPI:getMarkersAPI():addGridSquareMarker(x, y, z, r, g, b, a)`, returning
 something with `setBlink(boolean)` and `setMinScreenRadius(int)`.
 
-Attractive — a blinking circle of a chosen screen radius is close to the
+Attractive: a blinking circle of a chosen screen radius is close to the
 "search circle" the roadmap asks for. But:
 
 - **No save or load at all.** The class has `clear()` and nothing else; markers
   are per-`UIWorldMap` and die with the UI.
 - **No networking.** Nothing in `zombie.worldMap.network` touches them.
 - **Its only vanilla Lua call site is a test branch.** `ISWorldMap.lua:1457`
-  sits in the `else` of `if MainScreen.instance.inGame then` — under a comment
+  sits in the `else` of `if MainScreen.instance.inGame then`, under a comment
   reading `-- TEST in main menu`. That is the `AdminPanel/` shape one more
   time: real, reachable, and not evidence that anybody ships it.
 
-Useful later as a *transient* highlight — "show me where this contact is" from
-the probe console — and not as the contact record.
+Useful later as a *transient* highlight ("show me where this contact is" from
+the probe console) and not as the contact record.
 
 ---
 
-## 5. World markers — the tricorder's half
+## 5. World markers: the tricorder's half
 
 `getWorldMarkers()` is a global, `zombie.iso.WorldMarkers` is exposed, and the
-**Tutorial** uses it (`client/Tutorial/Steps.lua:55`) — ordinary shipped code,
+**Tutorial** uses it (`client/Tutorial/Steps.lua:55`), ordinary shipped code,
 the same provenance that made `ignoreAutoVault` safe.
 
 ```
@@ -142,7 +142,7 @@ removeAllHomingPoints(player)
 
 Per-player, client-side, transient, on the ground rather than on the map. That
 is a very good match for the roadmap's *"Long-range systems locate the region;
-the tricorder locates the person"* — and it needs no persistence, because the
+the tricorder locates the person"*, and it needs no persistence, because the
 mod owns the contact.
 
 ---
@@ -154,7 +154,7 @@ mod owns the contact.
 1. **The store.** Contacts live in their own bounded mod-data key with a
    request/receive handshake, exactly as the old ROADMAP2 *Separate bounded
    stores* specifies and exactly as `C.PatternKey` already works. The server
-   owns it, commits it, and transmits it when it changes — never inside the
+   owns it, commits it, and transmits it when it changes, never inside the
    ship table, which is published whole on every move.
 2. **The map.** When the world map opens, the mod walks its own contact list
    and calls `addTexture(...)` once per contact; when it closes, it removes
@@ -166,13 +166,13 @@ mod owns the contact.
    player's own saved annotations.
 4. **The close-range half** is `getWorldMarkers():addPlayerHomingPoint(...)`
    from the tricorder, removed when the contact is resolved.
-5. **Focus** is `ISWorldMap.ShowWorldMap(playerNum, centerX, centerY, zoom)` —
+5. **Focus** is `ISWorldMap.ShowWorldMap(playerNum, centerX, centerY, zoom)`:
    the signature already takes a centre, which is the roadmap's *map focus*
    control for nothing.
 
 Why this is better than the alternative rather than merely safer:
 
-- The mod needs a contact **record** anyway — id, type, status, discovery
+- The mod needs a contact **record** anyway: id, type, status, discovery
   time, mission id. An engine symbol cannot hold any of that, so the store
   exists in either design; building on symbols would mean keeping two copies
   in step.
@@ -185,8 +185,8 @@ Why this is better than the alternative rather than merely safer:
 
 ### Uncertainty, honestly
 
-The roadmap asks that a broad probe result "show uncertainty honestly — such
-as a search circle or corridor — rather than pretending to identify the exact
+The roadmap asks that a broad probe result "show uncertainty honestly, such
+as a search circle or corridor, rather than pretending to identify the exact
 cupboard." Symbols are point glyphs, so the options are: several symbols laid
 out around the contact to suggest an area; one symbol plus a text label giving
 a radius; or a transient `addGridSquareMarker` with `setMinScreenRadius` when
@@ -198,8 +198,8 @@ with a picture rather than in advance.
 
 ## 7. Seen in game, and still unverified
 
-**Seen:** a mod-added symbol draws, at the right square -- the downed ensign's
-personnel mark, with the ground uncovered round it (`ENSIGN.md` 9) -- so
+**Seen:** a mod-added symbol draws, at the right square: the downed ensign's
+personnel mark, with the ground uncovered round it (`ENSIGN.md` 9). So
 `MapSymbolDefinitions:addTexture` from the mod's own `shared/Definitions/` file
 is picked up. **And one failure found in play**: a mod symbol *category* with
 fewer than nine symbols makes opening the world map throw inside vanilla. The
@@ -221,11 +221,11 @@ or `WorldMapServer`. Contacts are the mod's own data. Map symbols and world
 markers are presentation, rebuilt from it.
 
 **Also settled, by the author, 2026-09-23:** probes get their own console
-rather than a page on the helm -- and then, the same day, that the console is
+rather than a page on the helm, and then, the same day, that the console is
 a **right-click submenu** rather than a fitting. A fitting would have cost one
 of twenty-four deck squares and a BuildingEd change; *Shuttlecraft ->
 Long-range sensors* costs neither and reaches the player in the same two
 clicks the helm does. Built: see `PROBES.md`.
 
 **Not settled:** how a corridor or a search circle should read on the map. See
-§6, *Uncertainty, honestly* — that one wants a render and a look.
+§6, *Uncertainty, honestly*; that one wants a render and a look.

@@ -30,8 +30,8 @@ changed, the other side reads the diff.
 | Piece | Made by | File | Tweaked by |
 |---|---|---|---|
 | Surface art (carpet, deck, bulkhead, door, panel, viewport) | Gemini via FlowDot, vetted | `design/art/adirondack/*_raw.jpg` | the author: veto and redirect |
-| Iso tiles, cut to the game's exact geometry | `tools/gen_adirondack_tiles.py` | `design/tiles/2x/trek_adirondack_01.png` | nobody by hand -- change the generator |
-| The editor's view of the tileset | `tools/install_tilezed.py` | the tools' `Tiles/2x/`, `~/.TileZed/*.txt` | -- |
+| Iso tiles, cut to the game's exact geometry | `tools/gen_adirondack_tiles.py` | `design/tiles/2x/trek_adirondack_01.png` | nobody by hand; change the generator |
+| The editor's view of the tileset | `tools/install_tilezed.py` | the tools' `Tiles/2x/`, `~/.TileZed/*.txt` | nobody |
 | Rooms and decks | Claude drafts, the author owns after | `design/buildinged/Adirondack_*.tbx` | the author, in BuildingEd |
 
 **Gemini paints materials; the generator does geometry.** An image model
@@ -52,7 +52,7 @@ python tools/gen_adirondack_tiles.py      # sheet + design/art/adirondack/room_p
 python tools/install_tilezed.py           # CLOSE TileZed/BuildingEd first
 ```
 
-Look at `room_preview.png` before installing -- it is a small room built from
+Look at `room_preview.png` before installing: it is a small room built from
 the sheet, and it is where the wall displays turned out to be floor-to-ceiling
 on the first run.
 
@@ -122,7 +122,7 @@ straight through.
 
 **Decks are joined by turbolifts**, which are a small room and a right-click
 ("Deck 4, main engineering"), the same kind of move the transporter already
-makes -- **and by Jefferies tubes** you crawl through from one deck's corridor
+makes, **and by Jefferies tubes** you crawl through from one deck's corridor
 to the next, across the gap between them. `JEFFERIES.md` is their guide.
 
 **Sliding doors open by themselves** (Starfleet doors "shoosh"). A vanilla
@@ -130,7 +130,7 @@ door has a closed and an open sprite and `IsoDoor` has `ToggleDoor` /
 `ToggleDoorSilent`, so the whole feature is a service pass: anybody within a
 tile and a half of one of *our* doors, open it silently and play our sound;
 nobody near for a moment, close it. The server does it, because a door is
-world state (and `obj:sync()`, not trusting the setter's own sync -- the lock
+world state (and `obj:sync()`, not trusting the setter's own sync; the lock
 override taught that). Crew NPCs would open doors the same way players do.
 As built (section 9), the server uses `ToggleDoor`, and the tile's
 `DoorSound = TrekDoor` has the engine play `TrekDoorOpen`/`Close` on every
@@ -220,26 +220,26 @@ because it is mostly one texture, and instantly recognisable.
 Every object in section 6 is one entry in `tools/adirondack_objects.py` (size
 in squares, height, facings, what the game should make of it). From there:
 
-1. **Concept** -- Gemini (`generate-image`), one shared style prompt, a front
+1. **Concept**: Gemini (`generate-image`), one shared style prompt, a front
    view on a plain background. A concept that comes back wrong is fixed with
    `edit-image` ("only the table", "a bar counter, not a sofa") rather than
    regenerated: it keeps what was right. Images go through the tool as base64,
-   so send a small copy (about 200 px) -- a 15,000-character one was corrupted
+   so send a small copy (about 200 px); a 15,000-character one was corrupted
    on the way and refused.
-2. **Mesh** -- fal TRELLIS (`fal-3d-trellis`, seed 1701), which takes the
+2. **Mesh**: fal TRELLIS (`fal-3d-trellis`, seed 1701), which takes the
    concept's public URL. About 25 seconds each.
-3. **Tiles** -- `tools/gen_adirondack_furniture.py` fits each mesh uniformly
+3. **Tiles**: `tools/gen_adirondack_furniture.py` fits each mesh uniformly
    into its box, backs it onto the wall it faces from, and renders every
    facing with `tools/isorender.py`. Facings are turns of one model, never
    separate drawings, so a W desk and an N desk are the same desk.
 
 `tools/adirondack_jobs.py` is the ledger: every concept URL, request id and
-mesh URL, and `fetch` downloads them -- concepts to
+mesh URL, and `fetch` downloads them: concepts to
 `design/art/adirondack/objects/`, meshes to `tools/assets/adirondack/`. The
 raws are vendored: generating again gives a different object.
 
 **Which way is the front.** A TRELLIS mesh faces **+z** with the model's right
-along +x -- checked by rendering the desk, the wardrobe and the captain's chair
+along +x, checked by rendering the desk, the wardrobe and the captain's chair
 straight on from each axis. The mod's own `.x` machines face **-x**, found from
 their textures (the lit niche, the screen). A wrong front puts the replicator's
 niche on its side and nothing else says so.
@@ -298,12 +298,12 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
   (hers are `"adk"`), standing at slot 11 east of Deck 1 over black rather
   than stars. It is bigger than any deck, so `L.W`/`L.H` grew; the tubes are
   routed by her decks' own size and did not move. Everything below holds for them; `A.siteOf(k)` is the one
-  question that differs -- what the lift lists, the way out, whose power, what
+  question that differs: what the lift lists, the way out, whose power, what
   the crew talk about. Anything that counts "every deck" of hers walks
   `A.decksOf("adk")`, not `L.decks`.
 - **Decks side by side, not stacked.** A runtime building has no RoomDefs, so
   the engine would draw every deck above over the one you stand on. Deck 1
-  (the bridge) is westmost, and each next deck is 108 squares east -- beyond
+  (the bridge) is westmost, and each next deck is 108 squares east, beyond
   the 79 squares the engine loads round a player, so no deck is ever drawn
   from another. The lift cars occupy the same squares on every deck, so a ride
   keeps your spot in the car.
@@ -380,8 +380,8 @@ gets the invisible `C.RoofTile` above it (`AS.roofOver`; DEV_GUIDE.md,
 
 **Lit room by room, always.** Lamps went on a four-square grid across the deck;
 a room the grid missed had none, and its walls kept its neighbours' light out,
-so it was dark at night (1.10.1). `AC.lampSpots(k)` gives every room -- a
-connected run of one room type -- a lamp at its middle and more until every
+so it was dark at night (1.10.1). `AC.lampSpots(k)` gives every room (a
+connected run of one room type) a lamp at its middle and more until every
 square is within `C.DeckLampReach` (3) of one, at `C.DeckLight` (radius 10).
 The field station's floor is a deck of the same layout and is lit the same
 way. `deck_lights()` checks all 44 rooms.

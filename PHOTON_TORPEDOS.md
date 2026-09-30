@@ -17,9 +17,9 @@ broken" still apply here. `MULTIPLAYER.md` is the client/server split and
 
 **The pilot, and nobody else: whoever is in the driver's seat, while she is
 flying.** The other three seats are passengers. It is enforced where it has to
-be, on the server -- `fireTorpedo` refuses anyone `drivenBy` does not name as
+be, on the server, where `fireTorpedo` refuses anyone `drivenBy` does not name as
 the driver (`notPilot`), and anyone at all while she is on the ground
-(`notFlying`) -- and mirrored on the client, where `T.atTheControls()` gives a
+(`notFlying`), and mirrored on the client, where `T.atTheControls()` gives a
 passenger no reticle and no trigger. In multiplayer that is one gunner per
 ship, and it is whoever is flying her. Everybody, passengers and people on the
 ground included, *sees* the torpedo cross the sky and the fire it starts.
@@ -44,7 +44,7 @@ she would hit. Its colour is the answer, and **the line under it is the reason**
 server measures from `s.x, s.y`, the square under her centre, which is where
 the shadow stands. At five storeys the hull is drawn a long way up the screen
 from that square, so aim "just below the ship" is usually the ground right
-under her -- red, too close. Move the reticle past twelve tiles from the
+under her: red, too close. Move the reticle past twelve tiles from the
 shadow and it turns green.
 
 So the usual sequence in play is **red, green, fire, gold for six seconds,
@@ -98,11 +98,11 @@ Two orderings in there are deliberate and easy to break:
 
 | File | What it holds |
 |---|---|
-| `shared/TREK/TREK_Config.lua` | every constant — sections *Photon torpedoes* and *the projectile* |
+| `shared/TREK/TREK_Config.lua` | every constant: sections *Photon torpedoes* and *the projectile* |
 | `server/TREK/TREK_Server.lua` | `fireTorpedo` queues; `detonate` is the only place a blast happens; `S.torpedoesBurn()` reads the sandbox |
 | `client/TREK/TREK_Torpedo.lua` | aiming, the reticle, the fire request, the projectile and its light |
-| `media/scripts/trekshuttle.txt` | `item TrekTorpedo` — what the trap is born with |
-| `media/sandbox-options.txt` | `TrekShuttle.TorpedoFire` — Full or Blast only |
+| `media/scripts/trekshuttle.txt` | `item TrekTorpedo`, what the trap is born with |
+| `media/sandbox-options.txt` | `TrekShuttle.TorpedoFire`: Full or Blast only |
 | `lua/shared/Translate/EN/Sandbox.json` | that option's name, tooltip and two values |
 | `tools/gen_reticle.py` | `media/ui/TREK_Reticle.png` |
 | `tools/gen_torpedo_flight.py` | `media/ui/TREK_TorpedoFlight.png` **and its contact sheet** |
@@ -122,8 +122,8 @@ C.TorpedoRange = 7       -- ExplosionRange, in tiles
 ```
 
 Vanilla's numbers on purpose, so the damage is already balanced against
-everything else that explodes in this game. Set in **two places** — here and
-`item TrekTorpedo` — and the Lua re-asserts over the item, so the Lua wins.
+everything else that explodes in this game. Set in **two places**, here and
+`item TrekTorpedo`, and the Lua re-asserts over the item, so the Lua wins.
 
 **Every range is clamped to 15 by the engine** (`Math.min(range, 15)` is the
 first instruction in `drawCircleExplosion`). Setting any of them higher does
@@ -145,7 +145,7 @@ up for a solid wall of flame, down for scattered fires that spread on their
 own.
 
 **These are the visible part of the weapon.** Build 42 has no separate
-explosion effect — the fire and the smoke are the whole picture. Zero any of
+explosion effect; the fire and the smoke are the whole picture. Zero any of
 them and that third of the effect does not merely go quiet, it never runs:
 `triggerExplosion()` skips any mode whose range is `<= 0`.
 
@@ -159,12 +159,12 @@ this cannot drift silently.
 
 `IsoGridSquare.Burn()` → `BurnWalls(true, true)` is what **destroys
 structures**. It returns immediately on a client, so it is
-server-authoritative for free, and it checks these itself — nothing in this
+server-authoritative for free, and it checks these itself; nothing in this
 mod needs to:
 
-- `ServerOptions.noFire` — owner has fire off, nothing burns;
-- `SafeHouse.isSafeHouse` — safehouses are protected;
-- `NonPvpZone.getNonPvpZone`, consulted inside `drawCircleExplosion` — safe
+- `ServerOptions.noFire`: owner has fire off, nothing burns;
+- `SafeHouse.isSafeHouse`: safehouses are protected;
+- `NonPvpZone.getNonPvpZone`, consulted inside `drawCircleExplosion`: safe
   zones limit the blast too.
 
 The mod's own lever is the sandbox option:
@@ -173,12 +173,12 @@ The mod's own lever is the sandbox option:
 TrekShuttle.TorpedoFire   1 = Full (default)   2 = Blast only
 ```
 
-*Blast only* zeroes the four fire settings and keeps the power and radius — it
+*Blast only* zeroes the four fire settings and keeps the power and radius; it
 removes the arson, never the weapon. Read in `S.torpedoesBurn()`. **An absent
 option reads as Full**, deliberately: treating a missing setting as "no fire"
 is how a feature turns itself off in the one setup nobody tested. If you add
 another sandbox option here, copy that default and add the `Sandbox.json` keys
-in the same commit — a missing translation resolves to nothing, silently.
+in the same commit: a missing translation resolves to nothing, silently.
 
 ### The projectile
 
@@ -200,7 +200,7 @@ Do not be tempted back toward `IsoObject`s walked along the ground:
   returns **nothing**. PZ's fire is an `IsoFire` with an *attached animation*,
   not a tile;
 - **a client laying world objects every tick is the sky plane's whole
-  catalogue of trouble** — squares that will not answer yet, shadows outliving
+  catalogue of trouble**: squares that will not answer yet, shadows outliving
   what cast them, debris stranded in the air when a flight ends badly.
 
 Screen space has neither problem, and it is why this feature needs no cleanup
@@ -211,7 +211,7 @@ Things in there worth not undoing:
 - Sizes divide by `getCore():getZoom(playerNum)`, as vanilla does with anything
   pinned to a world position (`ISBaseIcon:updateZoom`). Without it the torpedo
   is a fixed size on screen whatever the camera does.
-- It **holds altitude then dives** — `p ^ 2.2` on the descent only. A linear
+- It **holds altitude then dives**: `p ^ 2.2` on the descent only. A linear
   fall reads as sliding down a wire.
 - The trail echoes are earlier moments of the same flight, so they always lie
   exactly on the path, because they *are* the path.
@@ -219,8 +219,8 @@ Things in there worth not undoing:
   a server and whoever is being shot at all need it. It used to be created and
   destroyed with the pilot's own reticle.
 - The light is the one thing that reaches the world. It is rebuilt only when
-  the tile under it changes — a light moved every frame is a lot of engine
-  churn for something airborne for a second — and `douse()` removes it on
+  the tile under it changes (a light moved every frame is a lot of engine
+  churn for something airborne for a second), and `douse()` removes it on
   landing. `removeLamppost` takes the `IsoLightSource` that `addLamppost`
   returned, not a position.
 
@@ -234,12 +234,12 @@ Writes the texture **and** `design/art/ui/torpedo_flight_sheet.png`, which is
 the head and trail composited over grass, tarmac, a pale roof and night at two
 zooms. **Look at the sheet.** It is the whole reason the sprite has a dark
 skirt: the first version was a pure glow, unmissable on three of those four
-and nearly invisible on the roof — which is what a shuttle firing from above
+and nearly invisible on the roof, which is what a shuttle firing from above
 the buildings crosses constantly. A bright sprite has no contrast on light
 ground.
 
 The core is white because `TREK_Torpedo.lua` tints at draw time and **a tint
-multiplies** — any colour baked in fights the one the draw is trying to say,
+multiplies**: any colour baked in fights the one the draw is trying to say,
 and the dark skirt survives tinting for the same reason.
 
 If you change `C.TorpedoTrail`, change `TRAIL` in the generator to match. They
@@ -260,8 +260,8 @@ virtual cursor has got to.
 
 Three things in the controller path worth not undoing:
 
-- **The right stick, not the left or the triggers.** The left stick steers --
-  `BaseVehicle` drives off `forwardAxis` and `setAngleAxis` -- and the triggers
+- **The right stick, not the left or the triggers.** The left stick steers
+  (`BaseVehicle` drives off `forwardAxis` and `setAngleAxis`), and the triggers
   are the obvious home for accelerate and brake, a binding that lives in Java
   where this mod cannot read it. R3 is the one control in reach that vanilla
   binds nowhere in its Lua.
@@ -280,7 +280,7 @@ documented anywhere. A wrong guess there is a fire attempt every frame the
 button is held: bounded damage, unbounded noise.
 
 Do not make arming a menu toggle. It was one once, and it failed in the
-quietest way available — no error, no log line, the file loaded, and the pilot
+quietest way available: no error, no log line, the file loaded, and the pilot
 held right-click, clicked left and got silence. **An input nobody can discover
 is the same as no input.**
 
@@ -299,7 +299,7 @@ Not optional; `MULTIPLAYER.md` has the reasoning.
   re-validated server-side. The range bound exists because without it a crafted
   command is a map-wide mortar, and `torpedoes()` asserts the ceiling as a flat
   number so raising the constant cannot move the test with it.
-- **The projectile is scenery**, so each client draws its own — the same
+- **The projectile is scenery**, so each client draws its own, the same
   documented exception the sky plane uses. Drawing it in screen space makes
   that structural rather than a promise: there is no world edit to get wrong.
 - **Fire is synced by the engine.** `IsoFireManager.StartFire` sends its own
@@ -307,7 +307,7 @@ Not optional; `MULTIPLAYER.md` has the reasoning.
   no packet for the visible half of the blast.
 - **No admin-only or `-debug`-gated calls.** `IsoFireManager.explode` is what
   vanilla's *debug* fire brush uses; it is public and ungated but it is the
-  wrong call — unconditional `StartFire` plus `BurnWalls`, and it touches no
+  wrong call: unconditional `StartFire` plus `BurnWalls`, and it touches no
   character at all.
 
 ---
@@ -315,33 +315,33 @@ Not optional; `MULTIPLAYER.md` has the reasoning.
 ## Engine facts, established
 
 With `tools/pzapi.py` (exists, public), `tools/javarefs.py` (what it touches)
-and `tools/javadis.py` (**under what condition** — the one that matters). Do
+and `tools/javadis.py` (**under what condition**, the one that matters). Do
 not re-derive these.
 
 | Fact | Confidence |
 |---|---|
 | `IsoTrap` is on `LuaManager$Exposer`'s allow-list | HIGH |
-| `IsoTrap.new(character, weapon, cell, square)` has a vanilla Lua call site — `shared/TimedActions/ISPlaceTrap.lua:47` | HIGH |
+| `IsoTrap.new(character, weapon, cell, square)` has a vanilla Lua call site, `shared/TimedActions/ISPlaceTrap.lua:47` | HIGH |
 | **The weapon may not be nil.** The constructor copies eighteen properties off it and throws on the first, `getSensorRange()` | HIGH, seen in game |
 | **The character may be nil.** Vanilla's own 3-arg constructor passes `aconst_null` for it | HIGH |
-| `triggerExplosion()` calls `drawCircleExplosion` **three times** — Explosion/`ExplosionRange`, Fire/`FireRange`, Smoke/`SmokeRange` — skipping any whose range is `<= 0` | HIGH |
+| `triggerExplosion()` calls `drawCircleExplosion` **three times** (Explosion/`ExplosionRange`, Fire/`FireRange`, Smoke/`SmokeRange`), skipping any whose range is `<= 0` | HIGH |
 | **Every range is clamped to 15** by `Math.min` at the top of `drawCircleExplosion` | HIGH |
-| The fire roll is **per square**, and Explosion mode takes **two independent rolls** — bci 197 for `StartFire`, bci 254 for `Burn()` | HIGH |
-| `explosion(square)` — the damage — is unconditional in Explosion mode | HIGH |
+| The fire roll is **per square**, and Explosion mode takes **two independent rolls**: bci 197 for `StartFire`, bci 254 for `Burn()` | HIGH |
+| `explosion(square)`, the damage, is unconditional in Explosion mode | HIGH |
 | `Burn()` → `BurnWalls(true, true)` destroys structures, returns immediately on a client, and checks `ServerOptions.noFire` and `SafeHouse.isSafeHouse` itself | HIGH |
 | `shouldProcess`: SP all; client only `isLocal()` zombies, never players; server all zombies, players per `ServerOptions` | HIGH |
 | `drawCircleExplosion` respects `LosUtil.lineClear` (walls block) and `NonPvpZone` | HIGH |
 | Fire is synced by the engine (`StartFire` packet `sendToRelative`) | HIGH |
 | `IsoFireManager.StartFire` has **both** a 4-arg and a 5-arg form; `StartSmoke` is 5-arg only. Vanilla Lua calls the 5-arg `StartFire` (`server/ClientCommands.lua:17`) | HIGH |
-| `IsoFireManager.explode` is an incendiary with no character damage — the wrong call | HIGH |
+| `IsoFireManager.explode` is an incendiary with no character damage, the wrong call | HIGH |
 | `isoToScreenX/Y(playerNum, x, y, z)` are `GlobalObject` statics with ten non-debug vanilla call sites (foraging icons, fishing tension UI, `ISButtonPrompt`) | HIGH |
 | `screenToIsoX/Y` are `GlobalObject` statics with non-debug callers (foraging, mining, building cursors) | HIGH |
 | `isMouseButtonDown(int)` / `isMouseButtonPressed(int)` are `GlobalObject` statics; 0 = left, 1 = right | HIGH |
 | `IsoCell.addLamppost(x,y,z,r,g,b,radius)` returns the `IsoLightSource`; `removeLamppost` takes that object | HIGH |
 | `IsoGridSquare.haveFire()` is public with a vanilla Lua call site (`ISWorldObjectContextMenu.lua:274`) | HIGH |
 | **There is no explosion, flame or smoke tile in the tileset.** PZ's fire is an attached animation on an `IsoFire`, not a sprite | HIGH |
-| PZ draws no projectile for any thrown or fired weapon — there is nothing to borrow | HIGH |
-| `triggerExplosion()` fires the `OnThrowableExplode` Lua event — unused here, but it is the hook if a torpedo ever needs to notify something | HIGH |
+| PZ draws no projectile for any thrown or fired weapon; there is nothing to borrow | HIGH |
+| `triggerExplosion()` fires the `OnThrowableExplode` Lua event, unused here, but it is the hook if a torpedo ever needs to notify something | HIGH |
 
 ---
 
@@ -359,17 +359,17 @@ frame the trigger is pulled; the trap's four fire settings match config and are
 all above zero; the target square really reports `haveFire()`; *Blast only*
 removes the fire and keeps the weapon; and an absent sandbox option means Full.
 
-**Mutation-check anything you add here**, and confirm the mutation applied —
+**Mutation-check anything you add here**, and confirm the mutation applied:
 the Lua is **CRLF**, so a Python replace built on `\n` matches nothing and you
 end up testing the unmutated file. Nine mutations are known to be caught: fire
 chance to 0, fire ring to 0, smoke to 0, min range back to 4, the sandbox
 option ignored, an absent option read as no fire, detonating on the trigger,
-the projectile never drawn, and the flight light never put out -- and four
+the projectile never drawn, and the flight light never put out, and four
 more for the reticle: the label not drawn, a refused trigger kept silent, the
 reload not counted, and the distance left out of the label. The first of
 those four was missed until the simulation stopped counting the label's black
 drop shadow as the label. There is no
-mutation runner in `tools/` — write one in the scratchpad.
+mutation runner in `tools/`; write one in the scratchpad.
 
 Four things this scenario has got wrong, all worth not repeating:
 
@@ -406,7 +406,7 @@ Four things this scenario has got wrong, all worth not repeating:
   exist throws out of Java and dumps a stack trace *per call*; this mod has
   hit 2932 in one session, which is what a black screen looks like from the
   inside. The projectile's light uses `U.batch` for exactly this.
-- **The radial menu is a toggle** — take any reading *before* calling through
+- **The radial menu is a toggle**: take any reading *before* calling through
   to vanilla. This hid flight completely for a session.
 - **A comment and a test can hold a bug in place.** See below.
 
@@ -417,7 +417,7 @@ Four things this scenario has got wrong, all worth not repeating:
 - **The controller is built but has not been held.** The right stick moves the
   reticle and R3 fires; the logic is covered by seven mutation-checked checks.
   What a test cannot answer is whether `C.TorpedoAimSpeed` (950 px/s) feels
-  right in a hand, and whether **R3 is actually free** on a Steam Deck --
+  right in a hand, and whether **R3 is actually free** on a Steam Deck:
   the vehicle's own bindings live in Java where this mod cannot read them,
   which is exactly why the triggers were avoided. If R3 turns out to be taken,
   `fireHeld()` is the one function to change.
@@ -426,7 +426,7 @@ Four things this scenario has got wrong, all worth not repeating:
   sits clear of it at the reticle's real size.
 - **Two players.** Nothing here has been fired with two people connected. The
   projectile is drawn by each client from one `torpedoLaunched` and the fire is
-  synced by the engine's own packet, so it should need nothing of ours — which
+  synced by the engine's own packet, so it should need nothing of ours, which
   is exactly the kind of claim that wants checking.
 - **`media/ui/TREK_Torpedo.png`** is generated by `tools/gen_radial_icons.py`
   and referenced by nothing since the radial slice was removed. It is a 48px
@@ -452,7 +452,7 @@ things were holding it there:
 Every one of those was **accurate about the engine**. `IsoTrap` really does
 gate `Burn()` and `IsoFireManager.StartFire` on that roll; raising it really
 does set fire to things; vanilla's `PipeBomb` really does ship 0. What they
-were wrong about was the **goal** — they came from reading one line of
+were wrong about was the **goal**: they came from reading one line of
 `ROADMAP.md`, "an explosion that does not set the street on fire", as *no fire
 at all* rather than *fire as an intended weapon effect*.
 
@@ -471,5 +471,5 @@ exactly the way the player could see and the repository could not.
 
 A footnote with the same moral: when the fire was turned on, the *item script's*
 comment still insisted `FireStartingChance = 0` was load-bearing, directly above
-the block setting it to 60 — caught by a grep of the deployed build, not by any
+the block setting it to 60, caught by a grep of the deployed build, not by any
 check. Values and the prose above them go stale independently.

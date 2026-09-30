@@ -18,12 +18,12 @@ exist because they were broken* and `MULTIPLAYER.md` apply to every line.
 - **Arriving:** a column at full strength on the spot, which shimmers for
   0.8 s and fades, leaving them standing there.
 - **Everybody nearby sees both**, for every player.
-- **Which moves:** every beam -- up, down, a landing with the crew, the way
+- **Which moves:** every beam: up, down, a landing with the crew, the way
   home from a landing with no room, to and from the Adirondack, the lift at a
   resolved lock, out to a raid and home. Not the hatch, the turbolift or the
   field station's lift, which are walks (`C.BeamFxKinds`).
 - **A raid's dead** (`RAIDS.md` 4): each one arrives under a column, sent by
-  the raid server as a `beamFx` with `fixed = true` -- an arrival on a square,
+  the raid server as a `beamFx` with `fixed = true`: an arrival on a square,
   which follows nobody, because a zombie has no player id to follow.
 - **The character is not faded under it.** See section 4.
 
@@ -49,7 +49,7 @@ All seven were drawn by Gemini through the FlowDot `gemini-image` toolkit
    was `edit-image` on frame 00.
 3. **Anchored to frame 00 as a style reference** (`compose-images`: the first
    image the previous frame, the second frame 00). A plain chain drifted
-   within two links -- each generation copies a little of the small, soft
+   within two links; each generation copies a little of the small, soft
    input it is handed, and `frame_02_rejected_soft.jpg` is where it went
    blurry with half the glints. With the anchor, every frame kept the look.
 4. **The fade the same way**: "a third of the sparkles gone", "a third of
@@ -105,7 +105,7 @@ oldest were deleted, with the author's go-ahead, to make room.
   Adirondack and a raid.
 - **The server relays only arrivals it sent somebody on**: one per granted
   beam, within `arrivalWindowMs`. A client cannot make sparkles on demand.
-- **Following.** A `fixed` column follows nothing. Any other follows its character -- one of this machine's own
+- **Following.** A `fixed` column follows nothing. Any other follows its character: one of this machine's own
   players, or anybody the engine knows by that online id. A leaving column
   stops following, and starts to fade, the moment its character is seen to
   go: a jump, a change of storey, or vanishing from this machine. If that is
@@ -121,7 +121,7 @@ oldest were deleted, with the author's go-ahead, to make room.
 
 ## 4. Why the character does not fade
 
-The obvious effect -- the figure fading out under the sparkles -- is not
+The obvious effect (the figure fading out under the sparkles) is not
 reachable from Lua. The engine sets every visible character's alpha each
 frame: `IsoPlayer.updateLOS` (`setAlphaAndTarget` at bci 276-426) and, on a
 client, `IsoPlayer.render` (`setTargetAlpha(0 or 1)` at bci 141/166, by
@@ -143,7 +143,7 @@ python tests/test_assets.py          # the seven frames exist (named whole in TR
 server's `MOVES` grants, and the walks are not beams; the timeline (built
 from nothing leaving, full strength arriving, shimmer only frames 0-3, fade
 4-5-6 and end, the fade starting the moment they go, at least one shimmer);
-a real beam up from the ground -- a column under the player, drawn centred on
+a real beam up from the ground: a column under the player, drawn centred on
 them with its foot at their feet, at 1:2, the overlay under no point of the
 screen, then frozen where they stood once they went, the moment they went
 fixed and the column fading a tenth of a second later, a second column on the
@@ -157,7 +157,7 @@ she landed; alice's machine is asked to show her arrival exactly twice (her
 watcher, then the relay) and keeps the same column; and bob's forged arrival
 reaches nobody.
 
-**Fourteen mutations, one pass at a time, all caught** -- three only after
+**Fourteen mutations, one pass at a time, all caught**, three only after
 their tests were fixed, and each of the three is worth knowing:
 
 - *The column goes on looking for them after they went.* The column stayed in
@@ -174,7 +174,7 @@ their tests were fixed, and each of the three is worth knowing:
 
 The first cut of the tests also looked 3.2 s after the beam, when both
 columns had long finished, so every check on them was skipped behind an
-`if ... is not None` -- *a scenario that never reaches the condition is not a
+`if ... is not None`: *a scenario that never reaches the condition is not a
 test of it*. They step tick by tick and look the moment the player lands.
 
 The harness records beam draws apart from the phaser's sparks

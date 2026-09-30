@@ -1,4 +1,4 @@
-# Energy — everything aboard runs on the crystal
+# Energy: everything aboard runs on the crystal
 
 **Status: built, all eight phases, and released as 1.7.0 (2026-09-24).** The
 ledger, the gauge, movement, the dark cabin, the shields, the emergency
@@ -29,7 +29,7 @@ a client only asks, and nothing may depend on admin rights or `-debug`.
 In the author's words, condensed (2026-09-24):
 
 - **Everything uses energy.** Calling the shuttle to you, starting her up,
-  taking off, each beam in either direction, and driving — on the ground, and
+  taking off, each beam in either direction, and driving: on the ground, and
   more in the air. The replicator and the EMH already charge; the EMH also
   costs a flat amount **to project him** (free to put away), so a dark ship
   says *"not enough energy to project the EMH"*.
@@ -68,7 +68,7 @@ the function names are the stable part.
 **The reserve** is `s.power` in ship state, `0..C.PowerMax` (5000, one
 crystal). Spare crystals are `s.crystals`. `shared/TREK/TREK_Power.lua`:
 
-- `P.reserve()`: a missing value reads as **full**, on purpose — a client
+- `P.reserve()`: a missing value reads as **full**, on purpose: a client
   hasn't been told yet.
 - `P.crystals()`: a missing value reads as **none**.
 - `P.afford(cost)`: authority only. It may burn a spare to cover the cost.
@@ -115,7 +115,7 @@ r,g,b)`: red is a refusal, orange a warning, blue information.
 - **The television is the only real device.** It is powered by the
   battery-branch trick in `TREK_Power.serviceDevices`, in every process.
 - **The fridge, oven and microwave aren't appliances.** They are plain
-  `IsoObject.new` containers — drawn, openable, and inert (DEV_GUIDE: a stove
+  `IsoObject.new` containers: drawn, openable, and inert (DEV_GUIDE: a stove
   built that way "is drawn and cannot be used"). Section 9 is what making
   them real takes.
 - **The sink** is refilled every game minute by `B.refillWater` and costs
@@ -196,7 +196,7 @@ refuses without a round trip; the server refuses authoritatively.
   own battery and talks to orbit directly). Calls ring, hails are answered and
   tapes are read off a PADD in a dark ship exactly as in a lit one; a missed
   call comes back worse whatever the power was, so an outage never loses the
-  story. Tapes the channel issues are still delivered to the shelf -- a shelf
+  story. Tapes the channel issues are still delivered to the shelf; a shelf
   is not an appliance.
 
 Everything else is refused with the same "not enough power" note.
@@ -206,7 +206,7 @@ Everything else is refused with the same "not enough power" note.
 `S.powerChanged()` runs after every spend and every crystal load. It compares
 `s.dark` with `P.dark()` and, on a change, commits and broadcasts once:
 
-- **`powerDown`**: *"Main power lost -- emergency lighting"* (orange). The
+- **`powerDown`**: *"Main power lost. Emergency lighting"* (orange). The
   cabin goes red (section 8), and a hovering ship begins an emergency landing
   (section 7).
 - **`powerUp`**: *"Main power online"* (blue), the power-up sound, and the
@@ -437,7 +437,7 @@ The `GasTank` and `Battery` are skipped: those are power, not damage.
   visible dent-and-mend, the repair gets its own 10-tick check while she is
   moving.
 - **Shields down, or dark:** the damage stays, and vanilla's own mechanics
-  apply — the shuttle becomes an ordinary damaged vehicle.
+  apply: the shuttle becomes an ordinary damaged vehicle.
 - **Verify first (V4):**
   - **which machine applies collision damage** in multiplayer (the physics
     owner, and does the server's copy see it?);
@@ -465,7 +465,7 @@ The `GasTank` and `Battery` are skipped: those are power, not damage.
     during them, the treatment stops:
     - the patient **stays infected**;
     - the crystal that paid for the cure is **gone**, with no refund;
-    - the crew are told plainly: *"Main power lost -- the Doctor's treatment
+    - the crew are told plainly: *"Main power lost. The Doctor's treatment
       has failed. You are still infected."* (red). It has to be delivered,
       because a cure that ends in silence reads as a bug. DEV_GUIDE: *a
       correct refusal that nobody is shown is indistinguishable from a broken
@@ -485,7 +485,7 @@ The `GasTank` and `Battery` are skipped: those are power, not damage.
 
 ---
 
-## 7. Emergency landing — the author's rule
+## 7. Emergency landing: the author's rule
 
 > *"With no power the fallback is no beaming, but as soon as there is room to
 > land, it lands with no damage."*
@@ -547,7 +547,7 @@ down* (`T.descend`), run for the first crew member aboard, to their return
 point:
 
 - it is free;
-- it is announced as *"Main power lost -- emergency landing"*;
+- it is announced as *"Main power lost. Emergency landing"*;
 - the landing site search is the one the helm already uses.
 
 This is a **landing** in the story and in the code: the crew arrive standing
@@ -598,7 +598,7 @@ returns, it refills within a game minute, as it does today.
 **8.5 The sounds.** `tools/gen_power.py` is new, in the house style
 (`gen_medical.py`'s `write()`, Python `wave`, 44.1 kHz, 16-bit mono):
 
-- **`TREK_PowerUp`** — the one the author asked to be super pleasant. About
+- **`TREK_PowerUp`**: the one the author asked to be super pleasant. About
   3.5 s:
   - a low warp-core hum swelling up from nothing;
   - a slow rising sweep over it;
@@ -606,7 +606,7 @@ returns, it refills within a game minute, as it does today.
     sustained chord that fades into the core's idle hum.
   - Rendered, then vetted by listening, the way the icons are vetted by
     looking.
-- **`TREK_PowerDown`** — a short falling whine and a thud. Deliberately
+- **`TREK_PowerDown`**: a short falling whine and a thud. Deliberately
   unpleasant, and about a second long.
 
 Both are declared in `scripts/trekshuttle.txt` (non-3D, `category = Item`) and
@@ -695,7 +695,7 @@ V5-V7 held, so the galley is real:
   floored, outside the cabin's shape so nobody walks onto it, and well inside
   the generator's reach of every appliance.
 - `B.servicePowerBus` places it if it is missing, bills the fuel it burned at
-  `C.FuelToEnergy` (20 units a unit of fuel -- about 72 units a day, so a
+  `C.FuelToEnergy` (20 units a unit of fuel, about 72 units a day, so a
   crystal keeps the galley cold for two months of game time), refuels and
   mends it, and switches it on while there is power and off when she is dark.
   It runs as a build phase, every game hour, and on every change of power.
@@ -774,12 +774,12 @@ never be reached.
 The first `powerUp` of a cold ship is the commissioning:
 
 - `s.commissioned = true`, and `powerUp` carries `first = true`;
-- the note is **"The shuttle is commissioned -- main power online"**, with the
+- the note is **"The shuttle is commissioned. Main power online"**, with the
   same sound and lights;
 - `M.hearing()` becomes `s.commissioned == true`, which is the one line
   `TREK_Missions.lua` was left waiting for;
 - `S.commission()` in `TREK_CommsServer.lua` sets `d.day0` on
-  `s.commissioned`, not on `s.built` -- one condition. The comms work has
+  `s.commissioned`, not on `s.built`: one condition. The comms work has
   landed (1.6.0), so there is nothing left to collide with. **The sandbox's
   *When the Adirondack first calls* then counts from the first power-up** on
   a cold ship: "straight away" means straight after commissioning (decided
@@ -871,11 +871,11 @@ and a commit. None of it needs a game until the phase marked **play**.
 | 4 | **The dark cabin** | light handles and red emergency lighting, television off, sink off, replicator offline, EMH projection cost and dark removal, a running cure failing when dark (patient still infected, crystal lost), `gen_power.py` and both sounds. |
 | 5 | **Shields** | repel reports and charges, crash repair. |
 | 6 | **Emergency landing** | 7.1–7.4, with the sim made unkind enough to test a dark hover (a pilot, no pilot, blocked ground, unloaded ground). |
-| — | **Play** | One single-player session: spend to dark, see the red, load a crystal, hear the sound. Hover to dark over a town. This is the first time anything here is proven. |
+| | **Play** | One single-player session: spend to dark, see the red, load a crystal, hear the sound. Hover to dark over a town. This is the first time anything here is proven. |
 | 7 | **Cold start** | the option, the cold state, placement beside the first player, commissioning, the migration, the recovery probe, `M.hearing`. Then the comms hook, once the other session's work has landed. |
-| — | **Play** | A fresh cold world, walked end to end (10.5). |
-| 8 | **The galley** -- built | V5–V8 passed: the hidden generator (`TrekPowerBus`), the `IsoStove`s and the `BuildRev` bump. See 9.1. |
-| 9 | **Docs** -- done 2026-09-26 | This file rewritten as a working guide. the old ROADMAP2 1.6 marked built. DEV_GUIDE's *Current state*, the README's known limits, `MULTIPLAYER.md`'s traffic list, `PILOTING.md` (emergency landing), `EMH.md` and `REPLICATOR.md` (their dark behaviour). **Version 1.7.0** -- 1.6.0 is the PADD and the channel. |
+| | **Play** | A fresh cold world, walked end to end (10.5). |
+| 8 | **The galley**, built | V5–V8 passed: the hidden generator (`TrekPowerBus`), the `IsoStove`s and the `BuildRev` bump. See 9.1. |
+| 9 | **Docs**, done 2026-09-26 | This file rewritten as a working guide. the old ROADMAP2 1.6 marked built. DEV_GUIDE's *Current state*, the README's known limits, `MULTIPLAYER.md`'s traffic list, `PILOTING.md` (emergency landing), `EMH.md` and `REPLICATOR.md` (their dark behaviour). **Version 1.7.0**; 1.6.0 is the PADD and the channel. |
 
 ### Verify first: answered 2026-09-24
 
@@ -937,7 +937,7 @@ vanilla Lua. Nothing here has been seen in game yet.
 
 **Already true, and worth knowing before phase 7:** holo-fragment clue sites
 only appear after first contact (`S.clueFor` waits on the channel's `met`
-flag), and first contact waits on day zero -- so on a cold ship the two opening
+flag), and first contact waits on day zero, so on a cold ship the two opening
 probes can only ever find dilithium. Nothing needs adding for that.
 
 ### Sim holes to expect

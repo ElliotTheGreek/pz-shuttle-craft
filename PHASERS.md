@@ -111,7 +111,7 @@ Three things about that are the design, not the incidental detail:
 
 `PC.refusal` is the one list of reasons, each an `IGUI_TREK_Phaser*` key:
 nothing there (`NoTarget`), the sandbox (`CutOff`), no cutting weapon in
-either hand -- the phaser or the phaser rifle, never a disruptor (`NotHeld`), a different level or beyond range (`TooFar`), and a door in a
+either hand, the phaser or the phaser rifle, never a disruptor (`NotHeld`), a different level or beyond range (`TooFar`), and a door in a
 safehouse the player isn't a member of (`Safehouse`). A reason the server
 reaches in `complete()` is sent to the cutter as `phaserRefused` and shown as
 a note.

@@ -6,11 +6,11 @@ sequence used to build it.
 
 Read these first when changing adjacent systems:
 
-- `DEV_GUIDE.md` — repository workflow, engine constraints, and verification
+- `DEV_GUIDE.md`: repository workflow, engine constraints, and verification
   rules.
-- `MULTIPLAYER.md` — server authority, requests, replies, and world sync.
-- `MEDICAL_SET.md` — shared treatment primitives and medical engine behavior.
-- `REPLICATOR.md` — the other powered cabin system and its dilithium economy.
+- `MULTIPLAYER.md`: server authority, requests, replies, and world sync.
+- `MEDICAL_SET.md`: shared treatment primitives and medical engine behavior.
+- `REPLICATOR.md`: the other powered cabin system and its dilithium economy.
 
 The EMH consists of three related parts:
 
@@ -186,9 +186,9 @@ not the actor's, and the badge carries no delta (`SOURCE.txt` has the prompt).
 
 The texture supplies the holographic treatment without repainting him:
 
-- his own colours kept, with `TINT` of LCARS blue mixed over them -- the first
+- his own colours kept, with `TINT` of LCARS blue mixed over them (the first
   figure was mapped wholly onto a blue ramp and read as a blue ghost, not the
-  Doctor;
+  Doctor);
 - lifted dark values so the black uniform keeps its legs against the deck;
 - faint scanlines derived from mesh/world height, not horizontal texture rows.
 
@@ -636,7 +636,7 @@ The EMH scenarios must cover:
 - every limb- and body-level infection field clears;
 - infection remains cleared after body updates;
 - client moodle clears;
-- leaving the ship cancels without refund -- after a grace of
+- leaving the ship cancels without refund, after a grace of
   `C.EmhCureGraceHours` (two game minutes), and **the shuttle's seats are
   aboard**: a patient who goes forward to fly her keeps the cure, and it
   lands in the cockpit;
@@ -775,17 +775,17 @@ crystal. The log said why in two lines:
 [TREK] emh: LeroyPatino left the ship and the cure is lost, crystal and all.
 ```
 
-The register asked `U.isInteriorPlayer` -- the cabin -- and the pilot's seat
+The register asked `U.isInteriorPlayer` (the cabin), and the pilot's seat
 is not in the cabin.
 
 The same session holds the other half of the report, *the Doctor keeps
 healing me and the bite comes back*, and it happened **before** the cockpit,
 standing next to him: eight treatments a second or two apart during the
 running cure, each putting right exactly one thing. A cure takes twelve game
-hours, and until it lands the bite and the infection stay -- by design -- and
+hours, and until it lands the bite and the infection stay (by design), and
 the bite keeps reopening its own wound. Each treatment patched that and the
 bite undid it, and nothing on the panel said a cure was on its way. So the
-panel now does: *Cure running: N hours to go -- stay aboard*, under the
+panel now does: *Cure running: N hours to go. Stay aboard*, under the
 infection line, whenever the register has the patient
 (`IGUI_TREK_EmhCureRunning`, drawn in `tests/test_helm.py`).
 

@@ -125,7 +125,7 @@ class Editor(tk.Tk):
     def __init__(self, layout, catalog):
         super().__init__()
         self.layout, self.catalog, self.selected = layout, catalog, None
-        self.title("PZ Interior Editor — " + layout.path.name)
+        self.title("PZ Interior Editor: " + layout.path.name)
         self.geometry("1280x800")
         self.make_ui()
         self.refresh()

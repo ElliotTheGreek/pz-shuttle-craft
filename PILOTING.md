@@ -32,7 +32,7 @@ car. From the driver's seat, **V** opens the radial menu:
 | **Set her down below** | The existing footprint check, then she sinks to the ground |
 | **Go aboard (cabin)** | Through to the interior, on the ground or in the air |
 
-Then you **drive**. W/A/S/D, the stick, the seat chart, the mechanics screen —
+Then you **drive**. W/A/S/D, the stick, the seat chart, the mechanics screen:
 all of it is vanilla's, untouched. The helm inside sets the top speed.
 
 **Flight is a binary: she is on the ground, or she is hovering.** There is one
@@ -42,7 +42,7 @@ altitude: it is the sandbox option **Hover height** (2, 3, 4, 5, 6 or 8
 storeys; default 5), because at level 1 a two-storey building has walls at her
 own level and she drives into it like a car.
 
-Her **shadow** lies on the ground under her the whole time she is off it — a
+Her **shadow** lies on the ground under her the whole time she is off it, a
 soft dark disc on the square she would be set down on, which makes it the
 landing marker as well (section 2.3). Anything taller than her hover height is
 a wall at her level: the **obstacle guard** slows her to a crawl short of it and
@@ -60,11 +60,11 @@ like is the diagnosis:
 
 1. *Take her up again* laid a plane at level 2 and **teleported** her onto it
    in the same tick. The map had the floor; the physics engine had not heard of
-   it yet — a floor reaches Bullet a beat later (`RecalcProperties` →
+   it yet: a floor reaches Bullet a beat later (`RecalcProperties` →
    `IsoChunk.checkPhysicsLater` flags the level, and Bullet asks for it on its
    next step through `updatePhysicsForLevelIfNeeded`).
-2. With nothing under her in the physics she fell — "becomes a physics object"
-   — onto the level-1 plane, which was deliberately still there, and tipped.
+2. With nothing under her in the physics she fell ("becomes a physics object")
+   onto the level-1 plane, which was deliberately still there, and tipped.
 3. The old `serviceFlight` then saw z 1 against a recorded level of 2, found a
    floor at level 2 in the *map*, and teleported her up again. Every tick.
    A teleport zeroes a body's velocity, so she could not move: "stuck".
@@ -77,14 +77,14 @@ floor the physics may not have**, and **never retry every tick**. Section 2.1.
 
 | | On the ground | Hovering |
 |---|---|---|
-| Walk out of the hatch | yes | **no** — five storeys of nothing |
+| Walk out of the hatch | yes | **no**: five storeys of nothing |
 | Beam down | yes | yes, **and it is the only way off her** |
 | Go aft to the cabin | yes | yes, from a seat (a beam) |
 | Come forward to the cockpit | *Forward to the cockpit* too (since 2026-09-24): arrives beside her, where the hatch puts you, and takes a free seat | *Forward to the cockpit*, from the aboard menu: arrives on the ground beneath her |
 
 That last row is not decoration. Without it, going aft in flight is a one-way
 door: the hatch is shut, *Step outside* is hidden for the same reason, and the
-only other way off her is a beam down — so a pilot who stepped through to read
+only other way off her is a beam down, so a pilot who stepped through to read
 the helm could never fly her again. `T.toCockpit` arrives on the **ground
 beneath her** rather than on the plane beside her, waits for her to stream in,
 and uses `vehicle:enter(seat, character)`, which is vanilla's own call
@@ -97,7 +97,7 @@ And **when the last of the crew beams down from a hovering ship, she goes back
 up.** Not down: coming down where she happens to be drops five tonnes of
 shuttle onto whatever is underneath her, which may be a roof, a pond or a
 horde. `S.endFlight(why, toOrbit)` clears the flight and then `S.toOrbit`
-removes the vehicle and sets `landed = false` — the same state a recall leaves
+removes the vehicle and sets `landed = false`, the same state a recall leaves
 her in, so *Call her down* already knows what to do with it. The crew are told
 (`IGUI_TREK_BackUp`), because a ship that vanishes without a word is
 indistinguishable from a ship that has been lost.
@@ -106,8 +106,8 @@ Two more ways out of the sky, both of which exist because the automatic one
 failed in game and left a crew with no move at all:
 
 - **Recall** sends an empty hovering shuttle back up, from the ground. It is
-  refused while anybody is aboard — pulling her out from under them leaves them
-  standing on nothing — and that refusal used to be flat.
+  refused while anybody is aboard (pulling her out from under them leaves them
+  standing on nothing), and that refusal used to be flat.
 - **Call her down** refuses for the same reason while somebody is flying her,
   and by its own name (`inFlight`) rather than by falling through to "not
   enough room", which would send a crewman off hunting for a bigger field.
@@ -128,13 +128,13 @@ the reason is worth knowing before you try to improve it.
 ```java
 setX(jniTransform.origin.x + WorldSimulation.instance.offsetX);
 setY(jniTransform.origin.z + WorldSimulation.instance.offsetY);
-setZ(0.0f);                                              // bci 1429 — UNCONDITIONAL
+setZ(0.0f);                                              // bci 1429: UNCONDITIONAL
 int lvl = PZMath.fastfloor(jniTransform.origin.y / 2.4494900703430176f + 0.05f);
 IsoGridSquare sq  = getCell().getGridSquare(getX(), getY(), lvl);
 IsoGridSquare sqB = getCell().getGridSquare(getX(), getY(), lvl - 1);
 if (sq != null && (sq.getFloor() != null
                    || (sqB != null && sqB.getFloor() != null)))
-    setZ((float) lvl);                                   // bci 1530 — only with a FLOOR
+    setZ((float) lvl);                                   // bci 1530: only with a FLOOR
 ```
 
 **A vehicle's physics height is not its game z.** Every tick the engine zeroes
@@ -147,13 +147,13 @@ the clamped `getZ()`:
 | `ModelCameraRenderData.init` (the render camera) | she is **drawn on the ground** |
 | `getPassengerPositionWorldPos` | so is the crew |
 | `isIntersectingSquare`, `breakingObjects`, `damageObjects` | she **bulldozes fences and trees** she flies over |
-| `VehicleManager.clientUpdateVehiclePos` | hard-writes `setZ(0)` — every **other player** sees her on the road |
+| `VehicleManager.clientUpdateVehiclePos` | hard-writes `setZ(0)`: every **other player** sees her on the road |
 
 The hold does not hold, either: `isAtRest()` is false more than 0.2 levels
 above its own square, so `CarController.checkShouldBeActive()` re-enables
 physics, every tick, from two call sites. Vanilla's own `ISVehicleAngles.lua`
 re-asserts `setPhysicsActive(false, false)` *and* the height on **every frame**,
-which is the authors saying neither sticks — and its only caller sits behind
+which is the authors saying neither sticks, and its only caller sits behind
 `if getCore():getDebug()`, so it is `-debug`-only into the bargain.
 
 So a Lua-driven transform gives a ship that flies in the physics engine and
@@ -164,7 +164,7 @@ sits on the road in the game: **present, drawn, and inert.**
 Put one under her and it all comes right at once. The height is legitimate, so
 she and her crew are drawn in the air. Collision resolves at the flight level,
 so anything shorter than her hover height is passed over instead of demolished. Remote clients
-re-derive the level the same way. And the wheels have something to rest on — so
+re-derive the level the same way. And the wheels have something to rest on, so
 **the engine drives her, and no part of this mod fights gravity.**
 
 Build 42 ships **`invisible_01_0`**, whose only two properties are
@@ -181,8 +181,8 @@ Take-off and landing are **moves**, not teleports (`TREK_Flight`'s
 `startMove` / `serviceMove`). Every tick her physics body is placed a little
 higher (or lower), eased at both ends, directly above the square she started
 on. The renderer draws a vehicle at its *physics* height, not at its whole
-level — `ModelSlotRenderData.init`, bci 101-139, subtracts the level's base
-from `origin.y` and draws the remainder — so a smooth body is a smooth picture.
+level (`ModelSlotRenderData.init`, bci 101-139, subtracts the level's base
+from `origin.y` and draws the remainder), so a smooth body is a smooth picture.
 2 levels a second, never quicker than 0.9 s: to level 5, 2.5 seconds each
 way.
 
@@ -195,14 +195,14 @@ shelf in the physics engine, and running into one is what flips a vehicle. For
 the same reason the plane at her flight level is laid only once she is **above**
 it.
 
-At the top she is **held** — placed every tick — while the plane is laid under
+At the top she is **held**, placed every tick, while the plane is laid under
 her and for `C.FlightSettleMs` after it is complete, so the physics engine has
 heard of it. Then she is **let go** and **watched** for `C.FlightWatchMs`. The
 column comes up as she is let go: one square under a hull three wide is a pivot,
 not a support, and if the plane is not holding her she must be seen to sink
 rather than be caught on it and read as holding. If she sinks more than
 `C.FlightSinkTolerance` levels, or the engine's z is not her level, she is
-carried back and held for longer — `C.FlightSettleAttempts` times, then she is
+carried back and held for longer, `C.FlightSettleAttempts` times, then she is
 **brought back down** to the ground with *she cannot go up* and a WARN. Only
 when the engine has held her does the client tell the server `airborne`.
 
@@ -211,34 +211,34 @@ plane is lifted, and she sinks past floors that are no longer there.
 
 ### 2.2 Falling off the level in flight
 
-If the engine lets her drop off her level in flight — a chunk streaming late,
-a knock — she is carried back up by one move, at most once every
+If the engine lets her drop off her level in flight (a chunk streaming late,
+a knock), she is carried back up by one move, at most once every
 `C.FlightRecoverMs` and at most `C.FlightRecoverLimit` times a flight. After
-that she is left alone and the pilot is told *she cannot hold this height —
+that she is left alone and the pilot is told *she cannot hold this height;
 set her down*. A recovery is one try and never carries her down: the server
 has her recorded as flying, and only the pilot ends a flight.
 
 ### 2.3 The shadow
 
-A soft black disc on the ground under her centre square — exactly the square
+A soft black disc on the ground under her centre square, exactly the square
 `F.land` hands the footprint check, so the shadow *is* where she would come
 down. `TREK_Shadow.lua`. Three things decided how it is drawn:
 
 - **Vanilla's ground markers** (`getWorldMarkers():addGridSquareMarker`, the
   tutorial's call at `client/Tutorial/Steps.lua:55`, no debug gate). Build 42
-  draws them level by level — `FBORenderWorldMarkers.render(level, list)` draws
-  a marker with the level it stands on — so a marker on the ground is seen by a
+  draws them level by level (`FBORenderWorldMarkers.render(level, list)` draws
+  a marker with the level it stands on), so a marker on the ground is seen by a
   pilot five levels up. They blend normally (`SRC_ALPHA, ONE_MINUS_SRC_ALPHA`)
   with a depth test, so black darkens and a building in front hides it.
 - **Not an iso marker carrying a model**, which could have been any shape.
   `IsoMarkers.renderIsoMarkers` draws those only on the viewer's own level
   (bci 149-163): the pilot would never have seen it.
 - **Not the vanilla vehicle shadow.** `BaseVehicle.renderShadow` draws at
-  `fastfloor(getZ())` — at altitude that is the sky plane directly under the
+  `fastfloor(getZ())`: at altitude that is the sky plane directly under the
   hull, not the ground. It is probably the "small black box" seen at level 1.
 
-The renderer accepts one texture for these, `circle_center`, and it is a *ring*
-— clear in the middle. So the disc is `C.ShadowRings` rings nested inside each
+The renderer accepts one texture for these, `circle_center`, and it is a *ring*,
+clear in the middle. So the disc is `C.ShadowRings` rings nested inside each
 other, which fills it in. It moves a whole square at a time (markers take
 integer positions), and it is round, not hull-shaped. Every client draws its own
 from the vehicle it can see; nothing is placed in the world or synced. If the
@@ -259,8 +259,8 @@ list (250, 225, 200, 175, 150, 125, 100, 75, 50, 25).
 
 Anything as tall as her hover height has walls at her level. Every tick the
 physics owner reads the squares ahead of her, the way she is actually moving,
-across her beam, at her flight level — `collideN`/`collideW` walls and anything
-solid, the test vanilla's own builder uses (`ISBuildingObject.lua:309`) — and
+across her beam, at her flight level (`collideN`/`collideW` walls and anything
+solid, the test vanilla's own builder uses, `ISBuildingObject.lua:309`), and
 brings her top speed down as a wall comes nearer, to `C.GuardCrawl` within
 `C.GuardFrom` squares, with a note to the pilot. Turned away, she has her speed
 back. **She is never lifted over it**: changing level in flight is the
@@ -295,19 +295,19 @@ shared/TREK/TREK_Config.lua   every number below
 server, and a vehicle's authorization is only ever moved off its constructor
 default (`Authorization.Server`) by `constraintChanged()`, whose whole body
 sits behind `getstatic GameServer.server; ifeq -> return`. So it is **false in
-single player for ever**, and a guard on it refused every take-off there --
-silently -- for one release. `F.ownsPhysics` answers for itself when there is
+single player for ever**, and a guard on it refused every take-off there,
+silently, for one release. `F.ownsPhysics` answers for itself when there is
 no server to disagree with; vanilla does the same, consulting the method only
 inside `isBrakePedalPressed`'s `GameClient.client` branch.
 
 **Why a client lays world floor**, when `MULTIPLAYER.md` says a client never
 edits the world: the plane is not the ship and it is not state, it is scenery
-and local physics — the same class as the cabin's lights and powered squares,
+and local physics, the same class as the cabin's lights and powered squares,
 which each client also makes for itself. The server runs **no vehicle physics
 at all** in build 42 (`setPhysicsActive` and `setWorldTransform` both skip their
 `Bullet` calls when `GameServer.server`), so it has no use for a floor. The
 driver's client needs one to drive on and every client needs one to draw her in
-the air, and all of them derive it from the same synced vehicle position — so
+the air, and all of them derive it from the same synced vehicle position, so
 they agree without a packet. It is only ever this one sprite, only ever above
 the ground, and always taken up again. `tests/pz_sim.lua` counts it separately
 from every other client world edit so the general rule keeps its teeth.
@@ -324,13 +324,13 @@ sitting on the grass.
 So there are two windows where she is off the ground and `flying` is not set:
 the climb before `airborne`, and the descent after `touchdown` has recorded her
 landed. Everything that asks "is she in the air" has to be read with those in
-mind — the shadow asks her body's height, not the state; the server's `s.z`
+mind: the shadow asks her body's height, not the state; the server's `s.z`
 never follows her up (section 4); and the litter sweep waits for the move to
 finish, because the column under her is exactly the kind of floor it hunts.
 
 There is deliberately **no `setAltitude`**, on either side. One altitude means
 there is nothing to set, and a command left in place as a no-op is a request
-with a handler that quietly does nothing — the shape this project keeps paying
+with a handler that quietly does nothing, the shape this project keeps paying
 for. `tests/test_multiplayer.py` fails if either end grows one back.
 
 ---
@@ -345,7 +345,7 @@ it does.
 
 `RemoveTileObjectErosionNoRecalc` is named for what it does *not* do. The
 object comes off the square and the square keeps every conclusion the engine
-had already drawn from it being there — so the ground under a lifted floor goes
+had already drawn from it being there, so the ground under a lifted floor goes
 on being treated as ground under a floor, and stays dark.
 
 This produced a black trail behind the ship that survived **three** rounds of
@@ -361,8 +361,8 @@ the first fix had missed.
 ### The plane must be small, because a floor darkens what is under it
 
 Nothing can stop that; it is what a floor is. The only lever is how much floor
-exists, so the patch is `C.SkyRadius = 2` — a 5×5 under a hull that covers 15
-squares — and `C.SkyTrailMargin = 0`, so a square is lifted the moment she is
+exists, so the patch is `C.SkyRadius = 2` (a 5×5 under a hull that covers 15
+squares) and `C.SkyTrailMargin = 0`, so a square is lifted the moment she is
 not over it. Earlier values of 16, 4 and 3, and a square of margin, each left a
 visible wake.
 
@@ -371,7 +371,7 @@ wheels.
 
 ### Never lift the floor she is standing on
 
-Two planes can exist for a moment — during a take-off, during a landing, and
+Two planes can exist for a moment: during a take-off, during a landing, and
 (while there were four levels) during a climb, where trimming to the new target
 first took the floor out from under her and she fell, once into a building.
 `Sky.keep(level)` names the level she is actually on this instant, and trim
@@ -382,14 +382,14 @@ A wrong height used to be corrected the moment it was noticed, by a teleport,
 on the reasoning that six ticks is a long fall. **That is the rule that made
 the climb "stuck"**: when the engine would not hold the height, the correction
 ran every tick for ever and zeroed her velocity each time. A correction is now
-a move, spaced and capped (section 2.2) — a correction that cannot succeed
+a move, spaced and capped (section 2.2); a correction that cannot succeed
 must be allowed to stop.
 
 ### A watchdog gated on a loaded chunk never sees the case it exists for
 
 **Every symptom of the second two-player report is this one line.** The check
 that notices nobody is aboard and sends her back up lived inside
-`serviceVehicle`'s `if found then` block — and `found` is the ship's vehicle
+`serviceVehicle`'s `if found then` block, and `found` is the ship's vehicle
 *as the cell lists it*, which is nil exactly when nobody is standing near her.
 Which is exactly the case the watchdog exists to catch.
 
@@ -414,17 +414,17 @@ Three things worth carrying past this one:
   an edge case, it was the *subject*. Anything conditioned on "the world near
   X is loaded" has a blind spot shaped exactly like "nobody is near X".
 - **A stuck state needs a manual way out.** `S.recall` and `S.land` both know
-  how to end a flight now, because the crew's own instinct — call her down, or
-  send her back up — was right and both were refused.
+  how to end a flight now, because the crew's own instinct (call her down, or
+  send her back up) was right and both were refused.
 - **Two graces, not one.** `FlightPilotGrace` (10 checks, one a second) covers
   the gap between a seat and the cabin. `FlightBoardingChecks` (30) is set by
   the server when somebody is *granted* a beam towards a hovering ship,
   because the ground at the far end can take far longer to stream in than the
-  beam itself — and a crew watching her leave while they were dematerialised
+  beam itself, and a crew watching her leave while they were dematerialised
   would be right to call it a bug.
 
 The simulation was honest here for once: `cell:getVehicles()` already filters
-on `SIM.loaded`. The test was the kind one — the pilot beamed down to a return
+on `SIM.loaded`. The test was the kind one: the pilot beamed down to a return
 point a few squares away, so her chunk never unloaded. `flight_alone()` walks
 them three hundred tiles off and checks `TREK.Vehicle.ship()` really is nil
 before it believes the result.
@@ -452,7 +452,7 @@ getEulerAnglesXYZ:  x = atan2(2(xw - yz), 1 - 2(x² + y²))
 ```
 
 For a ship that is dead level and turned by yaw alone, the quaternion is
-`(0, sin θ/2, 0, cos θ/2)`, so `x` is `atan2(0, cos θ)` — **exactly 180° the
+`(0, sin θ/2, 0, cos θ/2)`, so `x` is `atan2(0, cos θ)`: **exactly 180° the
 moment the heading is more than a quarter turn from the one she spawned at**,
 and `z` with it. So the test is true in one half of the compass and false in
 the other, for a ship that is level in both.
@@ -469,7 +469,7 @@ an angle of *nothing* about Y. That is not level, it is **no rotation at all**:
 it throws the heading away along with the pitch and the roll, and teleports the
 physics body to do it. Turn her past ninety degrees and she was wrenched back
 to her spawn heading ten times a second, losing her velocity each time. Reverse
-never leaves the safe half of the compass, so reversing worked perfectly —
+never leaves the safe half of the compass, so reversing worked perfectly,
 which is exactly how a player would describe it.
 
 The fix is two lines and both of them matter:
@@ -478,7 +478,7 @@ The fix is two lines and both of them matter:
   from the three angles, is `cos(az)·cos(ax) − sin(az)·sin(ay)·sin(ax)`. One is
   level, zero is on her side, minus one is on her back;
 - **level her about her own heading.** `Rx(0) Ry(a) Rz(0)` and
-  `Rx(180) Ry(a) Rz(180)` are both exactly level — both are pure yaw — and they
+  `Rx(180) Ry(a) Rz(180)` are both exactly level (both are pure yaw), and they
   are the two halves of the compass. Which one carries her present heading is
   decided by the sign of `cos(angleX)`: the same artefact, read the right way
   round. `setAngles(flat, angleY, flat)` builds it with `Quaternionf
@@ -500,14 +500,14 @@ the three angles as fields and handed them back, so the 180° artefact could not
 exist there, and its `flipUpright` kept the heading the engine throws away. The
 whole flight suite passed against a build nobody could steer. It keeps a real
 quaternion now, decomposes it exactly as the engine does, and `flipUpright`
-resets it to the identity — heading and all.
+resets it to the identity, heading and all.
 
 ### Wake her before moving her
 
 A sleeping Bullet body does not reliably take a teleport. The first take-off in
 game reported `physics active=false` and the height simply did not stick; the
 second, with the body awake, worked at once. `startMove`, the watch and
-`F.lift` all call `setPhysicsActive(true, true)` first — vanilla's own "Drop"
+`F.lift` all call `setPhysicsActive(true, true)` first, vanilla's own "Drop"
 call, ungated.
 
 ### Keep her level
@@ -540,7 +540,7 @@ shows as a sink, not as a ship balanced on one square.
 
 A beam takes ninety ticks. Stepping out of a flying ship at the *start* of one
 leaves the character standing on a small island of invisible floor five levels
-up — and the engine draws the level you are on and culls everything below, so
+up, and the engine draws the level you are on and culls everything below, so
 the whole world goes black until they rematerialise. The seat is left in
 `finishDown`, one tick before they arrive, and they arrive *beside* her:
 directly underneath is where the hull stands when she is down and where her
@@ -548,7 +548,7 @@ shadow falls when she is up.
 
 The same reasoning shuts the cabin hatch while she is up. `landed` used to mean
 both "she is here" and "she is on the ground"; splitting those closed six ways
-to drop a player three levels — `Core.exit`, the aboard menu, `Core.enter`,
+to drop a player three levels: `Core.exit`, the aboard menu, `Core.enter`,
 `hatchIn`, `S.recall` and the vanilla seat exit.
 
 ### `s.z` is the ground. `s.level` is the altitude
@@ -560,7 +560,7 @@ what the shields measure from, and what `S.land`'s "already here" check reads.
 
 It used to be guarded by `if not s.flying`, which the smooth climb broke: she
 is in the air for two and a half seconds before she is recorded as flying, and
-the ground followed her up to level 5 — in the simulation, the next beam
+the ground followed her up to level 5; in the simulation, the next beam
 down then arrived five storeys up and the pilot fell. **The ground under a landed ship only ever moves down now.** It is
 set where she lands and corrected downwards, never up.
 
@@ -569,7 +569,7 @@ set where she lands and corrected downwards, never up.
 Found in the 2026-09-24 play-test: land, walk up the ramp, and one
 `ItemContainer.isOccupiedVehicleSeat` NullPointerException in the corner.
 Standing beside her, vanilla's loot panel lists her seat containers. The ramp
-did rebuild the panel — beside her, so it listed them again — then the move
+did rebuild the panel (beside her, so it listed them again), then the move
 into the cabin unloaded her, and the next frame asked a seat whose vehicle was
 gone. `Core.beginArrival` rebuilds it (`ISInventoryPage.dirtyUI`, which works
 at once from wherever the player stands) **after** putting them on the pad, in
@@ -580,7 +580,7 @@ ramp from beside her and fails if the panel still holds her seat.
 
 `serviceVehicle`'s ownership test is `(s.landed or s.flying)`. Testing only
 `landed` drops the ship's own vehicle into the leftover list, and the leftover
-sweep removes anything nobody is sitting in — so she was deleted out of the sky
+sweep removes anything nobody is sitting in, so she was deleted out of the sky
 the first time the pilot stepped aft. `MISSING_LIMIT` is likewise suspended in
 flight, or a ship briefly outrunning chunk streaming clears its own id and the
 next landing spawns a second shuttle.
@@ -588,14 +588,14 @@ next landing spawns a second shuttle.
 ### Flight never survives a world load
 
 Nothing about a vehicle's physics is saved, and `U.state()` only runs its
-migration block when the schema changes — so `flying` would otherwise persist
+migration block when the schema changes, so `flying` would otherwise persist
 with a pilot who is not connected. `OnInitGlobalModData` clears it outright.
 
 ### Go and find the floors older flights left behind
 
 A floor is a world object and world objects are saved. The ship's record only
-remembers the flight it is on, so anything an earlier flight — or an earlier
-*build* — left behind would never be removed. The tidy-up therefore does not
+remembers the flight it is on, so anything an earlier flight (or an earlier
+*build*) left behind would never be removed. The tidy-up therefore does not
 consult the record: it walks the ground near the player and lifts anything of
 ours above the deck, once per patch of ground.
 
@@ -620,7 +620,7 @@ All in `TREK_Config.lua`.
 | `SkyTrailMargin` | 0 | lift the moment she is not over it |
 | `SkyTilesPerTick` | 96 | sliced, like the landing search |
 | `SkyCleanRadius` / `SkyCleanStride` | 32 / 20 | the hunt for older flights' litter |
-| `SkyLitterTop` | 8 | levels the litter sweep walks — the highest any setting flies, **not** the one in force |
+| `SkyLitterTop` | 8 | levels the litter sweep walks: the highest any setting flies, **not** the one in force |
 | `FlightLevel` | 5 | the default hover height; `C.flightLevel()` reads the sandbox's `FlightHeight` |
 | `FlightLevels` | 2, 3, 4, 5, 6, 8 | the sandbox option's choices, as z levels |
 | `FlightClimbLevelsPerSecond` / `FlightClimbMinMs` | 2 / 900 | how fast she is carried up and down |
@@ -639,7 +639,7 @@ Three traps in there. **`SkyLitterTop` is not the flight level and must not
 be made to follow it.** It is the highest any setting can fly, because a floor
 is a saved world object: a server owner who lowers the hover height after a
 week of flying at 8 still has level-8 litter in the world. **Speed steps must differ from
-their neighbours** — they
+their neighbours**: they
 were once multipliers capped to a common ceiling, so the top three were
 identical and the control appeared dead. And **`SpeedLimit`'s unit is not
 settled**: `PILOTING` once read it as 70 tiles/s, but it is a 10–150 vehicle
@@ -679,7 +679,7 @@ hair of the level is yes. The ones that mean trouble:
 | `WARN she keeps falling off level N ...` | recoveries used up; the pilot has been told to land |
 | `obstacle guard: a wall D squares ahead at level N; top speed S` / `clear ahead` | the guard slowing her, and letting her go |
 
-**`peak` against the patch size is the one to watch** — that difference is
+**`peak` against the patch size is the one to watch**: that difference is
 exactly how much shadow the pilot sees. `held` much above the patch means the
 trim is not keeping up.
 
@@ -690,7 +690,7 @@ whole session was once lost to a log that appeared empty.
 **`F.land` logs every outcome, including its four early returns**, with the
 reason and the blocked-square count. They used to be silent, and during the
 829-exception session the log showed no attempt and no refusal at all between
-going airborne and the pilot beaming out — which is indistinguishable from the
+going airborne and the pilot beaming out, which is indistinguishable from the
 landing never having been called, a failure this mod has had before. Silence is
 not a diagnosis; make every path say something.
 
@@ -712,7 +712,7 @@ mod reports). Heights other than 5 have not been flown.
   vehicle's own sync (`VehiclePhysicsPacket` carries the body, and the
   renderer draws the body's height), and his plane should come up when she
   lands. `flight_two_machines()` says so in simulation only.
-- **The obstacle guard in game.** Not triggered in the play-test — nothing in
+- **The obstacle guard in game.** Not triggered in the play-test; nothing in
   the flight path was five storeys tall. Muldraugh's tallest buildings or
   Louisville will show whether it slows her early enough, and whether the
   note is enough.
@@ -720,13 +720,13 @@ mod reports). Heights other than 5 have not been flown.
   its *roof* at her level. Whether a roof tile stops a vehicle is not settled;
   the guard slows only for walls and solid objects.
 - **Going back up.** `S.toOrbit` fires when nobody has been aboard for
-  `FlightPilotGrace` checks. The grace is what makes a beam survivable — a
+  `FlightPilotGrace` checks. The grace is what makes a beam survivable (a
   player is briefly in neither the seat nor the cabin while the transporter has
-  them — and ten checks has only been reasoned about, not timed against a real
+  them), and ten checks has only been reasoned about, not timed against a real
   beam on a real server.
 - **`setWorldTransform` has no vanilla Lua call site.** It is public, ungated,
   and on the engine's Lua exposure allow-list, and it demonstrably works in
-  game — but it does not meet the three-way bar `MULTIPLAYER.md` sets, and the
+  game, but it does not meet the three-way bar `MULTIPLAYER.md` sets, and the
   probe reads the result back every time for that reason.
 - **The one-square rim.** A floor darkens what is beneath it. The patch is small
   enough that the hull covers nearly all of it; whether anything shows at the
@@ -739,7 +739,7 @@ mod reports). Heights other than 5 have not been flown.
 
 ## 8. If you change something here
 
-1. `python tests/test_multiplayer.py` — the flight scenarios are in `flight()`,
+1. `python tests/test_multiplayer.py`: the flight scenarios are in `flight()`,
    `flight_ascent()` (the climb, the hold, the guard, the shadow and the
    descent, read tick by tick from `SIM.path`), `flight_refused()` (a height the
    engine will not hold, at take-off and in flight), `flight_two_machines()`
@@ -750,7 +750,7 @@ mod reports). Heights other than 5 have not been flown.
    reason: the simulation was being too kind. If a mutation does not bite, the
    sim is wrong, not the test.
 3. `tests/pz_sim.lua` models the parts of the engine that made these bugs
-   possible — the floor-gated z, vehicle gravity, the radial toggle's one-frame
+   possible: the floor-gated z, vehicle gravity, the radial toggle's one-frame
    delay, stale squares, the vehicle's orientation as a real quaternion
    whose Euler decomposition reads 180° past a quarter turn, **a floor that
    reaches the physics three ticks after it reaches the map** (and

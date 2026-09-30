@@ -30,12 +30,12 @@ is how the ship is put together; this file is the part of her you crawl.
   about. You stand up in a hideout. (The first one was three deep and the
   chairs stood in the only row in front of the stash; `tests/test_assets.py`
   now walks every hideout from its hatch to every crate.) The crates also
-  hold the crew's contraband -- the drugs, the Ktarian game, latinum and a
-  holosuite reel -- which is `CONTRABAND.md`. And each hideout's second
+  hold the crew's contraband (the drugs, the Ktarian game, latinum and a
+  holosuite reel), which is `CONTRABAND.md`. And each hideout's second
   crate hides one culture's weapons: Klingon, Romulan and Cardassian,
   Jem'Hadar (`ARMOURY.md` 7).
 - **Turbolift Phobia**, a negative trait (+2 points): every lift ride is
-  instant dread -- stress, panic and misery -- and the lift's menu says so
+  instant dread (stress, panic and misery), and the lift's menu says so
   before you choose. The tubes cost the phobic nothing.
 - **Space outside is space**: black, with stars four storeys down, instead of
   the grass and trees the engine was growing there.
@@ -54,7 +54,7 @@ deck k corridor (0,3) --hatch--> (-1,3) north past the lift car to row -3
 
 Every tube is in the frame of the deck it leaves from: `x` runs on past that
 deck's east edge into the gap. Each tube has its own seed (`1701 + 37n`), so
-a regeneration builds exactly the same tube -- which matters, because a save
+a regeneration builds exactly the same tube, which matters, because a save
 must never find a tube moved under it. The four tubes are 159, 169, 165 and
 173 squares.
 
@@ -83,7 +83,7 @@ The server, `TREK_AdirondackServer.lua`:
 - **A tube is never built whole.** No player ever has a hundred and sixty
   squares loaded. `AS.serviceTubes` runs every 30 ticks while anybody is
   aboard, and builds whatever of each tube touching their deck is loaded and
-  missing -- far ahead of anybody crawling, since the engine loads 76 squares
+  missing, far ahead of anybody crawling, since the engine loads 76 squares
   round a player. `AS.buildTube(t)` is idempotent and partial by design.
 - **A deck's own pass never touches a tube's square** (`A.tubeOwns`), or it
   would take the tube's walls for strays and strip them.
@@ -96,7 +96,7 @@ The server, `TREK_AdirondackServer.lua`:
 `TREK_Adirondack.lua` indexes every tube square (`A.tubeIndex`), and:
 
 - `A.locate` answers a tube square with the deck the tube leaves from, so
-  everything keyed on "which deck" -- her power, the lamps, the rescue -- just
+  everything keyed on "which deck" (her power, the lamps, the rescue) just
   works.
 - `A.inside` is true on a tube square, so the rescue that puts back somebody
   who has climbed over a wall does not put back somebody crawling.
@@ -106,7 +106,7 @@ The server, `TREK_AdirondackServer.lua`:
 server takes away anything of ours the layout no longer puts there (never a
 container with something in it), once per square per session, and then adds
 what is missing. And where an older layout put something the tube no longer
-reaches -- the first, smaller hideouts stood elsewhere -- the generator writes
+reaches (the first, smaller hideouts stood elsewhere), the generator writes
 the old squares down as the tube's `legacy`, and the server strips them as
 they load: walls, floor, fittings, with anything in the crates and on the
 floor handed back on the tube where the old side crawl left it. Once, ever
@@ -118,12 +118,12 @@ floor handed back on the tube where the old side crawl left it. Once, ever
 client's **own** character (the only one a client may touch):
 
 - on a crawlway: `setVariable("TrekCrawl", true)`, sneaking on, running and
-  sprinting off -- every tick, so a held run key changes nothing;
+  sprinting off, every tick, so a held run key changes nothing;
 - off it: the variable off, and sneaking put back as it was before the tube.
 
 The animation is two mod AnimSets nodes, `media/AnimSets/player/movement/
 trekCrawl.xml` and `idle/trekCrawlIdle.xml`, both playing vanilla's
-**`Bob_Crawl`** -- a clip vanilla ships and no vanilla state plays -- when
+**`Bob_Crawl`** (a clip vanilla ships and no vanilla state plays) when
 `TrekCrawl` is true. Two engine facts decided them:
 
 - `AnimNode.compareSelectionConditions` ranks candidate nodes by
@@ -162,7 +162,7 @@ clearing pass under the ships strips the ground.
 
 **The decks are 108 squares apart** (`DECK_PITCH`), because the engine loads
 at most 19 chunks of 8 round a player (`IsoChunkMap.CalcChunkWidth`, capped
-at 19) -- 79 squares from the edge of their chunk -- and draws nothing it has
+at 19), 79 squares from the edge of their chunk, and draws nothing it has
 not loaded. At 32 the next deck was twelve squares away and in plain view at
 any zoom; at 108 the gap is 88, and no deck is ever loaded from another.
 
@@ -185,13 +185,13 @@ generated, and every save made before this has grass in them.
 1. **Space.** Beam up: black and stars round the shuttle's cabin and the
    Adirondack, at every zoom. The server log should say `void map
    'TrekShuttle' is loaded`. Then the question only the game can answer: how
-   the stars look at night -- a floor is lit like any other outdoor square, so
+   the stars look at night: a floor is lit like any other outdoor square, so
    they may dim after dark.
 2. **Spacing.** At the widest zoom on any deck, no other deck in view.
 3. **The hatch.** Walk up to the west wall of Deck 1's corridor, row 3: it
    opens. The hatch art is `tube_hatch_raw.jpg` in a full-height door frame.
-4. **The crawl.** (Until 2026-09-27 `trekCrawl.xml` did not parse -- a `--`
-   in a comment -- and the game dropped it, so any crawl seen before then was
+4. **The crawl.** (Until 2026-09-27 `trekCrawl.xml` did not parse: a `--`
+   in a comment; the game dropped it, so any crawl seen before then was
    not this one.) Into the tube: does `Bob_Crawl` play, which way does it
    face, and does the idle node hold a pose or snap to the T-pose. If the
    crawl reads wrong, the two XML files are all there is to change.
@@ -214,7 +214,7 @@ python tools/preview_tubes.py            # design/art/adirondack/tubes/: overvie
 ```
 
 - **A different route**: the constants at the top of
-  `gen_adirondack_tubes.py` -- `BAND`, `RUN`, `JOG` -- or a tube's seed. The
+  `gen_adirondack_tubes.py` (`BAND`, `RUN`, `JOG`) or a tube's seed. The
   guard will refuse anything that would build without its walls.
 - **More or fewer hideouts**: `HIDEOUTS`. What they hold: `A.Stock.stash_*`
   and `A.stockItems("stash")` in `TREK_Adirondack.lua`; what lies on the
@@ -236,8 +236,8 @@ python tools/preview_tubes.py            # design/art/adirondack/tubes/: overvie
 - **A test that jumps a player between decks has to wait for the ground.**
   At a pitch of 32 the neighbouring decks were loaded anyway; at 108 they are
   not, and a two-tick pump after a jump left an arrival hold running.
-- **The simulation had no stance at all** -- no `setVariable`, no
-  `setSneaking` -- and a stub that is missing throws inside `U.try`, which
+- **The simulation had no stance at all** (no `setVariable`, no
+  `setSneaking`), and a stub that is missing throws inside `U.try`, which
   would have looked like a quiet no-op. They store what they are given now, so
   a test reads back what the crawl set.
 - **A tube is a room too.** The tube strip beside a deck is inside that

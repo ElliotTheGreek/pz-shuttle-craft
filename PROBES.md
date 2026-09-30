@@ -31,7 +31,7 @@ to do first.
 **There is no new fitting.** The console was going to be one and would have
 cost one of twenty-four deck squares and a BuildingEd change; it is reached
 the same way the helm is. It was briefly a right-click submenu, which worked
-and read as a list of settings rather than a station on a starship -- and gave
+and read as a list of settings rather than a station on a starship, and gave
 a probe in flight nowhere to show progress.
 
 ## 2. What happens
@@ -40,7 +40,7 @@ a probe in flight nowhere to show progress.
 2. The server checks crew access, that the player is **aboard** (against its
    own copy of where they are), and that no probe is already up.
 3. It spends `C.ProbeCost` from the reserve, burning a crystal if it has to,
-   and creates the logical job — **all in one handler**, so racing launches
+   and creates the logical job, **all in one handler**, so racing launches
    make one probe and one deduction.
 4. The server picks the bearing. Not the client: a client that could name the
    direction could name the one with the crystal in it.
@@ -48,7 +48,7 @@ a probe in flight nowhere to show progress.
    persisted, so a restart mid-flight resumes rather than losing the probe and
    the power that bought it. It runs outside the cabin-loaded branch, so it
    keeps flying whether or not anybody is aboard.
-6. On arrival it rolls against `C.ProbeFindChance` -- except for the **first
+6. On arrival it rolls against `C.ProbeFindChance`, except for the **first
    probe of a save, which always finds something**. A hit adds a `dilithium`
    contact scattered up to `C.ProbeReportSpread` tiles off the endpoint and
    marked **approximate**; a miss reports nothing, honestly.
@@ -65,7 +65,7 @@ a probe in flight nowhere to show progress.
 | `C.ContactPlaceRadius` | 6 | how far the ship will look for ground to put it on |
 | `C.ProbeFlightTicks` | 60 | advanced once a **game minute**, so one game hour |
 | `C.ProbeWorkPerTick` | 1 | |
-| `C.ProbeMinDistance` / `Max` | 80 / 260 | squares -- two to eight town blocks |
+| `C.ProbeMinDistance` / `Max` | 80 / 260 | squares, two to eight town blocks |
 | `C.ProbeBearingTries` | 24 | bearings tried before giving up near a map edge |
 | `C.ProbeFindChance` | 0.65 | an empty report is a real outcome |
 | `C.ProbeReportSpread` | 60 | tiles of uncertainty in a long-range fix |
@@ -76,7 +76,7 @@ journey across a great map distance, it is a loading pause.
 
 **A probe launches from the crew, not from the ship's record.** `s.x, s.y` is
 where the shuttle was last *set down*, and it is `0, 0` in a world where she
-has never been called down -- so the first probe fired in a fresh save
+has never been called down, so the first probe fired in a fresh save
 reported a contact at 298,351, the far corner of the map, while the crew stood
 in Muldraugh at 10932,10031. `Ship.worldOrigin(player)` answers the question
 that was meant, in three steps: the player's own position when they are
@@ -90,7 +90,7 @@ launch refuses rather than firing from the origin.
 hop: the first contact anybody got in a real game was placed far north of the
 playable world altogether, and the crew set off toward a mark that could never
 have had anything on it. "Across a great map distance" is what ROADMAP2 asks
-for and it is not what the game can pay -- the roadmap says as much about the
+for and it is not what the game can pay; the roadmap says as much about the
 ensign, that "about a mile" has to be tuned by travel time rather than
 converted literally.
 
@@ -99,7 +99,7 @@ converted literally.
 vanilla's own map calls it before offering to teleport somewhere
 (`ISWorldMap.lua:941`). A bearing that leaves the map is shrunk toward the
 ship until it lands, and if no bearing works the probe goes back in the rack
-rather than flying off to report nothing. The **scatter is clamped too** --
+rather than flying off to report nothing. The **scatter is clamped too**:
 it is applied after the bearing was checked, so it can push an otherwise good
 fix back over an edge.
 
@@ -108,7 +108,7 @@ pass, so an old mark out in the void stops being somewhere to walk.
 
 The spread is what keeps the tricorder worth having. A probe that named the
 exact square from two thousand tiles away would make the whole close-range
-half of the design pointless — ROADMAP2: *"Long-range systems locate the
+half of the design pointless. ROADMAP2: *"Long-range systems locate the
 region; the tricorder locates the person."*
 
 ## 4. Where things live
@@ -132,7 +132,7 @@ tools/gen_map_symbols.py           the two glyphs and that registration
   reasoning in `MAP_MARKERS.md`.
 - **`addTexture` takes world squares**, the same coordinates the mod already
   speaks, and a symbol id nothing registered draws nothing at all.
-- **`ZombRand` is an ordinary global** — 424 vanilla call sites, only seven of
+- **`ZombRand` is an ordinary global**: 424 vanilla call sites, only seven of
   them under `DebugUIs/`.
 - **`math.atan2` is Kahlua-only** and was removed in Lua 5.3. The bearing here
   uses two ratio comparisons instead, which is true in both.
@@ -151,7 +151,7 @@ called from both.
 
 **The "impossible" refusal is loud on purpose.** If `Probes.active()` says no
 probe is up and `begin()` refuses anyway, the handler refunds and logs a WARN.
-Without that line the branch is invisible — it refuses with the same reason
+Without that line the branch is invisible: it refuses with the same reason
 the guard above would have given, and neither a test nor a log could tell the
 two apart. That was a real mutation escape.
 
@@ -169,7 +169,7 @@ fix.
 **An empty report has to reach the player, not the log.** At a 65% hit rate
 one launch in three finds nothing, and the only trace of that was a line in
 `console.txt`. From the console a probe that returned empty and a probe that
-never happened looked identical -- and the first person to play it reported
+never happened looked identical, and the first person to play it reported
 the feature as broken, correctly. There is a note on arrival and a line on the
 panel now, and **the first probe of a save is guaranteed**, because a new crew
 whose opening launch costs 250 units and an hour of game time and reports
@@ -182,14 +182,14 @@ be asked about it yet), and the placement search (is there a floor). Confusing
 the first two is how a probe reported a contact two thousand squares off the
 top of the map.
 
-**A per-cent sign beside a `%1` comes out mangled.** "Probe in flight -- 16$s%"
-was what a player saw. Put the sign in the *argument*; no other translation in
+**A per-cent sign beside a `%1` comes out mangled.** A player saw the
+progress as "16$s%". Put the sign in the *argument*; no other translation in
 this mod has a literal one, which was the tell.
 
 ## 7. Seen in game, and still to settle
 
 **Played on 2026-09-23**, the day the console was built: fabricate, launch, the
-wait and the report. Play is what turned the first version into this one --
+wait and the report. Play is what turned the first version into this one:
 the console panel instead of a submenu, probes as stock, real crystals placed
 at a contact, the map uncovered round it, the `%` bug, and the world map that
 crashed on a category of two symbols. A probe that came back empty was reported
@@ -205,7 +205,7 @@ Still to settle:
 2. **Whether an hour is the right wait**, and whether 250 is the right price.
    Both are one constant.
 3. **Whether the revealed area is the right size** (120 squares either side).
-4. **Two clients** -- the map view has never been drawn on two machines, and
+4. **Two clients**: the map view has never been drawn on two machines, and
    the reveal is per-player by design.
 5. **A probe across a server restart.** Progress is persisted and tested; the
    real save/load round trip is not.

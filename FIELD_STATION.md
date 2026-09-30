@@ -8,7 +8,7 @@ machinery, and this file is what is different about it.
 
 Built 2026-09-27; reached and walked the same day ("nice, I like it down
 here"), as three sublevels. Rebuilt the same day as **one long floor** at the
-author's word, with quarters, a galley and replicator and an armoury added --
+author's word, with quarters, a galley and replicator and an armoury added;
 that version is not yet seen. Section 10 is what to check; section 12 is what
 building it taught. Players may build and move furniture down here as
 everywhere aboard (`BUILDING.md`).
@@ -29,7 +29,7 @@ everywhere aboard (`BUILDING.md`).
 - **Right-click the panel: *Lift: down to the field station*.** The stockroom
   floor hums and drops away, and you step out of the station's lift car.
 - **One long, wide floor** in the Adirondack's own fittings (her bulkheads,
-  deck plate, sliding doors, consoles and furniture), with no viewports -- you
+  deck plate, sliding doors, consoles and furniture), with no viewports: you
   are underground. A corridor runs from the lift the length of the floor:
 
   | West of the corridor (up and left on screen) | East of it |
@@ -51,7 +51,7 @@ everywhere aboard (`BUILDING.md`).
   no transporter down here, and no beam to the shuttle.
 - **The Adirondack's crew talk about it** (`design/crew/field_office.txt`,
   and `cor_field_office`): in her lounge and galley, on the bridge, in the
-  transporter room and sickbay, and in passing -- the field office under the
+  transporter room and sickbay, and in passing: the field office under the
   electronics shop at Dixie Highway and South Main, dark since June, the
   breaker box in the stockroom. That is how a player hears it is there.
 
@@ -64,8 +64,8 @@ Binding on anybody writing a line for it, and taken from `LORE.md` 1a-1c and
 record: the Mintakan observation post in TNG's *Who Watches the Watchers* was
 an anthropological station hidden from the people it watched. Shepard's
 department ran this one. The detachment bought a failing electronics shop in
-Muldraugh -- cover, and a steady supply of the 1993 hardware a cultural survey
-wants to take apart -- and dug the station under it.
+Muldraugh (cover, and a steady supply of the 1993 hardware a cultural survey
+wants to take apart) and dug the station under it.
 
 **This is where the television came from.** `LORE.md` 1a has Shepard
 acquiring the cabin's television and its tape deck as specimens. She did it
@@ -94,8 +94,8 @@ What that settles:
   the Changeling never stated, nothing cruel about the dead, lines of 80
   characters at most.
 
-The Adirondack's crew mention the field office now and then -- the dark one,
-behind the shop in Muldraugh -- which is how a player hears where it is.
+The Adirondack's crew mention the field office now and then (the dark one,
+behind the shop in Muldraugh), which is how a player hears where it is.
 
 ## 3. The store and the secret door
 
@@ -122,7 +122,7 @@ run, so a game update that moves that wall fails at the desk.
 **The server checks the site before it touches it**, in every world: the
 square must be in a room of that name, carry a solid wall on the named edge
 (`WallW`/`WallN`, never a window or a doorway), and have nothing standing on it
-but that wall, its trim and grime -- and trim means any tile marked
+but that wall, its trim and grime, and trim means any tile marked
 `WallOverlay`, which is how the map paints a wall (section 12). If the map is not the one it was read from
 (another map mod, a later game version), the server walks every square of the
 same room for one that passes, and if none does it says so with a `WARN` and
@@ -132,12 +132,12 @@ places nothing. It never builds a door into a wall it has not checked.
 
 Two tiles on the Adirondack's furniture sheet, both hung on a wall:
 
-- **`fuse_box`** -- the disguise, a new flat piece (the last in
+- **`fuse_box`**: the disguise, a new flat piece (the last in
   `tools/adirondack_objects.py`): a scuffed grey 1990s breaker cabinet with a
   yellow warning triangle. Its picture is drawn by `tools/gen_fuse_box.py`,
   procedurally, because it is a grey box and an image model has nothing to add
   to one.
-- **`turbolift_panel`** -- what is behind it, the same panel the Adirondack's
+- **`turbolift_panel`**: what is behind it, the same panel the Adirondack's
   lift cars carry.
 
 **Placing and revealing are the server's**, in `TREK_FieldStationServer.lua`:
@@ -148,7 +148,7 @@ Two tiles on the Adirondack's furniture sheet, both hung on a wall:
 2. `stationOpen` (a client asking, from within reach of the box): the server
    checks the player is standing in reach on its own copy, takes the box away
    and hangs the panel in its place, and records `found`. It is published in
-   the ship state as `s.station` -- the site square and `found` -- so every
+   the ship state as `s.station` (the site square and `found`) so every
    client offers the right option on the right square.
 3. A world where the box was taken (a sledgehammer, another mod) gets it back
    on the next load of that chunk, and a found panel likewise. The lift is
@@ -176,8 +176,8 @@ transporter charge on a server with the speed anti-cheat, as every beam does
   held on the spot until the square has its floor, then let go.
 - **The return point is the stockroom.** The server writes it on its own copy
   of the player before the move (as it does for a beam up), so anything that
-  asks where a player in the station *is* on the map -- a distress call's
-  distance, a probe -- answers the store (`Ship.worldOrigin`).
+  asks where a player in the station *is* on the map (a distress call's
+  distance, a probe) answers the store (`Ship.worldOrigin`).
 
 ## 4. The station
 
@@ -218,16 +218,16 @@ What the site changes, and nothing else:
 | The menu's title | U.S.S. Adirondack | Field Station |
 
 `A.siteOf(k)` answers the site of a deck, `A.siteAt(x, y, z)` of a square and
-`A.siteOfPlayer(p)` of a player. `A.onShip(player)` keeps its meaning --
-standing on any runtime deck, which is what the machines' menus, the Doctor
-and the deck builder ask -- and `A.onAdirondack(player)` / `A.onStation(player)`
+`A.siteOfPlayer(p)` of a player. `A.onShip(player)` keeps its meaning
+(standing on any runtime deck, which is what the machines' menus, the Doctor
+and the deck builder ask) and `A.onAdirondack(player)` / `A.onStation(player)`
 are the two halves for the few things that differ.
 
 **It stands far east of the ship**: the star field under the Adirondack
 reaches 110 squares past her last deck (`gen_void_map.py`, `VIEW`), and the
 station's black should not begin where anybody can see stars.
 
-**The floor is bigger than any deck**, so the building -- and `L.W`, `L.H` --
+**The floor is bigger than any deck**, so the building (and `L.W`, `L.H`)
 grew to its size. The Jefferies tubes are routed by the size of the ship's
 own decks (`gen_adirondack_lua.py`), and came out byte-identical: a tube must
 never move under a save.
@@ -235,7 +235,7 @@ never move under a save.
 ### The three sublevels it replaced
 
 For one day the station was three sublevels, at slots 8, 9 and 10, and a save
-may have them built -- the author's does. The floor stands clear of them at
+may have them built; the author's does. The floor stands clear of them at
 slot 11 rather than being refitted over them: a refit keeps any locker with
 something in it, which would have left the old sublevels' stocked shelves
 standing in the new rooms. Their squares are `L.legacyStation`; a player
@@ -250,7 +250,7 @@ cells black.
 and changes nothing the Adirondack's lockers hold; what is in the station's is
 decided by what stands there. Worth knowing: every stocked container is
 stocked once, when it is made (`DEV_GUIDE.md`, *Never restock*), so the
-station's lockers fill when the floor is first built in a world -- in an
+station's lockers fill when the floor is first built in a world, in an
 existing save as much as a new one, because none of it existed before.
 
 ## 5. Who owns what
@@ -310,7 +310,7 @@ tag on either. The station therefore has its own `hello`, `outfit`, `idle`,
 
 ### Who they are
 
-The same roster -- species, ranks, divisions -- weighted for a survey
+The same roster (species, ranks, divisions), weighted for a survey
 detachment: sciences first, then operations, a little command.
 
 ## 8. Files
@@ -350,7 +350,7 @@ miniature: the room's name (`SIM.room`), the west wall with its trim on every
 square, a workbench on the next square down and the interior window along the
 north. `tests/pz_sim.lua` learned two things for it: a tile's own flags
 (`SIM.tileProps`, read through `getProperties():has`) and a square's
-`getRoomDef()`. Before, every flag answered false -- a stub that would have
+`getRoomDef()`. Before, every flag answered false: a stub that would have
 passed a box hung on a window.
 
 **`fieldstation()`**, single player and with two clients:
@@ -376,7 +376,7 @@ server holds the stockroom as the return point of a player below, on its own
 copy, and bills them to the station's store.
 
 **Fifteen mutations, one at a time, each asserted to have applied, all
-caught** -- two only after their test was tightened: the ride down before the
+caught**, two only after their test was tightened: the ride down before the
 box is open was also out of reach, and the ride up from the stockroom was also
 not from a lift car, so in each case the other guard refused first. The test
 now asks at the box, and from the Adirondack's own lift car.
@@ -384,7 +384,7 @@ now asks at the box, and from the Adirondack's own lift car.
 ## 10. Not yet seen in game
 
 In a world where the stockroom's chunk has not been loaded since this was
-installed (any new world; most existing ones -- only a player who has stood in
+installed (any new world; most existing ones: only a player who has stood in
 that store since will have missed the placement, and the next load fixes it):
 
 1. **The box.** Muldraugh, the electronics store beside the Zippee, the
@@ -392,7 +392,7 @@ that store since will have missed the placement, and the next load fixes it):
 2. **Opening it.** The note, and the panel where the box was.
 3. **Down.** The note, the lift car, the floor building round you, the log
    saying `Field Station Level 1 built`. **In your save**: you were last down
-   there on the old sublevels -- you should arrive on the new floor.
+   there on the old sublevels; you should arrive on the new floor.
 4. **The floor.** The quarters up and left of the corridor, the galley's
    replicator, the armoury's lockers. No stars, black; the doors; the lamps;
    the lift between them.
@@ -418,7 +418,7 @@ that store since will have missed the placement, and the next load fixes it):
   stockroom carries a second tile, `location_trailer_02_48`: no picture of
   its own worth the name, flagged `WallOverlay`, `attachedW`. The first rule
   called anything wall-attached that was not the wall "occupied", passed every
-  test -- the simulated stockroom had no trim -- and would have found nowhere
+  test (the simulated stockroom had no trim) and would have found nowhere
   in the room to hang the box, in every world, with a WARN nobody reads. It
   was caught by running `tools/fieldstation_site.py` against the real map
   before the game, which is why that tool exists and why `test_assets.py`
@@ -427,14 +427,14 @@ that store since will have missed the placement, and the next load fixes it):
   (DEV_GUIDE, *A correction that cannot succeed must be allowed to stop*):
   see the two tightened tests in section 9.
 - **A counter across "every deck" is a counter across both places.** Adding
-  three sublevels broke four of the Adirondack's own checks -- her lockers'
-  totals and the tube count -- because they walked `L.decks`. They walk her
+  three sublevels broke four of the Adirondack's own checks (her lockers'
+  totals and the tube count) because they walked `L.decks`. They walk her
   site now (`adk_items(..., site)`, `A.decksOf("adk")`).
 - **Asking for a patient "aboard" with no asker meant the cabin.** The
   Doctor's server-side patient lookup (`EMH.patientNamed`) took no asker and
   so always searched the shuttle's cabin: on the Adirondack nobody but
-  yourself could ever be treated. It searches the asker's own place now --
-  cabin, ship or station -- which fixed the ship as a side effect.
+  yourself could ever be treated. It searches the asker's own place now
+  (cabin, ship or station), which fixed the ship as a side effect.
 
 **A roof one storey up.** Runtime decks have no rooms, so to the engine they
 were outdoors and it rained inside (1.10.0). Every deck and tube floor square

@@ -18,7 +18,7 @@ a: {b}. Screen four. Main Street, by the post office.
  | Have a look at camera four for me. By the post office.
  | {b}, come and look at this. Four. No, four.
 b: What am I looking at? | I see the street. | The post office. And?
-a: Wait for it. There. Walking. | Give it a second. There -- by the mailbox.
+a: Wait for it. There. Walking. | Give it a second. There, by the mailbox.
 ...
 -> person 2, shape 2, glitch 1
 
@@ -215,7 +215,7 @@ c: You went out? Past the front windows?
  | You went through the shop? Past the windows?
 b: Through the back. Along the wall. The door sticks, then it doesn't.
  | Stockroom, back door, alley, back door. Forty seconds each way.
-a: If Iverne finds out-- | Security will have your pips.
+a: If Iverne finds out... | Security will have your pips.
 b: Then nobody tell Iverne. Twinkie? | Then have a Twinkie and hush.
 -> end_meal
 

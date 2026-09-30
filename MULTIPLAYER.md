@@ -4,16 +4,16 @@ How the Shuttlecraft mod works correctly in **single player, hosted co-op and
 dedicated servers**, for anyone who subscribes on the Workshop.
 
 Status: **all nine migration steps built (1.3.0)**. Everything through step 8
-— the vehicle shuttle and flight — is confirmed in single player and passes the
+(the vehicle shuttle and flight) is confirmed in single player and passes the
 simulated server with two clients. **Flight was played with two real people for
 the first time on 2026-09-23**, which is where the levelling bug in
 `PILOTING.md` section 4 came from; nothing else in here has been played with
-two real people yet. Every feature since 1.3.0 -- energy, the Adirondack, her
-crew, traits, contraband -- follows the same split, and each guide has its own
+two real people yet. Every feature since 1.3.0 (energy, the Adirondack, her
+crew, traits, contraband) follows the same split, and each guide has its own
 multiplayer section; the tables below list the ones that matter here. This
 document is the plan and the record of why each decision was made. Every step is covered by `tests/test_multiplayer.py`, which
 runs the real Lua as single player and as a server with two clients over a
-simulated network, flight included -- but a simulation is not the game.
+simulated network, flight included, but a simulation is not the game.
 
 ---
 
@@ -63,7 +63,7 @@ in brackets. These facts drive every decision below.
 | Co-op server process / dedicated server | false | true |
 
 So a server-side file guarded by `if isClient() then return end` runs in
-**single player and on any server** -- one code path for all three setups.
+**single player and on any server**: one code path for all three setups.
 
 ### Commands
 
@@ -107,7 +107,7 @@ So a server-side file guarded by `if isClient() then return end` runs in
   `addFluid`, `GameEntityFactory.AddComponent(obj, true, component)`.
   `addFluid` on the object syncs itself. [HIGH]
 - The interior's cell (96,40) is inside the server's valid world bounds by
-  default (world-gen bounds are -250..+250 cells). [MEDIUM-HIGH -- first thing
+  default (world-gen bounds are -250..+250 cells). [MEDIUM-HIGH; first thing
   the dedicated-server test checks]
 
 ### Moving players
@@ -129,7 +129,7 @@ So a server-side file guarded by `if isClient() then return end` runs in
   ban to log with `getServerOptions():putOption`, which the anti-cheat reads
   live. In memory only; the `.ini` is untouched. Checked at start and every
   minute. *Leave it as set* keeps the server's own setting, and then the
-  charges below ration beams -- sized for one strike a jump, so on a
+  charges below ration beams, sized for one strike a jump, so on a
   kicking server they are too generous. [HIGH]
 - Anything moving a character faster than **20 tiles/second** on average is a
   strike every second: hands-on flight as built (90 tiles/s at 1x) would be
@@ -177,13 +177,13 @@ So a server-side file guarded by `if isClient() then return end` runs in
 | Cabin geometry, containers, loot, water | **Server** | World objects; clients only see what the server streams |
 | Hull world item on the map | **Server** | World object |
 | A player's own position (beaming, walking in, arrival hold) | **That player's client** | Only a client may move its own character without admin rights |
-| Where a player beamed up from (their return point) | **That player**, player mod data -- and **also the server's copy**, written by the `move` handler before a beam up or a walk in | The client's write never reaches a dedicated server, which then could not say where a player standing in the cabin was: probes aboard were refused for want of a fix. See DEV_GUIDE, *Player mod data a client writes is not the server's* |
+| Where a player beamed up from (their return point) | **That player**, player mod data, and **also the server's copy**, written by the `move` handler before a beam up or a walk in | The client's write never reaches a dedicated server, which then could not say where a player standing in the cabin was: probes aboard were refused for want of a fix. See DEV_GUIDE, *Player mod data a client writes is not the server's* |
 | Zombie repulsion (shields) | **Each client**, for zombies it owns | Zombies are client-simulated |
 | Phaser charge | **The carrying client** | Items in a player's own inventory |
 | Helm, menus, map markers, notes | **Client** | Presentation only |
 | Access rules | **Server**, sandbox options | Server owner decides |
 | The Doctor standing on the deck | **Server**, `s.emh` in the ship state | A world item, so everyone aboard sees the same one |
-| Who may consult him, and who the patient is | **Server**, from its own copy of where people are standing | A client is a request, never a fact -- including about whose body it is |
+| Who may consult him, and who the patient is | **Server**, from its own copy of where people are standing | A client is a request, never a fact, including about whose body it is |
 | **Any body the EMH treats or cures** | **Server**, written directly and pushed with `syncBodyPart` | Forced by the engine: `BodyDamage.Update()` restores a *remote* player's body to full on a client every tick, so the server is the only machine that knows they are hurt |
 | The body-level infection flags and the infection moodle | **The patient's own client**, on `emhCured` | `syncBodyPart` carries `BodyPart` fields only; the `BodyDamage` flags and the moodle do not ride it |
 | Consent to be treated | **The patient's client** raises it; the server mints, expires and re-validates the token | Nobody can force-heal, or force-anything, another player |
@@ -242,7 +242,7 @@ Per player (`player:getModData().TREK`): `returnX/Y/Z`, `aboard`.
 
 Module name `TREK`. A shared helper `TREK.Net.toClient(player, cmd, args)`
 calls `sendServerCommand` on a server and the client handler directly in
-single player -- the one place that difference lives.
+single player: the one place that difference lives.
 
 Client -> server (`OnClientCommand`), each validated server-side (access rule,
 sane numbers, player alive):
@@ -258,11 +258,11 @@ sane numbers, player alive):
 | `refillWater` | Tops up the cabin's plumbed fixtures |
 | `claim` / `setCrew {name, on}` | Ownership and crew, if access rules allow |
 | `emhSummon` / `emhDismiss` | Projects the Doctor onto 2,4, or takes him down; `s.emh` is the truth and `B.serviceEMH` makes the deck match it |
-| `emhLook {who}` | Reads that patient's body and answers `emhFindings` -- the panel cannot read a remote body itself |
+| `emhLook {who}` | Reads that patient's body and answers `emhFindings`; the panel cannot read a remote body itself |
 | `emhTreat {who}` / `emhCure {who}` | Treats or cures; naming somebody else mints a consent token and asks **them** |
 | `emhAccept {token}` / `emhDecline {token}` | The patient's answer, re-validated from scratch |
 | `distressAnswer {id, accept}` | Accepts or declines the pending distress call; the id must be the call that is pending, and the player aboard by the server's copy |
-| `rescueEnsign {id}` | Beams the downed ensign to safety: live, placed, within reach by the server's copy, figure present -- then one removal, one status change, one reward |
+| `rescueEnsign {id}` | Beams the downed ensign to safety: live, placed, within reach by the server's copy, figure present; then one removal, one status change, one reward |
 
 Server -> client (`OnServerCommand` / direct in SP):
 
@@ -302,7 +302,7 @@ Server -> client (`OnServerCommand` / direct in SP):
   position), exactly as today, and tells the server `boarded` / left.
 - **Transporter charge.** On a server whose `AntiCheatSpeed` would kick or ban
   (read with `getServerOptions():getOption("AntiCheatSpeed")`: 1 ban, 2 kick,
-  3 log, 4 disabled), each player has **3 charges, one restored every 150 s** -- the anti-cheat's own budget,
+  3 log, 4 disabled), each player has **3 charges, one restored every 150 s**, the anti-cheat's own budget,
   so the mod refuses the 4th beam in-lore ("the transporter is recharging")
   instead of the server kicking the player. In single player, co-op without
   anti-cheat, or with the check set to log/off, charges are unlimited.
@@ -310,15 +310,15 @@ Server -> client (`OnServerCommand` / direct in SP):
 - Taking her down needs 2 charges and spends 1: the other is held for the
   beam home if there is no room to land (`recover` is free).
 - **Beaming down arrives first, then settles** on the nearest clear square:
-  the ground at the destination is not loaded -- on the client or the server
-  -- until someone stands there.
+  the ground at the destination is not loaded (on the client or the server)
+  until someone stands there.
 - A server owner can remove the limit entirely with `AntiCheatSpeed=3` (log)
   or `4` (off); the Workshop description says so.
 
 ### Hull, landing, recall, ghosts (server)
 
 - The landing search needs the site's chunks, which the server has only near
-  a player -- so, as today, **the player beams to the site first**, then asks
+  a player, so, as today, **the player beams to the site first**, then asks
   the server to land. Refusal beams them back.
 - Hull world item placed and removed on the server; ghost-hull sweep runs on
   the server as players load chunks.
@@ -340,14 +340,14 @@ Flight is driving on an invisible floor laid at altitude, and **each client
 lays its own**. That is a deliberate exception to "a client never edits the
 world", and it is narrower than it sounds:
 
-- build 42's server runs **no vehicle physics at all** — `setPhysicsActive` and
-  `setWorldTransform` both skip their `Bullet` calls when `GameServer.server` —
+- build 42's server runs **no vehicle physics at all** (`setPhysicsActive` and
+  `setWorldTransform` both skip their `Bullet` calls when `GameServer.server`),
   so the server has no use for a floor;
 - the driver's client needs one to drive on, and every client needs one to draw
   the ship in the air; all of them derive it from the same synced vehicle
   position, so they agree without a packet;
 - it is only ever `invisible_01_0`, only ever above ground level, and it is
-  always taken up again — the same class as the cabin's lights and powered
+  always taken up again: the same class as the cabin's lights and powered
   squares, which every client also makes for itself.
 
 The ship's *state* is untouched by this: `flying`, `level` and `pilot` are the
@@ -377,17 +377,17 @@ server's, set by validated commands, exactly like everything else.
 | `TrekShuttle.PhaserCutting` | Trees and doors / Trees only / Off | Trees and doors |
 | `TrekShuttle.HydroponicsWater` | Yes / No | Yes |
 
-- **Owner**: the first player to use the ship claims it -- on a hosted game
+- **Owner**: the first player to use the ship claims it; on a hosted game
   that is naturally the host. Admins can reassign; the owner manages the crew
   list from the helm.
 - With **Everyone**, ownership only decides who manages the crew list.
 
 ---
 
-## Flight -- what was built
+## Flight: what was built
 
 **Decision (2026-09-17): C, the shuttle is a vehicle the crew enters like a
-car** -- and it flies. Entering a vehicle is not a teleport and takes no
+car**, and it flies. Entering a vehicle is not a teleport and takes no
 anti-cheat strike, an occupant may travel at the server's vehicle speed limit,
 a seat with no door cannot be bitten, and vehicle position is synced by the
 game itself. Everything hands-on flight had to fake, the engine already does.
@@ -399,7 +399,7 @@ What matters here is the authority split.
 | | |
 |---|---|
 | `flying`, `level`, `pilot`, `speed` | **Server**, ship state, set only by validated commands |
-| Who may take off and land | **Server** -- alive, `mayUse`, and in the driver's seat |
+| Who may take off and land | **Server**: alive, `mayUse`, and in the driver's seat |
 | The lift, and keeping her level | **The client that owns the physics** (`isLocalPhysicSim`) |
 | The invisible floor | **Each client, for itself.** Never synced. |
 | Sending her back up when nobody is aboard | **Server**, on its own copy of where everyone is standing |
@@ -426,8 +426,8 @@ ascent agree by construction.
 
 **The ascent and descent are the physics owner's alone.** The pilot's client
 carries her body up and down a little every tick (`PILOTING.md` 2.1), and
-every other machine sees it through the vehicle's own sync -- the same
-`VehiclePhysicsPacket` that carries her along the road -- and draws her at
+every other machine sees it through the vehicle's own sync (the same
+`VehiclePhysicsPacket` that carries her along the road) and draws her at
 that height, because the renderer draws a vehicle at its physics height. Only
 the pilot's client lays the one-square *column* under her on the way; the
 others have no plane until the state says she is flying, and need none to
@@ -446,7 +446,7 @@ plane over the landing site until its player happened to walk twenty squares
 away. `Ship.onChange` now lifts it the moment `flying` goes false.
 
 **The shadow** is each client's own, drawn with the game's ground markers from
-the vehicle it can see, whenever her body is off the ground -- the climb and
+the vehicle it can see, whenever her body is off the ground, the climb and
 the descent included. Nothing is placed in the world and nothing is sent.
 
 **The obstacle guard** runs on the physics owner, which is the only machine
@@ -455,7 +455,7 @@ whose `setMaxSpeed` moves anything.
 **And nobody aboard means she goes back up, not down.** The hatch is shut while
 she hovers, so the only way out of her is the transporter; when the last of the
 crew beams down, `S.endFlight(why, toOrbit)` clears the flight and `S.toOrbit`
-removes the vehicle and sets `landed = false` -- the same state a recall leaves
+removes the vehicle and sets `landed = false`, the same state a recall leaves
 her in. Dropping her onto whatever happens to be underneath was the
 alternative. The crew are told, because a ship that disappears without a word
 is indistinguishable from one that has been lost.
@@ -467,8 +467,8 @@ nothing.
 
 **And it runs whether or not her chunk is loaded**, which is the multiplayer
 half of it and the thing that broke in play. Chunks stream only around players,
-so the server's copy of the vehicle is missing exactly when nobody is near her
--- exactly the case the watchdog exists for. Gated on the vehicle being there,
+so the server's copy of the vehicle is missing exactly when nobody is near her,
+exactly the case the watchdog exists for. Gated on the vehicle being there,
 it never fired, and a crew who beamed down and walked away left her flying for
 ever, with the hatch and the recall both refusing them. `crewAboard(nil)` is
 correct: a player in a seat keeps her chunk loaded by being in it, so an
@@ -485,14 +485,14 @@ stream in than the beam itself.
 
 This is a documented exception to hard rule 4, and a narrow one.
 
-- The **server runs no vehicle physics** in build 42 -- `setPhysicsActive` and
-  `setWorldTransform` both skip their `Bullet` calls when `GameServer.server`
-  -- so it has no use for a floor and never lays one.
+- The **server runs no vehicle physics** in build 42 (`setPhysicsActive` and
+  `setWorldTransform` both skip their `Bullet` calls when `GameServer.server`),
+  so it has no use for a floor and never lays one.
 - The **driver's client** needs one to drive on; **every** client needs one to
   draw her in the air. All of them derive it from the same synced vehicle
   position, so they agree without a packet crossing the network.
 - It is only ever `invisible_01_0`, only ever above ground level, and always
-  taken up again. It is scenery and local physics -- the same class as the
+  taken up again. It is scenery and local physics: the same class as the
   cabin's lights and powered squares, which each client also makes for itself.
 - The ship's *state* is untouched by any of it.
 
@@ -508,12 +508,12 @@ guide; this section is only the client/server half.
 
 The two verify-first questions were "killing a zombie has to be done by the
 server" and "the explosion must not set the street on fire". The first stands.
-**The second was a misreading** -- it meant fire as an intended weapon effect,
+**The second was a misreading**: it meant fire as an intended weapon effect,
 and was taken to mean no fire at all, which cost the feature its entire visible
 half for three commits. A torpedo burns, deliberately. See
 `PHOTON_TORPEDOS.md`, "How it came to be invisible".
 
-**The route is `IsoTrap`**, which clears all three bars this project sets --
+**The route is `IsoTrap`**, which clears all three bars this project sets:
 public (`pzapi.py`), understood under-what-condition (`javadis.py`), and with a
 real vanilla Lua call site (`shared/TimedActions/ISPlaceTrap.lua:47`,
 `IsoTrap.new(character, weapon, cell, square)` then `trap:place()`).
@@ -534,7 +534,7 @@ if (startFire) IsoFireManager.StartFire(...);                   // bci 316
 **There is no separate explosion effect in build 42**: `explosion(square)` is
 the damage and it is unconditional, and everything a player *sees* is the fire
 and the smoke. So `FireStartingChance = 0` does not make a tidy explosion, it
-makes an invisible one. Vanilla's `PipeBomb` does ship 0 -- because a pipe bomb
+makes an invisible one. Vanilla's `PipeBomb` does ship 0, because a pipe bomb
 is not meant to be arson, and a photon torpedo is.
 
 Two corrections to what this section said before: the two fire paths take
@@ -560,7 +560,7 @@ plus `BurnWalls`, and it touches no character at all. [HIGH]
 
 That is the same ownership rule the shields follow, written into the engine.
 Damage goes through `IsoMovingObject.Hit(HandWeapon, attacker, damage, false,
-1.0)` -- the ordinary synced hit path -- and `drawCircleExplosion` already
+1.0)`, the ordinary synced hit path, and `drawCircleExplosion` already
 respects `LosUtil.lineClear` (walls block it) and `NonPvpZone`. [HIGH]
 
 So the authority split needs no exception:
@@ -568,7 +568,7 @@ So the authority split needs no exception:
 | | |
 |---|---|
 | Firing, cooldown, and the blast | **Server**, on a validated command |
-| Who may fire | **Server** -- alive, `mayUse`, in the driver's seat, flying |
+| Who may fire | **Server**: alive, `mayUse`, in the driver's seat, flying |
 | Aiming, the reticle, the UI | **Client**, presentation only |
 
 `fireTorpedo {x, y, z}` -> the server checks the pilot, the cooldown and both
@@ -581,7 +581,7 @@ zombie owned by a client would be hit twice.
 
 The projectile is **scenery**, the same documented exception as the sky plane:
 each client draws its own from that one packet, in screen space, touching no
-world object at all. The fire needs no packet of ours -- `IsoFireManager
+world object at all. The fire needs no packet of ours: `IsoFireManager
 .StartFire` sends its own to nearby clients.
 
 Still unproven, and only the game can say: whether the blast is visible to a
@@ -595,11 +595,11 @@ section is only the authority split.
 
 | | |
 |---|---|
-| Treating your **own** body (the hypospray, the dermal regenerator) | **That player's client.** Body damage belongs to the owning client and syncs from there -- the same rule and the same reason as "a client moves only its own character" |
+| Treating your **own** body (the hypospray, the dermal regenerator) | **That player's client.** Body damage belongs to the owning client and syncs from there, the same rule and the same reason as "a client moves only its own character" |
 | Hypospray doses | **The item**, in its own mod data, which travels with it |
 | Reading your own vitals (medical tricorder) | **Client.** Pure UI |
 | Reading **somebody else's** vitals | **The engine's own consent flow.** `requestMedicalCheck` raises a yes/no on the other player's screen; only a yes reaches `ISMedicalCheckAction`, which the mod wraps to raise `doctorLevel` |
-| The sensor sweep | **Each client, for the zombies it can see.** Reads `cell:getZombieList()`, the same list the shields walk. On a server that is not quite every zombie there is, which is honest -- a sensor reading rather than omniscience |
+| The sensor sweep | **Each client, for the zombies it can see.** Reads `cell:getZombieList()`, the same list the shields walk. On a server that is not quite every zombie there is, which is honest: a sensor reading rather than omniscience |
 | The contact plot | **Client**, drawn in the panel; it touches no world object, the same documented exception as the torpedo's flight |
 | **A lock** | **Server**, on a validated `unlock` command |
 
@@ -608,7 +608,7 @@ Three things about the lock are worth keeping here rather than only in
 
 - **The engine's own sync runs on the wrong side.** `setLockedByKey(b)` fires
   `IsoDoor.sync()` itself, behind `if (!GameServer.server)`. A lock is world
-  state, so by hard rule 4 the server is what changes it -- and that is
+  state, so by hard rule 4 the server is what changes it, and that is
   exactly the process where the branch is skipped. `obj:sync()` is the
   explicit call that works from both, and the server makes it. [HIGH]
 - **The tool is checked in the player's inventory on the server's own copy**,
@@ -636,19 +636,19 @@ it.
 | | |
 |---|---|
 | The item is created | **Server**, on a validated `replicate` command. This is the one feature in the mod that can hand a player anything in the game |
-| Who may use it | **Server** -- alive, the ship's own `canUse`, and standing at the berth, measured on the server's copy of where they are |
+| Who may use it | **Server**: alive, the ship's own `canUse`, and standing at the berth, measured on the server's copy of where they are |
 | The pattern set | **Server**, its own global mod data key, shared by the crew |
 | The reserve | **Server**, ship state: one number. A client with no copy yet reads it as full rather than empty, so a panel opened before the first sync does not grey its own button |
-| The crystals | **Server**, ship state: one number beside the reserve. They were items in a container for one revision; the core is the mod's own model and a model cannot have a container, and the number turns out to be the better half of the trade -- every client knows the spare count without standing in front of anything |
+| The crystals | **Server**, ship state: one number beside the reserve. They were items in a container for one revision; the core is the mod's own model and a model cannot have a container, and the number turns out to be the better half of the trade: every client knows the spare count without standing in front of anything |
 | Loading one in | **Server**, on `loadCrystal`. It looks in its own copy of the player's inventory, filtered on the **full** id, removes the crystal, counts the inventory before and after, and follows it with `sendRemoveItemFromContainer` so the asking client's own copy agrees |
 | Taking one out | **Server**, on `takeCrystal`. The crystal is made into the player's hands and **counted first**; the ship's number only goes down once one really landed |
-| Loading a spare | **Server**, inside `P.afford`, which is guarded by `isClient()` -- a client asked to pay for something it cannot afford simply answers no |
+| Loading a spare | **Server**, inside `P.afford`, which is guarded by `isClient()`; a client asked to pay for something it cannot afford simply answers no |
 | The catalogue | **Both**, built per process out of `getAllItems()`. It is derived from the game's own scripts, so every process computes the same thing and none of it crosses the wire |
 | The panel, the search, the list | **Client**, presentation only |
 
 **The pattern set is deliberately not in `TREK_Ship`.** `Ship.commit()`
 transmits the whole ship table on every change, and `S.serviceVehicle` commits
-each time the shuttle is driven a square -- roughly once a second while
+each time the shuttle is driven a square, roughly once a second while
 anybody is flying her. A crew who have scanned two thousand items would push
 two thousand strings through every one of those. It has its own key
 (`TREK_Patterns_v1`) and the same request-and-receive handshake as the ship,
@@ -665,7 +665,7 @@ item printer), and the **inventory** a scan reads (its own copy, via
 engine's own idiom rather than an invention: `server/ClientCommands.lua` does
 `player:getInventory():AddItem(item)` followed by
 `sendAddItemToContainer(player:getInventory(), item)` in a dozen places, on a
-validated client command -- exactly this shape. The inventory is counted
+validated client command: exactly this shape. The inventory is counted
 before and after every single item, because `instanceItem` answers nil for an
 obsolete item that slipped the filter and a container at capacity drops what
 it is handed, and from the server's side both look like success.
@@ -674,7 +674,7 @@ it is handed, and from the server's side both look like success.
 
 ## Risks that only the game can settle
 
-1. The interior cell loads on a **dedicated server** (bounds) -- test first.
+1. The interior cell loads on a **dedicated server** (bounds); test first.
 2. The server-built cabin streams to clients with containers and loot intact.
 3. The sink's added `FluidContainer` works with the mains off.
 4. Beam counts versus kicks on a server with `AntiCheatSpeed=2`.
@@ -684,7 +684,7 @@ it is handed, and from the server's side both look like success.
 7. Shields push zombies for every client near the hull.
 8. **A shuttle in the air, seen from the other machine.** Each client lays its
    own floor under her and derives the level from it, and the simulated
-   two-client scenario says both see her at altitude -- but the engine's own
+   two-client scenario says both see her at altitude, but the engine's own
    half of that (`clientUpdateVehiclePos` writes `setZ(0)` and
    `BaseVehicle.update()` then recomputes it) has only been reasoned about.
    The simulation now relays the driver's body height to the other copies the
@@ -696,7 +696,7 @@ it is handed, and from the server's side both look like success.
 10. **The heading she is flown on, seen from the other machine.** The levelling
    pass runs on every client that can see her and only the physics owner moves
    her, and the first two-player flight found that pass wrenching her rotation
-   to the identity whenever the pilot turned more than a quarter turn --
+   to the identity whenever the pilot turned more than a quarter turn:
    `getAngleX` reads 180 there for a ship that is dead level (`PILOTING.md`
    section 4). Fixed and covered in simulation on both machines; the real
    connection has not seen it since.
@@ -712,7 +712,7 @@ it is handed, and from the server's side both look like success.
     client stores what arrives. The simulated two-client scenario agrees.
 14. **An item the server makes arriving in the asking player's hands**, and
     in nobody else's. It rides `sendAddItemToContainer` on their own
-    inventory, which is what vanilla's ClientCommands.lua does -- but on a
+    inventory, which is what vanilla's ClientCommands.lua does, but on a
     real connection rather than a simulated one.
 
 ---
@@ -737,7 +737,7 @@ pilot bringing her down.
 
 **Mutation-check anything added there.** Several of these guards passed their
 first run for the wrong reason, because the simulation was being kinder than
-the engine -- it had no vehicle gravity, no floor-gated height, and no
+the engine: it had no vehicle gravity, no floor-gated height, and no
 one-frame delay on the radial menu until each of those let a real bug through.
 
 ---

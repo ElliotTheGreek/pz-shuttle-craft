@@ -2,7 +2,7 @@
   "id": "TREK_Holosuite",
   "order": 20,
   "notes": [
-    "CONTRABAND.md: the hideouts' tape. Not on the shuttle's shelf -- it",
+    "CONTRABAND.md: the hideouts' tape. Not on the shuttle's shelf: it",
     "is stocked in the stash crates off the Jefferies tubes, which is why",
     "it is `issued` (held back from the shelf) without the story ever",
     "issuing it.",

@@ -1,4 +1,4 @@
-# ITEMS.md — everything the mod has made
+# ITEMS.md: everything the mod has made
 
 An inventory of what the mod adds to the world: the items you carry, the
 furniture that stands on the decks, and what is in each container of the
@@ -56,7 +56,7 @@ anybody with *Real Food Only*, is unhappy with replicated food.
 
 | Item | Id | Species |
 |---|---|---|
-| Starfleet Ration Pack | `TrekRationPack` | — |
+| Starfleet Ration Pack | `TrekRationPack` | none |
 | Gagh | `TrekGagh` | Klingon |
 | Rokeg Blood Pie | `TrekRokegPie` | Klingon |
 | Plomeek Soup | `TrekPlomeekSoup` | Vulcan |
@@ -175,11 +175,11 @@ Each piece is modelled and rendered into tiles, in every facing it needs.
 |---|---|---|---|---|---|
 | captain_chair | seat | 1 | | | |
 | bridge_chair | seat | 4 | | | |
-| helm_console | — | 2 | | | |
-| science_station | — | 4 | | | |
-| science_display | — | 2 | | | |
-| tactical_rail | — | 1 | | | |
-| railing | — | 4 | | | 4 |
+| helm_console | none | 2 | | | |
+| science_station | none | 4 | | | |
+| science_display | none | 2 | | | |
+| tactical_rail | none | 1 | | | |
+| railing | none | 4 | | | 4 |
 | ready_room_desk | container (desk) | 1 | | | |
 | desk | container (desk) | | 4 | 1 | |
 | desk_chair | seat | 1 | 4 | 1 | |
@@ -202,25 +202,25 @@ Each piece is modelled and rendered into tiles, in every facing it needs.
 | sofa | seat | | 1 | | |
 | armchair | seat | | 3 | 1 | |
 | coffee_table | table | | 3 | | |
-| sonic_shower | — | | 2 | | |
-| toilet | — | | 2 | | |
+| sonic_shower | none | | 2 | | |
+| toilet | none | | 2 | | |
 | wash_basin | **running water** | | 2 | | |
 | transporter_pad | the arrival pad | | | 1 | |
-| transporter_console | — | | | 1 | |
+| transporter_console | none | | | 1 | |
 | biobed | bed | | | 4 | |
-| surgical_bed | — | | | 1 | |
+| surgical_bed | none | | | 1 | |
 | medical_cabinet | container (medicine) | | | 5 | |
 | medical_cart | container (medicine) | | | 3 | |
 | emh_station | **the Doctor, always on** | | | 1 | |
 | warp_core | **her core: load / take crystals** | | | | 1 |
-| master_systems | — | | | | 1 |
-| engineering_console | — | | | | 7 |
-| jefferies_hatch | — | | | | 2 |
+| master_systems | none | | | | 1 |
+| engineering_console | none | | | | 7 |
+| jefferies_hatch | none | | | | 2 |
 | cargo_crate | container (crate) | | 1 | 1 | 5 |
 | antigrav_cart | container (crate) | | | | 1 |
 | turbolift_panel | wall panel | 3 | 3 | 3 | 2 |
 | wall_sconce | wall light (look only) | 4 | 7 | 7 | 5 |
-| plant | — | 2 | 6 | 3 | |
+| plant | none | 2 | 6 | 3 | |
 | painting_ship / painting_nebula | wall art | 1 | 3 | 1 | |
 | plaque | wall art | | | 1 | |
 
@@ -265,7 +265,7 @@ The loot lists:
 | **Medical** locker | starboard | 1 of each medical instrument, then the `medical` list, to 8 items |
 | Tape shelf | bow | the 12 recordings above, one tape each |
 | Fridge, oven, 2 counters, microwave | galley | empty: the crew's own |
-| Warp core | midships | not a container: on a **commissioned** start, **3 spare dilithium crystals** (`C.DilithiumIssue`) as ship state plus the one burning; on a **cold start** (the default), none -- the first crystal is found by probe (`ENERGY.md` 10) |
+| Warp core | midships | not a container: on a **commissioned** start, **3 spare dilithium crystals** (`C.DilithiumIssue`) as ship state plus the one burning; on a **cold start** (the default), none; the first crystal is found by probe (`ENERGY.md` 10) |
 | Galley sink | galley | running water, kept topped up |
 
 ### The U.S.S. Adirondack
@@ -479,7 +479,7 @@ be replicated (`C.ReplicatorBlocked`).
 | Trellium-D | `TrekTrelliumD` | Inject | A Vulcan's high and crash; everybody else's poison |
 | Cordrazine | `TrekCordrazine` | Inject | Sickbay's stimulant; a second dose inside 4 hours is an overdose |
 | Ktarian Game | `TrekKtarianGame` | Play the Game | Hooked at 4 rounds; handed on to anybody within 3 tiles |
-| Latinum Strip | `TrekLatinumStrip` | -- | The card table's pot |
+| Latinum Strip | `TrekLatinumStrip` | none | The card table's pot |
 | Kanar | `TrekKanar` | Drink | Cardassian, syrupy, strong |
 | Saurian Brandy | `TrekSaurianBrandy` | Drink | The officer's brandy |
 | Aldebaran Whiskey | `TrekAldebaranWhiskey` | Drink | It is green |

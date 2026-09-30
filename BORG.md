@@ -5,7 +5,7 @@ Built 2026-09-27. **Not yet seen in game.** Section 7 is what to look at.
 ## 1. What it is
 
 `LORE.md` already says what the horde is: the Founders' morphogenic virus and
-Borg nanoprobes, grafted -- *"a Collective with no Queen."* In most of the dead
+Borg nanoprobes, grafted: *"a Collective with no Queen."* In most of the dead
 the nanoprobes only keep a corpse walking. In a few they went on building, and
 those are the Borg: about one zombie in two hundred at the default, as common
 as a policeman.

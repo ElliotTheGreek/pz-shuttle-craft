@@ -1,4 +1,4 @@
-# Captain — the woman in the chair
+# Captain: the woman in the chair
 
 The working guide to Captain Titus: the *Adirondack*'s commanding officer, sat on
 her bridge, whom a player can sit down with and ask what is going on.
@@ -64,8 +64,8 @@ when the player finally meets her:
 Shepard beamed up, which is before the player's first day.
 
 **Her gating is discretion, not ignorance.** She tells the player what the ship
-knows for certain from the start, and declines the theory honestly -- *"My
-exobiologist has a theory. I've read it. I've signed nothing."* -- until the
+knows for certain from the start, and declines the theory honestly (*"My
+exobiologist has a theory. I've read it. I've signed nothing."*) until the
 sandbox's gate opens. The question stays on her list so the player knows there
 is more.
 
@@ -155,8 +155,8 @@ The in-fiction hint. Her answer is the first of these that is true:
 **Decided by the author 2026-09-28: the captain gives rank in person.** Rescues
 still earn it (`TRAITS.md` 4.5: 1, 3, 5, 8, 11), but `TraitsServer.onRescue` no
 longer sets the trait: it tells the rescuer *Captain Titus would like to see you
-on the Adirondack's bridge*. The next time they speak to her -- on opening, or on
-coming back to her topics -- she confers it: a **field commission** for somebody
+on the Adirondack's bridge*. The next time they speak to her, on opening or on
+coming back to her topics, she confers it: a **field commission** for somebody
 with no rank (`HUB_COMMISSION`), a **promotion** for somebody with one
 (`HUB_PROMOTE`). The rank is whatever the rescues are worth by then, so nothing
 is lost by waiting. A Starfleet profession's starting rank is still given at
@@ -176,8 +176,8 @@ content/captain/<TOPIC>.json    one topic each
 `tools/gen_captain.py` reads them and writes `TREK_CaptainTree.lua` and the
 `Print_Text_TREK_CAPT_*` keys (Print_Text.json's third writer, each owning its
 own prefix). **It is its own generator rather than a mode of `gen_comms.py`**,
-because the shapes differ -- a hub and spokes with tiers, where the channel is
-timed calls with silence branches -- but it imports the channel's condition
+because the shapes differ (a hub and spokes with tiers, where the channel is
+timed calls with silence branches), but it imports the channel's condition
 vocabulary, flags and line limits, so the two cannot drift. It refuses:
 
 - a `go` to nothing, an unreachable node, a route whose last arm is conditional;
@@ -236,7 +236,7 @@ chair and talks to her anyway.
 An LCARS panel in the Doctor's style: her portrait, her lines wrapped beside it,
 a fixed pool of buttons shown, hidden and relabelled per answer and
 re-registered on the controller each time. **The portrait is rendered** from
-the body she is drawn with -- vanilla's female body, the command duty uniform on
+the body she is drawn with: vanilla's female body, the command duty uniform on
 its boilersuit rig, the bun from the white hair sheet tinted grey
 (`tools/gen_captain_art.py`, raws in `design/art/captain/`).
 
@@ -270,7 +270,7 @@ alone, their first name if she was told it, and otherwise *friend*.
 ## 7. Tests
 
 - **`tests/test_comms.py`**: fifteen broken trees, one fault each, refused for
-  that reason -- the Changeling in an ungated tier and Tucker Gold in an option
+  that reason, the Changeling in an ungated tier and Tucker Gold in an option
   among them; what is on disk is what the generator writes; every key has text
   and none is orphaned; the conditions the generator trusts are the ones
   `TREK_Captain.check` answers; the files are in the house layout.
@@ -295,7 +295,7 @@ alone, their first name if she was told it, and otherwise *friend*.
   with all topics and NEW.
 
 **Nineteen mutations, one pass at a time, all caught.** One was missed on the
-first run -- dropping the stale-node check -- because the only stale answer the
+first run (dropping the stale-node check) because the only stale answer the
 test sent was refused by the offered-option check as well: two guards covering
 each other (DEV_GUIDE.md). The test now sends the case the node check exists
 for, a stale answer whose option number is valid on the new node (a double

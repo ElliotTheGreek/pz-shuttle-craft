@@ -3,14 +3,14 @@
 How the shuttle's four medical instruments work, how to change them, and what
 will bite you if you do.
 
-**Built 2026-09-20. Not yet seen in game** — section *Still to settle, in game*
+**Built 2026-09-20. Not yet seen in game**; section *Still to settle, in game*
 is the list to work through the first time it is carried in.
 
 | | |
 |---|---|
 | **Hypospray** | injected: an infected cut, pain, stiffness, fractures, and the open wounds too. Six doses, refilled aboard. |
 | **Dermal regenerator** | skin: lacerations, scratches, deep wounds, bleeding, burns, and the stitches and dressing over them. Free. |
-| **Medical tricorder** | vanilla's health panel with every Doctor gate open, on you or — with their consent — on somebody else. |
+| **Medical tricorder** | vanilla's health panel with every Doctor gate open, on you or, with their consent, on somebody else. |
 | **Tricorder** | a sliced sensor sweep drawn as a contact plot. (It had a lock override until 2026-09-24; see *The lock override is gone* below.) |
 
 `DEV_GUIDE.md` is the general one and its *Rules that exist because they were
@@ -21,7 +21,7 @@ broken* still apply here. `MULTIPLAYER.md` is the client/server split.
 
 ## What happens when the player uses one
 
-Build 42 has **no script hook for "using" an arbitrary item** — the two routes
+Build 42 has **no script hook for "using" an arbitrary item**: the two routes
 that exist are a food item's eat action and a literature item's read action,
 and both consume or replace the thing. A tricorder is used and kept. So every
 one of these is an `OnFillInventoryObjectContextMenu` option, which is the
@@ -95,14 +95,14 @@ Two orderings in there are deliberate and easy to break:
 
 | File | What it holds |
 |---|---|
-| `shared/TREK/TREK_Config.lua` | every constant — section *The medical set* |
+| `shared/TREK/TREK_Config.lua` | every constant: section *The medical set* |
 | `shared/TREK/TREK_Medical.lua` | `Med.TREATMENTS`, `Med.SKIN`, `Med.treatWith`, doses. No side effects; loads everywhere |
 | `client/TREK/TREK_MedKit.lua` | the menus, both panels, the sweep job, dose refills, the `ISMedicalCheckAction` wrapper |
-| `server/TREK/TREK_Build.lua` | `SPECIALS.medkit` — what the sick-bay locker is guaranteed |
+| `server/TREK/TREK_Build.lua` | `SPECIALS.medkit`, what the sick-bay locker is guaranteed |
 | `shared/TREK/TREK_InteriorLayout.lua` | `special = "medkit"` on the sick-bay locker at 3,2 |
 | `media/scripts/trekshuttle.txt` | the four `item` blocks and three `sound` blocks |
 | `lua/shared/Translate/EN/` | `ItemName`, `Tooltip`, and every `IGUI_TREK_` string |
-| `tools/gen_medical.py` | the three sounds. **The icons are not made here** — they come from the Gemini toolkit |
+| `tools/gen_medical.py` | the three sounds. **The icons are not made here**; they come from the Gemini toolkit |
 | `design/art/medical/` | icon originals, the contact sheet, and what was sent to `analyze-image` |
 | `tests/test_multiplayer.py` | `medical()` and `medical_multiplayer()` |
 | `tests/test_helm.py` | the tricorder's contact plot, drawn and driven |
@@ -123,7 +123,7 @@ Med.SKIN         -- the dermal regenerator
 
 Each entry is `{ key, ask(part, bodyDamage), fix(part, bodyDamage) }`. `ask`
 returns truthy while the condition is present, so the same function is the
-before reading *and* the after check — `Med.treatWith` runs ask → fix → ask,
+before reading *and* the after check: `Med.treatWith` runs ask → fix → ask,
 and counts nothing that did not actually change.
 
 To add a condition, add an entry and a `*_TEXT` string in `TREK_MedKit.lua` so
@@ -137,19 +137,19 @@ survived.
 
 ### The split between the two
 
-The overlap on deep wounds, bleeding and burns is deliberate — the hypospray
+The overlap on deep wounds, bleeding and burns is deliberate: the hypospray
 stays the all-in-one emergency dose. What keeps a free, unlimited regenerator
 from making it pointless is **scope, not cost**:
 
 | | Hypospray | Dermal regenerator |
 |---|---|---|
-| lacerations, scratches | — | **yes** |
-| stitches, dressings | — | **yes** |
+| lacerations, scratches | no | **yes** |
+| stitches, dressings | no | **yes** |
 | deep wounds, bleeding, burns | yes | yes |
 | part health | yes | yes |
-| **infected cut** | **yes** | — |
-| **pain, stiffness** | **yes** | — |
-| **fractures** | **yes** | — |
+| **infected cut** | **yes** | no |
+| **pain, stiffness** | **yes** | no |
+| **fractures** | **yes** | no |
 | bites, zombie infection | never | never |
 | cost | 6 doses, refilled aboard | free |
 
@@ -160,7 +160,7 @@ nothing left to be.
 ### Doses
 
 `C.HyposprayDoses` (6) and `C.HyposprayRechargeTicks` (900 ticks, so fifteen
-seconds a dose **while aboard**). Kept in the item's own mod data — not its
+seconds a dose **while aboard**). Kept in the item's own mod data, not its
 condition, not an ammo count, both of which are engine state with engine
 opinions about them; mod data on an `InventoryItem` saves with the item and
 travels with it between containers, players and worlds.
@@ -170,19 +170,19 @@ Reading it as empty would ship every locker stocked with dead injectors.
 
 The refill is tied to the cabin rather than to a timer, and that is the whole
 design: a hypospray that refilled itself wherever you left it makes the limit a
-delay rather than a decision, and the decision — push on with two doses, or go
-home — is the only interesting thing about the number.
+delay rather than a decision, and the decision (push on with two doses, or go
+home) is the only interesting thing about the number.
 
 ### The regenerator's two refusals
 
 Both live in `Med.obstructed` and the `bandage` entry's `ask`:
 
-- **glass or a bullet still in the part** — the site is skipped, the rest of
+- **glass or a bullet still in the part**: the site is skipped, the rest of
   the body is still treated, and `counts.skipped` drives a second note naming
   what is in the way. Skin does not close over a shard, and a mod that sealed
   one inside while reporting success is the failure shape this project keeps
   cataloguing. Tweezers keep a reason to exist.
-- **a dressing on a bitten limb** — it cannot cure the bite, so taking the
+- **a dressing on a bitten limb**: it cannot cure the bite, so taking the
   bandage off one is worse than doing nothing.
 
 Removing either is a one-line change and both are mutation-checked.
@@ -190,7 +190,7 @@ Removing either is a one-line change and both are mutation-checked.
 ### The health panel
 
 `panel.doctorLevel = C.MedDoctorLevel` on the instance. **Never
-`ISHealthPanel.cheat`** — see *What would have bitten you*.
+`ISHealthPanel.cheat`**; see *What would have bitten you*.
 
 The gates are `> 2` wound, `> 4` pain/burn/deep, `> 6` stitch, `> 8` wound
 infection, so anything past 8 opens all of them; 10 says what it means.
@@ -198,7 +198,7 @@ infection, so anything past 8 opens all of them; 10 says what it means.
 Scanning another player is a **wrapper on `ISMedicalCheckAction.perform`**, not
 a reimplementation, because that action also does the animation, the proximity
 checks, the body-damage subscription, the window bookkeeping and the joypad
-focus — all of which we would otherwise be copying and then failing to keep up
+focus, all of which we would otherwise be copying and then failing to keep up
 to date.
 
 ### The sweep
@@ -214,7 +214,7 @@ The interval is the other half of the limit and is easy to think redundant: a
 sweep of three zombies finishes inside a single tick, so "one at a time" alone
 would let the button be held down and chirp every frame.
 
-The plot is **drawn, never placed** — nothing in it touches a world object, the
+The plot is **drawn, never placed**: nothing in it touches a world object, the
 same rule the torpedo's flight follows. It is an `ISPanelJoypad` built from the
 helm's own LCARS parts (`H.pill`, `TREKLcarsButton`, `H.P`), so changing the
 helm's palette changes this too.
@@ -222,7 +222,7 @@ helm's palette changes this too.
 ### Where it is in the ship
 
 The shuttle's sick-bay locker at 3,2 stocks `C.Loot.medical` and carries one of
-each instrument outright via `special = "medkit"` -- the same mechanism that
+each instrument outright via `special = "medkit"`, the same mechanism that
 puts four phasers in the armoury at 3,0, generalised into a `SPECIALS` table in
 `TREK_Build.lua`. Leaving them to the loot list is not enough: the fill walks
 it from a rolling cursor, and a locker that happens to miss one instrument
@@ -244,7 +244,7 @@ quietly stocking nothing.
    `tools/vet_icons.py` at 32px **against the rest of the set** → hand the
    sheet to `analyze-image`. Raws and the sheet go in `design/art/medical/`.
    **64×64**, because nothing here carries an `AttachmentType`.
-3. `C.<Name>Item` and `C.<Name>Type` in config — two names for one item,
+3. `C.<Name>Item` and `C.<Name>Type` in config: two names for one item,
    because the recursive inventory lookup compares the **bare** type and
    everything that spawns or places it wants the full id.
 4. `ItemName.json`, `Tooltip.json`, and every `IGUI_TREK_` string it asks for.
@@ -261,7 +261,7 @@ quietly stocking nothing.
 Not optional; `MULTIPLAYER.md` has the reasoning.
 
 - **A character's body belongs to the client that owns them.** Treating
-  yourself and reading your own vitals need no protocol at all — the same rule
+  yourself and reading your own vitals need no protocol at all, the same rule
   and the same reason as "a client moves only its own character". Treating
   *somebody else* is the EMH's, and is a server command (`EMH.md`).
 - **Nothing here opens a lock.** The tricorder's lock override was removed on
@@ -284,7 +284,7 @@ Not optional; `MULTIPLAYER.md` has the reasoning.
 ## Engine facts, established
 
 With `tools/pzapi.py` (exists, public), a grep of vanilla Lua (may I call it)
-and `tools/javadis.py` (**under what condition** — the one that matters). Do
+and `tools/javadis.py` (**under what condition**, the one that matters). Do
 not re-derive these.
 
 | Fact | Where |
@@ -292,21 +292,21 @@ not re-derive these.
 | `ISHealthPanel.cheat` is `false or getDebug()`; otherwise only `ISAdminPowerUI` sets it | `ISHealthPanel.lua:5`, `ISAdminPowerUI.lua:135,461` |
 | `doctorLevel` is assigned once at construction and only ever read after | `ISHealthPanel.lua:973` |
 | Doctor gates are `> 2` wound, `> 4` pain/burn/deep, `> 6` stitch, `> 8` infection | `ISHealthPanel.lua:633-830` |
-| **`ISHealthPanel` IS an `ISPanelJoypad`** — stick navigation, A to act, B to close, all built in | `ISHealthPanel.lua:4,902-959` |
+| **`ISHealthPanel` IS an `ISPanelJoypad`**: stick navigation, A to act, B to close, all built in | `ISHealthPanel.lua:4,902-959` |
 | `ISHealthPanel:new(patient, x, y, w, h)`, then `doctorLevel`, then `wrapInCollapsableWindow(title, false):addToUIManager()` | `ISMedicalCheckAction.lua:48-59` |
 | `wrapInCollapsableWindow` sets `window.nested` to the panel | `ISUIElement.lua:1771` |
 | Examining another player in MP goes through consent: `requestMedicalCheck(target, requester)`, and only a yes reaches `ISMedicalCheckAction` | `ISHealthPanel.lua:1942-1962` |
 | `startReceivingBodyDamageUpdates` / `stopReceiving…` are handled by `ISMedicalCheckAction` and `ISHealthPanel:update()` themselves | `ISMedicalCheckAction.lua:73`, `ISHealthPanel.lua:381,416` |
 | **`BodyPart.RestoreToFullHealth()` clears `bitten`, `biteTime` and `infectedWound`** along with the health | `javadis.py` |
-| Full part health is **100.0** — the constant that method writes | `javadis.py` |
+| Full part health is **100.0**, the constant that method writes | `javadis.py` |
 | Zombie infection is `BodyDamage.setInfected(boolean)`; a **wound** infection is `BodyPart.setInfectedWound(boolean)` | `pzapi.py` |
 | `setWoundInfectionLevel(-1)` clears it; `0` is a wound merely not infected *yet* | `ISHealthPanel.lua:298` |
-| A bite is `BodyPart.SetBitten(boolean)` — capital S | `pzapi.py` |
-| **`setCut(false)` and `setScratched(false, x)` take an early-return branch** — write the flag, call `setBleeding(false)`, return. Every timer, trait and sandbox lookup is in the *true* branch, and no infection field is near either | `javadis.py` |
+| A bite is `BodyPart.SetBitten(boolean)`, capital S | `pzapi.py` |
+| **`setCut(false)` and `setScratched(false, x)` take an early-return branch**: write the flag, call `setBleeding(false)`, return. Every timer, trait and sandbox lookup is in the *true* branch, and no infection field is near either | `javadis.py` |
 | `isCut()`, `scratched()`, `stitched()`, `bandaged()`, `getBandageLife()`, `haveGlass()`, `haveBullet()`, `getIndex()` all exist and are public | `pzapi.py` |
 | `BodyPart.setBandaged` has **no vanilla Lua call site**; vanilla goes through `BodyDamage:SetBandaged(index, on, life, alcoholic, type)` and removes one with `(index, false, 0, false, nil)` | grep, `ISApplyBandage.lua:141` |
 | `IsoDoor` / `IsoThumpable` / `IsoWindow`: `setLocked`, `setIsLocked`, `setLockedByKey`, `isLockedByPadlock` | `pzapi.py` |
-| **Every vanilla Lua call site for those lock setters is `DebugContextMenu`, `AdminContextMenu` or the tutorial** — the tutorial is what says they work for an ordinary character | grep |
+| **Every vanilla Lua call site for those lock setters is `DebugContextMenu`, `AdminContextMenu` or the tutorial**; the tutorial is what says they work for an ordinary character | grep |
 | **`setLockedByKey(b)` syncs itself only when `!GameServer.server`** | `javadis.py` |
 | `IsoObject.sync()` is public and vanilla Lua calls it on both sides | `ClientCommands.lua:780`, `ISFluidContainer.lua:102` |
 | `SafeHouse.isSafeHouse(square, username, true)` returns the safehouse **only when the named player is not a member of it** | `javadis.py`, `ISBuildUtil.lua:12,15` |
@@ -314,7 +314,7 @@ not re-derive these.
 | `OnFillInventoryObjectContextMenu(playerNum, context, items)` is the mod-safe hook; an entry in `items` is either an `InventoryItem` **or** a stack table with its own `items` list | `ISInventoryPaneContextMenu.lua:935`, `ISRemoveItemTool.lua:348-358` |
 | `character:playSoundLocal(name)` is public, with fifteen vanilla call sites, and does not put a noise on the map | `ISMap.lua:210` and others |
 | `requestMedicalCheck` / `acceptMedicalCheck` are `LuaManager$GlobalObject` statics | `pzapi.py`, `ISWorldObjectContextMenu.lua:885` |
-| **`rawequal` has no vanilla Lua call site anywhere in build 42** — and Kahlua is already missing `next` and `math.huge`. Compare usernames, not identity | grep |
+| **`rawequal` has no vanilla Lua call site anywhere in build 42**, and Kahlua is already missing `next` and `math.huge`. Compare usernames, not identity | grep |
 
 ### The treatment setters
 
@@ -355,13 +355,13 @@ and a tricorder offers nothing at a locked door.
 `medical_multiplayer()` adds the two-client half: scanning another player
 asks their permission before any panel opens.
 
-`tests/test_helm.py` drives `TREKTricorderWindow` the way it drives the helm —
+`tests/test_helm.py` drives `TREKTricorderWindow` the way it drives the helm:
 several frames, every draw checked against the panel bounds, contacts placed
 exactly on the range limit (which is where a plot goes outside its own box),
 an empty sweep, and the controller.
 
 **Mutation-check anything you add.** Twenty-nine mutations are known to be
-caught -- fourteen across the set, eight on the regenerator, five on the
+caught: fourteen across the set, eight on the regenerator, five on the
 contact plot, one on the `special` cross-check and one on the sweep interval; there is no mutation runner in `tools/`, so write one in the
 scratchpad. Five that were *not* caught on the first attempt, all worth not
 repeating:
@@ -377,7 +377,7 @@ repeating:
    constant moved the test with it. It is a flat 400 now.
 4. **A refusal that was really an unloaded chunk.** The out-of-range door was a
    hundred tiles away, so the server refused it for not being streamed in and
-   the range bound was never reached. It is six tiles now — outside
+   the range bound was never reached. It is six tiles now, outside
    `C.UnlockRange`, inside the loaded area.
 5. **A guard whose branch was never entered.** The "some healed, one
    obstructed" path was never reached, because the test put a single glassed
@@ -407,7 +407,7 @@ single-line mutation reaches it, which is the intended redundancy.
   mod has hit 2932 in one session. `Med.treatWith` batches per concern so a
   wrong name costs that concern and not the seven around it.
 - **Kahlua is not Lua 5.1.** No `next`, no `math.huge`, and `rawequal` has no
-  vanilla call site — do not lean on it.
+  vanilla call site; do not lean on it.
 - **The simulation can be kinder than the engine.** `pz_sim`'s
   `getAllTypeRecurse` returned an empty list to everything that asked until
   this feature needed it, which would have let a broken phaser sweep pass too.
@@ -428,7 +428,7 @@ Nothing here has been seen in the game. In the order worth checking:
    moodle must still be there.
 3. **The dermal regenerator.** Get cut and scratched, bandage one, then run it:
    the wounds close, the dressing comes off, no bandage was needed. Then the
-   two refusals — a bitten limb keeps its bandage, and a wound with glass in it
+   two refusals: a bitten limb keeps its bandage, and a wound with glass in it
    is skipped with a note saying why.
 4. **The medical tricorder on yourself**, with a controller as well as a mouse.
    The panel is vanilla's and should already work on a pad; that is the claim.
@@ -440,8 +440,8 @@ Nothing here has been seen in the game. In the order worth checking:
 Item 7 belongs to the two-player session pinned in `ROADMAP.md`.
 
 **That open design question is answered, and the answer is the one this file
-already guessed.** The medical tricorder reports everything a Doctor 10 sees —
-wounds, pain, burns, stitches and *wound* infection — and still does **not**
+already guessed.** The medical tricorder reports everything a Doctor 10 sees
+(wounds, pain, burns, stitches and *wound* infection) and still does **not**
 reveal the zombie infection. The EMH does, in as many words, on the panel at
 his station: he is the thing that knows, and he is also the thing that can do
 something about it. A tricorder that announced "you are infected" with no cure
@@ -453,7 +453,7 @@ damage belongs to the client that owns them and syncs from there" is right for
 your *own* body, and it is why the hypospray and the regenerator work
 client-side. It is not a general rule. `BodyDamage.Update()` restores a
 **remote** player's body to full on a client every single tick, so somebody
-else's body does not exist on your machine to be read or written at all —
+else's body does not exist on your machine to be read or written at all,
 which is why every line of the EMH's treatment runs on the server and why its
 panel has to *ask* what is wrong with the crewman on the biobed. See
 `EMH.md`, *The rules it obeys*.
@@ -478,8 +478,8 @@ more than mend it:
  92  iconst_0         putfield BodyPart.infectedWound
 ```
 
-The hypospray is specifically decided **not** to cure a bite — that cure is the
-EMH's and is the only reason the EMH is worth building — so the convenient call
+The hypospray is specifically decided **not** to cure a bite (that cure is the
+EMH's and is the only reason the EMH is worth building), so the convenient call
 silently hands a pocket item the one thing the game is built around, makes the
 next roadmap item pointless, and **reports nothing at all**. It is not a bug
 anybody would see. It is an item that is better than intended.
@@ -498,7 +498,7 @@ ISHealthPanel.cheat = false or getDebug()     -- ISHealthPanel.lua:5
 On under `-debug`, off otherwise, and the only other things that set it are the
 admin panel and `isHealthCheat()`. It is the obvious way to build a tricorder
 that ignores Doctor skill, and it would have worked on this machine and done
-nothing for every Workshop subscriber — the `setGodMod` failure shape from
+nothing for every Workshop subscriber: the `setGodMod` failure shape from
 `DEV_GUIDE.md`, *The jar is not the API*. `doctorLevel` on the instance is the
 real lever, and `medical()` fails if anything sets the global.
 
@@ -515,7 +515,7 @@ look like the whole job:
 ```
 
 A lock is world state, so by this project's first rule the server is what
-changes it — which is exactly the process where that branch does nothing. The
+changes it, which is exactly the process where that branch does nothing. The
 door would have opened on the server and stayed shut on every screen.
 `obj:sync()` covers both directions.
 

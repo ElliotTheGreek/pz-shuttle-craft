@@ -1,4 +1,4 @@
-# CREW.md — the people aboard the U.S.S. Adirondack
+# CREW.md: the people aboard the U.S.S. Adirondack
 
 The Adirondack is crewed. Starfleet officers and crew of several species step out
 of the turbolifts and walk her decks. They take their posts, sit down, and talk
@@ -32,7 +32,7 @@ find.
 
 ---
 
-## 2. What the crew know — the brief for anybody writing a line
+## 2. What the crew know: the brief for anybody writing a line
 
 Binding, and taken from LORE.md 1a–1c and COMMS.md. **Read those first** for
 anything that touches the story.

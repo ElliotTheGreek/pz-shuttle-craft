@@ -37,7 +37,7 @@ used to do two things that fought a player:
    builders took an untagged object on the ships' own squares for wilderness
    grown in an unmapped cell. Wilderness grows on the ground, never on a
    deck four storeys up: an untagged object there is something a player
-   built. The builders now strip only what `U.isWild` says the engine grew --
+   built. The builders now strip only what `U.isWild` says the engine grew:
    trees, bushes, grass, natural ground.
 2. **Put back anything missing.** A fitting picked up to be moved was
    missing from its square, so the next build put a new one there: one in
@@ -57,7 +57,7 @@ Two details that keep that honest:
   that does.
 
 **An existing save** has no record yet. Its first refit after this puts back
-whatever is missing -- the old behaviour, once -- and records everything; from
+whatever is missing (the old behaviour, once) and records everything; from
 then on what the player takes stays taken.
 
 ## 3. Where it lives

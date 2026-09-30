@@ -22,20 +22,20 @@ Every ensign is rolled male or female, so this guide says "the ensign" and
    character's head: *"Distress call: Ensign Maren Novak is down, 320 tiles
    NE. Answer it at the sensor console."* It reaches every crew member,
    aboard or not.
-2. **Answer it at the sensor console** -- aboard, *Shuttlecraft ->
+2. **Answer it at the sensor console**: aboard, *Shuttlecraft ->
    Long-range sensors*. The call sits under the probe controls with who it
    is, which division, how far and which way, and **Accept** / **Decline**.
    Declining costs nothing. Ignoring it costs nothing either: an unanswered
    call fades after half a game day and another comes later.
-3. **Accepting starts the clock** and puts a life-sign contact on the map --
+3. **Accepting starts the clock** and puts a life-sign contact on the map:
    an approximate fix, drawn with the personnel symbol, the ground uncovered
    around it, listed on the console with distance and bearing. The console
    then shows *Rescue under way* and the hours left.
-4. **Get there** -- on foot, by car, or by calling the shuttle down nearby.
+4. **Get there**: on foot, by car, or by calling the shuttle down nearby.
 5. **Find them with the tricorder.** The map's fix can be up to forty tiles
    out. A sensor sweep within forty tiles of the ensign plots a **blue
-   cross** -- a third shape on the plot, apart from the lifesign squares and
-   the crystal rings -- and adds a *Starfleet life sign* line with the
+   cross** (a third shape on the plot, apart from the lifesign squares and
+   the crystal rings) and adds a *Starfleet life sign* line with the
    distance and bearing.
 6. **The ensign is sitting on the ground, doubled over, in uniform.** Their
    combadge chirps every few seconds while you are within thirty tiles, and
@@ -51,13 +51,13 @@ Every ensign is rolled male or female, so this guide says "the ensign" and
    The rescue is also credited to the rescuer and counts toward their rank
    (`TRAITS.md` 4.5): the first earns a field commission.
    And it counts toward the *Adirondack*'s trust (`ACCESS.md`): under the
-   sandbox's default the first rescue brings a debrief -- where the ensign's
-   away kit, with a pattern enhancer in it, went down -- and the second the
+   sandbox's default the first rescue brings a debrief (where the ensign's
+   away kit, with a pattern enhancer in it, went down) and the second the
    Doctor's rule about screening.
 
 If the clock runs out first, the beacon stops, the mark leaves the map, the
 figure is taken away, and the crew are told. No second chance on that
-ensign -- and no soft-lock: another call comes, because this is a repeatable
+ensign, and no soft-lock: another call comes, because this is a repeatable
 mission and not a quest line.
 
 ---
@@ -76,7 +76,7 @@ game-minute tick, outside every cabin-loaded branch, like probes and cures.
   beginning. It used to be "has dilithium", and this was the one line the cold
   start changed.
 - **The first call is scheduled, not made**, `C.DistressFirstHours` after the
-  ship first hears -- one game hour, a few real minutes, so a fresh world
+  ship first hears: one game hour, a few real minutes, so a fresh world
   meets its first ensign in the first sitting and not the instant the crew
   first beam aboard.
 - **One at a time, and never while a rescue is live.** A pending call or a
@@ -97,7 +97,7 @@ game-minute tick, outside every cabin-loaded branch, like probes and cures.
 
 `distressAnswer { id, accept }`, validated: crew access; the player aboard by
 the **server's** copy of where they are; and the id is the call actually
-pending -- so two crew answering at once make one mission, and an answer to a
+pending, so two crew answering at once make one mission, and an answer to a
 call that faded while the panel was open is refused by name instead of
 bringing it back.
 
@@ -119,17 +119,17 @@ would otherwise be timed out on the first pass.
 
 `M.serviceMissions()`, same tick. A live mission whose figure is not placed
 asks `U.chunkLoaded` for the four corners of its search area and does nothing
-until a player has legitimately loaded that ground -- the crystal rule, for
+until a player has legitimately loaded that ground. The crystal rule, for
 the same reason: an unloaded square is "cannot tell", never "nothing there".
 Then it searches rings outward from `tx, ty` for a square with a floor,
 nothing solid, **no water**, and **no safehouse**, and puts one world item
-there -- `TrekShuttle.TrekEnsign<M|F><Division>` -- straightened to face
+there, `TrekShuttle.TrekEnsign<M|F><Division>`, straightened to face
 south, the side the camera sees.
 
 - **Loaded and genuinely nowhere to sit them** (a lake, the middle of a
   warehouse) retires the mission as `invalid`, says so in the log, tells the
   crew the signal broke up, and schedules another call soon.
-- **A figure that is no longer on its square** -- carried off, say -- is
+- **A figure that is no longer on its square** (carried off, say) is
   noticed on loaded ground only, and put back where it was on the next pass.
 
 **The ensign is identified by the contact, never by their own mod data.** The
@@ -142,7 +142,7 @@ surviving a world-item packet, which is a claim this project has never tested.
 While the figure is placed and its ground is loaded, every
 `C.BeaconEveryMinutes` game minutes the server calls vanilla's
 `addSound(object, x, y, z, radius, volume)` at the ensign's square. That is
-the engine's own zombie-attraction noise -- a car alarm, a gunshot -- so what
+the engine's own zombie-attraction noise (a car alarm, a gunshot), so what
 it draws is **the dead that are already in that block**, as many as the
 server's population settings put there. Nothing is spawned.
 
@@ -160,7 +160,7 @@ are; and the figure is actually on that square. Then, in one handler:
 
 1. the figure is removed with `transmitRemoveItemFromSquare`;
 2. the contact becomes `completed`, and the map stops drawing it;
-3. the reward is granted -- **exactly once**, because the `completed` check is
+3. the reward is granted, **exactly once**, because the `completed` check is
    the first thing the handler does;
 4. every client is told, and the next call is scheduled.
 
@@ -170,8 +170,8 @@ When `deadline` passes, the mission is `expired` whether or not anybody is
 near: the clock runs outside every loaded-ground branch (DEV_GUIDE: *A guard
 gated on loaded ground never sees the case it exists for*). A figure on
 loaded ground is removed there and then; otherwise the square goes on
-`ensignRemovals` and the figure is taken away the next time somebody loads it
--- `s.ghosts`, again.
+`ensignRemovals` and the figure is taken away the next time somebody loads it:
+`s.ghosts`, again.
 
 ---
 
@@ -181,7 +181,7 @@ The question was whether the game would let the ensign *move*. It will not,
 and the reasons are worth keeping:
 
 - **Animation needs a character.** A `.x` animation drives a skeleton, and
-  only an `IsoGameCharacter` has one. A world model, a weapon, the hull --
+  only an `IsoGameCharacter` has one. A world model, a weapon, the hull:
   all static meshes with no bones.
 - **`IsoSurvivor` is not networked.** Lua can reach it (it is on the
   exposure list), but its only vanilla call sites are paper-doll avatars
@@ -189,7 +189,7 @@ and the reasons are worth keeping:
   none is under `zombie/network/`. A server-made survivor would be invisible
   to every client.
 - **`IsoZombie`** posed with `setFakeDead` / `setCrawler` is animated and
-  networked -- and every Lua route to spawn one is `DebugUIs/` or the
+  networked, and every Lua route to spawn one is `DebugUIs/` or the
   `/createhorde2` admin command. That is the *jar is not the API* shape.
 - **`IsoDeadBody`** is networked and one call away
   (`RandomizedWorldBase.createRandomDeadBody`, exposed, and ending in
@@ -198,15 +198,15 @@ and the reasons are worth keeping:
   mod has not built. It is the right tool for a *failed* rescue and the wrong
   one for a living ensign.
 
-**So the ensign is a static model -- but not a modelled one.** The game ships
+**So the ensign is a static model, but not a modelled one.** The game ships
 the animations *and* the skinned bodies they drive, as text `.x`.
 `tools/xskin.py` reads a vanilla body, the boilersuit rig the duty uniform
 already rides, and a hairstyle; poses all three at one frame of the game's
-own `Bob_SitGround_Pain_Stomach` -- sitting on the ground, doubled over, a
-hand pressed to the stomach -- and bakes them into one mesh.
-`tools/gen_ensign.py` builds a 512x512 texture from four 256x256 sources --
-the vanilla skin, **the mod's own generated duty uniform**, a tinted hair
-texture and a flat boot colour -- and paints a stain on the front of the
+own `Bob_SitGround_Pain_Stomach` (sitting on the ground, doubled over, a
+hand pressed to the stomach) and bakes them into one mesh.
+`tools/gen_ensign.py` builds a 512x512 texture from four 256x256 sources
+(the vanilla skin, **the mod's own generated duty uniform**, a tinted hair
+texture and a flat boot colour) and paints a stain on the front of the
 uniform where the hand is.
 
 Six items, two meshes, six atlases: both bodies, all three divisions. The
@@ -238,7 +238,7 @@ writhing body would have been.
 | `C.DistressOfferHours` | 12 | how long an unanswered call waits |
 | `C.DistressRetryHours` | 1 | when a call found nowhere to point, or a rescue had nowhere to sit |
 | `C.EnsignLifeHours` | 72 | the clock, from acceptance. Generous: a reason to go, not a trap |
-| `C.EnsignMinDistance` / `Max` | 150 / 450 | squares from the crew -- a real walk, a short drive |
+| `C.EnsignMinDistance` / `Max` | 150 / 450 | squares from the crew: a real walk, a short drive |
 | `C.EnsignReportSpread` | 40 | the map fix's error; the tricorder sweeps 40, so a sweep from the fix finds them |
 | `C.EnsignPlaceRadius` | 8 | rings searched for somewhere to sit them |
 | `C.EnsignRescueRange` | 3 | tiles from the ensign to beam them up |
@@ -298,7 +298,7 @@ tools/gen_medical.py               the combadge chirp and the distress chime
   are used for nothing but bone lengths.
 - **Bob's animations drive Kate** with only the rotations borrowed: every
   bone keeps its own translation except the root, whose translation is where
-  the pelvis sits -- which is the pose, not the proportions.
+  the pelvis sits, which is the pose, not the proportions.
 - **The male crew cut is a cap**, not a haircut: it covers the front of the
   scalp and leaves the back bare, which a hunched pose shows first. The
   figures use `Bob_Hair_Short`.
@@ -315,14 +315,14 @@ tools/gen_medical.py               the combadge chirp and the distress chime
   is set on the client's copy of the player; a dedicated server never saw it,
   so `Ship.worldOrigin` asked about a player standing in the cabin had no
   answer there. The `move` handler now records it on the server's copy before
-  a beam up or a walk in. This was also a live bug in probes -- a probe
-  launched aboard on a server would have been refused for want of a fix --
+  a beam up or a walk in. This was also a live bug in probes (a probe
+  launched aboard on a server would have been refused for want of a fix)
   that single player could never show, because there the two copies are one.
 - **World static models and characters share a unit**, as far as the files
   say: a dropped katana is drawn by the same model block it is held with, at
   no scale. So the figure is baked at the character's own size. Worth a look
   in game (section 8).
-- **The baked mesh winds its faces the way the hull does** -- same majority
+- **The baked mesh winds its faces the way the hull does**: same majority
   orientation against the centroid as the hull (confirmed in game) and a
   vanilla bucket. The previewer draws both sides, so it cannot show an
   inside-out mesh on its own.
@@ -332,7 +332,7 @@ tools/gen_medical.py               the combadge chirp and the distress chime
 ## 7. What will bite you
 
 **The atlas, not the pose.** Four textures go into one, and a UV outside
-0..1 on any source rig wraps into the neighbouring quadrant -- skin on a
+0..1 on any source rig wraps into the neighbouring quadrant: skin on a
 sleeve, hair on a boot. `quad_uv` wraps each part inside its own quadrant.
 And a texel sampled from a source texture's transparent gutter would draw
 black in game with no warning; the suit rig was checked and none of its faces
@@ -351,7 +351,7 @@ sees.
 
 **Constructed translation keys.** The division is shown through
 `C.DivisionLabels`, spelled out, and the six item ids through
-`C.EnsignItemIds`, spelled out -- the first draft pasted both together, and
+`C.EnsignItemIds`, spelled out; the first draft pasted both together, and
 `tests/test_assets.py` read the pasted prefix as an item that did not exist.
 Spelled out, it checks every one.
 
@@ -362,7 +362,7 @@ chirps anyway. It stands fifty away now and asserts the ground is loaded.
 Same shape as `flight_alone()`'s rule: *a scenario that never reaches the
 condition is not a test of it*.
 
-**Answering from outside the ship.** The server refuses it, correctly -- and
+**Answering from outside the ship.** The server refuses it, correctly, and
 the first draft of the tests walked the player out and then answered, and
 read the refusal as a bug. The test helper answers from the pad.
 
@@ -379,7 +379,7 @@ read the refusal as a bug. The test helper answers from the pad.
 | `tests/test_helm.py` | the console's call block and countdown drawing in bounds, Accept / Decline greyed for their own reasons and on the stick; the tricorder's cross on the range limit, its line, and no line when nobody is in range |
 | `tests/test_assets.py` | the six items, six models, two meshes, six textures, two sounds, the translation keys, and the replicator blocklist |
 
-**Seventeen mutations, one at a time, all caught** -- after the one above was
+**Seventeen mutations, one at a time, all caught**, after the one above was
 fixed: the double-pay guard, the answer's id and aboard checks, a clock gated
 on loaded ground, the removal list, the straightening, safehouse and water,
 the beacon's timer, the rescue's reach, the server's return point, the click
@@ -393,8 +393,8 @@ dilithium, an instant first call, and Accept always live.
 **Seen working in single player, 2026-09-24**, the whole loop in a fresh
 world: the call arrived about an hour of game time after boarding, was
 accepted at the sensor console, the figure was placed when the crew stepped
-out 40 tiles from it -- beside the map's mark, which is exactly how far off
-the long-range fix is allowed to be -- the tricorder found it, and the
+out 40 tiles from it (beside the map's mark, which is exactly how far off
+the long-range fix is allowed to be), the tricorder found it, and the
 rescue learned Antibiotics, Suture Needle and Splint. The figure draws and
 the right-click lands on it.
 
@@ -415,7 +415,7 @@ cabin and a commissioned ship):
 2. *Shuttlecraft -> Long-range sensors*. The call is under the probe
    controls. **Accept.**
 3. Open the map: a personnel mark with the ground uncovered around it.
-4. Go there. Within forty tiles, use the tricorder -- the blue cross.
+4. Go there. Within forty tiles, use the tricorder: the blue cross.
 5. Find the ensign sitting on the ground. Listen for the chirp.
 6. Right-click them: **Examine**, then **Beam to safety** from within three
    tiles.
@@ -423,7 +423,7 @@ cabin and a commissioned ship):
 What to look at while doing it:
 
 1. **Does the figure read as a person who is hurt?** And **are they
-   player-sized** -- stand next to them.
+   player-sized**? Stand next to them.
 2. **Which way do they face**, and is the combadge on their left breast? The
    rig says it is; a static model loader that mirrored X would say otherwise.
 3. **Does the right-click land on them?** Aim at the body, not the ground
@@ -435,7 +435,7 @@ What to look at while doing it:
    the figure, one beams them up, both see them go, and only one reward.
 7. **Vanilla's own options on the figure.** It is a world item, so the game
    will offer its usual world-item actions beside *Examine* and *Beam to
-   safety* -- *Grab*, probably. It weighs 90, which should put it out of
+   safety*: *Grab*, probably. It weighs 90, which should put it out of
    reach; if somebody can pick the ensign up, the server puts a figure back
    on the square on its next pass, and the weight or a flag wants looking at.
 

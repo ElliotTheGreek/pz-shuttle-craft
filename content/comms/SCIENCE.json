@@ -5,7 +5,7 @@
   "kind": "incoming",
   "notes": [
     "The science: the graft. Morphogenic markers plus something the Doctor",
-    "cannot place -- he is reading half a signature (LORE.md 1b, entry four)."
+    "cannot place, because he is reading half a signature (LORE.md 1b, entry four)."
   ],
   "after": {"thread": "ELEVEN", "hours": 30},
   "forbids": ["quiet"],

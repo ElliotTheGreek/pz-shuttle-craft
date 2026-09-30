@@ -46,7 +46,7 @@ a: Shepard's idea. Who looks twice at a breaker box?
 = sad
 b: Don't. | I try not to think about it.
 a: I know. I can't help it. Eight people, a mile from where we beam down.
- | Sorry. It's just -- they're right there. Dixie and South Main.
+ | Sorry. It's just... they're right there. Dixie and South Main.
 b: If they were alive, they'd have called. | Maybe. Maybe not.
 -> close
 

@@ -1,4 +1,4 @@
-# Comms — the Adirondack channel
+# Comms: the Adirondack channel
 
 A text conversation with the ship in orbit, and the scheduler the rest of the
 mod has been waiting for.
@@ -6,13 +6,13 @@ mod has been waiting for.
 `LORE.md` says what the shelf **remembers**. This file says who is still
 **talking**. **`PADD.md` 12 is the surface this runs on** and the two files have
 to be read together: the content, the scheduling and the multiplayer authority
-are here; the screen is there. There is no console fitting — the PADD is the
+are here; the screen is there. There is no console fitting; the PADD is the
 terminal.
 
 The rules in `DEV_GUIDE.md` and `MULTIPLAYER.md` are binding as always: the
 server owns the channel, its state and anything it hands out; a client asks and
 displays. Read *Rules that exist because they were broken* before starting
-anything below — section 2 exists entirely because of them.
+anything below: section 2 exists entirely because of them.
 
 Specced 2026-09-24 and **built the same day**, the whole of section 7: the
 channel, its scheduler, every thread in 6.1-6.3 and the clue chain. First contact
@@ -30,9 +30,9 @@ Two features wearing one coat.
 mod's only living voice; the tapes are its dead ones. Until now the player has
 had no way to answer either.
 
-**The mod's scheduler.** `LORE.md` 6 parks three things the shelf cannot do — a
+**The mod's scheduler.** `LORE.md` 6 parks three things the shelf cannot do (a
 tape that appears on commissioning, a tape that appears once the Doctor is up,
-and a tape that arrives on its own — and it names the fix: *a bounded record of
+and a tape that arrives on its own), and it names the fix: *a bounded record of
 which tapes the ship has issued, and a service pass that adds one when its
 condition is met and has not been met before.* **That is this feature's trigger
 engine, and it is the same object.** Build it once and `LORE.md` 10's step 5
@@ -45,7 +45,7 @@ multiplayer sync path. **None of that is true here.** This is a new UI, a new
 state machine, new persistence and a new multiplayer path, plus more writing
 than the entire shelf. It is the most expensive thing in the project by a wide
 margin. It is worth building, and it wants a vertical slice long before it wants
-content — section 7.
+content: section 7.
 
 ### What the channel buys that a tape cannot
 
@@ -54,7 +54,7 @@ content — section 7.
   home for anything addressed to *this* person.
 - **It can be answered.** The shelf is testimony. This is a conversation, and
   the player's half is the only place in the mod where they get to decide who
-  they are — see 6.1.
+  they are; see 6.1.
 - **It can be missed.** A tape waits for ever. A hail does not, and a missed
   call is the cheapest source of consequence the mod has ever had access to.
 - **It knows what the player has done.** Eleven crew are on the ground
@@ -73,7 +73,7 @@ line of dialogue.
 player: current node, flags, pending and fired calls, cooldowns. A client sends
 *"I chose option 3 of node X"* and the server validates that against the node it
 believes is live. A client naming an option that is not on the current node is
-**refused, not trusted** — that is the whole of `MULTIPLAYER.md`'s thesis
+**refused, not trusted**: that is the whole of `MULTIPLAYER.md`'s thesis
 applied to a menu.
 
 **One player holds the channel: whoever answers first, from wherever they are.**
@@ -86,7 +86,7 @@ role system the mod does not have and should not grow one for this.
 
 **Every timed node has a silence branch, and it is a feature.** If the holder
 does not choose inside the window, the call proceeds as though they said
-nothing. That stops an idle player holding the channel hostage — and it is
+nothing. That stops an idle player holding the channel hostage, and it is
 better writing anyway, because on a comm channel **silence is an answer**, and
 Shepard reacting to a long pause is more interesting than a menu waiting for
 ever.
@@ -96,7 +96,7 @@ ever.
 | case | resolution |
 |---|---|
 | holder logs out mid-call | channel releases; current node stands; next interactor becomes holder |
-| holder is out of contact | there is no range check — a PADD reaches orbit. Losing the PADD releases the channel |
+| holder is out of contact | there is no range check; a PADD reaches orbit. Losing the PADD releases the channel |
 | a player joins mid-call | sees the live call and **the whole history** (decided 2026-09-24: the record is the ship's) |
 | two clients answer in one tick | first to the server wins; the second is refused and told why |
 
@@ -122,7 +122,7 @@ carried over from the shelf and it is not negotiable.
 
 ### Node schema
 
-    id          TREK_COMM_<thread>_<n>   namespaced — FileGuidTable.mergeFrom taught us why
+    id          TREK_COMM_<thread>_<n>   namespaced; FileGuidTable.mergeFrom taught us why
     speaker     name key + r,g,b         colour is the speaker, same rule as the tapes
     lines[]     30-70 chars each         a line is a shot, not a paragraph
     options[]   text / requires / sets / goto
@@ -132,7 +132,7 @@ carried over from the shelf and it is not negotiable.
 
 Two rules inherited wholesale from `LORE.md` 4, because it is the same medium
 read by the same person in the same chair: **a line is a shot, thirty to seventy
-characters**, and **colour is the speaker** — two voices and a caption colour is
+characters**, and **colour is the speaker**: two voices and a caption colour is
 plenty, four is soup.
 
 One rule that is new: **the player's options are characterisation, not a quiz.**
@@ -154,7 +154,7 @@ runs later:
 
 ---
 
-## 4. Triggering — the scheduler
+## 4. Triggering: the scheduler
 
 **Two clocks, and the choice matters.**
 
@@ -165,7 +165,7 @@ the old ROADMAP2's commissioning the mod's real day zero.
 
 **First contact is one week after commissioning, and that is deliberate.** The
 shelf comes first. A player gets seven days to work through twelve tapes, or to
-ignore every one of them, before a living voice arrives — so the archive is
+ignore every one of them, before a living voice arrives, so the archive is
 something they found rather than something they were handed on the way to the
 plot. It also means Shepard's first call lands on somebody who may already know
 most of what she is about to say, which is the next point.
@@ -184,7 +184,7 @@ EMH online, dilithium located, crew recovered (count, *and which*), tapes
 watched.
 
 **The issue record is the whole of `LORE.md` 6.** One bounded server-side record
-of what this ship has fired — calls and tapes in the same table — and one slow
+of what this ship has fired (calls and tapes in the same table) and one slow
 service pass that checks conditions. Note the constraint `LORE.md` 6 already
 identified: it must not live in the ship state that `Ship.commit()` transmits
 whole (*State that is transmitted whole cannot hold a list that grows*), and the
@@ -196,7 +196,7 @@ call with its own, worse follow-up.** Do not let a missed call silently retry;
 the consequence is the point.
 
 **Outgoing hails are gated by flag and cooldown**, and most of the time the
-honest answer is that nobody picks up. That is not a stub — it is the situation.
+honest answer is that nobody picks up. That is not a stub; it is the situation.
 
 **One consistency check that lands in the mod's favour.** `LORE.md` 1b
 establishes that long-range comms have been dark the whole time. The
@@ -231,7 +231,7 @@ Shepard is the primary voice. The **EMH** is the second, and the **Section 31
 officer** is the third. `LORE.md` 1b's six logs are the dead version of this
 story; these are the parts of it that are still moving.
 
-### 6.1 First contact — and the one that matters most
+### 6.1 First contact, and the one that matters most
 
 She is astonished that anyone is aboard her shuttle. It establishes the three
 facts the player needs: she is alive, the ship cannot leave, and **they can still
@@ -241,7 +241,7 @@ transport.**
 to be a native of this county who found a strange vehicle, or a Starfleet
 officer, or refuse to say. **The mod never adjudicates it.** She believes them or
 she does not, the dialogue accommodates both for ever, and no lore object
-anywhere confirms an answer — because the player has already done this in their
+anywhere confirms an answer, because the player has already done this in their
 head, and the mod's job is to not contradict them.
 
 ### 6.2 The rest of the spine
@@ -250,7 +250,7 @@ head, and the mod's job is to not contradict them.
 |---|---|---|
 | **Come up / stay down** | after 6.1 | she explains why she stayed. The player can argue, and should be able to lose the argument. |
 | **The eleven** | after 6.1 | coordinates for crew on the ground. Named. Later dialogue knows which came up and which stopped answering. |
-| **The science** | EMH online | the graft — morphogenic markers plus something he cannot place. He is reading half a signature. |
+| **The science** | EMH online | the graft: morphogenic markers plus something he cannot place. He is reading half a signature. |
 | **The archive** | late | Phlox's omicron-radiation note, 2153, filed and unread for two hundred and fifty years. Paperwork, not a miracle. |
 | **The denial** | after the science | `LORE.md` 1b entry five, now interactive. The player may press the Section 31 officer or let it go. |
 | **The reveal** | late | the rogue Changeling, the nanoprobe graft, and the plan for the Federation worlds. |
@@ -266,7 +266,7 @@ creates a tape.**
 
 1. **A probe finds a site.** `PROBES.md`'s sweep gains a third result beside a
    crystal and a survivor: **a clue**. Same system, one more outcome.
-2. **The player recovers a fragment** at the site — an item, holographic, three
+2. **The player recovers a fragment** at the site: an item, holographic, three
    hundred years old, and *losable*: it stays on a body like anything else.
 3. **The player tells Shepard.** A short thread, and her line is the hinge:
    *"Hang on. I can put that on magnetic tape."*
@@ -274,7 +274,7 @@ creates a tape.**
 
 **Why this works without new machinery.** `LORE.md` 1a already established that
 she dubs *holos flattened to two dimensions* onto tape because that is what the
-television takes — written before this feature existed, which is the strongest
+television takes, written before this feature existed, which is the strongest
 evidence the framing was sound. The conversion is not a contrivance; it is the
 thing she has been doing the whole time.
 
@@ -285,14 +285,14 @@ is not the player's inventory.
 
 **Ordering.** The fragments are Tucker's life in order (`LORE.md` 1c), but probes
 find sites in whatever order the map offers. Two options and the second is
-better: refuse conversion out of order (bad — it punishes exploration), or **let
+better: refuse conversion out of order (bad: it punishes exploration), or **let
 them arrive in any order and have Shepard say so**. She is a historian; a
 historian handed document five before document one says which one it is and what
 is still missing. That is free characterisation and it removes a constraint from
 the probe system.
 
 **Starfleet's Q theory dies here.** It is on the file, everybody sensible holds
-it, and no single fragment refutes it — the *accumulation* does. Do not write a
+it, and no single fragment refutes it; the *accumulation* does. Do not write a
 node where Shepard announces the Q theory is wrong. Write the nodes where she
 stops mentioning it.
 
@@ -309,11 +309,11 @@ decides they would rather it stayed that way.
 1. **One call, end to end.** The panel, the server state, one three-node thread
    with a timed silence branch, persistence across save and load, and the
    multiplayer path exercised with two clients. No content beyond that thread.
-2. **The mutations**, run one at a time, in the style `LORE.md` 10 step 1 used —
+2. **The mutations**, run one at a time, in the style `LORE.md` 10 step 1 used,
    which caught four of four:
-   - drop a `sets` — does the later gate still open when it should not?
+   - drop a `sets`: does the later gate still open when it should not?
    - orphan a `goto`;
-   - fire a call twice — does the issue record hold?
+   - fire a call twice: does the issue record hold?
    - two clients answer the same node in the same tick;
    - the holder logs out mid-call;
    - a timed node with its silence branch removed.
@@ -324,7 +324,7 @@ decides they would rather it stayed that way.
 5. **The spine**, alongside the old ROADMAP2 1.6 and 1.7, because the crew thread
    and the rescue mechanic are the same feature seen from two directions.
 6. **The clue chain** (6.3), last, because it needs the issue record, a probe
-   result and the fragment item — and because it is the only part of the story
+   result and the fragment item, and because it is the only part of the story
    that cannot be told without all three.
 
 Step 1 is the only step that can sink this, and it is not a writing problem.
@@ -341,7 +341,7 @@ equivalent.
 
 Every question below is answered in section 9.
 
-- ~~**Where the panel goes.**~~ **Closed** — there is no panel. The PADD is the
+- ~~**Where the panel goes.**~~ **Closed**: there is no panel. The PADD is the
   terminal (`PADD.md` 12.4).
 - **Whether the issue record fits in transmitted ship state**, which is a
   measurement and not an argument (4). Note the history itself is *not* the
@@ -357,14 +357,14 @@ Every question below is answered in section 9.
 - **Voice colours.** Shepard, the EMH, Section 31 and the named crew is already
   four, which section 3 calls soup. Likely answer: the crew share a colour and
   are distinguished by name. **Tucker Gold needs one too** and he is a seventh
-  voice — the fragments are tapes rather than calls, so `gen_tapes.py`'s `VOICES`
+  voice; the fragments are tapes rather than calls, so `gen_tapes.py`'s `VOICES`
   is where that is decided, not here.
 - **What a fragment is, as an item.** Weight, icon, whether it is destroyed by
   the conversion or kept as a memento. Leaning: consumed, because a converted
   tape is the permanent form and two copies of the same evidence is clutter.
 - **Whether a second player can convert a fragment somebody else found.** The
   channel is shared and the shelf is shared, so probably yes and it does not
-  matter who carries it — but it is the kind of thing that wants saying out loud
+  matter who carries it, but it is the kind of thing that wants saying out loud
   before two people argue about it in a session.
 
 ---
@@ -390,7 +390,7 @@ tests/test_multiplayer.py             comms, comms_missed, comms_multiplayer,
 **Why Print_Text.** A mod cannot add a translation category: `Translator.BY_NAME`
 is a fixed list and a key is routed to its map by prefix (`getTextInternal`).
 `Print_Text_` is the category vanilla keeps printed text in, this mod had no file
-for it, so `gen_comms.py` owns it outright -- one writer per file, the rule
+for it, so `gen_comms.py` owns it outright: one writer per file, the rule
 `gen_tapes.py` already follows for `Recorded_Media.json`.
 
 ### The two stores
@@ -398,7 +398,7 @@ for it, so `gen_comms.py` owns it outright -- one writer per file, the rule
 `C.CommsKey` is the live channel: the call, flags, what has fired, misses,
 counters, the issue record. Published on every choice. `C.CommsLogKey` is the
 history, published when a call ends. A row is a thread id, a day, the holder's
-name and the steps as `{ n = node, o = option }` -- `o = 0` is silence. The text is
+name and the steps as `{ n = node, o = option }`; `o = 0` is silence. The text is
 rendered from the tree at display time, so fixing a line fixes every transcript.
 Bounded at `C.CommsLogMax` rows.
 
@@ -410,8 +410,8 @@ Bounded at `C.CommsLogMax` rows.
 - The server walks the tree. On entering a node it applies the node's flags, any
   tape it issues and any fragment it converts, records the step, and publishes
   **the indices of the options this holder may take** (`call.avail`). The client
-  shows exactly those, because the questions behind them -- what the holder
-  carries, what they have watched -- are only answered truly on the authority.
+  shows exactly those, because the questions behind them (what the holder
+  carries, what they have watched) are only answered truly on the authority.
 - A choice is accepted only for the live node and an offered index; anything else
   is `commsStale`.
 - **Silence**: a node's `timeout` is seconds of play on the authority's tick, each
@@ -447,7 +447,7 @@ and in every save from before the cold start, it is the first boarding.
   on, so the next rescue rings afresh.
 - **Hails.** The first hail thread whose conditions hold picks up; a repeatable
   hail has a cooldown, and otherwise nobody answers (`commsNoAnswer`, and a hail
-  cooldown). `QUIET` is repeatable with a day's cooldown -- not repeatable, a
+  cooldown). `QUIET` is repeatable with a day's cooldown; not repeatable, a
   player who once said "wrong button" would have lost the quiet path for good.
 
 ### Tapes the channel issues (LORE.md 6)
@@ -455,7 +455,7 @@ and in every save from before the cold start, it is the first boarding.
 The issue record is `issued` and `pendingTapes` in the live store.
 `TREK_Build.deliverTapes` puts each owed tape on the shelf the next time the cabin
 is loaded, reads each one back off the container before it stops being owed, and
-runs as a build phase and on the service tick -- so it reaches existing saves.
+runs as a build phase and on the service tick, so it reaches existing saves.
 `gen_tapes.py` marks such a tape `issued`: registered like any other, not stocked
 on the first build. `tests/test_comms.py` fails if a tape the story issues is also
 shelf stock.
@@ -467,12 +467,12 @@ its fragment's tape.
 
 | thread | rings | what it is |
 |---|---|---|
-| `FIRST` | day 7 (sandbox) | 6.1: she is alive, the ship cannot leave, they can transport, and who the player is -- never adjudicated, never stored |
+| `FIRST` | day 7 (sandbox) | 6.1: she is alive, the ship cannot leave, they can transport, and who the player is, never adjudicated, never stored |
 | `THANKS` / `LOST` | a rescue / a lost beacon | repeatable; she says the ensign's name (`%2`) |
 | `CLUE` | a probe finds a clue site | the holo emitter, and the Q theory on file, respectfully |
 | `STAY` | after FIRST, 40 h | why she stayed down; the player can argue and lose |
 | `ELEVEN` | after STAY, 40 h | the crew on the ground; routes on whether anyone has come up |
-| `SCIENCE` | after ELEVEN, 30 h | the graft, half a signature -- off the shuttle's Doctor if he is up, off the rescued crew's samples if not |
+| `SCIENCE` | after ELEVEN, 30 h | the graft, half a signature: off the shuttle's Doctor if he is up, off the rescued crew's samples if not |
 | `DENIAL` | after SCIENCE, 36 h | Okafor; press or let it go |
 | `ARCHIVE` | after DENIAL, 36 h | Phlox's omicron note: paperwork, not a miracle |
 | `REVEAL` | after ARCHIVE, 48 h | the one who left the Link, and what it is rehearsing for |
@@ -485,8 +485,8 @@ its fragment's tape.
 specced behind "EMH online"; it routes instead.
 
 **The Q theory dies of accumulation**, as 6.3 asks: `CLUE` states it, the first
-conversions mention it, the later ones do not, and `GOLD` never says it was wrong
--- she says she will write down what he said and let them decide.
+conversions mention it, the later ones do not, and `GOLD` never says it was wrong;
+she says she will write down what he said and let them decide.
 
 ### The clue chain (6.3)
 
@@ -494,7 +494,7 @@ conversions mention it, the later ones do not, and `GOLD` never says it was wron
   probe that finds something finds a clue site `C.ProbeClueShare` of the time,
   while any fragment is owed. Never the first probe of a save.
 - **A fragment is owed while it is not on tape and no live contact points at
-  one** -- not "while nobody has picked it up". A fragment lost on a body can be
+  one**, not "while nobody has picked it up". A fragment lost on a body can be
   found again by a later probe, so the chain cannot be soft-locked, and a death on
   the way home costs time rather than the story (section 8's question about
   losing one). The fragments are in any order and she says which one it is.

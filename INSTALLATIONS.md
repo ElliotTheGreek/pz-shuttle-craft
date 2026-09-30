@@ -1,8 +1,8 @@
 # Installations: Starfleet machines in your own house
 
 The working guide to installing a replicator, a Doctor's station and the warp
-core that powers them anywhere in the world -- a farmhouse, a gun shop, a
-police station -- so a base of the player's own can run like the ship. Asked
+core that powers them anywhere in the world (a farmhouse, a gun shop, a
+police station) so a base of the player's own can run like the ship. Asked
 for by the author on 2026-09-27: "players should be able to make their
 regular house Starfleet powered".
 
@@ -22,8 +22,8 @@ regular house Starfleet powered".
 - **The warp core is the power.** It starts empty: right-click it and *Load a
   dilithium crystal*, as the shuttle's is loaded. Everything installed within
   25 squares of it, and up to three storeys above or below, runs on it.
-- **The replicator** works exactly as the shuttle's does -- the same patterns,
-  the same panel -- billed to the nearest core.
+- **The replicator** works exactly as the shuttle's does, the same patterns,
+  the same panel, billed to the nearest core.
 - **The EMH station** projects the Doctor in front of it, always up while the
   core has power: treatment, the cure (you stay within the core's reach for
   the twelve hours) and the detox, as in the shuttle's sick bay.
@@ -37,9 +37,9 @@ regular house Starfleet powered".
 
 | | |
 |---|---|
-| Where you may install | Anywhere with a floor, loaded, not on a runtime deck (the cabin, the Adirondack, the field station -- they have their own) and not in somebody else's safehouse |
+| Where you may install | Anywhere with a floor, loaded, not on a runtime deck (the cabin, the Adirondack, the field station; they have their own) and not in somebody else's safehouse |
 | What the square must be | Free: no wall, furniture or anything solid standing on it (every square, for the core) |
-| Which core a machine runs on | The **nearest** installed core within 25 squares across and 3 storeys up or down -- decided when it is used, so moving a core moves what it powers |
+| Which core a machine runs on | The **nearest** installed core within 25 squares across and 3 storeys up or down, decided when it is used, so moving a core moves what it powers |
 | A machine with no core in reach | Installed and dark: its menu says *No warp core within reach* |
 | Who may use them | Anybody standing at them. The shuttle's *Owner and crew* setting is about the shuttle, not your house |
 | Power | Each core is its own store (pool `i<id>`): its reserve, its spare crystals, dark when both are gone. Nothing in a house ever bills the shuttle, the Adirondack or the station, or the other way round |
@@ -57,7 +57,7 @@ regular house Starfleet powered".
 
 Published to every client (the replicator's patterns' handshake: requested on
 load, stored on receipt), whenever something is installed or dismantled, and
-whenever a core's numbers change -- checked once a second on the server
+whenever a core's numbers change, checked once a second on the server
 against what was last sent, because the charges that move them are the ship's
 own code and commit the ship state, not this.
 
@@ -119,8 +119,8 @@ python tests/test_assets.py      # the kits, their icons, IN.Sprites against the
 square with a locker on it (the kit kept); installed, dark, loaded by hand to
 lit; a replicator beside it making a ration on the core's power and not the
 shuttle's; an EMH station with exactly one Doctor in front of it, up and
-willing; a replicator with no core in reach refused -- with the shuttle
-powered, so the guard and not an empty reserve refuses -- and its menu
+willing; a replicator with no core in reach refused (with the shuttle
+powered, so the guard and not an empty reserve refuses) and its menu
 saying why; a core refused dismantling from across the map, and beside it
 giving back its kit and its spare crystal.
 
@@ -128,13 +128,13 @@ giving back its kit and its spare crystal.
 bob's client is told of the core and sees it lit once loaded; bob replicates
 on it.
 
-**Eleven mutations, one at a time, all caught** -- one only after its test
+**Eleven mutations, one at a time, all caught**, one only after its test
 was tightened twice: the lonely replicator's refusal was hidden first by an
 unpowered shuttle and then by the replicator's own cooldown.
 
 `tests/pz_sim.lua` learned for it: a square is not free with something
 solid on it (`SIM.tileProps`), a wall on an edge, and which way a player
-faces. Before, every square was free -- a stub that would have let a warp
+faces. Before, every square was free: a stub that would have let a warp
 core stand on a wardrobe.
 
 **Caught in writing the test, not in the game:** the kit's *Install here*

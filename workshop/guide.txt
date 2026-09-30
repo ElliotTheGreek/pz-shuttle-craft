@@ -1,17 +1,17 @@
-A Star Trek Starfleet Type 6 shuttlecraft for Project Zomboid Build 42 -- single player, hosted co-op and dedicated servers.
+A Star Trek Starfleet Type 6 shuttlecraft for Project Zomboid Build 42: single player, hosted co-op and dedicated servers.
 
 5 new weapon items
-- Phaser -- never runs out of charge, never jams, far quieter than a firearm; cuts down trees and cuts through any locked door
-- Bat'leth -- two-handed and longer than a katana, held by one end for reach
+- Phaser: never runs out of charge, never jams, far quieter than a firearm; cuts down trees and cuts through any locked door
+- Bat'leth: two-handed and longer than a katana, held by one end for reach
 - Mek'leth
 - Lirpa
 - Ushaan-tor
 Plus the shuttle's photon torpedoes, fired from the pilot's seat.
 
 3 new medical items
-- Hypospray -- one dose treats bleeding, deep wounds, infection, burns, fractures and pain everywhere at once
-- Dermal Regenerator -- closes lacerations, scratches, deep wounds and burns without a bandage
-- Medical Tricorder -- reads a body like a surgeon would, on yourself or a crewmate
+- Hypospray: one dose treats bleeding, deep wounds, infection, burns, fractures and pain everywhere at once
+- Dermal Regenerator: closes lacerations, scratches, deep wounds and burns without a bandage
+- Medical Tricorder: reads a body like a surgeon would, on yourself or a crewmate
 
 18 new food and drink items
 - Starfleet Ration Pack
@@ -42,14 +42,14 @@ Plus the shuttle's photon torpedoes, fired from the pilot's seat.
 Plus a Tricorder, a PADD, six Starfleet uniforms (duty and dress, in command red, operations gold and sciences teal), a Starfleet field pack, a shoulder lamp that clips to any uniform's shoulder so both hands stay free (it takes an ordinary battery and lasts twice as long as a flashlight), and dilithium crystals.
 
 A functional shuttle you can live in and use to travel around
-One Starfleet cabin with the helm, a galley whose stasis unit and range really work, running water that keeps running after the mains shut off, a bunk and a biobed to sleep on, a sick bay, a replicator, a warp core and the armoury -- and the one thing aboard that isn't regulation, Lt. Shepard's 1993 TV, which plays your tapes.
+One Starfleet cabin with the helm, a galley whose stasis unit and range really work, running water that keeps running after the mains shut off, a bunk and a biobed to sleep on, a sick bay, a replicator, a warp core and the armoury. And the one thing aboard that isn't regulation: Lt. Shepard's 1993 TV, which plays your tapes.
 
 Operate the shuttle like this:
 - Right-click anywhere -> Shuttlecraft -> Beam up to the shuttle. You arrive on the transporter pad. Every beam is a column of sparkles where you leave and where you arrive, and everyone nearby sees it.
 - Right-click aboard for the Shuttlecraft menu: the helm, beam down, log this position, step out of the hatch, go forward to the cockpit.
 - At the helm, click the map to lay in a course or pick a logged position (the map is fully revealed at the helm), then Take her down. You are beamed to the site and the ship follows. If there is no room, you are beamed straight back aboard with the reason.
 - Right-click open ground to call her down. She needs 3x5 tiles of clear ground and tells you when she hasn't got them. Right-click the hull to board her or send her back up.
-- The landed shuttle is a vehicle with four seats. From the pilot's seat, Shuttlecraft -> Take her up: she rises to her hover height and flies by driving -- throttle, steering and controller work as on the ground. Her shadow shows where she will land. Anything taller than her hover height is a wall she slows to a stop in front of. Set her down below when you are there.
+- The landed shuttle is a vehicle with four seats. From the pilot's seat, Shuttlecraft -> Take her up: she rises to her hover height and flies by driving; throttle, steering and controller work as on the ground. Her shadow shows where she will land. Anything taller than her hover height is a wall she slows to a stop in front of. Set her down below when you are there.
 - While she is up the hatch is shut, so beam off her. Once the last of the crew has beamed down she climbs back up and waits to be called.
 - Photon torpedoes: from the pilot's seat hold right mouse to aim (right stick and R3 on a controller). Range 12 to 28 tiles, one every six seconds, and the fire spreads.
 
@@ -60,39 +60,39 @@ Everything the ship does runs on the dilithium crystal in her warp core, and one
 
 A working starship in orbit you can teleport to and explore - the U.S.S Adirondack
 She has to be earned first (sandbox: Adirondack access). She can't lock onto somebody with no combadge: bring her crew home from distress calls, recover three pattern enhancers (the first rescue's debrief, the field station and your probes find them), deploy them outdoors and hold the triangle while she resolves a lock, and pass the Doctor's biofilter screening with a nanoprobe sample off one of the Borg among the dead. The PADD's Clearance tab tracks it. Once cleared, from the shuttle's aboard menu, Beam to the U.S.S. Adirondack. Ride the turbolifts between five decks:
-- Deck 1 -- the Bridge and the Ready Room
-- Deck 2 -- the Lounge and bar, the Galley with a working range, and crew quarters with beds you can sleep in
-- Deck 3 -- the Transporter Room and Sickbay, with the CMO's office and lab
-- Deck 4 -- Main Engineering and her warp core
-- Deck 5 -- Hydroponics
-Fifty new pieces of Starfleet furniture: seats you sit in, beds, doors that open for you as you walk up, sinks with running water, and stocked lockers, wardrobes, medical cabinets, bottle shelves, cargo crates and display cases of blades. Her own replicators and EMH stations run on her own warp core -- nothing you do aboard her drains the shuttle.
-She has a crew. Starfleet officers of every division and several species come and go by the turbolifts, walk to their posts, sit down, and talk to each other about the ship, the county and you -- and they notice when you are out of uniform.
+- Deck 1: the Bridge and the Ready Room
+- Deck 2: the Lounge and bar, the Galley with a working range, and crew quarters with beds you can sleep in
+- Deck 3: the Transporter Room and Sickbay, with the CMO's office and lab
+- Deck 4: Main Engineering and her warp core
+- Deck 5: Hydroponics
+Fifty new pieces of Starfleet furniture: seats you sit in, beds, doors that open for you as you walk up, sinks with running water, and stocked lockers, wardrobes, medical cabinets, bottle shelves, cargo crates and display cases of blades. Her own replicators and EMH stations run on her own warp core, so nothing you do aboard her drains the shuttle.
+She has a crew. Starfleet officers of every division and several species come and go by the turbolifts, walk to their posts, sit down, and talk to each other about the ship, the county and you, and they notice when you are out of uniform.
 Beam back to the shuttle from the right-click menu whenever you like.
 
 Perimeter phaser sentries
-A small emitter you set down on the ground: right-click it in your inventory, Set down sentry, and it goes on the square in front of you. Three seconds later it arms and shoots the nearest of the dead within five squares, one at a time, every 0.6 seconds, until its 25 shots are spent -- lead a horde past it and it thins them out, though a big one gets through. Pick it up again like anything on the ground; it keeps its count. Recharge it at any warp core (the shuttle's, the Adirondack's, the field station's or one you installed) for 250 units of power. Three are in the shuttle's armoury in a new world, and the replicator can make more. It cannot be set down aboard, and it shoots through walls, so mind where you put it.
+A small emitter you set down on the ground: right-click it in your inventory, Set down sentry, and it goes on the square in front of you. Three seconds later it arms and shoots the nearest of the dead within five squares, one at a time, every 0.6 seconds, until its 25 shots are spent. Lead a horde past it and it thins them out, though a big one gets through. Pick it up again like anything on the ground; it keeps its count. Recharge it at any warp core (the shuttle's, the Adirondack's, the field station's or one you installed) for 250 units of power. Three are in the shuttle's armoury in a new world, and the replicator can make more. It cannot be set down aboard, and it shoots through walls, so mind where you put it.
 
 Raids: when the pattern buffer overflows
 Once the Adirondack can beam you, Captain Titus will sometimes call for help: the transporter's pattern buffer is full, and she is purging it through a supply outpost in the county rather than onto her decks. Her request opens with where the outpost is, how many to expect and five hours to answer; right-click anywhere to reopen it. Get ready, then Accept: you are beamed to a camp cut out of the wild, with straight alleys running out of it like the rays of a sun, tents, crates, and a warp core, replicator and Doctor lent for the fight (they work, and go when it ends). The dead beam in all round the warp core, a small wave first and each one bigger, half of them running; the next comes only once the last is down. Stand at the core and they surround you; back off down an alley and they all come from one direction. Clear the buffer (the strip at the top shows it), loot the crates, and you are beamed home to exactly where you were. A raid ends as lost after half an hour of real time, or two minutes with nobody at the camp. Beam out of the raid any time from the right-click menu. A win teaches the replicator new patterns and counts toward your rank.
 
 Hydroponics aboard the Adirondack
 Take the turbolift to Deck 5 and grow seven alien crops in hydroponic trays under grow lights, then cook the species dishes from scratch instead of replicating them.
-- Tea bush and bergamot -- dry the leaves, zest the bergamot and brew your own Earl Grey
-- Klingon coffee -- dry the cherries into beans, roast them, grind them and brew Raktajino
-- Plomeek -- a pot of plomeek on the range, served as Vulcan plomeek soup
-- Leola root -- Talaxian leola root stew
-- Andorian tuber -- roast it in the oven
-- Hasperat peppers -- rolled in a tortilla for Bajoran hasperat (dry them first for a hotter one)
-The bay is a working farm when you arrive: one row ready to harvest, one still growing, and one empty for you to sow. The ship tends the trays herself -- every hour she waters them, clears pests and disease, and re-primes a harvested tray -- so you only sow and harvest. The tea, bergamot and coffee bushes grow back after picking. It is the game's own farming, so the sow and harvest menus work as you know them, and the same seeds planted in the ground in Kentucky grow as ordinary crops.
-- Hydroponics Bay -- rows of trays, grow lights, a water feed and a potting bench
-- Botany Lab -- a seed locker stocked with all seven, and a dehydrator that dries leaves, cherries and peppers in twelve hours
-- Serpent Tank Room -- feed the tanks scraps and the serpent worms breed, up to twenty a tank. Five worms and a bowl make live gagh.
-- Arboretum -- Earth and alien trees and somewhere to sit
+- Tea bush and bergamot: dry the leaves, zest the bergamot and brew your own Earl Grey
+- Klingon coffee: dry the cherries into beans, roast them, grind them and brew Raktajino
+- Plomeek: a pot of plomeek on the range, served as Vulcan plomeek soup
+- Leola root: Talaxian leola root stew
+- Andorian tuber: roast it in the oven
+- Hasperat peppers: rolled in a tortilla for Bajoran hasperat (dry them first for a hotter one)
+The bay is a working farm when you arrive: one row ready to harvest, one still growing, and one empty for you to sow. The ship tends the trays herself (every hour she waters them, clears pests and disease, and re-primes a harvested tray), so you only sow and harvest. The tea, bergamot and coffee bushes grow back after picking. It is the game's own farming, so the sow and harvest menus work as you know them, and the same seeds planted in the ground in Kentucky grow as ordinary crops.
+- Hydroponics Bay: rows of trays, grow lights, a water feed and a potting bench
+- Botany Lab: a seed locker stocked with all seven, and a dehydrator that dries leaves, cherries and peppers in twelve hours
+- Serpent Tank Room: feed the tanks scraps and the serpent worms breed, up to twenty a tank. Five worms and a bowl make live gagh.
+- Arboretum: Earth and alien trees and somewhere to sit
 - Deck 2's galley has a working range, powered by her warp core, and a cupboard of pots, bowls, mugs, a kettle, a mortar and pestle and tortillas
-Homegrown food is real food: Klingons and Real Food Only characters are happy to eat it, even when the seeds came out of the replicator. No recipe needs to be learned first -- anybody can cook from scratch. The crew have things to say about the plomeek, the worms, and whether homegrown tea is worth the tray space.
+Homegrown food is real food: Klingons and Real Food Only characters are happy to eat it, even when the seeds came out of the replicator. No recipe needs to be learned first: anybody can cook from scratch. The crew have things to say about the plomeek, the worms, and whether homegrown tea is worth the tray space.
 
 A PADD you can load books and VHS tapes onto and use to communicate with the U.S.S Adirondack
-- Take it to a library, right-click a book -- or a whole shelf's worth -- and Load onto PADD. The book stays where it was. Read it as often as you like, five times faster than paper.
+- Take it to a library, right-click a book (or a whole shelf's worth) and Load onto PADD. The book stays where it was. Read it as often as you like, five times faster than paper.
 - Transcribe any VHS tape onto it and read it there: it does what watching the tape does, once.
 - Copy a library to another PADD. Lose the PADD and you lose the books; recover it and they come back.
 - Open it from its menu or press K.
@@ -105,68 +105,68 @@ Start in 'Cold Start' mode and get your shuttle working, learn the story and eve
 - Commissioned: she starts overhead with a full crystal and three spares. Patterns, the story and rank are still earned.
 
 A functioning replicator that learns recipes and uses energy derived from dilithium crystals
-It can make any item in the game -- vanilla, future patches and other mods -- once the ship holds a pattern for it. Scan what you are carrying to teach it; every rescue teaches it three more. Starfleet gear it knows from the start. The replicator cannot make dilithium.
+It can make any item in the game (vanilla, future patches and other mods) once the ship holds a pattern for it. Scan what you are carrying to teach it; every rescue teaches it three more. Starfleet gear it knows from the start. The replicator cannot make dilithium.
 
 A working EMH to help treat injuries (costing energy)
 He treats everything the hypospray and regenerator do, plus the glass and bullets neither will touch, and tells you whether you are infected. He is also the only cure for a zombie bite: one whole dilithium crystal and twelve game hours aboard. Lose power halfway through and the cure fails.
 
 The ability to play as a Starfleet alien or crew member
-- Vulcan -- strong, calm under pressure, a quick reader; eating meat leaves you unhappy
-- Klingon -- thick-skinned, strong and hungry; replicated food is an insult
-- Andorian -- antennae that hear what a human cannot; weather barely touches you
-- Betazoid -- an empath; you feel a downed crewmate's pain before any tricorder finds them
-- Trill (Joined) -- three past hosts leave you a skill each, different every time
-- Bajoran -- stress and unhappiness ease a little over time
-- Talaxian -- crewmates near you shed boredom and unhappiness faster
-- Orion -- quick hands, quiet feet, good with a stolen car; the pheromones draw the dead to you
-- Android -- strong, fearless, a fast learner; never eats or drinks, runs on a charge only the shuttle can refill
-- Liberated Borg -- sees in the dark, and hears a hum when the dead gather in numbers
+- Vulcan: strong, calm under pressure, a quick reader; eating meat leaves you unhappy
+- Klingon: thick-skinned, strong and hungry; replicated food is an insult
+- Andorian: antennae that hear what a human cannot; weather barely touches you
+- Betazoid: an empath; you feel a downed crewmate's pain before any tricorder finds them
+- Trill (Joined): three past hosts leave you a skill each, different every time
+- Bajoran: stress and unhappiness ease a little over time
+- Talaxian: crewmates near you shed boredom and unhappiness faster
+- Orion: quick hands, quiet feet, good with a stolen car; the pheromones draw the dead to you
+- Android: strong, fearless, a fast learner; never eats or drinks, runs on a charge only the shuttle can refill
+- Liberated Borg: sees in the dark, and hears a hum when the dead gather in numbers
 Each species has its own look, seen by everybody on the server, and its own dishes in the galley.
 
 Seven Starfleet professions, each reporting for duty with its skills, its kit and its division's uniform:
-- Command Officer -- starts as a lieutenant (j.g.)
-- Flight Controller -- the shuttle flies 20% faster with you at her controls
-- Engineer -- everything the ship does costs 10% less while you are aboard
-- Security Officer -- reports with a phaser
-- Medical Officer -- reports with a hypospray
-- Science Officer -- reports with a tricorder that sweeps half again as far
-- Cultural Survey Specialist -- reports with a PADD, and is a holo-historian
+- Command Officer: starts as a lieutenant (j.g.)
+- Flight Controller: the shuttle flies 20% faster with you at her controls
+- Engineer: everything the ship does costs 10% less while you are aboard
+- Security Officer: reports with a phaser
+- Medical Officer: reports with a hypospray
+- Science Officer: reports with a tricorder that sweeps half again as far
+- Cultural Survey Specialist: reports with a PADD, and is a holo-historian
 
 Additional traits
-- Transporter Phobia -- every beam costs you stress and a moment's panic
-- Spacesick -- in the air, the shuttle wears on your nerves
-- Real Food Only -- replicated food leaves you unhappy
-- Starfleet Academy -- a little electrical and a little marksmanship
-- Holo-historian -- reading and transcribing on a PADD takes a quarter less time
+- Transporter Phobia: every beam costs you stress and a moment's panic
+- Spacesick: in the air, the shuttle wears on your nerves
+- Real Food Only: replicated food leaves you unhappy
+- Starfleet Academy: a little electrical and a little marksmanship
+- Holo-historian: reading and transcribing on a PADD takes a quarter less time
 
 The new ranks
 Every ensign you rescue yourself counts. Starfleet professions start as ensigns; anybody else earns a field commission from the Adirondack with their first rescue.
-- Ensign -- 1 rescue
-- Lieutenant (j.g.) -- 3 rescues
-- Lieutenant -- 5 rescues
-- Lieutenant Commander -- 8 rescues
-- Commander -- 11 rescues
+- Ensign: 1 rescue
+- Lieutenant (j.g.): 3 rescues
+- Lieutenant: 5 rescues
+- Lieutenant Commander: 8 rescues
+- Commander: 11 rescues
 
 Shields
-Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed -- no free experience, no free loot. While the shields are up and there is power, crash damage to the hull is repaired too. Raise and lower them at the helm.
+Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed: no free experience, no free loot. While the shields are up and there is power, crash damage to the hull is repaired too. Raise and lower them at the helm.
 
 This mod is multiplayer compatible.
 FOR SERVER OWNERS
-The mod is server-authoritative: the ship, the cabin, the Adirondack, their stores and the hull live on the server and every player sees the same ones. Add its map folder in front of the base map in the server .ini -- Map=TrekShuttle;Muldraugh, KY -- so the space outside the cabin is black instead of wilderness with zombies in it. Single player and the in-game Host settings add it for you.
+The mod is server-authoritative: the ship, the cabin, the Adirondack, their stores and the hull live on the server and every player sees the same ones. Add its map folder in front of the base map in the server .ini (Map=TrekShuttle;Muldraugh, KY) so the space outside the cabin is black instead of wilderness with zombies in it. Single player and the in-game Host settings add it for you.
 Sandbox options on the Shuttlecraft page cover who may use the shuttle, transporter charges, torpedo fire, the replicator, how the shuttle starts, dilithium in the wild, the Doctor, hover height, when the Adirondack first calls, how the Adirondack is earned and how many rescues it takes, how often raids come and how big they are, phaser cutting, and whether the hydroponic trays tend themselves.
 Transporter charges: with the speed anti-cheat on, each player gets 3 beams with one back every 150 seconds, so the server never kicks anybody for beaming. Set AntiCheatSpeed to 3 or 4, or choose Always unlimited, for unlimited beaming.
 
 GUIDE
 - The sensor console: aboard the shuttle, right-click -> Shuttlecraft -> Long-range sensors. This is where you launch probes and answer distress calls. Its map marks are only approximate, so always take a tricorder with you to finish the search on foot.
-- Probes (finding dilithium and holo fragments): at the sensor console, fabricate a probe and launch it. About an hour later it reports what it found 80 to 260 tiles out -- a dilithium trace or a holo fragment site -- as a contact on your map. The mark can be up to sixty tiles off. Travel there, then sweep with the tricorder: dilithium shows as a ring within twenty tiles.
+- Probes (finding dilithium and holo fragments): at the sensor console, fabricate a probe and launch it. About an hour later it reports what it found 80 to 260 tiles out (a dilithium trace or a holo fragment site) as a contact on your map. The mark can be up to sixty tiles off. Travel there, then sweep with the tricorder: dilithium shows as a ring within twenty tiles.
 - Tricorder: a sweep out to forty tiles, and dilithium out to twenty, through walls. From a seat in the shuttle it reads the ground below you, which is how you pick a place worth landing.
-- Dilithium lies on the wild ground of the county -- fields and woods, never in town. The ship carries three spares when commissioned, and the replicator cannot make more.
+- Dilithium lies on the wild ground of the county: fields and woods, never in town. The ship carries three spares when commissioned, and the replicator cannot make more.
 - Rescuing a downed ensign:
   1. Once the ship has power she starts hearing distress calls. A chime and a note tell you who is down and roughly how far and which way ("320 tiles NE"). You do not need a probe for this.
   2. Go aboard and open the sensor console (Shuttlecraft -> Long-range sensors). The call is listed under the probe controls: Accept or Decline. Declining or ignoring it costs nothing, and another call comes later.
-  3. Accepting starts a three-day clock and puts a life-sign mark on your map. The mark is an approximate fix -- the ensign can be up to forty tiles from it.
+  3. Accepting starts a three-day clock and puts a life-sign mark on your map. The mark is an approximate fix; the ensign can be up to forty tiles from it.
   4. Take a tricorder. Get there on foot, by car, or by calling the shuttle down nearby.
-  5. Sweep with the tricorder. Within forty tiles the ensign shows as a blue cross, with distance and bearing. Their combadge chirps as you get close -- and it is drawing in the dead.
+  5. Sweep with the tricorder. Within forty tiles the ensign shows as a blue cross, with distance and bearing. Their combadge chirps as you get close, and it is drawing in the dead.
   6. Right-click the ensign and Beam them to safety from within three tiles. You are handed supplies, the replicator learns three new patterns, and the rescue counts toward your rank.
 - Phasers: right-click a tree to cut it down or a door to cut through it. Nothing else a Starfleet crew carries picks a lock.
 - Bookmarks: log any position aboard and set a course back to it later.

@@ -25,7 +25,7 @@ was not itemised, so the list stands until each is confirmed.
 | Romulan disruptor | `TrekRomulanDisruptor` | one, holsters | cool green | a hideout (tube 3-4); the trophy case |
 | Jem'Hadar polaron rifle | `TrekPolaronRifle` | two, slings | blue-white, heavier | a hideout (tube 4-5); the trophy case |
 | Cardassian phaser | `TrekCardassianPhaser` | one, holsters | yellow | a hideout (tube 3-4); the trophy case |
-| Starfleet phaser holster | `TrekHolster` | worn on the belt | -- | the Adirondack's armoury |
+| Starfleet phaser holster | `TrekHolster` | worn on the belt | none | the Adirondack's armoury |
 
 - **Every one of them is a phaser underneath.** The charge never runs down,
   they never jam and they never wear out, and every shot is a visible bolt

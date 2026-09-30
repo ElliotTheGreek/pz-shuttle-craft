@@ -18,7 +18,7 @@ floors, walls and furniture into an empty world cell the first time a player
 is aboard, from a layout authored in BuildingEd.
 
 One compartment, one storey, at **z 4** (`C.CabinZ`) in cell **96,40**
-(`C.InteriorCell`) -- clear of the vanilla map (it ends at cell x 77), of the
+(`C.InteriorCell`), clear of the vanilla map (it ends at cell x 77), of the
 Fifth-Wheel RV interior at 85,40, and of the TARDIS mod's decks running east
 from 92,40. The Adirondack is in cell 97,40.
 
@@ -47,7 +47,7 @@ container.
 ### 1. Nothing can be built into a chunk that has not streamed in
 
 Chunks only load around a **player**. The cabin is somewhere nobody ever goes,
-so until someone is standing there its chunks do not exist -- and
+so until someone is standing there its chunks do not exist, and
 `getOrCreateGridSquare` on an absent chunk returns an *orphan* square with no
 chunk behind it. The first engine call that touches one (`addFloor`,
 `AddTileObject`) throws out of Java.
@@ -64,8 +64,8 @@ So the order is always **move the player in first, then build**:
 **Never build at a location no player is at.**
 
 And the corollary, which is easier to miss: **you cannot un-build there
-either.** Anything that reaches for a remembered position -- to remove, check
-or repair it -- gets `nil` back when that chunk is not loaded, and `nil` is not
+either.** Anything that reaches for a remembered position (to remove, check
+or repair it) gets `nil` back when that chunk is not loaded, and `nil` is not
 "there is nothing there". It means "ask again later". A hull left where the
 ship used to be goes into `s.ghosts` and is cleared when that ground next
 streams in; treating the failure as success is how a second shuttle ends up
@@ -79,8 +79,8 @@ cannot be a decision, it has to be a process**:
 
 1. Set a course at the helm. Nothing moves and nothing is checked, because
    nothing *can* be checked.
-2. Take her down. The player is beamed to the site -- which is what makes its
-   chunks stream in -- and a job searches for somewhere the hull fits.
+2. Take her down. The player is beamed to the site (which is what makes its
+   chunks stream in), and a job searches for somewhere the hull fits.
 3. If it finds one, the ship comes in and the player is put beside her. If it
    does not, the player is beamed **back aboard** with the reason.
 
@@ -112,7 +112,7 @@ an untreated cabin is a hut standing in a wood. **The answer is a map**: the
 mod ships `TrekShuttle/common/media/maps/TrekShuttle`, cells round the cabin
 and the Adirondack that are a starfield near either ship and empty beyond
 (`tools/gen_void_map.py`). A mapped cell is never generated. **It has to be
-under `common/`** -- the engine never reads a mod's map from `42/`, and for
+under `common/`**: the engine never reads a mod's map from `42/`, and for
 every release before 1.9 it did not load (`DEV_GUIDE.md`, *The black outside
 the cabin is a map*). A dedicated server lists it: `Map=TrekShuttle;Muldraugh, KY`.
 
@@ -234,7 +234,7 @@ Wall tilesets follow a pattern: index 0 is the **west** face, 1 the **north**
 face, 2 the corner post. Multi-tile furniture is consecutive and its halves
 carry a `SpriteGridPos`. **Read a tile's properties before choosing it**
 (`tools/_catalog/tiles.json`): half the tileset does not block its square, and
-`CustomName` is what the player sees when they open it -- the galley's drinks
+`CustomName` is what the player sees when they open it; the galley's drinks
 once went into an oven because a comment called it a cabinet. And a
 catalogue says what a tile is *for*, never what it looks like: look at it.
 
@@ -252,7 +252,7 @@ chamfer is.
 
 Walls are **derived from the floor plan**: `buildWalls` walks every in-shape
 square and puts a wall wherever its neighbour is outside. A new shape is a
-change to `C.inShape` and nothing else -- but **moving geometry is a
+change to `C.inShape` and nothing else, but **moving geometry is a
 migration, not a rebuild**. Write the old extent down (`C.LegacyCabin`) so
 `B.refitCabin` can clear it, and hand the contents of any deleted container
 back on the pad (`DEV_GUIDE.md`, *`U.clearSquare` keeps two things on
@@ -268,7 +268,7 @@ drift.
 
 ### Multi-tile furniture
 
-A bed covers several squares, and **which half goes where is not guessable** --
+A bed covers several squares, and **which half goes where is not guessable**:
 it comes from the tileset's `SpriteGridPos`. Pieces are declared in `C.Pieces`
 as `{sprite, dx, dy}`:
 
@@ -306,7 +306,7 @@ move (`MULTIPLAYER.md`).
 
 **A rebuild must never touch what is already in a container.** Once a locker
 exists it is the player's: what they eat stays eaten. A container is stocked
-**once, ever** -- when it is made, or when it has never been stocked and is
+**once, ever**: when it is made, or when it has never been stocked and is
 still empty. The corollary: **changing a loot list does not change a cabin
 that already exists.** New loot reaches new worlds.
 
@@ -314,14 +314,14 @@ that already exists.** New loot reaches new worlds.
 TREK_Rebuild()      -- from the debug console, standing aboard
 ```
 
-tears the cabin back to bare ground -- containers and contents included -- and
+tears the cabin back to bare ground (containers and contents included) and
 regenerates it fully stocked. `C.DevRestock = true` does the same for every
 rebuild; it is off and should stay off outside design work.
 
 ## Build revisions
 
 `C.BuildRev` (29 today) is stamped into the cabin as it is built. Raising it
-makes the cabin rebuild the next time a player is aboard -- lazily, on
+makes the cabin rebuild the next time a player is aboard, lazily, on
 arrival. Rebuilds repair structure and preserve tagged furniture, container
 contents and dropped items. **Bump it when generation changes**; it restocks
 nothing. It is not the mod's version number and must not be bumped to match
@@ -331,7 +331,7 @@ one.
 
 ## Assets
 
-Meshes, textures, icons and sounds are **generated, never hand-authored** --
+Meshes, textures, icons and sounds are **generated, never hand-authored**,
 by the scripts in `tools/`, listed in `DEV_GUIDE.md`, *Things that are true
 about the assets*. The mod's machines and the hull are **world models**
 (`.x` meshes plus textures), not tile sprites; the Adirondack's furniture is

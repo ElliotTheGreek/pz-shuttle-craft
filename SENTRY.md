@@ -6,7 +6,7 @@ spent: lead a horde past it and it thins them out, and a big one gets through.
 
 The author's brief (2026-09-29): "something I could drop on the ground, then I
 let a horde group up behind me, then I run by the device and it kills all the
-zombies -- maybe it would have a limited number of charges or it would only do
+zombies, maybe it would have a limited number of charges or it would only do
 a certain limited dps one zombie at a time so a big horde some would get past
 it." It has both. Starfleet has no such thing on screen; the nearest canon is
 the Dominion's Houdini mine (DS9, "The Siege of AR-558"), which is the other
@@ -84,7 +84,7 @@ because they were broken* and `MULTIPLAYER.md` apply to every line.
   machine within 25 squares with `playSoundLocal`, the phaser's own rule.
 - **Recharging** (`rechargeSentry {id}`) needs the server's copy of the player
   at a core (`Power.inReachOf`) and goes through the ledger
-  (`Energy.energize`), which bills the pool the command runs under -- the
+  (`Energy.energize`), which bills the pool the command runs under: the
   core they are standing at. The item's mod data goes back with
   `syncItemModData`.
 
@@ -115,7 +115,7 @@ never leaves two.
 fires, the kill reaches both clients, both see the bolt, and neither client
 edits the world.
 
-**Nineteen mutations, one at a time, all caught** -- three only after tests
+**Nineteen mutations, one at a time, all caught**, three only after tests
 were written for them (the stuck removal, another item's id, the bolt's
 start), and one of those only after the harness was fixed: its search text
 occurred twice in `TREK_PhaserFX.lua` and it had mutated the cutting beam's

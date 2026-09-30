@@ -1,4 +1,4 @@
-# Traits — species, divisions and rank
+# Traits: species, divisions and rank
 
 Researched, designed and **built** on 2026-09-24. Section 2 is what the
 engine does, checked against the 42.20 jar and vanilla's own scripts and Lua.
@@ -15,8 +15,8 @@ and both have vanilla sync paths that run from the server.
 
 ## 1. The canon constraint
 
-`COMMS.md` 6.1 says first contact is "where the player decides who they are" --
-a native of this county, a Starfleet officer, or nobody's business -- and that
+`COMMS.md` 6.1 says first contact is "where the player decides who they are"
+(a native of this county, a Starfleet officer, or nobody's business) and that
 **the mod never adjudicates it**. Traits are the one feature that could break
 that, because a trait is an answer written into the save.
 
@@ -589,7 +589,7 @@ rescue, and then holds a field commission whatever they told Shepard.
 
 **Given in person since 2026-09-28** (`CAPTAIN.md` 4.13): a rescue that earns
 a rank tells the rescuer Captain Titus wants to see them, and she confers it
-on the Adirondack's bridge -- a field commission for the unranked, a promotion
+on the Adirondack's bridge: a field commission for the unranked, a promotion
 otherwise. A Starfleet profession's starting rank is still given at creation.
 
 ### 4.6 The looks

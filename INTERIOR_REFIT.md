@@ -27,7 +27,7 @@ because they were broken* applies to every line of this.
 The hull is a 3×5 world model: fifteen squares of ground. The cabin behind the
 transporter was fifty-four. Walking into a shuttlecraft and finding eight
 lockers, two fridges, a two-tile oven, a berth and a cargo bay does not read as
-a shuttle — it reads as a warehouse that a shuttle is parked next to.
+a shuttle; it reads as a warehouse that a shuttle is parked next to.
 
 Four by six is **twenty-four squares**: one wider and one longer than the hull
 itself. Close enough that the inside and the outside tell the same story, and
@@ -55,7 +55,7 @@ still enough room to give every system a place a player can find without a map.
 list; the bow bulkhead also carries LCARS monitors at 0,0, 1,0 and 3,0, which
 the plan cannot draw because they are wall objects sharing those squares.
 
-Eleven squares carry a blocking fitting and twelve are open deck — including
+Eleven squares carry a blocking fitting and twelve are open deck, including
 0,0 and 2,0, which look occupied on the plan and are not: the monitor wall is
 a wall object and the deck under it is walkable.
 
@@ -63,8 +63,8 @@ a wall object and the deck under it is walkable.
 `location_entertainment_theatre_01_3` carries `collideN` and `HoppableN` only:
 it blocks its north edge and nothing else. That is what lets it stand in the
 middle of the deck at 1,2 without cutting the cabin in half, and it is why you
-sit down from the south. Swap it for one of the two-tile bench seats — plain
-`solidtrans` — and it becomes a wall.
+sit down from the south. Swap it for one of the two-tile bench seats (plain
+`solidtrans`) and it becomes a wall.
 
 Everything is reachable from an open square:
 
@@ -85,8 +85,8 @@ Everything is reachable from an open square:
 
 | Square | Sprite | Tag |
 |---|---|---|
-| 0,0, 1,0, 3,0 | `security_01_4` | `console` — wall-mounted, blocks nothing |
-| 2,0 | `furniture_shelving_01_28` | `tapes` — the tape shelf, a wall shelf; 2,0 stays deck so the armoury can be opened (`LORE.md` 3) |
+| 0,0, 1,0, 3,0 | `security_01_4` | `console`: wall-mounted, blocks nothing |
+| 2,0 | `furniture_shelving_01_28` | `tapes`: the tape shelf, a wall shelf; 2,0 stays deck so the armoury can be opened (`LORE.md` 3) |
 | 1,0 | `furniture_tables_low_01_3` | `tvConsole` |
 | 1,0 | `appliances_television_01_1` | `television`, `device = "Base.TvWideScreen"` |
 | 1,2 | `location_entertainment_theatre_01_3` | `chair`, facing N |
@@ -94,12 +94,12 @@ Everything is reachable from an open square:
 The television sat in the port bow **corner** at 0,0 for one revision, tucked
 in behind the fridge where you had to be standing on a chair to use it. It is
 in the middle of the bow wall now, and the seating went from two chairs beside
-it — level with the screen, looking at the bulkhead — to **one chair at 1,2,
+it (level with the screen, looking at the bulkhead) to **one chair at 1,2,
 two squares back and dead in front of it**, looking at the thing it is for.
 
 **There is no VCR object in build 42 and there does not need to be.**
 `appliances_television_01_0..3` is `Base.TvWideScreen`, and its item script
-(`scripts/generated/items/radio.txt:436`) carries `AcceptMediaType = 1` — the
+(`scripts/generated/items/radio.txt:436`) carries `AcceptMediaType = 1`, the
 tape type. `RWMMedia.lua:235` pulls `Base.VHS_Home` and `Base.VHS_Retail` out
 of your inventory and into that device. A television in build 42 *is* a
 television and a video player in one object.
@@ -109,12 +109,12 @@ the tapes the Adirondack channel issues later (`LORE.md`, `COMMS.md`). They
 are the one thing aboard that is not Starfleet issue, and the fiction says
 why: the cabin is hers.
 
-**And it has power, which took a second pass.** See §5 — the cabin is not on
+**And it has power, which took a second pass.** See §5: the cabin is not on
 the town grid, has no generator, and cannot be given electricity by telling
 its squares they have some. `TREK_Power.lua` gives every powered fitting its
 own cell and keeps it full, in every process.
 
-### Port: the galley — all of it the player's storage
+### Port: the galley, all of it the player's storage
 
 | Square | Sprite | Tag | Holds |
 |---|---|---|---|
@@ -130,16 +130,16 @@ rather than taking squares of their own. **The oven and the microwave are real
 `IsoStove`s and the fridge really cools**, powered by a generator nobody sees
 on the hull ring beside the oven (`TrekPowerBus`, `ENERGY.md` 9.1), billed
 from the reserve and switched off when the ship is dark. The fifth galley square, 0,5, is the
-replicator's and carries no fitting -- the machine is the whole thing there.
+replicator's and carries no fitting; the machine is the whole thing there.
 
 **The oven is one tile now.** The old galley used `appliances_cooking_01_40`
-and `_41`, the two halves of one range — a quarter of the new cabin on its own.
+and `_41`, the two halves of one range, a quarter of the new cabin on its own.
 `appliances_cooking_01_4` is the single-tile grey Oven from the same set,
 `IsoType = IsoStove`, `container = stove`, capacity 15. Same cooking, one
 square, and grey suits a metal hull better than the green one.
 
 **0,5 is the replicator's, and it carries no fitting at all.** It was a bare
-steel counter until the machine arrived on 2026-09-20 -- first with a model
+steel counter until the machine arrived on 2026-09-20, first with a model
 hanging over the counter and replicated items going into the counter's own
 container, which was half a machine leaning on a piece of furniture. The
 counter is gone from the `.tbx` and the layout: `C.ReplicatorSpot` names the
@@ -154,7 +154,7 @@ reasons as the first.
 
 It was a vanilla Tool Cabinet (`location_business_machinery_01_33`,
 `container = toolcabinet`, capacity 20) for one revision. That worked
-perfectly and looked like a tool cabinet — which, for the ship's power plant,
+perfectly and looked like a tool cabinet, which, for the ship's power plant,
 is the same failure the helm prop had in reverse. It is the mod's own model
 now (`tools/gen_warpcore.py`): a banded plasma column with a lit crystal in
 its collar, slim enough to stand in a passage the crew walk down.
@@ -177,12 +177,12 @@ nothing in the water code changed.
 
 ### Starboard forward: three Starfleet lockers
 
-All three are `furniture_storage_02_11` — Locker, facing W, capacity 40.
+All three are `furniture_storage_02_11`: Locker, facing W, capacity 40.
 
 | Square | Tag | `special` | `loot` | `cap` | Ends up holding |
 |---|---|---|---|---|---|
 | 3,0 | `armoury` | `phasers`, `uniforms`, `padds`, `packs`, `lamps` | `weapons` | 8 | 4 phasers, 2 each of the 4 blades, 1 of each of the 6 uniforms, 2 PADDs, 1 field pack, 2 shoulder lamps |
-| 3,1 | `provisions` | — | `food` | 27 | 27 from the 18-item food list: the dishes and the drinks |
+| 3,1 | `provisions` | none | `food` | 27 | 27 from the 18-item food list: the dishes and the drinks |
 | 3,2 | `medical` | `medkit` | `medical` | 8 | 3 each of the 4 instruments |
 
 `C.PhaserRack` follows the armoury to 3,0; `tests/test_layout.py` holds the two
@@ -191,7 +191,7 @@ in step.
 **The armoury took the wardrobe too** (2026-09-23). `special` is a list now,
 because a container can owe more than one guarantee and four phasers and one
 uniform of each division are two different counts. The locker ends up at 25.8
-of its 40 units — 2.4 of phasers, 15.0 of blades, 8.4 of uniforms — so nothing
+of its 40 units (2.4 of phasers, 15.0 of blades, 8.4 of uniforms), so nothing
 is dropped for want of room, and `U.stockEach` reads it back either way. With
 the PADDs, the field pack and the two shoulder lamps (2026-09-29) it is 28.0.
 
@@ -230,19 +230,19 @@ was deleted with it.
 
 - **There is no helm console object.** There used to be: a 70-weight static
   model (`TrekHelmConsole`) standing on the deck. It did nothing. The helm
-  panel opens from the aboard menu — right-click anywhere aboard →
-  *Shuttlecraft* → *Helm* — and never from that object, so in a fifty-four
+  panel opens from the aboard menu (right-click anywhere aboard →
+  *Shuttlecraft* → *Helm*) and never from that object, so in a fifty-four
   square cabin it read as furniture and in twenty-four it was a big box in the
   middle of the room. `furnishHelmItem` is gone and `B.refitCabin` removes the
   ones already lying in existing saves.
-- **Transporter pad — 2,5.** Aft, beside the foot of the biobed. It was
+- **Transporter pad: 2,5.** Aft, beside the foot of the biobed. It was
   amidships at 2,2; aft means materialising puts the length of the ship in
-  front of you rather than half of it behind — you arrive at the sick bay,
+  front of you rather than half of it behind: you arrive at the sick bay,
   walk forward past the lockers and the galley, and the viewscreen is what you
   are looking at. It has exactly two ways off it (1,5 and 2,4), which is the
   minimum `tests/test_layout.py` allows, so anything added on either of those
   squares will fail the check rather than box the pad in.
-- **Lamps — `{1,1}` and `{1,4}`.** Two, not three; `lighting_indoor_01_32` is
+- **Lamps: `{1,1}` and `{1,4}`.** Two, not three; `lighting_indoor_01_32` is
   non-solid so they only need squares nothing else wants.
 
 ---
@@ -250,7 +250,7 @@ was deleted with it.
 ## 4. Starfleet issue only
 
 > *"since we have fewer lockers we should have all custom mod items only and
-> not a bunch of vanilla items — players will fill storage with vanilla items
+> not a bunch of vanilla items; players will fill storage with vanilla items
 > as they play"*
 
 That is the second half of the refit and it is why `C.Loot` is four lines long
@@ -282,7 +282,7 @@ and an explicit `cap`, which puts the weight target out of the way and lets the
 item count decide. Every cap is a multiple of its list length, so each item goes
 in the same number of times whatever the rolling cursor is doing.
 
-> **TRAP — three containers cannot spread a list the way nineteen did.**
+> **TRAP: three containers cannot spread a list the way nineteen did.**
 > `U.stock` walks each list from a rolling cursor, which is exactly what made
 > nineteen lockers show thirty-one different medical items. Three lockers take
 > three bites, and a locker that happens to miss the ushaan-tor looks exactly
@@ -322,14 +322,14 @@ obj:setDeviceData(obj:cloneDeviceDataFromItem("Base.TvWideScreen"))
 found by disassembling it: it caches per id and hands back a *clone*, and it
 reaches `InventoryItemFactory.CreateItem` **in Java**, which works even though
 the Lua global of that name is null. Neither route has a vanilla *Lua* call
-site, so both are tried and `getDeviceData()` is read back and logged —
+site, so both are tried and `getDeviceData()` is read back and logged:
 `[TREK] device: Base.TvWideScreen is live`. A television with nil device data
 looks identical to a working one until somebody walks up to it.
 
 ### The cabin had no electricity, and the call that was supposed to give it some did nothing
 
 The television went in, was built as a real `IsoTelevision` with real device
-data — and would not switch on. The cause was one layer down and it had been
+data, and would not switch on. The cause was one layer down and it had been
 there since the cabin was first written.
 
 `B.powerCabin()` walked every square of the cabin calling
@@ -339,13 +339,13 @@ was a no-op:
 - **`setHaveElectricity(boolean)` sets no field.** Its bytecode walks the
   square's objects and touches `IsoLightSwitch`es. The cabin has none.
 - **`haveElectricity()` is not a flag.** It returns
-  `chunk.isGeneratorPoweringSquare(x, y, z)` — a real running `IsoGenerator`.
+  `chunk.isGeneratorPoweringSquare(x, y, z)`, a real running `IsoGenerator`.
 - **`hasGridPower()`** is the town mains, which shut off a few weeks in.
 
 So the two ways to be mains-powered out here are a generator standing in the
-cabin — a large object to look at, a fuel supply to keep filled, and exactly
-the kind of thing that had just been taken *out* of a twenty-four square room
-— or the town grid, which is temporary by design. Neither is a spaceship.
+cabin (a large object to look at, a fuel supply to keep filled, and exactly
+the kind of thing that had just been taken *out* of a twenty-four square room)
+or the town grid, which is temporary by design. Neither is a spaceship.
 
 The answer is one branch further in. `DeviceData.canBePoweredHere()` opens
 with `if (isBatteryPowered) return true`, **before it looks at the square at
@@ -356,8 +356,8 @@ fitting has its own cell, and `TREK_Power.lua` keeps it full.
 Three things the disassembly settled:
 
 - **A battery-powered device switches itself off at zero.** `update()` drains
-  the item script's `UseDelta` per game minute — 0.007 for a television, so a
-  full cell is about two and a half game hours — and the stay-on test is
+  the item script's `UseDelta` per game minute (0.007 for a television, so a
+  full cell is about two and a half game hours), and the stay-on test is
   `isBatteryPowered && power > 0` *before* it falls through to
   `canBePoweredHere()`. "Battery powered" is not "powered for ever".
 - **The top-up runs in every process**, which is why `TREK_Power.lua` is
@@ -365,14 +365,14 @@ Three things the disassembly settled:
   runs and a client transmits the drop itself, so a server-only top-up would
   leave every client switching the television off after a couple of game
   hours. It is a value the engine recomputes per process, like the deckhead
-  lights and the shields — not ship state, and nothing is published.
+  lights and the shields: not ship state, and nothing is published.
 - **`hasBattery` stays false.** The engine never reads it; `RWMPower.lua`
   does, and offers *Remove Battery* when it is true, which would hand the
   player a free `Base.Battery` every time they opened the panel.
 
 `B.powerCabin` is deleted, and so is its per-minute call. `TREK_Power()` from
-the console reports each fitting's cell and whether it has device data at all
-— the line that tells "the television is off" from "the television is
+the console reports each fitting's cell and whether it has device data at all,
+the line that tells "the television is off" from "the television is
 scenery".
 
 **The water was already right.** `B.refillWater` has run every game minute
@@ -384,7 +384,7 @@ with the mains off, which is still on the list below.
 
 Shrinking the cabin is a migration, not a rebuild. `clearSurroundings` sweeps
 the margin, but `U.clearSquare` **deliberately preserves anything the mod
-tagged** — so every locker, fridge and bunk of the 6×9 cabin would have been
+tagged**, so every locker, fridge and bunk of the 6×9 cabin would have been
 left standing, openable, in the black void outside the hull, for ever.
 `forceRebuild` would not have saved it either: it swept `C.CabinW + 2`, which
 after the shrink stops short of the old stern row.
@@ -392,18 +392,18 @@ after the shrink stops short of the old stern row.
 `B.refitCabin()` sweeps the old extent (`C.LegacyCabin`, 5 × 8, written down
 for exactly this) and removes tagged objects outside the new shape, as the
 first phase of `buildCabin`. It also removes the helm console prop, anywhere
-in the cabin — that is a *world item*, and `U.clearSquare` leaves world items
+in the cabin: that is a *world item*, and `U.clearSquare` leaves world items
 alone by design, because that is where a player's dropped things live. Two
 things about it are the design rather than tidiness:
 
 - **The chunk is the gate, not the square.** A nil square in a *loaded* chunk
-  really is nothing there — which is every square of that extent in a world
+  really is nothing there, which is every square of that extent in a world
   made after the refit. If that counted as "ask again later" the sweep would
   never finish and would walk fifty-four squares on every build for the rest of
   the save. `U.chunkLoaded` decides; `s.refitRev` is only stamped when every
   square was reached.
 - **The contents are spilled, not destroyed.** Eleven containers are being
-  deleted and what is in them is the player's — the whole *ship is lived in*
+  deleted and what is in them is the player's; the whole *ship is lived in*
   rule exists to protect this. `spillToPad` moves the **live `InventoryItem`**
   onto the transporter pad, not its id: recreating from the full type would
   reset a hypospray's doses and a magazine's rounds, which is the quiet half of
@@ -420,7 +420,7 @@ chunk gate, are each caught.
 could not stock, and `tests/test_multiplayer.py` fails on any `WARN` the mod
 logs. With five containers empty by design that is five warnings a build and a
 red test. `wantsStock(entry)` is the distinction: an entry with no `loot` and
-no `special` is stamped `TREKStockRev` and left alone — stamped rather than
+no `special` is stamped `TREKStockRev` and left alone, stamped rather than
 skipped, so the repair path never mistakes empty-by-design for one of the
 containers the old broken builds left unstocked, and fills it years later.
 
@@ -435,10 +435,10 @@ was written from*:
   enforced at runtime. In a cabin four squares wide a nine-square exclusion
   zone is over a third of the ship for one fixture. What has to be true is that
   you can materialise and walk off, so the check is now **two ways off the
-  pad** — one is a dead end, and a dead end is how a build that dropped a
+  pad**: one is a dead end, and a dead end is how a build that dropped a
   locker in the wrong place would still read as fine.
 - **"Every fitting blocks its square."** Half this cabin's fittings are wall
-  objects — the bow monitor bank, the EMH panel — and carry neither `solid` nor
+  objects (the bow monitor bank, the EMH panel) and carry neither `solid` nor
   `solidtrans`. `blocks(sprite)` reads it out of the tile catalogue now instead
   of assuming.
 
@@ -459,7 +459,7 @@ was written from*:
 | the interior, redrawn 4×6 with `device`, `fill` and `cap` fields | `TREK_InteriorLayout.lua` |
 | `placeDevice` / `attachDevice`: a real `IsoTelevision` | `TREK_Build.lua` |
 | `wantsStock`: containers that are empty on purpose | `TREK_Build.lua` |
-| `B.powerCabin` deleted -- it never did anything | `TREK_Build.lua`, `TREK_Server.lua` |
+| `B.powerCabin` deleted: it never did anything | `TREK_Build.lua`, `TREK_Server.lua` |
 | the ship's own electricity, and `TREK_Power()` | **`TREK_Power.lua`** (new), `C.DevicePower` |
 | a real `DeviceData` with the engine's drain and turn-on rules | `tests/pz_sim.lua` |
 | `spillToPad`, `removeWorldItem`, `B.refitCabin`, and a build phase for it | `TREK_Build.lua` |
@@ -473,7 +473,7 @@ was written from*:
 The old 6×9 file is kept at `design/buildinged/TrekShuttle_Interior.tbx.6x9.bak`.
 
 The hull, the footprint, the void map and the interior cell are untouched.
-`C.Footprint` stays 3×5 — the exterior was never the problem.
+`C.Footprint` stays 3×5; the exterior was never the problem.
 
 ---
 
@@ -489,7 +489,7 @@ All seven static checks pass. None of this has been seen in a game.
 2. **The three lockers.** 4 phasers, 2 of each blade, the six uniforms and
    two PADDs, a field pack and two shoulder lamps at 3,0; 27 dishes and drinks at 3,1; 3 of each instrument at 3,2. `TREK_Stock()` names every
    container and how full it is.
-3. **The five empty ones** are openable and empty — not unopenable, which is
+3. **The five empty ones** are openable and empty, not unopenable, which is
    what a missing `container = true` looks like.
 4. ~~**The television.**~~ Played: it switches on and plays the shelf's tapes.
 5. **The sink** with *Water Shutoff* set to instant. `TREK_Water()`.
@@ -500,7 +500,7 @@ All seven static checks pass. None of this has been seen in a game.
 9. **The walls hold.** Walk into each of the four bulkheads and hold the
    context key: no *Climb over* prompt anywhere, on any wall. Build 42 lets a
    player climb a wall as well as a fence, and it refuses only over a square
-   with a roof or an `IsoBuilding` behind it -- which the cabin, raised in a
+   with a roof or an `IsoBuilding` behind it, which the cabin, raised in a
    cell with no map under it, has neither of. Climbing out landed you on the
    ring of deck the walls stand on, and one square past that is the void.
    `TREK_Core.holdVault` takes `ignoreAutoVault` away while you are aboard and
@@ -508,7 +508,7 @@ All seven static checks pass. None of this has been seen in a game.
    find a fence, and climb it. `DEV_GUIDE.md`'s *A wall keeps a player in only
    where the engine thinks there is a building*.
 
-**In a save made before today** — keep one, this is the only way to test it:
+**In a save made before today** (keep one, this is the only way to test it):
 
 10. **The migration.** Beam up and look outside the hull. No lockers left
     standing in the void, and the contents of the eleven deleted containers in
@@ -587,13 +587,13 @@ wrong first:
 1. **The camera sees two walls.** The game draws the cabin from the south-east,
    so only the bow (north) and port (west) bulkheads show their faces. The old
    three lockers stood against the starboard bulkhead facing west, and the room
-   saw their backs -- which is what "blank green boxes" in the screenshot were.
+   saw their backs, which is what "blank green boxes" in the screenshot were.
    So everything tall stands against the bow or port wall; starboard has the
    machines and the biobed, which read from any side. The Adirondack's wall
    pieces come in `W` and `N` facings only for the same reason.
 2. **Every fitting is worked from open deck.** The first draft of this plan
    had the range's front square under the chair, the sink's under the warp
-   core, and the bunk boxed in by the television and the stasis unit -- the
+   core, and the bunk boxed in by the television and the stasis unit; the
    author spotted it from the mockup ("the warp core and chair and sink and
    oven are all right on top of each other?"). The whole x = 1 passage is open
    for the port wall's fronts, and y = 1 for the bow's; the core moved from
@@ -602,26 +602,26 @@ wrong first:
    it: every open square joined to the pad, every standing fitting's `Facing`
    square open, the biobed and the machines from any open side.
 3. **Wall objects cost no floor.** The tape rack is a wall object, so 1,0 is
-   deck -- which is how the bunk in the corner is reached.
+   deck, which is how the bunk in the corner is reached.
 
 ### 9.2 What is where
 
 | Square | Piece | Sprite | Tag | Holds |
 |---|---|---|---|---|
-| 0,0 | bunk (W) | `trek_adirondack_02_12` | `bunk` | -- (a bed, `averageBed`) |
+| 0,0 | bunk (W) | `trek_adirondack_02_12` | `bunk` | none (a bed, `averageBed`) |
 | 1,0 | **tape rack** (N) | `trek_adirondack_02_214` | `tapes` | her tapes |
-| 2,0 | **TV cabinet** (N) | `trek_adirondack_02_216` | `tvConsole` | nothing -- the player's |
+| 2,0 | **TV cabinet** (N) | `trek_adirondack_02_216` | `tvConsole` | nothing; the player's |
 | 2,0 | her television | `appliances_television_01_1` | `television` | |
 | 2,0 | science display (N wall) | `trek_adirondack_02_177` | `console` | |
 | 3,0 | arms locker (N) | `trek_adirondack_02_208` | `armoury` | the issue, as before |
-| 0,1 | stasis unit (W) | `trek_adirondack_02_80` | `fridge` | nothing -- the player's |
-| 0,2 | galley range (W), an `IsoStove` | `trek_adirondack_02_191` | `oven` | nothing -- the player's |
+| 0,1 | stasis unit (W) | `trek_adirondack_02_80` | `fridge` | nothing; the player's |
+| 0,2 | galley range (W), an `IsoStove` | `trek_adirondack_02_191` | `oven` | nothing; the player's |
 | 0,2 | wall display (W wall) | `trek_adirondack_01_40` | `console` | |
 | 0,3 | galley sink (W), plumbed | `trek_adirondack_02_76` | `sink` | the 27 rations |
 | 0,3 | wall sconce | `trek_adirondack_02_172` | `sconce` | |
 | 0,4 | medical cabinet (W) | `trek_adirondack_02_120` | `medical` | the instruments |
 | 2,2 | bridge chair (S-backed) | `trek_adirondack_02_89` | `chair` | |
-| 3,4-3,5 | biobed (N) | `trek_adirondack_02_114`/`115` | `biobed` | -- (`goodBed`) |
+| 3,4-3,5 | biobed (N) | `trek_adirondack_02_114`/`115` | `biobed` | none (`goodBed`) |
 
 Walls `trek_adirondack_01_0`/`_1`, the carpet `_24`, and **the pad `_27`**, a
 transporter pad set into the carpet (`transporter_pad()` in
@@ -630,13 +630,13 @@ still hung by each client at `C.LampSpots`, and nothing stands there.
 
 **Two new pieces, modelled in boxes** (`tools/shuttle_pieces.py`, rendered
 by `gen_adirondack_furniture.py` as `kind = "boxes"`, appended to the end of
-`adirondack_objects.py` so no existing tile moved -- `ADIRONDACK.md` 10.7):
+`adirondack_objects.py` so no existing tile moved; `ADIRONDACK.md` 10.7):
 
-- **the tape rack** -- two shelves of spines with her handwritten labels on a
+- **the tape rack**: two shelves of spines with her handwritten labels on a
   charcoal back plate. Its tile carries vanilla's metal wall shelf's
   properties (`furniture_shelving_01_28`/`29`): a wall object, attached to its
   wall, capacity 30, no `solid`.
-- **the TV cabinet** -- a low console, and `Surface` 20 with `IsTable`,
+- **the TV cabinet**: a low console, and `Surface` 20 with `IsTable`,
   because the television is `IsSurfaceOffset` and is drawn at the height of
   what it stands on. A table's `Surface` is its top in 1x pixels (a 0.95
   counter is 35).
@@ -661,12 +661,12 @@ It runs once, as a build phase after the walls:
 1. It notes every fitting tagged as the cabin's whose square-and-sprite is not
    in the new layout.
 2. It furnishes the new cabin itself with stocking held off
-   (`B.carryingOver`) -- the new armoury is to take the old one's contents, not
+   (`B.carryingOver`): the new armoury is to take the old one's contents, not
    a second issue on top of them.
 3. It moves each old container's contents, the live items, into its successor
    (`B.CarryOver`: fridge -> stasis unit, oven -> range, the old rations
    locker -> the sink, armoury, sick bay and tapes to theirs). What has no
-   successor -- the counters, the microwave -- goes onto the pad. A tape left
+   successor (the counters, the microwave) goes onto the pad. A tape left
    in the old television is ejected onto the new rack with vanilla's own
    eject.
 4. It takes the old fittings out, and the warp core's model off 1,3 (the
@@ -677,25 +677,25 @@ a floor**, so an old save's carpet is re-sprited in place the way vanilla's
 shovel does it on the server (`setSprite`, `RemoveAttachedAnims`,
 `transmitUpdatedSpriteToClients`); the walls come out once the new one on that
 edge stands. Both touch only the sprites the cabin itself used
-(`L.legacy`) -- a floor or wall a player laid is theirs.
+(`L.legacy`); a floor or wall a player laid is theirs.
 
 **It waits for every square to be loaded, and the cabin is not current until
 it has run.** And nothing is furnished while it waits: the first version let
 the ordinary furnishing phase run in the meantime, which put a freshly stocked
-armoury beside the old one -- the whole issue twice. The test that found it is
+armoury beside the old one: the whole issue twice. The test that found it is
 the one below; it had first been written to call the refit directly, which
 could not see it.
 
 **And the first play of it found the cabin empty** (2026-09-30): a new world,
 the chunk north-west of the cabin not yet streamed in at the first build, the
-refit waiting for it, the furnishing waiting for the refit -- and the player let
+refit waiting for it, the furnishing waiting for the refit, and the player let
 aboard a cabin with nothing in it but the replicator and the warp core, which
 are placed by phases of their own. Three fixes, each caught when reverted:
 
 - **A ship never built has nothing to refit** (`s.built ~= true`): it is
   marked done at once, and a new world never waits.
-- **The refit looks only where an old fitting or wall can stand** -- the hull
-  and its east and south wall edges -- not the ring west and north of it,
+- **The refit looks only where an old fitting or wall can stand** (the hull
+  and its east and south wall edges), not the ring west and north of it,
   which only ever held floor and is the ring most likely to be unloaded.
 - **An unfinished build is finished aboard.** The server's minute tick builds
   a cabin that is not current while anybody is aboard; before, only arriving
@@ -710,7 +710,7 @@ fills its containers, and refits it: nothing of the old cabin left, each
 player's thing in the right successor or on the pad, the armoury and the tapes
 not issued twice, the tapes still recorded, the core moved, and the wait for
 unloaded ground. `starfleet_refit_mp()` checks the floor swap reaches a client.
-Seventeen mutations, one at a time, all caught -- two only after the test was
+Seventeen mutations, one at a time, all caught: two only after the test was
 rewritten to build the whole cabin under a partial load, and three after the
 empty cabin below.
 
@@ -731,7 +731,7 @@ front of the set.
 
 1. **The look.** Beam up. It should read as a Starfleet cabin with one 1993
    television in it. The TV should stand *on* its cabinet, not float over it
-   or sink into it -- that is the `Surface` value.
+   or sink into it; that is the `Surface` value.
 2. **Walk it.** Every fitting from the square in front of it: the bunk from
    1,0, the rack from 1,0, the TV from 2,1, the armoury from 3,1, the galley and
    the cabinet down the x = 1 passage, the core from 1,3 or 3,3, the Doctor's
@@ -740,10 +740,10 @@ front of the set.
    tape.
 4. **The galley**: the stasis unit keeps food cold, the range cooks, the sink
    runs, and the rations are in the sink's cupboard.
-5. **The walls hold** (section 7, item 9) -- the Adirondack's bulkhead carries
+5. **The walls hold** (section 7, item 9): the Adirondack's bulkhead carries
    industry_01's properties, as the old walls did.
 
-**In a save from before this** -- the part that most needs a real world:
+**In a save from before this**, the part that most needs a real world:
 
 6. Beam up. None of the old furniture anywhere, inside or outside the hull;
    whatever was in the fridge in the stasis unit, the oven's in the range, the

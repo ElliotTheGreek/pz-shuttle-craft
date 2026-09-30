@@ -6,7 +6,7 @@
   "notes": [
     "The eleven, as they come up (COMMS.md 6.2)",
     "Distress calls carry random names, so a rescue is not a roster. What she",
-    "can do is say the name back -- which is the thing a counter never does."
+    "can do is say the name back, which is the thing a counter never does."
   ],
   "requires": ["thanksDue", "met"],
   "forbids": ["quiet"],

@@ -3,7 +3,7 @@
 Built 2026-09-26. The working guide to what the off-watch crew keep in the
 hideouts off the Adirondack's Jefferies tubes (`JEFFERIES.md`): four things
 that hook you, one that punishes a second dose, the good bottles, a pot of
-latinum and a holosuite reel -- and the Doctor's detox and a PADD's flashing
+latinum and a holosuite reel, and the Doctor's detox and a PADD's flashing
 light for when it has gone too far.
 
 **Nothing here has been seen in game yet.** Section 7 is what to check first,
@@ -17,11 +17,11 @@ and it needs a new world (the hideouts' crates are stocked once, ever).
 |---|---|---|
 | **Ketracel-White** | *Inject* | Endurance to full, fatigue -0.5, stress -0.5, panic to nothing, and a second wind for four hours. **Three doses and you are hooked.** A day without it: stress, panic and misery every ten minutes, and **endurance held under half**. Clean four days after the last dose. |
 | **Felicium** | *Take* | The strongest pain relief in the mod (painReduction 25), unhappiness -30, stress -0.25. **Two doses and you are hooked.** Twelve hours without it and the "plague" comes: misery and food sickness, which **never goes past 35**. Clean three days after the last dose. |
-| **Trellium-D** | *Inject* | To a **Vulcan**: unhappiness -60, boredom -50, stress -0.4 -- then, two hours later, a crash (panic +45, stress +0.35). Hooked at two. To **anybody else**: poison (food sickness +30, never past 40), no high and no habit. |
-| **The Game** (Ktarian game) | *Play the Game* | One round: boredom -40, unhappiness -25, stress -0.2 -- **and each round is worth 8% less than the last** (down to 30%). **Four rounds and you are hooked.** An hour without it gets boring, fast. It lasts five days on its own. *Offer the Game to...* hands it to anybody within three tiles. |
+| **Trellium-D** | *Inject* | To a **Vulcan**: unhappiness -60, boredom -50, stress -0.4; then, two hours later, a crash (panic +45, stress +0.35). Hooked at two. To **anybody else**: poison (food sickness +30, never past 40), no high and no habit. |
+| **The Game** (Ktarian game) | *Play the Game* | One round: boredom -40, unhappiness -25, stress -0.2, **and each round is worth 8% less than the last** (down to 30%). **Four rounds and you are hooked.** An hour without it gets boring, fast. It lasts five days on its own. *Offer the Game to...* hands it to anybody within three tiles. |
 | **Cordrazine** | *Inject* | Sickbay's stimulant: endurance +0.4, fatigue -0.3. **A second dose inside four hours** is the episode: panic +60, stress +0.4, misery. No habit. |
 | **Kanar, Saurian brandy, Aldebaran whiskey** | *Drink* | Three more bottles for the stash shelf. Kanar is syrupy and strong, the brandy is the officer's drink, the whiskey is green. |
-| **Latinum strips** | -- | The pot on the card table. Three per crate. |
+| **Latinum strips** | none | The pot on the card table. Three per crate. |
 | **Holosuite programme reel** | a tape | A Ferengi pleasure house's catalogue, dubbed off a display loop. Every programme is described, none is shown. Watch it, or transcribe it to a PADD. |
 
 The cures:
@@ -38,7 +38,7 @@ The cures:
 
 **Withdrawal never hurts the body.** Stress, panic, misery, boredom and a
 capped food sickness: miserable, and never a wound or a death. That is a
-decision, not a limit of the engine -- a zombie game already has enough ways
+decision, not a limit of the engine: a zombie game already has enough ways
 to die, and a drug that could kill you in a hideout would make the tubes a
 place to avoid rather than a place to explore.
 
@@ -48,7 +48,7 @@ place to avoid rather than a place to explore.
 
 | Where | What |
 |---|---|
-| **stash_crate**, and each hideout's **stash_arms_*** crate beside it (two per hideout, three hideouts; the second also hides weapons, `ARMOURY.md` 7) | the old stash, plus one white, one felicium, one Trellium-D, one Game, three latinum strips -- and one holosuite reel (`tape = C.HolosuiteTape`) |
+| **stash_crate**, and each hideout's **stash_arms_*** crate beside it (two per hideout, three hideouts; the second also hides weapons, `ARMOURY.md` 7) | the old stash, plus one white, one felicium, one Trellium-D, one Game, three latinum strips, and one holosuite reel (`tape = C.HolosuiteTape`) |
 | **stash_shelf** (one per hideout) | the old shelf, plus kanar, Saurian brandy and Aldebaran whiskey |
 | **medical_cart** (Sickbay, three) | the medical list, plus one cordrazine |
 
@@ -76,13 +76,13 @@ commands      gameOffer {to}   hand the Game to a player within C.GameOfferRange
   boostUntil, nagAt, withdrew } }`, with cordrazine's last dose kept beside it
   (`record.cordrazine`) and never listed as a habit.
 - **The client's copy.** A client's player never sees the server's write, so
-  after every change of state the server sends `contraState` -- a summary of
-  `{ doses, hooked, withdrawing }` per substance -- and the client keeps it
+  after every change of state the server sends `contraState` (a summary of
+  `{ doses, hooked, withdrawing }` per substance) and the client keeps it
   under `C.ContrabandMirrorKey`. `TREK.Contraband.record` reads whichever key
   this machine owns. That is what lets the Doctor's panel grey *Detox*, and
   the PADD offer the light, from the player's own body.
 - **Every stat change goes through `T.adjust`** and every word through
-  `T.note` -- the traits' route, which applies on the server and mirrors to the
+  `T.note`, the traits' route, which applies on the server and mirrors to the
   owning client. `apply()` in the server file adds two ceilings on top: `limit`
   (an add never pushes the stat past it) and `cap` (the stat is held under it).
 - **The only effect in a script is `painReduction`**, which vanilla's `Eat()`
@@ -124,8 +124,8 @@ commands      gameOffer {to}   hand the Game to a player within C.GameOfferRange
 ## 6. What would have bitten you
 
 - **A translation key that already exists is not yours to reuse.** The first
-  draft put the detox's refusal under `IGUI_TREK_EmhClean` -- which is the
-  panel's *No infection* label -- and rewrote it. The JSON writer warned; the
+  draft put the detox's refusal under `IGUI_TREK_EmhClean`, which is the
+  panel's *No infection* label, and rewrote it. The JSON writer warned; the
   refusal is `IGUI_TREK_EmhNoHabit`. Grep a key before you name one.
 - **A key assembled from parts is invisible to `test_assets.py`**, and worse,
   its prefix *is* visible and fails as a key with no text.
