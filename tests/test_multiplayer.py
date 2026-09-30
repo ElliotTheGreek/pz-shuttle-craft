@@ -292,14 +292,24 @@ APPLY = r"""
             -- The server pushed a weapon's fields to the player carrying it.
             for _, p in ipairs(SIM.players) do
                 if p.name == d.who then
+                    -- The engine finds the item through its own container
+                    -- (SyncItemFieldsPacket carries a ContainerID), so one in
+                    -- a bag is reached as well as one in a pocket.
                     local held = { p.primary, p.secondary }
-                    for _, it in ipairs(p.inventory.items) do table.insert(held, it) end
+                    local function walk(items)
+                        for _, it in ipairs(items) do
+                            table.insert(held, it)
+                            if it.inner then walk(it.inner.items) end
+                        end
+                    end
+                    walk(p.inventory.items)
                     for _, it in pairs(held) do
                         if it and it.id == d.id then
                             if d.ammo ~= nil then it.ammo = d.ammo end
                             if d.chambered ~= nil then it.chambered = d.chambered end
                             if d.jammed ~= nil then it.jammed = d.jammed end
                             if d.condition ~= nil then it.condition = d.condition end
+                            if d.uses ~= nil then it.uses = d.uses end
                         end
                     end
                 end
@@ -665,6 +675,24 @@ def single_player():
           len(lamps) == rt.eval("TREK.Config.ShoulderLampIssue") == 2,
           f"single player: the armoury at 3,0 holds {len(lamps)} of {lamp}, "
           f"not the two shoulder lamps (special = \"lamps\")")
+    # The engineer's field kit (FIELD_KIT.md): exactly one, and packed -- a
+    # satchel issued empty would look the same from the locker.
+    fk = rt.eval("TREK.Config.FieldKitItem")
+    check(len([x for x in armoury if x == fk]) == 1,
+          f"single player: the armoury at 3,0 holds {armoury.count(fk)} field kits, not one "
+          f"(special = \"fieldkit\")")
+    inside = int(rt.eval(f"""(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(3, 0)
+        for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+            for _, it in ipairs(o.container and o.container.items or {{}}) do
+                if it.fullType == "{fk}" then return #it:getItemContainer().items end
+            end
+        end
+        return 0
+    end)()"""))
+    check(inside == 105, f"single player: the armoury's field kit holds {inside} items, "
+          "not five tools and a hundred stem bolts")
     # Starfleet issue only. Five of the cabin's containers are the player's own
     # shelves and start empty, so at build time everything aboard is ours; a
     # vanilla id in here means a ship list grew one back.
@@ -11620,6 +11648,497 @@ def phaser_multiplayer():
           "the server")
 
 
+# The ground a phaser clears (PHASERS.md 3), as the tiles really are: the
+# names and flags are vanilla's, out of tools/_catalog/tiles.json and the
+# bytecode of isStump and isOres. Declared on every machine of a test.
+CLEARING_TILES = """
+    SIM.tileProps["crafted_02_86"] = { CustomName = "Stump" }
+    SIM.tileProps["boulders_0"] = { solidtrans = true, BlocksPlacement = true }
+    for i = 16, 19 do
+        SIM.tileProps["boulders_" .. i] = { CustomName = "Boulder", solidtrans = true }
+    end
+    SIM.tileProps["boulders_40"] = { solidfloor = true }
+    SIM.tileProps["crafting_ore_2"] = { CustomName = "ironOreLarge", solidtrans = true }
+    SIM.tileProps["d_generic_1_20"] = { CustomName = "LargeStoneTwigs" }
+    SIM.tileProps["d_generic_1_30"] = { CustomName = "Log" }
+    SIM.tileProps["f_bushes_1_0"] = { canBeCut = true }
+    SIM.tileProps["vegetation_ornamental_01_0"] = { CustomName = "Hedge", Bush = true }
+    SIM.tileProps["vegetation_indoor_01_0"] = { CustomName = "Plant" }
+"""
+
+
+def clear_label(kind):
+    return {"stump": "IGUI_TREK_PhaserClearStump", "rock": "IGUI_TREK_PhaserClearRock",
+            "bush": "IGUI_TREK_PhaserClearBush"}[kind]
+
+
+def sprite_present(rt, x, y, z, sprite):
+    return bool(rt.eval(f"""(function()
+        for _, o in ipairs(SIM.rawSquare({x}, {y}, {z}).objects) do
+            if o.spriteName == "{sprite}" then return true end
+        end
+        return false
+    end)()"""))
+
+
+def sprite_menu(rt, var, x, y, z, sprite):
+    """Right-clicks the object wearing this sprite, the way a player does."""
+    rt.run(f"""
+        local target = nil
+        for _, o in ipairs(SIM.rawSquare({x}, {y}, {z}).objects) do
+            if o.spriteName == "{sprite}" then target = o end
+        end
+        {var} = SIM.contextMenu()
+        TREK.Phaser.fillWorldMenu(0, {var}, {{ target }}, false)
+    """)
+
+
+def phaser_clearing():
+    """Clearing ground with a phaser, single player: a stump, boulders of one
+    and four squares, ore, a stone, a bush and a hedge all go, leaving
+    nothing; the rock floor, a log and a houseplant are never offered; one
+    boulder is one option; the sandbox and a safehouse are honoured, by the
+    menu and by the action."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('clearer', 1000.5, 1000.5, 0)")
+    net.start()
+    net.pump(2)
+    P = "SIM.players[1]"
+    rt.run(CLEARING_TILES)
+    rt.run(f"""
+        {P}.inventory:AddItem(instanceItem(TREK.Config.PhaserItem))
+        SIM.put(1002, 1000, 0, "crafted_02_86")
+        SIM.put(1003, 1000, 0, "boulders_0")
+        SIM.put(1000, 1002, 0, "crafting_ore_2")
+        SIM.put(1001, 1002, 0, "d_generic_1_20")
+        SIM.put(1002, 1002, 0, "f_bushes_1_0")
+        SIM.put(1003, 1002, 0, "vegetation_ornamental_01_0")
+        SIM.put(1000, 1003, 0, "d_generic_1_30")
+        SIM.put(1001, 1003, 0, "vegetation_indoor_01_0")
+        local rockFloor = SIM.put(1002, 1003, 0, "boulders_40")
+        rockFloor.isFloor = true
+        -- Something a player built, wearing a boulder's picture: theirs.
+        SIM.put(1003, 1003, 0, "boulders_0", "IsoThumpable")
+        -- A boulder two squares by two: four objects, one sprite grid.
+        SIM.grid({{ SIM.put(1000, 998, 0, "boulders_19"), SIM.put(1001, 998, 0, "boulders_18"),
+                   SIM.put(1000, 999, 0, "boulders_16"), SIM.put(1001, 999, 0, "boulders_17") }})
+    """)
+    targets = (("stump", 1002, 1000, "crafted_02_86"), ("rock", 1003, 1000, "boulders_0"),
+               ("rock", 1000, 1002, "crafting_ore_2"), ("rock", 1001, 1002, "d_generic_1_20"),
+               ("bush", 1002, 1002, "f_bushes_1_0"), ("bush", 1003, 1002, "vegetation_ornamental_01_0"))
+
+    # --- what is offered, and what never is ------------------------------------
+    for kind, x, y, sprite in targets:
+        sprite_menu(rt, "c0", x, y, 0, sprite)
+        check(clear_label(kind) in phaser_labels(rt, "c0"),
+              f"phaser clearing: {sprite} was not offered as a {kind} to clear")
+    for x, y, sprite, what in ((1000, 1003, "d_generic_1_30", "a log lying on the ground"),
+                               (1001, 1003, "vegetation_indoor_01_0", "a houseplant"),
+                               (1002, 1003, "boulders_40", "a rock floor, which would leave a hole"),
+                               (1003, 1003, "boulders_0", "something a player built")):
+        sprite_menu(rt, "c1", x, y, 0, sprite)
+        labels = phaser_labels(rt, "c1")
+        check(not any(clear_label(k) in labels for k in ("stump", "rock", "bush")),
+              f"phaser clearing: {what} was offered to clear")
+
+    # --- the cut clears each one, and leaves nothing behind -------------------
+    rt.run("SIM.worldSounds = {}")
+    before = int(rt.eval("#SIM.actionsDone"))
+    for kind, x, y, sprite in targets:
+        sprite_menu(rt, "c2", x, y, 0, sprite)
+        rt.run(f'c2:click("{clear_label(kind)}"); SIM.runActions()')
+        check(not sprite_present(rt, x, y, 0, sprite),
+              f"phaser clearing: the {kind} {sprite} is still there after the cut")
+        dropped = int(rt.eval(f"#SIM.rawSquare({x}, {y}, 0).worldObjects"))
+        check(dropped == 0, f"phaser clearing: clearing {sprite} left {dropped} "
+              "things on the ground; a phaser leaves nothing")
+    done = [str(x) for x in rt.eval("SIM.actionsDone").values()][before:]
+    check(done.count("TREKPhaserCut") == len(targets),
+          f"phaser clearing: {done.count('TREKPhaserCut')} cuts ran as timed "
+          f"actions for {len(targets)} things cleared")
+    check(int(rt.eval("#SIM.worldSounds")) >= len(targets),
+          "phaser clearing: clearing ground made no noise a zombie could hear")
+    check(sprite_present(rt, 1002, 1003, 0, "boulders_40"),
+          "phaser clearing: the rock floor went")
+
+    # --- one boulder is one option, and all of it goes ------------------------
+    # The click names every piece, as a right-click over a big sprite does.
+    rt.run("""c3 = SIM.contextMenu()
+        local objs = {}
+        for _, y in ipairs({ 998, 999 }) do
+            for _, x in ipairs({ 1000, 1001 }) do
+                for _, o in ipairs(SIM.rawSquare(x, y, 0).objects) do table.insert(objs, o) end
+            end
+        end
+        TREK.Phaser.fillWorldMenu(0, c3, objs, false)""")
+    n = str(rt.eval("c3:labels()")).count(clear_label("rock"))
+    check(n == 1, f"phaser clearing: one boulder over four squares offered {n} "
+          "options; it is one thing")
+    rt.run(f'c3:click("{clear_label("rock")}"); SIM.runActions()')
+    for x, y, sprite in ((1000, 998, "boulders_19"), (1001, 998, "boulders_18"),
+                         (1000, 999, "boulders_16"), (1001, 999, "boulders_17")):
+        check(not sprite_present(rt, x, y, 0, sprite),
+              f"phaser clearing: a boulder's piece {sprite} at {x},{y} outlived "
+              "the rest; half a boulder is still in the way")
+
+    # --- the sandbox: "trees and ground" clears, "off" does not ---------------
+    rt.run("SIM.put(1004, 1000, 0, 'crafted_02_86'); SIM.put(1004, 1001, 0, 'f_bushes_1_0')")
+    rt.run("SandboxVars.TrekShuttle.PhaserCutting = TREK.Config.PhaserCutTrees; "
+           "ISTimedActionQueue.add(TREKPhaserCut:new(SIM.players[1], 1004, 1000, 0, 'stump')); "
+           "SIM.runActions()")
+    check(not sprite_present(rt, 1004, 1000, 0, "crafted_02_86"),
+          "phaser clearing: 'Trees and ground' refused to clear a stump")
+    rt.run("SandboxVars.TrekShuttle.PhaserCutting = TREK.Config.PhaserCutNone")
+    sprite_menu(rt, "c4", 1004, 1001, 0, "f_bushes_1_0")
+    opt = f'c4:find("{clear_label("bush")}")'
+    check(rt.eval(f"{opt} and {opt}.notAvailable") is True,
+          "phaser clearing: cutting switched off still offered to clear a bush")
+    rt.run("ISTimedActionQueue.add(TREKPhaserCut:new(SIM.players[1], 1004, 1001, 0, 'bush')); "
+           "SIM.runActions()")
+    check(sprite_present(rt, 1004, 1001, 0, "f_bushes_1_0"),
+          "phaser clearing: cutting switched off still cleared a bush")
+    rt.run("SandboxVars.TrekShuttle.PhaserCutting = nil")
+
+    # --- somebody else's safehouse: the ground in it is theirs ----------------
+    rt.run(f"""
+        SIM.safehouse(1010, 1000, 1014, 1004, {{ "owner" }})
+        SIM.put(1011, 1001, 0, "f_bushes_1_0")
+        {P}.x, {P}.y = 1011.5, 1000.5
+    """)
+    sprite_menu(rt, "c5", 1011, 1001, 0, "f_bushes_1_0")
+    opt = f'c5:find("{clear_label("bush")}")'
+    check(rt.eval(f"{opt} and {opt}.notAvailable") is True and
+          str(rt.eval(f"{opt}.toolTip.description")) == "IGUI_TREK_PhaserSafehouse",
+          "phaser clearing: a bush in a stranger's safehouse was offered, or "
+          "refused without saying why")
+    rt.run("ISTimedActionQueue.add(TREKPhaserCut:new(SIM.players[1], 1011, 1001, 0, 'bush')); "
+           "SIM.runActions()")
+    check(sprite_present(rt, 1011, 1001, 0, "f_bushes_1_0"),
+          "phaser clearing: the action cleared a bush in a stranger's safehouse")
+
+    # --- how long each takes: quicker than a tree ------------------------------
+    for kind in ("stump", "rock", "bush"):
+        t = int(rt.eval(f"TREKPhaserCut:new(SIM.players[1], 0, 0, 0, '{kind}').maxTime"))
+        want = int(rt.eval(f"TREK.Config.PhaserClearTime.{kind}"))
+        check(t == want and t < int(rt.eval("TREK.Config.PhaserTreeTime")),
+              f"phaser clearing: a {kind} takes {t}, not {want}, or no less than a tree")
+
+    ig_ui = json.load(open(os.path.join(ROOT, "TrekShuttle", "42", "media", "lua",
+                                        "shared", "Translate", "EN", "IG_UI.json"),
+                           encoding="utf-8"))
+    for kind in ("stump", "rock", "bush"):
+        check(clear_label(kind) in ig_ui, f"phaser clearing: {clear_label(kind)} has no words")
+    for w in rt.warnings():
+        fail(f"phaser clearing: {w}")
+    print("phaser clearing: a stump, boulders of one and four squares, ore, a stone, a "
+          "bush and a hedge are offered and cleared, leaving nothing; a rock floor, a "
+          "log and a houseplant are not; a boulder is one option and goes whole; the "
+          "sandbox and a stranger's safehouse are refused")
+
+
+def phaser_clearing_mp():
+    """A boulder cleared on a server with two clients: the server removes
+    every piece, both clients lose it, and the cutter's client edits
+    nothing."""
+    net = Net("mp", clients=("cutter", "watcher"))
+    srv = net.server
+    cutter, watcher = net.clients["cutter"], net.clients["watcher"]
+    srv.run("SIM.player('cutter', 2000.5, 2000.5, 0).onlineID = 1; "
+            "SIM.player('watcher', 2004.5, 2000.5, 0).onlineID = 2")
+    cutter.run("SIM.player('cutter', 2000.5, 2000.5, 0).onlineID = 1; "
+               "SIM.player('watcher', 2004.5, 2000.5, 0).onlineID = 2")
+    watcher.run("SIM.player('watcher', 2004.5, 2000.5, 0).onlineID = 2; "
+                "SIM.player('cutter', 2000.5, 2000.5, 0).onlineID = 1")
+    net.start()
+    for rt in net.all():
+        rt.run(CLEARING_TILES)
+        rt.run("""SIM.grid({ SIM.put(2002, 2002, 0, "boulders_19"), SIM.put(2003, 2002, 0, "boulders_18"),
+                            SIM.put(2002, 2003, 0, "boulders_16"), SIM.put(2003, 2003, 0, "boulders_17") })
+                  SIM.put(2001, 2002, 0, "crafted_02_86")""")
+    for rt in (srv, cutter):
+        rt.run("""
+            local me = SIM.players[1]
+            for _, p in ipairs(SIM.players) do if p.name == 'cutter' then me = p end end
+            local ph = instanceItem(TREK.Config.PhaserItem)
+            me.inventory:AddItem(ph)
+            me.primary = ph
+        """)
+    net.pump(4)
+    sprite_menu(cutter, "cm", 2002, 2003, 0, "boulders_16")
+    cutter.run(f'cm:click("{clear_label("rock")}"); SIM.runActions()')
+    net.pump(6)
+    check("TREKPhaserCut" in [str(x) for x in srv.eval("SIM.actionsDone").values()],
+          "phaser clearing mp: the server never ran the cut")
+    for name, rt in (("server", srv), ("cutter", cutter), ("watcher", watcher)):
+        for x, y, sprite in ((2002, 2002, "boulders_19"), (2003, 2002, "boulders_18"),
+                             (2002, 2003, "boulders_16"), (2003, 2003, "boulders_17")):
+            check(not sprite_present(rt, x, y, 0, sprite),
+                  f"phaser clearing mp: the boulder's {sprite} still stands on the {name}'s machine")
+    check(int(cutter.eval("SIM.clientWorldEdit or 0")) == 0,
+          "phaser clearing mp: the cutter's client edited the world itself")
+
+    # --- a client with no phaser in hand is refused where it counts ------------
+    srv.run("for _, p in ipairs(SIM.players) do if p.name == 'cutter' then p.primary = nil end end")
+    sprite_menu(cutter, "cn", 2001, 2002, 0, "crafted_02_86")
+    cutter.run(f'cn:click("{clear_label("stump")}"); SIM.runActions()')
+    net.pump(6)
+    check(sprite_present(srv, 2001, 2002, 0, "crafted_02_86"),
+          "phaser clearing mp: the server cleared a stump for a player with no "
+          "phaser in hand")
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"phaser clearing mp: {w}")
+    print("phaser clearing mp: the server clears the whole boulder and it goes on both "
+          "clients; the cutter's client edits nothing; a client with no phaser in hand "
+          "is refused on the server")
+
+
+def script_items(path):
+    """{name: {key: value}} for every item block in a script file."""
+    text = open(path, encoding="utf-8").read()
+    out = {}
+    for m in re.finditer(r"^\s*item (\w+)\s*\{(.*?)^\s*\}", text, re.S | re.M):
+        props = {}
+        for line in m.group(2).splitlines():
+            kv = re.match(r"\s*(\w+)\s*=\s*(.*?),?\s*$", line)
+            if kv:
+                props[kv.group(1)] = kv.group(2)
+        out[m.group(1)] = props
+    return out
+
+
+# What each Starfleet tool must stand in for (the author, 2026-09-30: "stand
+# in for other tools appropriately"): the vanilla tag, and the vanilla item
+# it replaces, whose weight it must come in under.
+FIELD_TOOLS = {
+    "TrekSonicDriver": (("base:screwdriver", "base:drillwood", "base:drillmetal"), "Screwdriver"),
+    "TrekHyperspanner": (("base:wrench", "base:pipewrench", "base:pliers"), "Wrench"),
+    "TrekStemBoltDriver": (("base:hammer", "base:clubhammer", "base:ballpeenhammer",
+                            "base:removebarricade"), "Hammer"),
+    "TrekLaserCutter": (("base:saw", "base:smallsaw", "base:metalsaw", "base:sheetmetalsnips"), "Saw"),
+    "TrekLaserWelder": (("base:blowtorch", "base:weldingmask"), "BlowTorch"),
+}
+
+
+def field_kit():
+    """The engineer's field kit (FIELD_KIT.md), single player: every tool
+    carries the tags of what it replaces and weighs less; the stem bolts and
+    the welder are added to the recipes that ask for nails and a blowtorch by
+    id, once, and to no other input; the ship packs a kit; and the authority
+    keeps carried tools at full condition and the welder at full charge,
+    leaving everything else alone."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('engineer', 1000.5, 1000.5, 0)")
+    net.start()
+    net.pump(2)
+    P = "SIM.players[1]"
+
+    # --- the items, as the script declares them ----------------------------
+    ours = script_items(os.path.join(ROOT, "TrekShuttle", "42", "media", "scripts",
+                                     "trekengineering.txt"))
+    vanilla = {}
+    gen = os.path.join(r"C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid",
+                       "media", "scripts", "generated", "items")
+    for f in os.listdir(gen):
+        vanilla.update(script_items(os.path.join(gen, f)))
+    check(len(vanilla) > 500, f"field kit: read only {len(vanilla)} vanilla items; the "
+          "pattern has stopped matching, so every weight check below proves nothing")
+    for name, (tags, replaces) in FIELD_TOOLS.items():
+        item = ours.get(name)
+        check(item is not None, f"field kit: no item {name} in trekengineering.txt")
+        if not item:
+            continue
+        have = set(item.get("Tags", "").split(";"))
+        for tag in tags:
+            check(tag in have, f"field kit: {name} lacks {tag}; it would not stand in "
+                  f"for a {replaces}")
+        mine, theirs = float(item["Weight"]), float(vanilla[replaces]["Weight"])
+        check(mine < theirs, f"field kit: {name} weighs {mine}, not less than "
+              f"vanilla's {replaces} ({theirs})")
+        check(item.get("Icon") == "TREK_" + name[4:], f"field kit: {name}'s icon is {item.get('Icon')}")
+    check(float(ours["TrekStemBolts"]["Weight"]) < float(vanilla["Nails"]["Weight"]),
+          "field kit: stem bolts are no lighter than nails")
+    check(ours["TrekLaserWelder"]["ItemType"] == "base:drainable",
+          "field kit: the welder is not a drainable, so a weld cannot spend its uses")
+    kit = ours["TrekFieldKit"]
+    check(kit["CanBeEquipped"] == "base:satchel" and int(kit["WeightReduction"]) >
+          int(vanilla["Bag_Satchel"]["WeightReduction"]),
+          "field kit: the kit is not a satchel that carries better than vanilla's")
+    # The simulation's numbers are the script's, or the packing below proves
+    # nothing about the real satchel.
+    for name, item in ours.items():
+        w = rt.eval(f'SIM.itemWeight["TrekShuttle.{name}"]')
+        check(w is not None and abs(float(w) - float(item["Weight"])) < 1e-9,
+              f"field kit: the simulation weighs {name} at {w}, the script at {item['Weight']}")
+    check(int(rt.eval('SIM.bags["TrekShuttle.TrekFieldKit"]')) == int(kit["Capacity"]),
+          "field kit: the simulation's satchel holds a different amount from the script's")
+    for name in list(FIELD_TOOLS) + ["TrekStemBolts", "TrekFieldKit"]:
+        full = f"TrekShuttle.{name}"
+        in_config = rt.eval(f'TREK.Config.FieldTools["{full}"] ~= nil') is True
+        check(in_config == (name in FIELD_TOOLS),
+              f"field kit: {full} is {'missing from' if name in FIELD_TOOLS else 'wrongly in'} "
+              "C.FieldTools, so it would wear out or be swept for nothing")
+
+    # --- stem bolts and the welder in vanilla's recipes ---------------------
+    def accepts(recipe, index, item):
+        return rt.eval(f"""(function()
+            for _, r in ipairs(SIM.craftRecipes) do
+                if r.name == "{recipe}" then
+                    return r.inputs[{index}]:canUseItem("{item}")
+                end
+            end
+        end)()""") is True
+    bolts, welder = "TrekShuttle.TrekStemBolts", "TrekShuttle.TrekLaserWelder"
+    check(not accepts("Base.BuildWoodenWall", 2, bolts),
+          "field kit: a wall took stem bolts before anything patched it -- the check "
+          "below would pass against nothing")
+    rt.fire("OnGameStart")
+    check(accepts("Base.BuildWoodenWall", 2, bolts),
+          "field kit: a recipe asking for nails does not take stem bolts")
+    check(accepts("Base.BuildWoodenWall", 2, "Base.Nails"),
+          "field kit: the recipe stopped taking nails")
+    check(not accepts("Base.BuildWoodenWall", 1, bolts),
+          "field kit: stem bolts were added to the planks' input as well")
+    check(accepts("Base.WeldMetalWall", 1, welder),
+          "field kit: a recipe asking for a blowtorch does not take the laser welder")
+    check(not accepts("Base.WeldMetalWall", 1, bolts),
+          "field kit: stem bolts were added where only a blowtorch was asked for")
+    logged = "\n".join(rt.logLines())
+    check("stand in for nails in 1 recipe inputs" in logged,
+          "field kit: the patch did not say what it did")
+    size = int(rt.eval("SIM.craftRecipes[1].inputs[2].list:size()"))
+    patched, already = rt.eval("TREK.FieldKit.patchRecipes()")
+    check(int(rt.eval("SIM.craftRecipes[1].inputs[2].list:size()")) == size and
+          int(already) >= 2,
+          "field kit: patching twice added the stem bolts twice")
+    # A world where no recipe names nails is a broken lookup, not a quiet one,
+    # and has to say so rather than report success over nothing.
+    rt.run("""
+        local keep = SIM.craftRecipes
+        SIM.craftRecipes = {}
+        TREK.FieldKit.patched = nil
+        local before = #SIM.log
+        TREK.FieldKit.patchOnce()
+        fkEmptyWarn = false
+        for i = before + 1, #SIM.log do
+            if tostring(SIM.log[i]):find("found no recipe that takes nails") then
+                fkEmptyWarn = true
+                table.remove(SIM.log, i)
+                break
+            end
+        end
+        SIM.craftRecipes = keep
+    """)
+    check(rt.eval("fkEmptyWarn") is True,
+          "field kit: finding no recipe that takes nails passed in silence")
+    check(rt.eval("TREK.FieldKit.patched") is None,
+          "field kit: a patch that found nothing marked itself done, so it never tries again")
+
+    # --- the ship's issue: a kit, packed ------------------------------------
+    packed = rt.eval("""(function()
+        local kit = instanceItem(TREK.Config.FieldKitItem)
+        local n = TREK.FieldKit.fillKit(kit)
+        local counts = {}
+        for _, it in ipairs(kit:getItemContainer().items) do
+            counts[it.fullType] = (counts[it.fullType] or 0) + 1
+        end
+        local parts = { tostring(n) }
+        for k, v in pairs(counts) do parts[#parts + 1] = k .. "=" .. v end
+        return table.concat(parts, ";")
+    end)()""").split(";")
+    counts = dict(p.split("=") for p in packed[1:])
+    check(int(packed[0]) == 105 and counts.get(bolts) == "100" and
+          all(counts.get(f"TrekShuttle.{t}") == "1" for t in FIELD_TOOLS),
+          f"field kit: a kit was packed with {packed}, not five tools and a hundred bolts")
+
+    # --- never wearing out -----------------------------------------------------
+    rt.run(f"""
+        fkKit = instanceItem(TREK.Config.FieldKitItem)
+        TREK.FieldKit.fillKit(fkKit)
+        {P}.inventory:AddItem(fkKit)
+        fkHammer = instanceItem("Base.Hammer"); {P}.inventory:AddItem(fkHammer)
+        for _, it in ipairs(fkKit:getItemContainer().items) do
+            if it.fullType == "TrekShuttle.TrekStemBoltDriver" then fkDriver = it end
+            if it.fullType == "TrekShuttle.TrekLaserWelder" then fkWelder = it end
+        end
+        fkDriver:setCondition(3); fkWelder:setUsedDelta(0.2); fkHammer:setCondition(3)
+        -- In hand, where the search by our tools' types cannot keep it out:
+        -- only the check on what it is does.
+        {P}.primary = fkHammer
+    """)
+    found = int(rt.eval(f"#TREK.FieldKit.carriedBy({P})"))
+    check(found == 5, f"field kit: the sweep sees {found} tools in the kit on the "
+          "player's back, not 5 -- a tool in a bag is carried")
+    net.clock += int(rt.eval("TREK.Config.FieldKitSweepMs")) + 10
+    rt.run("TREK.FieldKitServer.tick()")
+    check(int(rt.eval("fkDriver:getCondition()")) == 10,
+          "field kit: a worn stem bolt driver was not put back to full")
+    check(float(rt.eval("fkWelder:getCurrentUsesFloat()")) == 1.0,
+          "field kit: a spent laser welder was not recharged")
+    check(int(rt.eval("fkHammer:getCondition()")) == 3,
+          "field kit: the sweep mended a vanilla hammer too")
+    # Not before its time: the sweep is paced.
+    rt.run("fkDriver:setCondition(4); TREK.FieldKitServer.tick()")
+    check(int(rt.eval("fkDriver:getCondition()")) == 4,
+          "field kit: the sweep ran again before C.FieldKitSweepMs had passed")
+
+    for w in rt.warnings():
+        fail(f"field kit: {w}")
+    print("field kit: five tools carry vanilla's tags and weigh less; stem bolts and the "
+          "welder are added to the nail and blowtorch inputs once and nowhere else; a kit "
+          "packs five tools and a hundred bolts; carried tools and the welder are kept new, "
+          "a vanilla hammer is not")
+
+
+def field_kit_mp():
+    """On a server: the server's copy of a carried tool is the one kept new,
+    and the holder is told; the holder's client does nothing to it itself."""
+    net = Net("mp", clients=("engineer", "watcher"))
+    srv = net.server
+    eng = net.clients["engineer"]
+    for rt in net.all():
+        rt.run("SIM.player('engineer', 2000.5, 2000.5, 0).onlineID = 1; "
+               "SIM.player('watcher', 2004.5, 2000.5, 0).onlineID = 2")
+    net.start()
+    # The same kit, by id, on both machines, as an inventory is.
+    for rt in (srv, eng):
+        rt.run("""
+            SIM.nextItemId = 5000
+            local me
+            for _, p in ipairs(SIM.players) do if p.name == 'engineer' then me = p end end
+            local kit = instanceItem(TREK.Config.FieldKitItem)
+            TREK.FieldKit.fillKit(kit)
+            me.inventory:AddItem(kit)
+            for _, it in ipairs(kit:getItemContainer().items) do
+                if it.fullType == "TrekShuttle.TrekLaserWelder" then mpWelder = it end
+                if it.fullType == "TrekShuttle.TrekSonicDriver" then mpDriver = it end
+            end
+            mpWelder:setUsedDelta(0.3); mpDriver:setCondition(2)
+        """)
+    net.pump(4)
+    net.clock += int(srv.eval("TREK.Config.FieldKitSweepMs")) + 10
+    srv.run("SIM.itemSyncs = 0; TREK.FieldKitServer.tick()")
+    net.pump(4)
+    check(float(srv.eval("mpWelder:getCurrentUsesFloat()")) == 1.0 and
+          int(srv.eval("mpDriver:getCondition()")) == 10,
+          "field kit mp: the server did not restore its own copy of the tools")
+    check(int(srv.eval("SIM.itemSyncs")) == 2,
+          f"field kit mp: the server sent {srv.eval('SIM.itemSyncs')} item syncs for "
+          "two restored tools")
+    check(float(eng.eval("mpWelder:getCurrentUsesFloat()")) == 1.0 and
+          int(eng.eval("mpDriver:getCondition()")) == 10,
+          "field kit mp: the holder's client never heard its tools were restored")
+    check(eng.eval("TREK.FieldKitServer") is None,
+          "field kit mp: the server's sweep loaded on a client")
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"field kit mp: {w}")
+    print("field kit mp: the server keeps its copy of the tools new and tells the holder; "
+          "no client runs the sweep")
+
+
 def trait_stat(rt, stat, who=1):
     return float(rt.eval(f"SIM.players[{who}]:getStats():get(CharacterStat.{stat})") or 0)
 
@@ -17566,7 +18085,7 @@ SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabi
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,
             comms_missed, comms_multiplayer, comms_story, transcripts,
-            transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
+            transcripts_multiplayer, phaser, phaser_multiplayer, phaser_clearing, phaser_clearing_mp, field_kit, field_kit_mp, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
             contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer)
 

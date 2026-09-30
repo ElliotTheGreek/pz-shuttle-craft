@@ -93,16 +93,21 @@ end)
 ---------------------------------------------------------------------------
 local PC = TREK.PhaserCut
 
---- Every tree and door the click could mean, once each: the objects the
---- engine handed over and everything else on their squares, because a
---- right-click on a trunk or a door frame often names the floor instead.
+--- Every tree, door, stump, rock and bush the click could mean, once each:
+--- the objects the engine handed over and everything else on their squares,
+--- because a right-click on a trunk or a door frame often names the floor
+--- instead.
 function P.cutTargets(worldobjects)
     local found, seen = {}, {}
     local function consider(o)
         if not o or seen[o] then return end
         seen[o] = true
         local kind = PC.kindOf(o)
-        if kind then table.insert(found, { obj = o, kind = kind }) end
+        if kind then
+            table.insert(found, { obj = o, kind = kind })
+            -- One boulder is one option, however many squares it covers.
+            for _, part in ipairs(PC.parts(o, kind)) do seen[part] = true end
+        end
     end
     for _, o in ipairs(worldobjects or {}) do
         consider(o)
@@ -114,11 +119,15 @@ function P.cutTargets(worldobjects)
     return found
 end
 
-local LABELS = { tree = "IGUI_TREK_PhaserCutTree", door = "IGUI_TREK_PhaserCutDoor" }
+local LABELS = {
+    tree = "IGUI_TREK_PhaserCutTree", door = "IGUI_TREK_PhaserCutDoor",
+    stump = "IGUI_TREK_PhaserClearStump", rock = "IGUI_TREK_PhaserClearRock",
+    bush = "IGUI_TREK_PhaserClearBush",
+}
 
---- The option, on any tree or door, for anybody carrying a phaser -- in a
---- hand or not; choosing it draws the phaser the way vanilla's chop draws
---- the axe.
+--- The option, on any tree, door, stump, rock or bush, for anybody carrying
+--- a phaser -- in a hand or not; choosing it draws the phaser the way
+--- vanilla's chop draws the axe.
 function P.fillWorldMenu(playerNum, context, worldobjects, test)
     local player = U.player(playerNum)
     if not player then return end
@@ -134,16 +143,11 @@ function P.fillWorldMenu(playerNum, context, worldobjects, test)
         -- the menu rather than hiding the option, the tricorder's padlock
         -- rule. Distance and an empty hand are fixed by choosing it.
         local why = nil
+        local sq = U.try("phaser.menuSq", function() return t.obj:getSquare() end)
         if not PC.allowed(t.kind) then
             why = "IGUI_TREK_PhaserCutOff"
-        elseif t.kind == "door" then
-            local sq = U.try("phaser.menuDoorSq", function() return t.obj:getSquare() end)
-            local name = U.try("phaser.menuName", function() return player:getUsername() end)
-            if sq and U.try("phaser.menuSafe", function()
-                return SafeHouse.isSafeHouse(sq, name, true)
-            end) then
-                why = "IGUI_TREK_PhaserSafehouse"
-            end
+        elseif PC.inStrangersSafehouse(player, sq, t.kind) then
+            why = "IGUI_TREK_PhaserSafehouse"
         end
         if why then
             option.notAvailable = true

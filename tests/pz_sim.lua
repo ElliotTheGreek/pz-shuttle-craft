@@ -284,6 +284,18 @@ function instanceItem(id)
     -- stub, not about the mod, and exactly the kind of gap that makes the
     -- simulation kinder than the engine in one direction and harsher in the
     -- other.
+    -- The field kit (FIELD_KIT.md): a bag holds a container of its own, an
+    -- item weighs what its script says when a test has said it, and a
+    -- drainable (the welder) carries its charge as the engine's used delta.
+    if SIM.bags and SIM.bags[id] then
+        it.inner = SIM.container(SIM.bags[id])
+        function it:getItemContainer() return self.inner end
+    end
+    it.weight = SIM.itemWeight and SIM.itemWeight[id] or nil
+    it.uses = 1.0
+    function it:getCurrentUsesFloat() return self.uses end
+    function it:setUsedDelta(v) self.uses = math.max(0, math.min(1, v)) end
+
     function it:getMaxAmmo() return 60 end
     function it:getCurrentAmmoCount() return self.ammo end
     function it:setCurrentAmmoCount(n) self.ammo = n end
@@ -453,6 +465,23 @@ end
 scriptItem("TrekShuttle.TrekBackpack",
            { name = "TrekBackpack", category = "Starfleet", weight = 1.0 })
 
+-- The field kit (FIELD_KIT.md), with the weights and the satchel's capacity
+-- media/scripts/trekengineering.txt gives them; tests/test_multiplayer.py's
+-- field_kit() reads the script and fails if these drift from it.
+SIM.bags = { ["TrekShuttle.TrekFieldKit"] = 12 }
+SIM.itemWeight = {
+    ["TrekShuttle.TrekFieldKit"] = 0.5, ["TrekShuttle.TrekSonicDriver"] = 0.2,
+    ["TrekShuttle.TrekHyperspanner"] = 0.3, ["TrekShuttle.TrekStemBoltDriver"] = 0.4,
+    ["TrekShuttle.TrekLaserCutter"] = 0.3, ["TrekShuttle.TrekLaserWelder"] = 0.4,
+    ["TrekShuttle.TrekStemBolts"] = 0.01,
+}
+for id, w in pairs(SIM.itemWeight) do
+    scriptItem(id, { name = bareType(id), category = "Starfleet", weight = w })
+end
+scriptItem("Base.Nails", { name = "Nails", category = "Material", weight = 0.05 })
+scriptItem("Base.BlowTorch", { name = "Propane Torch", category = "Tool", weight = 1.0 })
+scriptItem("Base.Plank", { name = "Plank", category = "Material", weight = 1.0 })
+
 -- What a rescue teaches the ship (C.RescuePatterns). Real vanilla ids, in the
 -- catalogue so R.learn() can find their rows: a reward checked against a
 -- catalogue that has never heard of the pattern would teach nothing and pass.
@@ -489,6 +518,78 @@ for _, row in ipairs({
 end
 
 function getAllItems() return jlist(SIM.items) end
+
+---------------------------------------------------------------------------
+-- Craft recipes (FIELD_KIT.md 5)
+---------------------------------------------------------------------------
+-- ScriptManager.instance, with the two calls the field kit makes: an item
+-- script by id, and every craft recipe. A recipe's inputs are modelled on
+-- the bytecode of InputScript: the accepted items are a plain list the
+-- engine matches by name (canUseItem), and an "any item" input's list is
+-- **unmodifiable** (PZUnmodifiableList.wrap, bci 507), so adding to it throws
+-- here as it would there.
+SIM.craftRecipes = {}
+local function inputScript(names, anyItem)
+    local list
+    if anyItem then
+        -- Every item, nails included, as the engine's is (getAllItems,
+        -- wrapped): an empty list here let a patch that forgot to skip these
+        -- inputs pass, because it never found nails to add beside.
+        local all = {}
+        for _, it in ipairs(SIM.items) do table.insert(all, it) end
+        list = jlist(all)
+        list.add = function() error("UnsupportedOperationException: unmodifiable list") end
+    else
+        local items = {}
+        for _, n in ipairs(names) do
+            for _, it in ipairs(SIM.items) do
+                if it.fullName == n then table.insert(items, it) end
+            end
+        end
+        list = jlist(items)
+    end
+    return {
+        list = list,
+        getPossibleInputItems = function() return list end,
+        isAcceptsAnyItem = function() return anyItem == true end,
+        canUseItem = function(_, item)
+            if anyItem then return true end
+            local name = type(item) == "string" and item or item:getFullType()
+            for i = 0, list:size() - 1 do
+                if list:get(i):getFullName() == name then return true end
+            end
+            return false
+        end,
+    }
+end
+--- Test helper: a recipe whose inputs are these item lists, or "any".
+function SIM.craftRecipe(name, inputs)
+    local ins = {}
+    for _, spec in ipairs(inputs) do
+        table.insert(ins, spec == "any" and inputScript({}, true) or inputScript(spec))
+    end
+    local r = { name = name, inputs = ins }
+    function r:getName() return self.name end
+    function r:getInputs() return jlist(self.inputs) end
+    table.insert(SIM.craftRecipes, r)
+    return r
+end
+ScriptManager = ScriptManager or {}
+ScriptManager.instance = {
+    getItem = function(_, id)
+        for _, it in ipairs(SIM.items) do
+            if it.fullName == id then return it end
+        end
+        return nil
+    end,
+    getAllCraftRecipes = function() return jlist(SIM.craftRecipes) end,
+}
+-- Vanilla's shapes, one of each the field kit meets: a build asking for
+-- planks and nails by id, a weld asking for the torch's uses, and a recipe
+-- that takes anything.
+SIM.craftRecipe("Base.BuildWoodenWall", { { "Base.Plank" }, { "Base.Nails" } })
+SIM.craftRecipe("Base.WeldMetalWall", { { "Base.BlowTorch" } })
+SIM.craftRecipe("Base.Tinder", { "any" })
 
 function getScriptManager()
     return {
@@ -558,7 +659,15 @@ function SIM.container(capacity)
         end
     end
     function c:getCapacity() return self.capacity end
-    function c:getContentsWeight() return #self.items * 0.5 end
+    -- An item weighs its script's weight when a test declared one
+    -- (SIM.itemWeight), and 0.5 otherwise, as everything always has here.
+    -- The field kit's hundred stem bolts are 0.01 each; counted at 0.5 they
+    -- could never go in the satchel they are issued in.
+    function c:getContentsWeight()
+        local w = 0
+        for _, it in ipairs(self.items) do w = w + (it.weight or 0.5) end
+        return w
+    end
     function c:setExplored(v) self.explored = v end
     function c:setDirty() end
     function c:setDrawDirty() end
@@ -570,9 +679,15 @@ function SIM.container(capacity)
     --- broken lookup pass every test in this file.
     function c:getAllTypeRecurse(bare)
         local out = {}
-        for _, item in ipairs(self.items) do
-            if bareType(item.fullType) == bare then table.insert(out, item) end
+        -- Into bags as well, as the engine's does: a tool in the field kit
+        -- on the player's back is carried.
+        local function walk(items)
+            for _, item in ipairs(items) do
+                if bareType(item.fullType) == bare then table.insert(out, item) end
+                if item.inner then walk(item.inner.items) end
+            end
         end
+        walk(self.items)
         return jlist(out)
     end
     function c:containsTypeRecurse(bare)
@@ -4479,8 +4594,11 @@ function syncHandWeaponFields(player, item)
 end
 function syncItemFields(player, item)
     if not isServer() then return end
+    -- Condition and uses, as SyncItemFieldsPacket carries them (write, bci
+    -- 26 and 50); processClient sets both on the holder's copy.
+    SIM.itemSyncs = (SIM.itemSyncs or 0) + 1
     py_replicate("weaponFields", { x = 0, y = 0, z = 0, who = player.name, id = item.id,
-                                   condition = item.condition })
+                                   condition = item.condition, uses = item.uses })
 end
 
 --- The item's mod data, pushed to the player carrying it. Only from the
@@ -4679,6 +4797,42 @@ function ObjectMT:getObjectIndex()
     return -1
 end
 function ObjectMT:isDoor() return self.door == true end
+
+-- Clearing ground (PHASERS.md 3). The engine's own answers, from the bytecode:
+--
+--   * IsoObject.isStump() is the tile's CustomName being "Stump", "Small
+--     Stump" or "Tree Stump", and nothing else;
+--   * getSpriteGridObjectsIncludingSelf walks the squares the object's
+--     sprite grid covers and collects the pieces of it. A test says which
+--     objects are one boulder with SIM.grid; an object in no grid answers
+--     itself alone, as the engine does (bci 9-23);
+--   * a flag such as canBeCut or solidfloor is the tile's, declared by a test
+--     in SIM.tileProps like any other.
+IsoFlagType.canBeCut = IsoFlagType.canBeCut or "canBeCut"
+IsoFlagType.solidfloor = IsoFlagType.solidfloor or "solidfloor"
+
+function ObjectMT:getProperty(key)
+    local t = SIM.tileProps[self.spriteName]
+    return t and t[key] or nil
+end
+function ObjectMT:isStump()
+    local n = self:getProperty("CustomName")
+    return n == "Stump" or n == "Small Stump" or n == "Tree Stump"
+end
+function ObjectMT:getSpriteGridObjectsIncludingSelf(list)
+    for _, o in ipairs(self.grid or { self }) do
+        -- Only the pieces still standing: the engine looks on the squares.
+        if o == self or (o.square and o:getObjectIndex() >= 0) then list:add(o) end
+    end
+    return list
+end
+--- Test helper: these objects are the pieces of one multi-tile sprite.
+function SIM.grid(objects)
+    for _, o in ipairs(objects) do o.grid = objects end
+end
+
+ArrayList = ArrayList or {}
+function ArrayList.new() return jlist({}) end
 function ObjectMT:getBarricadeOnSameSquare() return self.barricadeSame end
 function ObjectMT:getBarricadeOnOppositeSquare() return self.barricadeOpposite end
 

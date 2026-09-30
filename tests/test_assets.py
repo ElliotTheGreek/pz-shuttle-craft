@@ -55,11 +55,20 @@ MOD_ITEM = re.compile(r"^TrekShuttle\.([A-Za-z0-9_]+)$")
 # vanilla file declares two modules, so it could not simply live in the other
 # file. Anything checking "does this name resolve" has to see both or it will
 # report a model that is really there as missing.
+#
+# Every item script of ours, found rather than listed: `trek` then a letter,
+# which leaves out trek_traits.txt (traits, not items). A hand-kept list here
+# went stale the day trekengineering.txt was added (FIELD_KIT.md), and a file
+# this reader does not see has every item in it reported undeclared, or worse,
+# every model in it unchecked.
+SCRIPT_FILES = sorted(os.path.basename(p) for p in
+                      glob.glob(os.path.join(MOD, "media", "scripts", "trek[a-z]*.txt")))
+if len(SCRIPT_FILES) < 6 or "trekshuttle.txt" not in SCRIPT_FILES:
+    print(f"FAIL: found only {SCRIPT_FILES} in media/scripts; the glob has stopped matching")
+    sys.exit(1)
 script = "".join(
     open(os.path.join(MOD, "media", "scripts", fn), encoding="utf-8").read()
-    for fn in ("trekshuttle.txt", "trekweapons.txt", "trekarms.txt",
-               "trekfarming.txt", "trekcontraband.txt", "trekborg.txt")
-    if os.path.isfile(os.path.join(MOD, "media", "scripts", fn)))
+    for fn in SCRIPT_FILES)
 # Anchored to the end of the line, as the model and fluid patterns are: a real
 # declaration is "item Foo" and nothing else, so prose in a comment that
 # happens to say "item blocks" is not mistaken for one.
@@ -746,7 +755,7 @@ else:
 # resolved to no ModelScript at all. Every vanilla weapon model, and the one
 # Workshop mod shipping custom in-hand blades, declares them in `module Base`.
 model_module = {}
-for fn in ("trekshuttle.txt", "trekweapons.txt", "trekarms.txt"):
+for fn in SCRIPT_FILES:
     path = os.path.join(MOD, "media", "scripts", fn)
     if not os.path.isfile(path):
         continue

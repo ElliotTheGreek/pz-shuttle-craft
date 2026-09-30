@@ -28,7 +28,9 @@ C.ModPrefix = "[TREK]"
 -- 35: the Starfleet refit (INTERIOR_REFIT.md 9) -- every fitting, wall and
 -- floor swapped for the Adirondack's, and B.starfleetRefit carrying what was
 -- in each old container across to its new one.
-C.BuildRev = 35
+-- 36: the engineer's field kit in the armoury (FIELD_KIT.md). New worlds
+-- only, as every issue is (DEV_GUIDE, *Never restock an existing container*).
+C.BuildRev = 36
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -754,6 +756,20 @@ C.PhaserCutRange = 5
 -- chop is paced by its animation; these are simply "quick", per the author).
 C.PhaserTreeTime = 180
 C.PhaserDoorTime = 120
+-- Clearing ground (PHASERS.md 3): a stump, a rock or a bush. Quicker than a
+-- tree, because clearing a building plot means dozens of them, each queued by
+-- its own right-click. A boulder, the biggest thing here, still takes less
+-- than a tree; vanilla has no way to shift one at all.
+C.PhaserClearTime = { bush = 50, stump = 80, rock = 100 }
+-- Stones lying on the ground, by their tile's CustomName: the names vanilla's
+-- GroundCoverItems picks up (shared/TimedActions/ISPickUpGroundCoverItem.lua),
+-- less the logs, twigs and branches, which are wood worth picking up and
+-- no obstacle. Boulders and ore are found by their sprite (TREK_PhaserCut,
+-- PC.isRock) and need no name here.
+C.PhaserStones = {
+    ["4Stones"] = true, LargeStoneTwigs = true, LargeStone = true, FlatStone = true,
+    StoneTwigs = true, Stone = true, Stone2 = true, Limestone = true,
+}
 -- The noise a cut makes at the target, as WorldSoundManager.addSound takes
 -- it: radius and volume. The axe's tree hit is 20 and 20; a phaser hums
 -- rather than thuds, so a little quieter, and far below a gunshot.
@@ -825,6 +841,8 @@ C.HolsterItem = "TrekShuttle.TrekHolster"
 C.PhaserRifleItem = "TrekShuttle.TrekPhaserRifle"
 
 -- Sandbox: what a phaser may cut. An absent value is the feature as designed.
+-- "Trees" also clears ground (stumps, rocks, bushes): it is the setting that
+-- takes the locks away, and nothing on the ground is a lock.
 C.PhaserCutAll   = 1
 C.PhaserCutTrees = 2
 C.PhaserCutNone  = 3
@@ -2079,6 +2097,48 @@ C.SentryRechargeCost = 250
 C.SentryMax = 12
 -- Where its bolt leaves it: this far up a level, the emitter on its mast.
 C.SentryEmitterZ = 0.25
+
+---------------------------------------------------------------------------
+-- The engineer's field kit (FIELD_KIT.md)
+---------------------------------------------------------------------------
+-- A satchel of Starfleet tools that stand in for vanilla's, never wear out
+-- and weigh less, and self-sealing stem bolts wherever a recipe asks for
+-- nails. The author's brief (2026-09-30): "a satchel like bag with all the
+-- new starfleet tools that are lighter than normal tools and have unlimited
+-- uses and stand in for other tools appropriately"; stem bolts "as a general
+-- nail replacement". Which vanilla tool each stands in for is its tags, in
+-- media/scripts/trekengineering.txt.
+C.FieldKitItem = "TrekShuttle.TrekFieldKit"
+C.StemBoltItem = "TrekShuttle.TrekStemBolts"
+C.LaserWelderItem = "TrekShuttle.TrekLaserWelder"
+-- The tools, by full id and bare type (the inventory search takes the bare
+-- one, C.PhaserType's rule). Everything here is kept at full condition while
+-- it is carried; the welder is kept at full charge as well.
+C.FieldTools = {
+    ["TrekShuttle.TrekSonicDriver"] = "TrekSonicDriver",
+    ["TrekShuttle.TrekHyperspanner"] = "TrekHyperspanner",
+    ["TrekShuttle.TrekStemBoltDriver"] = "TrekStemBoltDriver",
+    ["TrekShuttle.TrekLaserCutter"] = "TrekLaserCutter",
+    ["TrekShuttle.TrekLaserWelder"] = "TrekLaserWelder",
+}
+-- What a kit holds when the ship issues it: one of each tool, in this order,
+-- and this many stem bolts.
+C.FieldKitTools = {
+    "TrekShuttle.TrekSonicDriver", "TrekShuttle.TrekHyperspanner",
+    "TrekShuttle.TrekStemBoltDriver", "TrekShuttle.TrekLaserCutter",
+    "TrekShuttle.TrekLaserWelder",
+}
+C.FieldKitBolts = 100
+-- One kit in the armoury (new worlds; the replicator knows every pattern).
+C.FieldKitIssue = 1
+-- What vanilla asks for by item id rather than tag, and ours that answers
+-- it in every recipe that lists it (TREK_FieldKit.patchRecipes).
+C.FieldKitStandIns = {
+    ["Base.Nails"] = "TrekShuttle.TrekStemBolts",
+    ["Base.BlowTorch"] = "TrekShuttle.TrekLaserWelder",
+}
+-- How often the authority puts carried tools right, in real ms.
+C.FieldKitSweepMs = 1000
 
 -- Reading off a PADD takes a fifth of the time the same book takes on paper,
 -- after the vanilla rules -- sandbox minutes per page, Fast and Slow Reader,

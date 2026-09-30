@@ -36,6 +36,7 @@ require "TREK/TREK_Power"
 -- For the square the replicator stands on: one file owns that lookup, and it
 -- is a constant now rather than a tag in the layout.
 require "TREK/TREK_Replicator"
+require "TREK/TREK_FieldKit"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -816,6 +817,34 @@ function B.deliverTapes()
     return delivered
 end
 
+--- The engineer's field kit (FIELD_KIT.md): a satchel packed with its tools
+--- and stem bolts, which U.stockEach cannot do, since it puts items in the
+--- locker and these belong inside the bag. Counted in and counted after.
+local function stockFieldKit(obj)
+    local container = U.containerOf(obj)
+    if not container then return 0 end
+    local function held()
+        return U.try("fieldkit.held", function()
+            local n, items = 0, container:getItems()
+            for i = 0, items:size() - 1 do
+                if items:get(i):getFullType() == C.FieldKitItem then n = n + 1 end
+            end
+            return n
+        end) or 0
+    end
+    for _ = held() + 1, C.FieldKitIssue do
+        local kit = instanceItem(C.FieldKitItem)
+        if not kit then break end
+        TREK.FieldKit.fillKit(kit)
+        U.try("fieldkit.stock", function() container:AddItem(kit) end)
+    end
+    local n = held()
+    if n < C.FieldKitIssue then
+        U.log("WARN fieldkit locker holds %d of %d field kits", n, C.FieldKitIssue)
+    end
+    return n
+end
+
 local SPECIALS = {
     tapes   = { stock = stockTapes },
     phasers = { items = { C.PhaserItem }, copies = function() return C.PhaserCount end },
@@ -838,6 +867,8 @@ local SPECIALS = {
     lamps = { items = { C.ShoulderLampItem }, copies = function() return C.ShoulderLampIssue end },
     -- Three perimeter sentries (SENTRY.md): enough to cover an alley.
     sentries = { items = { C.SentryItem }, copies = function() return C.SentryIssue end },
+    -- One engineer's field kit (FIELD_KIT.md), packed.
+    fieldkit = { stock = stockFieldKit },
 }
 
 --- Stocks one authored container. Returns true when something went in.

@@ -2499,6 +2499,7 @@ python tools/gen_captain_art.py TrekShuttle/42    # her portrait, rendered from 
 python tools/gen_access.py TrekShuttle/42         # the pattern enhancer and the nanoprobe sample (ACCESS.md)
 python tools/gen_backpack.py TrekShuttle/42       # the field pack: texture, icon, worn and hand clothing XMLs, GUID rows
 python tools/gen_sentry.py TrekShuttle/42        # the perimeter sentry: mesh, texture, icon, sheet
+python tools/gen_fieldkit.py TrekShuttle/42      # the field kit: five tools, stem bolts, the satchel, icons, sheet
 python tools/gen_shoulderlamp.py TrekShuttle/42   # the shoulder lamp: mesh, texture, 32px icon, its shoulder attachment solved, worn sheet
 python tools/gen_farm_icons.py                    # hydroponics item icons, keyed from their raws
 python tools/gen_contraband_icons.py              # contraband item icons, keyed from their raws
@@ -3400,6 +3401,23 @@ Fixed three ways and three more mutations caught (INTERIOR_REFIT.md 9.3); the
 general rule is **a pass that can defer must have somebody who asks again, and
 must not defer on work that does not exist.**
 
+**The 2026-09-30 phaser clearing** (`PHASERS.md` 3): right-click a stump, a
+rock or a bush and the phaser clears it, leaving nothing, so wild ground can
+be cleared to build on. What counts is vanilla's own test for each thing
+(`isStump`, the sprites `isOres` looks for less the rock floors, the stone
+names, `canBeCut`), and a boulder goes whole across its sprite grid; vanilla
+has no way to shift a `Boulder` at all. Fifteen mutations, one at a time, all
+caught. **Played the same day: "it works well".**
+
+**The 2026-09-30 engineer's field kit** (`FIELD_KIT.md`, build revision 36):
+a Starfleet satchel of five tools that stand in for vanilla's by their tags,
+weigh less and never wear out, and self-sealing stem bolts that recipes take
+for nails. Nails and the blowtorch are the two things vanilla asks for by item
+id, so the bolts and the welder are added to those recipes' own item lists at
+load, which the bytecode of `InputScript` shows is the list `canUseItem`
+reads. Eighteen mutations, seventeen caught, the last a guard that changes no
+outcome and says so. **Not seen in game.**
+
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
 
@@ -3517,6 +3535,9 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_ShoulderLamp.lua     the shoulder lamp
 TrekShuttle/42/media/lua/shared/TREK/TREK_Sentry.lua          the perimeter sentry: its charge, where it goes, why not (SENTRY.md)
 TrekShuttle/42/media/lua/server/TREK/TREK_SentryServer.lua    setting sentries down, firing them (the engine's server-side Hit), recharging
 TrekShuttle/42/media/lua/client/TREK/TREK_SentryUI.lua        the sentry's right-click, its notes and the shot's sound
+TrekShuttle/42/media/lua/shared/TREK/TREK_FieldKit.lua        the field kit: stem bolts and the welder in vanilla's recipes, the tools kept new, packing (FIELD_KIT.md)
+TrekShuttle/42/media/lua/server/TREK/TREK_FieldKitServer.lua  the field kit's sweep, run by the authority
+TrekShuttle/42/media/scripts/trekengineering.txt               the field kit's items and models
 TrekShuttle/42/media/lua/client/TREK/TREK_ShoulderLampSlot.lua the Shoulder hotbar slot every uniform provides
 content/captain/*.json                                         what she says (content/README.md)
 TrekShuttle/common/media/AnimSets/zombie/*/trekborg*.xml        the Borg walk and idle

@@ -100,11 +100,12 @@ L.tiles = {
     -- the room's rather than the bulkhead's. C.PhaserRack follows it.
     -- 4 phasers (2.4) + 2 of each of the 4 blades (15.0) + 6 uniforms (8.4)
     -- + 2 PADDs (0.6) + the field pack (1.0) + 2 shoulder lamps (0.6)
-    -- + 3 sentries (4.5) is 32.5 of the locker's 40 units, so nothing is
+    -- + 3 sentries (4.5) + the field kit (about 0.8, packed, its satchel
+    -- taking 90%) is 33.3 of the locker's 40 units, so nothing is
     -- dropped for room. `special` is a list: four phasers and one uniform of
     -- each division are two different counts.
     { x = 3, y = 0, sprite = "trek_adirondack_02_208", tag = "armoury",
-      container = true, special = { "phasers", "uniforms", "padds", "packs", "lamps", "sentries" },
+      container = true, special = { "phasers", "uniforms", "padds", "packs", "lamps", "sentries", "fieldkit" },
       loot = "weapons",
       fill = 1.0, cap = 8 },        -- 4 phasers + 2 of each of the 4 blades
 

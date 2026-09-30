@@ -33,6 +33,14 @@ correctness**; and **render it and look**.
   pocket if it isn't in hand, the player walks closer if they're more than
   `C.PhaserCutRange` (5) tiles away, and a steady beam with a hum and a glow
   at the cut fells the tree in about three seconds, logs, stump and all.
+- **Right-click a stump, a rock or a bush → *Clear stump / rock / bush with
+  phaser*** (since 2026-09-30), so wild ground can be cleared to build on.
+  About a second for a bush, a second and a half for a stump, two for a
+  rock, and it is gone with **nothing left behind**. *Rock* is a boulder
+  (all of it, across the one, two or four squares it covers, which vanilla
+  cannot shift at all), an ore deposit, or a stone lying on the ground.
+  *Bush* is a wild bush or a hedge. Each right-click queues one, as
+  vanilla's axe does.
 - **Right-click a door → *Cut through with phaser*.** About two seconds, and
   the door is gone: key-locked, padlocked, double doors (every leaf), garage
   doors, and the barricades nailed across it. **No lock is ever consulted**,
@@ -40,10 +48,12 @@ correctness**; and **render it and look**.
   lock; the tricorder's lock override was removed on the same day.
 - **Everybody nearby sees the beam and hears the hum**, in single player,
   co-op and on a dedicated server.
-- **Refused, with the reason shown in the menu:** a door in somebody else's
-  safehouse, and anything the server's sandbox switches off.
+- **Refused, with the reason shown in the menu:** a door, stump, rock or
+  bush in somebody else's safehouse, and anything the server's sandbox
+  switches off.
 
-It deliberately does **not** cut walls, floors or windows. That's the
+It deliberately does **not** cut walls, floors (a rock floor included) or
+windows, nor anything a player built. That's the
 sledgehammer's job, and on a server it would be a griefing tool.
 
 ---
@@ -66,7 +76,7 @@ sledgehammer's job, and on a server it would be a griefing tool.
 | The model's source | `tools/assets/trek_phaser/` (`SOURCE.txt`, the bake); concepts in `design/art/weapons/phaser/` |
 | Generators | `tools/bake_phaser.py` (once per source), `tools/gen_phaser.py` (mesh, icon, sounds, sheet), `tools/gen_phaser_beam.py` (beam art, sheet) |
 | Review sheets | `design/art/weapons/phaser/phaser_sheet.png`, `design/art/ui/phaser_beam_sheet.png` |
-| Tests | `tests/test_multiplayer.py`: `phaser()`, `phaser_multiplayer()`, `armoury()`, and `medical()`'s check that a tricorder opens nothing |
+| Tests | `tests/test_multiplayer.py`: `phaser()`, `phaser_multiplayer()`, `phaser_clearing()`, `phaser_clearing_mp()`, `armoury()`, and `medical()`'s check that a tricorder opens nothing |
 | Which weapons this machinery serves, and which cut | `TREK_Config.lua`, `C.EnergyWeapons` (`ARMOURY.md` 5) |
 
 ---
@@ -90,6 +100,7 @@ server   rebuilds TREKPhaserCut by class name, from new()'s parameter names
          update(): face the target; noise every C.PhaserCutNoiseEvery ticks
          complete(): looks the target up again and refuses again, then
                      tree:toppleTree(player)  or  PC.breach(player, door)
+                     or  PC.clear(player, obj, kind)   (stump, rock, bush)
                      Net.toAll("phaserBeam", off)
          serverStop(): Net.toAll("phaserBeam", off)     -> a cancelled cut
 
@@ -109,10 +120,35 @@ Three things about that are the design, not the incidental detail:
   `start()` turns the local beam on, and `Net.toAll` runs the client handler
   directly.
 
+### Clearing ground
+
+A stump, a rock or a bush is found by vanilla's own tests, never a list of
+ours, so what the phaser clears is what the game itself calls these things:
+
+| Kind | What counts (`PC.kindOf`) | Vanilla's own route |
+|---|---|---|
+| `stump` | `obj:isStump()`: `CustomName` Stump, Small Stump or Tree Stump | *Remove Stump*, `ISPickAxeGroundCoverItem` |
+| `rock` | a `boulders_` or `crafting_ore_` sprite (the two prefixes `IsoObject.isOres()` tests), **unless it is `solidfloor`**; or a stone by `CustomName` (`C.PhaserStones`, GroundCoverItems' stones) | *Remove Ore*, *Remove Ground Item*; **none at all for a `Boulder`** |
+| `bush` | the `canBeCut` flag, or `CustomName` Bush or Hedge | *Remove Bush*, `ISRemoveBush` |
+
+- **Only plain objects.** An `IsoThumpable` (anything a player built) or a
+  world item is never a stump, rock or bush, whatever its picture.
+- **The world change is `transmitRemoveItemFromSquare`**, where vanilla's
+  pickaxe and bush actions end. A rock goes with every piece of its sprite
+  grid (`PC.parts`, `getSpriteGridObjectsIncludingSelf`), and the menu
+  offers one boulder once, however many of its squares the click names.
+- **Nothing is dropped.** Vanilla hands back stones, twigs and a scrap of
+  wood; a phaser vaporises. A player who wants the stone picks it up
+  first.
+- **The sandbox:** *Trees and ground* (value 2) clears as well as fells;
+  only doors are held back, since nothing on the ground is a lock.
+- **The safehouse rule covers all three**, as it covers doors. Trees are
+  still not refused for it, as they never were.
+
 `PC.refusal` is the one list of reasons, each an `IGUI_TREK_Phaser*` key:
 nothing there (`NoTarget`), the sandbox (`CutOff`), no cutting weapon in
-either hand, the phaser or the phaser rifle, never a disruptor (`NotHeld`), a different level or beyond range (`TooFar`), and a door in a
-safehouse the player isn't a member of (`Safehouse`). A reason the server
+either hand, the phaser or the phaser rifle, never a disruptor (`NotHeld`), a different level or beyond range (`TooFar`), and anything but a
+tree in a safehouse the player isn't a member of (`Safehouse`). A reason the server
 reaches in `complete()` is sent to the cutter as `phaserRefused` and shown as
 a note.
 
@@ -176,13 +212,15 @@ so none of the player's own 9mm is ever drawn.
 ## 4. Changing it
 
 **Cutting.** `C.PhaserCutRange`, `C.PhaserTreeTime`, `C.PhaserDoorTime`,
+`C.PhaserClearTime` (per kind), `C.PhaserStones` (which ground stones count),
 `C.PhaserCutNoise`, `C.PhaserCutNoiseEvery`. The server measures the range
 from its own copy of the player's position, with a 0.75-tile allowance.
 
-**What may be cut.** The sandbox option *Phaser cutting* (Trees and doors,
-Trees only, Off) through `C.phaserCutting()` and `PC.allowed(kind)`. To add a
+**What may be cut.** The sandbox option *Phaser cutting* (Trees, doors and
+ground; Trees and ground; Off) through `C.phaserCutting()` and `PC.allowed(kind)`. To add a
 new kind, three places change:
-- `PC.kindOf` has to recognise it;
+- `PC.kindOf` has to recognise it (by vanilla's own test for the thing, and
+  after the `IsoThumpable` guard if it is ground);
 - `complete()` needs its world change, which must be the engine's own
   authority path, found in the bytecode;
 - the menu needs a label key.
@@ -281,6 +319,22 @@ re-derive them.
 8. **The phaser's `AttachmentType` is `Holster`**, vanilla's pistols' own
    (since 2026-09-27; `ARMOURY.md` 3). Before that it had none and fitted no
    holster.
+9. **Stumps, rocks and bushes** (read 2026-09-30). `IsoObject.isStump()` is
+   the tile's `CustomName` being Stump, Small Stump or Tree Stump.
+   `isOres()` is the sprite name starting `boulders_` or `crafting_ore_`,
+   and the `boulders_` sheet also holds rock floors (40-47, 56-63,
+   `solidfloor`). Vanilla's world menu (`ISWorldObjectContextMenuLogic`,
+   in Java) offers *Remove Stump* for `isStump`, *Remove Ore* for
+   `square:getOre()` (ironOre, copperOre, FlintBoulder, LimestoneBoulder),
+   *Remove Ground Item* for the GroundCoverItems names, and *Remove Bush* for
+   `canBeCut`. A plain `Boulder` (boulders_0-7 and 16-35, `solidtrans`,
+   `BlocksPlacement`) is none of those: **vanilla has no way to remove one.**
+   Every vanilla removal ends in `transmitRemoveItemFromSquare`.
+10. **`getSpriteGridObjectsIncludingSelf(list)`** clears the list, then walks
+   the squares the object's `IsoSpriteGrid` covers and collects its pieces;
+   an object in no grid answers itself (bci 9-23). The sledgehammer's
+   destroy cursor calls it with `ArrayList.new()` (in `server/`), which is
+   the proof both are reachable.
 
 ---
 
@@ -305,6 +359,25 @@ TREK_ONLY=phaser,phaser_multiplayer python tests/test_multiplayer.py
 - *Trees only* and *Off* are honoured;
 - a target that vanishes mid-cut is reported, not cut;
 - a phaser shot draws a bolt that goes, and a pistol's doesn't.
+
+**`phaser_clearing()`**, single player, through the menu: a stump, a 1x1
+and a 2x2 boulder, ore, a stone, a bush and a hedge are offered and cleared
+with nothing left on the ground; a rock floor, a log, a houseplant and a
+player-built thumpable wearing a boulder's sprite are not offered; a 2x2
+boulder is one option and all four pieces go; *Trees and ground* clears,
+*Off* refuses in the menu and in the action; a bush in a stranger's
+safehouse is greyed with its reason and refused; each kind takes its
+`C.PhaserClearTime`, less than a tree.
+
+**`phaser_clearing_mp()`**: the server clears a whole boulder and it goes on
+both clients, the cutter's client edits nothing, and a client with no
+phaser in hand is refused.
+
+For these the sim learned `isStump`, tile flags, sprite grids (`SIM.grid`)
+and `ArrayList`. **Fifteen mutations, one at a time, all caught**; one only
+after a test was written for the thumpable guard. A second floor check in
+`PC.isRock` was deleted rather than tested, because it and the `solidfloor`
+flag covered each other.
 
 **`phaser_multiplayer()`**, a server and two clients:
 - the server runs the cut, and the tree goes on all three machines;
@@ -365,6 +438,11 @@ after a test was written for them:
 
 ## 8. Open
 
+- **Clearing ground: played 2026-09-30**, the author: "it works well". Before that: The engine
+  facts are read (section 5, 9 and 10). What only the game can show: that
+  wild bushes carry `canBeCut` (their sheets are not in `tools/_catalog`, so
+  nothing here could read them), and that a 2x2 boulder's pieces really go
+  together.
 - **Other people's bolts.** The bytecode says the shot event fires for remote
   shooters on each client; only a two-player game can confirm it. Build a
   relay only if it doesn't.

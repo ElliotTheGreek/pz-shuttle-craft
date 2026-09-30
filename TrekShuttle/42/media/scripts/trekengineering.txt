@@ -1,0 +1,182 @@
+module TrekShuttle
+{
+    /*  The engineer's field kit (FIELD_KIT.md): a satchel and five Starfleet
+        tools, and the stem bolts that stand in for nails.
+
+        **Each tool stands in for vanilla's by its tags.** Vanilla's recipes
+        ask for a tool by tag (`tags[base:hammer]`, 140 of them; saw, wrench,
+        screwdriver and the rest the same), so a tool carrying the tag is that
+        tool to every recipe and every build. Nails and the blowtorch are the
+        two things vanilla asks for by item id instead ([Base.Nails] 110 times,
+        [Base.BlowTorch] 65), which no tag can answer; TREK_FieldKit adds the
+        stem bolts and the welder to those recipes' own item lists when the
+        world loads.
+
+        **Unlimited uses** is the phaser's rule (TREK_PhaserCharge): the
+        server puts a carried tool's condition and the welder's charge back,
+        and ConditionLowerChanceOneIn is high besides, so wear between passes
+        is rare. They are all lighter than what they replace.
+
+        Meshes, texture and icons: tools/gen_fieldkit.py. The tools are held
+        the way vanilla's hacksaw and blowtorch are: no hand attachment, the
+        grip at the origin, the length up +Y.  */
+
+    item TrekFieldKit
+    {
+        DisplayCategory = Bag,
+        ItemType = base:container,
+        DisplayName = Engineer's Field Kit,
+        Icon = TREK_FieldKit,
+        Weight = 0.5,
+        BloodLocation = Bag,
+        CanBeEquipped = base:satchel,
+        CanHaveHoles = false,
+        Capacity = 12,
+        CloseSound = CloseSatchel,
+        ClothingItem = TrekFieldKit,
+        EquipSound = EquipSatchel,
+        OpenSound = OpenSatchel,
+        PutInSound = StoreItemSatchel,
+        ReplaceInPrimaryHand = TrekFieldKit_RHand holdingbagright,
+        ReplaceInSecondHand = TrekFieldKit_LHand holdingbagleft,
+        RunSpeedModifier = 0.99,
+        WeightReduction = 90,
+        WorldStaticModel = Satchel_Ground,
+        Tooltip = Tooltip_TREK_FieldKit,
+    }
+
+    item TrekSonicDriver
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        DisplayName = Sonic Driver,
+        Icon = TREK_SonicDriver,
+        Weight = 0.2,
+        ConditionMax = 10,
+        ConditionLowerChanceOneIn = 1000,
+        StaticModel = TrekSonicDriverModel,
+        WorldStaticModel = TrekSonicDriverModel,
+        Tags = base:screwdriver;base:drillwood;base:drillmetal,
+        Tooltip = Tooltip_TREK_SonicDriver,
+    }
+
+    item TrekHyperspanner
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        DisplayName = Hyperspanner,
+        Icon = TREK_Hyperspanner,
+        Weight = 0.3,
+        ConditionMax = 10,
+        ConditionLowerChanceOneIn = 1000,
+        StaticModel = TrekHyperspannerModel,
+        WorldStaticModel = TrekHyperspannerModel,
+        Tags = base:wrench;base:pipewrench;base:pliers,
+        Tooltip = Tooltip_TREK_Hyperspanner,
+    }
+
+    item TrekStemBoltDriver
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        DisplayName = Stem Bolt Driver,
+        Icon = TREK_StemBoltDriver,
+        Weight = 0.4,
+        ConditionMax = 10,
+        ConditionLowerChanceOneIn = 1000,
+        StaticModel = TrekStemBoltDriverModel,
+        WorldStaticModel = TrekStemBoltDriverModel,
+        Tags = base:hammer;base:clubhammer;base:ballpeenhammer;base:mallet;base:removebarricade,
+        Tooltip = Tooltip_TREK_StemBoltDriver,
+    }
+
+    item TrekLaserCutter
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        DisplayName = Laser Cutter,
+        Icon = TREK_LaserCutter,
+        Weight = 0.3,
+        ConditionMax = 10,
+        ConditionLowerChanceOneIn = 1000,
+        StaticModel = TrekLaserCutterModel,
+        WorldStaticModel = TrekLaserCutterModel,
+        Tags = base:saw;base:smallsaw;base:metalsaw;base:sheetmetalsnips;base:boltcutters,
+        Tooltip = Tooltip_TREK_LaserCutter,
+    }
+
+    /*  A drainable, as the blowtorch is, because a recipe spends a torch's
+        uses ([Base.BlowTorch], counted); the server fills it again. It
+        carries the welding mask's tag as well: a Starfleet welder shields its
+        own work.  */
+    item TrekLaserWelder
+    {
+        DisplayCategory = Tool,
+        ItemType = base:drainable,
+        DisplayName = Laser Welder,
+        Icon = TREK_LaserWelder,
+        Weight = 0.4,
+        WeightEmpty = 0.4,
+        KeepOnDeplete = true,
+        UseDelta = 0.1,
+        UseWhileEquipped = false,
+        cantBeConsolided = true,
+        StaticModel = TrekLaserWelderModel,
+        WorldStaticModel = TrekLaserWelderModel,
+        Tags = base:blowtorch;base:weldingmask,
+        Tooltip = Tooltip_TREK_LaserWelder,
+    }
+
+    item TrekStemBolts
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        DisplayName = Self-Sealing Stem Bolts,
+        Icon = TREK_StemBolt,
+        Weight = 0.01,
+        WorldStaticModel = TrekStemBoltModel,
+        Tooltip = Tooltip_TREK_StemBolts,
+    }
+
+    model TrekSonicDriverModel
+    {
+        mesh = TREK_SonicDriver,
+        texture = TREK_FieldTools,
+        scale = 1.0,
+    }
+
+    model TrekHyperspannerModel
+    {
+        mesh = TREK_Hyperspanner,
+        texture = TREK_FieldTools,
+        scale = 1.0,
+    }
+
+    model TrekStemBoltDriverModel
+    {
+        mesh = TREK_StemBoltDriver,
+        texture = TREK_FieldTools,
+        scale = 1.0,
+    }
+
+    model TrekLaserCutterModel
+    {
+        mesh = TREK_LaserCutter,
+        texture = TREK_FieldTools,
+        scale = 1.0,
+    }
+
+    model TrekLaserWelderModel
+    {
+        mesh = TREK_LaserWelder,
+        texture = TREK_FieldTools,
+        scale = 1.0,
+    }
+
+    model TrekStemBoltModel
+    {
+        mesh = TREK_StemBolt,
+        texture = TREK_FieldTools,
+        scale = 1.0,
+    }
+}

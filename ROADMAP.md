@@ -28,6 +28,8 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | Flight (one hover height, sandbox *Hover height*) | `PILOTING.md` | **Played** at level 5, and with two people at level 1 (2026-09-23). The obstacle guard has not met a tall building yet |
 | Photon torpedoes | `PHOTON_TORPEDOS.md` | **Played** with a mouse. Controller aim is built and has not been held |
 | Phaser: model, bolts, cutting trees and doors | `PHASERS.md` | **Played**. Holstering (2026-09-27) not yet seen |
+| Phaser: clearing stumps, rocks, boulders and bushes | `PHASERS.md` 3 | **Played** 2026-09-30 ("it works well") |
+| The engineer's field kit: five Starfleet tools, self-sealing stem bolts, the satchel | `FIELD_KIT.md` | Built 2026-09-30, not played. The armoury's kit needs a new world; the replicator makes it all in any |
 | The armoury: phaser rifle, Klingon, Romulan, Jem'Hadar and Cardassian arms, the Starfleet holster, the room off the bridge, the hideouts' arms | `ARMOURY.md` | **Played** 2026-09-27 ("it works well"); `ARMOURY.md` 9's checks not yet itemised. The hideouts' arms **need a new world** |
 | Blades: bat'leth, mek'leth, lirpa, ushaan-tor | `DEV_GUIDE.md` | **Played**, at the right size. The bat'leth held by one end, longer and sleeker, **played** 2026-09-29 |
 | The shoulder lamp | `ITEMS.md` | **Played** 2026-09-29 |
