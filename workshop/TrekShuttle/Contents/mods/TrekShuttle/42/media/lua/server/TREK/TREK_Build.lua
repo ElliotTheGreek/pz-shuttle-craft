@@ -786,6 +786,8 @@ local SPECIALS = {
     -- Two shoulder lamps, one each for the first two out of the hatch; the
     -- replicator makes the rest.
     lamps = { items = { C.ShoulderLampItem }, copies = function() return C.ShoulderLampIssue end },
+    -- Three perimeter sentries (SENTRY.md): enough to cover an alley.
+    sentries = { items = { C.SentryItem }, copies = function() return C.SentryIssue end },
 }
 
 --- Stocks one authored container. Returns true when something went in.

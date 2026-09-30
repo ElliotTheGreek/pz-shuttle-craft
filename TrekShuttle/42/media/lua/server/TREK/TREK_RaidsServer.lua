@@ -337,7 +337,7 @@ function S.campKeep()
     return out
 end
 
---- The squares a camp's clearing covers, as { { dx, dy } } from its centre:
+--- The squares a camp's clearing covers, as { { dx, dy, ray } } from its centre:
 --- a disc of C.OutpostClearing, and C.OutpostSpokes straight alleys
 --- C.OutpostSpokeWidth wide running C.OutpostSpokeLength on out from its edge
 --- -- a sun and its rays (played 2026-09-29: somewhere to run down, turn
@@ -347,11 +347,11 @@ function S.clearShape(camp)
     if not camp.spokeAngle then camp.spokeAngle = roll(3600) / 3600 * 2 * math.pi end
     local R = C.OutpostClearing
     local seen, out = {}, {}
-    local function add(dx, dy)
+    local function add(dx, dy, ray)
         local key = dx .. "," .. dy
         if not seen[key] then
             seen[key] = true
-            table.insert(out, { dx, dy })
+            table.insert(out, { dx, dy, ray })
         end
     end
     for dy = -R, R do
@@ -365,12 +365,42 @@ function S.clearShape(camp)
         local ux, uy = math.cos(a), math.sin(a)
         for t = R - 1, R + C.OutpostSpokeLength, 0.5 do
             for w = -half, half, 0.5 do
-                add(math.floor(ux * t - uy * w + 0.5), math.floor(uy * t + ux * w + 0.5))
+                add(math.floor(ux * t - uy * w + 0.5), math.floor(uy * t + ux * w + 0.5), true)
             end
         end
     end
     return out
 end
+
+--- Lays a dirt path on a square of a ray, so the alleys stand out on the
+--- grass (played 2026-09-29). Vanilla's own shovel does exactly this on the
+--- server (server/ClientCommands.lua:195): the floor's sprite, its blend
+--- edges taken off, and the new sprite sent to every client. Only the
+--- county's own ground: a road, a floor somebody laid or water is left be.
+--- True when it laid one.
+local function dirtPath(sq)
+    local f = sq and U.try("raids.pathFloor", function() return sq:getFloor() end)
+    if not f then return false end
+    local name = U.try("raids.pathName", function() return f:getSprite():getName() end)
+    if type(name) ~= "string" then return false end
+    if name:sub(1, 18) ~= "blends_natural_01_" and name:sub(1, 27) ~= "floors_exterior_natural_01_" then
+        return false
+    end
+    for _, dirt in ipairs(C.OutpostPathTiles) do
+        if name == dirt then return false end
+    end
+    if U.try("raids.pathWater", function() return f:getSprite():getProperties():has(IsoFlagType.water) end) then
+        return false
+    end
+    local tile = C.OutpostPathTiles[roll(#C.OutpostPathTiles) + 1]
+    return U.try("raids.path", function()
+        f:setSprite(getSprite(tile))
+        f:RemoveAttachedAnims()
+        f:transmitUpdatedSpriteToClients()
+        return true
+    end) == true
+end
+S.dirtPath = dirtPath
 
 -- Per camp, the squares of its clearing already done. The server's alone and
 -- never published: it runs to a couple of thousand keys, and the raid record
@@ -396,7 +426,9 @@ function S.clearAround(camp)
                 -- Every square: clearWild only ever takes wilderness, so a
                 -- square with something built on it keeps that and loses its
                 -- tree.
-                took = took + clearWild(U.square(x, y, camp.z, false))
+                local sq = U.square(x, y, camp.z, false)
+                took = took + clearWild(sq)
+                if d[3] then dirtPath(sq) end
                 done[key] = true
             else
                 left = left + 1

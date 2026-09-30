@@ -58,6 +58,7 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | The Borg among the dead: assimilated civilians and drones, their walk | `BORG.md` | Built 2026-09-27, not played. **Needs a new world** |
 | Captain Titus on the bridge: the story so far, as she will tell it; promotions in person | `CAPTAIN.md` | **Played** 2026-09-28 ("working well"). Sat sideways; fixed, not yet seen |
 | Raids: Captain Titus's request, the outpost camp, the waves, home again | `RAIDS.md` | **Played** 2026-09-29 (it worked). The rework from that play -- no pad, the dead beamed in all round and sprinting, the camp's core, replicator and Doctor real -- is built and not yet seen |
+| Perimeter phaser sentry: set down, shoots the nearest of the dead one at a time, 25 shots, recharged at a core | `SENTRY.md` | Built 2026-09-29, not played. Three in the armoury need a new world; the replicator makes them in any |
 | Dedicated server | `MULTIPLAYER.md` | Loads cleanly; **nobody has played on it** |
 
 ---

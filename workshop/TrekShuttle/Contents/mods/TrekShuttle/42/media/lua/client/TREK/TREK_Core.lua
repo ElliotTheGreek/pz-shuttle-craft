@@ -113,6 +113,12 @@ local DENIALS = {
     instNoKit     = "IGUI_TREK_InstNoKit",
     instNoCore    = "IGUI_TREK_InstNoCore",
     instRaid      = "IGUI_TREK_InstRaid",
+    -- The perimeter sentry (SENTRY.md).
+    sentryNone    = "IGUI_TREK_SentryNone",
+    sentryTooMany = "IGUI_TREK_SentryTooMany",
+    sentryBlocked = "IGUI_TREK_SentryBlocked",
+    sentryAboard  = "IGUI_TREK_SentryAboard",
+    sentryNoCore  = "IGUI_TREK_SentryNoCore",
     notLanded     = "IGUI_TREK_NotLanded",
     bookmarksFull = "IGUI_TREK_BookmarksFull",
     crewSeated    = "IGUI_TREK_CrewSeated",

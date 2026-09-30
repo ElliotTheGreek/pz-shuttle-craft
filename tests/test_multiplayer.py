@@ -212,6 +212,13 @@ APPLY = r"""
             local f = SIM.object(d.sprite)
             f.isFloor, f.square = true, sq
             table.insert(sq.objects, 1, f)
+        elseif op == "zedDead" then
+            local z = SIM.findZed(d.id)
+            if z then z.dead = true end
+        elseif op == "floorSprite" then
+            for _, o in ipairs(sq.objects) do
+                if o.isFloor then o.spriteName = d.sprite end
+            end
         elseif op == "remove" then
             local list = d.world and sq.worldObjects or sq.objects
             local _, i = find(list, d.sprite)
@@ -16408,6 +16415,8 @@ def raids():
                 table.insert(rayProbe, {{ "side", math.floor(4000 + math.cos(a) * t - math.sin(a) * w + 0.5),
                                                   math.floor(4000 + math.sin(a) * t + math.cos(a) * w + 0.5) }})
             end
+            table.insert(rayProbe, {{ "disc", math.floor(4000 + math.cos(b) * (C.OutpostClearing - 6) + 0.5),
+                                              math.floor(4000 + math.sin(b) * (C.OutpostClearing - 6) + 0.5) }})
             table.insert(rayProbe, {{ "between", math.floor(4000 + math.cos(b) * (C.OutpostClearing + 8) + 0.5),
                                                  math.floor(4000 + math.sin(b) * (C.OutpostClearing + 8) + 0.5) }})
         end
@@ -16426,11 +16435,28 @@ def raids():
             table.insert(out, q[1] .. "=" .. n)
         end return table.concat(out, ";") end)()"""))
     probes = [r.split("=") for r in rays.split(";")]
+    floors = str(rt.eval("""(function() local out = {}
+        for _, q in ipairs(rayProbe) do
+            local f = SIM.rawSquare(q[2], q[3], 0).objects[1]
+            local dirt = false
+            for _, t in ipairs(TREK.Config.OutpostPathTiles) do if f.spriteName == t then dirt = true end end
+            table.insert(out, q[1] .. "=" .. tostring(dirt))
+        end return table.concat(out, ";") end)()"""))
+    fl = [r.split("=") for r in floors.split(";")]
+    check(all(v == "true" for k, v in fl if k in ("ray", "side")),
+          f"raids: a ray's floor is not a dirt path: {floors}")
+    check(all(v == "false" for k, v in fl if k in ("between", "beyond", "disc")),
+          f"raids: dirt was laid off the rays: {floors}")
+    # A road is not the county's ground: a ray crossing one leaves it be.
+    rt.run("""roadSq = SIM.rawSquare(5500, 5500, 0); roadSq.objects[1].spriteName = "blends_street_01_48"
+              TREK.RaidsServer.dirtPath(roadSq)""")
+    check(rt.eval("roadSq.objects[1].spriteName") == "blends_street_01_48", "raids: a ray paved a road over in dirt")
     spokes = int(C("OutpostSpokes"))
     check(sum(1 for k, v in probes if k == "side") == 2 * spokes and all(v == "0" for k, v in probes if k == "side"),
           f"raids: a ray is narrower than {C('OutpostSpokeWidth')} squares: {rays}")
     check(sum(1 for k, v in probes if k == "ray") == 2 * spokes and all(v == "0" for k, v in probes if k == "ray"),
           f"raids: a ray out of the clearing still has trees in it: {rays}")
+    check(all(v == "0" for k, v in probes if k == "disc"), f"raids: a tree stands inside the clearing: {rays}")
     check(all(v == "1" for k, v in probes if k in ("between", "beyond")),
           f"raids: the wood between the rays, or past their ends, was cleared too: {rays}")
     check(rt.eval("rayCamp.clearLeft") == 0, "raids: a clearing on loaded ground left squares to do")
@@ -16492,6 +16518,15 @@ def raids_multiplayer():
     if raid("state") != "live":
         return
     cx, cy = int(raid("camp.cx")), int(raid("camp.cy"))
+    ray_at = srv.eval(f"""(function() local C, c = TREK.Config, TREK.Raids.raid().camp
+        local t = C.OutpostClearing + 5
+        return math.floor({cx} + math.cos(c.spokeAngle) * t + 0.5) .. "," .. math.floor({cy} + math.sin(c.spokeAngle) * t + 0.5)
+    end)()""")
+    rx, ry = (int(v) for v in str(ray_at).split(","))
+    for name, rt in (("server", srv), ("alice", A)):
+        f = rt.eval(f"SIM.peekSquare({rx}, {ry}, 0) and SIM.peekSquare({rx}, {ry}, 0).objects[1].spriteName")
+        check(str(f).startswith("blends_natural_01_") and str(f) in [str(rt.eval(f"TREK.Config.OutpostPathTiles[{i}]")) for i in range(1, 5)],
+              f"raids mp: the ray at {rx},{ry} is {f!r} on {name}'s machine, not a dirt path")
     check(B.eval("select(3, TREK.Raids.offer(SIM.players[1]))") is True, "raids mp: bob is not offered the join")
     B.run("TREK.RaidsUI.open(SIM.players[1]); TREK.RaidsUI.window:onAccept()")
     net.pump(260)
@@ -16868,6 +16903,263 @@ def beam_multiplayer():
           "shown once, bob's forged arrival shown to nobody")
 
 
+SENTRY_SETUP = """
+    function sentryGive(p, charges)
+        local it = instanceItem(TREK.Config.SentryItem)
+        if charges then it:getModData()[TREK.Config.SentryChargesKey] = charges end
+        p.inventory:AddItem(it)
+        return it
+    end
+    function sentryCarried(p)
+        local n = 0
+        for _, it in ipairs(p.inventory.items) do
+            if it.fullType == TREK.Config.SentryItem then n = n + 1 end
+        end
+        return n
+    end
+    function sentryMenu(p)
+        sentryCtx = SIM.contextMenu()
+        local items = {}
+        for _, it in ipairs(p.inventory.items) do
+            if it.fullType == TREK.Config.SentryItem then table.insert(items, it) break end
+        end
+        TREK.SentryUI.fillInventoryMenu(0, sentryCtx, items)
+        return sentryCtx:deepLabels()
+    end
+    function sentryPick(key)
+        for _, o in ipairs(sentryCtx.options) do
+            if o.name:find(key, 1, true) then return o end
+        end
+    end
+    function sentryWorld(x, y, z)
+        local sq = SIM.peekSquare(x, y, z)
+        for _, w in ipairs(sq and sq.worldObjects or {}) do
+            if w.item and w.item.fullType == TREK.Config.SentryItem then return w end
+        end
+    end
+    function sentryDead()
+        local n = 0
+        for _, z in ipairs(SIM.zombies) do if z.dead then n = n + 1 end end
+        return n
+    end
+"""
+
+
+def sentry():
+    """The perimeter phaser sentry (SENTRY.md), single player, through its
+    right-click: set down in front of the player out of their own pocket;
+    silent until armed; then one of the dead at a time, the nearest first,
+    at its pace, in its range, never the crew; a bolt for each shot; its
+    charge spent off the item and a note when it runs dry; picked up, it
+    leaves the list and keeps its count; recharged at a warp core for its
+    price, and refused away from one; refused aboard."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('guard', 2000.5, 2000.5, 0)")
+    net.start()
+    rt.run(SENTRY_SETUP)
+    P = "SIM.players[1]"
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    full = int(C("SentryCharges"))
+
+    # --- the menu, and setting it down --------------------------------------------
+    rt.run(f"sentryGive({P})")
+    labels = str(rt.eval(f"sentryMenu({P})"))
+    check("IGUI_TREK_SentryDeploy" in labels, f"sentry: a sentry in a pocket offers {labels}")
+    check("IGUI_TREK_SentryRecharge" not in labels, "sentry: a full sentry offered a recharge")
+    rt.run("local o = sentryPick('IGUI_TREK_SentryDeploy'); o.fn(o.target, unpack(o.args))")
+    net.pump(2)
+    check(int(rt.eval(f"sentryCarried({P})")) == 0, "sentry: setting it down left it in the pocket")
+    w = rt.eval("sentryWorld(2001, 2000, 0)")
+    check(w is not None, "sentry: it is not on the square in front of the player")
+    check(int(rt.eval("TREK.SentryServer.count()")) == 1, "sentry: the server has no record of it")
+    check(any("IGUI_TREK_SentryDeployed" in n for n in rt.notes()), "sentry: setting it down said nothing")
+    sid = str(rt.eval("(function() for id in pairs(TREK.SentryServer.state().set) do return id end end)()"))
+
+    # --- the dead: a pack of eight at three squares, one far off, one of the crew --
+    rt.run("""for i = 1, 8 do
+            local l = addZombiesInOutfit(2004, 1997 + i % 5, 0, 1, "Generic01", 0)
+            l:get(0).packIndex = i
+        end
+        local far = addZombiesInOutfit(2001 + TREK.Config.SentryRange + 3, 2000, 0, 1, "Generic01", 0):get(0)
+        far.far = true
+        local crew = addZombiesInOutfit(2002, 2001, 0, 1, "Generic01", 0):get(0)
+        crew:setUseless(true); crew:setAvoidDamage(true); crew.crew = true""")
+    armed_at = int(rt.eval(f"TREK.SentryServer.state().set['{sid}'].armedMs"))
+    net.clock = armed_at - 200
+    rt.run("TREK.SentryServer.service()")
+    check(int(rt.eval("sentryDead()")) == 0, "sentry: it fired before it was armed")
+    net.clock = armed_at + 1
+    rt.run("TREK.SentryServer.service()")
+    check(int(rt.eval("sentryDead()")) == 1, f"sentry: armed, it killed {rt.eval('sentryDead()')}, not one")
+    # The bolt as it is drawn: glow and core, starting at the sentry and not
+    # at a shooter -- nobody is holding it.
+    rt.run("SIM.quads = {}; SIM.renderFrame()")
+    check(int(rt.eval("#SIM.quads")) == 2, f"sentry: its shot drew {rt.eval('#SIM.quads')} strips, not a bolt")
+    if int(rt.eval("#SIM.quads")) == 2:
+        sx = (float(rt.eval("SIM.quads[1].tl[1]")) + float(rt.eval("SIM.quads[1].bl[1]"))) / 2
+        sy = (float(rt.eval("SIM.quads[1].tl[2]")) + float(rt.eval("SIM.quads[1].bl[2]"))) / 2
+        ox = float(rt.eval("isoToScreenX(0, 2001.5, 2000.5, TREK.Config.SentryEmitterZ)"))
+        oy = float(rt.eval("isoToScreenY(0, 2001.5, 2000.5, TREK.Config.SentryEmitterZ)"))
+        check(abs(sx - ox) < 24 and abs(sy - oy) < 24,
+              f"sentry: its bolt starts at {sx:.0f},{sy:.0f}, not at the sentry ({ox:.0f},{oy:.0f})")
+    # One at a time, at its pace: another service within the interval kills nobody.
+    net.clock += int(C("SentryShotMs")) - 100
+    rt.run("TREK.SentryServer.service()")
+    check(int(rt.eval("sentryDead()")) == 1, "sentry: it fired again before its interval")
+    bolts = int(rt.eval("#TREK.PhaserFX.bolts"))
+    check(bolts >= 1, "sentry: a shot drew no bolt")
+    check(rt.eval("TREK.PhaserFX.bolts[#TREK.PhaserFX.bolts].fx") is not None,
+          "sentry: the bolt does not start at the sentry")
+    for _ in range(12):
+        net.clock += int(C("SentryShotMs")) + 1
+        rt.run("TREK.SentryServer.service()")
+    pack = int(rt.eval("(function() local n = 0 for _, z in ipairs(SIM.zombies) do "
+                       "if z.packIndex and z.dead then n = n + 1 end end return n end)()"))
+    check(pack == 8, f"sentry: {pack} of the pack of eight are down after thirteen shots")
+    check(rt.eval("(function() for _, z in ipairs(SIM.zombies) do if z.far and z.dead then return true end end "
+                  "return false end)()") is False, "sentry: it shot one beyond its range")
+    check(rt.eval("(function() for _, z in ipairs(SIM.zombies) do if z.crew and (z.dead or z.attackedBy) then "
+                  "return true end end return false end)()") is False, "sentry: it fired at the Adirondack's crew")
+    left = int(rt.eval("sentryWorld(2001, 2000, 0).item:getModData()[TREK.Config.SentryChargesKey]"))
+    check(left == full - 8, f"sentry: it holds {left} after eight shots, not {full - 8}")
+
+    # --- the nearest first --------------------------------------------------------
+    rt.run("""sentryNear = addZombiesInOutfit(2003, 2000, 0, 1, "Generic01", 0):get(0)
+              sentryFar2 = addZombiesInOutfit(2005, 2000, 0, 1, "Generic01", 0):get(0)""")
+    net.clock += int(C("SentryShotMs")) + 1
+    rt.run("TREK.SentryServer.service()")
+    check(rt.eval("sentryNear.dead == true and sentryFar2.dead ~= true") is True,
+          "sentry: it shot the farther of two first")
+    rt.run("sentryFar2.dead = true")
+
+    # --- running dry --------------------------------------------------------------
+    rt.run(f"sentryWorld(2001, 2000, 0).item:getModData()[TREK.Config.SentryChargesKey] = 2")
+    rt.run("for i = 1, 5 do addZombiesInOutfit(2003, 2000 + i % 3, 0, 1, 'Generic01', 0) end")
+    before = int(rt.eval("sentryDead()"))
+    for _ in range(6):
+        net.clock += int(C("SentryShotMs")) + 1
+        rt.run("TREK.SentryServer.service()")
+    check(int(rt.eval("sentryDead()")) - before == 2, "sentry: it fired more shots than it held")
+    check(any("IGUI_TREK_SentryEmpty" in n for n in rt.notes()), "sentry: running dry told its owner nothing")
+
+    # --- picked up: off the list, its count kept -----------------------------------
+    rt.run(f"""local sq = SIM.peekSquare(2001, 2000, 0)
+        for i, w in ipairs(sq.worldObjects) do
+            if w.item and w.item.fullType == TREK.Config.SentryItem then
+                table.remove(sq.worldObjects, i); {P}.inventory:AddItem(w.item) break
+            end
+        end""")
+    net.clock += int(C("SentryShotMs")) + 1
+    rt.run("TREK.SentryServer.service()")
+    check(int(rt.eval("TREK.SentryServer.count()")) == 0, "sentry: a sentry picked up is still on the list")
+    check(rt.eval(f"TREK.Sentry.charges({P}.inventory.items[#{P}.inventory.items])") == 0,
+          "sentry: picked up, it lost its count")
+
+    # --- recharged at a warp core, and not away from one ----------------------------
+    labels = str(rt.eval(f"sentryMenu({P})"))
+    check("IGUI_TREK_SentryRecharge" in labels and rt.eval("sentryPick('IGUI_TREK_SentryRecharge').notAvailable") is True,
+          f"sentry: a spent sentry away from a core offers {labels}, not a greyed recharge")
+    rt.run(f"TREK.Net.send({P}, 'rechargeSentry', {{ id = {P}.inventory.items[#{P}.inventory.items]:getID() }})")
+    net.pump(2)
+    check(rt.eval(f"TREK.Sentry.charges({P}.inventory.items[#{P}.inventory.items])") == 0,
+          "sentry: recharged with no warp core anywhere near")
+    rt.run("""sentryCore = TREK.InstallationsServer.place("warp_core", 2010, 2010, 0, "W",
+                  { power = TREK.Config.PowerMax, crystals = 0, dark = false })""")
+    rt.run(f"{P}.x, {P}.y = 2009.5, 2010.5")
+    before = float(rt.eval("TREK.Power.reserve('i' .. sentryCore)"))
+    labels = str(rt.eval(f"sentryMenu({P})"))
+    check(rt.eval("sentryPick('IGUI_TREK_SentryRecharge').notAvailable") is not True,
+          "sentry: at a warp core the recharge is still greyed")
+    rt.run("local o = sentryPick('IGUI_TREK_SentryRecharge'); o.fn(o.target, unpack(o.args))")
+    net.pump(2)
+    check(rt.eval(f"TREK.Sentry.charges({P}.inventory.items[#{P}.inventory.items])") == full,
+          "sentry: recharging at a warp core did not fill it")
+    paid = before - float(rt.eval("TREK.Power.reserve('i' .. sentryCore)"))
+    check(abs(paid - float(C("SentryRechargeCost"))) < 0.5, f"sentry: a recharge cost {paid}, not {C('SentryRechargeCost')}")
+
+    # --- something that is not a sentry, by its id -----------------------------------
+    rt.run(f"sentryRation = instanceItem('TrekShuttle.TrekRationPack'); {P}.inventory:AddItem(sentryRation)")
+    rt.run(f"TREK.Net.send({P}, 'deploySentry', {{ id = sentryRation:getID() }})")
+    net.pump(2)
+    check(rt.eval(f"{P}.inventory:contains(sentryRation)") is True and int(rt.eval("TREK.SentryServer.count()")) == 0,
+          "sentry: a ration pack was set down as a sentry")
+    rt.run(f"{P}.inventory:Remove(sentryRation)")
+
+    # --- a removal that does nothing: never set down and kept both ---------------------
+    rt.run(f"{P}.x, {P}.y = 2100.5, 2100.5")
+    net.pump(40)
+    rt.run(f"""sentryStuck = sentryGive({P}); sentryStuck.container = SIM.container(10); SIM.log = {{}}""")
+    rt.run(f"TREK.Net.send({P}, 'deploySentry', {{ id = sentryStuck:getID() }})")
+    net.pump(2)
+    check(rt.eval("sentryWorld(2101, 2100, 0)") is None and int(rt.eval("TREK.SentryServer.count()")) == 0,
+          "sentry: a sentry that would not leave the pocket was set down as well -- two of it")
+    check(any("would not come out" in str(w) for w in rt.warnings()), "sentry: a stuck removal said nothing")
+    rt.run(f"SIM.log = {{}}; {P}.inventory:Remove(sentryStuck)")
+
+    # --- not aboard ---------------------------------------------------------------
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    labels = str(rt.eval(f"sentryMenu({P})"))
+    check(rt.eval("sentryPick('IGUI_TREK_SentryDeploy').notAvailable") is True, "sentry: offered aboard the shuttle")
+    rt.run(f"TREK.Net.send({P}, 'deploySentry', {{ id = {P}.inventory.items[#{P}.inventory.items]:getID() }})")
+    net.pump(2)
+    check(int(rt.eval("TREK.SentryServer.count()")) == 0 and any("IGUI_TREK_SentryAboard" in n for n in rt.notes()),
+          "sentry: the server set one down aboard the shuttle")
+
+    # --- one the player is not carrying --------------------------------------------
+    rt.run(f"TREK.Net.send({P}, 'deploySentry', {{ id = 987654 }})")
+    net.pump(2)
+    check(any("IGUI_TREK_SentryNone" in n for n in rt.notes()), "sentry: a sentry nobody carried was set down")
+
+    for w in rt.warnings():
+        fail(f"sentry: {w}")
+    print(f"sentry: set down out of the pocket, armed after its delay, the pack of eight down one at a time "
+          f"nearest first, never past its range or at the crew, {full} shots and a note when dry, picked up "
+          f"with its count, recharged at a core for its price, refused aboard")
+
+
+def sentry_multiplayer():
+    """A sentry on a server: set down by alice's client asking, fired by the
+    server, the kill reaching both clients, the bolt on bob's screen too;
+    no client edits the world."""
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    srv.run("SIM.player('alice', 3000.5, 3000.5, 0); SIM.player('bob', 3003.5, 3004.5, 0)")
+    A.run("SIM.player('alice', 3000.5, 3000.5, 0); SIM.ownsZombies = true")
+    B.run("SIM.player('bob', 3003.5, 3004.5, 0)")
+    net.start()
+    for rt in net.all():
+        rt.run(SENTRY_SETUP)
+    # The same sentry on both copies of alice: the server's is the one that counts.
+    srv.run("sentryItem = sentryGive(SIM.players[1])")
+    sid = int(srv.eval("sentryItem.id"))
+    A.run(f"local it = sentryGive(SIM.players[1]); it.id = {sid}")
+    A.run(f"TREK.Net.send(SIM.players[1], 'deploySentry', {{ id = {sid} }})")
+    net.pump(4)
+    check(int(srv.eval("TREK.SentryServer.count()")) == 1, "sentry mp: alice's sentry is not on the server's list")
+    check(srv.eval("sentryWorld(3001, 3000, 0)") is not None, "sentry mp: the server has no sentry on the square")
+    check(A.eval("sentryWorld(3001, 3000, 0)") is not None, "sentry mp: alice's machine never saw it set down")
+    check(int(srv.eval("sentryCarried(SIM.players[1])")) == 0, "sentry mp: the server left it in alice's pocket")
+    srv.run("sentryZed = addZombiesInOutfit(3004, 3000, 0, 1, 'Generic01', 0):get(0)")
+    net.pump(2)
+    zid = int(srv.eval("sentryZed.onlineID"))
+    net.clock += int(srv.eval("TREK.Config.SentryArmMs")) + 50
+    srv.run("TREK.SentryServer.service()")
+    net.pump(2)
+    check(srv.eval("sentryZed.dead") is True, "sentry mp: the server's sentry did not kill")
+    for name, rt in (("alice", A), ("bob", B)):
+        check(rt.eval(f"SIM.findZed({zid}) and SIM.findZed({zid}).dead") is True,
+              f"sentry mp: the kill never reached {name}'s machine")
+        check(int(rt.eval("#TREK.PhaserFX.bolts")) >= 1, f"sentry mp: {name} saw no bolt")
+    for name, rt in (("alice", A), ("bob", B)):
+        check(int(rt.eval("SIM.clientWorldEdit or 0")) == 0, f"sentry mp: {name}'s client edited the world")
+    for name, rt in (("server", srv), ("alice", A), ("bob", B)):
+        for w in rt.warnings():
+            fail(f"sentry mp ({name}): {w}")
+    print("sentry multiplayer: set down by asking, fired by the server, the kill and the bolt on both clients")
+
+
 SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -16883,7 +17175,7 @@ SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer)
 
 
 def main():

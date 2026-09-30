@@ -183,6 +183,23 @@ function FX.bolt(character, weapon)
     return b
 end
 
+--- A bolt from a point on the ground to a target, with nobody holding the
+--- emitter: the perimeter sentry's shot (SENTRY.md), sent by the server as
+--- `sentryShot` because no weapon event fires for it. A phaser's colour.
+function FX.boltAt(args)
+    if not args or not args.x or not args.tx then return nil end
+    local spec = C.EnergyWeapons[C.PhaserItem]
+    local b = {
+        fx = args.x, fy = args.y, fz = (args.z or 0) + C.SentryEmitterZ - C.PhaserHandZ,
+        untilMs = now() + C.PhaserBoltMs,
+        x = args.tx, y = args.ty, z = args.tz or args.z or 0,
+        tint = spec.tint, width = spec.width or 1.0,
+    }
+    table.insert(FX.bolts, b)
+    ensureOverlay()
+    return b
+end
+
 Events.OnWeaponSwingHitPoint.Add(function(character, weapon)
     if energy(weapon) then FX.bolt(character, weapon) end
 end)
@@ -330,7 +347,7 @@ function Overlay:render()
         end
     end
     for _, b in ipairs(FX.bolts) do
-        local ex, ey, ez = emitter(b.char, nil, nil, nil, b.x, b.y)
+        local ex, ey, ez = emitter(b.char, b.fx, b.fy, b.fz, b.x, b.y)
         if ex then
             U.try("phaserFx.bolt", function()
                 self:drawBeam(num, zoom, ex, ey, ez, b.x, b.y, b.z + C.PhaserHandZ,

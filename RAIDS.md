@@ -123,7 +123,11 @@ clear 11 x 11 area, 300 to 1,200 squares from the crew:
   straight alleys `C.OutpostSpokeWidth` (3) wide, running
   `C.OutpostSpokeLength` (25) on from its edge, evenly spaced and turned by a
   random angle per camp (`S.clearShape`). Somewhere to run down, turn round
-  and fire back along (2026-09-29). Which squares are done is kept on the
+  and fire back along (2026-09-29). Their floor is **dirt**, so they stand
+  out on the grass: vanilla's own shovel on the server -- `setSprite` to one
+  of its dirt tiles, `RemoveAttachedAnims`, `transmitUpdatedSpriteToClients`
+  (`server/ClientCommands.lua:195`) -- on the county's natural ground only,
+  never a road, a laid floor or water. Which squares are done is kept on the
   server only -- a couple of thousand keys have no business in the raid
   record, which goes to every client;
 - **two tents** and **four supply crates** -- vanilla camping tents and

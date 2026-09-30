@@ -2465,6 +2465,7 @@ python tools/gen_captain.py TrekShuttle/42        # Captain Titus: her tree and 
 python tools/gen_captain_art.py TrekShuttle/42    # her portrait, rendered from her body and uniform
 python tools/gen_access.py TrekShuttle/42         # the pattern enhancer and the nanoprobe sample (ACCESS.md)
 python tools/gen_backpack.py TrekShuttle/42       # the field pack: texture, icon, worn and hand clothing XMLs, GUID rows
+python tools/gen_sentry.py TrekShuttle/42        # the perimeter sentry: mesh, texture, icon, sheet
 python tools/gen_shoulderlamp.py TrekShuttle/42   # the shoulder lamp: mesh, texture, 32px icon, its shoulder attachment solved, worn sheet
 python tools/gen_farm_icons.py                    # hydroponics item icons, keyed from their raws
 python tools/gen_contraband_icons.py              # contraband item icons, keyed from their raws
@@ -3333,6 +3334,15 @@ for the fight, the core lit on one crystal. Played again the same evening:
 hard enough to kill the author, so a wave now waits until the last is all
 down. `RAIDS.md` 3.1 and 4.
 
+**The 2026-09-29 perimeter phaser sentry** (`SENTRY.md`): set down from its
+right-click, armed three seconds later, it shoots the nearest of the dead
+within five squares every 0.6 s for 25 shots, so a big horde led past it gets
+through; picked up with its count, recharged at a warp core. The kill is the
+engine's own server-side `Hit`, the one `IsoTrap` uses. Three in the armoury
+(build revision 34). Nineteen mutations, all caught -- one only after the
+harness learned that a search text found twice mutates the first, which was
+the wrong line. **Not seen in game.**
+
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
 
@@ -3443,6 +3453,9 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_Raids.lua            raids: the record
 TrekShuttle/42/media/lua/server/TREK/TREK_RaidsServer.lua      the request, the outpost's camp, the waves, the outcome, home
 TrekShuttle/42/media/lua/client/TREK/TREK_RaidsUI.lua          the Captain's request panel, the strip, the beams out and home
 TrekShuttle/42/media/lua/shared/TREK/TREK_ShoulderLamp.lua     the shoulder lamp's attached location, on vanilla's webbing_right_walkie
+TrekShuttle/42/media/lua/shared/TREK/TREK_Sentry.lua          the perimeter sentry: its charge, where it goes, why not (SENTRY.md)
+TrekShuttle/42/media/lua/server/TREK/TREK_SentryServer.lua    setting sentries down, firing them (the engine's server-side Hit), recharging
+TrekShuttle/42/media/lua/client/TREK/TREK_SentryUI.lua        the sentry's right-click, its notes and the shot's sound
 TrekShuttle/42/media/lua/client/TREK/TREK_ShoulderLampSlot.lua the Shoulder hotbar slot every uniform provides
 content/captain/*.json                                         what she says (content/README.md)
 TrekShuttle/common/media/AnimSets/zombie/*/trekborg*.xml        the Borg walk and idle

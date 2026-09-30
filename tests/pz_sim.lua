@@ -525,6 +525,15 @@ function SIM.container(capacity)
         end
         return false
     end
+    -- ItemContainer.getItemWithIDRecursiv -- the engine's own spelling, no
+    -- final e. Nothing here nests containers, so it is the same search.
+    function c:getItemWithID(id)
+        for _, held in ipairs(self.items) do
+            if held.id == id then return held end
+        end
+        return nil
+    end
+    function c:getItemWithIDRecursiv(id) return self:getItemWithID(id) end
     function c:containsID(id)
         for _, held in ipairs(self.items) do
             if held.id == id then return true end
@@ -650,6 +659,22 @@ end
 IsoFlagType = IsoFlagType or { water = "water" }
 IsoFlagType.collideN = IsoFlagType.collideN or "collideN"
 IsoFlagType.collideW = IsoFlagType.collideW or "collideW"
+
+-- A floor's sprite changed in place (IsoObject.setSprite): on this machine
+-- only, as the engine does it, until the server sends it on with
+-- transmitUpdatedSpriteToClients. A client that sends one is editing the world.
+function ObjectMT:setSprite(s)
+    self.spriteName = type(s) == "table" and s.name or s
+end
+function ObjectMT:RemoveAttachedAnims() self.attachedAnims = nil end
+function ObjectMT:transmitUpdatedSpriteToClients()
+    if isServer() and self.square then
+        py_replicate("floorSprite", { x = self.square.x, y = self.square.y, z = self.square.z,
+                                      sprite = self.spriteName })
+    elseif isClient() then
+        SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1
+    end
+end
 
 function ObjectMT:getSprite()
     local name = self.spriteName
@@ -1427,6 +1452,11 @@ function cell:getChunkForGridSquare(x, y)
     return SIM.loaded(x, y) and {} or nil
 end
 function cell:getZombieList() return jlist(SIM.zombies) end
+-- The stand-in attacker a trap hits with when nobody set it (IsoTrap.explosion).
+function cell:getFakeZombieForHit()
+    SIM.fakeZed = SIM.fakeZed or { fake = true }
+    return SIM.fakeZed
+end
 function cell:getVehicles()
     local loaded = {}
     for _, v in ipairs(SIM.vehicles) do
@@ -2916,6 +2946,26 @@ function ZedOutfitMT:getInventory()
     return self.inventory
 end
 function ZedMT:isDead() return self.dead == true end
+function ZedMT:isUseless() return self.useless == true end
+-- IsoMovingObject.Hit(weapon, attacker, damage, bIgnoreDamage, modDelta): the
+-- whole hit pipeline, which is where a zombie dies. A body the mod pacified
+-- (setAvoidDamage, the crew) takes nothing. Dying on the server is told to
+-- every client (IsoZombie.Hit, bci 233-254), and OnZombieDead fires where it
+-- died.
+function ZedMT:Hit(weapon, attacker, damage)
+    SIM.zedHits = (SIM.zedHits or 0) + 1
+    if self.avoidDamage or self.dead then return 0 end
+    self.health = (self.health or 1.8) - (damage or 0)
+    self.attackedBy = attacker
+    if self.health <= 0 then
+        self.dead = true
+        SIM.fire("OnZombieDead", self)
+        if isServer() and self.onlineID and self.onlineID >= 0 then
+            py_replicate("zedDead", { x = 0, y = 0, z = 0, id = self.onlineID })
+        end
+    end
+    return damage or 0
+end
 function ZedMT:isFemale() return self.female == true end
 function ZedMT:getCurrentSquare()
     if self.removed then return nil end

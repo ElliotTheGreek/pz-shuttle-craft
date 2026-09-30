@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.15.0"
+C.Version   = "1.16.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -25,7 +25,7 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 33
+C.BuildRev = 34
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -2038,6 +2038,37 @@ C.ShoulderLampKind = "TrekShoulderLamp"
 C.ShoulderLocation = "Trek Shoulder Lamp"
 C.ShoulderAttachment = "webbing_right_walkie"
 
+---------------------------------------------------------------------------
+-- The perimeter phaser sentry (SENTRY.md)
+---------------------------------------------------------------------------
+-- A small emitter set down on the ground that shoots the dead, one at a
+-- time: lead a horde past it and it thins the horde, and a big one gets
+-- through. The author's brief (2026-09-29): "drop it on the ground, let a
+-- horde group up behind me, run by it" -- with a limit on its charges or on
+-- how fast it kills, "so a big horde some would get past it". Both.
+C.SentryItem = "TrekShuttle.TrekSentry"
+-- Three in the armoury (new worlds; the replicator knows the pattern).
+C.SentryIssue = 3
+-- Shots in a full sentry; what it holds is on the item (C.SentryChargesKey),
+-- so it keeps its count through being picked up and set down again.
+C.SentryCharges = 25
+C.SentryChargesKey = "TREKSentryCharges"
+-- One zombie at a time: a shot this often (real ms), at the nearest within
+-- this many squares on its own level, killing it outright.
+C.SentryShotMs = 600
+C.SentryRange = 5
+C.SentryDamage = 100
+-- Armed this long after it is set down (real ms), so it does not open up on
+-- the horde its owner is still running from before they are clear of it.
+C.SentryArmMs = 3000
+-- Recharged from the ship's power at a warp core -- the shuttle's, hers, the
+-- station's or an installed one -- for this much of the reserve, full.
+C.SentryRechargeCost = 250
+-- How many a server keeps working at once, all players together.
+C.SentryMax = 12
+-- Where its bolt leaves it: this far up a level, the emitter on its mast.
+C.SentryEmitterZ = 0.25
+
 -- Reading off a PADD takes a fifth of the time the same book takes on paper,
 -- after the vanilla rules -- sandbox minutes per page, Fast and Slow Reader,
 -- reading glasses, sitting down -- have all been applied. The author's
@@ -2369,6 +2400,10 @@ C.OutpostClearing = 20
 C.OutpostSpokes = 8
 C.OutpostSpokeWidth = 3
 C.OutpostSpokeLength = 25
+-- The rays' floor: vanilla's plain dirt, the tiles its shovel leaves, mixed
+-- so a path does not look stamped.
+C.OutpostPathTiles = { "blends_natural_01_64", "blends_natural_01_69", "blends_natural_01_70",
+                       "blends_natural_01_71" }
 C.OutpostSearch = 20
 -- Machines the ship lends the camp for the fight: real installations
 -- (INSTALLATIONS.md) in the registry, tagged with the raid's id, so the

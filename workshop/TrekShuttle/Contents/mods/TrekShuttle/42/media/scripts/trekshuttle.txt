@@ -3217,4 +3217,27 @@ module TrekShuttle
         hidden = true,
     }
 
+    /*  The perimeter phaser sentry (SENTRY.md): a small emitter on a tripod,
+        set down from its right-click. What it does is all Lua
+        (TREK_SentryServer); to the engine it is an ordinary item that can
+        lie on the ground, which is how a player picks it up again. Its
+        charge is in its mod data, so it keeps it through every move.  */
+    item TrekSentry
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        DisplayName = Perimeter Phaser Sentry,
+        Icon = TREK_Sentry,
+        Weight = 1.5,
+        StaticModel = TrekSentryModel,
+        WorldStaticModel = TrekSentryModel,
+        Tooltip = Tooltip_TREK_Sentry,
+    }
+
+    model TrekSentryModel
+    {
+        mesh = TREK_Sentry,
+        texture = TREK_Sentry,
+        scale = 1.0,
+    }
 }
