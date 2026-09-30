@@ -686,14 +686,33 @@ armoury beside the old one -- the whole issue twice. The test that found it is
 the one below; it had first been written to call the refit directly, which
 could not see it.
 
+**And the first play of it found the cabin empty** (2026-09-30): a new world,
+the chunk north-west of the cabin not yet streamed in at the first build, the
+refit waiting for it, the furnishing waiting for the refit -- and the player let
+aboard a cabin with nothing in it but the replicator and the warp core, which
+are placed by phases of their own. Three fixes, each caught when reverted:
+
+- **A ship never built has nothing to refit** (`s.built ~= true`): it is
+  marked done at once, and a new world never waits.
+- **The refit looks only where an old fitting or wall can stand** -- the hull
+  and its east and south wall edges -- not the ring west and north of it,
+  which only ever held floor and is the ring most likely to be unloaded.
+- **An unfinished build is finished aboard.** The server's minute tick builds
+  a cabin that is not current while anybody is aboard; before, only arriving
+  asked, so a build that could not finish on arrival was never asked again.
+
+`fresh_cabin_partial()` is the played case exactly: reverting the first fix
+reports "0 of 7 containers".
+
 `tests/test_multiplayer.py`'s `starfleet_refit()` builds an old save's cabin
 from `tests/fixtures/TREK_InteriorLayout_rev34.lua` with today's builder,
 fills its containers, and refits it: nothing of the old cabin left, each
 player's thing in the right successor or on the pad, the armoury and the tapes
 not issued twice, the tapes still recorded, the core moved, and the wait for
 unloaded ground. `starfleet_refit_mp()` checks the floor swap reaches a client.
-Fourteen mutations, one at a time, all caught -- two only after the test was
-rewritten to build the whole cabin under a partial load.
+Seventeen mutations, one at a time, all caught -- two only after the test was
+rewritten to build the whole cabin under a partial load, and three after the
+empty cabin below.
 
 ### 9.4 The story
 

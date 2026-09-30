@@ -1376,11 +1376,26 @@ end
 function B.starfleetRefit()
     local s = U.state()
     if s.starfleet then return 0 end
+    -- **A ship never built has nothing to refit.** Played on 2026-09-30, a
+    -- new world's first build found the chunk north-west of the cabin not yet
+    -- streamed in, the refit waited for it, the furnishing waited for the
+    -- refit -- and the player was let aboard an empty cabin with only its two
+    -- world-model machines standing. Only a save with an old cabin in it has
+    -- anything to wait for.
+    if s.built ~= true then
+        s.starfleet = true
+        return 0
+    end
     local keys = layoutKeys()
 
+    -- The squares a fitting or a wall of the old cabin can stand on: the hull
+    -- and the east and south edges its walls are drawn on. Not the ring to the
+    -- west and north, which only ever held floor (buildFloor re-sprites that
+    -- on every pass), and which is the ring most likely to be in a chunk that
+    -- has not loaded.
     local old, unreachable = {}, 0
-    for ox = -1, C.CabinW + 1 do
-        for oy = -1, C.CabinL + 1 do
+    for ox = 0, C.CabinW + 1 do
+        for oy = 0, C.CabinL + 1 do
             local x, y = at(ox, oy)
             if not U.chunkLoaded(x, y, C.CabinZ) then
                 unreachable = unreachable + 1

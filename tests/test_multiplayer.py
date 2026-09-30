@@ -2526,10 +2526,23 @@ def starfleet_refit():
     rt.run("TREK.Build.ensureCabin()")
     check(ship(rt, "starfleet") is None and rt.eval("TREK.Build.cabinCurrent()") is False,
           "starfleet refit: it called itself done, or the cabin current, with a square unloaded")
+    # Nobody beams again: the player is aboard, and the server's minute is
+    # what finishes a build that had to wait -- with the ring west and north
+    # of the hull still unloaded, which only ever held floor and is not
+    # waited for.
+    rt.run("""
+        local C, U = TREK.Config, TREK.Util
+        local wx, ny = U.at(-1, -1)
+        SIM.loaded = function(x, y)
+            if math.floor(x) == wx or math.floor(y) == ny then return false end
+            return SIM.realLoaded(x, y)
+        end
+    """)
+    rt.fire("EveryOneMinute")
     rt.run("SIM.loaded = SIM.realLoaded")
-    rt.run("TREK.Build.ensureCabin()")
     check(ship(rt, "starfleet") is True and rt.eval("TREK.Build.cabinCurrent()") is True,
-          "starfleet refit: the cabin was brought up to date and the refit never marked done")
+          "starfleet refit: the square loaded and a minute passed with the player aboard, "
+          "and the cabin was still not brought up to date")
 
     # --- nothing of the old cabin is left standing --------------------------
     leftovers = rt.eval(f"""(function()
@@ -2657,6 +2670,41 @@ def starfleet_refit():
           "lamps and all -- the player's things carried into the new fittings or onto the "
           "pad, the armoury and the tapes not issued twice, the tapes still recorded, the "
           "core moved, and it waits for unloaded ground and runs once")
+
+
+def fresh_cabin_partial():
+    """A new world's first build with the ground north-west of the cabin not
+    yet streamed in -- the first play of revision 35, which found the cabin
+    empty but for its two machines. A ship never built has nothing to refit,
+    so nothing may wait on it."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('newcomer', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run("""
+        local C, U = TREK.Config, TREK.Util
+        local wx, ny = U.at(-1, -1)
+        local ex = U.at(C.CabinW + 1, 0)
+        SIM.realLoaded = SIM.loaded
+        SIM.loaded = function(x, y)
+            x, y = math.floor(x), math.floor(y)
+            if x == wx or y == ny or x == ex then return false end
+            return SIM.realLoaded(x, y)
+        end
+    """)
+    rt.run("TREK.Transport.beamUp(SIM.players[1])")
+    net.pump(180)
+    if died(rt, "fresh cabin, beaming up"):
+        return
+    containers, stocked, _, wanted = cabin_objects(rt)
+    check(containers == 7 and stocked == wanted,
+          f"fresh cabin: a first build with the north-west ring unloaded left "
+          f"{containers} of 7 containers, {stocked} of {wanted} stocked -- an empty cabin")
+    check(ship(rt, "starfleet") is True, "fresh cabin: a new ship was left waiting for a refit")
+    rt.run("SIM.loaded = SIM.realLoaded")
+    for w in rt.warnings():
+        fail(f"fresh cabin: {w}")
+    print("fresh cabin: a new world's first build furnishes the cabin whatever of its ring has loaded")
 
 
 def starfleet_refit_mp():
@@ -17505,7 +17553,7 @@ def sentry_multiplayer():
     print("sentry multiplayer: set down by asking, fired by the server, the kill and the bolt on both clients")
 
 
-SECTIONS = (static, migration, single_player, refit, starfleet_refit, starfleet_refit_mp, flight, flight_ascent,
+SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabin_partial, starfleet_refit_mp, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
             torpedoes, medical, medical_multiplayer, replicator,

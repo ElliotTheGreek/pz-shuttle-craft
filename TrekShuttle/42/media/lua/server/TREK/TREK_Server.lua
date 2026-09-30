@@ -3275,6 +3275,14 @@ Events.EveryOneMinute.Add(function()
     -- runs wherever the players are rather than only near the ship.
     U.try("serviceContacts", S.serviceContacts)
     U.try("emergencyDescend", S.serviceEmergencyDescend)
+    -- A build that could not finish -- the Starfleet refit waits for every
+    -- square round an old cabin to load -- is finished here, with somebody
+    -- aboard, rather than on the next beam up. The arrival already let them
+    -- off the pad; the first play of revision 35 found a cabin left empty
+    -- because nothing ever asked again.
+    if anyoneAboard() and not B.cabinCurrent() and B.cabinLoaded() then
+        if U.try("ensureCabin", B.ensureCabin) and B.cabinCurrent() then Ship.commit() end
+    end
     if B.cabinCurrent() and B.cabinLoaded() then
         -- Nobody can drain the tap faster than a game minute refills it.
         U.try("refillWater", B.refillWater)

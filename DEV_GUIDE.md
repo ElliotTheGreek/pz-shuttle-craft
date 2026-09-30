@@ -3389,8 +3389,16 @@ everything tall faces the camera (the new rule above); the warp core moved to
 fitting's successor. `LORE.md` 1a's "she collected the furniture" is retired,
 and the tapes, calls, the Captain and the crew talk about her television
 instead. Fourteen mutations, one at a time, all caught -- one found a real
-bug, a doubled armoury while the refit waited for a square to load. **Not
-seen in game.**
+bug, a doubled armoury while the refit waited for a square to load.
+
+**Played the same day, and it was empty**: in a new world the refit waited for
+an unloaded square it had no reason to wait for, the furnishing waited for the
+refit, and nothing ever asked again once the player was let off the pad. The
+simulation had every chunk loaded for a fresh build, so no test could see it
+-- *a scenario that never reaches the condition is not a test of it*, again.
+Fixed three ways and three more mutations caught (INTERIOR_REFIT.md 9.3); the
+general rule is **a pass that can defer must have somebody who asks again, and
+must not defer on work that does not exist.**
 
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
