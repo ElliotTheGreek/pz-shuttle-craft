@@ -74,5 +74,12 @@
     "Tooltip_TREK_CardassianPhaser": "A Cardassian sidearm: compact and dependable, with a bright yellow bolt. It never runs down.",
     "Tooltip_TREK_Holster": "A Starfleet belt holster. Any pistol rides in it: a phaser, a disruptor, or the M9 you found in town.",
     "Tooltip_TREK_PatternEnhancer": "Starfleet transporter equipment. Three standing together give a lock where none could be had.",
-    "Tooltip_TREK_NanoprobeSample": "Borg nanoprobes, taken off one of the dead. The Doctor can calibrate against it."
+    "Tooltip_TREK_NanoprobeSample": "Borg nanoprobes, taken off one of the dead. The Doctor can calibrate against it.",
+    "Tooltip_TREK_FieldKit": "A Starfleet engineer's satchel: a sonic driver, a hyperspanner, a stem bolt driver, a laser cutter, a laser welder and a hundred self-sealing stem bolts. Everything a cabin in the woods needs, and it hardly weighs a thing.",
+    "Tooltip_TREK_SonicDriver": "Drives and draws any fastener, and drills wood or metal. Works as a screwdriver or a drill. Never wears out.",
+    "Tooltip_TREK_Hyperspanner": "Works as a wrench, a pipe wrench or pliers. Never wears out.",
+    "Tooltip_TREK_StemBoltDriver": "Seats stem bolts and anything else that wants hitting. Works as any hammer or mallet, and takes barricades down. Never wears out.",
+    "Tooltip_TREK_LaserCutter": "Works as any saw, tin snips or bolt cutters. Never wears out.",
+    "Tooltip_TREK_LaserWelder": "Works as a blowtorch and shields its own work, so no welding mask is needed. Recharges itself.",
+    "Tooltip_TREK_StemBolts": "Self-sealing. Used wherever a recipe asks for nails."
 }

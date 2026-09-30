@@ -1,7 +1,7 @@
 A Star Trek Starfleet Type 6 shuttlecraft for Project Zomboid Build 42: single player, hosted co-op and dedicated servers.
 
 5 new weapon items
-- Phaser: never runs out of charge, never jams, far quieter than a firearm; cuts down trees and cuts through any locked door
+- Phaser: never runs out of charge, never jams, far quieter than a firearm; fells trees, clears stumps, rocks, boulders and bushes, and cuts through any locked door
 - Bat'leth: two-handed and longer than a katana, held by one end for reach
 - Mek'leth
 - Lirpa
@@ -71,6 +71,10 @@ Beam back to the shuttle from the right-click menu whenever you like.
 
 Perimeter phaser sentries
 A small emitter you set down on the ground: right-click it in your inventory, Set down sentry, and it goes on the square in front of you. Three seconds later it arms and shoots the nearest of the dead within five squares, one at a time, every 0.6 seconds, until its 25 shots are spent. Lead a horde past it and it thins them out, though a big one gets through. Pick it up again like anything on the ground; it keeps its count. Recharge it at any warp core (the shuttle's, the Adirondack's, the field station's or one you installed) for 250 units of power. Three are in the shuttle's armoury in a new world, and the replicator can make more. It cannot be set down aboard, and it shoots through walls, so mind where you put it.
+
+Clearing ground and building
+Right-click a stump, a rock or a bush with a phaser on you and choose Clear stump, rock or bush with phaser: it is gone in a second or two, leaving nothing behind. A rock is a boulder (all of it, even the big ones vanilla cannot shift), an ore deposit or a stone on the ground. Queue as many as you like, one right-click each, and a building plot is clear. It never touches walls, floors or anything a player built.
+The Engineer's Field Kit is a Starfleet satchel of five tools, each lighter than the tool it replaces and none of which ever wears out: the Sonic Driver (screwdriver and drill), the Hyperspanner (wrench, pipe wrench and pliers), the Stem Bolt Driver (any hammer or mallet, and it takes barricades down), the Laser Cutter (any saw, tin snips and bolt cutters) and the Laser Welder (a blowtorch that recharges itself and needs no welding mask). It also holds a hundred self-sealing stem bolts, taken wherever the crafting and build menus ask for nails. The barricade right-click still wants real nails. One kit is in the shuttle's armoury in a new world, and the replicator makes every piece.
 
 Raids: when the pattern buffer overflows
 Once the Adirondack can beam you, Captain Titus will sometimes call for help: the transporter's pattern buffer is full, and she is purging it through a supply outpost in the county rather than onto her decks. Her request opens with where the outpost is, how many to expect and five hours to answer; right-click anywhere to reopen it. Get ready, then Accept: you are beamed to a camp cut out of the wild, with straight alleys running out of it like the rays of a sun, tents, crates, and a warp core, replicator and Doctor lent for the fight (they work, and go when it ends). The dead beam in all round the warp core, a small wave first and each one bigger, half of them running; the next comes only once the last is down. Stand at the core and they surround you; back off down an alley and they all come from one direction. Clear the buffer (the strip at the top shows it), loot the crates, and you are beamed home to exactly where you were. A raid ends as lost after half an hour of real time, or two minutes with nobody at the camp. Beam out of the raid any time from the right-click menu. A win teaches the replicator new patterns and counts toward your rank.
@@ -168,7 +172,7 @@ GUIDE
   4. Take a tricorder. Get there on foot, by car, or by calling the shuttle down nearby.
   5. Sweep with the tricorder. Within forty tiles the ensign shows as a blue cross, with distance and bearing. Their combadge chirps as you get close, and it is drawing in the dead.
   6. Right-click the ensign and Beam them to safety from within three tiles. You are handed supplies, the replicator learns three new patterns, and the rescue counts toward your rank.
-- Phasers: right-click a tree to cut it down or a door to cut through it. Nothing else a Starfleet crew carries picks a lock.
+- Phasers: right-click a tree to cut it down, a door to cut through it, or a stump, rock or bush to clear it away. Nothing else a Starfleet crew carries picks a lock.
 - Bookmarks: log any position aboard and set a course back to it later.
 
 REQUIREMENTS

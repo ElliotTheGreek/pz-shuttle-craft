@@ -136,4 +136,16 @@
 		<path>media/clothing/clothingItems/TrekBackpack_LHand.xml</path>
 		<guid>be1168be-a0f5-594c-94ff-ff9a99192f0e</guid>
 	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekFieldKit.xml</path>
+		<guid>41e308a7-b33f-594e-b9ae-e7284dcee5dd</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekFieldKit_RHand.xml</path>
+		<guid>df9d9394-92c4-53c9-a575-5de6ce65d46a</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/TrekFieldKit_LHand.xml</path>
+		<guid>36d59a21-2709-5202-b5bf-5074debf908a</guid>
+	</files>
 </fileGuidTable>

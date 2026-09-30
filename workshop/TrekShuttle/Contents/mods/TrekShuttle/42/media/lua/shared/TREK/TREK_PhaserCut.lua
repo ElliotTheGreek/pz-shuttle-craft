@@ -1,7 +1,9 @@
 --[[ Shuttlecraft -- cutting with a phaser (PHASERS.md 7).
 
     A phaser held on a tree fells it; held on a door, it burns the door out of
-    its frame, whatever was locking it. This file is the rules and the timed
+    its frame, whatever was locking it; held on a stump, a rock or a bush, it
+    clears it away, so a stretch of wild ground can be cleared to build on
+    (PHASERS.md 3, *Clearing ground*). This file is the rules and the timed
     action that does it. The beam that everybody sees is TREK_PhaserFX.lua,
     and the right-click that starts it is TREK_Phaser.lua.
 
@@ -44,6 +46,16 @@
         exactly where this runs.
       * **no lock is consulted at all.** A persistent beam defeats any lock
         because the door stops being there (the author, 2026-09-24).
+      * a stump, a rock or a bush: transmitRemoveItemFromSquare, which is
+        where vanilla's own pickaxe (ISPickAxeGroundCoverItem) and bush
+        clearing (ISRemoveBush) end. What counts as each is vanilla's own
+        test, not a list of ours: `isStump()`, the `boulders_` and
+        `crafting_ore_` sprites `isOres()` looks for, the stone names
+        GroundCoverItems picks up, and the `canBeCut` flag. A boulder two
+        tiles wide goes whole, every piece of its sprite grid
+        (getSpriteGridObjectsIncludingSelf, as the sledgehammer's destroy
+        cursor finds them). The phaser leaves nothing behind: no stones,
+        no twigs, no scrap wood. That is the point of it.
 ]]
 
 require "TREK/TREK_Config"
@@ -62,7 +74,52 @@ TREK.PhaserCut = PC
 ---------------------------------------------------------------------------
 -- What can be cut
 ---------------------------------------------------------------------------
---- "tree", "door" or nil for one world object.
+--- The kinds that clear ground rather than cut: a sandbox's "Trees only"
+--- lets them, since none of them keeps anybody out of anywhere.
+PC.CLEARING = { stump = true, rock = true, bush = true }
+
+local function spriteOf(obj)
+    return U.try("phaser.sprite", function() return obj:getSprite() end)
+end
+
+local function props(obj)
+    local spr = spriteOf(obj)
+    return spr and U.try("phaser.props", function() return spr:getProperties() end)
+end
+
+--- A boulder, an ore deposit or a stone lying on the ground; never the
+--- ground itself. `boulders_` and `crafting_ore_` are the two prefixes the
+--- engine's own IsoObject.isOres() tests, and the same sheet has rock
+--- *floors* in it (boulders_40..47, 56..63, `solidfloor`), which would leave
+--- a hole to the level below.
+function PC.isRock(obj)
+    local spr = spriteOf(obj)
+    local name = spr and U.try("phaser.spriteName", function() return spr:getName() end)
+    local p = props(obj)
+    local custom = p and U.try("phaser.customName", function() return p:get("CustomName") end)
+    if custom and C.PhaserStones[custom] then return true end
+    if type(name) ~= "string" then return false end
+    if name:sub(1, 9) ~= "boulders_" and name:sub(1, 13) ~= "crafting_ore_" then
+        return false
+    end
+    return not (p and U.try("phaser.solidfloor", function()
+        return p:has(IsoFlagType.solidfloor)
+    end))
+end
+
+--- A bush: the `canBeCut` flag vanilla's ISRemoveBush clears, or the
+--- landscaping bush and hedge a shovel would dig up.
+function PC.isBush(obj)
+    local p = props(obj)
+    if not p then return false end
+    if U.try("phaser.canBeCut", function() return p:has(IsoFlagType.canBeCut) end) then
+        return true
+    end
+    local custom = U.try("phaser.bushName", function() return p:get("CustomName") end)
+    return custom == "Bush" or custom == "Hedge"
+end
+
+--- "tree", "door", "stump", "rock", "bush" or nil for one world object.
 function PC.kindOf(obj)
     if not obj then return nil end
     if instanceof(obj, "IsoTree") then return "tree" end
@@ -71,6 +128,14 @@ function PC.kindOf(obj)
         local door = U.try("phaser.isDoor", function() return obj:isDoor() end)
         if door then return "door" end
     end
+    -- Anything with a class of its own is somebody's furniture, a crop or a
+    -- machine, not the ground; only plain objects are cleared.
+    if instanceof(obj, "IsoWorldInventoryObject") or instanceof(obj, "IsoThumpable") then
+        return nil
+    end
+    if U.try("phaser.isStump", function() return obj:isStump() end) then return "stump" end
+    if PC.isRock(obj) then return "rock" end
+    if PC.isBush(obj) then return "bush" end
     return nil
 end
 
@@ -109,12 +174,27 @@ function PC.inHand(player)
     return nil
 end
 
---- True when the sandbox lets a phaser cut this kind of thing.
+--- True when the sandbox lets a phaser cut this kind of thing. "Trees only"
+--- is the woodsman's setting, and clearing ground is woodsman's work: it
+--- takes every lock away and leaves the stumps, rocks and bushes.
 function PC.allowed(kind)
     local mode = C.phaserCutting()
     if mode == C.PhaserCutNone then return false end
-    if mode == C.PhaserCutTrees and kind ~= "tree" then return false end
+    if mode == C.PhaserCutTrees and kind ~= "tree" and not PC.CLEARING[kind] then
+        return false
+    end
     return true
+end
+
+--- True when the square is in a safehouse this player is not a member of.
+--- A tree is never refused for it (it never was); a door, and the ground
+--- somebody may have landscaped, are.
+function PC.inStrangersSafehouse(player, sq, kind)
+    if kind == "tree" or not sq then return false end
+    local name = U.try("phaser.username", function() return player:getUsername() end)
+    return U.try("phaser.safehouse", function()
+        return SafeHouse.isSafeHouse(sq, name, true)
+    end) and true or false
 end
 
 local function distance(player, sq)
@@ -138,16 +218,10 @@ function PC.refusal(player, obj, kind, sq)
     if math.floor(pz) ~= sq:getZ() or distance(player, sq) > C.PhaserCutRange + 0.75 then
         return "IGUI_TREK_PhaserTooFar"
     end
-    if kind == "door" then
-        -- A server's safehouse rules are a promise to its players; a phaser
-        -- is not the way round them. isSafeHouse answers only for a
-        -- safehouse the named player is NOT a member of.
-        local name = U.try("phaser.username", function() return player:getUsername() end)
-        local house = U.try("phaser.safehouse", function()
-            return SafeHouse.isSafeHouse(sq, name, true)
-        end)
-        if house then return "IGUI_TREK_PhaserSafehouse" end
-    end
+    -- A server's safehouse rules are a promise to its players; a phaser is
+    -- not the way round them. isSafeHouse answers only for a safehouse the
+    -- named player is NOT a member of.
+    if PC.inStrangersSafehouse(player, sq, kind) then return "IGUI_TREK_PhaserSafehouse" end
     return nil
 end
 
@@ -194,6 +268,30 @@ function PC.breach(player, door)
         if remove(leaf) then gone = gone + 1 end
     end
     U.try("phaser.breakSound", function() player:playSound("BreakDoor") end)
+    return gone > 0
+end
+
+--- Every object that makes up this one thing. A boulder drawn across two or
+--- four squares is one object per square, joined only by its sprite grid.
+function PC.parts(obj, kind)
+    if kind ~= "rock" then return { obj } end
+    local list = U.try("phaser.spriteGrid", function()
+        return obj:getSpriteGridObjectsIncludingSelf(ArrayList.new())
+    end)
+    local n = list and (U.try("phaser.spriteGridN", function() return list:size() end) or 0) or 0
+    if n == 0 then return { obj } end
+    local parts = {}
+    for i = 0, n - 1 do table.insert(parts, list:get(i)) end
+    return parts
+end
+
+--- Clears a stump, a rock or a bush away, leaving nothing. All of a boulder
+--- goes: half a boulder is still in the way.
+function PC.clear(player, obj, kind)
+    local gone = 0
+    for _, part in ipairs(PC.parts(obj, kind)) do
+        if remove(part) then gone = gone + 1 end
+    end
     return gone > 0
 end
 
@@ -248,6 +346,7 @@ function TREKPhaserCut:getDuration()
     end)
     if instant then return 1 end
     if self.kind == "tree" then return C.PhaserTreeTime end
+    if PC.CLEARING[self.kind] then return C.PhaserClearTime[self.kind] end
     return C.PhaserDoorTime
 end
 
@@ -326,6 +425,8 @@ function TREKPhaserCut:complete()
     if not why then
         if self.kind == "tree" then
             done = PC.fell(self.character, obj)
+        elseif PC.CLEARING[self.kind] then
+            done = PC.clear(self.character, obj, self.kind)
         else
             done = PC.breach(self.character, obj)
         end

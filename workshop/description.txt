@@ -4,7 +4,7 @@ A Star Trek Starfleet Type 6 shuttlecraft and the starship U.S.S. Adirondack for
 3 new medical items: Hypospray, Dermal Regenerator, Medical Tricorder.
 18 new foods and drinks: Ration Pack, Gagh, Leola Root Stew, Plomeek Soup, Jumja Stick, Andorian Tuber, Oskoid, Wing-Slug Roll, Hasperat, Rokeg Blood Pie, Chadre'kab, Raktajino, Earl Grey, Romulan Ale, Bloodwine, Andorian Ale, Balso Tonic, Nutrient Suspension.
 22 new farming items: seven alien seeds, their produce, dried and ground ingredients, and live serpent worms.
-Plus a Tricorder, a PADD, six uniforms, a field pack, a shoulder lamp, perimeter phaser sentries and dilithium crystals.
+Plus a Tricorder, a PADD, six uniforms, a field pack, a shoulder lamp, perimeter phaser sentries, dilithium crystals and an engineer's field kit.
 
 A SHUTTLE YOU CAN LIVE IN AND TRAVEL IN
 A Starfleet cabin: helm, galley, running water, bunk, biobed, sick bay, replicator, warp core, armoury, and Lt. Shepard's 1993 TV.
@@ -15,7 +15,7 @@ A Starfleet cabin: helm, galley, running water, bunk, biobed, sick bay, replicat
 - Everything she does runs on the dilithium crystal in her warp core. An on-screen gauge shows what is left; at zero she goes dark. Load crystals by right-clicking the core.
 
 THE U.S.S. ADIRONDACK
-A working starship in orbit. Earn your way aboard (bring her crew home, recover three pattern enhancers, hold a transporter lock and pass the Doctor's biofilter, or open her from the start in the sandbox), then ride the turbolifts between five decks: the Bridge, the Lounge, Galley and crew quarters, the Transporter Room and Sickbay, Main Engineering, and Hydroponics. Fifty new pieces of Starfleet furniture. She has a crew: officers of every division and several species ride the lifts, walk to their posts, sit, and talk about the ship, the county and you.
+A working starship in orbit. Earn your way aboard (bring her crew home, recover three pattern enhancers, hold a transporter lock and pass the Doctor's biofilter, or open her from the start in the sandbox), then ride the turbolifts between five decks: the Bridge, the Lounge, Galley and crew quarters, the Transporter Room and Sickbay, Main Engineering, and Hydroponics. Fifty new pieces of Starfleet furniture. She has a crew: officers of every division and several species walk to their posts, sit, and talk about the ship, the county and you.
 
 CAPTAIN TITUS
 Sit down with the Adirondack's captain on her bridge and ask what happened here. She tells you what the ship knows as the story unfolds, marks what is new, points you where to look, and keeps one thing back until you have earned it.
@@ -24,16 +24,16 @@ JEFFERIES TUBES AND CONTRABAND
 Crawl between the Adirondack's decks through Jefferies tubes, over the stars. Three hideouts off them hold what the off-watch crew keep from the first officer: ketracel-white, felicium, Trellium-D, the Ktarian game, latinum, and other cultures' weapons. Some of it is habit-forming; the Doctor will detox you.
 
 THE FIELD STATION
-Somewhere in Muldraugh a Starfleet survey station is hidden under an ordinary shop. Listen to the Adirondack's crew: they talk about the field office that went dark in June. Find the way down and you find one long floor of quarters, operations, a galley and replicator, an armoury, an infirmary and a reactor, and the people who never left.
+Somewhere in Muldraugh a Starfleet survey station is hidden under an ordinary shop. Listen to the Adirondack's crew: they talk about the field office that went dark in June. Find the way down to its quarters, operations, galley, armoury, infirmary and reactor, and the people who never left.
 
 STARFLEET AT HOME
 Install a warp core, a replicator and an EMH station in any house from kits (right-click the kit: Install here). Load the core with dilithium and everything within 25 squares runs on it. The ship's replicator makes the kits. Dismantle packs a machine back up.
 
 BUILD ABOARD
-Build and place what you like in the shuttle, on the Adirondack and in the field station, and move their furniture like vanilla's. Nothing you build or move is undone.
+Build and place what you like in the shuttle, on the Adirondack and in the field station, and move their furniture like vanilla's. Nothing you build or move is undone. Anywhere else, phasers clear a plot of stumps, boulders and bushes, and the engineer's field kit's Starfleet tools replace vanilla's, weigh less and never wear out, with self-sealing stem bolts for nails.
 
 HYDROPONICS
-Grow seven alien crops on Deck 5 (tea, bergamot, Klingon coffee, plomeek, leola root, Andorian tuber and hasperat peppers) and cook Earl Grey, Raktajino, plomeek soup, leola root stew and hasperat from scratch. The ship waters and tends the trays; you sow and harvest. Feed the serpent worm tanks and they breed: five worms and a bowl make live gagh. Homegrown food is real food, which Klingons and Real Food Only characters will happily eat.
+Grow seven alien crops on Deck 5 (tea, bergamot, Klingon coffee, plomeek, leola root, Andorian tuber and hasperat peppers) and cook Earl Grey, Raktajino, plomeek soup, leola root stew and hasperat from scratch. The ship waters and tends the trays; you sow and harvest. Feed the serpent worm tanks and they breed: five worms and a bowl make live gagh. Klingons and Real Food Only characters eat what you grow.
 
 THE PADD
 Load books onto it at any library and read them five times faster than paper. Transcribe VHS tapes onto it. Open it with K. It is also how the Adirondack talks to you.
@@ -54,7 +54,7 @@ THE DOCTOR
 An Emergency Medical Hologram treats what the hypospray and regenerator cannot, for energy. He is the only cure for a zombie bite: one whole crystal and twelve hours aboard.
 
 SPECIES, PROFESSIONS AND RANK
-Play a Vulcan, Klingon, Andorian, Betazoid, Trill, Bajoran, Talaxian, Orion, android or liberated Borg, each with its own strengths, price, look and home cooking, or a human. Seven Starfleet professions: command, helm, engineering, security, medical, science and cultural survey, each with its own perk and kit. New traits: Transporter Phobia, Spacesick, Real Food Only, Starfleet Academy, Holo-historian. Rescue downed ensigns to rise from Ensign through Lieutenant (j.g.), Lieutenant and Lieutenant Commander to Commander, promoted in person by the captain.
+Play a Vulcan, Klingon, Andorian, Betazoid, Trill, Bajoran, Talaxian, Orion, android or liberated Borg, each with its own strengths, price, look and home cooking, or a human. Seven Starfleet professions: command, helm, engineering, security, medical, science and cultural survey, each with its own perk and kit. New traits: Transporter Phobia, Spacesick, Real Food Only, Starfleet Academy, Holo-historian. Rescue downed ensigns to rise from Ensign to Commander, promoted in person by the captain.
 
 SHIELDS
 Nothing dead gets within ten tiles of the landed ship. They are pushed back, not killed. Raise them at the helm.
@@ -66,11 +66,11 @@ QUICK GUIDE
 - The sensor console (aboard: Shuttlecraft -> Long-range sensors) launches probes and answers distress calls. Its marks are approximate: take a tricorder.
 - Probes find dilithium and holo fragments 80 to 260 tiles out. Sweep there with the tricorder: crystals show within twenty tiles.
 - Dilithium lies on wild ground: fields and woods, never in town.
-- Distress calls: accept one at the sensor console and a life sign is marked on your map, up to forty tiles out. You have three days. Go there with a tricorder: the ensign shows as a blue cross within forty tiles. Right-click to beam them to safety from within three tiles.
-- Phasers: right-click a tree or a locked door to cut through it.
+- Distress calls: accept one at the sensor console and a life sign is marked on your map, up to forty tiles out. You have three days. Go there with a tricorder: the ensign shows as a blue cross within forty tiles. Right-click within three tiles to beam them to safety.
+- Phasers: right-click a tree, stump, rock, bush or locked door.
 
 MULTIPLAYER
-Fully multiplayer compatible and server-authoritative: everyone shares one shuttle and one Adirondack. Dedicated servers: add the map folder in front of the base map in the server .ini: Map=TrekShuttle;Muldraugh, KY. Single player and in-game hosting add it for you. Every feature has its settings on the sandbox Shuttlecraft page.
+Multiplayer and server-authoritative: everyone shares one shuttle and one Adirondack. Dedicated servers: add the map folder in front of the base map in the server .ini: Map=TrekShuttle;Muldraugh, KY. Single player and in-game hosting add it for you. Every feature has its settings on the sandbox Shuttlecraft page.
 
 REQUIREMENTS
 Build 42. She needs 3x5 clear tiles to land. One shuttle per world.

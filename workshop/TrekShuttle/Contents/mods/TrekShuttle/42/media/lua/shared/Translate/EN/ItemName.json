@@ -124,5 +124,12 @@
     "TrekShuttle.TrekBorg_Shoulder": "Borg Shoulder Armour",
     "TrekShuttle.TrekBorg_Knee": "Borg Knee Armour",
     "TrekShuttle.TrekPatternEnhancer": "Pattern Enhancer",
-    "TrekShuttle.TrekNanoprobeSample": "Nanoprobe Sample"
+    "TrekShuttle.TrekNanoprobeSample": "Nanoprobe Sample",
+    "TrekShuttle.TrekFieldKit": "Engineer's Field Kit",
+    "TrekShuttle.TrekSonicDriver": "Sonic Driver",
+    "TrekShuttle.TrekHyperspanner": "Hyperspanner",
+    "TrekShuttle.TrekStemBoltDriver": "Stem Bolt Driver",
+    "TrekShuttle.TrekLaserCutter": "Laser Cutter",
+    "TrekShuttle.TrekLaserWelder": "Laser Welder",
+    "TrekShuttle.TrekStemBolts": "Self-Sealing Stem Bolts"
 }
