@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.16.0"
+C.Version   = "1.17.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -25,7 +25,10 @@ C.ModPrefix = "[TREK]"
 -- is generated. A cabin built at an older revision is quietly brought up to
 -- date the next time the player is aboard; the rebuild preserves furniture,
 -- stored items and anything dropped on the deck.
-C.BuildRev = 34
+-- 35: the Starfleet refit (INTERIOR_REFIT.md 9) -- every fitting, wall and
+-- floor swapped for the Adirondack's, and B.starfleetRefit carrying what was
+-- in each old container across to its new one.
+C.BuildRev = 35
 
 ---------------------------------------------------------------------------
 -- The tape shelf
@@ -946,7 +949,7 @@ C.Sprites = {
     wallC = "industry_01_2",
 
     deckFloor = "floors_interior_tilesandwood_01_0",  -- solid deck
-    padFloor  = "floors_interior_tilesandwood_01_1",  -- solid transporter tile
+    padFloor  = "trek_adirondack_01_27",  -- the transporter pad, set into the carpet
 
     lamp   = { S = "lighting_indoor_01_32", E = "lighting_indoor_01_8",
                W = "lighting_indoor_01_40", N = "lighting_indoor_01_48" },
@@ -1005,12 +1008,11 @@ C.Sprites = {
 -- as {sprite, dx, dy}. Getting it backwards lays the foot of the bed where
 -- its head belongs, which is invisible in the code and obvious in game.
 -- tests/test_layout.py checks every offset here against the game data.
--- The bunk went with the refit: the biobed carries BedType = goodBed, so the
--- sick bay is also where you sleep, and a shuttle with both in twenty-four
--- squares is a shuttle with nowhere to stand.
+-- The biobed is the Adirondack's since the Starfleet refit (INTERIOR_REFIT.md
+-- 9), head to the bow; the bunk in the bow corner is one square.
 C.Pieces = {
-    biobedS = { { "location_community_medical_01_17", 0, 0 },
-                { "location_community_medical_01_16", 0, 1 } },
+    biobedS = { { "trek_adirondack_02_114", 0, 0 },
+                { "trek_adirondack_02_115", 0, 1 } },
 }
 
 ---------------------------------------------------------------------------
@@ -1082,7 +1084,14 @@ C.PowerMax = C.DilithiumCharge
 -- gain rather than a compromise: every client's panel now reads the same
 -- spare count without opening anything.
 C.WarpCoreItem = "TrekShuttle.TrekWarpCore"
-C.DilithiumSpot = { x = 1, y = 3 }
+--
+-- **2,3 since the Starfleet refit, 1,3 before it.** At 1,3 it stood on the
+-- square the galley sink is worked from; the refit's rule is that every
+-- fitting's front square is open deck (INTERIOR_REFIT.md 9), so it moved one
+-- across to starboard. C.LegacyCoreSpot is where the refit looks for the old
+-- one: the crystals are ship state, so only the model moves.
+C.DilithiumSpot = { x = 2, y = 3 }
+C.LegacyCoreSpot = { x = 1, y = 3 }
 
 -- The tag the old cabinet carried, for the migration that takes it out and
 -- keeps what was inside. Nothing places one any more.
@@ -1102,11 +1111,12 @@ C.CoreRange = 2
 -- Two fixtures answering on one square is a menu that offers to load a
 -- crystal into a hologram.
 --
--- So it is named rather than measured: its own square, the passage either
--- side of it, and the deck fore and aft. tests/test_layout.py holds the rule
+-- So it is named rather than measured: its own square, the passage west of
+-- it, and the two squares north-west of it, which is where a click aimed at
+-- a tall model lands. Not 2,4 aft of it: that is the Doctor's. tests/test_layout.py holds the rule
 -- for all three fixtures -- no fixture's menu squares may contain another
 -- fixture's own square, or the transporter pad.
-C.CoreMenuSpots = { {1,3}, {0,3}, {1,2}, {1,4}, {2,3} }
+C.CoreMenuSpots = { {2,3}, {1,3}, {1,2}, {2,2} }
 
 -- What a new ship is issued with, on top of the crystal it arrives burning.
 -- Three is enough to teach the player what they are for and not enough to
@@ -1195,7 +1205,7 @@ C.FuelToEnergy = 20
 C.PowerBusSound = "TrekBus"
 -- The galley fittings that are built as the engine's IsoStove, which is what
 -- makes them heat: an IsoObject wearing an oven's picture is a cupboard.
-C.StoveTags = { oven = true, microwave = true }
+C.StoveTags = { oven = true }
 
 -- Dilithium in the wild (server/TREK/TREK_Wild.lua), sandbox
 -- `TrekShuttle.WildDilithium`. Crystals lie on natural ground -- grass, dirt,
@@ -1766,14 +1776,15 @@ C.LegacyEmhSpot = { x = 2, y = 4 }
 -- prints, not this one. See the bat'leth in DEV_GUIDE.md.
 C.EmhHeight  = 1.25
 
--- Which squares offer his menu. The station, the square you stand on to work
--- it, the medical locker above it, his own square and the head of the biobed.
+-- Which squares offer his menu. His own square under the station, the deck
+-- forward of it, the head of the biobed and the deck beside it. Not 2,3:
+-- since the Starfleet refit that is the warp core's.
 --
 -- A list rather than a box, for the reason C.CoreMenuSpots is one: a box
 -- around a tall model reaches squares that belong to something else, and two
 -- fixtures answering on one square is how a player comes to be offered a
 -- crystal slot on a hologram.
-C.EmhMenuSpots = { {2,3}, {3,2}, {3,3}, {2,4}, {3,4} }
+C.EmhMenuSpots = { {3,2}, {3,3}, {2,4}, {3,4} }
 
 -- How close you have to stand to consult him, in tiles. The replicator's and
 -- the core's number: three fixtures a pace apart that took different reaches

@@ -7,7 +7,7 @@ A Star Trek Starfleet Type 6 shuttlecraft and the starship U.S.S. Adirondack for
 Plus a Tricorder, a PADD, six uniforms, a field pack, a shoulder lamp, perimeter phaser sentries and dilithium crystals.
 
 A SHUTTLE YOU CAN LIVE IN AND TRAVEL IN
-A cabin with a helm, a working galley, running water, a biobed, a sick bay, a replicator, a warp core and Starfleet lockers.
+A Starfleet cabin: helm, galley, running water, bunk, biobed, sick bay, replicator, warp core, armoury -- and Lt. Shepard's 1993 TV.
 - Right-click anywhere -> Shuttlecraft -> Beam up to the shuttle. Everyone nearby sees you sparkle away.
 - At the helm, click the map to lay in a course, then Take her down. You are beamed to the site and she follows.
 - Right-click open ground to call her down (she needs 3x5 clear tiles).

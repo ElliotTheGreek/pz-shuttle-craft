@@ -113,6 +113,11 @@ local function isDeck(o)
     if not deckSprites then
         deckSprites = { [C.Sprites.deckFloor] = true, [C.Sprites.padFloor] = true }
         if L.floor then deckSprites[L.floor] = true end
+        -- The floors the cabin was laid with before the Starfleet refit: a
+        -- save's deck is these until buildFloor swaps them.
+        for _, name in ipairs((L.legacy and L.legacy.floors) or {}) do
+            deckSprites[name] = true
+        end
     end
     local name = U.try("spriteName", function()
         local spr = o:getSprite()
@@ -389,7 +394,7 @@ function B.refitCabin()
                     local gone, out = removeLegacyBerth(sq)
                     removed, spilled = removed + gone, spilled + out
                 end
-                if ox == C.DilithiumSpot.x and oy == C.DilithiumSpot.y then
+                if ox == C.LegacyCoreSpot.x and oy == C.LegacyCoreSpot.y then
                     local gone, out = removeLegacyChamber(sq)
                     removed, spilled = removed + gone, spilled + out
                 end
@@ -466,6 +471,33 @@ end
 ---------------------------------------------------------------------------
 -- Hull
 ---------------------------------------------------------------------------
+--- True when a floor sprite is one the cabin laid before the Starfleet
+--- refit. Only these are ever swapped: a floor a player laid is theirs.
+local function legacyFloor(name)
+    for _, n in ipairs((L.legacy and L.legacy.floors) or {}) do
+        if n == name then return true end
+    end
+    return false
+end
+
+--- Gives a square's existing floor a new sprite, the way vanilla's own shovel
+--- does on the server (server/ClientCommands.lua:195, and the raid paths):
+--- setSprite, the blend edges taken off, and the sprite sent to every client.
+--- addFloor never replaces a floor that is there, so an old save's motel
+--- carpet would otherwise stay under the new cabin for ever.
+local function reFloor(sq, sprite)
+    local f = sq and U.try("reFloor.get", function() return sq:getFloor() end)
+    if not f then return false end
+    local name = U.try("reFloor.name", function() return f:getSprite():getName() end)
+    if name == sprite or not legacyFloor(name) then return false end
+    return U.try("reFloor", function()
+        f:setSprite(getSprite(sprite))
+        f:RemoveAttachedAnims()
+        f:transmitUpdatedSpriteToClients()
+        return true
+    end) == true
+end
+
 local function buildFloor()
     local made = 0
     for ox = -1, C.CabinW + 1 do
@@ -479,7 +511,9 @@ local function buildFloor()
                 local sprite = L.floor or C.Sprites.deckFloor
                 if C.isLanding(ox, oy) then sprite = C.Sprites.padFloor end
                 -- addFloor sends itself to clients.
-                if U.addFloor(x, y, C.CabinZ, sprite) then made = made + 1 end
+                local sq = U.addFloor(x, y, C.CabinZ, sprite)
+                if sq then made = made + 1 end
+                reFloor(sq, sprite)
             end
         end
     end
@@ -511,9 +545,25 @@ local function buildWalls()
     local wallN = L.wallN or C.Sprites.wallN
     local z = C.CabinZ
 
+    local legacy = {}
+    for _, n in ipairs((L.legacy and L.legacy.walls) or {}) do legacy[n] = true end
+
     local function wall(ox, oy, sprite)
         local x, y = at(ox, oy)
-        place(U.square(x, y, z, true), sprite, "wall")
+        local sq = U.square(x, y, z, true)
+        place(sq, sprite, "wall")
+        -- The Starfleet refit: the cabin's own old bulkhead on this edge
+        -- comes out once the new one stands. Only a tagged wall of a sprite
+        -- the cabin used -- a wall a player built is theirs (BUILDING.md).
+        if not sq then return end
+        local doomed = {}
+        U.eachObject(sq, function(o)
+            local md = U.try("md", function() return o:getModData() end)
+            if not (md and md.TREK == "wall") then return end
+            local name = U.try("spriteName", function() return o:getSprite():getName() end)
+            if name and legacy[name] then table.insert(doomed, o) end
+        end)
+        for _, o in ipairs(doomed) do removeSynced(sq, o) end
     end
 
     for ox = 0, C.CabinW do
@@ -862,7 +912,11 @@ local function prepareContainer(obj, entry)
     -- Explored, or vanilla rolls its own loot into it the first time a
     -- client opens it, on top of ours.
     container:setExplored(true)
-    if not wantsStock(entry) then
+    if not wantsStock(entry) or B.carryingOver then
+        -- B.carryingOver: the Starfleet refit is placing this container to
+        -- take what was in the old one, and a fresh stock on top of that is
+        -- the doubling *Never restock an existing container* forbids.
+        --
         -- Stamped even though nothing went in, so the repair path below never
         -- mistakes an empty-by-design container for one the old broken builds
         -- left unstocked and fills it years later.
@@ -1192,17 +1246,27 @@ local function furnishAuthoredInterior()
             elseif C.StoveTags[entry.tag] then
                 placeStove(sq, entry)
             elseif wantsContainer(entry) then
-                local obj, made = place(sq, entry.sprite, entry.tag, function(o)
-                    prepareContainer(o, entry)
-                end)
+                -- A container can be plumbed too: the galley sink holds the
+                -- ship's rations in its cupboard. The water store goes on in
+                -- the same prepare, before the object is sent.
+                local function prepare(o)
+                    if prepareContainer(o, entry) == false then return false end
+                    if isWater then addWaterStore(o) end
+                end
+                local obj, made = place(sq, entry.sprite, entry.tag, prepare)
+                if obj and not made and isWater and waterCapacity(obj) <= 0
+                   and U.itemCount(obj) == 0 then
+                    -- An empty plumbed container with no store: replaced
+                    -- whole, the only way every client gets the component.
+                    removeSynced(sq, obj)
+                    obj, made = place(sq, entry.sprite, entry.tag, prepare)
+                end
                 if obj and not made and not U.containerOf(obj) then
                     -- Placed as scenery by an old build: replace it with a
                     -- real container, sent whole. It had no inventory, so
                     -- there is nothing in it to lose.
                     removeSynced(sq, obj)
-                    place(sq, entry.sprite, entry.tag, function(o)
-                        prepareContainer(o, entry)
-                    end)
+                    place(sq, entry.sprite, entry.tag, prepare)
                 elseif obj and not made then
                     U.try("repairContainer:" .. tostring(entry.tag),
                           repairContainer, obj, entry)
@@ -1227,6 +1291,170 @@ local function furnishAuthoredInterior()
                     tostring(entry.tag), entry.x, entry.y))
         end
     end
+end
+
+---------------------------------------------------------------------------
+-- The Starfleet refit (INTERIOR_REFIT.md 9)
+---------------------------------------------------------------------------
+-- Every fitting in the cabin was vanilla's until revision 35 -- a motel's
+-- carpet, a gas station's walls, a hospital's bed, a fridge with magnets on
+-- it -- and now all of it but Lt. Shepard's television and her tapes is the
+-- Adirondack's. In a save made before that, every old fitting is still
+-- standing, tagged, and U.clearSquare keeps tagged things by design: the new
+-- cabin would be built *round* the old one. And five of the old containers
+-- are the player's shelves, and three more hold what is left of the ship's
+-- issue. So this is a migration, and it is the refit's rule again (*a pass
+-- that keeps things by policy cannot be the pass that removes them*).
+
+-- Where each old container's contents go. The key is the old fitting's tag;
+-- the value the tag of the new fitting that takes them. A tag with no entry
+-- (the counters, the microwave) has no successor, and what was in it goes
+-- onto the pad.
+B.CarryOver = {
+    fridge = "fridge", oven = "oven", tapes = "tapes", armoury = "armoury",
+    provisions = "sink", medical = "medical",
+}
+
+-- Every tag the cabin's fittings have carried, old layout and new.
+local FITTING_TAGS = {
+    console = true, tapes = true, tvConsole = true, television = true,
+    chair = true, fridge = true, oven = true, counter = true, sink = true,
+    microwave = true, armoury = true, provisions = true, medical = true,
+    biobed = true, bunk = true, sconce = true, lamp = true,
+}
+
+--- "x,y,sprite" -> the layout entry, for every fitting the new layout places.
+local function layoutKeys()
+    local keys = {}
+    for _, e in ipairs(L.tiles) do keys[e.x .. "," .. e.y .. "," .. e.sprite] = e end
+    return keys
+end
+
+--- The new fitting that inherits an old one's contents, or nil.
+local function successor(tag)
+    local want = B.CarryOver[tag]
+    if not want then return nil end
+    for _, e in ipairs(L.tiles) do
+        if e.tag == want and wantsContainer(e) then
+            local x, y = at(e.x, e.y)
+            local sq = U.square(x, y, C.CabinZ, false)
+            return sq and U.findSprite(sq, e.sprite), e
+        end
+    end
+    return nil
+end
+
+--- A tape left in the old television is ejected onto the new rack rather
+--- than lost with the set: vanilla's own eject (ISDeviceMediaAction:25) into
+--- the rack's container, each new item then sent to the clients that see it.
+local function ejectTape(tv)
+    local data = U.try("tv.data", function() return tv:getDeviceData() end)
+    if not data or U.try("tv.hasMedia", function() return data:hasMedia() end) ~= true then
+        return 0
+    end
+    local rack = successor("tapes")
+    local c = rack and U.containerOf(rack)
+    if not c then return 0 end
+    local before = U.try("rack.size", function() return c:getItems():size() end) or 0
+    U.try("tv.eject", function() data:removeMediaItem(c) end)
+    local after = U.try("rack.size", function() return c:getItems():size() end) or before
+    if isServer() then
+        for i = before, after - 1 do
+            U.try("tv.send", function() sendAddItemToContainer(c, c:getItems():get(i)) end)
+        end
+    end
+    return after - before
+end
+
+--- Brings a cabin built before revision 35 into Starfleet issue.
+---
+--- Runs after the walls and before the furnishing, and does the furnishing
+--- itself when there is anything to carry over, with stocking held off
+--- (B.carryingOver): the new armoury is to hold what the old one held, not a
+--- second issue on top of it. Stamped only once every square it looked at
+--- was loaded -- a nil square in an unloaded chunk means "ask again".
+function B.starfleetRefit()
+    local s = U.state()
+    if s.starfleet then return 0 end
+    -- **A ship never built has nothing to refit.** Played on 2026-09-30, a
+    -- new world's first build found the chunk north-west of the cabin not yet
+    -- streamed in, the refit waited for it, the furnishing waited for the
+    -- refit -- and the player was let aboard an empty cabin with only its two
+    -- world-model machines standing. Only a save with an old cabin in it has
+    -- anything to wait for.
+    if s.built ~= true then
+        s.starfleet = true
+        return 0
+    end
+    local keys = layoutKeys()
+
+    -- The squares a fitting or a wall of the old cabin can stand on: the hull
+    -- and the east and south edges its walls are drawn on. Not the ring to the
+    -- west and north, which only ever held floor (buildFloor re-sprites that
+    -- on every pass), and which is the ring most likely to be in a chunk that
+    -- has not loaded.
+    local old, unreachable = {}, 0
+    for ox = 0, C.CabinW + 1 do
+        for oy = 0, C.CabinL + 1 do
+            local x, y = at(ox, oy)
+            if not U.chunkLoaded(x, y, C.CabinZ) then
+                unreachable = unreachable + 1
+            else
+                local sq = U.square(x, y, C.CabinZ, false)
+                U.eachObject(sq, function(o)
+                    local md = U.try("md", function() return o:getModData() end)
+                    local tag = md and md.TREK
+                    if not (tag and FITTING_TAGS[tag]) then return end
+                    local name = U.try("spriteName", function() return o:getSprite():getName() end)
+                    if name and not keys[ox .. "," .. oy .. "," .. name] then
+                        table.insert(old, { sq = sq, obj = o, tag = tag, x = ox, y = oy })
+                    end
+                end)
+            end
+        end
+    end
+    if unreachable > 0 then
+        U.log("refit: %d squares of the cabin are not loaded yet; the Starfleet "
+              .. "refit waits for them", unreachable)
+        return 0
+    end
+
+    if #old > 0 then
+        -- The new cabin first, empty, so there is somewhere for things to go.
+        B.carryingOver = true
+        claimed = {}
+        U.resetStockCursors()
+        U.resetItemStrategy()
+        U.try("refit.furnish", furnishAuthoredInterior)
+        B.carryingOver = false
+    end
+
+    local moved, spilled, removed, tapes = 0, 0, 0, 0
+    for _, o in ipairs(old) do
+        if o.tag == "television" then tapes = tapes + ejectTape(o.obj) end
+        local target = successor(o.tag)
+        if target then
+            local m, left = moveContents(o.obj, target)
+            moved = moved + m
+            if left > 0 then spilled = spilled + spillToPad(o.obj) end
+        else
+            spilled = spilled + spillToPad(o.obj)
+        end
+        if removeSynced(o.sq, o.obj) then removed = removed + 1 end
+    end
+
+    -- The core stood at 1,3 before the refit; it stands at 2,3 now. The model
+    -- is all that moves -- the crystals are ship state (TREK_Power).
+    local lx, ly = at(C.LegacyCoreSpot.x, C.LegacyCoreSpot.y)
+    local cores = removeWorldItem(U.square(lx, ly, C.CabinZ, false), C.WarpCoreItem)
+
+    s.starfleet = true
+    if removed > 0 or cores > 0 then
+        U.log("refit: the cabin is Starfleet issue -- %d old fittings taken out, "
+              .. "%d items carried across, %d onto the pad, %d tape(s) out of the "
+              .. "old set, %d core model(s) moved", removed, moved, spilled, tapes, cores)
+    end
+    return removed
 end
 
 --- Stands the replicator's alcove over its berth.
@@ -1554,14 +1782,16 @@ function B.emhReport()
     return standing == 1
 end
 
---- The lamp fittings. The light they give is a client-side light source and
---- is hung by TREK_Core on each client; only the fixture is world state.
+--- The lights. The light they give is a client-side light source hung by
+--- TREK_Core on each client at C.LampSpots; since the Starfleet refit there
+--- is no fitting standing there -- the floor lamps were a motel's, and a
+--- Starfleet deck is lit from the deckhead, with a sconce on the bulkhead
+--- (the layout's `sconce`). The squares are still claimed, so a layout that
+--- put a fitting under a light is reported.
 local function fitLamps()
     for _, p in ipairs(C.LampSpots) do
-        if inShape(p[1], p[2]) and not C.isLanding(p[1], p[2])
-           and claim(p[1], p[2], "lamp") then
-            local x, y = at(p[1], p[2])
-            place(U.square(x, y, C.CabinZ, true), C.Sprites.lamp.S, "lamp")
+        if inShape(p[1], p[2]) and not C.isLanding(p[1], p[2]) then
+            claim(p[1], p[2], "lamp")
         end
     end
 end
@@ -1751,7 +1981,10 @@ end
 --- True when the cabin exists and was generated by the current revision.
 function B.cabinCurrent()
     local s = U.state()
-    return s.built == true and s.rev == C.BuildRev
+    -- And the Starfleet refit done: it waits for every square it looks at to
+    -- be loaded, and a cabin marked current is never built again, so one
+    -- that had to wait would otherwise keep its motel furniture for ever.
+    return s.built == true and s.rev == C.BuildRev and s.starfleet == true
 end
 
 --- Raises or repairs the cabin. Idempotent: every step checks for what it
@@ -1768,7 +2001,15 @@ function B.buildCabin()
         { "buildFloor",     buildFloor },
         { "buildRoof",      buildRoof },
         { "buildWalls",     buildWalls },
+        -- A save from before revision 35: the old cabin's fittings out, their
+        -- contents into the new ones (INTERIOR_REFIT.md 9).
+        { "starfleetRefit", B.starfleetRefit },
         { "furnish", function()
+              -- Not until the Starfleet refit has run: it furnishes the new
+              -- cabin itself, empty, to take the old one's contents, and a
+              -- stocked armoury placed while it waits for a square to load
+              -- would be the ship's issue twice over.
+              if not U.state().starfleet then return end
               claimed = {}
               U.resetStockCursors()
               U.resetItemStrategy()
