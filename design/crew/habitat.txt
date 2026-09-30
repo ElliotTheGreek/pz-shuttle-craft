@@ -354,7 +354,7 @@ b: Is that a man with a guitar on fire? | Is that a dolphin?
 
 = shuttle
 a: It's like Lieutenant Shepard's shuttle. She has one. | Shepard's got one.
-b: Shepard's shuttle has a refrigerator and a lamp. It's a museum.
+b: Shepard's shuttle has a television from 1993. It's a museum.
     | Shepard's shuttle is a field station. This is our quarters.
 a: It's cosy. It's human. | It makes it feel lived-in.
 b: It makes it feel like a teenager's bedroom. | Four hundred years ago.

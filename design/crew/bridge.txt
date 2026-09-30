@@ -334,9 +334,9 @@ sci: They have a soda I can't find in any Earth record.
 other: You have a subsection on cereal. | You catalogued the cereal.
 sci: Material culture, {other}. It's what Shepard came here for.
    | Shepard sent me the boxes. She'd want it catalogued properly.
-other: Is that why her shuttle's full of old furniture?
+other: Is that why there's a television in her shuttle?
 sci: That's method. She'll tell you so. At length.
-   | Specimens. Every chair of it. Don't call it clutter to her face.
+   | It's a specimen. Don't call it clutter to her face.
 -> street 1, hodgkin 2
 
 = calendar
@@ -730,7 +730,7 @@ on: For what? | What is it this time?
 off: A lamp. A floor lamp. From nineteen ninety-three. Kess said no.
    | A cassette deck. She says it's a specimen. I say it's a radio.
 third: We're going to need a bigger shuttle.
-    | Her shuttle's already got a fridge in it. A fridge.
+    | Her shuttle's already got a television in it. A television.
 -> end_off
 
 = end_off
@@ -1049,23 +1049,24 @@ weight: 2
 ops: Shepard's asked for her shuttle's manifest again. Third time today.
    | The shuttle's telemetry is in. Shepard wants a copy. Of course.
    | Shepard's on the comm. She wants to know her shuttle's all right.
-helm: What does she think happened to it? | She's worried about the lamps.
+helm: What does she think happened to it? | She's worried about the television.
     | She checks on that shuttle like it's a cat.
 ops: I'm reading her the manifest. Guess what's still on it.
    | Have you ever read that manifest? Guess what's on it.
 helm: A toaster. | A bicycle. | Another box of tapes.
 ops: Worse. | Close. Worse. | Not even close.
--> lamp 2, tv 2, chair 2
+-> tv 3, rack 2
 
-= lamp
-ops: A floor lamp. Nineteen ninety-three. Three brass arms.
-   | A lamp. The lamp has a fringe on it.
-helm: On a shuttle. A lamp, on a shuttle. | Doesn't a shuttle have lights?
-ops: It's not a lamp, she says. It's a specimen.
-   | It's evidence, apparently. Of a culture.
-helm: Evidence of what? | Of what, exactly?
-ops: Of how they lit a room. She sent me four paragraphs on it.
-   | Lighting as a cultural marker. There's a footnote about fringes.
+= rack
+ops: A tape rack. Starfleet issue. Full of nineteen ninety-three.
+   | The rack's regulation. What's on it isn't.
+helm: She had the quartermaster fit a rack. For video tapes.
+    | Kess signed for a rack for tapes. I saw the requisition.
+ops: Everything else in there is by the book. Except the television.
+   | Standard fit-out, bow to stern. And one television from 1993.
+helm: That's almost restrained, for her. | So one specimen. Just the one.
+ops: She says the set is the specimen. The tapes are what it eats.
+   | The one thing she couldn't bear to leave in a crate.
 -> method 2, visit 1
 
 = tv
@@ -1081,22 +1082,13 @@ ops: She's a historian. Family histories, mostly. It's a collection.
    | It's her archive. Fifty-year-old talent nights and all.
 -> method 2, visit 1
 
-= chair
-ops: A chair. A theatre chair. From a cinema.
-   | A reclining chair. The shuttle has a theatre chair in it.
-helm: Where does she put it? | That shuttle is a spaceship, not a living room.
-ops: Next to the fridge. | Next to the oven. She's got an oven.
-helm: She's got an oven. On a shuttle. | Does the oven work?
-ops: It works. She made bread in it. Grieg was jealous for a week.
-   | It works. Rhel wired it. He won't say how.
--> method 2, visit 1
 
 = visit
 helm: Have you been inside it? The field station?
     | I went over to the shuttle last week. Have you seen it?
-ops: Once. There's a rug. | Once. It smells like old paper.
-helm: It feels like somebody's house. Like a real house, down there.
-    | You forget you're on a shuttle. Then you look out the window.
+ops: Once. Regulation, all of it. | Once. It smells like old tape.
+helm: Standard cabin, bow to stern. Then you see the television.
+    | You forget it's hers. Then the television comes on.
 ops: That's the point, I think. | I think that's what she wanted.
 -> method
 
@@ -1132,13 +1124,13 @@ ops: I don't know. She didn't explain. She went white when she said it.
 ...
 ops: Glad she came up. | I'm glad she came up on the ninth.
    | We almost lost her. Right at the end.
-helm: So am I. Even with the lamps. | Lamps and all.
-    | She can have all the lamps she likes.
+helm: So am I. Even with the television. | Television and all.
+    | She can have all the tapes she likes.
 ops: Send her the manifest? | Shall I forward it to her quarters?
-helm: Send it. She'll want to know the lamps are safe.
+helm: Send it. She'll want to know the television's safe.
     | Forward it. Tell her the chair's still fine.
 ops: Somebody down there's living in her field station now.
-   | Whoever's down there now, I hope they like lamps.
+   | Whoever's down there now, I hope they like old tapes.
 helm: Then they've got good taste. | Shepard would say that's the point.
 -> end
 
@@ -1414,7 +1406,7 @@ where: bridge
 - Hodgkin's Law. Laboratory conditions. Who built the lab?
 - Their calendar says 1993. Ours says 2435. Fine. Fine.
 - Moonrise Road. Not on any Earth map. Adding it.
-- Shuttle telemetry's in. Still full of lamps. | Shepard wants the manifest.
+- Shuttle telemetry's in. Television still aboard. | Shepard wants the manifest.
 - Wild ground. Always wild ground. Never a town.
 - Transporter's on standby. | Pattern buffer's clear.
 

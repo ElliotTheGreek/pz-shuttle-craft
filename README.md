@@ -58,7 +58,8 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **The field station** | Muldraugh's electronics store, on the main road beside the Zippee, has a breaker box on its stockroom wall that is not a breaker box. Open it, and the lift behind it takes you down to a Starfleet survey station on one long floor -- living quarters along one side of its corridor; operations and its wall of screens watching the county, a galley with its own replicator, an armoury, an infirmary, a reactor and stores along the other -- staffed by some of the eleven who stayed on the ground, and running on its own dilithium. The Adirondack's crew talk about it; the station has not answered them since June. |
 | **Starfleet at home** | Install a warp core, a replicator and an EMH station in any house: carry the kit, right-click it, *Install here*. Load the core with dilithium and everything installed within 25 squares runs on it -- the replicator makes anything it knows, the Doctor treats and cures. The shuttle's replicator can make the kits, and the field station's stores hold a set. *Dismantle* packs a machine back into its kit. |
 | **Building aboard** | Build what you like in the shuttle's cabin, on the Adirondack and in the field station, and pick up and move the mod's own furniture as you would vanilla's. Nothing you build or move is undone by the ship; only the machines (replicators, warp cores, the Doctor's stations, the lift panels) stay put. |
-| **Stores** | Three Starfleet lockers — an armoury, the rations and the sick bay — and five containers left empty on purpose: the fridge, the oven, both counters and the microwave are yours to fill. |
+| **The cabin** | Starfleet issue bow to stern -- bulkheads, carpet, a stasis unit, a galley range and sink, a bunk, a biobed with its scanner arch -- except for Lt. Shepard's 1993 television and her rack of tapes. |
+| **Stores** | The armoury, the sick bay's cabinet and the rations under the galley sink hold the ship's issue; the stasis unit, the range and the TV cabinet are left empty on purpose for you to fill. |
 | **Shields** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed — no free experience, no free loot. Raise and lower them at the helm. |
 | **A shared ship** | In multiplayer there is one shuttle for everyone. Server owners can limit it to its owner and crew. |
 | **Bookmarks** | Log any position and set a course back to it later. |
@@ -205,13 +206,16 @@ that is fifteen, so the inside and the outside tell the same story.
 
 ```
     0123
-  0 TVLA      T monitor wall   V television   L tape shelf   A armoury
-  1 F*.p      F fridge   * lamp   p rations
-  2 oh.M      o oven   h crew seat   M sick bay
-  3 wD.H      w sink counter   D warp core   H the EMH and his station
-  4 m*.B      m microwave counter   B biobed (head)
+  0 KLVA      K bunk   L Shepard's tapes   V her television   A armoury
+  1 S*..      S stasis unit   * a light
+  2 G.h.      G galley range   h the chair, facing the television
+  3 w.DH      w galley sink (and the rations)   D warp core   H the EMH
+  4 M*.B      M sick bay cabinet   B biobed (head)
   5 R.@B      R the replicator   @ transporter pad   B biobed (foot)
 ```
+
+Every fitting is worked from open deck in front of it, and the tall ones stand
+against the two bulkheads the camera sees (INTERIOR_REFIT.md 9).
 
 Run `python tests/test_layout.py` to print this from the source, so it can
 never drift out of date with the code.

@@ -366,6 +366,12 @@ The ship is raised at runtime, the cabin's way, not shipped as lots:
 7. **New furniture goes at the end of `tools/adirondack_objects.py`.** The
    furniture sheet numbers its tiles in that list's order, and a tile's
    number is its sprite name in every save (`ARMOURY.md` 6).
+8. **The shuttle is built from her sheets too** since its Starfleet refit
+   (`INTERIOR_REFIT.md` 9): the last two entries, `tape_rack` and
+   `tv_cabinet`, are the shuttle's, box-modelled (`kind = "boxes"`,
+   `tools/shuttle_pieces.py`), and sheet 01's tile 27 is the shuttle's
+   transporter pad. A change to any piece the shuttle uses changes the
+   shuttle's cabin as well.
 
 **A roof one storey up.** Runtime decks have no rooms, so to the engine they
 were outdoors and it rained inside (1.10.0). Every deck and tube floor square

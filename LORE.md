@@ -61,15 +61,22 @@ the shelf exists — the tapes are *her collection*, not the ship's library, and
 it is why the bow of a shuttle has a row of somebody's favourite recordings in
 it.
 
-**The cabin is hers, and that is the retcon that pays for the whole mod.**
-Every vanilla object in this ship — the fridge, the oven, the counters, the
-theatre chair, the lamp, the lockers, the television — had no in-fiction reason
-to be aboard a Starfleet shuttle, and now it has one: **she collected them.**
-A survey specialist furnished her field station with what she was studying,
-because you cannot understand a people from orbit. Her department calls it
-method; the *Adirondack* called it clutter. One tape, and twenty-four squares
-of borrowed Project Zomboid furniture stop being a compromise and become a
-character trait.
+**The cabin is Starfleet's; the television and the tapes are hers.**
+*Changed 2026-09-30, with the Starfleet refit (INTERIOR_REFIT.md 9).* The
+cabin was built of vanilla furniture for a long time -- a fridge with magnets,
+a motel's carpet, a theatre chair, floor lamps -- and this paragraph used to
+say she collected all of it, because nothing else could explain it. Once the
+art pipeline could make a shuttle look like one, the explanation was no longer
+needed and the retcon was retired: every fitting aboard is standard issue,
+the Adirondack's own, **except one 1993 television and the tapes it plays**.
+Those she brought up herself, because you cannot understand a people from
+orbit. Her department calls it method; the *Adirondack* called it clutter.
+A shuttle that is regulation bow to stern with one wood-effect set in it says
+more about her than twenty-four squares of borrowed furniture did, and it is
+why the shelf is the one thing aboard with a person in it.
+
+The crew's jokes follow it: it is the television they tease her about now,
+never a lamp or a fridge (`design/crew/`, `content/captain/SHEPARD.json`).
 
 **The medium follows from the machine.** She dubbed her favourites down onto
 magnetic tape because that is what the television takes — videos, holos
@@ -265,14 +272,15 @@ worth keeping because they are reusable:
   lie and did not bother: *"No. But then I would not be calling you."* That
   leaves Shepard with something worse than a villain — an absence.
 - **The reason she leaves is a moved chair.** Entry six: nothing broken,
-  nothing taken, a chair in a different place. That is the theatre chair at 1,2
-  the player sits in to watch these tapes.
+  nothing taken, a chair in a different place. That is the chair in front of
+  her television (2,2 since the Starfleet refit) that the player sits in to
+  watch these tapes.
 
 Three things that structure settles, and they are worth more than the plot:
 
 - **Shepard is alive.** She ends entry six aboard the *Adirondack*, which is why
-  the player inherits a working shuttle with somebody's furniture in it rather
-  than a derelict with a body in it.
+  the player inherits a working shuttle with somebody's television and tapes
+  in it rather than a derelict with a body in it.
 - **The accusation is broken by the accused.** Section 31 is aboard, and the
   officer's denial in entry five is credible precisely because they had every
   reason to lie and didn't. That is a far better way out of a misdirection than
@@ -694,6 +702,15 @@ Unlike the uniform GUID table, this failure is loud.
 ## 3. Where the tapes live
 
 ### The shelf
+
+**Since the Starfleet refit (INTERIOR_REFIT.md 9) it is a rack, not a shelf:
+`tape_rack`, the mod's own tile (`trek_adirondack_02_214`), on the bow bulkhead
+at 1,0, with the television on its Starfleet cabinet beside it at 2,0.** It
+has vanilla's metal wall shelf's properties -- a wall object, capacity 30, no
+`solid` -- so 1,0 is still deck, which is now how the bunk in the corner is
+reached. The refit carried every tape across live, recordings and all, and
+ejected any tape left in the old set onto the new rack. What follows is the
+shelf's history, kept because the reasons in it still hold.
 
 The bow row is `y = 0`. The deck plan today:
 

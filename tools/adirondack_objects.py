@@ -336,6 +336,20 @@ OBJECTS += [
 ]
 
 
+OBJECTS += [
+    # --- the shuttle's own cabin (INTERIOR_REFIT.md) -------------------------
+    # LAST, as ever. The Starfleet refit of the shuttle is built from this
+    # sheet; these are the two things it needs that the Adirondack has not
+    # got. Modelled in boxes (tools/shuttle_pieces.py), not generated.
+    dict(name="tape_rack", area="shuttle", kind="boxes", w=1, d=1, h=1.94,
+         facings="WN", layer="WallFurniture",
+         use={"container": "metal_shelves", "capacity": 30}),
+    dict(name="tv_cabinet", area="shuttle", kind="boxes", w=1, d=1, h=0.50,
+         facings="WN", use={"container": "sidetable", "capacity": 30,
+                            "surface": 0.50}),
+]
+
+
 def by_name():
     return {o["name"]: o for o in OBJECTS}
 

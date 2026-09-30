@@ -617,6 +617,12 @@ added to `tools/deploy_windows.py`'s explicit wav list.
 
 ## 9. The galley made real
 
+> **Since the Starfleet refit (INTERIOR_REFIT.md 9)** the galley is the
+> Adirondack's: a stasis unit where the fridge stood (its container is
+> `fridge`, which is all `ItemContainer.isFridge` asks, so it cools off the
+> same bus) and a galley range built as an `IsoStove` where the oven stood.
+> The microwave is gone. Everything below about the bus holds unchanged.
+
 **The author chose this, and it is the largest unknown in the guide**, so it
 opens with research. The first finding is already in:
 

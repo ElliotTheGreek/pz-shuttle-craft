@@ -34,6 +34,7 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | The transporter as it is seen: sparkles leaving and arriving | `BEAM.md` | **Played** 2026-09-29. Another player's columns not yet confirmed with two people |
 | Galley food and drinks | `ITEMS.md` | **Played** |
 | Interior refit (4x6 cabin, three lockers) | `INTERIOR_REFIT.md` | Built. Only the television is **played** (it plays tapes). The migration from a 6x9 save has not been seen |
+| The Starfleet refit: the cabin in the Adirondack's furniture, Shepard's TV and tapes kept, the old save migrated | `INTERIOR_REFIT.md` 9 | Built 2026-09-30 (revision 35), not played. Wants a fresh world **and** an old save |
 | Replicator | `REPLICATOR.md` | **Played** (loads, 4913 items, places). The fixed right-click menu and the tree panel have not been seen since |
 | Dilithium and the warp core | `REPLICATOR.md`, `ENERGY.md` | Built. Crystals in wild ground (`TREK_Wild.lua`) came out of a cold-start play |
 | Energy: ledger, gauge, dark ship, shields, emergency landing | `ENERGY.md` | Built (phases 0-7) and not played |

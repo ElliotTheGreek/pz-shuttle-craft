@@ -22,7 +22,7 @@
         { "text": "Her logs are on the tape shelf in your cabin. Watch them." }
       ],
       "options": [
-        { "text": "Why is her shuttle full of furniture?", "go": "02" }
+        { "text": "Why is there a television in her shuttle?", "go": "02" }
       ]
     },
     {
@@ -30,7 +30,7 @@
       "tier": "1",
       "lines": [
         { "text": "She says you can't understand a people from orbit." },
-        { "text": "Her department calls it method. My quartermaster calls it clutter." }
+        { "text": "She logged it as a specimen. My quartermaster logged it as clutter." }
       ]
     },
     {
@@ -43,7 +43,7 @@
       ],
       "options": [
         { "text": "Why did she stay down so long?", "go": "20" },
-        { "text": "Why is her shuttle full of furniture?", "go": "12" }
+        { "text": "Why is there a television in her shuttle?", "go": "12" }
       ]
     },
     {
@@ -51,7 +51,7 @@
       "tier": "2",
       "lines": [
         { "text": "She says you can't understand a people from orbit." },
-        { "text": "Her department calls it method. My quartermaster calls it clutter." }
+        { "text": "She logged it as a specimen. My quartermaster logged it as clutter." }
       ]
     },
     {

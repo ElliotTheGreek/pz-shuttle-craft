@@ -726,7 +726,12 @@ function ObjectMT:createContainersFromSpriteProperties()
        -- A raid's outpost (RAIDS.md 3.1): the metal crate, and a small
        -- tent's front half -- its back half holds nothing, as in the tileset.
        or self.spriteName == "constructedobjects_01_46" or self.spriteName == "camping_01_3"
-       or (SIM.containerSprites and SIM.containerSprites[self.spriteName]) then
+       or (SIM.containerSprites and SIM.containerSprites[self.spriteName])
+       -- The mod's own tiles, read out of the tiledef it ships
+       -- (tests/test_multiplayer.py, SHIP_CONTAINERS): the shuttle's cabin is
+       -- built from them since the Starfleet refit, and a list of substrings
+       -- would have made every one of its lockers scenery.
+       or (SIM.shipContainers and SIM.shipContainers[self.spriteName]) then
         self.container = SIM.container(40)
         self.container.parentObject = self
         -- A fridge tile is a fridge and a freezer (V8: the combo's secondary
@@ -944,6 +949,16 @@ local function makeDeviceData(id, useDelta)
             return
         end
         self.isTurnedOn = v == true
+    end
+    -- The tape slot. removeMediaItem(container) is vanilla's eject
+    -- (ISDeviceMediaAction:25): the item goes into the container it is
+    -- handed, and the slot is empty.
+    function d:hasMedia() return self.media ~= nil end
+    function d:addMediaItem(item) self.media = item end
+    function d:removeMediaItem(container)
+        if not self.media then return end
+        container:AddItem(self.media)
+        self.media = nil
     end
     return d
 end

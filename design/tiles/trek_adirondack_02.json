@@ -1605,6 +1605,30 @@
   "layer": "Furniture",
   "use": {}
  },
+ "tape_rack": {
+  "area": "shuttle",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     214
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     213
+    ]
+   ]
+  },
+  "layer": "WallFurniture",
+  "use": {
+   "capacity": 30,
+   "container": "metal_shelves"
+  }
+ },
  "toilet": {
   "area": "quarters",
   "facings": {
@@ -1775,6 +1799,31 @@
   },
   "layer": "WallFurniture",
   "use": {}
+ },
+ "tv_cabinet": {
+  "area": "shuttle",
+  "facings": {
+   "N": [
+    [
+     0,
+     0,
+     216
+    ]
+   ],
+   "W": [
+    [
+     0,
+     0,
+     215
+    ]
+   ]
+  },
+  "layer": "Furniture",
+  "use": {
+   "capacity": 30,
+   "container": "sidetable",
+   "surface": 0.5
+  }
  },
  "wall_sconce": {
   "area": "any",

@@ -1,9 +1,15 @@
-# The interior refit: 54 squares down to 24
+# The interior refit: 54 squares down to 24, and then Starfleet issue
 
 **Built at revision 17, and changed since** by the EMH's station (revision 23),
 the tape shelf (27) and the galley's power bus (`ENERGY.md` 9.1). **Played:**
 the television, which plays the shelf's tapes. The rest of the list in section
 7 has not been walked, and the migration from a 6x9 save has not been seen.
+
+> **Revision 35 refitted the cabin again, in Starfleet issue: section 9.**
+> Sections 2 and 3 describe the vanilla-furnished cabin of revisions 17-34 and
+> are kept as the record of why it was shaped the way it was; the deck plan,
+> the fittings and the migration that are live now are in section 9, and
+> `python tests/test_layout.py` prints the plan as it is.
 
 The cabin is four squares across by six fore-and-aft, the lockers hold nothing
 but the mod's own items, and five of the nine containers start empty on
@@ -530,3 +536,199 @@ free: the cabin and its stock reaching a client, and whether a runtime
   work in a real save. (`TREK_Helm.lua`, `TREK_HelmBackdrop.png` and
   `TREK_HelmEmblem.png` are the LCARS *panel* and are unrelated.)
 - ~~**VHS tapes.**~~ Settled: the tape shelf at 2,0 (`LORE.md`).
+
+---
+
+## 9. The Starfleet refit (revision 35)
+
+**Built 2026-09-30. Not yet seen in game.**
+
+> *"when we first made this the shuttle interior was mostly vanilla parts and
+> the owner Lucy Shepard lore explained she set it up that way on purpose. Now
+> we have a much better art pipeline so we can and should make the interior
+> much more starfleet looking like a real shuttle interior ... Our shuttle
+> should still have a normal TV that shepard installed and the vhs tapes
+> everything else should be starfleet styled"*
+
+The cabin was a motel's carpet inside a gas station's walls, with a fridge
+that had magnets on it, a hospital bed, three green lockers and two floor
+lamps, and `LORE.md` 1a explained all of it: she collected them. The
+Adirondack's art pipeline (`ADIRONDACK.md` 7) had since made fifty pieces of
+Starfleet furniture that the game already loads, so the cabin is built from
+those now, and the retcon is retired. **Two things aboard are not Starfleet's,
+and both are Shepard's: her 1993 television and her tapes.**
+
+The look is the runabout's aft cabin and the Type-9's (`design/art/shuttle_interior/reference_sheet.png`,
+stills from TNG "Timescape", VOY "Threshold" and "Fury", and *Insurrection*):
+warm grey padded bulkheads with a light strip, grey-blue carpet, LCARS panels
+set into the walls, charcoal high-backed chairs, a biobed, and bunks built into
+the bulkheads.
+
+### 9.1 The deck plan
+
+```
+    0123
+  0 KLVA      K bunk                    L Shepard's tapes, on a wall rack
+  1 S*..      V her television, on a Starfleet cabinet    A the armoury
+  2 G.h.      S stasis unit (the fridge)    G galley range (the oven)
+  3 w.DH      w galley sink, and the rations in its cupboard
+  4 M*.B      M the sick bay's cabinet    h the chair, facing the set
+  5 R.@B      D warp core   H the Doctor   R replicator   B biobed   @ pad
+```
+
+**`tools/gen_shuttle_interior.py` is the plan.** It writes the `.tbx` (which
+`TREK_InteriorLayout.lua` is checked against), draws the cabin from the real
+tiles into `design/art/shuttle_interior/cabin.png`, and refuses a plan in which
+a fitting cannot be reached. Look at the picture after any change.
+
+Three rules decided where everything stands, and each came from getting it
+wrong first:
+
+1. **The camera sees two walls.** The game draws the cabin from the south-east,
+   so only the bow (north) and port (west) bulkheads show their faces. The old
+   three lockers stood against the starboard bulkhead facing west, and the room
+   saw their backs -- which is what "blank green boxes" in the screenshot were.
+   So everything tall stands against the bow or port wall; starboard has the
+   machines and the biobed, which read from any side. The Adirondack's wall
+   pieces come in `W` and `N` facings only for the same reason.
+2. **Every fitting is worked from open deck.** The first draft of this plan
+   had the range's front square under the chair, the sink's under the warp
+   core, and the bunk boxed in by the television and the stasis unit -- the
+   author spotted it from the mockup ("the warp core and chair and sink and
+   oven are all right on top of each other?"). The whole x = 1 passage is open
+   for the port wall's fronts, and y = 1 for the bow's; the core moved from
+   1,3 to 2,3 (`C.DilithiumSpot`, `C.LegacyCoreSpot`) and the chair from 1,2 to
+   2,2, which is also dead in front of the set. `tests/test_layout.py` walks
+   it: every open square joined to the pad, every standing fitting's `Facing`
+   square open, the biobed and the machines from any open side.
+3. **Wall objects cost no floor.** The tape rack is a wall object, so 1,0 is
+   deck -- which is how the bunk in the corner is reached.
+
+### 9.2 What is where
+
+| Square | Piece | Sprite | Tag | Holds |
+|---|---|---|---|---|
+| 0,0 | bunk (W) | `trek_adirondack_02_12` | `bunk` | -- (a bed, `averageBed`) |
+| 1,0 | **tape rack** (N) | `trek_adirondack_02_214` | `tapes` | her tapes |
+| 2,0 | **TV cabinet** (N) | `trek_adirondack_02_216` | `tvConsole` | nothing -- the player's |
+| 2,0 | her television | `appliances_television_01_1` | `television` | |
+| 2,0 | science display (N wall) | `trek_adirondack_02_177` | `console` | |
+| 3,0 | arms locker (N) | `trek_adirondack_02_208` | `armoury` | the issue, as before |
+| 0,1 | stasis unit (W) | `trek_adirondack_02_80` | `fridge` | nothing -- the player's |
+| 0,2 | galley range (W), an `IsoStove` | `trek_adirondack_02_191` | `oven` | nothing -- the player's |
+| 0,2 | wall display (W wall) | `trek_adirondack_01_40` | `console` | |
+| 0,3 | galley sink (W), plumbed | `trek_adirondack_02_76` | `sink` | the 27 rations |
+| 0,3 | wall sconce | `trek_adirondack_02_172` | `sconce` | |
+| 0,4 | medical cabinet (W) | `trek_adirondack_02_120` | `medical` | the instruments |
+| 2,2 | bridge chair (S-backed) | `trek_adirondack_02_89` | `chair` | |
+| 3,4-3,5 | biobed (N) | `trek_adirondack_02_114`/`115` | `biobed` | -- (`goodBed`) |
+
+Walls `trek_adirondack_01_0`/`_1`, the carpet `_24`, and **the pad `_27`**, a
+transporter pad set into the carpet (`transporter_pad()` in
+`tools/gen_adirondack_tiles.py`). The floor lamps are gone: the lights are
+still hung by each client at `C.LampSpots`, and nothing stands there.
+
+**Two new pieces, modelled in boxes** (`tools/shuttle_pieces.py`, rendered
+by `gen_adirondack_furniture.py` as `kind = "boxes"`, appended to the end of
+`adirondack_objects.py` so no existing tile moved -- `ADIRONDACK.md` 10.7):
+
+- **the tape rack** -- two shelves of spines with her handwritten labels on a
+  charcoal back plate. Its tile carries vanilla's metal wall shelf's
+  properties (`furniture_shelving_01_28`/`29`): a wall object, attached to its
+  wall, capacity 30, no `solid`.
+- **the TV cabinet** -- a low console, and `Surface` 20 with `IsTable`,
+  because the television is `IsSurfaceOffset` and is drawn at the height of
+  what it stands on. A table's `Surface` is its top in 1x pixels (a 0.95
+  counter is 35).
+
+**The rations moved into the galley sink's cupboard.** Five player containers
+became three (stasis unit, range, TV cabinet); the rations had to live
+somewhere the camera sees, and a galley keeps its food in the galley. The
+sink is both a container and plumbed, which the builder had never had:
+`furnishAuthoredInterior` now gives a container its water store in the same
+prepare, before the object is sent.
+
+**The stasis unit cools.** `ItemContainer.isFridge` is the container type
+string `fridge` and nothing else (bci 30-34), and the power bus powers it, so
+it is the fridge by the engine's own test. It has no freezer.
+
+### 9.3 The migration (`B.starfleetRefit`)
+
+An old save's cabin is still standing, tagged, and `U.clearSquare` keeps
+tagged things by design, so the new cabin would be built round the old one.
+It runs once, as a build phase after the walls:
+
+1. It notes every fitting tagged as the cabin's whose square-and-sprite is not
+   in the new layout.
+2. It furnishes the new cabin itself with stocking held off
+   (`B.carryingOver`) -- the new armoury is to take the old one's contents, not
+   a second issue on top of them.
+3. It moves each old container's contents, the live items, into its successor
+   (`B.CarryOver`: fridge -> stasis unit, oven -> range, the old rations
+   locker -> the sink, armoury, sick bay and tapes to theirs). What has no
+   successor -- the counters, the microwave -- goes onto the pad. A tape left
+   in the old television is ejected onto the new rack with vanilla's own
+   eject.
+4. It takes the old fittings out, and the warp core's model off 1,3 (the
+   crystals are ship state; only the model moves).
+
+Floors and walls are swapped by their own phases. **`addFloor` never replaces
+a floor**, so an old save's carpet is re-sprited in place the way vanilla's
+shovel does it on the server (`setSprite`, `RemoveAttachedAnims`,
+`transmitUpdatedSpriteToClients`); the walls come out once the new one on that
+edge stands. Both touch only the sprites the cabin itself used
+(`L.legacy`) -- a floor or wall a player laid is theirs.
+
+**It waits for every square to be loaded, and the cabin is not current until
+it has run.** And nothing is furnished while it waits: the first version let
+the ordinary furnishing phase run in the meantime, which put a freshly stocked
+armoury beside the old one -- the whole issue twice. The test that found it is
+the one below; it had first been written to call the refit directly, which
+could not see it.
+
+`tests/test_multiplayer.py`'s `starfleet_refit()` builds an old save's cabin
+from `tests/fixtures/TREK_InteriorLayout_rev34.lua` with today's builder,
+fills its containers, and refits it: nothing of the old cabin left, each
+player's thing in the right successor or on the pad, the armoury and the tapes
+not issued twice, the tapes still recorded, the core moved, and the wait for
+unloaded ground. `starfleet_refit_mp()` checks the floor swap reaches a client.
+Fourteen mutations, one at a time, all caught -- two only after the test was
+rewritten to build the whole cabin under a partial load.
+
+### 9.4 The story
+
+`LORE.md` 1a is rewritten: the cabin is standard issue and the television is
+the one specimen she brought up. Log One's cabin section says so in the same
+number of lines (so no line key moved), the first call's "every lamp" is her
+television, Captain Titus is asked why there is a television in the shuttle,
+and the Adirondack's crew tease Shepard about her television and her tape rack
+rather than a fringed lamp and a fridge (`design/crew/bridge.txt`,
+`engineering.txt`, `habitat.txt`). Log Six's moved chair is still the chair in
+front of the set.
+
+### 9.5 What to check in game
+
+**In a fresh world:**
+
+1. **The look.** Beam up. It should read as a Starfleet cabin with one 1993
+   television in it. The TV should stand *on* its cabinet, not float over it
+   or sink into it -- that is the `Surface` value.
+2. **Walk it.** Every fitting from the square in front of it: the bunk from
+   1,0, the rack from 1,0, the TV from 2,1, the armoury from 3,1, the galley and
+   the cabinet down the x = 1 passage, the core from 1,3 or 3,3, the Doctor's
+   square from 3,2.
+3. **Sleep** in the bunk and in the biobed; **sit** in the chair and watch a
+   tape.
+4. **The galley**: the stasis unit keeps food cold, the range cooks, the sink
+   runs, and the rations are in the sink's cupboard.
+5. **The walls hold** (section 7, item 9) -- the Adirondack's bulkhead carries
+   industry_01's properties, as the old walls did.
+
+**In a save from before this** -- the part that most needs a real world:
+
+6. Beam up. None of the old furniture anywhere, inside or outside the hull;
+   whatever was in the fridge in the stasis unit, the oven's in the range, the
+   old rations in the sink, the counters' and the microwave's on the pad; the
+   armoury and the tape rack holding exactly what they held, not twice as
+   much; the carpet and the pad swapped under your feet.
+   `grep "refit:" console.txt` reports what it moved.

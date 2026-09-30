@@ -1606,6 +1606,33 @@ turned round: **an object's picture is state, not identity.** Anything that
 changes how something looks -- a door, a stove switched on, a crop growing --
 cannot be found again by the look.
 
+### The camera sees two walls, and a fitting is worked from the square it faces
+
+**New in this mod, with the Starfleet refit (INTERIOR_REFIT.md 9), and the
+author found the second half of it from a mockup.** Two facts about a
+runtime interior that no property in the tileset states:
+
+- **Only the north and west walls face the camera.** The game draws from the
+  south-east and cuts away the south and east walls, so a locker backed onto
+  the east bulkhead shows the room its back. The cabin's three green lockers
+  read as blank boxes for fifteen revisions for exactly this reason. Anything
+  tall stands against the north or west wall; the other two sides get things
+  that read from any angle. It is also why the Adirondack's wall pieces are
+  drawn in `W` and `N` only.
+- **A fitting is worked from the square its `Facing` looks at, and that square
+  has to be open deck.** The first Starfleet plan put the range's front under
+  the chair, the sink's under the warp core, and boxed the bunk in -- every
+  square accounted for, every fitting placed, and three of them unusable. "The
+  warp core and chair and sink and oven are all right on top of each other?"
+  `tests/test_layout.py` now walks it (every open square joined to the pad,
+  every standing fitting's front square among them) and
+  `tools/gen_shuttle_interior.py` refuses such a plan before it is drawn.
+
+And one that is about the migration rather than the room: **`addFloor` never
+replaces a floor.** A runtime interior's floor is whatever was laid first, for
+the life of the save; changing it means re-spriting the floor object in place
+on the server, as vanilla's shovel does (`reFloor` in `TREK_Build`).
+
 ### The interior is authored in BuildingEd, not in the code
 
 `server/TREK/TREK_Build.lua` builds the deck, walls, lamp fittings and the
@@ -1613,6 +1640,12 @@ helm item.
 **Everything else — every fitting, every locker — comes from
 `design/buildinged/TrekShuttle_Interior.tbx`** and is read at runtime out of
 `TREK_InteriorLayout.lua`. To move a locker, open the map editor, not the Lua.
+Since the Starfleet refit the `.tbx` is written by `tools/gen_shuttle_interior.py`
+(the plan, its picture and its reach check in one place) until the author saves
+it in BuildingEd, after which it is theirs and the generator will not overwrite
+it without `--force`. Its tiles are the Adirondack's, so `tools/tilecatalog.py`
+is the catalogue every check reads -- vanilla's `tiles.json` and the mod's own
+tiledef in one table.
 
 Layering on one square is deliberate here (a counter with a microwave on it, a
 console over a desk), so `furnishAuthoredInterior` bypasses the `claim()` check
@@ -2475,6 +2508,7 @@ python tools/gen_fuse_box.py                      # the field station's breaker 
 python tools/gen_adirondack_furniture.py          # her furniture, rendered into tiles (ADIRONDACK.md 7)
 python tools/gen_adirondack_crops.py              # the crops' growth sprites (FARMING.md)
 python tools/gen_adirondack_pack.py               # her texture pack, tiledef and seating
+python tools/gen_shuttle_interior.py              # the shuttle's cabin: its .tbx, its picture, its reach check
 python tools/compose_adirondack.py                # the BuildingEd sections stacked into the ship
 python tools/gen_adirondack_lua.py                # the layout her decks and tubes are built from
 python tools/preview_model.py <mesh> <texture> out.png [yaw]
@@ -2604,6 +2638,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **A television, stove or switch is drawn and cannot be used** | It was built with `IsoObject.new`, so it is an `IsoObject` wearing that sprite. The engine picks the class from what built the object, not from the picture. See *A sprite is not the object the engine builds from it*. |
 | **A fitting refuses to go somewhere that is obviously empty** | Something on that square is being treated as an obstacle that is not one. Wall objects and lamps carry neither `solid` nor `solidtrans`; read `tools/_catalog/tiles.json`, do not assume. |
 | **Furniture standing in the black void outside the hull** | Cabin geometry moved and nothing named the old squares. `U.clearSquare` keeps tagged objects and dropped items by design, so a shrink is a migration. `grep "refit:" console.txt`. |
+| **Old 1993 furniture still standing in the shuttle, or the armoury holding twice its issue** | The Starfleet refit (`B.starfleetRefit`) has not run, or ran while the ordinary furnishing did too. It waits for every square round the cabin to load and nothing is furnished until it has run; `grep "refit:" console.txt` says which. See INTERIOR_REFIT.md 9.3. |
 | **A container in the cabin is empty and that is fine** | Five of them are the player's shelves. Only entries with `loot` or `special` are stocked; `wantsStock` is why they do not each log a WARN. |
 | **A right-click offers nothing for a mod item** | Build 42 has no script hook for "using" an arbitrary item; it has to be an `OnFillInventoryObjectContextMenu` option. And an entry in that event's `items` is either an `InventoryItem` **or** a stack table with its own `items` list — code that handles one shape silently does nothing for the other. |
 | **A panel is fine with a mouse and dead on the Steam Deck** | It is not an `ISPanelJoypad`, or its buttons were never registered with `insertNewLineOfButtons`. Note that vanilla's `ISHealthPanel` *is* one already. |
@@ -2665,7 +2700,7 @@ Learn these; they map to causes that are not obvious from the symptom.
 | `tests/test_stock.py` | items that cannot be created at all; loot that does not spread across its list; containers that do not reach `C.FillFraction` |
 | `tests/test_multiplayer.py` | the real code as single player and as a server with two clients: flight (one altitude, no climb or dive, a levelling pass that keeps her heading at every point of the compass, the shut hatch, and the beam that sends her back up), cabin build and stock reaching every client, ownership and crew, transporter charges, landing round trips, ghosts, shields pushing only local zombies, the torpedoes, the medical set (including that a dose leaves a bite and the infection alone), the replicator (the catalogue's filter, patterns, the reserve, a counted tray and all three sandbox values), the EMH (the menu, one Doctor standing square, a treatment that leaves the bite, a cure that clears both levels and the moodle for a crystal and twelve hours, consent raised on the patient's screen and nowhere else), a client editing the world or ship state, commands without handlers, missing file guards, role-gated setters, every `deny()` reason having words behind it, any logged `WARN` |
 | `tests/test_helm.py` | the mod's panels -- the helm console, the tricorder's contact plot, the replicator and the EMH's dialogue -- for throws, draws out of bounds, clipped labels, dead controls, controller-unreachable buttons |
-| `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; `special` names with no rule behind them; the replicator's berth, the core's square and the EMH's; **no fixture's menu squares containing another fixture's own square or the pad**; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
+| `tests/test_layout.py` | fittings outside the hull, on the pad or stacked; containers not flagged as containers; loot lists that do not exist; `special` names with no rule behind them; the replicator's berth, the core's square and the EMH's; **no fixture's menu squares containing another fixture's own square or the pad**; **a fitting whose front square is not open deck, or open deck nobody can walk to from the pad**; the Lua drifting from the `.tbx`; multi-tile offsets vs `SpriteGridPos`; the footprint against the mesh |
 
 `test_stock.py` stubs the engine **the way it really behaves** — `instanceItem`
 present, `InventoryItemFactory` nil — and its first assertion is simply that an
@@ -3343,6 +3378,20 @@ engine's own server-side `Hit`, the one `IsoTrap` uses. Three in the armoury
 harness learned that a search text found twice mutates the first, which was
 the wrong line. **Not seen in game.**
 
+**The 2026-09-30 Starfleet refit** (INTERIOR_REFIT.md 9, build revision 35):
+the shuttle's cabin rebuilt from the Adirondack's sheets -- bulkheads, carpet,
+a transporter pad set into it, a stasis unit and galley range, a bunk, the
+Starfleet biobed -- with two new box-modelled pieces, a tape rack and a TV
+cabinet, and only Lt. Shepard's 1993 television and her tapes left as they
+were. The layout was redrawn so every fitting is worked from open deck and
+everything tall faces the camera (the new rule above); the warp core moved to
+2,3. An old save is migrated in place, contents carried live into each
+fitting's successor. `LORE.md` 1a's "she collected the furniture" is retired,
+and the tapes, calls, the Captain and the crew talk about her television
+instead. Fourteen mutations, one at a time, all caught -- one found a real
+bug, a doubled armoury while the refit waited for a square to load. **Not
+seen in game.**
+
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
 
@@ -3361,7 +3410,11 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_Net.lua              client -> server 
 TrekShuttle/42/media/lua/shared/TREK/TREK_Power.lua            each fitting's own cell, and the ship's dilithium reserve
 TrekShuttle/42/media/lua/shared/TREK/TREK_Ship.lua             publishing the ship state, access rules
 TrekShuttle/42/media/lua/shared/TREK/TREK_World.lua            read-only landing and standing queries
-TrekShuttle/42/media/lua/shared/TREK/TREK_InteriorLayout.lua   the interior as data + loot
+TrekShuttle/42/media/lua/shared/TREK/TREK_InteriorLayout.lua   the interior as data + loot (Starfleet issue since revision 35)
+tools/gen_shuttle_interior.py                                  the cabin's plan: its .tbx, its picture, its reach check
+tools/shuttle_pieces.py                                        the tape rack and the TV cabinet, in boxes
+tools/tilecatalog.py                                           vanilla's tiles and the mod's own, by sprite name
+tests/fixtures/TREK_InteriorLayout_rev34.lua                   the cabin as revision 34 laid it out, for the refit's test
 TrekShuttle/42/media/lua/server/TREK/TREK_Build.lua            cabin construction, stock, water
 TrekShuttle/42/media/lua/server/TREK/TREK_Server.lua           command handlers, hull, ghosts, charges
 TrekShuttle/42/media/lua/client/TREK/TREK_Core.lua             asking to move, arrival, hatch, shields, lights

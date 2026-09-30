@@ -42,6 +42,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LUA = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua")
 SIM = os.path.join(ROOT, "tests", "pz_sim.lua")
 
+# Which of the mod's own tiles hold things, from the tiledef the game loads
+# (tools/tilecatalog.py). pz_sim decides containers by sprite name, and the
+# shuttle's cabin is built from these since the Starfleet refit.
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+import tilecatalog  # noqa: E402
+SHIP_CONTAINERS = sorted(n for n, p in tilecatalog.ours().items() if p.get("container"))
+if len(SHIP_CONTAINERS) < 20:
+    raise SystemExit(f"only {len(SHIP_CONTAINERS)} container tiles read from the tiledef")
+
 failures = []
 
 
@@ -110,6 +119,10 @@ class Runtime:
                          f'{path}/server/?.lua;" .. package.path')
         self.lua.execute(open(SIM, encoding="utf-8").read())
         self.lua.execute(APPLY)
+        ship = self.lua.eval("{}")
+        for name in SHIP_CONTAINERS:
+            ship[name] = True
+        g.SIM.shipContainers = ship
 
     def load(self):
         # The game loads every .lua under media/lua, so the simulation has to
@@ -2280,7 +2293,7 @@ def refit():
         local C, U = TREK.Config, TREK.Util
         U.state().refitRev = nil
         U.state().crystals = 1
-        local x, y = U.at(C.DilithiumSpot.x, C.DilithiumSpot.y)
+        local x, y = U.at(C.LegacyCoreSpot.x, C.LegacyCoreSpot.y)
         local sq = SIM.rawSquare(x, y, C.CabinZ)
         local o = SIM.object("location_business_machinery_01_33")
         o.square = sq
@@ -2296,7 +2309,7 @@ def refit():
 
     cabinet = rt.eval("""(function()
         local C, U = TREK.Config, TREK.Util
-        local x, y = U.at(C.DilithiumSpot.x, C.DilithiumSpot.y)
+        local x, y = U.at(C.LegacyCoreSpot.x, C.LegacyCoreSpot.y)
         for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
             if o.modData and o.modData.TREK == C.LegacyDilithiumTag then
                 return true
@@ -2341,11 +2354,13 @@ def refit():
     # would delete the cabin's own lockers and their stock -- silently, and
     # only in somebody's existing save.
     containers, stocked, _, wanted = cabin_objects(rt)
-    # Nine: the galley's five, the three stocked lockers and the tape shelf.
-    # Neither of the ship's two machines is among them -- the replicator stood
-    # on a counter once and the warp core was a tool cabinet, and both of those
-    # were fixtures leaning on other fixtures.
-    check(containers == 9 and stocked == wanted,
+    # Seven since the Starfleet refit: the stasis unit, the range and the TV
+    # cabinet (the player's), the galley sink with the rations, the armoury,
+    # the sick bay's cabinet and the tape rack. Neither of the ship's two
+    # machines is among them -- the replicator stood on a counter once and the
+    # warp core was a tool cabinet, and both of those were fixtures leaning on
+    # other fixtures.
+    check(containers == 7 and stocked == wanted,
           f"refit: the sweep ate the new cabin -- {containers} containers "
           f"left, {stocked} of {wanted} still stocked")
 
@@ -2353,6 +2368,328 @@ def refit():
         fail(f"refit: {w}")
     print("refit: the old cabin's fittings and the helm prop are removed, "
           "their contents spilled onto the pad, and the new cabin untouched")
+
+
+# The cabin as revision 34 laid it out (tests/fixtures), and the constants that
+# went with it, put in place of the live layout so a test can build an old
+# save's cabin with today's builder -- then put back, and the refit run.
+OLD_CABIN = os.path.join(ROOT, "tests", "fixtures",
+                         "TREK_InteriorLayout_rev34.lua").replace(os.sep, "/")
+USE_OLD_CABIN = f"""
+    local C = TREK.Config
+    local L = require "TREK/TREK_InteriorLayout"
+    SIM.newCabin = {{ tiles = L.tiles, floor = L.floor, wallW = L.wallW, wallN = L.wallN,
+                     core = C.DilithiumSpot, pad = C.Sprites.padFloor }}
+    local old = dofile("{OLD_CABIN}")
+    L.tiles, L.floor, L.wallW, L.wallN = old.tiles, old.floor, old.wallW, old.wallN
+    C.DilithiumSpot = C.LegacyCoreSpot
+    C.Sprites.padFloor = "floors_interior_tilesandwood_01_1"
+    C.StoveTags.microwave = true
+"""
+USE_NEW_CABIN = """
+    local C = TREK.Config
+    local L = require "TREK/TREK_InteriorLayout"
+    local n = SIM.newCabin
+    L.tiles, L.floor, L.wallW, L.wallN = n.tiles, n.floor, n.wallW, n.wallN
+    C.DilithiumSpot, C.Sprites.padFloor = n.core, n.pad
+    C.StoveTags.microwave = nil
+"""
+
+
+def starfleet_refit():
+    """An old save's cabin, all 1993, brought into Starfleet issue (INTERIOR_REFIT.md 9).
+
+    The cabin is built as revision 34 built it, from the old layout, and the
+    player's things are put in its containers; then the live layout comes back
+    and the ship is brought up to date the way a save is, by ensureCabin. What
+    has to be true afterwards is what a player would check: none of the old
+    furniture left, nothing lost, nothing issued twice, and the tapes still
+    carrying their recordings.
+    """
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('shepard', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run(USE_OLD_CABIN)
+    rt.run("TREK.Transport.beamUp(SIM.players[1])")
+    net.pump(180)
+    if died(rt, "starfleet refit, the old cabin"):
+        return
+
+    def where(tag, layout="old"):
+        return rt.eval(f"""(function()
+            local L = {'dofile("' + OLD_CABIN + '")' if layout == "old" else 'require "TREK/TREK_InteriorLayout"'}
+            for _, e in ipairs(L.tiles) do
+                if e.tag == "{tag}" and (e.container or e.loot or e.special) then
+                    return e.x .. "," .. e.y .. "," .. e.sprite
+                end
+            end end)()""")
+
+    # The player's things, in the old containers: a meal in the fridge and a
+    # pistol in the armoury (both carried across), a hammer in the microwave
+    # and a screwdriver on a counter (no successors: onto the pad). And the
+    # old cabin's two floor lamps, which the builder no longer places.
+    rt.run("""
+        local C, U, B = TREK.Config, TREK.Util, TREK.Build
+        local function put(tag, id, mark)
+            local L = dofile(SIM.oldCabinPath)
+            for _, e in ipairs(L.tiles) do
+                if e.tag == tag and (e.container or e.loot or e.special) then
+                    local x, y = U.at(e.x, e.y)
+                    local o = U.findSprite(SIM.rawSquare(x, y, C.CabinZ), e.sprite)
+                    local it = instanceItem(id)
+                    it.modData.mine = mark
+                    o.container:AddItem(it)
+                    return
+                end
+            end
+            error("no old " .. tag)
+        end
+        SIM.oldCabinPath = SIM.oldCabinPath
+        put("fridge", "Base.Hammer", "stew")
+        put("armoury", "Base.Pistol", "sidearm")
+        put("microwave", "Base.Hammer", "popcorn")
+        put("counter", "Base.Screwdriver", "tool")
+        put("provisions", "Base.Hammer", "ration")
+        -- A tape left in the old set: it is ejected onto the new rack.
+        for ox = 0, C.CabinW do for oy = 0, C.CabinL do
+            local x, y = U.at(ox, oy)
+            for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+                if o.modData.TREK == "television" and o:getDeviceData() then
+                    local it = instanceItem("TrekShuttle.TrekTape")
+                    it.modData.mine = "watching"
+                    o:getDeviceData():addMediaItem(it)
+                end
+            end
+        end end
+        for _, p in ipairs(C.LampSpots) do
+            local x, y = U.at(p[1], p[2])
+            local o = SIM.object("lighting_indoor_01_32")
+            o.square = SIM.rawSquare(x, y, C.CabinZ)
+            o.modData.TREK = "lamp"
+            table.insert(o.square.objects, o)
+        end
+    """.replace("SIM.oldCabinPath = SIM.oldCabinPath", f'SIM.oldCabinPath = "{OLD_CABIN}"')
+         .replace("dofile(SIM.oldCabinPath)", f'dofile("{OLD_CABIN}")'))
+
+    def count_in(tag_where, ident):
+        x, y, sprite = tag_where.split(",", 2)
+        return int(rt.eval(f"""(function()
+            local C, U = TREK.Config, TREK.Util
+            local sx, sy = U.at({x}, {y})
+            local o = U.findSprite(SIM.rawSquare(sx, sy, C.CabinZ), "{sprite}")
+            if not o or not o.container then return -1 end
+            local n = 0
+            for _, it in ipairs(o.container.items) do
+                if (it.fullType or it:getFullType()) == "{ident}" then n = n + 1 end
+            end
+            return n end)()"""))
+
+    old_armoury, old_tapes = where("armoury"), where("tapes")
+    phasers_before = count_in(old_armoury, "TrekShuttle.TrekPhaser")
+    tapes_before = count_in(old_tapes, "TrekShuttle.TrekTape")
+    check(phasers_before >= 4 and tapes_before >= 5,
+          f"starfleet refit: the old cabin was never stocked ({phasers_before} "
+          f"phasers, {tapes_before} tapes) -- the test would prove nothing")
+    titles_before = rt.eval(f"""(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at({old_tapes.split(",")[0]}, {old_tapes.split(",")[1]})
+        local o = U.findSprite(SIM.rawSquare(x, y, C.CabinZ), "{old_tapes.split(",", 2)[2]}")
+        local t = {{}}
+        for _, it in ipairs(o.container.items) do
+            local md = it:getMediaData()
+            table.insert(t, md and md:getId() or "BLANK")
+        end
+        table.sort(t)
+        return table.concat(t, ";") end)()""")
+
+    # --- the save loads with this build: the refit runs ---------------------
+    rt.run(USE_NEW_CABIN)
+    rt.run("local s = TREK.Util.state(); s.rev = 34; s.starfleet = nil")
+
+    # A square it looks at is not loaded yet: it waits, and says so, and the
+    # cabin is not current -- or the motel furniture would stay for ever.
+    rt.run("""
+        local C, U = TREK.Config, TREK.Util
+        local hx, hy = U.at(C.CabinW + 1, 0)
+        SIM.realLoaded = SIM.loaded
+        SIM.loaded = function(x, y)
+            if math.floor(x) == hx and math.floor(y) == hy then return false end
+            return SIM.realLoaded(x, y)
+        end
+    """)
+    check(rt.eval("TREK.Build.starfleetRefit()") == 0,
+          "starfleet refit: it ran with part of the cabin not loaded")
+    # And the whole build in that state: it stamps the revision, so a cabin
+    # that counted as current then would never be built -- or refitted --
+    # again, and would keep its motel furniture for the life of the save.
+    rt.run("TREK.Build.ensureCabin()")
+    check(ship(rt, "starfleet") is None and rt.eval("TREK.Build.cabinCurrent()") is False,
+          "starfleet refit: it called itself done, or the cabin current, with a square unloaded")
+    rt.run("SIM.loaded = SIM.realLoaded")
+    rt.run("TREK.Build.ensureCabin()")
+    check(ship(rt, "starfleet") is True and rt.eval("TREK.Build.cabinCurrent()") is True,
+          "starfleet refit: the cabin was brought up to date and the refit never marked done")
+
+    # --- nothing of the old cabin is left standing --------------------------
+    leftovers = rt.eval(f"""(function()
+        local C, U = TREK.Config, TREK.Util
+        local old = dofile("{OLD_CABIN}")
+        local oldSprites = {{ [old.floor] = true, [old.wallW] = true, [old.wallN] = true,
+                             ["lighting_indoor_01_32"] = true,
+                             ["floors_interior_tilesandwood_01_1"] = true }}
+        for _, e in ipairs(old.tiles) do
+            if e.sprite ~= "appliances_television_01_1" then oldSprites[e.sprite] = true end
+        end
+        local found = {{}}
+        for ox = -1, C.CabinW + 1 do for oy = -1, C.CabinL + 1 do
+            local x, y = U.at(ox, oy)
+            local sq = SIM.rawSquare(x, y, C.CabinZ)
+            for _, o in ipairs(sq.objects) do
+                if oldSprites[o.spriteName] then
+                    table.insert(found, ox .. "," .. oy .. " " .. o.spriteName)
+                end
+            end
+            local f = sq:getFloor()
+            if f and oldSprites[f.spriteName] then
+                table.insert(found, ox .. "," .. oy .. " floor " .. f.spriteName)
+            end
+        end end
+        return table.concat(found, "; ")
+    end)()""")
+    check(leftovers == "", f"starfleet refit: the old cabin is still there: {leftovers}")
+
+    tvs = int(rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local n = 0
+        for ox = 0, C.CabinW do for oy = 0, C.CabinL do
+            local x, y = U.at(ox, oy)
+            for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+                if o.modData and o.modData.TREK == "television" then n = n + 1 end
+            end
+        end end
+        return n end)()"""))
+    check(tvs == 1, f"starfleet refit: {tvs} televisions aboard -- Shepard has one")
+
+    # --- nothing lost, nothing issued twice ----------------------------------
+    def marked(mark):
+        """Where an item marked `mark` ended up: a new fitting's tag, or 'pad'."""
+        return rt.eval(f"""(function()
+            local C, U = TREK.Config, TREK.Util
+            local L = require "TREK/TREK_InteriorLayout"
+            for _, e in ipairs(L.tiles) do
+                local x, y = U.at(e.x, e.y)
+                local o = U.findSprite(SIM.rawSquare(x, y, C.CabinZ), e.sprite)
+                for _, it in ipairs(o and o.container and o.container.items or {{}}) do
+                    if it.modData.mine == "{mark}" then return e.tag end
+                end
+            end
+            local x, y = U.at(C.Landing.x, C.Landing.y)
+            for _, w in ipairs(SIM.rawSquare(x, y, C.CabinZ).worldObjects or {{}}) do
+                if w.item and w.item.modData.mine == "{mark}" then return "pad" end
+            end
+            return "lost" end)()""")
+
+    for mark, want in (("stew", "fridge"), ("sidearm", "armoury"), ("ration", "sink"),
+                       ("watching", "tapes"),
+                       ("popcorn", "pad"), ("tool", "pad")):
+        got = marked(mark)
+        check(got == want, f"starfleet refit: the {mark} went to {got!r}, not {want!r}")
+
+    new_armoury, new_tapes = where("armoury", "new"), where("tapes", "new")
+    check(count_in(new_armoury, "TrekShuttle.TrekPhaser") == phasers_before,
+          f"starfleet refit: the new armoury holds {count_in(new_armoury, 'TrekShuttle.TrekPhaser')} "
+          f"phasers, the old one held {phasers_before} -- issued twice, or lost")
+    check(count_in(new_tapes, "TrekShuttle.TrekTape") == tapes_before + 1,
+          f"starfleet refit: {count_in(new_tapes, 'TrekShuttle.TrekTape')} tapes on the new rack, "
+          f"{tapes_before} on the old shelf and one in the set")
+    titles_after = rt.eval(f"""(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at({new_tapes.split(",")[0]}, {new_tapes.split(",")[1]})
+        local o = U.findSprite(SIM.rawSquare(x, y, C.CabinZ), "{new_tapes.split(",", 2)[2]}")
+        local t = {{}}
+        for _, it in ipairs(o.container.items) do
+            -- the one out of the old set is counted above, not here
+            if it.modData.mine == "watching" then goto next end
+            local md = it:getMediaData()
+            table.insert(t, md and md:getId() or "BLANK")
+            ::next::
+        end
+        table.sort(t)
+        return table.concat(t, ";") end)()""")
+    check(titles_after == titles_before and "BLANK" not in titles_after,
+          "starfleet refit: the tapes came across without their recordings")
+
+    # --- the warp core stands on its new square, and only there ---------------
+    cores = rt.eval("""(function()
+        local C, U, B = TREK.Config, TREK.Util, TREK.Build
+        local function at(s) local x, y = U.at(s.x, s.y) return B.coresAt(SIM.rawSquare(x, y, C.CabinZ)) end
+        return at(C.LegacyCoreSpot) .. ":" .. at(C.DilithiumSpot) end)()""")
+    check(cores == "0:1", f"starfleet refit: core models old:new = {cores}, not 0:1")
+
+    # --- the pad and the walls are Starfleet's --------------------------------
+    pad = rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(C.Landing.x, C.Landing.y)
+        return SIM.rawSquare(x, y, C.CabinZ):getFloor().spriteName end)()""")
+    check(pad == rt.eval("TREK.Config.Sprites.padFloor"),
+          f"starfleet refit: the pad is {pad}")
+    walls = int(rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local L = require "TREK/TREK_InteriorLayout"
+        local n = 0
+        for ox = 0, C.CabinW + 1 do for oy = 0, C.CabinL + 1 do
+            local x, y = U.at(ox, oy)
+            for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+                if o.spriteName == L.wallW or o.spriteName == L.wallN then n = n + 1 end
+            end
+        end end
+        return n end)()"""))
+    check(walls == 2 * (int(rt.eval("TREK.Config.CabinW")) + 1 + int(rt.eval("TREK.Config.CabinL")) + 1),
+          f"starfleet refit: {walls} Starfleet bulkheads round the cabin")
+
+    # --- and it does not run twice ---------------------------------------------
+    check(rt.eval("TREK.Build.starfleetRefit()") == 0, "starfleet refit: it ran a second time")
+
+    for w in rt.warnings():
+        fail(f"starfleet refit: {w}")
+    print("starfleet refit: an old save's 1993 cabin is taken out whole -- floors, walls, "
+          "lamps and all -- the player's things carried into the new fittings or onto the "
+          "pad, the armoury and the tapes not issued twice, the tapes still recorded, the "
+          "core moved, and it waits for unloaded ground and runs once")
+
+
+def starfleet_refit_mp():
+    """The refit seen from a client: the floors it swapped in place reach them."""
+    net = Net("mp", clients=("shepard",))
+    srv, cl = net.server, net.clients["shepard"]
+    srv.run("SIM.player('shepard', 2000.5, 2000.5, 0)")
+    cl.run("SIM.player('shepard', 2000.5, 2000.5, 0)")
+    net.start()
+    for rt in (srv, cl):
+        rt.run(USE_OLD_CABIN)
+    cl.run("TREK.Transport.beamUp(SIM.players[1])")
+    net.pump(210)
+    if died(cl, "starfleet refit mp"):
+        return
+    for rt in (srv, cl):
+        rt.run(USE_NEW_CABIN)
+    srv.run("local s = TREK.Util.state(); s.rev = 34; s.starfleet = nil; TREK.Build.ensureCabin()")
+    net.pump(4)
+    floor = """(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(1, 1)
+        local f = SIM.rawSquare(x, y, C.CabinZ):getFloor()
+        return f and f.spriteName end)()"""
+    want = srv.eval('(require "TREK/TREK_InteriorLayout").floor')
+    check(srv.eval(floor) == want, f"starfleet refit mp: the server's deck is {srv.eval(floor)}")
+    check(cl.eval(floor) == want, f"starfleet refit mp: the client still sees {cl.eval(floor)}")
+    check(int(cl.eval("SIM.clientWorldEdit or 0")) == 0,
+          "starfleet refit mp: the client edited the world")
+    for name, rt in (("server", srv), ("client", cl)):
+        for w in rt.warnings():
+            fail(f"starfleet refit mp ({name}): {w}")
+    print("starfleet refit mp: the deck swapped in place on the server reaches the client")
 
 
 # ---------------------------------------------------------------------------
@@ -10413,12 +10750,20 @@ def galley():
                     return o and {field}
                 end
             end end)()""")
-    for tag in ("oven", "microwave"):
+    # The galley range; the microwave went with the Starfleet refit (the
+    # replicator is the galley's quick meal).
+    for tag in ("oven",):
         check(fitting(tag, 'o.class') == "IsoStove",
               f"galley: the {tag} is a {fitting(tag, 'o.class')}, not a stove -- it will not heat")
         check(fitting(tag, 'o.container ~= nil') is True, f"galley: the {tag} has no container")
-    check(fitting("fridge", "o:getContainerCount()") == 2,
-          "galley: the fridge has no freezer")
+    # The stasis unit cools because its container is `fridge`: that string is
+    # the whole of what ItemContainer.isFridge asks (bci 30-34). One container
+    # and no freezer, as its tile says.
+    fridge_sprite = fitting("fridge", "o.spriteName")
+    check(fitting("fridge", "o:getContainerCount()") == 1,
+          "galley: the stasis unit has no container")
+    check((tilecatalog.tiles().get(fridge_sprite) or {}).get("container") == "fridge",
+          f"galley: the stasis unit's tile ({fridge_sprite}) is not a fridge -- it will not cool")
 
     # --- an hour: what it burned is billed, and it is filled and mended -------
     energy_state(rt, PM, 0)
@@ -10491,12 +10836,12 @@ def galley():
           f"live item was expected")
 
     # --- the freezer is not lost when a fridge is emptied ---------------------
+    # A vanilla fridge, the kind an old save's galley had and the refit empties.
     spilled = rt.eval("""(function()
-        local L = require "TREK/TREK_InteriorLayout"
-        local e
-        for _, t in ipairs(L.tiles) do if t.tag == "fridge" then e = t end end
-        local x, y = TREK.Util.at(e.x, e.y)
-        local o = TREK.Util.findSprite(SIM.rawSquare(x, y, TREK.Config.CabinZ), e.sprite)
+        local x, y = TREK.Util.at(1, 1)
+        local o = SIM.object("appliances_refrigeration_01_1")
+        o.square = SIM.rawSquare(x, y, TREK.Config.CabinZ)
+        o:createContainersFromSpriteProperties()
         local ice = instanceItem("Base.Hammer")
         ice.modData.mine = "ice"
         o.freezer:AddItem(ice)
@@ -10530,8 +10875,8 @@ def galley():
 
     for w in rt.warnings():
         fail(f"galley: {w}")
-    print("galley: one hidden power bus, ours, quiet, off the deck; the oven and "
-          "microwave are stoves and the fridge has its freezer; each hour's fuel "
+    print("galley: one hidden power bus, ours, quiet, off the deck; the range is "
+          "a stove and the stasis unit a fridge; each hour's fuel "
           "billed and the bus refilled and mended; out with the lights and back "
           "with them; a rebuild finds it; an old oven's meal moves into the new "
           "stove; the freezer is spilled, not lost; and the Generator menu is gone")
@@ -17160,7 +17505,7 @@ def sentry_multiplayer():
     print("sentry multiplayer: set down by asking, fired by the server, the kill and the bolt on both clients")
 
 
-SECTIONS = (static, migration, single_player, refit, flight, flight_ascent,
+SECTIONS = (static, migration, single_player, refit, starfleet_refit, starfleet_refit_mp, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
             torpedoes, medical, medical_multiplayer, replicator,

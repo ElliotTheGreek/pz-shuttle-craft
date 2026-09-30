@@ -26,6 +26,12 @@ def container(props):
 def decode(tbx_path, catalog_path):
     root = ET.parse(tbx_path).getroot()
     raw = json.loads(catalog_path.read_text(encoding="utf-8")).get("tiles", {})
+    # The mod's own tiles too (the Adirondack's sheets, which the cabin is
+    # built from since the Starfleet refit), read from the tiledef it ships.
+    import sys
+    sys.path.insert(0, str(ROOT / "tools"))
+    import tilecatalog
+    raw = dict(raw, **tilecatalog.ours())
     catalog = {norm(name): props for name, props in raw.items()}
     definitions = []
     for furniture in root.findall("furniture"):

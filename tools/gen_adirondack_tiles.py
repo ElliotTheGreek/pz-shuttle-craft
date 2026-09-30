@@ -172,6 +172,34 @@ def floor_tile(tex, mask):
     return out
 
 
+def transporter_pad(carpet):
+    """A single transporter pad set into a square of carpet, seen from above:
+    a brushed-metal disc inside a charcoal ring, grooved, with six small lit
+    emitters round it. The shuttle has room for one pad and this is it; the
+    Adirondack's six-pad dais is a piece of furniture, not a floor."""
+    S = 512
+    img = carpet.resize((S, S), Image.LANCZOS).convert("RGB")
+    d = ImageDraw.Draw(img)
+    c = S / 2.0
+
+    def disc(r, fill):
+        d.ellipse((c - r, c - r, c + r, c + r), fill=fill)
+
+    disc(S * 0.47, (44, 46, 52))                 # the charcoal surround
+    disc(S * 0.43, (92, 96, 104))                # a bevel
+    disc(S * 0.405, (150, 154, 160))             # the pad
+    for k, r in enumerate((0.33, 0.25, 0.17)):   # grooves
+        d.ellipse((c - S * r, c - S * r, c + S * r, c + S * r),
+                  outline=(118, 122, 130), width=6)
+    disc(S * 0.08, (190, 194, 200))              # the centre boss
+    for k in range(6):                           # the emitters
+        a = math.pi / 6 + k * math.pi / 3
+        x, y = c + math.cos(a) * S * 0.445, c + math.sin(a) * S * 0.445
+        d.ellipse((x - 11, y - 11, x + 11, y + 11), fill=(255, 226, 170))
+        d.ellipse((x - 5, y - 5, x + 5, y + 5), fill=(255, 250, 236))
+    return img.resize((128, 128), Image.LANCZOS)
+
+
 def cornice(tex):
     band = tex.crop((0, 0, tex.width, max(2, tex.height // 30)))
     return tuple(int(c) for c in ImageStat.Stat(band).mean[:3])
@@ -376,6 +404,9 @@ def main():
     floor_mask = mask_of("floors_interior_tilesandwood_01", 18)
     tiles[24] = floor_tile(carpet, floor_mask)
     tiles[25] = floor_tile(deck, floor_mask)
+    # The shuttle's transporter pad (INTERIOR_REFIT.md): one square of the
+    # cabin's carpet with the pad set into it, drawn rather than generated.
+    tiles[27] = floor_tile(transporter_pad(carpet), floor_mask)
 
     for side, closed, idx in (("W", 0, 32), ("N", 1, 33)):
         m = mask_of("fixtures_doors_01", closed)

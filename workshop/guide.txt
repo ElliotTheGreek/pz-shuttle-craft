@@ -42,7 +42,7 @@ Plus the shuttle's photon torpedoes, fired from the pilot's seat.
 Plus a Tricorder, a PADD, six Starfleet uniforms (duty and dress, in command red, operations gold and sciences teal), a Starfleet field pack, a shoulder lamp that clips to any uniform's shoulder so both hands stay free (it takes an ordinary battery and lasts twice as long as a flashlight), and dilithium crystals.
 
 A functional shuttle you can live in and use to travel around
-One cabin with the helm, a galley whose fridge, oven and microwave really work, running water that keeps running after the mains shut off, a biobed to sleep on, a sick bay, a replicator, a warp core, and a row of Starfleet lockers. A TV that plays your tapes.
+One Starfleet cabin with the helm, a galley whose stasis unit and range really work, running water that keeps running after the mains shut off, a bunk and a biobed to sleep on, a sick bay, a replicator, a warp core and the armoury -- and the one thing aboard that isn't regulation, Lt. Shepard's 1993 TV, which plays your tapes.
 
 Operate the shuttle like this:
 - Right-click anywhere -> Shuttlecraft -> Beam up to the shuttle. You arrive on the transporter pad. Every beam is a column of sparkles where you leave and where you arrive, and everyone nearby sees it.

@@ -970,16 +970,16 @@ a: I'd never. Well. Not all of it. | Only the non-historic bits.
 
 = shepard
 c: That shuttle is her field station. She spent five months on that planet.
- | It's a working field station, {a}. With a refrigerator from 1993.
+ | It's a working field station, {a}. With a television from 1993.
 b: Has anyone asked her? | Has anybody actually asked Lieutenant Shepard?
 a: She's been in with the Doctor since she came up. Nobody's had the nerve.
- | I tried. She talked for forty minutes about a lamp.
+ | I tried. She talked for forty minutes about a television.
 -> powerbus 3, furniture 2
 
 = furniture
-c: That lamp is period accurate. | The lamp is important.
-a: There's a sofa. There's a television. There is a chair she won't let anyone
- | It has a sofa, a stove, and a theatre chair that nobody is allowed to
+c: That television is period accurate. | The television is important.
+a: It's a standard cabin. Except the set. And a chair she won't let anyone
+ | All regulation, bar the television, and a chair that nobody is allowed to
 a: move. Not an inch. | sit in, or even touch.
 b: I'd heard about the chair. | Why the chair?
 c: She's never said. Leave her the chair. | Nobody knows. Leave it be.
@@ -988,8 +988,8 @@ c: She's never said. Leave her the chair. | Nobody knows. Leave it be.
 = powerbus
 a: And have you seen what she did to the power bus? | Her wiring, though.
 b: No. Should I? | Bad?
-a: She hung surface appliances off the shuttle's bus. Through an adapter.
- | She ran a 1990s refrigerator off a shuttle's EPS. With an adapter she made.
+a: She hung a surface television off the shuttle's bus. Through an adapter.
+ | She ran a 1990s television off a shuttle's EPS. With an adapter she made.
 c: It works. | Does it work?
 a: It works perfectly. That's what upsets me. | It's brilliant and I hate it.
 -> hack 2, decide 2
@@ -1005,12 +1005,12 @@ a: The chief wants to put it in the training manual. As a warning.
 = decide
 b: Here's what I'll take up. Half the bay for hydroponics. The shuttle stays.
  | Proposal: hydroponics along the port side. The shuttle keeps her corner.
-c: And nobody touches her things. | And the furniture stays in the shuttle.
+c: And nobody touches her things. | And the television stays in the shuttle.
 a: And I get one bench for fabrication. | Fine. But I want a workbench.
 b: One bench. And ask her, first. Politely. | Agreed. Somebody ask her. Kindly.
 c: I'll ask her. She'll talk to me. We're both from the lab side.
  | Let me ask. She's had a hard few months. She should hear it from a friend.
-a: Tell her we'll keep her refrigerator running. That might win her over.
+a: Tell her we'll keep her television running. That might win her over.
  | Tell her the adapter is safe. Tell her I admire the adapter.
 c: I'll tell her you called it brilliant. | I'll tell her you used the word clever.
 a: I did not say brilliant. | I said it was brilliant and I hated it.

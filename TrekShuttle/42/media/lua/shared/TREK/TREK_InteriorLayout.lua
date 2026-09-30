@@ -1,10 +1,10 @@
 -- The cabin interior, authored in BuildingEd.
 --
 -- Derived from design/buildinged/TrekShuttle_Interior.tbx. Geometry (x, y,
--- sprite) comes straight from the TBX and should be regenerated rather than
--- typed: `python tools/import_tbx_layout.py --lua` rewrites this file and
--- keeps the loot assignments below. What is stocked is a design decision the
--- map editor knows nothing about, so it lives here.
+-- sprite) comes straight from the TBX; tools/gen_shuttle_interior.py writes
+-- the TBX and draws the plan, and tests/test_layout.py fails if this file and
+-- the TBX disagree. What is stocked is a design decision the map editor knows
+-- nothing about, so it lives here.
 --
 -- `container = true` is the load-bearing field. A sprite being a container in
 -- the tileset is not enough: an object built at runtime gets no ItemContainer
@@ -17,205 +17,140 @@
 -- with none of the three is deliberately empty -- see below.
 --
 ---------------------------------------------------------------------------
--- The refit, and the two decisions behind it
+-- The Starfleet refit (INTERIOR_REFIT.md 9)
 ---------------------------------------------------------------------------
--- Four across by six fore-and-aft, down from six by nine. The cabin used to
--- be fifty-four squares against a 3x5 hull, which is not a shuttle, it is a
--- warehouse with a transporter in it.
+-- Four across by six fore-and-aft, as since the 6x9 cabin was cut down, and
+-- Starfleet issue throughout: the Adirondack's own bulkheads, carpet and
+-- furniture (trek_adirondack_01 and _02). **Two things aboard are not
+-- Starfleet's, and both are Lt. Shepard's: her 1993 television and her
+-- tapes** (LORE.md 1a). Everything the cabin used to borrow from a motel, a
+-- gas station and a hospital has gone.
 --
--- 1. *Layering is what makes twenty-four squares enough.* The sink and the
---    microwave ride on counters, the monitor bank and the EMH panel are wall
---    objects that cost no floor at all, and the helm is a world item lying on
---    an open square. Eleven squares carry a fitting; eleven are deck.
+-- Three rules decided where everything stands, and each is checked:
 --
--- 2. *Five of the eight containers are stocked with nothing.* The fridge, the
---    oven, both counters and the replicator's berth are the player's shelves.
---    A player fills a shuttle with vanilla loot within a week of flying it,
---    and three Starfleet lockers holding tins of beans is just the vanilla
---    game in a cupboard. So the lockers carry the mod's own items and nothing
---    else, and everything else starts empty on purpose.
+-- 1. *The camera sees two walls.* The game draws the cabin from the south-
+--    east, so only the bow (north) and port (west) bulkheads show their
+--    faces; a locker against the starboard wall shows the room its back,
+--    which is what the old three green lockers looked like. Everything tall
+--    stands against the two walls you can see. Starboard has the machines
+--    and the biobed, which read from any side.
+-- 2. *Every fitting is worked from open deck.* A wall piece's front square is
+--    open -- the whole x = 1 passage for the port wall, y = 1 for the bow --
+--    and nothing free-standing sits on one. tests/test_layout.py walks it.
+-- 3. *Layering costs no floor.* The tapes and the LCARS panels are wall
+--    objects: 1,0 is still deck under the rack, which is how the bunk beside
+--    it is reached.
 --
--- The one thing to know before moving anything: the crew seat at 1,2 is a
--- theatre chair, and a theatre chair carries `collideN` and `HoppableN` only
--- -- it blocks its north edge and nothing else. That is what lets it stand in
--- the middle of the deck without cutting the cabin in half, and it is why you
--- sit down from the south. Swap it for one of the two-tile bench seats (plain
--- `solidtrans`) and it becomes a wall.
+-- And the refit's other decision, older than it: *five containers are the
+-- player's.* A player fills a shuttle with vanilla loot within a week, so
+-- the Starfleet lockers carry the mod's own items and the stasis unit, the
+-- range and the TV cabinet start empty on purpose.
 
 local L = {}
 
 L.width = 4
 L.height = 6
-L.floor = "location_hospitality_sunstarmotel_01_56"
-L.wallW = "location_shop_fossoil_01_6"
-L.wallN = "location_shop_fossoil_01_5"
+L.floor = "trek_adirondack_01_24"      -- carpet, as the runabout's aft cabin
+L.wallW = "trek_adirondack_01_0"       -- the Adirondack's bulkhead, light strip and all
+L.wallN = "trek_adirondack_01_1"
 
--- BuildingEd allows several layers on one square (for example a counter,
--- appliance and wall console). Runtime placement must preserve that layering.
+-- What the cabin was built of before the refit, for the migration that takes
+-- it out (TREK_Build, B.starfleetRefit). A floor or a wall is only ever
+-- swapped if it is one of these: anything else on that square was laid by a
+-- player (BUILDING.md).
+L.legacy = {
+    floors = { "location_hospitality_sunstarmotel_01_56",
+               "floors_interior_tilesandwood_01_0", "floors_interior_tilesandwood_01_1" },
+    walls = { "location_shop_fossoil_01_6", "location_shop_fossoil_01_5",
+              "industry_01_0", "industry_01_1" },
+}
+
+-- BuildingEd allows several layers on one square (a television on its
+-- cabinet, a panel over a counter). Runtime placement preserves that.
 L.tiles = {
     ---------------------------------------------------------------------
-    -- The bow: the viewscreen wall, a working television, two seats
+    -- The bow bulkhead
     ---------------------------------------------------------------------
-    -- security_01_4 is a wall-mounted monitor bank: no `solid`, no
-    -- `solidtrans`, so all four of these cost no floor square. The whole bow
-    -- bulkhead is screens, which is the one piece of the old cabin that was
-    -- already right.
-    { x = 0, y = 0, sprite = "security_01_4", tag = "console" },
-    { x = 1, y = 0, sprite = "security_01_4", tag = "console" },
-    { x = 3, y = 0, sprite = "security_01_4", tag = "console" },
+    -- A bunk in the port corner, for the crew's second pair of hands: the
+    -- runabout's aft cabin sleeps its crew in the bulkheads, and the biobed
+    -- was the only bed aboard. One square, two tiers, backed onto the port
+    -- wall and worked from 1,0, which is deck under the tape rack.
+    { x = 0, y = 0, sprite = "trek_adirondack_02_12", tag = "bunk" },
 
-    -- The tape shelf, beside the television. It is where the ship keeps what
-    -- it remembers, and LORE.md is the design.
-    --
-    -- **A wall shelf, and it costs no deck square.**
-    -- furniture_shelving_01_28 carries neither `solid` nor `solidtrans`
-    -- (MoveType = WallObject, attachedN, ContainerCapacity 30), so 2,0 is
-    -- still deck -- and 2,0 is the *only* square a player can stand on to
-    -- open the **armoury** at 3,0, because 3,1 and 3,2 are the other two
-    -- lockers. A floor-standing container here leaves the ship's sidearms,
-    -- blades and uniforms reachable diagonally at best.
-    --
-    -- **A video-shop rack was tried here and reverted**, and the reason is
-    -- worth keeping: `location_shop_generic_01_1` is catalogued as "Comics
-    -- Shop Shelves" and it draws as a **grocery shelf stocked with orange
-    -- soda**, at twice the depth this cabin can spare. Nothing in
-    -- tiles.json says so. `CustomName`, `GroupName` and `container` describe
-    -- what a tile *is for*, and none of them describes what it looks like --
-    -- so a fitting chosen for its silhouette has to be looked at in game,
-    -- the same way every mesh in this mod has to be rendered and looked at.
-    -- The proper video-rental racks
-    -- (`location_entertainment_theatre_01_120..135`) are all two-tile pieces
-    -- and the bow row has no two adjacent free squares: 1,0 is the
-    -- television and 3,0 is the armoury.
-    --
-    -- The monitor bank that used to be on this square is **gone** and has not
-    -- come back: two wall-mounted objects on one edge of one square is the
-    -- thing that looks like a bug whether or not it is one. The bow is three
-    -- screens and a shelf.
-    --
-    -- The obvious alternative was the television's own table, and it is not a
-    -- container: furniture_tables_low_01_3 is `solidtrans` with no `container`
-    -- property at all. Looked up rather than assumed -- see DEV_GUIDE, "A
-    -- comment is not a container".
-    { x = 2, y = 0, sprite = "furniture_shelving_01_28", tag = "tapes",
+    -- **Lt. Shepard's tapes**, on a Starfleet rack on the bow bulkhead beside
+    -- her television (LORE.md 3). A wall object: no `solid`, no
+    -- `solidtrans` -- the properties of vanilla's metal wall shelf, the one it
+    -- replaces (tools/gen_adirondack_pack.py) -- so 1,0 stays deck.
+    { x = 1, y = 0, sprite = "trek_adirondack_02_214", tag = "tapes",
       container = true, special = "tapes" },
 
-    -- A television that is actually a television. `device` is the field that
-    -- makes TREK_Build construct an IsoTelevision rather than a plain
-    -- IsoObject wearing a TV's picture -- which is what the old viewscreen
-    -- was, and why nobody has ever been able to turn it on.
-    --
-    -- It is also the VCR: appliances_television_01_0..3 is Base.TvWideScreen,
-    -- and that item declares `AcceptMediaType = 1`, the tape type. Build 42
-    -- has no separate VCR object because a television already is one. The
-    -- tapes are Base.VHS_Home and Base.VHS_Retail; the ship is not issued
-    -- with any, which is a thing to go and find.
-    { x = 1, y = 0, sprite = "furniture_tables_low_01_3", tag = "tvConsole" },
-    { x = 1, y = 0, sprite = "appliances_television_01_1", tag = "television",
+    -- **Her television**, the one 1993 object aboard, on a Starfleet cabinet
+    -- two squares ahead of the chair. `device` makes TREK_Build construct an
+    -- IsoTelevision rather than a plain IsoObject wearing a TV's picture. It
+    -- is also the VCR: Base.TvWideScreen declares `AcceptMediaType = 1`, the
+    -- tape type. The cabinet's `Surface` is its own top, so the set is drawn
+    -- standing on it, and it holds things -- it is the player's.
+    { x = 2, y = 0, sprite = "trek_adirondack_02_216", tag = "tvConsole",
+      container = true },
+    { x = 2, y = 0, sprite = "appliances_television_01_1", tag = "television",
       device = "Base.TvWideScreen" },
+    { x = 2, y = 0, sprite = "trek_adirondack_02_177", tag = "console" },
 
-    -- One chair, two squares back and dead in front of the television, rather
-    -- than the pair that used to sit in the bow row beside it. The old pair
-    -- were level with the screen and looking at the bulkhead; this one is
-    -- looking at the thing it is for. It faces N (`location_entertainment_
-    -- theatre_01_3`) and carries collideN only, so the corridor past it at
-    -- x = 2 is untouched and you sit down from the south.
-    { x = 1, y = 2, sprite = "location_entertainment_theatre_01_3", tag = "chair" },
-
-    ---------------------------------------------------------------------
-    -- Port: the galley. Every one of these is the player's storage.
-    ---------------------------------------------------------------------
-    { x = 0, y = 1, sprite = "appliances_refrigeration_01_1", tag = "fridge",
-      container = true },
-    -- The single-tile grey oven, not the two-tile range the old galley used:
-    -- that one was a quarter of this cabin on its own.
-    { x = 0, y = 2, sprite = "appliances_cooking_01_4", tag = "oven",
-      container = true },
-    { x = 0, y = 3, sprite = "fixtures_counters_01_35", tag = "counter",
-      container = true },
-    { x = 0, y = 3, sprite = "fixtures_sinks_01_1", tag = "sink" },
-    { x = 0, y = 4, sprite = "fixtures_counters_01_35", tag = "counter",
-      container = true },
-    { x = 0, y = 4, sprite = "appliances_cooking_01_24", tag = "microwave",
-      container = true },
-    -- **0,5 carries no fitting: it is the replicator's, and the replicator is
-    -- a whole machine rather than something bolted to a counter.**
-    --
-    -- It was a steel counter for two revisions, with the model hanging over
-    -- it and replicated items going into the counter's own container. That
-    -- was half a machine leaning on a piece of furniture, and it is gone:
-    -- C.ReplicatorSpot names the square, TREK_Build stands the model on it,
-    -- and what it makes goes into your hands. A save that still has the
-    -- counter is cleaned up by B.refitCabin, contents and all.
-
-    ---------------------------------------------------------------------
-    -- Amidships: the warp core -- 1,3, and no entry here either
-    ---------------------------------------------------------------------
-    -- **The ship's power plant, and the only thing aboard it cannot make.**
-    -- The replicator burns one crystal at a time and the core swaps in a
-    -- spare when it runs dry; when the spares are gone, so is the replicator,
-    -- and later the EMH with it.
-    --
-    -- It was a vanilla Tool Cabinet on this square for one revision: correct,
-    -- and indistinguishable from a tool cabinet. It is the mod's own model
-    -- now -- `C.DilithiumSpot`, `C.WarpCoreItem`, stood up by TREK_Build --
-    -- and what it holds is a number in the ship state rather than a
-    -- container, because a container comes from a tile sprite's properties
-    -- and a custom model has none. `B.refitCabin` takes the old cabinet out
-    -- of a save that still has one and keeps the crystals that were in it.
-
-    ---------------------------------------------------------------------
-    -- Starboard forward: the three Starfleet lockers
-    ---------------------------------------------------------------------
-    -- Quantities are set by `cap` rather than by weight, and `fill = 1.0`
-    -- puts the weight target out of the way so that the cap is what decides.
-    -- A cap at least as long as its list puts every item in at least once
-    -- whatever the rolling cursor is doing: three containers cannot spread a
-    -- list the way nineteen did, and a locker that happens to miss the
-    -- ushaan-tor looks exactly like one that does not. The armoury and the
-    -- sick bay are exact multiples; the provisions' 27 covers the 18-item
-    -- food list once and nine of it twice.
-    --
-    -- `special` is the belt to that braces: U.stockEach puts one of each in
-    -- and then reads the container back, so a guarantee that did not land is
-    -- reported instead of assumed.
-    -- `special` takes a list: this locker owes the crew four phasers and one
-    -- uniform of each division, and those are two different counts.
+    -- The armoury, in the starboard corner and facing aft, so its front is
+    -- the room's rather than the bulkhead's. C.PhaserRack follows it.
     -- 4 phasers (2.4) + 2 of each of the 4 blades (15.0) + 6 uniforms (8.4)
     -- + 2 PADDs (0.6) + the field pack (1.0) + 2 shoulder lamps (0.6)
     -- + 3 sentries (4.5) is 32.5 of the locker's 40 units, so nothing is
-    -- dropped for room.
-    { x = 3, y = 0, sprite = "furniture_storage_02_11", tag = "armoury",
+    -- dropped for room. `special` is a list: four phasers and one uniform of
+    -- each division are two different counts.
+    { x = 3, y = 0, sprite = "trek_adirondack_02_208", tag = "armoury",
       container = true, special = { "phasers", "uniforms", "padds", "packs", "lamps", "sentries" },
       loot = "weapons",
       fill = 1.0, cap = 8 },        -- 4 phasers + 2 of each of the 4 blades
-    { x = 3, y = 1, sprite = "furniture_storage_02_11", tag = "provisions",
+
+    ---------------------------------------------------------------------
+    -- The port bulkhead: the galley and the sick bay's cabinet
+    ---------------------------------------------------------------------
+    -- The stasis unit is the fridge: its container is `fridge`, which is the
+    -- whole of what ItemContainer.isFridge asks, and the power bus powers it.
+    { x = 0, y = 1, sprite = "trek_adirondack_02_80", tag = "fridge",
+      container = true },
+    -- The galley range is a real IsoStove (C.StoveTags), as the Adirondack's.
+    { x = 0, y = 2, sprite = "trek_adirondack_02_191", tag = "oven",
+      container = true },
+    { x = 0, y = 2, sprite = "trek_adirondack_01_40", tag = "console" },
+    -- The galley sink: running water, and **the ship's rations in the
+    -- cupboard under it**. Quantities are set by `cap`, and `fill = 1.0`
+    -- puts the weight target out of the way: 27 covers the 18-item food list
+    -- once and nine of it twice.
+    { x = 0, y = 3, sprite = "trek_adirondack_02_76", tag = "sink",
       container = true, loot = "food",
-      fill = 1.0, cap = 27 },       -- the 18-item food list once, then 9 more
-    { x = 3, y = 2, sprite = "furniture_storage_02_11", tag = "medical",
+      fill = 1.0, cap = 27 },
+    { x = 0, y = 3, sprite = "trek_adirondack_02_172", tag = "sconce" },
+    -- The sick bay's cabinet. `special` + U.stockEach puts one of each
+    -- instrument in and reads it back.
+    { x = 0, y = 4, sprite = "trek_adirondack_02_120", tag = "medical",
       container = true, special = "medkit", loot = "medical",
       fill = 1.0, cap = 8 },        -- 3 of each instrument
+    -- **0,5 carries no fitting: it is the replicator's**, a world model
+    -- standing on its own square (C.ReplicatorSpot).
 
     ---------------------------------------------------------------------
-    -- Starboard aft: the sick bay, and the EMH's station
+    -- Amidships and starboard
     ---------------------------------------------------------------------
-    -- industry_01_15 is from the hull's own wall set (industry_01_0/1/2 are
-    -- the bulkheads), carries neither `solid` nor `solidtrans`, and exists in
-    -- all four facings. So the EMH's panel is on the wall at 3,3 and 3,3 is
-    -- still deck. The Doctor stands at 2,4, at the head of the bed.
-    --
-    -- Deliberately not a light switch: every lighting_indoor_01 switch
-    -- carries the `lightswitch` tile property, which is what the cell loader
-    -- reads when it decides to build an IsoLightSwitch instead of an
-    -- IsoObject. A button that turns into a real light switch on the next
-    -- world load is a bug that only shows up in somebody else's save.
+    -- One chair, two squares back and dead in front of the television,
+    -- looking at it. It is the chair in TREK_LogSix. A Starfleet bridge
+    -- chair backed to the south, so it faces the bow.
+    { x = 2, y = 2, sprite = "trek_adirondack_02_89", tag = "chair" },
 
+    -- **2,3 is the warp core's** (C.DilithiumSpot), 3,3 is the Doctor's
+    -- square under his station on the starboard bulkhead (C.EmhSpot), and
+    -- both are world models placed by TREK_Build.
 
-    -- C.Pieces.biobedS, and the ship's only bed now that the berth is gone:
-    -- both halves carry BedType = goodBed. A shuttle with a sick bay *and* a
-    -- bunk in twenty-four squares is a shuttle with nowhere to stand.
-    { x = 3, y = 4, sprite = "location_community_medical_01_17", tag = "biobed" },
-    { x = 3, y = 5, sprite = "location_community_medical_01_16", tag = "biobed" },
+    -- The biobed with its scanner arch, the ship's second bed: both halves
+    -- carry BedType = goodBed.
+    { x = 3, y = 4, sprite = "trek_adirondack_02_114", tag = "biobed" },
+    { x = 3, y = 5, sprite = "trek_adirondack_02_115", tag = "biobed" },
 }
 
 return L

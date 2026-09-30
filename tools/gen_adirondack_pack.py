@@ -270,6 +270,8 @@ def sheet01_props(defs):
     props[24] = ours(floor, CustomName="Carpet", Material="Fabric")
     props[25] = ours(floor, CustomName="Deck Plate", Material="Metal")
     props[26] = ours(floor, CustomName="Crawlway Grating", Material="Metal")
+    # The shuttle's transporter pad, set into her carpet (INTERIOR_REFIT.md).
+    props[27] = ours(floor, CustomName="Transporter Pad", Material="Metal")
     # Space: the void map's ground (tools/gen_void_map.py). A floor, so the
     # engine draws it as one; nothing on it anybody could pick up.
     for i in range(48, 64):
@@ -310,7 +312,17 @@ def sheet02_props(defs, index):
         for facing, squares in rec["facings"].items():
             multi = len(squares) > 1
             for x, y, i in squares:
-                if rec["layer"] in ("WallFurniture", "Walls"):
+                if name == "tape_rack":
+                    # Shepard's tapes (INTERIOR_REFIT.md): vanilla's metal
+                    # wall shelf, the one the rack replaces -- a WallObject,
+                    # attached to its wall, a container, and no `solid` or
+                    # `solidtrans`, so the deck under it stays deck.
+                    base = vanilla(defs, "furniture_shelving_01", 28 if facing == "N" else 29)
+                    for k in ("GroupName", "CustomName", "Facing", "CanBreak", "CanScrap",
+                              "IsMoveAble", "PickUpLevel", "PickUpWeight", "ScrapSize"):
+                        base.pop(k, None)
+                    base["ContainerCapacity"] = str(use.get("capacity", 30))
+                elif rec["layer"] in ("WallFurniture", "Walls"):
                     base = dict(wallthing)
                 elif "bed" in use:
                     base = dict(bed, BedType=use["bed"])
@@ -340,6 +352,14 @@ def sheet02_props(defs, index):
                         base.pop(k, None)
                 elif "container" in use:
                     base = dict(locker, container=use["container"])
+                    if "capacity" in use:
+                        base["ContainerCapacity"] = str(use["capacity"])
+                    if "surface" in use:
+                        # A table's Surface is its top in 1x pixels (a 0.95
+                        # counter is 35), and what IsSurfaceOffset draws a
+                        # television at: the shuttle's TV sits on its cabinet.
+                        base["Surface"] = str(int(round(use["surface"] * 96.0 / 2.449)))
+                        base["IsTable"] = ""
                 else:
                     base = dict(table)
                     base.pop("IsTable", None)

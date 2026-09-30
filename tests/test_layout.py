@@ -28,8 +28,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LUA = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua").replace(os.sep, "/")
 BUILD = os.path.join(ROOT, "TrekShuttle", "42", "media", "lua", "server",
                      "TREK", "TREK_Build.lua")
-tiles = json.load(open(os.path.join(ROOT, "tools", "_catalog",
-                                    "tiles.json")))["tiles"]
+# Vanilla's tiles and the mod's own: since the Starfleet refit the cabin is
+# built from the Adirondack's sheets, read out of the tiledef the game loads.
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+import tilecatalog  # noqa: E402
+tiles = tilecatalog.tiles()
 
 lua = LuaRuntime(unpack_returned_tuples=True)
 lua.execute(f'package.path = "{LUA}/shared/?.lua;{LUA}/client/?.lua;" '
@@ -168,8 +171,8 @@ if on_core:
     failures.append(f"{len(on_core)} authored fitting(s) stand on the warp "
                     f"core's square at {core[0]},{core[1]}: "
                     f"{[e['tag'] for e in on_core]}. The core owns it.")
-# It stands in the port passage, so the square to starboard is where you work
-# it from -- and that one has to be open deck, not another fitting.
+# The square to starboard of it is the Doctor's, kept clear, and one of the
+# two it is worked from (the reach check below walks the rest).
 beside = (core[0] + 1, core[1])
 if not inside(*beside):
     failures.append("there is no square beside the warp core to work it from")
@@ -328,11 +331,9 @@ for lx, ly in lamps:
 # spills onto the pad out of containers it is deleting.
 
 # --- draw it -----------------------------------------------------------
-GLYPH = {"console": "T", "tvConsole": "t", "television": "V", "chair": "h",
-         "fridge": "F", "oven": "o", "counter": "c", "sink": "w",
-         "microwave": "m", "armoury": "A", "dilithium": "D",
-         "provisions": "p", "medical": "M", "emhPanel": "E", "biobed": "B",
-         "tapes": "L"}
+GLYPH = {"tvConsole": "t", "television": "V", "chair": "h",
+         "fridge": "S", "oven": "G", "sink": "w", "armoury": "A",
+         "medical": "M", "biobed": "B", "tapes": "L", "bunk": "K"}
 grid = {}
 for e in entries:
     grid.setdefault((e["x"], e["y"]), []).append(e["tag"])
@@ -356,21 +357,24 @@ for oy in range(L_LEN + 1):
             # clear, and the plan is where anybody moving furniture looks.
             row += "H"
         elif (ox, oy) in grid:
-            # the topmost non-rug layer is what you actually walk up to
-            tags = [t for t in grid[(ox, oy)] if t != "rug"] or grid[(ox, oy)]
-            row += GLYPH.get(tags[-1], "?")
+            # The standing fitting is what you walk up to; a wall object
+            # (the tapes on their rack) is drawn only when nothing stands there.
+            here = [e for e in entries if (e["x"], e["y"]) == (ox, oy)]
+            standing = [e["tag"] for e in here if blocks(e["sprite"])]
+            tags = standing or [e["tag"] for e in here if e["tag"] in GLYPH]
+            row += GLYPH.get(tags[-1], ".") if tags else "."
         elif (ox, oy) in lamps:
             row += "*"
         else:
             row += "."
     print(f"{oy:3d} {row}")
-print("\n   @ transporter pad   T monitor wall   V television")
-print("   t tv console   h crew seat   F fridge   o oven   c counter")
-print("   w sink   m microwave   R the replicator (a world model)")
-print("   A armoury   p rations   M sick bay   E EMH panel   B biobed")
-print("   D the warp core (a world model)   L the tape shelf")
+print("\n   @ transporter pad   K bunk   L Shepard's tapes (a wall rack)")
+print("   V her television, on its Starfleet cabinet   A armoury")
+print("   S stasis unit   G galley range   w galley sink (and the rations)")
+print("   M sick bay cabinet   h the chair   B biobed")
+print("   R the replicator, D the warp core (world models)")
 print("   H where the EMH stands when he is projected (kept clear)")
-print("   * lamp      . open deck")
+print("   * a light (hung by each client)   . open deck")
 
 print(f"\n{len(entries)} authored fittings, {len(containers)} containers:")
 for e in containers:
@@ -428,6 +432,49 @@ else:
     if len(ways_off) < 2:
         failures.append(f"the pad at {pad[0]},{pad[1]} has {len(ways_off)} way(s) "
                         f"off it; a player would materialise in a dead end")
+
+# --- every fitting is worked from open deck ------------------------------
+# The Starfleet refit's rule (INTERIOR_REFIT.md 9), and the author's own
+# question about the first draft of it: the range's front square was the
+# chair, the sink's the warp core, and the bunk was boxed in. A fitting that
+# stands on its square is worked from the square its `Facing` looks at, which
+# must be open deck joined to the pad; the biobed (two squares) and the
+# machines from any open side. Blocking is the catalogue's `solid` or
+# `solidtrans`, so a wall object costs nothing and a chair is an obstacle --
+# which, for walking, it is.
+STEP = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "W": (-1, 0)}
+blocked = set(solid) | {rep, core}
+opens = {(ox, oy) for ox in range(W + 1) for oy in range(L_LEN + 1)
+         if inside(ox, oy)} - blocked
+reached, todo = {pad}, [pad]
+while todo:
+    cx, cy = todo.pop()
+    for dx, dy in STEP.values():
+        n = (cx + dx, cy + dy)
+        if n in opens and n not in reached:
+            reached.add(n)
+            todo.append(n)
+for sq in sorted(opens - reached):
+    failures.append(f"{sq[0]},{sq[1]} is open deck nobody can walk to from the pad")
+worked = [(e["tag"], (e["x"], e["y"]), (tiles.get(e["sprite"]) or {}).get("Facing"))
+          for e in entries if blocks(e["sprite"])]
+worked += [("the replicator", rep, None), ("the warp core", core, None)]
+for tag, (fx, fy), facing in worked:
+    near = [(fx + dx, fy + dy) for dx, dy in STEP.values()]
+    if facing in STEP and tag != "biobed":
+        front = (fx + STEP[facing][0], fy + STEP[facing][1])
+        if front not in reached:
+            failures.append(f"{tag} at {fx},{fy} faces {facing} onto {front[0]},"
+                            f"{front[1]}, which is not open deck -- it cannot be used")
+    elif not any(n in reached for n in near):
+        failures.append(f"{tag} at {fx},{fy} has no open deck beside it")
+if emh not in reached:
+    failures.append(f"the Doctor's square {emh[0]},{emh[1]} cannot be walked to")
+if len(reached) < 8 or len(worked) < 8:
+    failures.append(f"the reach check saw {len(reached)} open squares and "
+                    f"{len(worked)} fittings -- too few to be checking anything")
+print(f"\nreach: {len(reached)} open squares joined to the pad, "
+      f"{len(worked)} fittings each worked from one")
 
 if area < (W + 1) * (L_LEN + 1) * 0.55:
     failures.append(f"the hull keeps only {area} squares; the cuts are too deep")

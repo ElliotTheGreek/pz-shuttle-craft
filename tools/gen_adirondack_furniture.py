@@ -96,6 +96,21 @@ def render_bed(facing):
     return iso.render(boxes, (2, 1) if facing == "W" else (1, 2))
 
 
+def render_boxes(o, facing):
+    """A box-modelled piece (tools/shuttle_pieces.py), laid for one facing the
+    way `place` lays a mesh: W backs onto the west wall, N onto the north, a
+    turn and never a mirror."""
+    import shuttle_pieces as SP
+    w = o["w"]
+    boxes = []
+    for a0, a1, o0, o1, z0, z1, col in SP.PIECES[o["name"]]():
+        if facing == "W":
+            boxes.append(iso.Box(o0, a0, z0, o1, a1, z1, col))
+        else:
+            boxes.append(iso.Box(w - a1, o0, z0, w - a0, o1, z1, col))
+    return iso.render(boxes, (1, 1))
+
+
 # --- meshes ---------------------------------------------------------------------
 
 def load_glb(path):
@@ -239,6 +254,12 @@ def build(only=None):
             continue
         if o["kind"] == "crop":
             continue          # tools/gen_adirondack_crops.py
+        if o["kind"] == "boxes":
+            for f in "WN":
+                add(o["name"], o["area"], o.get("layer", "Furniture"), f,
+                    render_boxes(o, f), o["use"])
+            print("rendered", o["name"])
+            continue
         if o["kind"] == "flat":
             for f in "WN":
                 add(o["name"], o["area"], "WallFurniture", f, render_flat(o, f), o["use"])
