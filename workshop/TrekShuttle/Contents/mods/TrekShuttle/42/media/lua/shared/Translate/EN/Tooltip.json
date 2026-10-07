@@ -81,5 +81,6 @@
     "Tooltip_TREK_StemBoltDriver": "Seats stem bolts and anything else that wants hitting. Works as any hammer or mallet, and takes barricades down. Never wears out.",
     "Tooltip_TREK_LaserCutter": "Works as any saw, tin snips or bolt cutters. Never wears out.",
     "Tooltip_TREK_LaserWelder": "Works as a blowtorch and shields its own work, so no welding mask is needed. Recharges itself.",
-    "Tooltip_TREK_StemBolts": "Self-sealing. Used wherever a recipe asks for nails."
+    "Tooltip_TREK_StemBolts": "Self-sealing. Used wherever a recipe asks for nails.",
+    "Tooltip_TREK_AnnotatedMap": "A road map of the county. Somebody has circled a field in red and written beside it."
 }

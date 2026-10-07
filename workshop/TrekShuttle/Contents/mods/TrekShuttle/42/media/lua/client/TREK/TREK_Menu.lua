@@ -33,6 +33,7 @@ require "TREK/TREK_Power"
 require "TREK/TREK_AdirondackClient"
 require "TREK/TREK_Access"
 require "TREK/TREK_AccessUI"
+require "TREK/TREK_Marooned"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -239,6 +240,10 @@ local function groundMenu(context, player, worldobjects, sq, test)
     end) == true
 
     if not onHull and not standable then return false end
+    -- Marooned, and never yet aboard her (MAROONED.md): no combadge, so
+    -- nothing to call her with. Her hull still has its door.
+    local linked = TREK.Marooned.linked(player)
+    if not linked and not onHull then return false end
     if test then return ISWorldObjectContextMenu.setTest() end
 
     local sub = context:addOption(getText("IGUI_TREK_Name"), worldobjects, nil)
@@ -247,6 +252,7 @@ local function groundMenu(context, player, worldobjects, sq, test)
 
     if onHull then
         menu:addOption(getText("IGUI_TREK_Enter"), worldobjects, M.onEnter, player)
+        if not linked then return true end
         menu:addOption(getText("IGUI_TREK_Recall"), worldobjects, M.onRecall, player)
     else
         menu:addOption(getText("IGUI_TREK_CallDown"), worldobjects, M.onCallDown,

@@ -25,8 +25,8 @@
     that is transmitted whole cannot hold a list that grows* is why it is not
     in the ship state.
 
-    Sandbox `TrekShuttle.WildDilithium`: Plentiful (the default), Scarce, or
-    None. Authority only.
+    Sandbox `TrekShuttle.WildDilithium`: Plentiful, Scarce (the default
+    since 2026-10-07, the author's call) or None. Authority only.
 ]]
 
 if isClient() then return end
@@ -48,8 +48,9 @@ function Wild.oneIn()
     end)
     v = ok and tonumber(v) or nil
     if v == C.WildNone then return nil end
-    if v == C.WildScarce then return C.WildScarceOneIn end
-    return C.WildPlentifulOneIn
+    if v == C.WildPlentiful then return C.WildPlentifulOneIn end
+    -- Scarce, and an absent value: the feature as designed.
+    return C.WildScarceOneIn
 end
 
 --- The store: a salt for this world, and every plot already visited.

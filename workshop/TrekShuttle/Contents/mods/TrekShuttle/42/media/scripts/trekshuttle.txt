@@ -2943,6 +2943,22 @@ module TrekShuttle
         from tools/gen_fragment.py, six icons with their numbers on them.
         Losable like anything carried, which is the point: a fragment is
         permanent only once Shepard has put it on tape.  */
+    /*  The annotated map (MAROONED.md): a county road map somebody marked
+        where the shuttle came down. Vanilla's own map icon and model, because
+        that is what it is; it is read from its right-click, and the mark it
+        carries is the ship's contact, not anything stored in the item.  */
+    item TrekAnnotatedMap
+    {
+        ItemType = base:normal,
+        Type = Normal,
+        DisplayName = Annotated Map,
+        DisplayCategory = Cartography,
+        Icon = Map,
+        Weight = 0.2,
+        WorldStaticModel = Map,
+        Tooltip = Tooltip_TREK_AnnotatedMap,
+    }
+
     item TrekFragment1
     {
         ItemType = base:normal,

@@ -64,7 +64,8 @@ function CS.init()
         return "migrated"
     end
 
-    if C.startState() ~= C.StartCold then
+    local start = C.startState()
+    if start == C.StartCommissioned then
         s.commissioned = true
         Ship.commit()
         U.log("cold start: the sandbox asks for a commissioned ship")
@@ -81,6 +82,18 @@ function CS.init()
     s.crystals = 0
     s.probes = C.ColdStartProbes
     s.dark = true
+    -- Whose patterns she has learned: nobody's yet (TREK_Marooned, MR.linked).
+    s.badged = {}
+    -- Marooned (MAROONED.md) is this state and two more facts: she is not
+    -- beside anybody, and nobody has a combadge. TREK_MaroonedServer draws
+    -- her site and sets her down on it; nothing below places her.
+    if start == C.StartMarooned then
+        s.marooned = true
+        Ship.commit()
+        U.log("cold start: a new ship, dark and marooned -- no power, no spares, "
+              .. "%d probes, and nobody knows where she is", C.ColdStartProbes)
+        return "marooned"
+    end
     Ship.commit()
     U.log("cold start: a new ship, dark -- no power, no spares, %d probes",
           C.ColdStartProbes)
@@ -119,7 +132,7 @@ local placing = nil
 --- is alive, on their feet on real ground (not aboard, not in a vehicle), and
 --- whose ground is loaded. On a server that is the first to join; everybody
 --- else finds her where she is.
-local function firstOnFoot()
+function CS.firstOnFoot()
     for _, p in ipairs(U.players()) do
         local ok = U.try("coldFirst", function()
             if p:isDead() then return false end
@@ -145,14 +158,16 @@ end
 --- `s.coldPlaced` is kept as a record, for the log and the tests.
 function CS.needsPlacing()
     local s = U.state()
+    -- A marooned ship is set down on her site, never beside anybody.
     return s.coldStart == true and s.commissioned == false and s.landed ~= true
+           and s.marooned ~= true
 end
 
 --- One slice of the search. Returns true once she is down.
 function CS.servicePlacement()
     local s = U.state()
     if not CS.needsPlacing() then return false end
-    local p = firstOnFoot()
+    local p = CS.firstOnFoot()
     if not p then return false end
     local px, py = math.floor(p:getX()), math.floor(p:getY())
 

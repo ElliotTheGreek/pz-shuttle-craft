@@ -104,9 +104,11 @@ A PADD you can load books and VHS tapes onto and use to communicate with the U.S
 A small story delivered through VHS tapes and communications with other Starfleet personnel
 Lt. Shepard calls your PADD from orbit and you answer wherever you are. Fifteen threads tell what happened here and who made the county, including six holo fragments a probe can find, which she puts on tape for the shelf. One player holds the channel and the rest read along; silence is an answer, and a missed call comes back worse. Tell her to stop calling and she does.
 
-Start in 'Cold Start' mode and get your shuttle working, learn the story and eventually teleport up to the Adirondack, or start in 'Commissioned' mode with the ship fully powered.
+Three ways to start, on the sandbox page. Marooned is the default for a new world.
+- Marooned: the shuttle is not near you at all. She is down, dark, at one of six places in the county, never the one beside you, and you have no Shuttlecraft menu and no beaming. Search the places maps are kept (gas stations, crates of maps) for an Annotated Map, right-click it and read it: it says where she came down and marks it on your map. Go there, right-click her hull and board her. From then on it is a cold start.
 - Cold Start: the shuttle is landed near you, dark, with no crystals and two probes in the rack. Launch a probe, walk to the crystal it finds, load it into the core, and the lights come on.
 - Commissioned: she starts overhead with a full crystal and three spares. Patterns, the story and rank are still earned.
+- In a Marooned or Cold Start world the ship has to learn your pattern before she will beam you: walk aboard through the hatch once. Anyone may use the hatch. On a server, whoever is aboard first can send her up, and the rest cannot reach her until she is set down again.
 
 A functioning replicator that learns recipes and uses energy derived from dilithium crystals
 It can make any item in the game (vanilla, future patches and other mods) once the ship holds a pattern for it. Scan what you are carrying to teach it; every rescue teaches it three more. Starfleet gear it knows from the start. The replicator cannot make dilithium.

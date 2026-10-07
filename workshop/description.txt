@@ -41,8 +41,8 @@ Load books onto it at any library and read them five times faster than paper. Tr
 THE STORY
 Lt. Shepard calls your PADD from orbit. Fifteen threads tell what happened here and who made the county, with six holo fragments to find and put on tape.
 
-COLD START OR COMMISSIONED
-Cold Start: the shuttle lands near you, dark and empty. Find the first crystal, bring her to life, learn the story, and work your way up to the Adirondack. Commissioned: she starts fully powered with spare crystals.
+THREE WAYS TO START
+Marooned (default): she is down, dark, across the county. Find an annotated map, reach her and walk aboard. Cold Start: dark, but beside you. Both: find the first crystal and bring her to life. Commissioned: fully powered.
 
 THE REPLICATOR
 Makes any item in the game (vanilla, patches and other mods) once the ship holds its pattern, paid for in dilithium energy. Scan what you carry to teach it. It cannot make dilithium.
