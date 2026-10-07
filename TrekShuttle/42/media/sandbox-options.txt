@@ -43,7 +43,7 @@ option TrekShuttle.CommsFirstDay = {
 }
 
 option TrekShuttle.StartState = {
-    type = enum, numValues = 3, default = 1,
+    type = enum, numValues = 3, default = 3,
     page = TrekShuttle, translation = TrekShuttle.StartState, valueTranslation = TrekShuttle.StartState,
 }
 

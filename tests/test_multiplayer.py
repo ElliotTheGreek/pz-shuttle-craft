@@ -10358,14 +10358,13 @@ def cold_start():
     the crystal to the core, and hear her come to life -- which is the
     commissioning, and what the story's clock waits on.
 
-    The sandbox value is **absent** here, which must read as cold: the suite's
-    harness sets Commissioned for every other section, so this is the one place
-    the game's own default is checked.
+    The sandbox value is Cold start here, set by hand: the game's own default
+    is Marooned, and marooned() is where an absent value is checked.
     """
     P = "SIM.players[1]"
     net = Net("sp")
     rt = net.server
-    rt.run("SandboxVars.TrekShuttle.StartState = nil")
+    rt.run("SandboxVars.TrekShuttle.StartState = 1")
     rt.run("SIM.player('captain', 4000.5, 4000.5, 0)")
     net.start()
     C = lambda n: rt.eval(f"TREK.Config.{n}")
@@ -10376,7 +10375,7 @@ def cold_start():
                                       "crystals", "probes", "dark")}
     check(state == {"commissioned": False, "coldStart": True, "power": 0,
                     "crystals": 0, "probes": C("ColdStartProbes"), "dark": True},
-          f"cold start: a new world with the option absent began as {state}")
+          f"cold start: a new world set to Cold start began as {state}")
 
     # --- 10.3: down beside the first player -----------------------------------
     # The notes are not cleared first: she can be down within the harness's
@@ -10504,7 +10503,7 @@ def cold_start():
 
     for w in rt.warnings():
         fail(f"cold start: {w}")
-    print("cold start: an absent option is cold; she is set down dark and whole "
+    print("cold start: she is set down dark and whole "
           "beside the first player; no beam, but the hatch; a cabin with no spares; "
           "the probe finds dilithium; and the first crystal commissions her, with the "
           "sound, the clock and the calls")
@@ -10688,11 +10687,15 @@ def marooned():
     Muldraugh with a dark ship somewhere else in the county and no combadge,
     so no menu and no beam; a map in a gas station that somebody marked; the
     walk; the hull's one option; and the moment aboard that gives the menu
-    back."""
+    back.
+
+    The sandbox value is **absent** here, which must read as marooned: it is
+    the game's default, and the harness sets Commissioned for every other
+    section, so this is the one place the default is checked."""
     P = "SIM.players[1]"
     net = Net("sp")
     rt = net.server
-    rt.run("SandboxVars.TrekShuttle.StartState = 3")
+    rt.run("SandboxVars.TrekShuttle.StartState = nil")
     rt.run("SIM.player('castaway', 10780.5, 9920.5, 0)")
     net.start()
     C = lambda n: rt.eval(f"TREK.Config.{n}")
@@ -10703,7 +10706,7 @@ def marooned():
                                       "probes", "dark", "marooned")}
     check(state == {"commissioned": False, "coldStart": True, "power": 0, "crystals": 0,
                     "probes": C("ColdStartProbes"), "dark": True, "marooned": True},
-          f"marooned: a new world began as {state}")
+          f"marooned: a new world with the option absent began as {state}")
     check(rt.eval(f"TREK.Marooned.linked({P})") is False,
           "marooned: the castaway began with a combadge")
 

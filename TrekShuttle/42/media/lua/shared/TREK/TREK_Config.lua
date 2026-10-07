@@ -1256,7 +1256,9 @@ C.StartCommissioned = 2
 C.StartMarooned = 3
 C.ColdStartProbes = 2
 
---- The start the server owner chose. An absent value is **cold**: the feature
+--- The start the server owner chose. An absent value is **marooned**, the
+--- default since 2026-10-07 (the author's call: it is the start the mod is
+--- meant to be played from). It was cold before that: the feature
 --- as designed, the precedent C.ReplicatorPatterns set.
 function C.startState()
     local ok, v = pcall(function()
@@ -1264,8 +1266,8 @@ function C.startState()
     end)
     v = ok and tonumber(v) or nil
     if v == C.StartCommissioned then return C.StartCommissioned end
-    if v == C.StartMarooned then return C.StartMarooned end
-    return C.StartCold
+    if v == C.StartCold then return C.StartCold end
+    return C.StartMarooned
 end
 
 -- Where a cold ship is set down: this many squares from the first player,

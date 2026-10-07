@@ -36,8 +36,10 @@ their combadge is online.
 
 ## 2. The option
 
-`TrekShuttle.StartState`, value 3 (`C.StartMarooned`). Cold is still 1 and
-still the default; an absent value is still cold. Like the cold start it is
+`TrekShuttle.StartState`, value 3 (`C.StartMarooned`), and **the default
+for a new world** since the day it was built (the author's call): the sandbox
+file's default is 3 and an absent value reads as marooned. Cold is 1 and
+Commissioned 2, as they were. Like the cold start it is
 read **once, by a brand new ship**: a save whose ship has ever been built or
 landed carries on commissioned whatever the setting says (`CS.init`).
 
