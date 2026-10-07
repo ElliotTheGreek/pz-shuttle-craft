@@ -312,6 +312,11 @@ function instanceItem(id)
     -- Identity and whereabouts, which is how the engine resolves an item
     -- sent over the network, and how a timed action finds its item again.
     function it:getID() return self.id end
+    --- InventoryItem.IsMap: true for the engine's own MapItem class and for
+    --- nothing else. The mod's annotated map is a Normal item and answers
+    --- false, as it does in the game -- which is what stops one annotated
+    --- map in a container seeding another the next time it is rolled.
+    function it:IsMap() return SIM.mapItems[self.fullType] == true end
     function it:getContainer() return self.container end
     function it:getWorldItem() return self.worldItem end
     function it:hasModData()
@@ -601,6 +606,25 @@ function getScriptManager()
             return nil
         end,
     }
+end
+
+-- The items the engine builds as a MapItem: vanilla's lootable maps.
+SIM.mapItems = { ["Base.MuldraughMap"] = true, ["Base.WestpointMap"] = true,
+                 ["Base.RosewoodMap"] = true, ["Base.RiversideMap"] = true,
+                 ["Base.MarchRidgeMap"] = true, ["Base.LouisvilleMap1"] = true }
+
+--- The engine rolling a container's loot: ItemPickerJava.fillContainer puts
+--- the table's items in and raises OnFillContainer as its last act.
+---
+--- **A client never rolls loot.** fillContainerInternal's first instruction
+--- is `if (GameClient.client) return`, so on a client nothing is added and
+--- the event is never raised. A stub that raised it everywhere would let a
+--- client-side handler pass, and that handler would run nowhere at all.
+function SIM.fillContainer(container, rolled, room, kind)
+    if SIM_ROLE == "client" then return false end
+    for _, id in ipairs(rolled or {}) do container:AddItem(id) end
+    SIM.fire("OnFillContainer", room or "gasstore", kind or "shelves", container)
+    return true
 end
 
 function SIM.container(capacity)

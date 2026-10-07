@@ -7,3 +7,4 @@ MapSymbolDefinitions.getInstance():addTexture("TrekContactClue", "media/ui/TrekM
 MapSymbolDefinitions.getInstance():addTexture("TrekContactDilithium", "media/ui/TrekMap/TrekContactDilithium.png", "Locations")
 MapSymbolDefinitions.getInstance():addTexture("TrekContactPersonnel", "media/ui/TrekMap/TrekContactPersonnel.png", "Locations")
 MapSymbolDefinitions.getInstance():addTexture("TrekContactSalvage", "media/ui/TrekMap/TrekContactSalvage.png", "Locations")
+MapSymbolDefinitions.getInstance():addTexture("TrekContactShuttle", "media/ui/TrekMap/TrekContactShuttle.png", "Locations")

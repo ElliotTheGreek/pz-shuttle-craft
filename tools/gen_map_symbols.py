@@ -2,13 +2,15 @@
 
     python tools/gen_map_symbols.py TrekShuttle/42
 
-Four 64x64 glyphs, the size and shape of vanilla's own (`media/ui/
+Five 64x64 glyphs, the size and shape of vanilla's own (`media/ui/
 LootableMaps/map_*.png`, ninety-two of them, all 64x64):
 
     TrekContactDilithium   a crystal      -- what the probes are looking for
     TrekContactPersonnel   a Starfleet delta -- 1.7's downed ensign
     TrekContactClue        a hexagon       -- a holo fragment (LORE.md 1c)
     TrekContactSalvage     three squares   -- a pattern enhancer (ACCESS.md)
+    TrekContactShuttle     a ringed cross  -- where an annotated map says the
+                                              shuttle came down (MAROONED.md)
 
 They are registered from `media/lua/shared/Definitions/TrekMapSymbols.lua`,
 which is how vanilla registers its own -- `MapSymbolDefinitions.getInstance()
@@ -182,7 +184,36 @@ def enhancers():
     return img
 
 
+MARK_INK = (214, 40, 34, 255)
+
+
+def marked_spot():
+    """Where the shuttle came down, as somebody with a red pen marked it
+    (MAROONED.md): a ring round a cross. Not Starfleet's glyph, because it is
+    not Starfleet's mark -- it is the one hand-drawn thing on the map, and it
+    reads as that beside the ship's own contacts."""
+    img = Image(SIZE, SIZE, (0, 0, 0, 0))
+    cx = cy = SIZE / 2.0
+    for y in range(SIZE):
+        for x in range(SIZE):
+            d = math.hypot(x + 0.5 - cx, y + 0.5 - cy)
+            if 19.5 <= d <= 25.5:
+                img.set(x, y, MARK_INK)
+    arm, half = 13, 3.2
+    for sign in (1, -1):
+        dx, dy = arm, arm * sign
+        nx, ny = -dy, dx
+        n = math.hypot(nx, ny)
+        nx, ny = nx / n * half, ny / n * half
+        fill_polygon(img, [(cx - dx + nx, cy - dy + ny), (cx + dx + nx, cy + dy + ny),
+                           (cx + dx - nx, cy + dy - ny), (cx - dx - nx, cy - dy - ny)],
+                     MARK_INK)
+    outline(img)
+    return img
+
+
 SYMBOLS = {
+    "TrekContactShuttle": marked_spot,
     "TrekContactDilithium": crystal,
     "TrekContactPersonnel": delta,
     "TrekContactClue": hexagon,

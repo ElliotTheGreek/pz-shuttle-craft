@@ -1251,6 +1251,9 @@ C.WildScanRadius = 40
 -- ever been built or landed carries on commissioned whatever the setting.
 C.StartCold = 1
 C.StartCommissioned = 2
+-- Marooned (MAROONED.md): a cold ship that is nowhere near anybody. See
+-- C.Maroon below.
+C.StartMarooned = 3
 C.ColdStartProbes = 2
 
 --- The start the server owner chose. An absent value is **cold**: the feature
@@ -1261,6 +1264,7 @@ function C.startState()
     end)
     v = ok and tonumber(v) or nil
     if v == C.StartCommissioned then return C.StartCommissioned end
+    if v == C.StartMarooned then return C.StartMarooned end
     return C.StartCold
 end
 
@@ -1273,6 +1277,40 @@ C.ColdPlaceMax = 15
 -- probe a game day (10.6). More than this in one save is a bug, not bad luck,
 -- and says so in the log.
 C.ColdRecoveryWarn = 3
+
+-- Marooned (MAROONED.md), the third value of `TrekShuttle.StartState`: the
+-- cold start with the ship lost. She is down, dark, at one of six sites a
+-- long way from the first player; nobody has a combadge, so nobody has the
+-- Shuttlecraft menu or a beam until they have been aboard her once; and
+-- annotated maps that mark the site turn up wherever vanilla's own maps do.
+C.Maroon = {
+    -- The six sites: open ground beside each of six towns, read off the
+    -- vanilla map by tools/maroon_sites.py, which tests/test_assets.py runs
+    -- against the installed map. The ship is set down on the nearest clear
+    -- fifteen squares to the point, so a tree grown there since is no matter.
+    -- `label` is written out whole for the reason C.ContactLabels is.
+    sites = {
+        { id = "muldraugh",     x = 10953, y = 9932,  label = "IGUI_TREK_MaroonSite_muldraugh" },
+        { id = "westpoint",     x = 11754, y = 6990,  label = "IGUI_TREK_MaroonSite_westpoint" },
+        { id = "riverside",     x = 6412,  y = 5438,  label = "IGUI_TREK_MaroonSite_riverside" },
+        { id = "rosewood",      x = 8107,  y = 11650, label = "IGUI_TREK_MaroonSite_rosewood" },
+        { id = "marchridge",    x = 9795,  y = 12732, label = "IGUI_TREK_MaroonSite_marchridge" },
+        { id = "valleystation", x = 12579, y = 5394,  label = "IGUI_TREK_MaroonSite_valleystation" },
+    },
+    -- "Not near you at all": a site this close to the first player is not
+    -- drawn. Muldraugh's own is 170 squares from the middle of Muldraugh and
+    -- the nearest other town's is about 1,800, so a thousand rules out the
+    -- town they woke up in and nothing else.
+    minDistance = 1000,
+    -- How far from the site's point she may be set down, in squares.
+    placeMax = 24,
+    -- The annotated map, and the chance in a hundred that a container rolled
+    -- with one of vanilla's maps in it gets one of these as well.
+    mapItem = "TrekShuttle.TrekAnnotatedMap",
+    mapChance = 50,
+    -- Server ticks between looks for somebody aboard her for the first time.
+    badgeTicks = 20,
+}
 
 -- The emergency landing (ENERGY.md section 7). The top speed a dark ship is
 -- held to while her pilot looks for somewhere to set her down: a glide, not a
@@ -1538,6 +1576,9 @@ C.ContactKinds = {
     -- probe's fourth result while the lock is owed. Placed and recovered the
     -- way a crystal is; the contact carries the item.
     salvage = true,
+    -- Where an annotated map says the shuttle came down (MAROONED.md). Made
+    -- when a map is read, never placed, and done with when she is found.
+    shuttle = true,
 }
 
 -- The contacts' common lifecycle (PROBES.md, MAP_MARKERS.md):
@@ -1574,6 +1615,7 @@ C.ContactSymbols = {
     downedPersonnel = "TrekContactPersonnel",
     clue = "TrekContactClue",
     salvage = "TrekContactSalvage",
+    shuttle = "TrekContactShuttle",
 }
 
 -- What each kind is called in the sensor menu.
@@ -1591,6 +1633,7 @@ C.ContactLabels = {
     downedPersonnel = "IGUI_TREK_Contact_downedPersonnel",
     clue = "IGUI_TREK_Contact_clue",
     salvage = "IGUI_TREK_Contact_salvage",
+    shuttle = "IGUI_TREK_Contact_shuttle",
 }
 
 ---------------------------------------------------------------------------

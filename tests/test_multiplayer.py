@@ -10618,6 +10618,504 @@ def cold_start_mp():
           "her dark, and both hear the commissioning")
 
 
+def maroon_site(rt):
+    """The site this world drew: (id, x, y), or None."""
+    sid = rt.eval("TREK.Util.state().maroonSite")
+    if sid is None:
+        return None
+    return (str(sid), int(rt.eval(f'TREK.Marooned.siteById("{sid}").x')),
+            int(rt.eval(f'TREK.Marooned.siteById("{sid}").y')))
+
+
+def ground_labels(rt, dx=3, dy=0):
+    """Right-clicks the ground beside the player: every label offered."""
+    rt.run(f"""
+        SIM.aim = {{ dx = {dx}, dy = {dy} }}
+        maroonCtx = SIM.contextMenu()
+        SIM.fire("OnPreFillWorldObjectContextMenu", 0, maroonCtx, {{}}, false)
+        SIM.aim = {{ dx = 0, dy = 0 }}
+    """)
+    return str(rt.eval("maroonCtx:deepLabels()"))
+
+
+def shuttle_contacts(rt, live=True):
+    return int(rt.eval(f"""(function()
+        local n = 0
+        for _, c in ipairs(TREK.Probes.{'unresolved' if live else 'contacts'}()) do
+            if c.kind == "shuttle" then n = n + 1 end
+        end
+        return n end)()"""))
+
+
+def roll_shelf(rt, rolled, roll):
+    """The engine rolls a shelf's loot. Returns how many annotated maps it holds."""
+    ids = ", ".join('"%s"' % r for r in rolled)
+    rt.run(f"""
+        SIM.randQueue = {{ {roll} }}
+        maroonShelf = SIM.container(40)
+        SIM.fillContainer(maroonShelf, {{ {ids} }})
+        SIM.randQueue = {{}}
+    """)
+    return int(rt.eval("""(function()
+        local n = 0
+        for _, it in ipairs(maroonShelf.items) do
+            if it.fullType == TREK.Config.Maroon.mapItem then n = n + 1 end
+        end
+        return n end)()"""))
+
+
+def read_map(rt, net, who=1):
+    """Right-clicks an annotated map in the player's pockets and reads it.
+    Returns the labels the menu offered."""
+    rt.run(f"""
+        maroonInv = SIM.contextMenu()
+        local items = {{}}
+        for _, it in ipairs(SIM.players[{who}].inventory.items) do table.insert(items, it) end
+        TREK.MaroonedUI.fillInventoryMenu(0, maroonInv, items)
+    """)
+    labels = str(rt.eval("maroonInv:deepLabels()"))
+    rt.run('maroonInv:click("IGUI_TREK_MaroonRead")')
+    net.pump(4)
+    return labels
+
+
+MAROON_MARK = ("(function() for _, c in ipairs(TREK.Probes.contacts()) do "
+               "if c.kind == 'shuttle' then return c end end end)()")
+
+
+def marooned():
+    """Marooned (MAROONED.md), walked the way a player walks it: woken in
+    Muldraugh with a dark ship somewhere else in the county and no combadge,
+    so no menu and no beam; a map in a gas station that somebody marked; the
+    walk; the hull's one option; and the moment aboard that gives the menu
+    back."""
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SandboxVars.TrekShuttle.StartState = 3")
+    rt.run("SIM.player('castaway', 10780.5, 9920.5, 0)")
+    net.start()
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    ring = int(rt.eval("TREK.Config.Maroon.placeMax"))
+
+    # --- the state: the cold start's, and two facts more ----------------------
+    state = {k: ship(rt, k) for k in ("commissioned", "coldStart", "power", "crystals",
+                                      "probes", "dark", "marooned")}
+    check(state == {"commissioned": False, "coldStart": True, "power": 0, "crystals": 0,
+                    "probes": C("ColdStartProbes"), "dark": True, "marooned": True},
+          f"marooned: a new world began as {state}")
+    check(rt.eval(f"TREK.Marooned.linked({P})") is False,
+          "marooned: the castaway began with a combadge")
+
+    # --- not near them at all ------------------------------------------------
+    net.pump(120)
+    site = maroon_site(rt)
+    check(site is not None, "marooned: no site was ever drawn")
+    if site is None:
+        return
+    sid, sx, sy = site
+    far = ((sx - 10780) ** 2 + (sy - 9920) ** 2) ** 0.5
+    check(sid != "muldraugh" and far >= int(rt.eval("TREK.Config.Maroon.minDistance")),
+          f"marooned: she came down at {sid}, {int(far)} squares from a player in Muldraugh")
+    check(ship(rt, "landed") is not True and ship(rt, "coldPlaced") is not True,
+          "marooned: she was set down beside the player, as a cold start is")
+    check("IGUI_TREK_ColdPlaced" not in rt.notes(),
+          f"marooned: the player was told where she is ({rt.notes()})")
+
+    # --- no combadge: no menu, no beam, no calling her down -------------------
+    labels = ground_labels(rt)
+    check(labels == "", f"marooned: the ground offers {labels!r} to somebody with no combadge")
+    rt.run("SIM.notes = {}")
+    rt.run(f'TREK.Core.send({P}, "move", {{ kind = "beamUp", token = 1 }})')
+    net.pump(20)
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is False and "IGUI_TREK_NoBadge" in rt.notes(),
+          f"marooned: a beam with no combadge was not refused for the want of one ({rt.notes()})")
+    rt.run("SIM.notes = {}")
+    rt.run(f'TREK.Core.send({P}, "land", {{ x = 10790, y = 9920, z = 0 }})')
+    net.pump(20)
+    check(ship(rt, "landed") is not True and "IGUI_TREK_NoBadge" in rt.notes(),
+          f"marooned: she was called down by somebody with no combadge ({rt.notes()})")
+    rt.run("SIM.notes = {}")
+    rt.run(f'TREK.Core.send({P}, "recall", {{}})')
+    net.pump(4)
+    check("IGUI_TREK_NoBadge" in rt.notes(),
+          f"marooned: a recall with no combadge was not refused for the want of one ({rt.notes()})")
+
+    # --- the maps: where vanilla's are, by chance, and only those -------------
+    chance = int(rt.eval("TREK.Config.Maroon.mapChance"))
+    check(roll_shelf(rt, ["Base.MuldraughMap", "Base.Hammer"], chance - 1) == 1,
+          "marooned: a shelf rolled with a map on it, under the chance, got no annotated one")
+    check(roll_shelf(rt, ["Base.MuldraughMap"], chance) == 0,
+          "marooned: a shelf got an annotated map on a roll over the chance")
+    check(roll_shelf(rt, ["Base.Hammer", "Base.Nails"], 0) == 0,
+          "marooned: an annotated map went onto a shelf with no map on it")
+    check(roll_shelf(rt, ["TrekShuttle.TrekAnnotatedMap"], 0) == 1,
+          "marooned: an annotated map counted as a map, and bred another")
+    check(int(ship(rt, "maroonMaps")) == 1, f"marooned: {ship(rt, 'maroonMaps')} maps counted, not 1")
+
+    # --- reading one ----------------------------------------------------------
+    # Nothing else is one: a road map of vanilla's and a hammer offer nothing,
+    # and the server does not read either for a client that says they are.
+    rt.run(f'{P}.inventory:AddItem(instanceItem("Base.MuldraughMap")); '
+           f'{P}.inventory:AddItem(instanceItem("Base.Hammer"))')
+    rt.run("SIM.notes = {}; SIM.revealed = {}; SIM.actionQueue = {}")
+    labels = read_map(rt, net)
+    check(labels == "", f"marooned: a road map and a hammer offer {labels!r}")
+    rt.run(f'TREK.Net.send({P}, "readShuttleMap", {{ id = {P}.inventory.items[1]:getID() }})')
+    net.pump(4)
+    check(shuttle_contacts(rt) == 0 and rt.notes() == [],
+          f"marooned: the server read a road map as an annotated one ({rt.notes()})")
+    rt.run(f'{P}.inventory:AddItem(instanceItem("TrekShuttle.TrekAnnotatedMap"))')
+    labels = read_map(rt, net)
+    check("IGUI_TREK_MaroonRead" in labels, f"marooned: an annotated map offers {labels!r}")
+    check(shuttle_contacts(rt) == 1, "marooned: reading the map put nothing on the ship's contacts")
+    c = MAROON_MARK
+    check((int(rt.eval(f"{c}.x")), int(rt.eval(f"{c}.y"))) == (sx, sy)
+          and rt.eval(f"{c}.approximate") is True,
+          "marooned: the mark is not on the site, or claims to be exact before she is down")
+    note = [n for n in rt.notes() if "IGUI_TREK_MaroonMap" in n]
+    check(len(note) == 1 and f"IGUI_TREK_MaroonSite_{sid}" in note[0] and str(int(far)) in note[0],
+          f"marooned: the map did not say where and how far ({rt.notes()})")
+    check(any(int(r.x1) <= sx <= int(r.x2) and int(r.y1) <= sy <= int(r.y2)
+              for r in rt.eval("SIM.revealed").values()),
+          "marooned: the ground round the mark was not uncovered")
+    check(int(rt.eval("#SIM.actionQueue")) == 1
+          and (rt.eval("SIM.actionQueue[1].centerX"), rt.eval("SIM.actionQueue[1].centerY")) == (sx, sy),
+          "marooned: reading the map did not open the map on the mark")
+    rt.run("local a = SIM.actionQueue[1]; SIM.actionQueue = {}; a:perform()")
+    ids = [str(s.id) for s in rt.eval("SIM.mapSymbols()").values()]
+    check(ids.count("TrekContactShuttle") == 1, f"marooned: the open map shows {ids}")
+    rt.run("ISWorldMap_instance:onClose()")
+    read_map(rt, net)
+    check(shuttle_contacts(rt) == 1, "marooned: a second reading made a second mark")
+    # In the dark, with nothing to read by, the note is all there is.
+    rt.run(f"{P}.dark = true; SIM.actionQueue = {{}}; SIM.notes = {{}}")
+    read_map(rt, net)
+    check(int(rt.eval("#SIM.actionQueue")) == 0 and any("IGUI_TREK_MaroonMap" in n for n in rt.notes()),
+          "marooned: a map read in the dark opened the map, or said nothing")
+    rt.run(f"{P}.dark = false; SIM.actionQueue = {{}}")
+
+    # --- she is only a record until somebody loads her ground -----------------
+    # A long while with nobody near: not built, and not a word about room
+    # (the warnings are read at the end).
+    net.pump(400)
+    check(ship(rt, "landed") is not True, "marooned: she was built where nobody stands")
+    # The site's own square has grown a tree since the map was read, so she
+    # comes down beside it and the mark has to follow her.
+    rt.run(f"SIM.rawSquare({sx}, {sy}, 0).occupied = true")
+    rt.run(f"local p = {P}; p.x, p.y = {sx} + 40.5, {sy} + 0.5; p.streamX, p.streamY = nil, nil")
+    rt.run("SIM.notes = {}")
+    net.pump(120)
+    check(ship(rt, "landed") is True and ship(rt, "maroonPlaced") is True,
+          "marooned: she was not set down when her ground loaded")
+    d = max(abs(ship(rt, "x") - sx), abs(ship(rt, "y") - sy))
+    check(0 < d <= ring, f"marooned: she came down {d} squares from the site, not 1..{ring}")
+    check((int(rt.eval(f"{c}.x")), int(rt.eval(f"{c}.y"))) == (ship(rt, "x"), ship(rt, "y"))
+          and rt.eval(f"{c}.approximate") is False,
+          "marooned: the mark did not move to where she really is")
+    check(rt.notes() == [], f"marooned: somebody was told she is down ({rt.notes()})")
+    check(rt.eval(f"TREK.MapView.shipSpot({P})") is None,
+          "marooned: the map shows her dot to somebody who has not found her")
+
+    # Lost before she is found: put back on her site, never beside the player.
+    rt.run("""
+        local s = TREK.Util.state()
+        s.landed, s.vehicleId = false, nil
+        for _, v in ipairs(SIM.vehicles) do v.removed = true end
+    """)
+    net.pump(120)
+    d = max(abs(ship(rt, "x") - sx), abs(ship(rt, "y") - sy))
+    check(ship(rt, "landed") is True and d <= ring,
+          "marooned: a dark ship that lost her vehicle was not put back on her site")
+
+    # --- her hull has a door and nothing else ---------------------------------
+    hx, hy = ship(rt, "x"), ship(rt, "y")
+    rt.run(f"local p = {P}; p.x, p.y = {hx} + 0.5, {hy} + 4.5")
+    net.pump(40)
+    labels = ground_labels(rt, 0, -4)
+    check("IGUI_TREK_Enter" in labels and "IGUI_TREK_Recall" not in labels
+          and "IGUI_TREK_BeamUp" not in labels,
+          f"marooned: her hull offers {labels!r} to somebody with no combadge")
+    check(ground_labels(rt, 12, 0) == "", "marooned: the ground beside her offers a menu")
+
+    # --- aboard: the combadge -------------------------------------------------
+    rt.run("SIM.notes = {}")
+    rt.run(f"TREK.Core.enter({P})")
+    net.pump(260)
+    if died(rt, "marooned, walking in"):
+        return
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is True,
+          "marooned: the hatch would not take the castaway aboard")
+    check(rt.eval(f"TREK.Marooned.linked({P})") is True and ship(rt, "maroonFound") is True,
+          "marooned: being aboard her did not give a combadge")
+    check("IGUI_TREK_MaroonFound" in rt.notes(),
+          f"marooned: finding her was not announced ({rt.notes()})")
+    check(shuttle_contacts(rt) == 0 and shuttle_contacts(rt, live=False) == 1,
+          "marooned: the mark is still live after she was found")
+    rt.run("SIM.notes = {}")
+    net.pump(60)
+    check(not any("IGUI_TREK_Maroon" in n for n in rt.notes()),
+          f"marooned: the combadge was given twice ({rt.notes()})")
+
+    # Found: no more maps, and one read now is old news.
+    check(roll_shelf(rt, ["Base.MuldraughMap"], 0) == 0,
+          "marooned: annotated maps go on turning up after she is found")
+    rt.run("SIM.notes = {}")
+    read_map(rt, net)
+    check("IGUI_TREK_MaroonMapStale" in rt.notes() and shuttle_contacts(rt) == 0,
+          f"marooned: a map read after she was found marked her again ({rt.notes()})")
+
+    # --- and the ground menu is back -----------------------------------------
+    rt.run(f"TREK.Core.exit({P})")
+    net.pump(320)
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is False,
+          "marooned: the castaway could not step out again")
+    labels = ground_labels(rt, 12, 0)
+    check("IGUI_TREK_CallDown" in labels and "IGUI_TREK_BeamUp" in labels,
+          f"marooned: with a combadge the ground offers {labels!r}")
+    check(rt.eval(f"TREK.MapView.shipSpot({P})") is not None,
+          "marooned: the map does not show her to somebody who has found her")
+    # Still a cold ship: the beam is refused for power now, not for a combadge.
+    rt.run("SIM.notes = {}")
+    rt.run(f'TREK.Core.send({P}, "move", {{ kind = "beamUp", token = 2 }})')
+    net.pump(20)
+    check("IGUI_TREK_NoBadge" not in rt.notes() and rt.eval(f"TREK.Util.isInteriorPlayer({P})") is False,
+          f"marooned: a dark ship beamed somebody up, or still asked for a combadge ({rt.notes()})")
+
+    # Commissioned, she is the crew's: sent up, she is not dragged back to
+    # the site the maps marked.
+    energy_state(rt, int(C("PowerMax")), 0)
+    rt.run("TREK.Energy.powerChanged()")
+    check(ship(rt, "commissioned") is True, "marooned: power did not commission her")
+    rt.run(f"TREK.Menu.onRecall(nil, {P})")
+    net.pump(180)
+    check(ship(rt, "landed") is False,
+          "marooned: a commissioned ship sent up was set down on her site again")
+
+    for w in rt.warnings():
+        fail(f"marooned: {w}")
+    print("marooned: a cold ship at a site a long way off and nobody told; no menu, beam, "
+          "call-down or recall without a combadge; annotated maps beside vanilla's by "
+          "chance; a reading marks, uncovers and opens the map; she is set down when her "
+          "ground loads; her hull has only its door; and aboard gives the combadge and "
+          "the menu back")
+
+
+def marooned_edges():
+    """The ways a marooned start must not go wrong: the site beside the
+    player, a world with none of the sites in it, an old save, a seat that
+    does not count, and a map in a world that was never marooned."""
+    P = "SIM.players[1]"
+    sites = ("muldraugh", "westpoint", "riverside", "rosewood", "marchridge", "valleystation")
+
+    # --- never the site beside them, and every other one can be drawn ---------
+    net = Net("sp")
+    rt = net.server
+    rt.run("SandboxVars.TrekShuttle.StartState = 3")
+    rt.run("SIM.player('local', 10953.5, 9932.5, 0)")
+    net.start()
+    check(int(rt.eval("#TREK.Config.Maroon.sites")) == 6,
+          f"marooned edges: {rt.eval('#TREK.Config.Maroon.sites')} sites, not six")
+    drawn = set()
+    for roll in range(12):
+        rt.run(f"TREK.Util.state().maroonSite = nil; SIM.randQueue = {{ {roll} }}")
+        rt.run(f"TREK.MaroonedServer.chooseSite({P})")
+        drawn.add(str(ship(rt, "maroonSite")))
+    rt.run("SIM.randQueue = {}")
+    check(drawn == set(sites) - {"muldraugh"},
+          f"marooned edges: standing on Muldraugh's site, the draws were {sorted(drawn)}")
+    check(rt.eval(f"TREK.MaroonedServer.chooseSite({P})") is None,
+          "marooned edges: the site was drawn twice")
+
+    # Every site too near (a small map, in effect): the farthest, not nothing.
+    rt.run("TREK.Util.state().maroonSite = nil; TREK.Config.Maroon.minDistance = 99999")
+    rt.run(f"TREK.MaroonedServer.chooseSite({P})")
+    check(ship(rt, "maroonSite") == "riverside",
+          f"marooned edges: with every site too near, {ship(rt, 'maroonSite')} was drawn, "
+          f"not the farthest")
+
+    # --- a seat is aboard -----------------------------------------------------
+    net = Net("sp")
+    rt = net.server
+    rt.run("SandboxVars.TrekShuttle.StartState = 3")
+    rt.run("SIM.player('pilot', 6400.5, 5430.5, 0)")
+    net.start()
+    net.pump(60)
+    sid, sx, sy = maroon_site(rt)
+    rt.run(f"local p = {P}; p.x, p.y = {sx} + 30.5, {sy} + 0.5; p.streamX, p.streamY = nil, nil")
+    net.pump(120)
+    check(ship(rt, "landed") is True, "marooned edges: she was not set down for the pilot")
+    rt.run("TREK.Server.serviceVehicle()")
+    check(rt.eval(f"TREK.Marooned.linked({P})") is False,
+          "marooned edges: standing near her gave a combadge")
+    seat(rt, 0)
+    net.pump(int(rt.eval("TREK.Config.Maroon.badgeTicks")) + 2)
+    check(rt.eval(f"TREK.Marooned.linked({P})") is True,
+          "marooned edges: sitting in her seat did not count as being aboard her")
+    # A new character under the same name still has the ship.
+    rt.run(f"{P}.vehicle = nil; TREK.Vehicle.ship().seats[0] = nil; {P}.modData = {{}}")
+    check(rt.eval(f"TREK.Marooned.linked({P})") is True,
+          "marooned edges: the combadge was the character's, not the player's")
+    for w in rt.warnings():
+        fail(f"marooned edges: {w}")
+
+    # --- a world with none of the sites in it is a cold start -----------------
+    net = Net("sp")
+    rt = net.server
+    rt.run("SandboxVars.TrekShuttle.StartState = 3")
+    rt.run("SIM.worldBounds = { x1 = 0, y1 = 0, x2 = 5000, y2 = 5000 }")
+    rt.run("SIM.player('elsewhere', 4000.5, 4000.5, 0)")
+    net.start()
+    net.pump(60)
+    check(ship(rt, "marooned") is None and ship(rt, "landed") is True,
+          "marooned edges: on a map with none of the sites she was left nowhere")
+    d = max(abs(ship(rt, "x") - 4000), abs(ship(rt, "y") - 4000))
+    check(d <= int(rt.eval("TREK.Config.ColdPlaceMax")) and "IGUI_TREK_ColdPlaced" in rt.notes(),
+          "marooned edges: the fallback is not the cold start, beside the player and said")
+    check(rt.eval(f"TREK.Marooned.linked({P})") is True,
+          "marooned edges: the fallback left the player without a menu")
+    check(any("none of the 6 sites" in w for w in rt.warnings()),
+          "marooned edges: falling back to a cold start said nothing")
+
+    # --- an existing save is never marooned ----------------------------------
+    net = Net("sp")
+    rt = net.server
+    rt.run("SandboxVars.TrekShuttle.StartState = 3")
+    rt.run("SIM.player('old', 1000.5, 1000.5, 0)")
+    net.start()
+    rt.run("""
+        local s = TREK.Util.state()
+        s.commissioned, s.coldStart, s.dark, s.probes, s.marooned, s.badged = nil, nil, nil, nil, nil, nil
+        s.built, s.power, s.crystals = true, 1234, 2
+    """)
+    check(rt.eval("TREK.ColdStart.init()") == "migrated" and ship(rt, "marooned") is None
+          and ship(rt, "power") == 1234,
+          "marooned edges: the setting marooned an existing save")
+    check(rt.eval(f"TREK.Marooned.linked({P})") is True,
+          "marooned edges: an existing save lost its menu")
+
+    # --- a map in a world that was never marooned -----------------------------
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('reader', 1000.5, 1000.5, 0)")
+    net.start()
+    check(roll_shelf(rt, ["Base.MuldraughMap"], 0) == 0,
+          "marooned edges: annotated maps turn up in a world that was not marooned")
+    rt.run(f'{P}.inventory:AddItem(instanceItem("TrekShuttle.TrekAnnotatedMap")); SIM.notes = {{}}')
+    read_map(rt, net)
+    check("IGUI_TREK_MaroonMapStale" in rt.notes() and shuttle_contacts(rt, live=False) == 0,
+          f"marooned edges: a map read in an ordinary world marked something ({rt.notes()})")
+    labels = ground_labels(rt)
+    check("IGUI_TREK_BeamUp" in labels, f"marooned edges: an ordinary world's ground offers {labels!r}")
+    for w in rt.warnings():
+        fail(f"marooned edges: {w}")
+    print("marooned edges: never the site beside them and any of the other five; the "
+          "farthest when all are near; a seat counts and the combadge is the player's; "
+          "a map with no sites is a cold start, said; an old save is untouched; and an "
+          "ordinary world has no annotated maps and reads one as old news")
+
+
+def marooned_mp():
+    """Two players, marooned: the one who finds her has the menu and the beam,
+    the other has neither until they have been aboard, and both machines know
+    which is which."""
+    net = Net("mp", clients=("finder", "other"))
+    srv, A, B = net.server, net.clients["finder"], net.clients["other"]
+    for rt in net.all():
+        rt.run("SandboxVars.TrekShuttle.StartState = 3")
+    srv.run("SIM.player('finder', 10780.5, 9920.5, 0); SIM.player('other', 10800.5, 9920.5, 0)")
+    A.run("SIM.player('finder', 10780.5, 9920.5, 0)")
+    B.run("SIM.player('other', 10800.5, 9920.5, 0)")
+    net.start()
+    net.pump(120)
+    site = maroon_site(srv)
+    check(site is not None and site[0] != "muldraugh", f"marooned mp: the site drawn was {site}")
+    if site is None:
+        return
+    sid, sx, sy = site
+    for name, c in (("finder", A), ("other", B)):
+        check(c.eval("TREK.Util.state().marooned") is True
+              and c.eval("TREK.Marooned.linked(SIM.players[1])") is False,
+              f"marooned mp: {name}'s machine does not know they have no combadge")
+        check(ground_labels(c) == "", f"marooned mp: {name}'s ground offers a menu")
+
+    # A client never rolls loot, and so never makes a map.
+    check(A.eval("SIM.fillContainer(SIM.container(40), { 'Base.MuldraughMap' })") is False,
+          "marooned mp: the simulated client rolled loot")
+    check(roll_shelf(srv, ["Base.MuldraughMap"], 0) == 1,
+          "marooned mp: the server put no annotated map beside a rolled one")
+
+    # The other reads a map: the mark reaches both machines.
+    for rt in (srv, B):
+        give(rt, "other", "TrekShuttle.TrekAnnotatedMap", 9901)
+    for c in (A, B):
+        c.run("SIM.notes = {}; SIM.actionQueue = {}")
+    read_map(B, net)
+    net.pump(4)
+    for name, c in (("finder", A), ("other", B)):
+        check(shuttle_contacts(c) == 1, f"marooned mp: the mark never reached {name}'s machine")
+    check(any("IGUI_TREK_MaroonMap" in n for n in B.notes()) and A.notes() == [],
+          f"marooned mp: the reader was not told, or the other player was ({B.notes()} / {A.notes()})")
+    # A client that claims a map it does not carry is not answered.
+    A.run('TREK.Net.send(SIM.players[1], "readShuttleMap", { id = 9901 })')
+    net.pump(4)
+    check(A.notes() == [], f"marooned mp: a map nobody was carrying was read ({A.notes()})")
+
+    # The finder walks to her; she is set down for them, and they go aboard.
+    A.run(f"local p = SIM.players[1]; p.x, p.y = {sx} + 30.5, {sy} + 0.5; p.streamX, p.streamY = nil, nil")
+    net.pump(160)
+    check(ship(srv, "landed") is True, "marooned mp: she was not set down when the finder arrived")
+    hx, hy = ship(srv, "x"), ship(srv, "y")
+    A.run(f"local p = SIM.players[1]; p.x, p.y = {hx} + 0.5, {hy} + 4.5")
+    net.pump(40)
+    A.run("SIM.notes = {}; TREK.Core.enter(SIM.players[1])")
+    B.run("SIM.notes = {}")
+    net.pump(300)
+    check(A.eval("TREK.Util.isInteriorPlayer(SIM.players[1])") is True,
+          "marooned mp: the hatch would not take the finder aboard")
+    check(A.eval("TREK.Marooned.linked(SIM.players[1])") is True
+          and "IGUI_TREK_MaroonFound" in A.notes(),
+          f"marooned mp: the finder's machine never heard about the combadge ({A.notes()})")
+    check(B.eval("TREK.Marooned.linked(SIM.players[1])") is False and B.notes() == [],
+          f"marooned mp: the other player was given a combadge too ({B.notes()})")
+    check(srv.eval("TREK.Util.state().badged.finder") is True
+          and srv.eval("TREK.Util.state().badged.other") is None,
+          "marooned mp: the server's record of who has a combadge is wrong")
+    for name, c in (("finder", A), ("other", B)):
+        check(shuttle_contacts(c) == 0, f"marooned mp: {name}'s machine still shows the mark")
+
+    # The other still has nothing: the server refuses, whatever their menu did.
+    check(ground_labels(B) == "", "marooned mp: the other player's ground offers a menu")
+    B.run('TREK.Core.send(SIM.players[1], "move", { kind = "beamUp", token = 7 })')
+    net.pump(20)
+    check("IGUI_TREK_NoBadge" in B.notes()
+          and B.eval("TREK.Util.isInteriorPlayer(SIM.players[1])") is False,
+          f"marooned mp: the server beamed up somebody with no combadge ({B.notes()})")
+    check(B.eval("TREK.MapView.shipSpot(SIM.players[1])") is None
+          and A.eval("TREK.MapView.shipSpot(SIM.players[1])") is not None,
+          "marooned mp: her dot is on the wrong player's map")
+
+    # Until they walk aboard themselves.
+    B.run(f"local p = SIM.players[1]; p.x, p.y = {hx} + 0.5, {hy} + 4.5; p.streamX, p.streamY = nil, nil")
+    net.pump(80)
+    labels = ground_labels(B, 0, -4)
+    check("IGUI_TREK_Enter" in labels and "IGUI_TREK_Recall" not in labels,
+          f"marooned mp: her hull offers the other player {labels!r}")
+    B.run("SIM.notes = {}; TREK.Core.enter(SIM.players[1])")
+    net.pump(300)
+    check(B.eval("TREK.Marooned.linked(SIM.players[1])") is True
+          and "IGUI_TREK_MaroonLinked" in B.notes() and "IGUI_TREK_MaroonFound" not in B.notes(),
+          f"marooned mp: the second aboard was not given a combadge, or was told they "
+          f"found her ({B.notes()})")
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"marooned mp ({rt.name}): {w}")
+    print("marooned mp: both machines know nobody has a combadge; only the server makes "
+          "maps; a reading reaches both and a map nobody carries is not read; the finder "
+          "aboard gets the combadge and the other does not, on the server and on both "
+          "screens; and the server refuses the beam whatever a menu offered")
+
+
 def wild_count(rt, cx, cy, r=48):
     """Crystals lying on the ground within r squares of cx, cy."""
     return int(rt.eval(f"""(function()
@@ -18080,7 +18578,7 @@ SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabi
             contact_map, contacts_multiplayer, probes, energy,
             energy_movement, energy_cabin, energy_shields, energy_emergency,
             energy_emergency_mp, cold_start, cold_start_edges,
-            cold_start_mp, wild_dilithium, galley,
+            cold_start_mp, marooned, marooned_edges, marooned_mp, wild_dilithium, galley,
             energy_multiplayer, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,

@@ -37,6 +37,7 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Dilithium** | The ship's power is a crystal burning in the warp core amidships, and nothing refills it for free: **the replicator cannot make one**. They lie on the county's wild ground (fields, woods, dirt, never in town) and turn up now and then where a small, valuable, electrical thing would be: a jeweller's case, a pawn shop, an electronics store. The tricorder finds them, probes point at them, and when the last one is gone the ship is dark. |
 | **Everything runs on it** | Beaming, calling her down, taking off, flying, hovering, the shields, the Doctor, probes and the galley all draw on the crystal, and a gauge on screen shows what is left. At zero she goes **dark**: red emergency light, no replicator, no Doctor, no beaming; and if she was in the air she comes down, undamaged, as soon as there is room. Load a crystal and she comes back with a very pleasant sound. |
 | **Cold start** | A new world (by default) starts with the shuttle **landed near you, dark**, with two probes and no spare crystals. Walk aboard, launch a probe, walk to the dilithium it finds, bring it back and load it, and she is commissioned. |
+| **Marooned** | The hardest start, on the sandbox page: the shuttle is not near you at all. She is down, dark, at one of six places in the county (never the one beside you), and you have no combadge, so there is no Shuttlecraft menu and no beaming. Search the places maps are kept for an **annotated map** somebody marked where she came down, cross the county to her, and walk aboard. From that moment the menu is yours, and the cold start's work begins. |
 | **The warp core** | Amidships, in the port passage. Right-click it to load a crystal you have found, or to take one back before a trip. It says how many the ship is holding on the option itself, so you never have to guess. |
 | **Running water** | The galley sink has its own water supply, topped up every in-game minute, so it keeps running after the mains shut off. |
 | **The Doctor** | The sick bay's wall station projects an Emergency Medical Hologram. He diagnoses, he treats (everything a hypospray and a regenerator do between them, plus the glass and the bullets neither will touch), and his supplies never run out. He also tells you the one thing the medical tricorder will not: whether you are infected. |
@@ -105,7 +106,7 @@ Twelve sandbox options, on the **Shuttlecraft** page:
 | **Replicator** | *Patterns and energy*: it makes what the ship has scanned, and each one spends from a reserve that only dilithium refills. *Unrestricted*: anything in the catalogue, immediately, for nothing. *Off*: the machine is scenery, and says so. | Patterns and energy |
 | **Emergency Medical Hologram** | *Full*: the Doctor as designed, cure included. *Off*: the sick bay's station is inactive and says so. There is deliberately no setting that keeps him and removes the cure; a server owner who does not want the cure turns him off. | Full |
 | **Hover height** | *2, 3, 4, 5, 6 or 8 storeys*: how high she hovers in flight. Buildings with fewer storeys pass beneath her; anything taller is a wall she slows to a stop in front of. Raise it for Louisville's towers. | 5 storeys |
-| **How the shuttle starts** | *Cold start*: landed near the first player, dark, no spares, two probes. *Commissioned*: overhead, with a full crystal and three spares. Only a brand new world is affected. | Cold start |
+| **How the shuttle starts** | *Cold start*: landed near the first player, dark, no spares, two probes. *Commissioned*: overhead, with a full crystal and three spares. *Marooned*: a cold start with the shuttle lost at one of six places, no Shuttlecraft menu or beaming until you have been aboard her, and annotated maps to find her by. Only a brand new world is affected. | Cold start |
 | **Dilithium in the wild** | *Plentiful*, *Scarce* or *None*: crystals lying on natural ground out in the county. | Plentiful |
 | **When the Adirondack first calls** | *Straight away*, *after a day*, *three days*, *a week* or *two weeks* after commissioning. | After a week |
 | **Phaser cutting** | *Trees and doors*, *Trees only* or *Off*. Somebody else's safehouse is refused either way. | Trees and doors |
@@ -125,6 +126,11 @@ answer there. Admins are never checked, so test with an ordinary account.
    no power: walk to her and in through the hatch, launch a probe from the
    sensor console, and bring back the crystal it finds. Once she is
    commissioned, everything below works.
+   **On a marooned start** there is no shuttle to walk to and no menu to
+   call her with. Look where maps are kept (gas stations, crates of them) for
+   an **Annotated Map**, right-click it and **Read the annotated map**: it
+   says where she came down and marks it on your map. Go there, right-click
+   her hull, **Board the shuttle**, and carry on as for a cold start.
 2. Right-click anywhere → **Shuttlecraft ▸ Beam up to the shuttle**. You
    materialise on the transporter pad, aft.
 3. Take a **phaser** from the armoury, forward on the starboard side, before
@@ -409,6 +415,12 @@ interior plus `TREK_InteriorLayout.lua`.
   explored yet.
 - **The cold start only applies to a brand new world.** A save made before it
   carries on commissioned.
+- **A marooned start needs the vanilla map.** The six places are in Knox
+  County. On a map with none of them the world begins as a cold start, and
+  the log says so.
+- **On a marooned server, everybody finds her for themselves.** A player has
+  no menu and no beam until they have been aboard, and nobody can board a
+  ship that is overhead: a crewmate has to set her down for a latecomer.
 - **The warp core is not a cupboard.** It holds crystals and nothing else, and
   you put them in and take them out from its right-click menu rather than by
   opening it.

@@ -692,7 +692,16 @@ actions:
     because the only guard anybody could delete was one that never ran. The
     client steps its action now.
 
-All fourteen are fixed, and the rule they share is worth more than any of them:
+And a fifteenth, with the marooned start (2026-10-07):
+
+15. **A world whose loot was never rolled.** The sim had containers and no
+    engine filling them, so nothing hung on `OnFillContainer` could be tested
+    at all. `SIM.fillContainer` adds the rolled items and raises the event,
+    and **refuses on a client**, because `ItemPickerJava.fillContainerInternal`
+    returns there before it does anything. Its items know whether they are a
+    `MapItem` (`IsMap`), and the mod's own annotated map is not one.
+
+All fifteen are fixed, and the rule they share is worth more than any of them:
 **when a test is easy to satisfy, suspect the simulation before believing the
 code.** `MULTIPLAYER.md` says the same thing about vehicle gravity, the
 floor-gated height and the radial menu's one-frame delay, each of which let a
@@ -2686,6 +2695,9 @@ Learn these; they map to causes that are not obvious from the symptom.
 | **No world right-click and no aiming, suddenly, and nothing in the log** | A UI element as big as the screen is up. The engine treats the mouse as "over the UI" by the element's rectangle alone, whatever its Lua `isMouseOver` says. See *An overlay that covers the screen takes the world's mouse away*. |
 | **A drug's menu reads `ContextMenu_TREK_Inject`, or *Eat*** | The first is `Translate/EN/ContextMenu.json` not loading; the second is a `HungerChange` that is not 0, which sends vanilla's menu down its Eat branch instead of the custom word. See `CONTRABAND.md` 5. |
 | **A hooked player's Doctor offers no Detox, or a PADD no flashing light** | Their client never got `contraState`: the record is the server's, and the panel and the menu read the client's mirror of it. `contraband mp` in `tests/test_multiplayer.py` is the check. |
+| **A marooned world and no annotated map anywhere** | They go in at the loot roll, beside one of vanilla's maps, half the time: `grep "marooned:" console.txt` counts them. None logged after searching several map racks means `OnFillContainer` is not reaching `MS.onFillContainer`, or `s.marooned` was not set when the world began (`cold start: a new ship, dark and marooned`). A world where somebody has already been aboard makes no more. |
+| **A marooned world and the shuttle is not at the mark** | She is set down only when the site's chunk loads, on the nearest clear fifteen squares within `C.Maroon.placeMax`: `marooned: the shuttle is down at`. A WARN `no room for the shuttle within` means the ground there has grown over; walking round it loads more. |
+| **No Shuttlecraft menu on a right-click** | A marooned world and a player who has not been aboard: working as designed (`MAROONED.md` 5). Her hull still offers *Board the shuttle*. |
 | **Half a feature works and the other half is silent** | A wrong engine call on the silent path. `grep -E "\[TREK\] WARN" console.txt` first, always; it is one line and it is the answer. |
 
 ---
@@ -3418,6 +3430,19 @@ load, which the bytecode of `InputScript` shows is the list `canUseItem`
 reads. Eighteen mutations, seventeen caught, the last a guard that changes no
 outcome and says so. **Not seen in game.**
 
+**The 2026-10-07 marooned start** (`MAROONED.md`): the sandbox's third
+*How the shuttle starts*. The cold start with the ship lost: down and dark at
+one of six sites read off the vanilla map, never the one beside the first
+player, and set down only when somebody loads her ground; no Shuttlecraft
+menu, beam, call-down or recall for a player until they have been aboard
+her; and annotated maps that go into a container when the engine rolls it
+with one of vanilla's maps in it (`OnFillContainer`, which a client never
+raises), each one a `shuttle` contact when read. Simulation hole fifteen came
+with it: the sim had no loot roll at all, and `SIM.fillContainer` refuses on a
+client as the engine does. 48 mutations, 43 caught at first; two of the five
+were guards nothing could reach, and were deleted. **Not seen in game, and
+the maps rest on an engine event this mod had not used before.**
+
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
 
@@ -3509,6 +3534,10 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_Tapes.lua            every tape's RecM
 TrekShuttle/42/media/lua/server/TREK/TREK_Energy.lua           the ledger every charge goes through; dark and back (ENERGY.md)
 TrekShuttle/42/media/lua/client/TREK/TREK_PowerHUD.lua         the power gauge on screen
 TrekShuttle/42/media/lua/server/TREK/TREK_ColdStart.lua        the cold start: placing the dark ship, commissioning
+TrekShuttle/42/media/lua/shared/TREK/TREK_Marooned.lua         marooned: who has a combadge, the site drawn (MAROONED.md)
+TrekShuttle/42/media/lua/server/TREK/TREK_MaroonedServer.lua   the site drawn, the ship set down on it, combadges, annotated maps at the loot roll
+TrekShuttle/42/media/lua/client/TREK/TREK_MaroonedUI.lua       Read the annotated map, and the two notes
+tools/maroon_sites.py                                          the six sites, checked against the vanilla map
 TrekShuttle/42/media/lua/shared/TREK/TREK_Traits.lua           species, divisions and rank: asking, the mirrored stat change
 TrekShuttle/42/media/lua/server/TREK/TREK_TraitsServer.lua     first sight, the timers, the android, rank
 TrekShuttle/42/media/lua/client/TREK/TREK_TraitsUI.lua         applies the server's stat change and shows its notes

@@ -103,6 +103,8 @@ end
 -- nothing, which is the one thing TREK_Menu.lua's own header forbids.
 local DENIALS = {
     access        = "IGUI_TREK_NotCrew",
+    -- Marooned (MAROONED.md): no combadge until they have been aboard.
+    noBadge       = "IGUI_TREK_NoBadge",
     wrongPlace    = "IGUI_TREK_WrongPlace",
     stationFar    = "IGUI_TREK_StationFar",
     -- Installations (INSTALLATIONS.md).

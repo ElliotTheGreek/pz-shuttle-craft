@@ -37,6 +37,7 @@ require "TREK/TREK_Build"
 require "TREK/TREK_Energy"
 require "TREK/TREK_Adirondack"
 require "TREK/TREK_FieldStation"
+require "TREK/TREK_Marooned"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -91,6 +92,15 @@ local function mayUse(player)
         return false
     end
     return true
+end
+
+--- Marooned (MAROONED.md): reaching the ship from the ground takes a
+--- combadge, and nobody has one until they have been aboard her. The hatch
+--- is a door and is never asked.
+local function linked(player)
+    if TREK.Marooned.linked(player) then return true end
+    deny(player, "noBadge")
+    return false
 end
 
 --- On a server with owner-and-crew access, the first player to use the ship
@@ -1036,6 +1046,10 @@ Net.onServer("move", function(player, args)
     local kind = args.kind
     local rule = MOVES[kind]
     if not rule or not alive(player) then return end
+    if kind == "beamUp" and not TREK.Marooned.linked(player) then
+        deny(player, "noBadge", { kind = kind })
+        return
+    end
     if rule.access and not mayUse(player) then return end
     if not movesFrom(player, rule.from) then
         deny(player, "wrongPlace", { kind = kind })
@@ -1138,7 +1152,7 @@ end)
 --- A client found room to land around itself and asks for the ship there.
 --- The server looks again, against its own copy of the world.
 Net.onServer("land", function(player, args)
-    if not mayUse(player) then return end
+    if not mayUse(player) or not linked(player) then return end
     local x, y, z = position(args)
     if not x then return end
 
@@ -1196,7 +1210,7 @@ Net.onServer("land", function(player, args)
 end)
 
 Net.onServer("recall", function(player)
-    if not mayUse(player) then return end
+    if not mayUse(player) or not linked(player) then return end
     -- A dark ship cannot go up: a landed one stays landed, and says why.
     local s = U.state()
     if s.landed and not TREK.Power.canPay(C.RecallCost) then

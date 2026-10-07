@@ -131,5 +131,6 @@
     "TrekShuttle.TrekStemBoltDriver": "Stem Bolt Driver",
     "TrekShuttle.TrekLaserCutter": "Laser Cutter",
     "TrekShuttle.TrekLaserWelder": "Laser Welder",
-    "TrekShuttle.TrekStemBolts": "Self-Sealing Stem Bolts"
+    "TrekShuttle.TrekStemBolts": "Self-Sealing Stem Bolts",
+    "TrekShuttle.TrekAnnotatedMap": "Annotated Map"
 }

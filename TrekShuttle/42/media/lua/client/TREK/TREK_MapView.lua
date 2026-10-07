@@ -33,6 +33,7 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Adirondack"
+require "TREK/TREK_Marooned"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -96,9 +97,12 @@ function MV.playerSpot(player)
 end
 
 --- Where the shuttle stands, when she is on the ground: x, y, or nil.
-function MV.shipSpot()
+function MV.shipSpot(player)
     local s = Ship.get()
     if not s.landed or s.flying then return nil end
+    -- Marooned, and never aboard her: where she is is the thing they are
+    -- looking for (MAROONED.md). An annotated map's mark is a contact.
+    if TREK.Marooned and not TREK.Marooned.linked(player) then return nil end
     if not s.x or not s.y or (s.x == 0 and s.y == 0) then return nil end
     return math.floor(s.x), math.floor(s.y)
 end
@@ -109,13 +113,23 @@ end
 --- The map, opened the way vanilla opens it (ISWorldMap.ToggleWorldMap's own
 --- last branch): the queue cleared and the read-the-map action queued --
 --- centred where the player is on the map when they are aboard.
-function MV.open(player)
-    local cx, cy = nil, nil
-    if aboardSomewhere(player) then cx, cy = MV.playerSpot(player) end
+function MV.open(player, atX, atY)
+    local cx, cy = atX, atY
+    if not cx and aboardSomewhere(player) then cx, cy = MV.playerSpot(player) end
     U.try("mv.aimIgnore", function() player:setJoypadIgnoreAimUntilCentered(true) end)
     ISTimedActionQueue.clear(player)
     ISTimedActionQueue.add(ISReadWorldMap:new(player, cx, cy, cx and 18.0 or nil))
     return true
+end
+
+--- Opens the map on a square, if this player may read one now: the map
+--- allowed at all, and light to read it by, vanilla's or the ship's.
+function MV.showAt(player, x, y)
+    if not player or not x or not y then return false end
+    if not ISWorldMap.IsAllowed() then return false end
+    local dark = U.try("mv.tooDark", function() return player:tooDarkToRead() end) == true
+    if dark and not MV.hasLight(player) then return false end
+    return U.try("mv.showAt", MV.open, player, math.floor(x), math.floor(y)) == true
 end
 
 local baseToggle = ISWorldMap.ToggleWorldMap
@@ -175,7 +189,7 @@ end
 function MV.drawDots(map)
     local player = map.character or getSpecificPlayer(map.playerNum or 0)
     local drawn = {}
-    local sx, sy = MV.shipSpot()
+    local sx, sy = MV.shipSpot(player)
     if sx and dot(map, sx, sy, MV.ShipColour, getText("IGUI_TREK_MapShuttle")) then
         drawn.ship = true
     end

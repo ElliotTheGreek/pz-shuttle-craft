@@ -41,6 +41,7 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | Dilithium and the warp core | `REPLICATOR.md`, `ENERGY.md` | Built. Crystals in wild ground (`TREK_Wild.lua`) came out of a cold-start play |
 | Energy: ledger, gauge, dark ship, shields, emergency landing | `ENERGY.md` | Built (phases 0-7) and not played |
 | Cold start | `ENERGY.md` 10 | Built. **Played** in part (it is why dilithium lies in wild ground) |
+| Marooned start: the shuttle lost at one of six sites, no menu or beam until first aboard, annotated maps where maps are kept | `MAROONED.md` | Built 2026-10-07, not played. **Needs a new world** |
 | Medical set | `MEDICAL_SET.md` | Built, not played |
 | EMH and the cure | `EMH.md` | **Played** in part: the first cure found two bugs, both fixed (*Aboard means the ship*) |
 | Uniforms | `UNIFORMS.md` | **Played** (they wear and draw). Female body not seen |
@@ -76,6 +77,9 @@ each guide's own *Not yet seen* section has the detail.
 
 1. **Cold start** (`ENERGY.md` 10.5): spawn near a dark shuttle, launch a
    probe, walk to the crystal, load it, hear the power come up.
+   Then **marooned** in a second new world (`MAROONED.md` 8): no menu on
+   spawning, an annotated map from a gas station, the walk, her hull's one
+   option, and the menu back once aboard.
 2. **The dark ship** (`ENERGY.md` 12): spend to zero, see red light, the
    replicator offline, the Doctor refused; hover to dark over a town.
 3. **The cabin** (`INTERIOR_REFIT.md` 7): three lockers, five empty
@@ -132,6 +136,8 @@ Check, with two people:
 - a pattern scanned by one reaching the other;
 - one channel with two PADDs;
 - one ensign rescued for one reward;
+- a marooned world: an annotated map in a client's loot panel, and the
+  second player with no menu until they board (`MAROONED.md` 8);
 - the field station's box opened by one and the panel seen by the other;
 - the Adirondack's crew seen from both;
 - *Offer the Game to...*

@@ -725,6 +725,10 @@ and `C.StartCold = 1` / `C.StartCommissioned = 2`):
 - **Cold start** (1, the default): earn the first crystal.
 - **Commissioned** (2): the ship as she is today.
 
+- **Marooned** (3, added 2026-10-07): this cold start with the ship lost.
+  Everything in this section applies to it except 10.3; `MAROONED.md` is its
+  guide.
+
 An absent value reads as **cold**, which is the feature as designed
 (`C.ReplicatorPatterns` sets the precedent). It only matters on a brand-new
 ship, because of 10.4.

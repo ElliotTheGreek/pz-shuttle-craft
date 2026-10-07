@@ -1489,6 +1489,29 @@ try:
 except SystemExit as e:
     failures.append(f"field station: {e}")
 
+# Marooned (MAROONED.md): the six places the shuttle can come down. A point
+# that is in a wood, a lake or a building on the map as shipped is a ship
+# nobody can find, and nothing in the game would say so. Both sides have a
+# floor (DEV_GUIDE, *A check against an empty set is not a passing check*).
+try:
+    import maroon_sites as MSITES
+    if os.path.isdir(MSITES.F.MAP):
+        _msites = MSITES.check()
+        if len(_msites) != 6:
+            failures.append(f"marooned: {len(_msites)} sites were read out of C.Maroon, not six")
+        for _sid, _sx, _sy, _room in _msites:
+            if _room == 0:
+                failures.append(f"marooned: the {_sid} site at {_sx},{_sy} has no room for the "
+                                f"shuttle on the vanilla map (python tools/maroon_sites.py)")
+        _mcfg = open(MSITES.CONFIG, encoding="utf-8").read()
+        for _sid, _, _, _ in _msites:
+            if f'"IGUI_TREK_MaroonSite_{_sid}"' not in _mcfg:
+                failures.append(f"marooned: the {_sid} site has no label written out in C.Maroon")
+    else:
+        print("marooned: no vanilla map at", MSITES.F.MAP, "-- sites not checked")
+except SystemExit as e:
+    failures.append(f"marooned: {e}")
+
 # The Borg among the dead (BORG.md). Five files have to agree and none of them
 # says so when they do not: an outfit whose item GUID names nothing is a
 # zombie with that piece missing, an outfit name the Lua does not know is a
