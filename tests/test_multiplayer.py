@@ -11225,12 +11225,13 @@ def wild_dilithium():
           f"wild: {wild_count(rt, int(sx), int(sy))} crystals were put down under the field station")
 
     # --- the sandbox ----------------------------------------------------------
-    check(rt.eval("TREK.Wild.oneIn()") == C("WildPlentifulOneIn"), "wild: Plentiful is not the default here")
+    check(rt.eval("TREK.Wild.oneIn()") == C("WildPlentifulOneIn"), "wild: Plentiful is not what this section set")
     rt.run("SandboxVars.TrekShuttle.WildDilithium = 2")
-    check(rt.eval("TREK.Wild.oneIn()") == C("WildScarceOneIn"), "wild: Scarce is not scarcer")
+    check(rt.eval("TREK.Wild.oneIn()") == C("WildScarceOneIn")
+          and int(C("WildScarceOneIn")) > int(C("WildPlentifulOneIn")), "wild: Scarce is not scarcer")
     rt.run("SandboxVars.TrekShuttle.WildDilithium = nil")
-    check(rt.eval("TREK.Wild.oneIn()") == C("WildPlentifulOneIn"),
-          "wild: an absent option is not the feature as designed")
+    check(rt.eval("TREK.Wild.oneIn()") == C("WildScarceOneIn"),
+          "wild: an absent option is not the feature as designed, which is Scarce")
     rt.run("SandboxVars.TrekShuttle.WildDilithium = 3")
     rt.run(f"local p = {P}; p.x, p.y = 4000.5, 4000.5")
     net.pump(60)

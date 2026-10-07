@@ -48,7 +48,7 @@ option TrekShuttle.StartState = {
 }
 
 option TrekShuttle.WildDilithium = {
-    type = enum, numValues = 3, default = 1,
+    type = enum, numValues = 3, default = 2,
     page = TrekShuttle, translation = TrekShuttle.WildDilithium, valueTranslation = TrekShuttle.WildDilithium,
 }
 

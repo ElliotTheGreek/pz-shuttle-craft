@@ -24,13 +24,13 @@ Built 2026-10-07. **Not played.** Section 8 is what to look at first.
 3. They cross the county. The shuttle is on open ground at the mark, dark.
    Right-click her hull: **Board the shuttle**, and nothing else.
 4. The moment they are aboard (her cabin, or one of her seats): *"You have
-   found the shuttle. Combadge online: she will answer you from anywhere
-   now."* From then on the menu, the transporter and her dot on the map are
+   found the shuttle. Learning biosigns... recorded. She knows you now, and
+   will answer you from anywhere."* From then on the menu, the transporter and her dot on the map are
    theirs, and the rest is the cold start's own loop: a probe, a crystal, the
    commissioning.
 
 On a server each player earns their own. The second aboard is told only that
-their combadge is online.
+the ship has learned their biosigns.
 
 ---
 

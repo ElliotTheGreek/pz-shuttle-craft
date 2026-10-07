@@ -107,7 +107,7 @@ Twelve sandbox options, on the **Shuttlecraft** page:
 | **Emergency Medical Hologram** | *Full*: the Doctor as designed, cure included. *Off*: the sick bay's station is inactive and says so. There is deliberately no setting that keeps him and removes the cure; a server owner who does not want the cure turns him off. | Full |
 | **Hover height** | *2, 3, 4, 5, 6 or 8 storeys*: how high she hovers in flight. Buildings with fewer storeys pass beneath her; anything taller is a wall she slows to a stop in front of. Raise it for Louisville's towers. | 5 storeys |
 | **How the shuttle starts** | *Cold start*: landed near the first player, dark, no spares, two probes. *Commissioned*: overhead, with a full crystal and three spares. *Marooned*: a cold start with the shuttle lost at one of six places, no Shuttlecraft menu or beaming until you have been aboard her, and annotated maps to find her by. Only a brand new world is affected. | Marooned |
-| **Dilithium in the wild** | *Plentiful*, *Scarce* or *None*: crystals lying on natural ground out in the county. | Plentiful |
+| **Dilithium in the wild** | *Plentiful*, *Scarce* or *None*: crystals lying on natural ground out in the county. | Scarce |
 | **When the Adirondack first calls** | *Straight away*, *after a day*, *three days*, *a week* or *two weeks* after commissioning. | After a week |
 | **Phaser cutting** | *Trees and doors*, *Trees only* or *Off*. Somebody else's safehouse is refused either way. | Trees and doors |
 | **Hydroponics tend themselves** | *Yes*: the Adirondack's trays are watered and kept free of pests. *No*: they need tending like any crop. | Yes |
