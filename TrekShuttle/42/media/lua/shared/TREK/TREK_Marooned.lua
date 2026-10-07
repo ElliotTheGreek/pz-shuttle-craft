@@ -39,13 +39,25 @@ function MR.active()
     return Ship.get().marooned == true
 end
 
---- True when this player may reach the ship from anywhere: always, except in
---- a marooned world before they have been aboard her.
+--- True when the ship knows this player's pattern, and so will answer them
+--- from anywhere: the menu on the ground, a beam up, calling her down.
+---
+--- **The rule of every world that begins dark**, marooned or a cold start
+--- (the author, 2026-10-07): a beam takes power and a pattern the ship has
+--- learned, and she learns it the first time that player is aboard. So the
+--- hatch is everybody's first move, and on a server whoever finds her first
+--- can send her up and keep her from the rest until they set her down.
+---
+--- `s.badged` existing is the switch. CS.init makes it for a new cold or
+--- marooned ship and for nothing else: a world that began commissioned has
+--- her overhead, where nobody could ever walk aboard, and a save from before
+--- this rule has no record of who has been, so both answer true for
+--- everybody, as they always did.
 function MR.linked(player)
     local s = Ship.get()
-    if s.marooned ~= true then return true end
+    if type(s.badged) ~= "table" then return true end
     if not player then return false end
-    return type(s.badged) == "table" and s.badged[Ship.usernameOf(player)] == true
+    return s.badged[Ship.usernameOf(player)] == true
 end
 
 --- True once anybody at all has been aboard her.

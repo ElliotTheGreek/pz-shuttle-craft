@@ -82,12 +82,13 @@ function CS.init()
     s.crystals = 0
     s.probes = C.ColdStartProbes
     s.dark = true
+    -- Whose patterns she has learned: nobody's yet (TREK_Marooned, MR.linked).
+    s.badged = {}
     -- Marooned (MAROONED.md) is this state and two more facts: she is not
     -- beside anybody, and nobody has a combadge. TREK_MaroonedServer draws
     -- her site and sets her down on it; nothing below places her.
     if start == C.StartMarooned then
         s.marooned = true
-        s.badged = {}
         Ship.commit()
         U.log("cold start: a new ship, dark and marooned -- no power, no spares, "
               .. "%d probes, and nobody knows where she is", C.ColdStartProbes)

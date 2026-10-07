@@ -69,7 +69,6 @@ function MS.chooseSite(player)
         -- Another map altogether. A ship nobody can find is a save nobody can
         -- play, so this world is a cold start after all.
         s.marooned = nil
-        s.badged = nil
         Ship.commit()
         U.log("WARN marooned: none of the %d sites is in this world; she is set down "
               .. "beside the first player instead, as a cold start", #C.Maroon.sites)
@@ -214,8 +213,9 @@ function MS.link(player)
     local name = Ship.usernameOf(player)
     s.badged = type(s.badged) == "table" and s.badged or {}
     s.badged[name] = true
-    local first = s.maroonFound ~= true
-    s.maroonFound = true
+    -- Finding her is a marooned world's news; a cold ship was never lost.
+    local first = s.marooned == true and s.maroonFound ~= true
+    if s.marooned == true then s.maroonFound = true end
     Ship.commit()
     if first then
         -- She is found: the mark on the map has done its work.
@@ -226,7 +226,7 @@ function MS.link(player)
             Probes.publish()
         end
     end
-    U.log("marooned: %s is aboard for the first time and has a combadge%s", name,
+    U.log("pattern: %s is aboard for the first time; the ship has their pattern%s", name,
           first and "; the shuttle is found" or "")
     Net.toClient(player, "maroonLinked", { first = first })
 end
@@ -234,7 +234,7 @@ end
 --- Links everybody who is aboard her and was not.
 function MS.serviceBadges()
     local s = U.state()
-    if s.marooned ~= true then return 0 end
+    if type(s.badged) ~= "table" then return 0 end
     local n = 0
     for _, p in ipairs(U.players()) do
         if not MR.linked(p) and U.try("maroonDead", function() return p:isDead() end) == false
@@ -332,13 +332,16 @@ end)
 local tick = 0
 Events.OnTick.Add(function()
     local s = U.state()
-    if s.marooned ~= true then return end
-    if not s.maroonSite then
-        local p = CS.firstOnFoot()
-        if p then U.try("maroonChoose", MS.chooseSite, p) end
-        return
+    if s.marooned == true then
+        if not s.maroonSite then
+            local p = CS.firstOnFoot()
+            if p then U.try("maroonChoose", MS.chooseSite, p) end
+        elseif MS.needsPlacing() then
+            U.try("maroonPlace", MS.servicePlacement)
+        end
     end
-    if MS.needsPlacing() then U.try("maroonPlace", MS.servicePlacement) end
+    -- Patterns are learned in any world that began dark, marooned or cold.
+    if type(s.badged) ~= "table" then return end
     tick = tick + 1
     if tick >= C.Maroon.badgeTicks then
         tick = 0

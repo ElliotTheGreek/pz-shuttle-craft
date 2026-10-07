@@ -100,6 +100,17 @@ places each has to set her down, `--find` looks for more, and
 
 ## 5. The combadge
 
+**Since the same day, this is the rule of every world that begins dark, a
+cold start included** (the author: "all beam entry requires is power plus
+having your pattern learnt once, so entering via the hatch is the first
+move"). The switch is `s.badged` existing, which `CS.init` makes for a new
+cold or marooned ship. A commissioned start has her overhead where nobody
+could walk aboard, and a save from before the rule has no record of who has
+been, so both answer true for everybody. On a server it means whoever is
+aboard first can send her up and keep her from the rest until they set her
+down, which is intended. Only a marooned world hides her dot on the map and
+says she was *found*.
+
 There is no combadge item. "No combadge" is `MR.linked(player) == false`, and
 it takes away exactly what a combadge would give:
 

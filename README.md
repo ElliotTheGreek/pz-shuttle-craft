@@ -418,9 +418,12 @@ interior plus `TREK_InteriorLayout.lua`.
 - **A marooned start needs the vanilla map.** The six places are in Knox
   County. On a map with none of them the world begins as a cold start, and
   the log says so.
-- **On a marooned server, everybody finds her for themselves.** A player has
-  no menu and no beam until they have been aboard, and nobody can board a
-  ship that is overhead: a crewmate has to set her down for a latecomer.
+- **The ship has to learn your pattern.** In a world that starts marooned or
+  cold, a player has no Shuttlecraft menu and no beam until they have walked
+  aboard through the hatch once. Anyone may use the hatch. On a server that
+  means whoever is aboard first can send her up, and nobody else can reach
+  her until she is set down again. A commissioned start and older saves are
+  as they were.
 - **The warp core is not a cupboard.** It holds crystals and nothing else, and
   you put them in and take them out from its right-click menu rather than by
   opening it.

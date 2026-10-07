@@ -10610,10 +10610,34 @@ def cold_start_mp():
               f"cold mp: {name} did not hear the commissioning ({c.notes()})")
         check(c.eval("TREK.Util.state().commissioned") is True,
               f"cold mp: {name}'s copy of the ship was never told she is commissioned")
+
+    # Power is not enough: she beams up only a pattern she has learned, and
+    # she learns it at the hatch (TREK_Marooned, MR.linked). Neither of them
+    # has been aboard; the first goes in, and only the first is known.
+    for name, c in (("first", A), ("second", B)):
+        check(c.eval("TREK.Marooned.linked(SIM.players[1])") is False and ground_labels(c, 30, 0) == "",
+              f"cold mp: {name} has the Shuttlecraft menu without ever having been aboard")
+    B.run("SIM.notes = {}")
+    B.run('TREK.Core.send(SIM.players[1], "move", { kind = "beamUp", token = 3 })')
+    net.pump(20)
+    check("IGUI_TREK_NoBadge" in B.notes() and B.eval("TREK.Util.isInteriorPlayer(SIM.players[1])") is False,
+          f"cold mp: a powered ship beamed up somebody she has never met ({B.notes()})")
+    hx, hy = ship(srv, "x"), ship(srv, "y")
+    A.run(f"local p = SIM.players[1]; p.x, p.y = {hx} + 0.5, {hy} + 4.5")
+    net.pump(40)
+    A.run("SIM.notes = {}; TREK.Core.enter(SIM.players[1])")
+    net.pump(300)
+    check(A.eval("TREK.Marooned.linked(SIM.players[1])") is True
+          and "IGUI_TREK_MaroonLinked" in A.notes() and "IGUI_TREK_MaroonFound" not in A.notes(),
+          f"cold mp: the first through the hatch was not learned, or was told they found "
+          f"a ship that was never lost ({A.notes()})")
+    check(B.eval("TREK.Marooned.linked(SIM.players[1])") is False,
+          "cold mp: one player going aboard taught her the other's pattern")
     for rt in net.all():
         for w in rt.warnings():
             fail(f"cold mp ({rt.name}): {w}")
-    print("cold mp: she comes down beside the first to join, both machines see "
+    print("cold mp: the hatch teaches her one pattern at a time and a beam needs it; "
+          "she comes down beside the first to join, both machines see "
           "her dark, and both hear the commissioning")
 
 
@@ -10975,8 +10999,10 @@ def marooned_edges():
     d = max(abs(ship(rt, "x") - 4000), abs(ship(rt, "y") - 4000))
     check(d <= int(rt.eval("TREK.Config.ColdPlaceMax")) and "IGUI_TREK_ColdPlaced" in rt.notes(),
           "marooned edges: the fallback is not the cold start, beside the player and said")
-    check(rt.eval(f"TREK.Marooned.linked({P})") is True,
-          "marooned edges: the fallback left the player without a menu")
+    check(rt.eval(f"TREK.Marooned.linked({P})") is False and rt.eval("TREK.Marooned.active()") is False,
+          "marooned edges: the fallback is not a cold start, patterns and all")
+    check(rt.eval(f"TREK.MapView.shipSpot({P})") is not None,
+          "marooned edges: a cold start's ship, which was never lost, has no dot on the map")
     check(any("none of the 6 sites" in w for w in rt.warnings()),
           "marooned edges: falling back to a cold start said nothing")
 

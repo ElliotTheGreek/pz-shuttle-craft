@@ -102,7 +102,10 @@ function MV.shipSpot(player)
     if not s.landed or s.flying then return nil end
     -- Marooned, and never aboard her: where she is is the thing they are
     -- looking for (MAROONED.md). An annotated map's mark is a contact.
-    if TREK.Marooned and not TREK.Marooned.linked(player) then return nil end
+    -- A cold start's ship was never lost, so her dot shows there either way.
+    if TREK.Marooned and TREK.Marooned.active() and not TREK.Marooned.linked(player) then
+        return nil
+    end
     if not s.x or not s.y or (s.x == 0 and s.y == 0) then return nil end
     return math.floor(s.x), math.floor(s.y)
 end

@@ -735,6 +735,12 @@ now, which is the feature as designed
 (`C.ReplicatorPatterns` sets the precedent). It only matters on a brand-new
 ship, because of 10.4.
 
+**Patterns (added 2026-10-07).** In a world that begins cold or marooned
+the ship beams up, comes down for and shows her menu to a player only once
+she has their pattern, and she learns it the first time they are aboard. The
+hatch is never asked. `MAROONED.md` 5 has the rule and where it is enforced;
+`cold_start_mp` is its test.
+
 ### 10.2 The state
 
 ```

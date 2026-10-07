@@ -172,7 +172,7 @@
     "IGUI_TREK_PowerLow": "Power at %1 percent, and no spare crystals aboard",
     "IGUI_TREK_PowerLastCrystal": "The last dilithium crystal is burning",
     "IGUI_TREK_ColdPlaced": "Your shuttle is down nearby, without power",
-    "IGUI_TREK_NoBadge": "You have no combadge. Find the shuttle and go aboard.",
+    "IGUI_TREK_NoBadge": "The shuttle does not have your pattern. Go aboard her through the hatch once.",
     "IGUI_TREK_MaroonLinked": "Learning biosigns... recorded. The shuttle knows you now, and will answer you from anywhere.",
     "IGUI_TREK_MaroonFound": "You have found the shuttle. Learning biosigns... recorded. She knows you now, and will answer you from anywhere.",
     "IGUI_TREK_MaroonRead": "Read the annotated map",
