@@ -486,9 +486,17 @@ end
 
 --- True when the ship could pay `cost` now.
 function P.canPay(cost, pool)
-    cost = cost or 0
+    cost = (cost or 0) * P.scale()
     if cost <= 0 then return true end
     return cost <= P.available(pool)
+end
+
+--- What a unit asked for takes out of the store: the sandbox's *Power use*
+--- (SERVERS.md). 1 as designed; 0 and a lit ship never runs down. A dark one
+--- is still dark: this scales a spend, and a ship with nothing spends nothing.
+function P.scale()
+    local R = TREK.Rules
+    return R and R.powerScale() or 1
 end
 
 --- Pays `cost`, burning a spare if the reserve runs out part-way. Authority
@@ -513,23 +521,29 @@ function P.pay(cost, partial, pool)
     -- and energize reports what this returns -- so the note says the truth.
     if TREK.Traits then cost = cost * TREK.Traits.powerFactor() end
 
+    -- **What is taken and what is reported are two numbers** under the
+    -- sandbox's *Power use*: `take` comes out of the store, and the caller
+    -- is answered in the units it asked for, so "paid in full" still means
+    -- the whole cost and a continuous drain still knows how far it got.
+    local scale = P.scale()
+    local take = cost * scale
     local s = box(pool)
     local have = P.reserve(pool)
-    if cost <= have then
-        s.power = have - cost
+    if take <= have then
+        s.power = have - take
         settle(pool)
         return cost
     end
     -- Run the old crystal dry, then burn a fresh one for the rest.
     s.power = 0
-    local paid = have
+    local taken = have
     if P.burnCrystal(pool) then
-        local rest = math.min(cost - paid, P.reserve(pool))
+        local rest = math.min(take - taken, P.reserve(pool))
         s.power = P.reserve(pool) - rest
-        paid = paid + rest
+        taken = taken + rest
     end
     settle(pool)
-    return paid
+    return taken / scale
 end
 
 --- True when the ship's own numbers say it has no power at all: less than one

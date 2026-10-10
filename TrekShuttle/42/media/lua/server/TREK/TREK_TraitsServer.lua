@@ -21,12 +21,19 @@ if isClient() then return end
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Net"
+require "TREK/TREK_Rules"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Probes"
 require "TREK/TREK_Power"
 require "TREK/TREK_Traits"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 local C = TREK.Config
+local Rules = TREK.Rules
 local U = TREK.Util
 local Ship = TREK.Ship
 local Probes = TREK.Probes
@@ -122,10 +129,93 @@ function S.onRescue(player)
         -- reach (ACCESS.md). The lock tells them again when it lifts them.
         local waits = TREK.Access ~= nil and TREK.Access.refusal(player) ~= nil
         T.note(player, waits and "IGUI_TREK_PromotionWaits" or "IGUI_TREK_PromotionDue",
-               getText("UI_trait_trek_" .. C.Ranks[now]), 255, 220, 120)
+               "UI_trait_trek_" .. C.Ranks[now], 255, 220, 120)
         U.log("traits: %s has earned %s (%d rescue(s)); the captain will see them",
               Ship.usernameOf(player), C.Ranks[now], data[C.RescuesKey])
     end
+end
+
+---------------------------------------------------------------------------
+-- The server's rules (SERVERS.md)
+---------------------------------------------------------------------------
+local function dropTrait(traits, path)
+    local id = T.id(path)
+    if not id then return false end
+    return U.try("rules.drop:" .. path, function()
+        traits:remove(id)
+        return true
+    end) == true
+end
+
+--- Brings one character into line with what this server allows: a species,
+--- a trait or a Starfleet division it has switched off comes off, and where
+--- humans are not allowed a character with no species is given one.
+---
+--- The creation screen leaves the same things off its lists
+--- (TREK_CreationRules); this is the rule, for a character made any other
+--- way and for a server whose rules changed while they were away. Returns
+--- true when anything changed.
+---
+--- **What it cannot give back** is said in SERVERS.md: the points a trait
+--- cost, and the skills and vanilla traits a species brought, were spent at
+--- creation and are the engine's.
+function S.enforce(player)
+    local traits = U.try("traits.set", function() return player:getCharacterTraits() end)
+    if not traits then return false end
+    local who = Ship.usernameOf(player)
+    local changed, look = false, false
+
+    for _, path in ipairs(T.SPECIES) do
+        if T.has(player, path) and not Rules.speciesAllowed(path) and dropTrait(traits, path) then
+            changed, look = true, true
+            T.note(player, "IGUI_TREK_RuleTraitRemoved", "UI_trait_trek_" .. path, 255, 170, 90)
+            U.log("rules: %s is no longer %s -- not a species on this server", who, path)
+        end
+    end
+    for path in pairs(Rules.TRAIT_OPTION) do
+        if T.has(player, path) and not Rules.traitAllowed(path) and dropTrait(traits, path) then
+            changed = true
+            T.note(player, "IGUI_TREK_RuleTraitRemoved", "UI_trait_trek_" .. path, 255, 170, 90)
+            U.log("rules: %s has lost %s -- not a trait on this server", who, path)
+        end
+    end
+    for path in pairs(Rules.DIVISION_OPTION) do
+        if T.has(player, path) and not Rules.divisionAllowed(path) and dropTrait(traits, path) then
+            changed = true
+            -- The posting is gone, and the rank it started with. What their
+            -- rescues have earned and the captain has given is still theirs.
+            local data = md(player)
+            if data then data.TREKStartRank = nil end
+            local now = T.rank(player)
+            S.setRank(player, math.min(now, S.earnedRank(player)))
+            T.note(player, "IGUI_TREK_RuleProfessionRemoved", "UI_trait_trek_" .. path, 255, 170, 90)
+            U.log("rules: %s has lost %s -- not a posting on this server", who, path)
+        end
+    end
+
+    if not Rules.humansAllowed() and T.species(player) == nil then
+        local allowed = Rules.allowedSpecies()
+        local path = allowed[(U.try("rules.roll", function() return ZombRand(#allowed) end) or 0) + 1]
+        local id = path and T.id(path)
+        if id and U.try("rules.give:" .. path, function()
+            traits:add(id)
+            return true
+        end) then
+            changed, look = true, true
+            if path == "android" then
+                local data = md(player)
+                if data and data[C.AndroidChargeKey] == nil then data[C.AndroidChargeKey] = 100 end
+            end
+            T.note(player, "IGUI_TREK_RuleSpeciesGiven", "UI_trait_trek_" .. path, 170, 220, 255)
+            U.log("rules: %s had no species and humans are not allowed; they are %s now", who, path)
+        end
+    end
+
+    if changed and isServer() then
+        U.try("rules.sync", function() sendSyncPlayerFields(player, 0x07) end)
+    end
+    if look and TREK.Appearance then U.try("rules.look", TREK.Appearance.apply, player) end
+    return changed
 end
 
 ---------------------------------------------------------------------------
@@ -382,6 +472,10 @@ end
 function S.everyMinute()
     for _, p in ipairs(U.players()) do
         if alive(p) then
+            -- Before first sight: a character this server does not allow to
+            -- be a Trill is never given a Trill's past hosts, and one made a
+            -- Trill by it is.
+            U.try("traits.enforce", S.enforce, p)
             U.try("traits.firstSight", S.firstSight, p)
             if T.has(p, "android") then U.try("traits.android", S.serviceAndroid, p) end
         end

@@ -19745,6 +19745,494 @@ def sentry_multiplayer():
     print("sentry multiplayer: set down by asking, fired by the server, the kill and the bolt on both clients")
 
 
+# >>> rules, rules_multiplayer
+def rules():
+    """The server's rules (SERVERS.md), in single player.
+
+    Every rule is asked two ways, because a rule checked on one side only is
+    not a rule: the menu does not offer it, **and** the authority refuses it
+    with words when it is asked anyway. And each is asked absent first: a
+    world with no value for an option is the mod as designed.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    R = lambda code: rt.eval(f"TREK.Rules.{code}")
+    SB = "SandboxVars.TrekShuttle"
+
+    # --- reading the sandbox -------------------------------------------------
+    for flag in ("BeamUp", "Flight", "Shields", "DistressCalls", "Installations",
+                 "SpeciesHuman", "SpeciesVulcan", "TraitSpacesick", "ProfessionCommand"):
+        check(R(f'flag("{flag}")') is True,
+              f"rules: {flag} reads as off in a world that never set it -- an absent "
+              f"option must be the mod as designed")
+    check(R("torpedoes()") is True and R("shipPhasers()") is True and R("powerScale()") == 1
+          and int(R("personalMode()")) == 1 and R('shipName()') == "Adirondack",
+          "rules: a world with no values is not the mod as designed")
+    rt.run(f'{SB}.AccessUsers = " Alice; bob ,CAROL;; "')
+    check(R('listed("AccessUsers", "alice")') is True and R('listed("AccessUsers", "BOB")') is True
+          and R('listed("AccessUsers", "carol")') is True,
+          "rules: a list of names was not read past its spaces, its case or its commas")
+    check(R('listed("AccessUsers", "dave")') is False and R('listed("AccessUsers", "")') is False,
+          "rules: somebody who is not on a list is on it")
+    rt.run(f'{SB}.AccessUsers = "dave"')
+    check(R('listed("AccessUsers", "dave")') is True and R('listed("AccessUsers", "alice")') is False,
+          "rules: a list changed while the server ran was not read again")
+    rt.run(f"{SB}.PowerUse = 9; {SB}.ShipWeapons = 0")
+    check(R("powerScale()") == 1 and R("torpedoes()") is True,
+          "rules: a value outside an option's range is not read as its default")
+    rt.run(f"{SB}.PowerUse = nil; {SB}.ShipWeapons = nil; {SB}.AccessUsers = nil")
+
+    # --- beaming up ------------------------------------------------------------
+    labels = ground_labels(rt, 12, 0)
+    check("IGUI_TREK_BeamUp" in labels, f"rules: the ground offers no beam to begin with ({labels!r})")
+    rt.run(f"{SB}.BeamUp = false; SIM.notes = {{}}")
+    labels = ground_labels(rt, 12, 0)
+    check("IGUI_TREK_BeamUp" not in labels and "IGUI_TREK_CallDown" in labels,
+          f"rules: with beaming up off the ground offers {labels!r}")
+    rt.run(f'TREK.Core.send({P}, "move", {{ kind = "beamUp", token = 4401 }})')
+    net.pump(6)
+    check(any("IGUI_TREK_RuleBeamUpOff" in n for n in rt.notes()),
+          f"rules: a beam up asked of a server that has none said {rt.notes()}")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is False,
+          "rules: beaming up is off and somebody beamed up")
+    rt.run(f"{SB}.BeamUp = true")
+
+    # --- flight, and her weapons ----------------------------------------------
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    seat(rt)
+
+    def wheel():
+        rt.run("SIM.radial.visible = false")
+        rt.run(f"ISVehicleMenu.showRadialMenu({P})")
+        titles = str(rt.eval("getPlayerRadialMenu():titles()") or "")
+        rt.run(f"ISVehicleMenu.showRadialMenu({P})")     # and shut again: it is a toggle
+        return titles
+
+    titles = wheel()
+    check("IGUI_TREK_TakeOff" in titles and "IGUI_TREK_Weapon_torpedo" in titles
+          and "IGUI_TREK_Weapon_phaser" in titles,
+          f"rules: the wheel as designed reads {titles}")
+    rt.run(f"{SB}.Flight = false; SIM.notes = {{}}")
+    titles = wheel()
+    check("IGUI_TREK_TakeOff" not in titles and "IGUI_TREK_BoardCabin" in titles,
+          f"rules: with flight off the wheel reads {titles}")
+    rt.run(f'TREK.Core.send({P}, "takeoff", {{}})')
+    net.pump(6)
+    check(any("IGUI_TREK_RuleFlightOff" in n for n in rt.notes()),
+          f"rules: a take-off asked of a grounded server said {rt.notes()}")
+    check(not any("clearing her for level" in l for l in rt.logLines()),
+          "rules: flight is off and the server cleared her to take off")
+    rt.run(f"{SB}.Flight = true")
+
+    sx, sy = int(ship(rt, "x")), int(ship(rt, "y"))
+    rt.run(f"{SB}.ShipWeapons = 2; SIM.notes = {{}}")
+    titles = wheel()
+    check("IGUI_TREK_Weapon_torpedo" not in titles and "IGUI_TREK_Weapon_phaser" in titles
+          and "IGUI_TREK_Weapon_tractor" in titles,
+          f"rules: with phasers only the wheel reads {titles}")
+    rt.run(f'TREK.Core.send({P}, "fireTorpedo", {{ x = {sx + 20}, y = {sy}, z = 0 }})')
+    net.pump(6)
+    check(any("IGUI_TREK_RuleWeaponsOff" in n for n in rt.notes()),
+          f"rules: a torpedo asked of a server with none said {rt.notes()}")
+    check(not any("torpedo away" in l for l in rt.logLines()),
+          "rules: torpedoes are off and one was fired")
+    rt.run(f"{SB}.ShipWeapons = 3; SIM.notes = {{}}")
+    titles = wheel()
+    check("IGUI_TREK_Weapon_phaser" not in titles and "IGUI_TREK_Weapon_torpedo" not in titles
+          and "IGUI_TREK_Weapon_tractor" in titles,
+          f"rules: with no weapons the wheel reads {titles}")
+    rt.run(f'addZombiesInOutfit({sx + 4}, {sy}, 0, 1, "Generic01", 0)')
+    rt.run(f'TREK.Core.send({P}, "firePhasers", {{ x = {sx + 4}, y = {sy}, z = 0 }})')
+    net.pump(6)
+    check(any("IGUI_TREK_RuleWeaponsOff" in n for n in rt.notes()),
+          f"rules: phasers asked of a disarmed server said {rt.notes()}")
+    check(not any("phasers:" in l and "bolt" in l for l in rt.logLines()),
+          "rules: her weapons are off and her phasers fired")
+    rt.run(f"{SB}.ShipWeapons = nil; SIM.zombies = {{}}")
+
+    # --- shields ----------------------------------------------------------------
+    check(rt.eval("TREK.Util.shieldsUp()") is True, "rules: her shields do not begin up")
+    rt.run(f"{SB}.Shields = false; SIM.notes = {{}}")
+    check(rt.eval("TREK.Util.shieldsUp()") is False, "rules: a server with no shields has them up")
+    rt.run(f'TREK.Core.send({P}, "setShields", {{ up = true }})')
+    net.pump(6)
+    check(any("IGUI_TREK_RuleShieldsOff" in n for n in rt.notes()),
+          f"rules: raising shields that are not fitted said {rt.notes()}")
+    rt.run(f"{SB}.Shields = true")
+    check(rt.eval("TREK.Util.shieldsUp()") is True,
+          "rules: the shields did not come back with the setting -- the refusal changed her state")
+
+    # --- distress calls, and the channel ---------------------------------------
+    rt.run("local s = TREK.Util.state(); s.built = true; s.commissioned = true")
+    check(rt.eval("TREK.Missions.hearing()") is True, "rules: a built, commissioned ship is not listening")
+    rt.run(f"{SB}.DistressCalls = false")
+    check(rt.eval("TREK.Missions.hearing()") is False, "rules: distress calls are off and she is listening")
+    rt.run(f"{SB}.DistressCalls = true")
+    check(rt.eval("TREK.Config.commsNever()") is False, "rules: she never calls, in a world that never said so")
+    rt.run(f"{SB}.CommsFirstDay = 6")
+    check(rt.eval("TREK.Config.commsNever()") is True
+          and int(rt.eval("TREK.Config.commsFirstDay()")) == int(rt.eval("TREK.Config.CommsFirstContactDay")),
+          "rules: Never is not read, or moved the story's calendar")
+    rt.run("local d = TREK.Comms.store(); d.day0 = TREK.Util.worldHours() - 24 * 60; d.call = nil; d.lastEnd = nil")
+    check(rt.eval("TREK.CommsServer.schedule(TREK.Util.worldHours())") is None,
+          "rules: she never calls, and she rang")
+    rt.run(f"{SB}.CommsFirstDay = 1")
+    check(rt.eval("TREK.CommsServer.schedule(TREK.Util.worldHours())") is not None,
+          "rules: the same world with calls on did not ring -- the check above proved nothing")
+    rt.run(f"{SB}.CommsFirstDay = nil; local d = TREK.Comms.store(); d.call = nil")
+
+    # --- power use ----------------------------------------------------------------
+    PM = int(rt.eval("TREK.Config.PowerMax"))
+    power = lambda: float(rt.eval("TREK.Util.state().power"))
+
+    def spend(mode, cost):
+        rt.run(f"{SB}.PowerUse = {mode}; local s = TREK.Util.state(); s.power = {PM}; s.crystals = 0")
+        ok = rt.eval(f'(TREK.Energy.energize(nil, "test", {cost}, {{ silent = true }}))')
+        return ok, PM - power()
+
+    for mode, want in ((1, 100), (2, 50), (3, 25), (4, 0)):
+        ok, took = spend(mode, 100)
+        check(ok is True and abs(took - want) < 1e-6,
+              f"rules: at power use {mode} a charge of 100 took {took:g}, not {want} (paid: {ok})")
+    rt.run(f"{SB}.PowerUse = 2; local s = TREK.Util.state(); s.power = 60; s.crystals = 0")
+    check(rt.eval("TREK.Power.canPay(100)") is True and rt.eval("TREK.Power.canPay(130)") is False,
+          "rules: at half use, 60 units do not cover a charge of 100 and refuse one of 130")
+    paid = float(rt.eval("TREK.Power.pay(200, true)"))
+    check(abs(paid - 120) < 1e-6 and power() == 0,
+          f"rules: a partial charge at half use reported {paid:g} paid out of 60 units, not 120")
+    rt.run(f"{SB}.PowerUse = 4; local s = TREK.Util.state(); s.power = 0; s.crystals = 0")
+    check(rt.eval("TREK.Power.computeDark()") is True,
+          "rules: with power use at nothing a ship with no crystal is lit -- she still needs her first")
+    rt.run(f"{SB}.PowerUse = nil; local s = TREK.Util.state(); s.power = {PM}; s.crystals = 3; "
+           "TREK.Energy.powerChanged()")
+    net.pump(4)
+
+    # --- installations -------------------------------------------------------------
+    rt.run(f"{SB}.Installations = false; SIM.notes = {{}}")
+    rt.run(f"TREK.Net.send({P}, 'installMachine', {{ kind = 'warp_core', x = 3001, y = 3000, z = 0 }})")
+    net.pump(6)
+    check(any("IGUI_TREK_RuleInstOff" in n for n in rt.notes()),
+          f"rules: installing on a server that does not allow it said {rt.notes()}")
+    rt.run(f"{SB}.Installations = true")
+
+    # --- the Adirondack ---------------------------------------------------------------
+    check(acc_refusal(rt) is None, f"rules: an open Adirondack refuses with {acc_refusal(rt)!r}")
+    rt.run(f"{SB}.AdirondackAccess = 4")
+    check(acc_refusal(rt) == "accClosed", f"rules: a closed Adirondack refuses with {acc_refusal(rt)!r}")
+    rt.run("TREK.Access.store().grandfathered = true")
+    check(acc_refusal(rt) == "accClosed",
+          "rules: a world that was visiting her walks past a server that has closed her")
+    rt.run(f"TREK.Access.store().grandfathered = nil; {SB}.AdirondackAccess = 2; "
+           f'{SB}.AdirondackUsers = "somebody; else"')
+    check(acc_refusal(rt) == "accNotListed",
+          f"rules: somebody not on her list is refused with {acc_refusal(rt)!r}")
+    rt.run(f'{SB}.AdirondackUsers = "somebody; OWNER"')
+    check(acc_refusal(rt) is None, "rules: somebody on her list is refused")
+    rt.run(f'{SB}.AdirondackUsers = "somebody"; {SB}.AdirondackAccess = 1')
+    check(acc_refusal(rt) == "accNotListed",
+          "rules: her list is not asked before her clearance")
+    rt.run(f'{SB}.AdirondackUsers = ""; {SB}.AdirondackAccess = 2')
+    check(acc_refusal(rt) is None, "rules: an empty list is not everybody")
+    # And the server refuses the beam itself, in words, with the menu greyed.
+    rt.run(f"{SB}.AdirondackAccess = 4; SIM.notes = {{}}")
+    rt.run(f"TREK.Core.exit({P})") if rt.eval(f"TREK.Util.isInteriorPlayer({P})") else None
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if not died(rt, "rules, beaming up"):
+        aboard_menu(rt)
+        present, greyed, tip = acc_menu_option(rt, "aboardCtx", "IGUI_TREK_BeamToAdirondack")
+        check(present and greyed and tip is not None and "IGUI_TREK_AccClosed" in tip,
+              f"rules: the beam to a closed Adirondack is not greyed with the reason ({tip!r})")
+        rt.run(f'TREK.Core.send({P}, "move", {{ kind = "toAdirondack", token = 4402 }})')
+        net.pump(6)
+        check(any("IGUI_TREK_AccClosed" in n for n in rt.notes()),
+              f"rules: a beam to a closed Adirondack said {rt.notes()}")
+        check(adk_where(rt) is None, "rules: the Adirondack is closed and somebody is aboard her")
+    rt.run(f"{SB}.AdirondackAccess = 2")
+
+    # --- species, traits and professions ---------------------------------------------
+    def has(path):
+        return rt.eval(f"TREK.Traits.has({P}, '{path}')") is True
+
+    def minute():
+        rt.run("SIM.notes = {}; TREK.TraitsServer.everyMinute()")
+        net.pump(2)
+
+    rt.run(f"{P}.traits = {{}}; SIM.giveTrait({P}, 'vulcan'); SIM.giveTrait({P}, 'spacesick')")
+    minute()
+    check(has("vulcan") and has("spacesick"), "rules: a trait every server allows was taken away")
+    check(not any("IGUI_TREK_Rule" in n for n in rt.notes()), f"rules: a rule spoke with nothing to say ({rt.notes()})")
+    rt.run(f"{SB}.SpeciesVulcan = false; {SB}.TraitSpacesick = false")
+    minute()
+    check(not has("vulcan") and not has("spacesick"),
+          "rules: a species and a trait the server switched off are still on the character")
+    check(any("IGUI_TREK_RuleTraitRemoved|UI_trait_trek_" in n for n in rt.notes()),
+          f"rules: a trait came off in silence, or its name was not translated where it was read ({rt.notes()})")
+    check(rt.eval(f"TREK.Traits.species({P})") is None, "rules: the Vulcan who was not allowed is not human now")
+    minute()
+    check(not any("IGUI_TREK_Rule" in n for n in rt.notes()),
+          f"rules: a rule already met was applied again ({rt.notes()})")
+
+    # A note's argument is a key, and is put into words where it is read:
+    # the server's language is the server's. The stub's getText answers the
+    # key itself, so the difference is only visible with one that does not.
+    rt.run("SIM.realGetText = getText; getText = function(k) return '<' .. tostring(k) .. '>' end")
+    args = [rt.eval(f"TREK.Traits.argText({a})") for a in ('"UI_trait_trek_vulcan"', '"IGUI_TREK_Name"',
+                                                           '"Jadzia,Curzon"', "12", "nil")]
+    rt.run("getText = SIM.realGetText")
+    check(args == ["<UI_trait_trek_vulcan>", "<IGUI_TREK_Name>", "Jadzia,Curzon", "12", None],
+          f"rules: a note's argument is not translated where it is read, or plain text was ({args})")
+
+    # Humans not allowed, and one species left.
+    rt.run(f"{SB}.SpeciesHuman = false")
+    for sp in ("Vulcan", "Andorian", "Betazoid", "Trill", "Bajoran", "Talaxian", "Orion", "Android", "ExBorg"):
+        rt.run(f"{SB}.Species{sp} = false")
+    check(R("humansAllowed()") is False and rt.eval("#TREK.Rules.allowedSpecies()") == 1,
+          "rules: one species allowed, and the rules say otherwise")
+    minute()
+    check(has("klingon"), "rules: humans are not allowed and a character with no species was left one")
+    check(any("IGUI_TREK_RuleSpeciesGiven|UI_trait_trek_klingon" in n for n in rt.notes()),
+          f"rules: a species was given in silence ({rt.notes()})")
+    rt.run(f"{SB}.SpeciesKlingon = false")
+    check(R("humansAllowed()") is True,
+          "rules: no humans and no species is a rule nobody can meet, and it was not dropped")
+    minute()
+    check(rt.eval(f"TREK.Traits.species({P})") is None,
+          "rules: with every species off the Klingon is still one")
+    for sp in ("Human", "Vulcan", "Klingon", "Andorian", "Betazoid", "Trill", "Bajoran", "Talaxian", "Orion",
+               "Android", "ExBorg"):
+        rt.run(f"{SB}.Species{sp} = nil")
+    rt.run(f"{SB}.TraitSpacesick = nil")
+
+    # A posting the server has switched off: the division and its rank go.
+    rt.run(f"{P}.traits = {{}}; {P}.modData.TREKTraitsRev = nil; SIM.giveTrait({P}, 'sf_command')")
+    minute()
+    check(has("sf_command") and int(rt.eval(f"(TREK.Traits.rank({P}))")) == 2,
+          "rules: a command officer did not report as a lieutenant (j.g.) to begin with")
+    rt.run(f"{SB}.ProfessionCommand = false")
+    minute()
+    check(not has("sf_command") and int(rt.eval(f"(TREK.Traits.rank({P}))")) == 0,
+          "rules: a posting the server switched off kept its division or its rank")
+    check(any("IGUI_TREK_RuleProfessionRemoved" in n for n in rt.notes()),
+          f"rules: a posting went in silence ({rt.notes()})")
+    rt.run(f"{SB}.ProfessionCommand = nil; {P}.traits = {{}}")
+
+    # --- the creation screen ------------------------------------------------------------
+    rt.run("""
+        local function def(id, free)
+            return { getType = function() return id end, isFree = function() return free == true end,
+                     getLabel = function() return tostring(id.id) end }
+        end
+        local T, Pr = TREK_Registries.Traits, TREK_Registries.Professions
+        SIM.cc = { removed = {}, selectedProf = nil, repopulated = 0 }
+        local other = setmetatable({ id = 'base:brave' }, getmetatable(T.vulcan))
+        local job = setmetatable({ id = 'base:nurse' }, getmetatable(Pr.starfleet_command))
+        SIM.cc.defs = { vulcan = def(T.vulcan), klingon = def(T.klingon), spacesick = def(T.spacesick),
+                        brave = def(other), rank = def(T.rank_ensign, true) }
+        SIM.cc.jobs = { def(job), def(Pr.starfleet_command), def(Pr.survey_specialist) }
+        CharacterCreationProfession = {}
+        function CharacterCreationProfession:isTraitEnabled(trait) return true end
+        function CharacterCreationProfession:populateProfessionList(list)
+            for _, j in ipairs(SIM.cc.jobs) do list:addItem(j:getLabel(), j) end
+        end
+        function CharacterCreationProfession:setVisible(visible) self.visible = visible end
+        function CharacterCreationProfession:removeTrait(i)
+            table.insert(SIM.cc.removed, self.listboxTraitSelected.items[i].item:getLabel())
+            table.remove(self.listboxTraitSelected.items, i)
+        end
+        function CharacterCreationProfession:repopulateTraitLists() SIM.cc.repopulated = SIM.cc.repopulated + 1 end
+        function CharacterCreationProfession:onSelectProf(d) SIM.cc.selectedProf = d:getLabel() end
+        local function listbox()
+            local l = { items = {}, selected = 1 }
+            function l:addItem(name, item) table.insert(self.items, { text = name, item = item }) end
+            function l:clear() self.items = {} self.selected = 1 end
+            function l:removeItemByIndex(i) return table.remove(self.items, i) end
+            return l
+        end
+        TREK.CreationRules.wrap()
+        local s = setmetatable({}, { __index = CharacterCreationProfession })
+        s.listboxProf, s.listboxTrait, s.listboxTraitSelected = listbox(), listbox(), listbox()
+        s:populateProfessionList(s.listboxProf)
+        SIM.cc.screen = s
+    """)
+    jobs = lambda: str(rt.eval("(function() local o = {} for _, r in ipairs(SIM.cc.screen.listboxProf.items) do "
+                               "o[#o + 1] = r.text end return table.concat(o, ',') end)()"))
+    shown = lambda name: rt.eval(f"SIM.cc.screen:isTraitEnabled(SIM.cc.defs.{name})") is True
+    check(jobs() == "base:nurse,trek:starfleet_command,trek:survey_specialist",
+          f"rules: the creation screen's professions as designed read {jobs()}")
+    check(shown("vulcan") and shown("spacesick") and shown("brave"),
+          "rules: the creation screen left a trait off its lists with every rule as designed")
+    rt.run(f"{SB}.SpeciesVulcan = false; {SB}.TraitSpacesick = false; {SB}.ProfessionCommand = false")
+    check(not shown("vulcan") and not shown("spacesick") and shown("klingon") and shown("brave"),
+          "rules: the creation screen's traits do not follow the server's rules")
+    rt.run("""
+        local s = SIM.cc.screen
+        s.listboxProf.selected = 2            -- the command officer they had picked
+        table.insert(s.listboxTraitSelected.items, { item = SIM.cc.defs.vulcan })
+        table.insert(s.listboxTraitSelected.items, { item = SIM.cc.defs.klingon })
+        table.insert(s.listboxTraitSelected.items, { item = SIM.cc.defs.rank })
+        s:setVisible(true)
+    """)
+    check(jobs() == "base:nurse,trek:survey_specialist",
+          f"rules: shown under new rules, the creation screen's professions read {jobs()}")
+    check(str(rt.eval("table.concat(SIM.cc.removed, ',')")) == "trek:vulcan",
+          f"rules: the picked traits the server does not allow came off as {rt.eval('table.concat(SIM.cc.removed)')!r}")
+    check(rt.eval("SIM.cc.selectedProf") == "base:nurse" and int(rt.eval("SIM.cc.repopulated")) == 1,
+          "rules: the profession that went was not replaced, or the trait lists were not filled again")
+    rt.run("SIM.cc.screen:setVisible(true)")
+    check(int(rt.eval("SIM.cc.repopulated")) == 1,
+          "rules: the creation screen filled its lists again with nothing changed")
+    rt.run(f"{SB}.SpeciesVulcan = nil; {SB}.TraitSpacesick = nil; {SB}.ProfessionCommand = nil; "
+           "SIM.cc.screen:setVisible(true)")
+    check(jobs() == "base:nurse,trek:starfleet_command,trek:survey_specialist",
+          f"rules: the professions did not come back with the rule ({jobs()})")
+
+    # --- what the ship in orbit is called ------------------------------------------------
+    # The stub's getText answers the key, so one that answers a sentence is
+    # stood in: the name goes into the words, whatever case they are in, and
+    # a server that keeps the name gets its text back untouched.
+    rt.run("SIM.realGetText = getText; getText = function(k, a) return "
+           "'Beam to the U.S.S. Adirondack. ADIRONDACK, ' .. tostring(a or k) end")
+    plain = rt.eval('TREK.Text.get("IGUI_X", "aye")')
+    rt.run(f'{SB}.AdirondackName = "  Saratoga "')
+    named = rt.eval('TREK.Text.get("IGUI_X", "aye")')
+    rt.run(f'{SB}.AdirondackName = "100% Proof"')
+    odd = rt.eval('TREK.Text.get("IGUI_X", "aye")')
+    rt.run(f'{SB}.AdirondackName = "   "')
+    blank = rt.eval('TREK.Text.get("IGUI_X", "aye")')
+    rt.run("getText = SIM.realGetText")
+    check(plain == "Beam to the U.S.S. Adirondack. ADIRONDACK, aye",
+          f"rules: a server that keeps her name had its text changed ({plain!r})")
+    check(named == "Beam to the U.S.S. Saratoga. SARATOGA, aye",
+          f"rules: the server's name for her did not go into the words ({named!r})")
+    check(odd == "Beam to the U.S.S. 100% Proof. 100% PROOF, aye",
+          f"rules: a name with a per-cent sign in it came out as {odd!r}")
+    check(blank == plain, f"rules: a blank name is not the name she has ({blank!r})")
+    # And the menus really are read through it: the stub answers the key,
+    # and the key has her name in it.
+    rt.run(f'{SB}.AdirondackName = "Saratoga"')
+    labels = aboard_menu(rt) if rt.eval(f"TREK.Util.isInteriorPlayer({P})") else ""
+    check("IGUI_TREK_BeamToSaratoga" in labels,
+          f"rules: the aboard menu is not read through TREK.Text ({labels!r})")
+    rt.run(f"{SB}.AdirondackName = nil")
+    # Every file that shows text reads it through TREK.Text, before it shows any.
+    exempt = ("TREK_Text.lua", "TREK_Rules.lua", "TREK_Config.lua", "TREK_Util.lua")
+    for folder, _, files in os.walk(LUA):
+        for name in files:
+            if not name.endswith(".lua") or name in exempt:
+                continue
+            src = open(os.path.join(folder, name), encoding="utf-8").read()
+            code = "\n".join(l for l in src.split("\n") if not l.lstrip().startswith("--"))
+            if "getText(" not in code:
+                continue
+            at = code.find("local getText = TREK.Text.get")
+            check(at >= 0 and at < code.find("getText("),
+                  f"rules: {name} shows text the engine's own way, past TREK.Text -- a server's "
+                  f"name for the ship in orbit would not reach it")
+
+    for w in rt.warnings():
+        fail(f"rules: {w}")
+    print("rules: every option absent is the mod as designed; lists of names; beaming up, flight, her weapons, "
+          "shields, distress calls, the channel, power use, installing and the Adirondack each not offered and "
+          "refused in words; species, traits and postings taken off and a species given; the creation screen's lists; "
+          "her name put into every line the mod shows")
+
+
+def rules_multiplayer():
+    """The same rules on a server with two clients: who is on a list is the
+    server's to say, an admin is never on the wrong side of one, and what a
+    rule takes off a character is told to its owner in the owner's words."""
+    net = Net("mp", ["kira", "odo", "sisko"])
+    srv = net.server
+    kira, odo, sisko = net.clients["kira"], net.clients["odo"], net.clients["sisko"]
+    for rt in net.all():
+        rt.run("SIM.player('kira', 3000.5, 3000.5, 0).onlineID = 1; "
+               "SIM.player('odo', 3004.5, 3000.5, 0).onlineID = 2; "
+               "SIM.player('sisko', 3008.5, 3000.5, 0, true).onlineID = 3")
+    net.start()
+    net.pump(4)
+    SB = "SandboxVars.TrekShuttle"
+
+    def who(rt, name):
+        return (f"(function() for _, p in ipairs(SIM.players) do if p.name == '{name}' "
+                f"then return p end end end)()")
+
+    def all_run(code):
+        for rt in net.all():
+            rt.run(code)
+
+    # --- the shared shuttle, for listed players -------------------------------
+    all_run(f'{SB}.Access = 3; {SB}.AccessUsers = "Kira"')
+    for rt, name, may in ((srv, "kira", True), (srv, "odo", False), (srv, "sisko", True),
+                          (kira, "kira", True), (odo, "odo", False)):
+        got = rt.eval(f"TREK.Ship.canUse({who(rt, name)})")
+        check(got is may, f"rules mp: on {rt.name}, {name} may use the listed shuttle: {got}, not {may}")
+    odo.run("SIM.notes = {}")
+    odo.run(f'TREK.Core.send({who(odo, "odo")}, "land", {{ x = 3004, y = 3004, z = 0 }})')
+    net.pump(8)
+    check(any("IGUI_TREK_NotCrew" in n for n in odo.notes()),
+          f"rules mp: somebody not on the shuttle's list called her down, or was refused in silence ({odo.notes()})")
+    check(srv.eval("TREK.Util.state().landed") is not True, "rules mp: an unlisted player landed the shuttle")
+    kira.run(f'TREK.Menu.onCallDown(nil, {who(kira, "kira")}, 3000, 3006, 0)')
+    net.pump(40)
+    check(srv.eval("TREK.Util.state().landed") is True, "rules mp: a listed player could not call her down")
+    all_run(f"{SB}.Access = 1; {SB}.AccessUsers = nil")
+
+    # --- the Adirondack: closed, and a list -------------------------------------
+    all_run(f"{SB}.AdirondackAccess = 4")
+    check(srv.eval(f"TREK.Access.refusal({who(srv, 'kira')})") == "accClosed"
+          and kira.eval(f"TREK.Access.refusal({who(kira, 'kira')})") == "accClosed",
+          "rules mp: a closed Adirondack is not closed on the server and on the client alike")
+    check(srv.eval(f"TREK.Access.refusal({who(srv, 'sisko')})") is None
+          and sisko.eval(f"TREK.Access.refusal({who(sisko, 'sisko')})") is None,
+          "rules mp: an admin is refused by a closed Adirondack")
+    all_run(f'{SB}.AdirondackAccess = 2; {SB}.AdirondackUsers = "odo"')
+    check(srv.eval(f"TREK.Access.refusal({who(srv, 'kira')})") == "accNotListed"
+          and srv.eval(f"TREK.Access.refusal({who(srv, 'odo')})") is None
+          and srv.eval(f"TREK.Access.refusal({who(srv, 'sisko')})") is None,
+          "rules mp: her boarding list does not let the listed and the admin through and nobody else")
+    all_run(f"{SB}.AdirondackUsers = nil")
+
+    # --- a trait taken off, told to its owner ------------------------------------
+    for rt in net.all():
+        rt.run(f"SIM.giveTrait({who(rt, 'kira')}, 'vulcan'); SIM.giveTrait({who(rt, 'odo')}, 'bajoran')")
+    all_run(f"{SB}.SpeciesVulcan = false")
+    kira.run("SIM.notes = {}")
+    odo.run("SIM.notes = {}")
+    srv.run("TREK.TraitsServer.everyMinute()")
+    net.pump(6)
+    check(srv.eval(f"TREK.Traits.has({who(srv, 'kira')}, 'vulcan')") is False
+          and srv.eval(f"TREK.Traits.has({who(srv, 'odo')}, 'bajoran')") is True,
+          "rules mp: the server did not take the Vulcan off, or took somebody else's species")
+    check(any("IGUI_TREK_RuleTraitRemoved|UI_trait_trek_vulcan" in n for n in kira.notes()),
+          f"rules mp: the Vulcan's own client was not told, in its own words ({kira.notes()})")
+    check(not any("IGUI_TREK_Rule" in n for n in odo.notes()),
+          f"rules mp: a rule about one player was told to another ({odo.notes()})")
+    # A client's own pass does nothing: enforcing is the server's.
+    odo.run(f"if TREK.TraitsServer then TREK.TraitsServer.everyMinute() end")
+    check(odo.eval(f"TREK.Traits.has({who(odo, 'kira')}, 'vulcan')") in (True, False),
+          "rules mp: asking a client about another player's trait threw")
+    all_run(f"{SB}.SpeciesVulcan = nil")
+
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"rules mp ({rt.name}): {w}")
+        check(int(rt.eval("SIM.clientWorldEdits or 0")) == 0 or rt.role != "client",
+              f"rules mp: client {rt.name} edited the world")
+    print("rules multiplayer: the shuttle's list and the Adirondack's are the server's to read, an admin is "
+          "never refused by either, and a trait a rule takes off is told to its owner alone")
+
+
+# <<< rules, rules_multiplayer
+
+
 SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabin_partial, starfleet_refit_mp, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_helm, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -19760,7 +20248,7 @@ SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabi
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, phaser_clearing, phaser_clearing_mp, field_kit, field_kit_mp, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer, rules, rules_multiplayer)
 
 
 def main():

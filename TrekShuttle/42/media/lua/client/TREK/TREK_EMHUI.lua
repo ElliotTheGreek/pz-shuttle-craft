@@ -44,6 +44,11 @@ require "TREK/TREK_Core"
 require "TREK/TREK_Helm"
 require "TREK/TREK_MedKit"
 require "TREK/TREK_Access"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -733,19 +738,9 @@ M.REFUSAL_TEXT = {
 --- By word, and the last piece is ellipsised rather than dropped: a sentence
 --- that simply stops mid-word reads as a bug in the panel.
 function M.wrap(text, width, lines)
-    local tm = getTextManager()
-    local out, current = {}, ""
-    for word in string.gmatch(tostring(text or ""), "%S+") do
-        local try = (current == "") and word or (current .. " " .. word)
-        if tm:MeasureStringX(UIFont.Small, try) <= width then
-            current = try
-        else
-            table.insert(out, current)
-            current = word
-            if #out >= lines then break end
-        end
-    end
-    if #out < lines and current ~= "" then table.insert(out, current) end
+    local all = TREK.Text.wrap(text, UIFont.Small, width)
+    local out = {}
+    for i = 1, math.min(lines, #all) do out[i] = all[i] end
     if #out > 0 then
         out[#out] = ellipsise(out[#out], UIFont.Small, width)
     end

@@ -161,8 +161,10 @@ function E.energize(player, what, cost, opts)
     E.thresholds(sparesBefore)
     if not opts.noCommit then Ship.commit() end
     if player and not opts.silent and paid > 0 then
+        -- What really left the store, which the sandbox's *Power use* may
+        -- have made less than what was asked (SERVERS.md).
         Net.toClient(player, "energized", {
-            what = what, cost = math.ceil(paid), left = math.floor(P.reserve()),
+            what = what, cost = math.ceil(paid * P.scale()), left = math.floor(P.reserve()),
         })
     end
     E.powerChanged()

@@ -26,6 +26,11 @@ require "TREK/TREK_Ship"
 require "TREK/TREK_World"
 require "TREK/TREK_Probes"
 require "TREK/TREK_Power"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -103,6 +108,14 @@ end
 -- nothing, which is the one thing TREK_Menu.lua's own header forbids.
 local DENIALS = {
     access        = "IGUI_TREK_NotCrew",
+    -- What a server has switched off or kept for some (SERVERS.md).
+    beamUpOff     = "IGUI_TREK_RuleBeamUpOff",
+    flightOff     = "IGUI_TREK_RuleFlightOff",
+    weaponsOff    = "IGUI_TREK_RuleWeaponsOff",
+    shieldsOff    = "IGUI_TREK_RuleShieldsOff",
+    instOff       = "IGUI_TREK_RuleInstOff",
+    accClosed     = "IGUI_TREK_AccClosed",
+    accNotListed  = "IGUI_TREK_AccNotListed",
     -- Marooned (MAROONED.md): no combadge until they have been aboard.
     noBadge       = "IGUI_TREK_NoBadge",
     -- A development tool asked of a server that is not in a development

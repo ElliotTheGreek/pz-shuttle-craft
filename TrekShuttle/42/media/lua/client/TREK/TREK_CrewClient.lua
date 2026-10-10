@@ -25,6 +25,11 @@ require "TREK/TREK_Net"
 require "TREK/TREK_Adirondack"
 require "TREK/TREK_Crew"
 require "TREK/TREK_Looks"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local U = TREK.Util

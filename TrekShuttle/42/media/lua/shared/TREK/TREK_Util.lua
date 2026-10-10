@@ -164,6 +164,8 @@ function U.state()
 end
 
 function U.shieldsUp()
+    -- The server may have no shields at all (sandbox *Shields*, SERVERS.md).
+    if TREK.Rules and not TREK.Rules.shields() then return false end
     return U.state().shields ~= false
 end
 

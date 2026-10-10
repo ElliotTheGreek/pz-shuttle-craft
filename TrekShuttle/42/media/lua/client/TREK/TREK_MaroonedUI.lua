@@ -23,6 +23,11 @@ require "TREK/TREK_Marooned"
 require "TREK/TREK_Core"
 require "TREK/TREK_MapContacts"
 require "TREK/TREK_MapView"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local U = TREK.Util

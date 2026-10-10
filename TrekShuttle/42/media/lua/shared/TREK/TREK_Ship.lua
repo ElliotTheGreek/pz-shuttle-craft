@@ -23,6 +23,7 @@
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+require "TREK/TREK_Rules"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -150,7 +151,9 @@ end
 ---------------------------------------------------------------------------
 -- Access
 ---------------------------------------------------------------------------
---- The sandbox setting for who may use the ship: 1 everyone, 2 owner and crew.
+--- The sandbox setting for who may use the ship: 1 everyone, 2 owner and
+--- crew, 3 the players the server lists (sandbox *Shuttle users*).
+Ship.AccessEveryone, Ship.AccessCrew, Ship.AccessListed = 1, 2, 3
 function Ship.accessMode()
     local v = U.try("sandboxAccess", function()
         return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.Access
@@ -176,7 +179,11 @@ end
 function Ship.canUse(player)
     if not player then return false end
     if not isServer() and not isClient() then return true end   -- single player
-    if Ship.accessMode() ~= 2 then return true end
+    local mode = Ship.accessMode()
+    if mode == Ship.AccessListed then
+        return TREK.Rules.listed("AccessUsers", Ship.usernameOf(player)) or Ship.isAdmin(player)
+    end
+    if mode ~= Ship.AccessCrew then return true end
     local s = Ship.get()
     local name = Ship.usernameOf(player)
     if not s.owner or s.owner == name then return true end

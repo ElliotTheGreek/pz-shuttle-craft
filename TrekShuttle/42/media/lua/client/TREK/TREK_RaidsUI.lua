@@ -20,6 +20,11 @@ require "TREK/TREK_Core"
 require "TREK/TREK_World"
 require "TREK/TREK_Raids"
 require "TREK/TREK_Helm"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -103,19 +108,7 @@ end
 
 --- Splits text into lines no wider than `width` in `font`.
 function RU.wrap(text, font, width)
-    local out, line = {}, ""
-    local tm = getTextManager()
-    for word in tostring(text or ""):gmatch("%S+") do
-        local try = line == "" and word or (line .. " " .. word)
-        if tm:MeasureStringX(font, try) <= width or line == "" then
-            line = try
-        else
-            table.insert(out, line)
-            line = word
-        end
-    end
-    if line ~= "" then table.insert(out, line) end
-    return out
+    return TREK.Text.wrap(text, font, width)
 end
 
 --- What she says, as lines, for what is on offer now.

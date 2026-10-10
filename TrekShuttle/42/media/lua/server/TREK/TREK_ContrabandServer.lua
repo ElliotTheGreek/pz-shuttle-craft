@@ -32,6 +32,11 @@ require "TREK/TREK_Ship"
 require "TREK/TREK_Traits"
 require "TREK/TREK_Padd"
 require "TREK/TREK_Contraband"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 local C = TREK.Config
 local U = TREK.Util
@@ -114,7 +119,7 @@ end
 local function hook(player, name, r)
     if r.hooked or (tonumber(r.doses) or 0) < C.Contraband[name].hookAt then return end
     r.hooked = true
-    T.note(player, "IGUI_TREK_ContraHooked", getText(K.nameKey(name)), 255, 150, 90)
+    T.note(player, "IGUI_TREK_ContraHooked", K.nameKey(name), 255, 150, 90)
     U.log("contraband: %s is hooked on %s", whoIs(player), name)
 end
 
@@ -148,7 +153,7 @@ function S.dose(player, name, fraction)
         r.first = t
         T.note(player, K.TEXT[name].first, nil, 220, 220, 255)
     elseif wasWithdrawing then
-        T.note(player, "IGUI_TREK_ContraRelief", getText(K.nameKey(name)), 200, 220, 255)
+        T.note(player, "IGUI_TREK_ContraRelief", K.nameKey(name), 200, 220, 255)
     end
     hook(player, name, r)
     S.publish(player)
@@ -209,7 +214,7 @@ function S.play(player)
         r.first = t
         T.note(player, K.TEXT.game.first, nil, 255, 200, 120)
     elseif wasWithdrawing then
-        T.note(player, "IGUI_TREK_ContraRelief", getText(K.nameKey("game")), 255, 200, 120)
+        T.note(player, "IGUI_TREK_ContraRelief", K.nameKey("game"), 255, 200, 120)
     else
         T.note(player, "IGUI_TREK_GameRound", nil, 255, 200, 120)
     end
@@ -277,7 +282,7 @@ function S.service(player, t)
             elseif since >= def.cleanAfter then
                 rec[name] = nil
                 changed = true
-                T.note(player, "IGUI_TREK_ContraClean", getText(K.nameKey(name)), 150, 230, 150)
+                T.note(player, "IGUI_TREK_ContraClean", K.nameKey(name), 150, 230, 150)
                 U.log("contraband: %s is clean of %s", whoIs(player), name)
             elseif since >= def.withdrawAfter then
                 apply(player, def.withdrawal, def.limit, def.cap)

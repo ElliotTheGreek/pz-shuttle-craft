@@ -624,5 +624,15 @@
     "IGUI_TREK_RaidWonNote": "The buffer is clear. Take what you need. Home in %1 seconds.",
     "IGUI_TREK_RaidLostNote": "The ship is taking over the purge. Beaming you home.",
     "IGUI_TREK_RaidLostTime": "The purge has run half an hour, and the ship is taking it over. Beaming you home.",
-    "IGUI_TREK_RaidLostLeft": "Nobody is holding the outpost, so the ship is taking over the purge. Beaming you home."
+    "IGUI_TREK_RaidLostLeft": "Nobody is holding the outpost, so the ship is taking over the purge. Beaming you home.",
+    "IGUI_TREK_RuleBeamUpOff": "No beaming up from the ground on this server. Call her down and board through the hatch.",
+    "IGUI_TREK_RuleFlightOff": "The shuttle stays on the ground on this server.",
+    "IGUI_TREK_RuleWeaponsOff": "This server has that weapon locked out.",
+    "IGUI_TREK_RuleShieldsOff": "The shuttle has no shields on this server.",
+    "IGUI_TREK_RuleInstOff": "Machines cannot be installed on this server.",
+    "IGUI_TREK_AccClosed": "The Adirondack is taking nobody aboard.",
+    "IGUI_TREK_AccNotListed": "You are not on the Adirondack's boarding list.",
+    "IGUI_TREK_RuleTraitRemoved": "%1 is not allowed on this server. It has been taken off your character.",
+    "IGUI_TREK_RuleProfessionRemoved": "%1 is not a posting on this server. You keep your skills.",
+    "IGUI_TREK_RuleSpeciesGiven": "Humans are not allowed on this server. You are %1 now."
 }

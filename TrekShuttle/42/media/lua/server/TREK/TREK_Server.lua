@@ -25,6 +25,7 @@ if isClient() then return end
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Net"
+require "TREK/TREK_Rules"
 require "TREK/TREK_Ship"
 require "TREK/TREK_World"
 require "TREK/TREK_Vehicle"
@@ -49,6 +50,7 @@ local V = TREK.Vehicle
 local B = TREK.Build
 local Rep = TREK.Replicator
 local Probes = TREK.Probes
+local Rules = TREK.Rules
 
 local S = {}
 TREK.Server = S
@@ -1058,6 +1060,12 @@ Net.onServer("move", function(player, args)
         deny(player, "noBadge", { kind = kind })
         return
     end
+    -- Sandbox *Beaming up from the ground* (SERVERS.md). Beaming down is
+    -- never asked: nobody is shut in a ship somebody else sent up.
+    if kind == "beamUp" and not Rules.beamUp() then
+        deny(player, "beamUpOff", { kind = kind })
+        return
+    end
     if rule.access and not mayUse(player) then return end
     if not movesFrom(player, rule.from) then
         deny(player, "wrongPlace", { kind = kind })
@@ -1268,6 +1276,11 @@ end
 --- lifting, because build 42's server runs no vehicle physics at all.
 Net.onServer("takeoff", function(player)
     if not mayUse(player) then return end
+    -- Sandbox *Flight* (SERVERS.md).
+    if not Rules.flight() then
+        deny(player, "flightOff")
+        return
+    end
     local s = U.state()
     if s.flying then return end
     if not s.landed then
@@ -1539,6 +1552,11 @@ end
 
 Net.onServer("fireTorpedo", function(player, args)
     if not mayUse(player) then return end
+    -- Sandbox *Ship's weapons* (SERVERS.md).
+    if not Rules.torpedoes() then
+        deny(player, "weaponsOff")
+        return
+    end
     local s = U.state()
     -- In the air, or parked with somebody in one of her seats (since
     -- 2026-10-09; she used to fire only in flight). Overhead she is not in
@@ -1681,6 +1699,10 @@ local phaserWeapon = nil
 
 Net.onServer("firePhasers", function(player, args)
     if not mayUse(player) then return end
+    if not Rules.shipPhasers() then
+        deny(player, "weaponsOff")
+        return
+    end
     local s = U.state()
     if not s.flying and not s.landed then
         deny(player, "notFlying")
@@ -1861,6 +1883,11 @@ end)
 
 Net.onServer("setShields", function(player, args)
     if not mayUse(player) then return end
+    -- Sandbox *Shields* (SERVERS.md): none to raise.
+    if not Rules.shields() then
+        deny(player, "shieldsOff")
+        return
+    end
     U.state().shields = args.up == true
     Ship.commit()
 end)

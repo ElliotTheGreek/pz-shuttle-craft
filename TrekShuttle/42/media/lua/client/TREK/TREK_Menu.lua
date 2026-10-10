@@ -23,6 +23,7 @@ if isServer() then return end
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+require "TREK/TREK_Rules"
 require "TREK/TREK_Ship"
 require "TREK/TREK_World"
 require "TREK/TREK_Core"
@@ -34,6 +35,11 @@ require "TREK/TREK_AdirondackClient"
 require "TREK/TREK_Access"
 require "TREK/TREK_AccessUI"
 require "TREK/TREK_Marooned"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -178,7 +184,7 @@ end
 --- owner-and-crew access, to the owner or an admin.
 local function crewMenu(menu, player, worldobjects)
     if not isClient() then return end
-    if Ship.accessMode() ~= 2 or not Ship.canManageCrew(player) then return end
+    if Ship.accessMode() ~= Ship.AccessCrew or not Ship.canManageCrew(player) then return end
 
     local s = Ship.get()
     local me = Ship.usernameOf(player)
@@ -274,7 +280,11 @@ local function groundMenu(context, player, worldobjects, sq, test)
         menu:addOption(getText("IGUI_TREK_CallDown"), worldobjects, M.onCallDown,
                        player, sq:getX(), sq:getY(), sq:getZ())
     end
-    menu:addOption(getText("IGUI_TREK_BeamUp"), worldobjects, M.onBeamUp, player)
+    -- Not offered at all on a server that has switched it off: there is
+    -- nothing to learn from a refusal that will never change (SERVERS.md).
+    if TREK.Rules.beamUp() then
+        menu:addOption(getText("IGUI_TREK_BeamUp"), worldobjects, M.onBeamUp, player)
+    end
     return true
 end
 

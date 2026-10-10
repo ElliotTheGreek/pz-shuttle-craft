@@ -136,6 +136,9 @@ end
 --- never had power does not. A commissioned start is commissioned from the
 --- first moment, so for it this is "boarded", as it always was.
 function M.hearing()
+    -- Sandbox *Distress calls* (SERVERS.md): off, and she hears none. A
+    -- rescue already under way is not this function's to end.
+    if TREK.Rules and not TREK.Rules.distressCalls() then return false end
     local s = U.state()
     return s.built == true and s.commissioned == true
 end

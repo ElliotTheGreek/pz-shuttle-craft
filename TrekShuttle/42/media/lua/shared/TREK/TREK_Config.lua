@@ -2415,6 +2415,17 @@ C.CommsFirstContactDay = 7
 -- (TREK_Comms.day). "Straight away" is also how a player reaches the
 -- channel in a fresh world without a debug console.
 C.CommsFirstDays = { 0, 1, 3, 7, 14 }
+-- The sixth value is *Never*: she does not call. The calendar runs as it does
+-- for a week, so a crew who hail her find the story where it would have been.
+C.CommsFirstNever = 6
+
+--- True when the sandbox says the Adirondack never calls (SERVERS.md).
+function C.commsNever()
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.CommsFirstDay
+    end)
+    return ok and tonumber(v) == C.CommsFirstNever
+end
 
 function C.commsFirstDay()
     local ok, v = pcall(function()
@@ -2474,14 +2485,15 @@ C.ScreenKey = "TREKScreened"
 C.ScreenMirrorKey = "TREKScreenedSeen"
 
 -- Sandbox *Adirondack access*: 1 earned (every key), 2 open from the start,
--- 3 rescues only. An absent value is the feature as designed.
-C.AccessEarned, C.AccessOpen, C.AccessRescuesOnly = 1, 2, 3
+-- 3 rescues only, 4 closed to everybody but an admin (SERVERS.md). An absent
+-- value is the feature as designed.
+C.AccessEarned, C.AccessOpen, C.AccessRescuesOnly, C.AccessClosed = 1, 2, 3, 4
 function C.accessMode()
     local ok, v = pcall(function()
         return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.AdirondackAccess
     end)
     v = ok and tonumber(v) or nil
-    if v == 1 or v == 2 or v == 3 then return v end
+    if v == 1 or v == 2 or v == 3 or v == 4 then return v end
     return C.AccessEarned
 end
 
