@@ -173,6 +173,35 @@ function U.isSinglePlayer()
     return not isClient() and not isServer()
 end
 
+--- The id tools/deploy_windows.py gives the copy it installs. The Workshop
+--- package keeps the release id, so a subscriber never has this one.
+U.DevModId = "TrekShuttleDev"
+
+--- True in a development session: this process was started with -debug, or
+--- the mod it loaded is the deployed development copy. Each process answers
+--- for itself, so a tool gated on this is offered by the client's answer and
+--- granted by the server's.
+---
+--- **For development tools only, and deliberately so**: DEV_GUIDE's rule
+--- against anything that works only under -debug is about the mod's
+--- features, which this must never gate.
+function U.devMode()
+    local debug = false
+    pcall(function() debug = getCore():getDebug() == true end)
+    if debug then return true end
+    local dev = false
+    -- pcall, not U.try: a list that cannot be read is "no", and not a WARN.
+    pcall(function()
+        local mods = getActivatedMods()
+        for i = 0, mods:size() - 1 do
+            -- Found anywhere in the entry: build 42 writes some ids with a
+            -- leading backslash.
+            if string.find(tostring(mods:get(i)), U.DevModId, 1, true) then dev = true end
+        end
+    end)
+    return dev
+end
+
 --- Every player character this process knows about: the online players on a
 --- server or a connected client, the local players in single player.
 function U.players()

@@ -827,31 +827,11 @@ function S.toggle(player)
 end
 
 ---------------------------------------------------------------------------
--- The key (PADD.md 12.7: a story surface nobody can find does not get
--- opened). Build 42's own mod options, so it is rebindable in the game's
--- Options -> Mods page. A controller reaches the same screen from the
--- PADD's own menu: select it, press A, Open PADD.
+-- No key. It had one (K, rebindable in the game's mod options) until
+-- 2026-10-09, and K is other mods' key as well (the author: "K collides with
+-- other mods"). The screen opens from the PADD's own menu, with a mouse or
+-- a controller: right-click it, or select it and press A, *Open PADD*.
 ---------------------------------------------------------------------------
-S.keyOption = nil
-U.try("padd.keybind", function()
-    if not (PZAPI and PZAPI.ModOptions) then return end
-    local opts = PZAPI.ModOptions:create("TrekShuttle", getText("IGUI_TREK_Name"))
-    S.keyOption = opts:addKeyBind("paddScreen", getText("IGUI_TREK_PaddKey"),
-                                  Keyboard.KEY_K, getText("IGUI_TREK_PaddKeyTip"))
-    -- Vanilla reads ModOptions.ini when its options screen is built, which is
-    -- before any mod Lua exists; read it again now that this option does, or
-    -- a rebound key only takes effect after the options screen is opened.
-    PZAPI.ModOptions:load()
-end)
-
-Events.OnKeyPressed.Add(function(key)
-    if not S.keyOption then return end
-    local want = U.try("padd.keyValue", function() return S.keyOption:getValue() end)
-    if not want or want == 0 or key ~= want then return end
-    local player = U.player(0)
-    if not player then return end
-    S.toggle(player)
-end)
 
 ---------------------------------------------------------------------------
 -- What the channel says when the screen is shut

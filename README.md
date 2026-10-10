@@ -19,8 +19,8 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **Beam down** | From the pad, back to the exact spot you left, or set a course first and beam down anywhere on the map. |
 | **Call it down** | Right-click a patch of street or field → **Call the shuttle down here**. It needs 3×5 tiles of clear ground and tells you when it hasn't got them. |
 | **Travel** | From the helm inside, click the map to lay in a course, then **take her down**. You are beamed to the site first so the ground actually loads, and the ship comes in after you. |
-| **Fly it like a truck** | The landed shuttle is a vehicle with four seats. Get in as you would a car, pick a seat on its chart, switch seats, drive. No seat has a door, so nothing can bite you in one. |
-| **Take her up** | From the pilot's seat, **Shuttlecraft ▸ Take her up**. She rises smoothly to her hover height (five storeys by default, set on the sandbox page) and hovers, and she flies by *driving*, so the throttle, the steering, the seat chart and a controller all work exactly as they do on the ground. Her shadow on the street below marks exactly where she will come down. Pick a flight speed at the helm, and **Set her down below** when you are there. Up or down and nothing in between: there is one flight height, and anything taller than it is a wall she slows to a stop in front of. The crew can go aft to the cabin in flight and come back; she waits where you left her. While she is up the hatch is shut, so the transporter is the way off her, and once the last of you has beamed down she goes back up, ready to be called down again. |
+| **Drive it like a truck** | The landed shuttle is a vehicle with four seats. Get in as you would a car, pick a seat on its chart, switch seats, drive. No seat has a door, so nothing can bite you in one. |
+| **Take her up** | From the pilot's seat, **Shuttlecraft ▸ Take her up**. She rises smoothly to her hover height (five storeys by default, set on the sandbox page) and hovers. In the air she is flown, not driven: **W A S D** fly her and slide her sideways, **Q** and **E** turn her where she is (the left stick and the bumpers on a controller), and she answers at once. **Any seat works her weapons**: hold right mouse to aim, left click to fire, and the wheel has a slice for torpedoes, phasers and the tractor beam. Her shadow on the street below marks exactly where she will come down. Pick a flight speed at the helm, and **Set her down below** when you are there. Up or down and nothing in between: there is one flight height, and anything taller than it is a wall she slows to a stop in front of. The crew can go aft to the cabin in flight and come back; she waits where you left her. While she is up the hatch is shut, so the transporter is the way off her, and once the last of you has beamed down she goes back up, ready to be called down again. |
 | **Never stranded** | If there is not enough room at the destination you are beamed straight back aboard with the reason. A failed landing never leaves you on foot a hundred miles from the ship. |
 | **Phasers** | Four in the armoury, with their own model. The charge never runs down, they never jam and they never wear out, and they are far quieter than a firearm, which is most of the point. Every shot is a visible orange bolt. They holster, in vanilla's holsters or the Starfleet one. Right-click a tree to **cut it down** or a door to **cut through it** in a few seconds, with a beam everybody nearby sees and hears. A beam defeats any lock, padlocks included, because the door stops being there. Somebody else's safehouse door is refused, and the sandbox can limit cutting to trees or switch it off. |
 | **A hypospray** | One dose puts right bleeding, deep wounds, infected cuts, burns, fractures, pain and stiffness, everywhere on your body at once. It will not touch a bite. Six doses, and the ship replicates more while you are aboard; out in the field, what you are carrying is what you have. |
@@ -156,7 +156,8 @@ transporter works either way; the hatch only works when it is down.
 Piloting works the way the game does vehicles: the landed shuttle is a vehicle
 you get into, with four seats you can switch between. From the pilot's seat the
 radial menu takes her up and sets her down (one hovering height, nothing in
-between), and she clears everything shorter than it. Her shadow on the ground
+between), and she clears everything shorter than it. Up there W A S D fly and
+slide her and Q and E turn her; on the ground she is driven. Her shadow on the ground
 is where she will land. While
 she is up the hatch is shut, so the transporter is the way off her, and once
 the last of the crew has beamed down she goes back up and waits to be called.
@@ -343,7 +344,8 @@ interior plus `TREK_InteriorLayout.lua`.
 - **One shuttle per world.** In multiplayer the crew shares it; a second
   ship is not supported.
 - **Flight has been flown in single player at five storeys, and with two
-  people at level 1.**
+  people at level 1.** The helm in the air (W A S D, Q and E) has been flown
+  in single player only, and passengers firing has not been played.
   The shuttle flies on an invisible floor the mod lays at altitude, because a
   vehicle's height in build 42 is decided by whether there is a floor under it
   and not by its physics. A one-square rim of that floor may be visible under

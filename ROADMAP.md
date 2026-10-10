@@ -25,8 +25,8 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | System | Guide | State |
 |---|---|---|
 | Transporter, landing, hatch, the void outside | `DESIGN.md`, `MULTIPLAYER.md` | **Played** |
-| Flight (one hover height, sandbox *Hover height*) | `PILOTING.md` | **Played** at level 5, and with two people at level 1 (2026-09-23). The obstacle guard has not met a tall building yet |
-| Photon torpedoes | `PHOTON_TORPEDOS.md` | **Played** with a mouse. Controller aim is built and has not been held |
+| Flight (one hover height, sandbox *Hover height*) | `PILOTING.md` | **Played** at level 5, and with two people at level 1 (2026-09-23). The helm in the air (W A S D, Q and E; `PILOTING.md` 2.5) played in single player 2026-10-10: "it works well". The obstacle guard has not met a tall building yet, and nothing of the helm has been seen from a second machine |
+| Photon torpedoes | `PHOTON_TORPEDOS.md` | **Played** with a mouse. Controller aim is built and has not been held. Firing from a passenger's seat and the wheel's three weapon slices (2026-10-10) are not played |
 | Phaser: model, bolts, cutting trees and doors | `PHASERS.md` | **Played**. Holstering (2026-09-27) not yet seen |
 | Phaser: clearing stumps, rocks, boulders and bushes | `PHASERS.md` 3 | **Played** 2026-09-30 ("it works well") |
 | The engineer's field kit: five Starfleet tools, self-sealing stem bolts, the satchel | `FIELD_KIT.md` | Built 2026-09-30, not played. The armoury's kit needs a new world; the replicator makes it all in any |

@@ -632,6 +632,10 @@ function M.serviceSweep()
         sweep.i = i + 1
         done = done + 1
         join(function()
+            -- The list is the cell's own and it shrinks under a sweep: the
+            -- dead are taken off it as they die, and the ship's phasers kill
+            -- eight at a time (an IndexOutOfBounds, six times, 2026-10-09).
+            if i >= sweep.list:size() then return end
             local z = sweep.list:get(i)
             if not z then return end
             local zz = math.floor(z:getZ())

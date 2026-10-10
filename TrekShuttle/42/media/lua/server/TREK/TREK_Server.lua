@@ -1012,6 +1012,10 @@ local MOVES = {
     -- A lift, so no power; one long move each, so one charge each.
     stationDown    = { cost = 1, from = "stationPanel" },
     stationUp      = { cost = 1, from = "stationLift" },
+    -- A development tool (TREK_Menu, *Teleport to the shuttle*): to wherever
+    -- she is, from anywhere, for nothing. Granted only in a development
+    -- session (U.devMode), which this process answers for itself.
+    devShuttle     = { cost = 0, dev = true },
 }
 
 --- True when the player is where a move of this kind may start.
@@ -1046,6 +1050,10 @@ Net.onServer("move", function(player, args)
     local kind = args.kind
     local rule = MOVES[kind]
     if not rule or not alive(player) then return end
+    if rule.dev and not U.devMode() then
+        deny(player, "devOnly", { kind = kind })
+        return
+    end
     if kind == "beamUp" and not TREK.Marooned.linked(player) then
         deny(player, "noBadge", { kind = kind })
         return
@@ -1238,6 +1246,22 @@ local function drivenBy(player)
         return vehicle:isDriver(player)
     end) == true
     return vehicle, driving
+end
+
+--- The vehicle the ship is, and whether this player is in any of her seats.
+--- Her weapons are worked from all four (since 2026-10-10; they were the
+--- driver's alone): flying her is the pilot's, and firing is the crew's.
+---
+--- `getSeat` answers -1, never nil, for somebody who is not in her
+--- (crewAboard has the bytecode and what reading it the other way cost).
+local function seatedIn(player)
+    local vehicle = V.ship()
+    if not vehicle then return nil, false end
+    local seated = U.try("crewSeat", function()
+        local seat = vehicle:getSeat(player)
+        return seat ~= nil and seat >= 0
+    end) == true
+    return vehicle, seated
 end
 
 --- A pilot asks to take her up. The server says who may; the client does the
@@ -1516,13 +1540,16 @@ end
 Net.onServer("fireTorpedo", function(player, args)
     if not mayUse(player) then return end
     local s = U.state()
-    if not s.flying then
+    -- In the air, or parked with somebody in one of her seats (since
+    -- 2026-10-09; she used to fire only in flight). Overhead she is not in
+    -- the world.
+    if not s.flying and not s.landed then
         deny(player, "notFlying")
         return
     end
-    local _, driving = drivenBy(player)
-    if not driving then
-        deny(player, "notPilot")
+    local _, seated = seatedIn(player)
+    if not seated then
+        deny(player, "notSeated")
         return
     end
 
@@ -1547,9 +1574,9 @@ Net.onServer("fireTorpedo", function(player, args)
         deny(player, "torpedoRange")
         return
     end
-    -- And the blast is centred on the ground, so firing at your own shadow
-    -- would catch the ship.
-    if dist < C.TorpedoMinRange then
+    -- And the blast is centred on the ground, so a ship standing on it has a
+    -- minimum. In the air she is over it, and has none.
+    if not s.flying and dist < C.TorpedoMinRange then
         deny(player, "torpedoTooClose")
         return
     end
@@ -1591,7 +1618,8 @@ Net.onServer("fireTorpedo", function(player, args)
     -- the same documented exception the sky plane uses -- no client touches
     -- ship state and no client does damage.
     Net.toAll("torpedoLaunched", {
-        x0 = s.x, y0 = s.y, level = s.level or C.flightLevel(),
+        -- From the ground it leaves at the ground's own level.
+        x0 = s.x, y0 = s.y, level = s.flying and (s.level or C.flightLevel()) or (s.z or 0),
         x = x, y = y, z = z,
         ms = flight,
     })
@@ -1599,6 +1627,189 @@ Net.onServer("fireTorpedo", function(player, args)
           math.floor(s.x or 0), math.floor(s.y or 0), x, y, z,
           math.floor(dist), math.floor(flight), Ship.usernameOf(player))
 end)
+
+---------------------------------------------------------------------------
+-- The ship's phasers (C.ShipPhaser)
+---------------------------------------------------------------------------
+-- Server-local: a debounce, and nobody else's business.
+local phaserAt = 0
+
+--- The dead a shot from (sx, sy) at (tx, ty) on level z takes: those round
+--- the square under the reticle and those in the wedge from her to it,
+--- nearest the reticle first, no more than C.ShipPhaser.targets.
+function S.phaserTargets(sx, sy, tx, ty, z)
+    local P = C.ShipPhaser
+    local ax, ay = tx - sx, ty - sy
+    local reach = math.sqrt(ax * ax + ay * ay)
+    -- Aimed close in, the shot is a ring round her: what a parked pilot
+    -- clears before opening the hatch.
+    local ring = reach <= P.close
+    local found = {}
+    U.try("phaser.targets", function()
+        local list = getCell():getZombieList()
+        for i = 0, list:size() - 1 do
+            local zed = list:get(i)
+            -- Not the Adirondack's crew (isUseless): pacified bodies the mod
+            -- walks about, which cannot be hurt (the sentry's rule).
+            if zed and not zed:isDead() and not zed:isUseless()
+               and math.floor(zed:getZ()) == z then
+                local zx, zy = zed:getX(), zed:getY()
+                local dT = math.sqrt(U.dist2(zx, zy, tx, ty))
+                local inside = dT <= P.near
+                if not inside and ring then
+                    inside = U.dist2(zx, zy, sx, sy) <= P.close * P.close
+                end
+                -- Straight down from overhead there is no bearing to make a
+                -- wedge of, and the ring round the reticle is the whole shot.
+                if not inside and reach > 0.5 then
+                    local bx, by = zx - sx, zy - sy
+                    local d = math.sqrt(bx * bx + by * by)
+                    if d > 0.01 and d <= reach + P.past then
+                        inside = (bx * ax + by * ay) / (d * reach) >= P.cosHalf
+                    end
+                end
+                if inside then table.insert(found, { zed = zed, d = dT, x = zx, y = zy }) end
+            end
+        end
+    end)
+    table.sort(found, function(a, b) return a.d < b.d end)
+    while #found > P.targets do table.remove(found) end
+    return found
+end
+
+local phaserWeapon = nil
+
+Net.onServer("firePhasers", function(player, args)
+    if not mayUse(player) then return end
+    local s = U.state()
+    if not s.flying and not s.landed then
+        deny(player, "notFlying")
+        return
+    end
+    local _, seated = seatedIn(player)
+    if not seated then
+        deny(player, "notSeated")
+        return
+    end
+    local P = C.ShipPhaser
+    local now = getTimestampMs()
+    -- A debounce: said nothing, because the pilot is holding the trigger.
+    if now - phaserAt < P.cooldownMs then return end
+
+    local x, y = int(args.x), int(args.y)
+    if not x or not y then return end
+    local z = int(args.z) or s.z or 0
+    if z < 0 then return end
+    local dx, dy = x - s.x, y - s.y
+    if math.sqrt(dx * dx + dy * dy) > P.range then
+        deny(player, "torpedoRange")
+        return
+    end
+
+    local found = S.phaserTargets(s.x + 0.5, s.y + 0.5, x + 0.5, y + 0.5, z)
+    if #found == 0 then
+        phaserAt = now
+        deny(player, "phaserNoTarget")
+        return
+    end
+    -- Checked whole and refused with its numbers; paid in silence, because a
+    -- note a shot would be a note three times a second (the move handler's
+    -- pattern).
+    local need = P.cost * #found
+    if not TREK.Power.canPay(need) then
+        TREK.Energy.energize(player, "phasers", need)
+        return
+    end
+    TREK.Energy.energize(player, "phasers", need, { silent = true })
+    phaserAt = now
+
+    phaserWeapon = phaserWeapon or U.try("phaser.weapon", function() return instanceItem(C.PhaserItem) end)
+    local hits = {}
+    for _, t in ipairs(found) do
+        -- The engine's own server-side hit, the one the sentry uses and
+        -- IsoTrap does; the pilot is the attacker, so the kill is theirs.
+        local ok = U.try("phaser.hit", function()
+            t.zed:Hit(phaserWeapon, player, P.damage, false, 1.0)
+            return true
+        end)
+        if ok then table.insert(hits, { x = t.x, y = t.y, z = z }) end
+    end
+    Net.toAll("shipPhasers", {
+        x = s.x + 0.5, y = s.y + 0.5,
+        level = s.flying and (s.level or C.flightLevel()) or (s.z or 0),
+        hits = hits,
+    })
+    U.log("phasers: %d bolt(s) at %d,%d,%d for %d power, fired by %s", #hits, x, y, z, need,
+          Ship.usernameOf(player))
+end)
+
+---------------------------------------------------------------------------
+-- The tractor beam (C.Tractor)
+---------------------------------------------------------------------------
+-- The server owns one thing: whether it is on (`s.tractor`, the name of
+-- whoever in her seats is holding it), and what it costs. What it holds is each client's own to move: a
+-- client simulates its own zombies and the driver's client the physics, the
+-- same split as the shields' push and the sky plane.
+local tractor = nil   -- { player, paidAt } while it is on, server-local
+
+function S.tractorOff(why)
+    local s = U.state()
+    local was = s.tractor
+    tractor = nil
+    if was == nil then return false end
+    s.tractor = nil
+    Ship.commit()
+    U.log("tractor: released (%s)", tostring(why))
+    return true
+end
+
+Net.onServer("tractor", function(player, args)
+    if not mayUse(player) then return end
+    local s = U.state()
+    if not args.on then
+        if s.tractor == Ship.usernameOf(player) then S.tractorOff("whoever held it let go") end
+        return
+    end
+    if not s.flying then
+        deny(player, "tractorNotFlying")
+        return
+    end
+    local _, seated = seatedIn(player)
+    if not seated then
+        deny(player, "notSeated")
+        return
+    end
+    if s.tractor then return end
+    if not TREK.Power.canPay(C.Tractor.costPerSec) then
+        TREK.Energy.energize(player, "tractor", C.Tractor.costPerSec)
+        return
+    end
+    tractor = { player = player, paidAt = getTimestampMs() }
+    s.tractor = Ship.usernameOf(player)
+    Ship.commit()
+    U.log("tractor: engaged by %s", s.tractor)
+end)
+
+--- Every tick: the beam's upkeep, and everything that lets it go without
+--- being asked -- she has landed, whoever held it has left their seat, the
+--- power is out, or the server restarted with it on.
+function S.serviceTractor()
+    local s = U.state()
+    if s.tractor == nil then return end
+    if not tractor then return S.tractorOff("nobody is holding it") end
+    if not s.flying then return S.tractorOff("she is not in the air") end
+    local _, seated = seatedIn(tractor.player)
+    if not seated or not alive(tractor.player) then return S.tractorOff("nobody in a seat is holding it") end
+    local now = getTimestampMs()
+    if now - tractor.paidAt >= 1000 then
+        tractor.paidAt = now
+        if not TREK.Power.canPay(C.Tractor.costPerSec) then
+            TREK.Energy.energize(tractor.player, "tractor", C.Tractor.costPerSec)
+            return S.tractorOff("no power")
+        end
+        TREK.Energy.energize(tractor.player, "tractor", C.Tractor.costPerSec, { silent = true })
+    end
+end
 
 Net.onServer("setCourse", function(player, args)
     if not mayUse(player) then return end
@@ -3265,6 +3476,7 @@ Events.OnTick.Add(function()
     -- anything slower would make the impact visibly late for its own flight.
     -- With nothing in the air it is a length check on an empty table.
     U.try("serviceTorpedoes", S.serviceTorpedoes)
+    U.try("serviceTractor", S.serviceTractor)
     vehicleTick = vehicleTick + 1
     if vehicleTick >= 60 then
         vehicleTick = 0

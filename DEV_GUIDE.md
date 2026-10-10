@@ -2484,6 +2484,7 @@ python tools/gen_mekleth.py TrekShuttle/42        # and lirpa, ushaantor
 python tools/meshbbox.py --vanilla spear          # measure vanilla, or ours
 python tools/gen_poster.py  TrekShuttle/42
 python tools/gen_reticle.py TrekShuttle/42        # the torpedo reticle
+python tools/gen_weapon_icons.py                  # the wheel's three weapon slices, keyed from design/art/wheel
 python tools/gen_medical.py TrekShuttle/42        # the medical set's three sounds
 python tools/gen_replicator.py TrekShuttle/42     # the machine, its sound, its renders
 python tools/gen_dilithium.py TrekShuttle/42      # the crystal's icon
@@ -2766,6 +2767,14 @@ single player, `server-console.txt` on a server).
 | `TREK_PhaserFX()` | How many beams and bolts are burning on this client |
 | `TREK_Fly()` / `TREK_Sky()` | The flight probe and the sky plane (`PILOTING.md` 6) |
 | `TREK_Uniform()` | Whether each uniform's `ClothingItem` resolved through the GUID table, and the male model, female model and texture it came back with. **The first thing to run the first time the wardrobe is carried into a world**: a garment whose GUID is missing wears perfectly and draws nothing |
+
+**And one tool on the right-click menu, in a development session only**
+(`U.devMode()`: the game run with `-debug`, or the copy `deploy_windows.py`
+installs as `TrekShuttleDev`): **[DEV] Teleport to the shuttle**. It puts the
+player beside her hatch where she stands, or on a marooned ship's site before
+she has been set down, which loads the ground and sets her down. It gives no
+pattern: boarding is still the hatch. The server grants it by its own
+`U.devMode()`, so a client alone cannot. `dev_teleport()` is its test.
 
 ### On a dedicated server
 
@@ -3442,6 +3451,17 @@ with it: the sim had no loot roll at all, and `SIM.fillContainer` refuses on a
 client as the engine does. 48 mutations, 43 caught at first; two of the five
 were guards nothing could reach, and were deleted. **Not seen in game, and
 the maps rest on an engine event this mod had not used before.**
+
+**The 2026-10-10 helm** (`PILOTING.md` 2.5): in the air she is placed every
+tick from the keys instead of driven (W A S D fly and slide her, Shift turns
+her), and any of her four seats fires her weapons. Three engine facts read for
+it: `setWorldTransform` writes the vehicle's transform at once,
+`getForwardVector` is the rotation's Z column, and `setAngles` returns early
+when the whole degrees it is handed are the ones in force. The simulation
+gained a keyboard, a left stick and ground that has not streamed in
+(`SIM.unstreamed`). Thirty mutations, all caught, two only after their tests
+were written; a change to the guard that no test could see was taken back
+out. **Not seen in game.**
 
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.

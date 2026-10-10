@@ -8,6 +8,10 @@ client/server design this obeys. `ROADMAP.md` is what comes next. This file is
 the flight system: read it before touching `TREK_Sky.lua`, `TREK_Flight.lua`,
 `TREK_Shadow.lua`, or anything in the server that mentions `flying`.
 
+**In the air she is flown, not driven, since 2026-10-10** (section 2.5): W A S
+D fly her and slide her, Shift turns her, and any seat fires her weapons.
+**Not seen in game.** Sections 1 to 2.4 are otherwise as they were.
+
 **Where it stands (1.5.0, 2026-09-24).** Flown in single player at level 5 and
 it works as designed: a 2.5-second climb from the ground, held on the first
 try (`holding at level 5: lowest 5.10 after letting go, 1 hold(s)`), flown
@@ -31,9 +35,21 @@ car. From the driver's seat, **V** opens the radial menu:
 | **Take her up** | She rises, smoothly, to the hover height and holds there |
 | **Set her down below** | The existing footprint check, then she sinks to the ground |
 | **Go aboard (cabin)** | Through to the interior, on the ground or in the air |
+| **Arm: torpedoes / phasers / tractor beam** | A slice each, in every seat, with its own picture; the one armed says so |
 
-Then you **drive**. W/A/S/D, the stick, the seat chart, the mechanics screen:
-all of it is vanilla's, untouched. The helm inside sets the top speed.
+On the ground you **drive**: W/A/S/D, the stick, the seat chart, the mechanics
+screen, all of it vanilla's, untouched. In the air you **fly** (section 2.5):
+
+| | Keyboard | Controller |
+|---|---|---|
+| Forward, back | W, S | left stick |
+| Slide to port, starboard (no turn) | A, D | left stick |
+| Turn where she is | Q, E (or Shift + A, Shift + D) | left and right bumper |
+| Aim, fire (any seat) | hold right mouse, left click | right stick, its click |
+
+W with Q or E is a curve. Q is a vehicle's horn and E its way out, so in the
+air the shuttle's horn is off and her pilot's E says nothing (`TREK_VehicleMenu`). The helm
+inside sets the top speed. She is told how each time she goes up.
 
 **Flight is a binary: she is on the ground, or she is hovering.** There is one
 altitude, `C.flightLevel()`, and there is no climb, no dive and no
@@ -266,6 +282,67 @@ brings her top speed down as a wall comes nearer, to `C.GuardCrawl` within
 back. **She is never lifted over it**: changing level in flight is the
 manoeuvre that failed, and a tower is a thing to go round.
 
+### 2.5 The helm in the air: placed, not driven
+
+Until 2026-10-10 flight was vanilla's driving on the plane: a truck's turning
+circle and a truck's momentum, five storeys up. Now, while she hovers, **the
+pilot's machine reads the keys and places her every tick** (`serviceHelm` in
+`TREK_Flight`), with the call the climb has always carried her with. Nothing
+pushes her, so she answers at once, goes sideways as readily as forwards and
+turns on the spot. It is the Heroes mod's flyer (`HERO_Sky.step`) with a
+vehicle's transform where that has a character's position.
+
+- **On the ground nothing changed.** She is a vehicle and the engine drives
+  her. The helm runs only while `flying` is set, on the machine that moves
+  her, for the player in the driver's seat.
+- **The plane is still there**, and still what holds her when nobody is flying
+  her. With no key down and her way off, she is let go onto it after
+  `C.Helm.holdMs`, exactly as before; a pilot who goes aft leaves her standing.
+- **Her height is held while she moves.** She is placed at the height she
+  rests at (`restY`), every tick, so a floor the physics has not heard of yet
+  (section 2.1) is never what she is resting on at speed.
+- **A floor goes under her before she does.** `Sky.under` floors the square
+  each stride ends on, and she does not go where it cannot (ground that has
+  not streamed in): she waits at the edge.
+- **Her heading is one number, kept in Lua.** `setAngles(0, yaw, 0)` is
+  `Quaternionf.rotationXYZ`: a pure yaw at any angle. The 180-degree trap of
+  section 4 is in reading the angles back, so they are read once, when she is
+  first flown after being on the ground, as `keepLevel` reads them.
+- **Which way is which** (READ, not played): `getForwardVector` is column 2 of
+  her rotation, so a yaw of h points her at (sin h, cos h) in the map's x and
+  y; more yaw is a turn to port; her starboard side is (-cos h, sin h).
+  `setWorldTransform` writes the vehicle's own transform at once (bci 0-5), so
+  the turn and the move made in one tick agree. The transform's origin is the
+  map position less the physics world's offset, so she is moved by a
+  difference, never to a map position.
+- **Nothing collides any more.** The guard's wall test (2.4) is also what
+  stops her: she keeps `C.Helm.clearance` squares between her hull and a wall
+  at her own level, nose on or side on. Turning on the spot beside a tower is
+  not tested: her nose can swing through a wall.
+- **Speed.** A helm step is tiles a second times 3.6 (`C.Helm.perUnit`): 5.6
+  to 33, 17 by default, under the server's `SpeedLimit` on a client and the
+  guard's cap. Her velocity and her turn ease to what is asked in about a
+  quarter of a second.
+- **A gap is not a frame**: more than `C.Helm.gap` between two ticks (a pause,
+  a hitch, a recovery that had her) moves her nowhere.
+- **Vanilla still hears the keys.** W is still throttle to the engine, and it
+  pushes her wheels on the plane; she is placed again the next tick, which
+  also zeroes her velocity. Whether that shows at all is for the game to say.
+
+**Any seat fires** (`T.atTheControls`, `seatedIn` in `TREK_Server`): the
+torpedoes, the phasers and the tractor beam are worked from all four seats,
+each with its own reticle and its own armed weapon. The tubes' reload, the
+phasers' debounce and the one beam are the ship's and are shared. Taking her
+up, setting her down and flying her are still the driver's alone.
+
+**What only the game shows:** all of it. Above all: whether she is drawn
+smoothly when placed every tick sideways (the climb is, and that is the same
+call); that W is forward and A is port, which rests on the reading above;
+whether the ground loads fast enough at the top step; what the other machine
+sees, since `VehiclePhysicsPacket` now carries a body that is teleported and
+has no velocity; the speed anti-cheat with passengers aboard; the bumpers on
+a controller, which vanilla may also use in a vehicle.
+
 ---
 
 ## 3. The pieces
@@ -288,7 +365,8 @@ shared/TREK/TREK_Config.lua   every number below
 | **`flying`, `level`, `pilot`** | The server, as ship state, set by validated commands |
 | **The height** | Nobody sends it: the sandbox's `FlightHeight`, read by every process through `C.flightLevel()` |
 | **The climb, the descent, keeping her level, the guard** | The machine that moves her: the driver's client on a server, and in single player this one (see below). Everybody else sees her body move through the vehicle's own sync |
-| **Driving, steering, seats, camera, sync** | Vanilla. The mod does not touch any of it. |
+| **Flying her: where she is and which way she points, in the air** | The driver's machine, from the keys (2.5). Everybody else sees it through the vehicle's own sync |
+| **Driving on the ground, seats, camera, sync** | Vanilla. The mod does not touch any of it. |
 
 **Single player owns the physics and the engine will not say so.**
 `isLocalPhysicSim()` is `authorization == LocalCollide || == Local` off a
@@ -359,6 +437,18 @@ pair, and the test fails on any that are left. It found a second removal site
 the first fix had missed.
 
 ### The plane must be small, because a floor darkens what is under it
+
+**Corrected 2026-10-09: it was two readable causes, and one of them is fixed.**
+The black squares under her were sight, not shade: a square with `solidfloor`
+and not `transparentFloor` blocks sight to the level below
+(`IsoGridSquare.CalculateVisionBlocked`), and ground nobody can see is drawn
+black. She flies on the mod's own tile now (`C.SkyTile`,
+`trek_adirondack_01_47`): vanilla's invisible floor with `transparentFloor`.
+The other cause is the roof: `addFloor` marks the ground under it as roofed
+(`IsoCell.checkHaveRoof`), which costs it sky light and rain while she is over
+it; `Sky.unroof` now takes that back when a square is lifted, which nothing
+did before. The Heroes mod found both and took its floor away; a vehicle
+cannot. **Not seen in game.** What follows is what was believed until then.
 
 Nothing can stop that; it is what a floor is. The only lever is how much floor
 exists, so the patch is `C.SkyRadius = 2` (a 5×5 under a hull that covers 15
@@ -630,7 +720,8 @@ All in `TREK_Config.lua`.
 | `FlightRecoverLimit` / `FlightRecoverMs` | 3 / 1500 | carrying her back to her level in flight, and then stop |
 | `GuardFrom` / `GuardReach` / `GuardPerSquare` / `GuardCrawl` | 3 / 14 / 8 / 5 | the obstacle guard |
 | `ShadowRings` / `ShadowSize` / `ShadowAlpha` | 7 rings / 4.4 / 0.55 | the shadow |
-| `FlightSpeedSteps` | 15…120 | absolute top speeds, each distinguishable |
+| `FlightSpeedSteps` | 20…120 | the helm's steps; in the air, 3.6 of one is a tile a second |
+| `Helm` | ease 8, turn 120°/s, hold 700 ms, clearance 1 | the helm in the air (2.5) |
 | `FlightLevelTolerance` | 20° | past this she is put right, about her own heading |
 | `FlightPilotGrace` | 10 checks | nobody aboard and she goes back up |
 | `FlightBoardingChecks` | 30 checks | somebody is beaming towards her; hold the above off |
@@ -732,6 +823,7 @@ mod reports). Heights other than 5 have not been flown.
   enough that the hull covers nearly all of it; whether anything shows at the
   edge is a matter of taste and camera angle. If it ever needs to go entirely,
   the untried idea is a floor sprite without `solidfloor`.
+- **The helm in the air and passengers firing** (2.5): simulation only.
 - **Speed against the anti-cheat on a real server**, and what `SpeedLimit`
   actually means.
 
@@ -739,7 +831,9 @@ mod reports). Heights other than 5 have not been flown.
 
 ## 8. If you change something here
 
-1. `python tests/test_multiplayer.py`: the flight scenarios are in `flight()`,
+1. `python tests/test_multiplayer.py`: the helm in the air is `flight_helm()`
+   (the keys, the stick, walls, unloaded ground, two machines, a passenger
+   firing; 30 mutations, all caught). The rest of the flight scenarios are in `flight()`,
    `flight_ascent()` (the climb, the hold, the guard, the shadow and the
    descent, read tick by tick from `SIM.path`), `flight_refused()` (a height the
    engine will not hold, at take-off and in flight), `flight_two_machines()`

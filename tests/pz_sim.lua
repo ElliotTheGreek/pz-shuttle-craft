@@ -41,9 +41,15 @@ function getCellSizeInSquares() return 256 end
 
 -- getDebug() is false on purpose. A mechanism that only works under -debug is
 -- no use to a Workshop subscriber, so the simulation never pretends otherwise.
+-- SIM.debug turns it on for the one thing that is meant to be so: a development
+-- tool (U.devMode). SIM.mods is what getActivatedMods() lists.
 local core = {
-    getDebug = function() return false end,
-    getKey = function(_, name) return 0 end,
+    getDebug = function() return SIM ~= nil and SIM.debug == true end,
+    -- A binding's key code, as getCore():getKey(name) answers it. The helm
+    -- in the air reads the game's own movement keys (TREK_Flight, F.wanted),
+    -- and with every binding answering 0 no test could press one: a helm
+    -- that read nothing at all would have passed.
+    getKey = function(_, name) return SIM ~= nil and SIM.KEYS[name] or 0 end,
     getScreenWidth = function() return 1920 end,
     getScreenHeight = function() return 1080 end,
     -- Anything pinned to a world position is drawn at its own size divided by
@@ -623,12 +629,18 @@ SIM.mapItems = { ["Base.MuldraughMap"] = true, ["Base.WestpointMap"] = true,
 function SIM.fillContainer(container, rolled, room, kind)
     if SIM_ROLE == "client" then return false end
     for _, id in ipairs(rolled or {}) do container:AddItem(id) end
+    -- The engine also raises this with the loot table's own record
+    -- (ItemPickerJava$ItemPickerContainer) where the container should be: a
+    -- class Lua is not given, so anything called on it throws. A thread is
+    -- the nearest thing here: not a table, and an index on it is an error.
+    SIM.fire("OnFillContainer", room or "gasstore", kind or "shelves",
+             coroutine.create(function() end))
     SIM.fire("OnFillContainer", room or "gasstore", kind or "shelves", container)
     return true
 end
 
 function SIM.container(capacity)
-    local c = { items = {}, capacity = capacity or 40, explored = false }
+    local c = { items = {}, capacity = capacity or 40, explored = false, class = "ItemContainer" }
     --- Adds one item, and **refuses when the container is full**.
     ---
     --- Modelled because the engine does it silently: ItemContainer drops what
@@ -847,6 +859,10 @@ end
 SIM.tileProps = SIM.tileProps or {}
 -- Vanilla's invisible floor: the sky plane's tile and every roof of ours.
 SIM.tileProps["invisible_01_0"] = { solidfloor = true, attachedFloor = true }
+SIM.tileProps["trek_adirondack_01_47"] = { solidfloor = true, attachedFloor = true,
+                                           transparentFloor = true }
+-- What the shuttle flies on, and what she flew on up to 1.19.0.
+SIM.SKY = { ["trek_adirondack_01_47"] = true, ["invisible_01_0"] = true }
 
 function ObjectMT:getModData() return self.modData end
 function ObjectMT:getSquare() return self.square end
@@ -1349,7 +1365,7 @@ function SquareMT:addFloor(sprite)
     end
     -- Counted whatever the role, because single player is a client too as far
     -- as the sky plane is concerned, and a test needs to see it either way.
-    if sprite == "invisible_01_0" and self.z > 0 then
+    if SIM.SKY[sprite] and self.z > 0 then
         SIM.skyEdit = (SIM.skyEdit or 0) + 1
         if isClient() then
             -- The one world edit a client may make. Taken back out of the
@@ -1445,7 +1461,7 @@ function SquareMT:RemoveTileObjectErosionNoRecalc(o)
     -- client may make (addFloor above), with the same two conditions: this
     -- sprite, and above the ground. Anything else a client removes is a world
     -- edit and counts.
-    local skyLift = o and o.spriteName == "invisible_01_0" and (self.z or 0) > 0
+    local skyLift = o and SIM.SKY[o.spriteName] and (self.z or 0) > 0
     if skyLift then
         SIM.skyLift = (SIM.skyLift or 0) + 1
     elseif isClient() then
@@ -1523,7 +1539,13 @@ end
 --- to their death in that time.
 local LOAD_RADIUS = 70
 SIM.STREAM_TICKS = 30
+-- `SIM.unstreamed = { y = n }` (or x) is ground past a line that has not
+-- streamed in yet, however near a player is: the engine loads chunks behind
+-- a fast ship as well as ahead of her, and the helm in the air must stop at
+-- ground it cannot put a floor over rather than be placed there.
 function SIM.loaded(x, y)
+    local late = SIM.unstreamed
+    if late and ((late.y and y >= late.y) or (late.x and x >= late.x)) then return false end
     for _, p in ipairs(SIM.players) do
         local cx, cy = p.streamX or p.x, p.streamY or p.y
         if math.abs(cx - x) <= LOAD_RADIUS and math.abs(cy - y) <= LOAD_RADIUS then
@@ -1915,7 +1937,7 @@ function SIM.vehicleGravity()
                 for l = level + 1, 10 do
                     local sq = squares[key(math.floor(v.x), math.floor(v.y), l)]
                     local f = sq and sq:getFloor()
-                    if f and f.spriteName == "invisible_01_0" then above = l break end
+                    if f and SIM.SKY[f.spriteName] then above = l break end
                 end
                 table.insert(SIM.path, { y = y, z = v:getZ(), x = v.x, vy = v.y,
                                          band = level, above = above })
@@ -1947,6 +1969,10 @@ end
 function VehicleMT:setWorldTransform(t)
     local o = t:getOrigin()
     self.bulletY = o:y()
+    -- And where it is: Bullet's x and z are the map's x and y. The body goes
+    -- wherever the transform says, which is how the tractor beam carries a
+    -- car (the flight's own moves hand back the x and z they were given).
+    self.x, self.y = o:x(), o:z()
     SIM.transformCalls = (SIM.transformCalls or 0) + 1
     -- A client moving the world's ship is not the same as a client building
     -- in the world, but it is still worth counting separately so a test can
@@ -2508,6 +2534,7 @@ function PlayerMT:tooDarkToRead() return self.dark == true end
 function PlayerMT:getTorchStrength() return 0 end
 function PlayerMT:setJoypadIgnoreAimUntilCentered() end
 function PlayerMT:isbFalling() return false end
+function PlayerMT:setCurrent(sq) self.current = sq end
 function PlayerMT:getJoypadBind() return -1 end
 function PlayerMT:getUsername() return self.name end
 function PlayerMT:isDead() return self.dead end
@@ -3006,6 +3033,7 @@ function getOnlinePlayers()
     return jlist(SIM.players)
 end
 IsoPlayer = { getPlayers = function() return jlist(SIM.players) end }
+function getActivatedMods() return jlist(SIM.mods or { "\\TrekShuttle" }) end
 
 ---------------------------------------------------------------------------
 -- Zombies
@@ -3631,6 +3659,8 @@ local function derivable(name)
     -- Empty, as ISUIElement's is: a panel calls its parent's first.
     function cls:createChildren() end
     function cls:setAlwaysOnTop() end
+    function cls:setWidth(w) self.width = w end
+    function cls:setHeight(h) self.height = h end
     function cls:setCapture() end
     --- A button's title, target and handler are kept, and :click() really
     --- calls it. They used to be dropped on the floor, which meant a test
@@ -3678,6 +3708,14 @@ local function derivable(name)
     -- should be white, is the thing only a render would otherwise show.
     function cls:drawTextureAllPoint(tex, tlx, tly, trx, try, brx, bry, blx, bly,
                                      r, g, b, a)
+        -- The engine unboxes every one of these as a double: a nil throws
+        -- (IllegalArgumentException) on every frame it is drawn, which is how
+        -- the tractor beam, handed a tint with no .r, came to be invisible
+        -- with two stack traces a frame.
+        if tlx == nil or tly == nil or trx == nil or try == nil or brx == nil or bry == nil
+           or blx == nil or bly == nil or r == nil or g == nil or b == nil or a == nil then
+            error("drawTextureAllPoint: a nil where the engine wants a number")
+        end
         SIM.quads = SIM.quads or {}
         table.insert(SIM.quads, { tex = tex and tex.path,
                                   tl = { tlx, tly }, tr = { trx, try },
@@ -3818,6 +3856,18 @@ function SIM.lastModal() return SIM.modals[#SIM.modals] end
 SIM.mouse = { [0] = false, [1] = false, [2] = false }
 SIM.mouseX, SIM.mouseY = 400, 300
 
+-- The keyboard: the default bindings' own codes (LWJGL's, which are the
+-- engine's), and which of them are down. `SIM.press("Forward", true)` holds
+-- a binding; `SIM.keys[Keyboard.KEY_LSHIFT] = true` holds a key.
+SIM.KEYS = { Forward = 17, Backward = 31, Left = 30, Right = 32 }
+SIM.keys = {}
+Keyboard = { KEY_LSHIFT = 42, KEY_RSHIFT = 54, KEY_Q = 16, KEY_E = 18 }
+function isKeyDown(code) return SIM.keys[code] == true end
+function SIM.press(name, down)
+    SIM.keys[SIM.KEYS[name] or Keyboard[name]] = down == true
+end
+function SIM.releaseKeys() SIM.keys = {} end
+
 ---------------------------------------------------------------------------
 -- The controller
 ---------------------------------------------------------------------------
@@ -3829,6 +3879,8 @@ SIM.mouseX, SIM.mouseY = 400, 300
 SIM.joypad = nil                   -- { id = n } to plug one in
 SIM.joypadAim = { x = 0, y = 0 }   -- right stick, -1..1
 SIM.joypadR3 = false               -- right stick click
+SIM.joypadMove = { x = 0, y = 0 }  -- left stick, -1..1; up is negative
+SIM.joypadLB, SIM.joypadRB = false, false
 SIM.mouseIsNewer = true            -- which device was used most recently
 
 JoypadState = { players = {} }
@@ -3845,14 +3897,18 @@ function SIM.setJoypad(on)
         SIM.mouseIsNewer = true
     end
     SIM.joypadAim.x, SIM.joypadAim.y = 0, 0
+    SIM.joypadMove.x, SIM.joypadMove.y = 0, 0
+    SIM.joypadLB, SIM.joypadRB = false, false
     SIM.joypadR3 = false
 end
 
 function wasMouseActiveMoreRecentlyThanJoypad() return SIM.mouseIsNewer end
 function getJoypadAimingAxisX(_) return SIM.joypadAim.x end
 function getJoypadAimingAxisY(_) return SIM.joypadAim.y end
-function getJoypadMovementAxisX(_) return 0 end
-function getJoypadMovementAxisY(_) return 0 end
+function getJoypadMovementAxisX(_) return SIM.joypadMove.x end
+function getJoypadMovementAxisY(_) return SIM.joypadMove.y end
+function isJoypadLBPressed(_) return SIM.joypadLB == true end
+function isJoypadRBPressed(_) return SIM.joypadRB == true end
 function isJoypadRightStickButtonPressed(_) return SIM.joypadR3 == true end
 
 -- A fixed frame time. The real one varies and the code divides by it, so a
@@ -4263,8 +4319,28 @@ function getPlayerRadialMenu()
     function m:settle()
         if self.pending then self.visible, self.pending = true, false end
     end
+    -- A slice keeps its arguments, as the engine's does, and can be chosen:
+    -- three slices that share one handler are told apart only by them, and a
+    -- wheel whose every slice armed the same weapon would otherwise pass.
     function m:addSlice(text, texture, fn, ...)
-        table.insert(self.slices, { text = text, texture = texture, fn = fn })
+        table.insert(self.slices, { text = text, texture = texture, fn = fn, args = { ... } })
+    end
+    --- Chooses the slice whose title contains `text`. False when there is none.
+    function m:choose(text)
+        for _, s in ipairs(self.slices) do
+            if string.find(s.text, text, 1, true) then
+                s.fn(s.args[1], s.args[2], s.args[3], s.args[4])
+                return true
+            end
+        end
+        return false
+    end
+    --- The picture on the slice whose title contains `text`.
+    function m:textureOf(text)
+        for _, s in ipairs(self.slices) do
+            if string.find(s.text, text, 1, true) then return s.texture end
+        end
+        return nil
     end
     function m:titles()
         local out = {}
@@ -4292,6 +4368,8 @@ ISVehicleMenu = {
     FillMenuOutsideVehicle = function() end, onEnter = function() end,
     processEnter = function() end, processShiftEnter = function() end,
     onExit = function() end,
+    -- The horn, counted: in the air its key is the helm's.
+    onHornStart = function() SIM.horns = (SIM.horns or 0) + 1 end,
     getVehicleToInteractWith = function() return nil end,
 }
 ISCarMechanicsOverlay = { CarList = {} }

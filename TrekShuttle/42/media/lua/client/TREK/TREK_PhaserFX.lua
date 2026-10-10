@@ -191,9 +191,11 @@ function FX.boltAt(args)
     local spec = C.EnergyWeapons[C.PhaserItem]
     local b = {
         fx = args.x, fy = args.y, fz = (args.z or 0) + C.SentryEmitterZ - C.PhaserHandZ,
-        untilMs = now() + C.PhaserBoltMs,
+        untilMs = now() + (args.ms or C.PhaserBoltMs),
         x = args.tx, y = args.ty, z = args.tz or args.z or 0,
-        tint = spec.tint, width = spec.width or 1.0,
+        -- The ship's own emitters pass theirs: the tractor beam is not a
+        -- phaser's colour.
+        tint = args.tint or spec.tint, width = args.width or spec.width or 1.0,
     }
     table.insert(FX.bolts, b)
     ensureOverlay()

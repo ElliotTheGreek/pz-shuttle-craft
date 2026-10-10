@@ -183,9 +183,17 @@ def write_pack(path, pages):
 
 # --- packing the sprites -----------------------------------------------------------------------
 
+# Tiles that are meant to draw nothing. A sprite the pack has no picture for
+# is one tests/test_assets.py refuses (properties and no picture is how a
+# fitting goes missing), so each gets one pixel at an alpha of 1 in 255.
+UNSEEN = {"trek_adirondack_01_47"}
+
+
 def sprites():
     """Every non-empty cell of both sheets, trimmed to its pixels."""
     out = []
+    for name in sorted(UNSEEN):
+        out.append((name, Image.new("RGBA", (1, 1), (0, 0, 0, 1)), CW // 2, CH - 32))
     for sheet in SHEETS:
         im = Image.open(os.path.join(SRC, sheet + ".png")).convert("RGBA")
         rows = im.height // CH
@@ -293,6 +301,14 @@ def sheet01_props(defs):
     for i, src in ((40, 5), (41, 4)):
         p = vanilla(defs, "security_01", src)
         props[i] = ours(p, CustomName="Wall Display", GroupName="Starfleet")
+    # The sky plane the shuttle flies on (TREK_Config, C.SkyTile): vanilla's
+    # invisible floor and one property more. A solid floor blocks sight to
+    # the level below unless it is a transparent one
+    # (IsoGridSquare.CalculateVisionBlocked), and ground that cannot be seen
+    # is drawn black.
+    sky = vanilla(defs, "invisible_01", 0)
+    sky["transparentFloor"] = ""
+    props[47] = sorted(sky.items())
     return props
 
 

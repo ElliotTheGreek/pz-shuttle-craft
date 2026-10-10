@@ -15,17 +15,15 @@ broken" still apply here. `MULTIPLAYER.md` is the client/server split and
 
 ## Who can fire
 
-**The pilot, and nobody else: whoever is in the driver's seat, while she is
-flying.** The other three seats are passengers. It is enforced where it has to
-be, on the server, where `fireTorpedo` refuses anyone `drivenBy` does not name as
-the driver (`notPilot`), and anyone at all while she is on the ground
-(`notFlying`), and mirrored on the client, where `T.atTheControls()` gives a
-passenger no reticle and no trigger. In multiplayer that is one gunner per
-ship, and it is whoever is flying her. Everybody, passengers and people on the
+**Anybody in one of her four seats, since 2026-10-10** (it was the driver
+alone): in the air, or parked. It is enforced where it has to be, on the
+server, where `fireTorpedo`, `firePhasers` and `tractor` refuse anyone
+`seatedIn` does not find in a seat (`notSeated`), and mirrored on the client,
+where `T.atTheControls()` gives somebody standing beside her no reticle and no
+trigger. Each seat has its own reticle and its own armed weapon; the reload is
+the ship's, so two gunners share one set of tubes. Everybody, people on the
 ground included, *sees* the torpedo cross the sky and the fire it starts.
-
-A separate gunner's seat is not built. It would be one line on each side (the
-seat check), plus a decision about whether the pilot keeps the trigger too.
+Not seen in game with two people.
 
 ## Reading the reticle
 
@@ -352,8 +350,8 @@ right mouse and clicking left; the reticle's label for each state, with its
 numbers, rendered by the real overlay (`SIM.renderFrame()`, which records the
 coloured text and not the drop shadow under it); a trigger pulled on anything
 but green telling the pilot why; a bare left click fires nothing; a held button
-fires once; the ground, the cooldown, both range bounds and a passenger are
-refused; the torpedo is in the air after launch and gone after it lands; it
+fires once; the ground, the cooldown, both range bounds and somebody outside
+her seats are refused, and a passenger's seat fires; the torpedo is in the air after launch and gone after it lands; it
 carries a light and that light is put out; the blast does not happen on the
 frame the trigger is pulled; the trap's four fire settings match config and are
 all above zero; the target square really reports `haveFire()`; *Blast only*

@@ -336,7 +336,9 @@ Server -> client (`OnServerCommand` / direct in SP):
 
 ### The sky plane (each client, its own copy)
 
-Flight is driving on an invisible floor laid at altitude, and **each client
+Flight is over an invisible floor laid at altitude (she was driven on it until
+2026-10-10; the pilot's machine places her from the keys now, `PILOTING.md`
+2.5), and **each client
 lays its own**. That is a deliberate exception to "a client never edits the
 world", and it is narrower than it sounds:
 
@@ -568,7 +570,7 @@ So the authority split needs no exception:
 | | |
 |---|---|
 | Firing, cooldown, and the blast | **Server**, on a validated command |
-| Who may fire | **Server**: alive, `mayUse`, in the driver's seat, flying |
+| Who may fire | **Server**: alive, `mayUse`, in any of her seats (`seatedIn`), flying or parked |
 | Aiming, the reticle, the UI | **Client**, presentation only |
 
 `fireTorpedo {x, y, z}` -> the server checks the pilot, the cooldown and both

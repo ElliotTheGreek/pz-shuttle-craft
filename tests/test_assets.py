@@ -92,6 +92,32 @@ if os.path.isdir(os.path.join(MOD, "media")) and glob.glob(os.path.join(MOD, "me
                     for _x, _y, _i in _sq:
                         if _i not in _seats:
                             mod_tile_problems.append("seating.txt has no entry for %s (trek_adirondack_02_%d)" % (_piece, _i))
+# The sky plane's tile (C.SkyTile): a floor, or the engine will not keep her
+# height over it, and a transparent one, or the ground under her is black
+# (IsoGridSquare.CalculateVisionBlocked; seen in play, 2026-10-09).
+_cfg = open(os.path.join(MOD, "media", "lua", "shared", "TREK", "TREK_Config.lua"), encoding="utf-8").read()
+_sky = re.search(r'^C\.SkyTile = "([a-z0-9_]+)_(\d+)"', _cfg, re.M)
+if not _sky:
+    mod_tile_problems.append("C.SkyTile is not a sprite name written out whole")
+else:
+    _skydefs = _PACK.read_tiledefs(_PACK.TILES).get(_sky.group(1), {}).get("tiles", [])
+    _skyprops = dict(_skydefs[int(_sky.group(2))]) if int(_sky.group(2)) < len(_skydefs) else {}
+    for _need in ("solidfloor", "transparentFloor"):
+        if _need not in _skyprops:
+            mod_tile_problems.append("the sky tile %s_%s has no %s" % (_sky.group(1), _sky.group(2), _need))
+# A key written twice in one translation file is not a warning in the game:
+# org.json throws "Duplicate key", Translator.tryFillMapFromFile rethrows it,
+# and the game will not start (seen 2026-10-09). Python's json keeps the last
+# and says nothing, so every other check here read the file happily.
+import collections as _collections
+for _tr in glob.glob(os.path.join(MOD, "media", "lua", "shared", "Translate", "*", "*.json")):
+    def _dups(pairs, _tr=_tr):
+        for _k, _n in _collections.Counter(k for k, _ in pairs).items():
+            if _n > 1:
+                mod_tile_problems.append("%s has the key %s %d times: the game will not start"
+                                         % (os.path.relpath(_tr, MOD), _k, _n))
+        return dict(pairs)
+    json.load(open(_tr, encoding="utf-8"), object_pairs_hook=_dups)
 failures, checked_sprites, checked_items = list(mod_tile_problems), 0, 0
 
 # The mod's vehicle scripts. "Base.TrekShuttleCraft" is a vehicle, not an item.

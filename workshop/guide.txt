@@ -6,7 +6,7 @@ A Star Trek Starfleet Type 6 shuttlecraft for Project Zomboid Build 42: single p
 - Mek'leth
 - Lirpa
 - Ushaan-tor
-Plus the shuttle's photon torpedoes, fired from the pilot's seat.
+Plus the shuttle's photon torpedoes, phasers and tractor beam, fired from any of her seats.
 
 3 new medical items
 - Hypospray: one dose treats bleeding, deep wounds, infection, burns, fractures and pain everywhere at once
@@ -49,9 +49,9 @@ Operate the shuttle like this:
 - Right-click aboard for the Shuttlecraft menu: the helm, beam down, log this position, step out of the hatch, go forward to the cockpit.
 - At the helm, click the map to lay in a course or pick a logged position (the map is fully revealed at the helm), then Take her down. You are beamed to the site and the ship follows. If there is no room, you are beamed straight back aboard with the reason.
 - Right-click open ground to call her down. She needs 3x5 tiles of clear ground and tells you when she hasn't got them. Right-click the hull to board her or send her back up.
-- The landed shuttle is a vehicle with four seats. From the pilot's seat, Shuttlecraft -> Take her up: she rises to her hover height and flies by driving; throttle, steering and controller work as on the ground. Her shadow shows where she will land. Anything taller than her hover height is a wall she slows to a stop in front of. Set her down below when you are there.
+- The landed shuttle is a vehicle with four seats. From the pilot's seat, Shuttlecraft -> Take her up: she rises to her hover height. In the air W A S D fly her and slide her sideways and Q and E turn her (left stick and bumpers on a controller); on the ground she drives as any vehicle. Her shadow shows where she will land. Anything taller than her hover height is a wall she slows to a stop in front of. Set her down below when you are there.
 - While she is up the hatch is shut, so beam off her. Once the last of the crew has beamed down she climbs back up and waits to be called.
-- Photon torpedoes: from the pilot's seat hold right mouse to aim (right stick and R3 on a controller). Range 12 to 28 tiles, one every six seconds, and the fire spreads.
+- Her weapons, from any seat: pick torpedoes, phasers or the tractor beam on the wheel, then hold right mouse to aim (right stick and R3 on a controller). Range 12 to 28 tiles, one every six seconds, and the fire spreads.
 
 Power
 Everything the ship does runs on the dilithium crystal in her warp core, and one crystal is about three outings. Beaming, calling her down, flying, hovering, the shields, the replicator, the Doctor and the probes all draw on it. A gauge on screen shows what is left, turning amber and then red, with warnings as it runs low. Load crystals by right-clicking the warp core.
@@ -99,7 +99,7 @@ A PADD you can load books and VHS tapes onto and use to communicate with the U.S
 - Take it to a library, right-click a book (or a whole shelf's worth) and Load onto PADD. The book stays where it was. Read it as often as you like, five times faster than paper.
 - Transcribe any VHS tape onto it and read it there: it does what watching the tape does, once.
 - Copy a library to another PADD. Lose the PADD and you lose the books; recover it and they come back.
-- Open it from its menu or press K.
+- Open it from its menu: right-click the PADD, Open PADD.
 
 A small story delivered through VHS tapes and communications with other Starfleet personnel
 Lt. Shepard calls your PADD from orbit and you answer wherever you are. Fifteen threads tell what happened here and who made the county, including six holo fragments a probe can find, which she puts on tape for the shelf. One player holds the channel and the rest read along; silence is an answer, and a missed call comes back worse. Tell her to stop calling and she does.

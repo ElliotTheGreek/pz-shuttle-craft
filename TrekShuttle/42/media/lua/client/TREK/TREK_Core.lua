@@ -105,6 +105,9 @@ local DENIALS = {
     access        = "IGUI_TREK_NotCrew",
     -- Marooned (MAROONED.md): no combadge until they have been aboard.
     noBadge       = "IGUI_TREK_NoBadge",
+    -- A development tool asked of a server that is not in a development
+    -- session (U.devMode).
+    devOnly       = "IGUI_TREK_DevOnly",
     wrongPlace    = "IGUI_TREK_WrongPlace",
     stationFar    = "IGUI_TREK_StationFar",
     -- Installations (INSTALLATIONS.md).
@@ -125,6 +128,7 @@ local DENIALS = {
     bookmarksFull = "IGUI_TREK_BookmarksFull",
     crewSeated    = "IGUI_TREK_CrewSeated",
     notPilot      = "IGUI_TREK_NotPilot",
+    notSeated     = "IGUI_TREK_NotSeated",
     inFlight      = "IGUI_TREK_InFlight",
     notFlying         = "IGUI_TREK_NotFlying",
     torpedoReloading  = "IGUI_TREK_TorpedoReloading",
@@ -132,6 +136,9 @@ local DENIALS = {
     torpedoTooClose   = "IGUI_TREK_TorpedoTooClose",
     torpedoNoGround   = "IGUI_TREK_TorpedoNoGround",
     torpedoFailed     = "IGUI_TREK_TorpedoFailed",
+    -- The ship's phasers and the tractor beam.
+    phaserNoTarget    = "IGUI_TREK_ShipPhaserNoTarget",
+    tractorNotFlying  = "IGUI_TREK_TractorNotFlying",
     coreFar           = "IGUI_TREK_CoreFar",
     coreEmpty         = "IGUI_TREK_CoreEmpty",
     coreFull          = "IGUI_TREK_CoreFull",
@@ -482,8 +489,20 @@ local SETTLE_TICKS = 15
 --- the time the cabin took to build, and died in the wilderness below. So the
 --- last position is set too, and every piece of fall state is cleared --
 --- including the damage the fall had already banked.
+---
+--- **And the square they are on is set as well** (seen in play, 2026-10-09).
+--- The engine keeps a character's current square and that is not the position:
+--- somebody a hair under the deck (z 3.98, from a seat, or as a save wrote
+--- them) is on the square *below*, which has no floor, so they sink a little
+--- more on the next update before the square is worked out again, and it is
+--- worked out as the one below again. Put back at z 4 on every update they
+--- were under it again by every next one, for ever: a black screen, and the
+--- rescue's note on it. The log read `at ...,4.00 ... square=...,3 floor=false`.
+--- setCurrent is the engine's own field for it (ISCampingMenu.lua:450).
 function Core.hold(player, x, y, z)
     U.teleport(player, x, y, z)
+    local sq = U.square(x, y, z, false)
+    if sq then U.try("holdSquare", function() player:setCurrent(sq) end) end
     U.try("holdFall", function()
         player:setbFalling(false)
         player:setFallTime(0)
@@ -503,6 +522,15 @@ function Core.beginArrival(player, move)
         arrival = { x = x, y = y, z = z, tries = 0, player = player }
     end
     if move then
+        -- **Out of any seat first.** Somebody still riding the shuttle cannot
+        -- be put anywhere: the engine keeps them with a vehicle the move is
+        -- about to unload, the loot panel goes on asking her seats (a
+        -- NullPointerException a frame), and checkAboard finds them off the
+        -- deck on every update for the rest of the session -- a black screen
+        -- (seen in play, 2026-10-09: *Board the shuttle* on her hull from the
+        -- pilot's seat, which Core.enter took without a look). Every way
+        -- aboard comes through here, so here is where it is done.
+        if Core.leaveSeat(player) then U.log("left the seat on the way aboard") end
         Core.hold(player, x, y, z)
         -- And the loot panel rebuilt from here, in this same tick. Vanilla's
         -- dirtyUI rebuilds it at once from wherever the player now stands, so
@@ -739,6 +767,16 @@ function Core.repelZombies()
     local s = Ship.get()
     if not s.landed or s.shields == false then return 0 end
     if TREK.Power.dark() then return 0 end
+    -- On the ground only. In the air she is five storeys over the dead, and
+    -- the push still ran on the ground under her: nothing was ever inside ten
+    -- squares of her shadow, which is why the tractor beam found nobody to
+    -- hold however low she flew over a crowd (seen in play, 2026-10-09), and
+    -- every one of those pushes was charged for.
+    if s.flying then return 0 end
+    -- Not while the tractor beam is on: the shields throw the dead out from
+    -- under her and the beam holds them there, and the two would fight over
+    -- every one of them (and charge for it).
+    if s.tractor ~= nil then return 0 end
 
     local cell = U.cell()
     if not cell then return 0 end
@@ -856,6 +894,41 @@ local VOID_STRIKES = 50
 
 local voidStrikes = 0
 
+-- Consecutive updates a player has been put back on the pad from off the
+-- deck. One is a climb over the wall; a run of them is a rescue that is not
+-- working, and a correction that cannot succeed must be allowed to stop
+-- (DEV_GUIDE): seen in play, 2026-10-09, as a black screen and this note for
+-- the rest of the session and the whole of the next. Past PAD_STRIKES they
+-- are put outside by the ship instead, which is somewhere.
+local PAD_STRIKES = 120
+local padStrikes = 0
+
+--- Everything about where a player is that could explain a rescue failing,
+--- on one line. Each read is its own pcall: a getter that is not there must
+--- not cost the rest.
+local function whereabouts(player)
+    local function get(fn)
+        local ok, v = pcall(fn)
+        if not ok then return "?" end
+        if type(v) == "number" then return string.format("%.2f", v) end
+        return tostring(v)
+    end
+    local sq = nil
+    pcall(function() sq = player:getCurrentSquare() end)
+    return string.format(
+        "at %s,%s,%s last %s,%s,%s vehicle=%s falling=%s fallTime=%s noClip=%s square=%s floor=%s",
+        get(function() return player:getX() end), get(function() return player:getY() end),
+        get(function() return player:getZ() end),
+        get(function() return player:getLastX() end), get(function() return player:getLastY() end),
+        get(function() return player:getLastZ() end),
+        get(function() return player:getVehicle() ~= nil end),
+        get(function() return player:isbFalling() end),
+        get(function() return player:getFallTime() end),
+        get(function() return player:isNoClip() end),
+        get(function() return sq and (sq:getX() .. "," .. sq:getY() .. "," .. sq:getZ()) or "none" end),
+        get(function() return sq ~= nil and sq:getFloor() ~= nil end))
+end
+
 local function checkAboard(player)
     if arrival then return end
     if not U.isInteriorPlayer(player) then return end
@@ -881,6 +954,7 @@ local function checkAboard(player)
         local sq = U.square(x, y, math.floor(z), false)
         if sq and sq:getFloor() then
             voidStrikes = 0
+            padStrikes = 0
             return
         end
     end
@@ -891,9 +965,29 @@ local function checkAboard(player)
         -- move, so a falling player put back on the pad carries the fall with
         -- them and drops through it on the next tick -- which is what an
         -- infinite fall actually looked like from inside the game.
+        -- A seat is the one thing that can keep them off the deck however
+        -- often they are put back on it.
+        Core.leaveSeat(player)
+        padStrikes = padStrikes + 1
+        -- Said the first three times and then once a second: this ran to
+        -- nine thousand lines in one session.
+        local say = padStrikes <= 3 or padStrikes % 60 == 0
+        local before = say and whereabouts(player) or nil
+        if padStrikes >= PAD_STRIKES then
+            padStrikes = 0
+            local px, py, pz = U.padSpot()
+            U.log("WARN the pad would not hold them (pad %d,%d,%d; %s)", px, py, pz,
+                  whereabouts(player))
+            Core.ejectToOutside(player, "put back on the pad " .. PAD_STRIKES
+                                .. " times running and never on the deck")
+            return
+        end
         Core.hold(player, U.padSpot())
         if offDeck then
-            U.log("put back on the pad from outside the cabin walls")
+            if say then
+                U.log("put back on the pad from outside the cabin walls (%d running): was %s; now %s",
+                      padStrikes, before, whereabouts(player))
+            end
             U.note(player, getText("IGUI_TREK_NoWayOut"), 255, 170, 90)
         end
         return

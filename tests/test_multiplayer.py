@@ -31,6 +31,7 @@ engine call that threw.
     python tests/test_multiplayer.py
 """
 import json
+import math
 import os
 import re
 import sys
@@ -1882,6 +1883,627 @@ def flight_two_machines():
           "his plane comes up when she lands")
 
 
+def helm_at(rt):
+    """Where her vehicle is, the way her nose points, and how upright she is."""
+    return (rt.eval("TREK.Vehicle.ship():getX()"), rt.eval("TREK.Vehicle.ship():getY()"),
+            rt.eval("TREK.Vehicle.ship():heading()"), rt.eval("TREK.Vehicle.ship():uprightness()"))
+
+
+def flight_helm():
+    """In the air she is flown, not driven (PILOTING.md 2.5).
+
+    W A S D fly her and slide her sideways without turning her; with Shift
+    held A and D turn her where she is. The pilot's machine places her every
+    tick, so none of it waits on wheels, and the driver's seat is the only one
+    whose keys count. Driven through the keys the game's own bindings name,
+    never by moving the vehicle from the test: a helm that read nothing would
+    pass anything else.
+    """
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    seat(rt)
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    L = rt.eval("TREK.Config.flightLevel()")
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+    check(ship(rt, "flying") is True, "helm: she never got up")
+    check(any("IGUI_TREK_HelmKeys" in n for n in rt.notes()),
+          "helm: she went up and the pilot was never told how she is flown")
+
+    def press(name, down=True):
+        rt.run(f"SIM.press('{name}', {'true' if down else 'false'})")
+
+    def release():
+        rt.run("SIM.releaseKeys()")
+
+    def placed():
+        return rt.eval("SIM.transformCalls or 0")
+
+    def fly(ticks):
+        """Pumps tick by tick; how many of them the engine had her off her level."""
+        off = 0
+        for _ in range(ticks):
+            net.pump(1)
+            if vehicle_z(rt) != L:
+                off += 1
+        return off
+
+    def settle():
+        release()
+        net.pump(int(C("Helm.holdMs") / 16) + 40)
+
+    # --- nobody at the keys: the plane has her, and nothing places her ---------
+    before = placed()
+    net.pump(60)
+    check(placed() == before,
+          f"helm: hovering with no key down she was placed {placed() - before} "
+          f"time(s) -- standing still she is the plane's, not the helm's")
+
+    # --- W: forward along her nose, at once -----------------------------------
+    x0, y0, h0, _ = helm_at(rt)
+    fx, fy = math.sin(math.radians(h0)), math.cos(math.radians(h0))
+    step = int(rt.eval("TREK.Flight.speedStep()"))
+    top = C(f"FlightSpeedSteps[{step}]") * C("Helm.perUnit")
+    rt.run("TREK.Vehicle.ship().minLevel = nil")
+    press("Forward")
+    net.pump(8)
+    x1, y1, _, _ = helm_at(rt)
+    early = (x1 - x0) * fx + (y1 - y0) * fy
+    check(early > 0.3,
+          f"helm: an eighth of a second on the key and she has gone {early:.2f} "
+          f"tiles -- she is meant to answer at once")
+    off = fly(52)
+    x1, y1, h1, up = helm_at(rt)
+    along = (x1 - x0) * fx + (y1 - y0) * fy
+    across = -(x1 - x0) * fy + (y1 - y0) * fx
+    check(top * 0.6 < along <= top * 0.96 + 0.01,
+          f"helm: a second of W took her {along:.2f} tiles along her nose; her "
+          f"step is {top:.1f} tiles a second")
+    check(abs(across) < 0.01, f"helm: W slid her {across:.2f} tiles sideways")
+    check(abs(h1 - h0) < 0.01, f"helm: W turned her from {h0:.1f} to {h1:.1f}")
+    check(up > 0.999, f"helm: flown forward she is tipped (upright {up:.3f})")
+    check(off == 0, f"helm: the engine had her off level {L} for {off} tick(s) in flight")
+    low = rt.eval("TREK.Vehicle.ship().minLevel")
+    check(low >= L - 0.02, f"helm: she sagged to level {low:.2f} in flight")
+
+    # --- let go: she stops, is held a moment, and is the plane's again --------
+    release()
+    net.pump(40)
+    xs, ys, _, _ = helm_at(rt)
+    busy = placed()
+    net.pump(4)
+    check(placed() > busy,
+          "helm: the moment she stopped she was let go -- onto a floor the "
+          "physics may not have yet")
+    net.pump(int(C("Helm.holdMs") / 16) + 10)
+    idle = placed()
+    net.pump(60)
+    x2, y2, _, _ = helm_at(rt)
+    check(placed() == idle,
+          f"helm: {placed() - idle} placements a second after she stopped -- she "
+          f"is being held for ever")
+    check(abs(x2 - xs) < 0.01 and abs(y2 - ys) < 0.01,
+          f"helm: with the keys up she drifted from {xs:.2f},{ys:.2f} to {x2:.2f},{y2:.2f}")
+    check(vehicle_z(rt) == L and body_level(rt) >= L - 0.02,
+          f"helm: let go, she is at z {vehicle_z(rt)}, body {body_level(rt):.2f}")
+
+    # --- S: back; D and A: sideways, and her nose stays where it was ----------
+    x0, y0, h0, _ = helm_at(rt)
+    press("Backward")
+    fly(30)
+    settle()
+    x1, y1, h1, _ = helm_at(rt)
+    check((x1 - x0) * fx + (y1 - y0) * fy < -2 and abs(h1 - h0) < 0.01,
+          f"helm: S took her {(x1 - x0) * fx + (y1 - y0) * fy:.2f} along her nose "
+          f"(heading {h0:.1f} to {h1:.1f}); it should back her straight")
+    # Her starboard side is (-cos h, sin h): facing down the map, west.
+    rx, ry = -fy, fx
+    for key, sign, side in (("Right", 1, "starboard"), ("Left", -1, "port")):
+        x0, y0, h0, _ = helm_at(rt)
+        press(key)
+        off = fly(30)
+        settle()
+        x1, y1, h1, _ = helm_at(rt)
+        slid = ((x1 - x0) * rx + (y1 - y0) * ry) * sign
+        fore = (x1 - x0) * fx + (y1 - y0) * fy
+        check(slid > 2, f"helm: {key} slid her {slid:.2f} tiles to {side}")
+        check(abs(fore) < 0.01, f"helm: {key} moved her {fore:.2f} tiles along her nose")
+        check(abs(h1 - h0) < 0.01,
+              f"helm: {key} without Shift turned her from {h0:.1f} to {h1:.1f} -- "
+              f"it slides her, it does not turn her")
+        check(off == 0, f"helm: sliding to {side} she was off her level for {off} tick(s)")
+
+    # --- Shift: A and D turn her where she is ---------------------------------
+    x0, y0, h0, _ = helm_at(rt)
+    rt.run("SIM.keys[Keyboard.KEY_LSHIFT] = true")
+    press("Left")
+    net.pump(30)
+    settle()
+    x1, y1, h1, up = helm_at(rt)
+    turned = (h1 - h0 + 540) % 360 - 180
+    rate = C("Helm.turn")
+    check(rate * 0.25 < turned < rate * 0.6,
+          f"helm: half a second of Shift+A turned her {turned:.1f} degrees; more "
+          f"yaw is to port, at {rate} a second")
+    check(abs(x1 - x0) < 0.01 and abs(y1 - y0) < 0.01,
+          f"helm: Shift+A moved her {x1 - x0:.2f},{y1 - y0:.2f} -- it turns her on the spot")
+    check(up > 0.999, f"helm: turned, she is tipped (upright {up:.3f})")
+    rt.run("SIM.keys[Keyboard.KEY_RSHIFT] = true")
+    press("Right")
+    net.pump(30)
+    settle()
+    _, _, h2, _ = helm_at(rt)
+    back = (h2 - h1 + 540) % 360 - 180
+    check(-rate * 0.6 < back < -rate * 0.25,
+          f"helm: half a second of Shift+D turned her {back:.1f} degrees; it "
+          f"should bring her nose back to starboard")
+
+    # Q and E do the same with no Shift, and in the air they are not the
+    # horn and not the way out.
+    for key, sign, side in (("KEY_Q", 1, "port"), ("KEY_E", -1, "starboard")):
+        x0, y0, h0, _ = helm_at(rt)
+        press(key)
+        net.pump(30)
+        settle()
+        x1, y1, h1, _ = helm_at(rt)
+        swung = ((h1 - h0 + 540) % 360 - 180) * sign
+        check(rate * 0.25 < swung < rate * 0.6,
+              f"helm: half a second of {key[-1]} turned her {swung * sign:.1f} degrees; it turns her to {side}")
+        check(abs(x1 - x0) < 0.01 and abs(y1 - y0) < 0.01, f"helm: {key[-1]} moved her")
+    rt.run(f"SIM.horns = 0; ISVehicleMenu.onHornStart({P})")
+    check(rt.eval("SIM.horns") == 0, "helm: Q sounded her horn in the air; every turn would call the dead")
+    rt.run(f"SIM.notes = {{}}; ISVehicleMenu.onExit({P})")
+    check(not any("IGUI_TREK_SeatLocked" in n for n in rt.notes()),
+          "helm: E told her pilot the seat is locked; that is a note on every turn to starboard")
+    check(rt.eval(f"{P}:getVehicle() ~= nil") is True, "helm: E put her pilot out of the seat in the air")
+    rt.run("""
+        local v = TREK.Vehicle.ship()
+        v.seats[0] = nil
+        v.seats[1] = SIM.players[1]
+    """)
+    rt.run(f"SIM.notes = {{}}; ISVehicleMenu.onExit({P})")
+    check(any("IGUI_TREK_SeatLocked" in n for n in rt.notes()),
+          "helm: a passenger who tried to get out in the air was told nothing")
+    rt.run("""
+        local v = TREK.Vehicle.ship()
+        v.seats[1] = nil
+        v.seats[0] = SIM.players[1]
+    """)
+
+    # All the way round, through the half of the compass where the engine's
+    # angles read 180 for a level ship: no snap, and she is never tipped.
+    rt.run("SIM.keys[Keyboard.KEY_LSHIFT] = true")
+    press("Left")
+    last, total, worst, tipped = h2, 0.0, 0.0, 0
+    for _ in range(int(360 / rate * 62.5) + 20):
+        net.pump(1)
+        _, _, h, up = helm_at(rt)
+        d = (h - last + 540) % 360 - 180
+        total, worst, last = total + d, max(worst, abs(d)), h
+        if up < 0.999:
+            tipped += 1
+    settle()
+    check(total > 350, f"helm: a full turn to port came to {total:.0f} degrees")
+    check(worst < rate * 0.016 * 1.5,
+          f"helm: her nose jumped {worst:.1f} degrees in one tick on the way round")
+    check(tipped == 0, f"helm: she was off level for {tipped} tick(s) of a full turn")
+
+    # And W goes where her nose now points, wherever that is.
+    x0, y0, h0, _ = helm_at(rt)
+    fx, fy = math.sin(math.radians(h0)), math.cos(math.radians(h0))
+    press("Forward")
+    fly(30)
+    settle()
+    x1, y1, _, _ = helm_at(rt)
+    along = (x1 - x0) * fx + (y1 - y0) * fy
+    across = -(x1 - x0) * fy + (y1 - y0) * fx
+    check(along > 2 and abs(across) < 0.05,
+          f"helm: turned to {h0:.0f}, W took her {along:.2f} along her nose and "
+          f"{across:.2f} across it")
+
+    # Turning while she flies: Shift+W+A is a curve, not a slide.
+    x0, y0, h0, _ = helm_at(rt)
+    rt.run("SIM.keys[Keyboard.KEY_LSHIFT] = true")
+    press("Forward")
+    press("Left")
+    fly(30)
+    settle()
+    x1, y1, h1, _ = helm_at(rt)
+    check(abs((h1 - h0 + 540) % 360 - 180) > 10 and math.hypot(x1 - x0, y1 - y0) > 2,
+          "helm: Shift with W and A held should fly her forward while she turns")
+
+    # --- the helm's speed step is how fast she goes ---------------------------
+    gone = {}
+    for s in (1, int(rt.eval("#TREK.Config.FlightSpeedSteps"))):
+        rt.run(f"TREK.Flight.setSpeedStep({P}, {s})")
+        net.pump(5)
+        x0, y0, _, _ = helm_at(rt)
+        press("Forward")
+        off = fly(30)
+        settle()
+        x1, y1, _, _ = helm_at(rt)
+        gone[s] = math.hypot(x1 - x0, y1 - y0)
+        check(off == 0, f"helm: at speed step {s} she was off her level for {off} tick(s)")
+    slow, fast = gone[1], gone[max(gone)]
+    check(fast > slow * 3,
+          f"helm: the top step took her {fast:.1f} tiles and the bottom {slow:.1f} "
+          f"in the same half second; the helm's speed is not reaching her")
+    rt.run(f"TREK.Flight.setSpeedStep({P}, {step})")
+    net.pump(5)
+
+    # --- a wall at her own level stops her short of it ------------------------
+    # Nothing collides any more, so this is all there is between her and a
+    # tower. Whichever way she is going: nose first, and then side on.
+    rt.run("SIM.keys[Keyboard.KEY_LSHIFT] = true")
+    for attempt in range(400):
+        _, _, h, _ = helm_at(rt)
+        if abs(h) < 1.0:
+            break
+        press("Right" if h > 0 else "Left")
+        net.pump(1)
+        release()
+        rt.run("SIM.keys[Keyboard.KEY_LSHIFT] = true")
+        net.pump(3)
+    settle()
+    x0, y0, h0, _ = helm_at(rt)
+    check(abs(h0) < 3, f"helm: could not bring her round to a heading of 0 (at {h0:.1f})")
+    half_len, half_beam, clear = C("Helm.halfLength"), C("Helm.halfBeam"), C("Helm.clearance")
+    wy = int(y0) + 14
+    rt.run(f"for dx = -4, 4 do SIM.rawSquare({int(x0)} + dx, {wy}, {L}).wallN = true end")
+    press("Forward")
+    fly(200)
+    x1, y1, _, _ = helm_at(rt)
+    check(y1 > y0 + 4, f"helm: she would not approach a wall 14 squares off (went {y1 - y0:.1f})")
+    check(y1 + half_len + clear <= wy + 1.01,
+          f"helm: W held against a wall at {wy} left her centre at {y1:.2f}: her "
+          f"nose is {half_len} out and she keeps {clear} clear")
+    check(y1 + half_len < wy,
+          f"helm: her nose is through the wall (centre {y1:.2f}, wall {wy})")
+    settle()
+    # Backing off works: the wall is behind her way of going now.
+    press("Backward")
+    fly(40)
+    settle()
+    _, y2, _, _ = helm_at(rt)
+    check(y2 < y1 - 2, f"helm: stopped at a wall she could not back away from it ({y1:.2f} to {y2:.2f})")
+    rt.run(f"for dx = -4, 4 do SIM.rawSquare({int(x0)} + dx, {wy}, {L}).wallN = nil end")
+    # Side on: facing down the map her starboard is west, and it is her
+    # length that leads the wall test then.
+    x0, y0, _, _ = helm_at(rt)
+    wx = int(x0) - 10
+    rt.run(f"SIM.rawSquare({wx}, {int(y0)} + 2, {L}).wallW = true")
+    press("Right")
+    fly(160)
+    x1, _, _, _ = helm_at(rt)
+    check(x1 < x0 - 3, f"helm: she would not slide toward a wall ten squares off ({x0:.1f} to {x1:.1f})")
+    check(x1 - half_beam > wx + 1,
+          f"helm: slid to starboard at a wall at {wx}, her centre is at {x1:.2f} "
+          f"and her side {half_beam} out -- a wall off her quarter was not seen")
+    settle()
+    rt.run(f"SIM.rawSquare({wx}, {int(y0)} + 2, {L}).wallW = nil")
+    # A wall a storey down is what she flies over.
+    x0, y0, _, _ = helm_at(rt)
+    rt.run(f"for dx = -4, 4 do SIM.rawSquare({int(x0)} + dx, {int(y0)} + 6, {L - 1}).wallN = true end")
+    press("Forward")
+    fly(60)
+    settle()
+    _, y1, _, _ = helm_at(rt)
+    check(y1 > y0 + 8, f"helm: she stopped for a building shorter than her flight level ({y1 - y0:.1f})")
+
+    # --- ground that is not loaded: she waits for it --------------------------
+    # A seated pilot rides with her, so the ground loads round her as she
+    # goes; what a fast ship meets is a chunk that has not streamed in yet.
+    x0, y0, _, _ = helm_at(rt)
+    edge = int(y0) + 15
+    rt.run(f"SIM.unstreamed = {{ y = {edge} }}")
+    press("Forward")
+    off = fly(160)
+    _, y1, _, _ = helm_at(rt)
+    check(edge - 2 < y1 < edge,
+          f"helm: flown at the edge of the loaded ground ({edge}) she is at {y1:.2f}")
+    check(off == 0,
+          f"helm: at the edge of the loaded ground the engine had her off her "
+          f"level for {off} tick(s) -- she was put over a square with no floor")
+    release()
+    rt.run("SIM.unstreamed = nil")
+    net.pump(60)
+    press("Forward")
+    fly(30)
+    settle()
+    _, y2, _, _ = helm_at(rt)
+    check(y2 > y1 + 2, f"helm: with the ground loaded again she would not go on ({y1:.1f} to {y2:.1f})")
+
+    # --- a gap is not a frame -------------------------------------------------
+    # The game paused, or hitched, with W held: when it comes back she is
+    # where she was, not a tenth of a second at speed further on in one tick.
+    press("Forward")
+    fly(20)
+    x0, y0, _, _ = helm_at(rt)
+    net.clock += 5000
+    net.pump(1)
+    x1, y1, _, _ = helm_at(rt)
+    check(math.hypot(x1 - x0, y1 - y0) < 0.5,
+          f"helm: five seconds of nothing with W held and she jumped "
+          f"{math.hypot(x1 - x0, y1 - y0):.2f} tiles in the tick after")
+    settle()
+
+    # --- a chat line being typed is not an order to the helm ------------------
+    x0, y0, _, _ = helm_at(rt)
+    rt.run("ISChat = { focused = true }")
+    press("Forward")
+    net.pump(30)
+    x1, y1, _, _ = helm_at(rt)
+    check(abs(x1 - x0) < 0.01 and abs(y1 - y0) < 0.01,
+          f"helm: W typed into the chat flew her {math.hypot(x1 - x0, y1 - y0):.1f} tiles")
+    rt.run("ISChat = nil")
+    settle()
+
+    # --- the controller: the left stick and the bumpers -----------------------
+    rt.run("SIM.setJoypad(true)")
+    x0, y0, h0, _ = helm_at(rt)
+    fx, fy = math.sin(math.radians(h0)), math.cos(math.radians(h0))
+    rt.run("SIM.joypadMove.y = -1")
+    fly(30)
+    rt.run("SIM.joypadMove.y = 0")
+    net.pump(int(C("Helm.holdMs") / 16) + 40)
+    x1, y1, _, _ = helm_at(rt)
+    check((x1 - x0) * fx + (y1 - y0) * fy > 2,
+          "helm: the stick pushed up did not fly her forward; on a Steam Deck "
+          "she cannot be flown")
+    x0, y0, h0, _ = helm_at(rt)
+    rt.run("SIM.joypadMove.x = 1")
+    fly(30)
+    rt.run("SIM.joypadMove.x = 0")
+    net.pump(int(C("Helm.holdMs") / 16) + 40)
+    x1, y1, h1, _ = helm_at(rt)
+    check(((x1 - x0) * -fy + (y1 - y0) * fx) > 2 and abs(h1 - h0) < 0.01,
+          "helm: the stick pushed right did not slide her to starboard")
+    rt.run("SIM.joypadMove.x = 0.1")
+    before = placed()
+    net.pump(30)
+    check(placed() == before, "helm: a stick resting a little off centre moved her")
+    rt.run("SIM.joypadMove.x = 0; SIM.joypadLB = true")
+    net.pump(30)
+    rt.run("SIM.joypadLB = false")
+    net.pump(int(C("Helm.holdMs") / 16) + 40)
+    _, _, h2, _ = helm_at(rt)
+    check((h2 - h1 + 540) % 360 - 180 > 10, "helm: the left bumper did not turn her to port")
+    rt.run("SIM.joypadRB = true")
+    net.pump(30)
+    rt.run("SIM.joypadRB = false")
+    net.pump(int(C("Helm.holdMs") / 16) + 40)
+    _, _, h3, _ = helm_at(rt)
+    check((h3 - h2 + 540) % 360 - 180 < -10, "helm: the right bumper did not turn her to starboard")
+    rt.run("SIM.setJoypad(false)")
+
+    # --- a pilot who leaves the seat leaves her standing ----------------------
+    # At speed, W down, and gone aft (a beam takes the seat from under the
+    # key): she stops where she was let go, and has no way on when the seat
+    # is taken again.
+    press("Forward")
+    fly(20)
+    rt.run("TREK.Vehicle.ship().seats[0] = nil")
+    release()
+    net.pump(3)
+    x0, y0, _, _ = helm_at(rt)
+    net.pump(60)
+    rt.run("TREK.Vehicle.ship().seats[0] = SIM.players[1]")
+    net.pump(60)
+    x1, y1, _, _ = helm_at(rt)
+    check(math.hypot(x1 - x0, y1 - y0) < 0.05,
+          f"helm: back in a seat left at speed, she ran on {math.hypot(x1 - x0, y1 - y0):.2f} "
+          f"tiles by herself")
+    check(vehicle_z(rt) == L, f"helm: left at speed she is at z {vehicle_z(rt)}")
+
+    # --- only the driver's seat flies her ---------------------------------
+    rt.run("""
+        local v = TREK.Vehicle.ship()
+        v.seats[0] = nil
+        v.seats[1] = SIM.players[1]
+    """)
+    x0, y0, h0, _ = helm_at(rt)
+    before = placed()
+    press("Forward")
+    net.pump(20)
+    rt.run("SIM.keys[Keyboard.KEY_LSHIFT] = true")
+    press("Left")
+    net.pump(20)
+    x1, y1, h1, _ = helm_at(rt)
+    check(placed() == before and abs(x1 - x0) < 0.01 and abs(y1 - y0) < 0.01 and abs(h1 - h0) < 0.01,
+          "helm: a passenger's keys flew her")
+    release()
+    rt.run("""
+        local v = TREK.Vehicle.ship()
+        v.seats[1] = nil
+        v.seats[0] = SIM.players[1]
+    """)
+    net.pump(5)
+
+    # --- and she is set down where the helm left her, facing as it left her ----
+    x0, y0, h0, _ = helm_at(rt)
+    press("Forward")
+    rt.run(f"TREK.Flight.land({P})")
+    net.pump(300)
+    release()
+    x1, y1, h1, _ = helm_at(rt)
+    check(ship(rt, "landed") is True and ship(rt, "flying") is None,
+          f"helm: she would not be set down after being flown ({rt.notes()[-3:]})")
+    check(abs(x1 - x0) < 1.0 and abs(y1 - y0) < 1.0,
+          f"helm: W held through the landing carried her {math.hypot(x1 - x0, y1 - y0):.1f} "
+          f"tiles off the ground the footprint check approved")
+    check(abs((h1 - h0 + 540) % 360 - 180) < 1.0, f"helm: she landed facing {h1:.0f}, not {h0:.0f}")
+    check(rt.eval("TREK.Sky.count()") == 0, "helm: floors left in the sky after she landed")
+    before = placed()
+    press("Forward")
+    net.pump(30)
+    release()
+    check(placed() == before, "helm: on the ground W placed her -- there she is driven, by the engine")
+    rt.run(f"SIM.horns = 0; ISVehicleMenu.onHornStart({P})")
+    check(rt.eval("SIM.horns") == 1, "helm: on the ground her horn does not sound")
+
+    # --- driven round on the ground, she is flown from where she now points ----
+    # Her heading is read off her each time she is first flown, and read the
+    # way the levelling pass reads it: past a quarter turn the engine's three
+    # angles are (180, 180 - yaw, 180).
+    for want in (150.0, -40.0):
+        vid = ship_vehicle(rt)
+        x0, y0, _, _ = helm_at(rt)
+        rt.run(f"SIM.driveVehicle({vid}, {x0}, {y0}, {want})")
+        rt.run(f"TREK.Flight.takeOff({P})")
+        net.pump(400)
+        check(ship(rt, "flying") is True, f"helm: she would not go up a second time (heading {want})")
+        x0, y0, h0, _ = helm_at(rt)
+        check(abs((h0 - want + 540) % 360 - 180) < 1.0,
+              f"helm: the climb turned her from {want} to {h0:.1f}")
+        fx, fy = math.sin(math.radians(want)), math.cos(math.radians(want))
+        press("Forward")
+        fly(30)
+        settle()
+        x1, y1, h1, _ = helm_at(rt)
+        along = (x1 - x0) * fx + (y1 - y0) * fy
+        across = -(x1 - x0) * fy + (y1 - y0) * fx
+        check(along > 2 and abs(across) < 0.05,
+              f"helm: taken up facing {want:.0f}, W took her {along:.2f} along her "
+              f"nose and {across:.2f} across it")
+        check(abs((h1 - want + 540) % 360 - 180) < 1.0,
+              f"helm: flown forward from a heading of {want:.0f} she is facing {h1:.1f}")
+        rt.run("SIM.keys[Keyboard.KEY_LSHIFT] = true")
+        press("Left")
+        net.pump(6)
+        _, _, h2, _ = helm_at(rt)
+        release()
+        first = (h2 - h1 + 540) % 360 - 180
+        check(0 < first < 15,
+              f"helm: the first touch of Shift+A from {want:.0f} swung her {first:.1f} degrees")
+        settle()
+        rt.run(f"TREK.Flight.land({P})")
+        net.pump(300)
+        check(ship(rt, "landed") is True, f"helm: she would not come down again (heading {want})")
+
+    for w in rt.warnings():
+        fail(f"helm: {w}")
+
+    # === two machines: the pilot flies, the passenger fires ==================
+    net = Net("mp", clients=("alice", "bob"))
+    srv, A, B = net.server, net.clients["alice"], net.clients["bob"]
+    srv.run("SIM.player('alice', 3000.5, 3000.5, 0); SIM.player('bob', 3002.5, 3001.5, 0)")
+    A.run("SIM.player('alice', 3000.5, 3000.5, 0)")
+    B.run("SIM.player('bob', 3002.5, 3001.5, 0)")
+    net.start()
+    net.pump(5)
+    A.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(60)
+    for r in (srv, A, B):
+        r.run("""
+            local v = TREK.Vehicle.ship()
+            for _, p in ipairs(SIM.players) do
+                local seat = (p.name == "alice") and 0 or 1
+                if v and (SIM_ROLE == "server" or p == SIM.players[1]) then
+                    v.seats[seat] = p
+                    p.vehicle = v
+                end
+            end
+        """)
+    A.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+    check(ship(srv, "flying") is True, "helm mp: she never got up")
+    # Bob, in the seat behind her, holds W and Shift+A: nothing, on a machine
+    # that does not move her.
+    bx, by, bh, _ = helm_at(B)
+    edits = B.eval("SIM.vehicleTransformEdit or 0")
+    B.run("SIM.press('Forward', true); SIM.keys[Keyboard.KEY_LSHIFT] = true; SIM.press('Left', true)")
+    net.pump(40)
+    B.run("SIM.releaseKeys()")
+    x1, y1, h1, _ = helm_at(B)
+    check(B.eval("SIM.vehicleTransformEdit or 0") == edits
+          and abs(x1 - bx) < 0.01 and abs(y1 - by) < 0.01 and abs(h1 - bh) < 0.01,
+          "helm mp: the passenger's machine moved her")
+    # Alice's does.
+    ax, ay, _, _ = helm_at(A)
+    A.run("SIM.press('Forward', true)")
+    net.pump(40)
+    A.run("SIM.releaseKeys()")
+    net.pump(80)
+    x1, y1, _, _ = helm_at(A)
+    check(math.hypot(x1 - ax, y1 - ay) > 3, "helm mp: the pilot's keys did not fly her on a server")
+    check(vehicle_z(A) == srv.eval("TREK.Config.flightLevel()"),
+          f"helm mp: flown on a server she is at z {vehicle_z(A)} on the pilot's machine")
+
+    # The passenger works her weapons: his own reticle, his own trigger.
+    OK = 18
+
+    def pull(rt, dx=OK):
+        rt.run(f"SIM.aim.dx = {dx}; SIM.aim.dy = 0")
+        rt.run("SIM.mouse[1] = true; SIM.mouse[0] = false; TREK.Torpedo.poll()")
+        rt.run("SIM.mouse[0] = true; TREK.Torpedo.poll()")
+        net.pump(2)
+        rt.run("SIM.mouse[0] = false; SIM.mouse[1] = false; TREK.Torpedo.poll()")
+        net.pump(int(srv.eval("TREK.Config.TorpedoMaxFlightMs") / 16) + 10)
+
+    # Bob's reticle is measured from where the ship is on his machine.
+    B.run(f"{P}.x, {P}.y = TREK.Ship.get().x + 0.5, TREK.Ship.get().y + 0.5")
+    srv.run("for _, p in ipairs(SIM.players) do p.x, p.y = TREK.Util.state().x + 0.5, TREK.Util.state().y + 0.5 end")
+    B.run("SIM.radial.visible = false")
+    B.run(f"ISVehicleMenu.showRadialMenu({P})")
+    titles = B.eval("getPlayerRadialMenu():titles()") or ""
+    check("IGUI_TREK_WeaponArm" in titles,
+          f"helm mp: a passenger's wheel has no weapon slice ({titles})")
+    check("IGUI_TREK_LandBelow" not in titles and "IGUI_TREK_TakeOff" not in titles,
+          f"helm mp: a passenger's wheel offers to land her or take her up ({titles})")
+    B.run("SIM.radial.visible = true")
+    B.run(f"ISVehicleMenu.showRadialMenu({P})")
+    srv.run("SIM.traps = {}")
+    pull(B)
+    check(srv.eval("#SIM.traps") == 1,
+          f"helm mp: a passenger held right, clicked left, and {srv.eval('#SIM.traps')} "
+          f"torpedo(es) went off ({B.notes()[-3:]})")
+    check(ship(srv, "flying") is True, "helm mp: a passenger's shot ended the flight")
+
+    # Somebody who is in none of her seats is nobody's gunner: by the mouse,
+    # and by the command itself.
+    srv.run("SIM.traps = {}; TREK.Util.state().torpedoAt = nil")
+    B.run("TREK.Torpedo.lastFire = 0; SIM.notes = {}")
+    for r in (srv, B):
+        r.run("""
+            local v = TREK.Vehicle.ship()
+            for _, p in ipairs(SIM.players) do
+                if p.name == "bob" then
+                    if v then v.seats[1] = nil end
+                    p.vehicle = nil
+                end
+            end
+        """)
+    pull(B)
+    check(srv.eval("#SIM.traps") == 0, "helm mp: somebody standing beside her fired her torpedoes")
+    tx, ty = int(ship(srv, "x")) + OK, int(ship(srv, "y"))
+    for cmd, args in (("fireTorpedo", f"{{ x = {tx}, y = {ty}, z = 0 }}"),
+                      ("firePhasers", f"{{ x = {tx - 6}, y = {ty}, z = 0 }}"),
+                      ("tractor", "{ on = true }")):
+        B.run("SIM.notes = {}")
+        B.run(f"TREK.Net.send({P}, '{cmd}', {args})")
+        net.pump(int(srv.eval("TREK.Config.TorpedoMaxFlightMs") / 16) + 10)
+        check(any("IGUI_TREK_NotSeated" in n for n in B.notes()),
+              f"helm mp: {cmd} from somebody in none of her seats was not refused "
+              f"for that ({B.notes()})")
+    check(srv.eval("#SIM.traps") == 0 and ship(srv, "tractor") is None,
+          "helm mp: a command from outside her seats worked her weapons")
+
+    for r in net.all():
+        for w in r.warnings():
+            fail(f"helm mp ({r.name}): {w}")
+    print("helm: in the air W A S D fly her and slide her without turning her, "
+          "Shift turns her on the spot and all the way round, the helm's step is "
+          "her speed, she stops short of a wall at her own level and at the edge "
+          "of loaded ground, the stick and bumpers do the same, only the "
+          "driver's seat flies her, and any seat fires her weapons")
+
+
 def flight_alone():
     """A hovering ship with nobody aboard, which is where the crew got stuck.
 
@@ -3280,14 +3902,51 @@ def torpedoes():
         """
         net.pump(int(C("TorpedoMaxFlightMs") / 16) + 10)
 
-    # --- she will not fire from the ground --------------------------------
-    # The blast is centred on the ground, so a shuttle sitting on it would be
-    # inside its own explosion.
+    # --- from the ground: she fires, and not at her own feet --------------
+    # Since 2026-10-09 (she used to fire only in the air). The blast is
+    # centred on the ground she is standing on, so here, and only here, there
+    # is a minimum range, and the reticle says so.
+    reset()
+    fire(1, 0)
+    arrive()
+    check(rt.eval("#SIM.traps") == 0,
+          "torpedoes: parked, a shot inside TorpedoMinRange was allowed -- she "
+          "is inside her own blast")
+    reset()
+    rt.run("SIM.mouse[1] = true; SIM.mouse[0] = false")
+    aim(5, 0)
+    rt.run("TREK.Torpedo.poll()")
+    got = rt.eval("SIM.renderFrame()") or ""
+    check("IGUI_TREK_Reticle_close|5|" + str(C("TorpedoMinRange")) in got,
+          f"torpedoes: parked and aimed 5 tiles out the reticle says {got!r}, "
+          f"not too close with the distance and the minimum")
+    rt.run("SIM.notes = {}")
+    rt.run("SIM.mouse[0] = true; TREK.Torpedo.poll()")
+    check(any("IGUI_TREK_TorpedoTooClose" in n for n in rt.notes()),
+          "torpedoes: parked, the trigger pulled too close fired nothing and "
+          "told the pilot nothing")
+    rt.run("SIM.mouse[0] = false; SIM.mouse[1] = false; TREK.Torpedo.poll()")
+    # The server's rule and not only the reticle's.
+    reset()
+    rt.run("SIM.notes = {}")
+    rt.run(f'TREK.Net.send({P}, "fireTorpedo", {{ x = {sx} + 3, y = {sy}, z = 0 }})')
+    net.pump(4)
+    arrive()
+    check(rt.eval("#SIM.traps") == 0 and any("IGUI_TREK_TorpedoTooClose" in n for n in rt.notes()),
+          f"torpedoes: parked, the server fired a shot three tiles out that "
+          f"went past the reticle ({rt.notes()})")
     reset()
     fire(OK, 0)
     arrive()
-    check(rt.eval("#SIM.traps") == 0,
-          "torpedoes: she fired while parked on the ground")
+    check(rt.eval("#SIM.traps") == 1,
+          "torpedoes: she would not fire from the ground at a legal range")
+    # The overlay is a corner of the screen unless somebody is aiming: parked,
+    # a screen-sized one takes every right-click on the world away.
+    net.pump(40)
+    rt.run("TREK.Torpedo.poll()")
+    check(rt.eval("SIM.uiUnderMouse(400, 300) == nil") is True,
+          "torpedoes: seated and not aiming, the torpedo overlay covers the "
+          "screen and the world has no mouse")
 
     # Get her up.
     rt.run(f"TREK.Flight.takeOff({P})")
@@ -3408,12 +4067,13 @@ def torpedoes():
     check(rt.eval("#SIM.traps") == 0,
           "torpedoes: a shot beyond TorpedoMaxRange was allowed -- a crafted "
           "command is a map-wide mortar")
+    # In the air there is no minimum: she is over the blast, not in it.
     reset()
     fire(1, 0)
     arrive()
-    check(rt.eval("#SIM.traps") == 0,
-          "torpedoes: a shot inside TorpedoMinRange was allowed -- she would "
-          "be inside her own blast")
+    check(rt.eval("#SIM.traps") == 1,
+          "torpedoes: in the air, a shot one tile from her shadow was refused "
+          "-- the minimum is the ground's rule")
 
     # The close bound is asserted as a flat number too, and for a sharper
     # reason than the far one: it is what keeps the ship out of the fire she
@@ -3426,7 +4086,9 @@ def torpedoes():
           f"sets fire out to {reach} tiles -- the pilot can drop one inside "
           f"her own fire ring")
 
-    # --- a passenger is not a gunner --------------------------------------
+    # --- a passenger is a gunner; somebody beside her is not ----------------
+    # Any of her four seats works her weapons (since 2026-10-10; it was the
+    # driver's alone, and this block asserted the opposite).
     reset()
     rt.run(f"""
         local v = TREK.Vehicle.ship()
@@ -3435,8 +4097,30 @@ def torpedoes():
     """)
     fire(OK, 0)
     arrive()
+    check(rt.eval("#SIM.traps") == 1,
+          f"torpedoes: from a passenger's seat {rt.eval('#SIM.traps')} went off, "
+          f"not one -- every seat is meant to work her weapons")
+    reset()
+    rt.run(f"""
+        local v = TREK.Vehicle.ship()
+        v.seats[1] = nil
+        SIM.players[1].vehicle = nil
+        SIM.notes = {{}}
+    """)
+    fire(OK, 0)
+    arrive()
     check(rt.eval("#SIM.traps") == 0,
-          "torpedoes: someone who is not in the driver's seat fired them")
+          "torpedoes: someone standing beside her fired them with the mouse")
+    rt.run("SIM.mouse[1] = true")
+    check(rt.eval("TREK.Torpedo.aiming()") is False,
+          "torpedoes: somebody standing beside her, holding right mouse, has her reticle")
+    rt.run("SIM.mouse[1] = false")
+    rt.run(f"TREK.Net.send({P}, 'fireTorpedo', {{ x = {sx} + {OK}, y = {sy}, z = 0 }})")
+    arrive()
+    check(rt.eval("#SIM.traps") == 0 and any("IGUI_TREK_NotSeated" in n for n in rt.notes()),
+          f"torpedoes: the command from somebody in none of her seats was not "
+          f"refused for that ({rt.notes()})")
+    rt.run("SIM.players[1].vehicle = TREK.Vehicle.ship()")
 
     # --- left click alone, with no right button held, must do nothing ------
     # Aiming *is* the right mouse button. Without this, an ordinary left click
@@ -3640,9 +4324,8 @@ def torpedoes():
         return rt.eval("SIM.renderFrame()") or ""
 
     got = label(5, 0)
-    check("IGUI_TREK_Reticle_close|5|" + str(C("TorpedoMinRange")) in got,
-          f"torpedoes: aimed 5 tiles out the reticle says {got!r}, not too close "
-          f"with the distance and the minimum")
+    check("IGUI_TREK_Reticle_ok|5" in got,
+          f"torpedoes: in the air and aimed 5 tiles out the reticle says {got!r}")
     got = label(C("TorpedoMaxRange") + 6, 0)
     check("IGUI_TREK_Reticle_far|" in got and "|" + str(C("TorpedoMaxRange")) in got,
           f"torpedoes: aimed past the maximum the reticle says {got!r}")
@@ -3657,13 +4340,13 @@ def torpedoes():
     # A pull of the trigger that does not fire answers the pilot, not only the
     # log.
     rt.run("SIM.notes = {}")
-    aim(5, 0)
+    aim(C("TorpedoMaxRange") + 6, 0)
     rt.run("TREK.Torpedo.lastFire = 0")
     rt.run("SIM.mouse[0] = false; TREK.Torpedo.poll()")
     rt.run("SIM.mouse[0] = true; TREK.Torpedo.poll()")
-    check(any("IGUI_TREK_TorpedoTooClose" in n for n in rt.notes()),
-          "torpedoes: the trigger pulled too close fired nothing and told the "
-          "pilot nothing")
+    check(any("IGUI_TREK_TorpedoRange" in n for n in rt.notes()),
+          "torpedoes: the trigger pulled out of range fired nothing and told "
+          "the pilot nothing")
     rt.run("SIM.mouse[0] = false; SIM.mouse[1] = false; TREK.Torpedo.poll()")
     reset()
 
@@ -3672,7 +4355,296 @@ def torpedoes():
           "detonates on arrival rather than on the trigger, the blast sets "
           "fire to what it hits, 'Blast only' removes the fire and keeps the "
           "weapon, and the ground, a bare click, a held button, the cooldown, "
-          "both range bounds and a passenger are all refused")
+          "both range bounds and somebody outside her seats are all refused, while a passenger's seat fires")
+
+
+def ship_weapons():
+    """The ship's other two weapons, and the wheel that chooses between them.
+
+    Ship's phasers: up to eight of the dead round the reticle and in the wedge
+    from her to it, one bolt each, paid for per bolt out of the ship's power,
+    in the air or parked. The tractor beam: in flight only, held, and what is
+    under her goes where she goes -- on the machine that simulates it."""
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    seat(rt)
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    sx, sy = int(ship(rt, "x")), int(ship(rt, "y"))
+    cost, most, reach = int(C("ShipPhaser.cost")), int(C("ShipPhaser.targets")), int(C("ShipPhaser.range"))
+    power = lambda: float(rt.eval("TREK.Util.state().power"))
+
+    def zed(dx, dy, name, extra=""):
+        rt.run(f'{name} = addZombiesInOutfit({sx} + {dx}, {sy} + {dy}, 0, 1, "Generic01", 0):get(0); {extra}')
+
+    def dead(name):
+        return rt.eval(f"{name}:isDead()") is True
+
+    def pull(dx, dy, hold=2):
+        """Hold right, press left, for `hold` polls; then let both go."""
+        rt.run(f"SIM.aim.dx = {dx}; SIM.aim.dy = {dy}")
+        rt.run("SIM.mouse[1] = true; SIM.mouse[0] = false; TREK.Torpedo.poll()")
+        rt.run("SIM.mouse[0] = true")
+        for _ in range(hold):
+            rt.run("TREK.Torpedo.poll()")
+            net.pump(2)
+        rt.run("SIM.mouse[0] = false; SIM.mouse[1] = false; TREK.Torpedo.poll()")
+        net.pump(2)
+
+    def clear():
+        rt.run("SIM.zombies = {}; SIM.notes = {}; TREK.PhaserFX.bolts = {}")
+        net.pump(40)       # past the debounce, on both ends
+
+    # --- the wheel chooses ---------------------------------------------------
+    rt.run("SIM.radial.visible = false")
+    rt.run(f"ISVehicleMenu.showRadialMenu({P})")
+    titles = rt.eval("getPlayerRadialMenu():titles()") or ""
+    # A slice each, with a picture each (since 2026-10-10; it was one slice
+    # that stepped to the next). Chosen through the wheel, not by calling the
+    # handler: three slices share it and differ only in what they hand it.
+    check(rt.eval("TREK.Torpedo.weapon") == "torpedo", "weapons: she does not begin with torpedoes armed")
+    slices = titles.split(",")
+    for w in ("torpedo", "phaser", "tractor"):
+        mine = [s for s in slices if f"IGUI_TREK_Weapon_{w}" in s]
+        check(len(mine) == 1, f"weapons: the wheel has {len(mine)} slice(s) for the {w} (slices: {titles})")
+        want = "IGUI_TREK_WeaponIsArmed" if w == "torpedo" else "IGUI_TREK_WeaponArm|"
+        check(mine and want in mine[0],
+              f"weapons: the {w}'s slice reads {mine}; only what is armed should say so")
+    pictures = [rt.eval(f"(getPlayerRadialMenu():textureOf('IGUI_TREK_Weapon_{w}') or {{}}).path")
+                for w in ("torpedo", "phaser", "tractor")]
+    check(all(pictures) and len(set(pictures)) == 3,
+          f"weapons: the three slices do not each have a picture of their own ({pictures})")
+    rt.run("SIM.notes = {}")
+    check(rt.eval("getPlayerRadialMenu():choose('IGUI_TREK_Weapon_phaser')") is True,
+          "weapons: the phasers' slice could not be chosen")
+    check(rt.eval("TREK.Torpedo.weapon") == "phaser"
+          and any("IGUI_TREK_WeaponArmed" in n and "IGUI_TREK_Weapon_phaser" in n for n in rt.notes()),
+          f"weapons: the phasers' slice did not arm the phasers and say so ({rt.notes()})")
+    rt.run("SIM.radial.visible = true")
+    rt.run(f"ISVehicleMenu.showRadialMenu({P})")
+    rt.run("SIM.radial.visible = false")
+    rt.run(f"ISVehicleMenu.showRadialMenu({P})")
+    again = rt.eval("getPlayerRadialMenu():titles()") or ""
+    check("IGUI_TREK_WeaponIsArmed|IGUI_TREK_Weapon_phaser" in again
+          and "IGUI_TREK_WeaponIsArmed|IGUI_TREK_Weapon_torpedo" not in again,
+          f"weapons: with phasers armed the wheel reads {again}")
+    rt.run("SIM.radial.visible = true")
+    rt.run(f"ISVehicleMenu.showRadialMenu({P})")
+    rt.run(f"TREK.Torpedo.armWeapon({P}, 'disruptor')")
+    check(rt.eval("TREK.Torpedo.weapon") == "phaser", "weapons: a weapon she does not have was armed")
+    rt.run("SIM.mouse[1] = true; SIM.aim.dx = 15; SIM.aim.dy = 0; TREK.Torpedo.poll()")
+    got = rt.eval("SIM.renderFrame()") or ""
+    check("IGUI_TREK_Weapon_phaser" in got, f"weapons: the reticle does not name what is armed ({got!r})")
+    rt.run("SIM.mouse[1] = false; TREK.Torpedo.poll()")
+
+    # --- phasers, parked: eight of ten, nearest the reticle, paid per bolt -----
+    clear()
+    for i in range(10):
+        zed(15 + (i % 3) - 1, (i // 3) - 1, f"pack{i}")
+    zed(-15, 0, "behind")
+    before = power()
+    pull(15, 0)
+    down = sum(1 for i in range(10) if dead(f"pack{i}"))
+    check(down == most, f"weapons: one phaser shot at a pack of ten killed {down}, not {most}")
+    check(not dead("behind"), "weapons: the phasers shot one of the dead behind her")
+    check(abs((before - power()) - cost * most) < 0.01,
+          f"weapons: {most} bolts cost {before - power()} power, not {cost * most}")
+    bolts = int(rt.eval("#TREK.PhaserFX.bolts"))
+    check(bolts == most, f"weapons: {bolts} bolt(s) were drawn for {most} hits")
+    check(rt.eval("#TREK.Torpedo.inFlight") == 0 and rt.eval("#SIM.traps") == 0,
+          "weapons: with phasers armed the trigger launched a torpedo")
+    # A parked torpedo's minimum is not the phasers': they fire at her feet.
+    clear()
+    zed(2, 0, "close")
+    pull(2, 0)
+    check(dead("close"), "weapons: parked, the phasers would not fire two squares out")
+    # Close in it is a ring round her, not a wedge: what a parked pilot
+    # clears before getting out. All sides, and nobody past the ring.
+    clear()
+    near = int(C("ShipPhaser.close"))
+    for i, (dx, dy) in enumerate(((4, 0), (-4, 0), (0, 4), (0, -4), (3, 3), (-3, -3))):
+        zed(dx, dy, f"round{i}")
+    zed(-(near + 3), 0, "outside")
+    pull(2, 0)
+    down = sum(1 for i in range(6) if dead(f"round{i}"))
+    check(down == 6, f"weapons: parked and aimed close, the phasers cleared {down} of six round her")
+    check(not dead("outside"), "weapons: the close-in ring reached past its own radius")
+
+    # --- the wedge: between her and the reticle, and not beside or beyond ------
+    clear()
+    zed(8, 0, "between"); zed(8, 8, "beside"); zed(-8, 0, "aft")
+    zed(15 + int(C("ShipPhaser.past")) + 4, 0, "beyond")
+    pull(15, 0)
+    check(dead("between"), "weapons: one of the dead between her and the reticle was not shot")
+    for name in ("beside", "aft", "beyond"):
+        check(not dead(name), f"weapons: the phasers shot the one {name} the wedge")
+
+    # --- nobody there: said, and free; the crew are never shot ----------------
+    clear()
+    zed(15, 0, "crewman", "crewman.useless = true")
+    before = power()
+    pull(15, 0)
+    check(not dead("crewman"), "weapons: the phasers shot one of the Adirondack's crew")
+    check(any("IGUI_TREK_ShipPhaserNoTarget" in n for n in rt.notes()) and power() == before,
+          f"weapons: a shot at nobody was not said or was charged for ({rt.notes()})")
+
+    # --- range, and power -----------------------------------------------------
+    clear()
+    zed(reach + 6, 0, "far")
+    pull(reach + 6, 0)
+    check(not dead("far") and any("IGUI_TREK_TorpedoRange" in n for n in rt.notes()),
+          f"weapons: a phaser shot past its range was not refused ({rt.notes()})")
+    rt.run(f'TREK.Net.send({P}, "firePhasers", {{ x = {sx} + {reach} + 6, y = {sy}, z = 0 }})')
+    net.pump(4)
+    check(not dead("far"), "weapons: the server fired a phaser shot that went past the reticle's range")
+    clear()
+    zed(15, 0, "a"); zed(15, 1, "b")
+    rt.run(f"TREK.Util.state().power = {cost * 2 - 1}")
+    pull(15, 0)
+    check(not dead("a") and not dead("b") and rt.notes() != [],
+          f"weapons: two bolts were fired on power for less than two ({rt.notes()})")
+    rt.run("TREK.Util.state().power = TREK.Config.PowerMax")
+
+    # --- the tractor beam is flight's -----------------------------------------
+    clear()
+    rt.run(f"TREK.VehicleMenu.onArmWeapon({P}, 'tractor')")
+    check(rt.eval("TREK.Torpedo.weapon") == "tractor", "weapons: the tractor beam's slice did not arm it")
+    rt.run("SIM.notes = {}")
+    pull(0, 0)
+    check(ship(rt, "tractor") is None and any("IGUI_TREK_TractorNotFlying" in n for n in rt.notes()),
+          f"weapons: parked, the tractor beam engaged or said nothing ({rt.notes()})")
+    rt.run(f'SIM.notes = {{}}; TREK.Net.send({P}, "tractor", {{ on = true }})')
+    net.pump(1)
+    check(ship(rt, "tractor") is None and any("IGUI_TREK_TractorNotFlying" in n for n in rt.notes()),
+          f"weapons: the server did not refuse the tractor beam on the ground ({rt.notes()})")
+    rt.run("SIM.mouse[1] = true; TREK.Torpedo.poll()")
+    got = rt.eval("SIM.renderFrame()") or ""
+    check("IGUI_TREK_Reticle_tractorGround" in got,
+          f"weapons: parked, the reticle does not say the beam is flight's ({got!r})")
+    rt.run("SIM.mouse[1] = false; TREK.Torpedo.poll()")
+
+    rt.run(f"TREK.Flight.takeOff({P})")
+    net.pump(400)
+    if ship(rt, "flying") is not True:
+        fail("weapons: she never got airborne, so the tractor beam cannot be tested")
+        return
+    rt.run("SIM.notes = {}")
+    vx = lambda: float(rt.eval("TREK.Vehicle.ship():getX()"))
+    hx, hy = vx(), float(rt.eval("TREK.Vehicle.ship():getY()"))
+    r = int(C("Tractor.radius"))
+    rt.run(f'under = addZombiesInOutfit({int(hx)} + 2, {int(hy)} + 1, 0, 1, "Generic01", 0):get(0)')
+    rt.run(f'edge = addZombiesInOutfit({int(hx)} + {r} + 3, {int(hy)}, 0, 1, "Generic01", 0):get(0)')
+    rt.run(f'theirs = addZombiesInOutfit({int(hx)} - 2, {int(hy)}, 0, 1, "Generic01", 0):get(0); theirs.remote = true')
+    rt.run(f'crewman = addZombiesInOutfit({int(hx)}, {int(hy)} + 2, 0, 1, "Generic01", 0):get(0); crewman.useless = true')
+    at = lambda n: (float(rt.eval(f"{n}:getX()")), float(rt.eval(f"{n}:getY()")))
+    start = {n: at(n) for n in ("under", "edge", "theirs", "crewman")}
+    # And a car. The simulation's own, standing on the ground beside them.
+    rt.run(f'car = SIM.vehicle("Base.CarNormal", {hx} + 1, {hy} - 2, 0)')
+    car = lambda f: float(rt.eval(f"car.{f} or 0"))
+    cx0 = car("x")
+
+    # **The shields are the ground's.** In the air they pushed the dead out
+    # from under her all the same -- ten squares, against the beam's five --
+    # so the beam found nobody however low she flew over a crowd (seen in
+    # play, 2026-10-09). Up, in flight, with the beam off: nobody is moved.
+    check(rt.eval("TREK.Util.state().shields ~= false") is True, "weapons: the test's shields are down")
+    rt.run("TREK.Core.shieldPushes = 0")
+    net.pump(45)
+    rt.run("TREK.Core.repelZombies()")
+    check(at("under") == start["under"] and int(rt.eval("TREK.Core.shieldPushes")) == 0,
+          f"weapons: in flight her shields pushed {rt.eval('TREK.Core.shieldPushes')} of the dead under her")
+
+    # Held: on while the trigger is down.
+    rt.run("SIM.aim.dx = 0; SIM.aim.dy = 0; SIM.mouse[1] = true; SIM.mouse[0] = false; TREK.Torpedo.poll()")
+    rt.run("SIM.mouse[0] = true; TREK.Torpedo.poll()")
+    net.pump(6)
+    check(ship(rt, "tractor") == "pilot", f"weapons: holding the trigger in flight did not engage the beam ({rt.notes()})")
+    rt.run("TREK.Torpedo.poll()")
+    got = rt.eval("SIM.renderFrame()") or ""
+    check("IGUI_TREK_Reticle_tractorOn" in got, f"weapons: the reticle does not say the beam is on ({got!r})")
+    check(int(rt.eval("TREK.Tractor.count.zombies")) == 1,
+          f"weapons: the beam holds {rt.eval('TREK.Tractor.count.zombies')} of the dead, not the one under her")
+    # The car is raised half the way up to her, with a square of floor under
+    # it once it is there, so it clears what is on the ground.
+    net.pump(6)
+    levels = max(1, int(float(rt.eval("TREK.Config.flightLevel()")) * float(C("Tractor.lift"))))
+    want = levels * float(C("LevelUnits"))
+    check(int(rt.eval("TREK.Tractor.count.cars")) == 1, "weapons: the beam did not take the car under her")
+    check(abs(car("bulletY") - want) < 0.01,
+          f"weapons: the held car's body is at {car('bulletY')}, not {levels} level(s) up ({want})")
+    check(int(rt.eval("TREK.Sky.propCount()")) == 1
+          and rt.eval(f"TREK.Sky.holds(car.x, car.y, {levels})") is True,
+          "weapons: the raised car has no floor under it, so the engine draws and collides it on the ground")
+    before = power()
+    for _ in range(3):
+        rt.run("local v = TREK.Vehicle.ship(); v.x = v.x + 2")
+        net.pump(3)
+    check(abs((car("x") - cx0) - 6) < 0.01, f"weapons: she moved 6 and the car moved {car('x') - cx0}")
+    check(int(rt.eval("TREK.Sky.propCount()")) == 1
+          and rt.eval(f"TREK.Sky.holds(car.x, car.y, {levels})") is True,
+          "weapons: the car's floor did not go with it")
+    moved = vx() - hx
+    check(abs(moved - 6) < 0.01, f"weapons: the test did not move her ({moved})")
+    ux, uy = at("under")
+    check(abs((ux - start["under"][0]) - moved) < 0.01 and abs(uy - start["under"][1]) < 0.01,
+          f"weapons: she moved {moved} and the one under her moved {ux - start['under'][0]}")
+    for n, why in (("edge", "outside the beam"), ("theirs", "another client simulates"),
+                   ("crewman", "of the Adirondack's crew")):
+        check(at(n) == start[n], f"weapons: the beam moved one {why}")
+    # And the shields do not fight it for them: up, they leave what it holds.
+    rt.run("TREK.Util.state().shields = true; TREK.Ship.commit()")
+    held = at("under")
+    rt.run("TREK.Core.shieldPushes = 0")
+    net.pump(45)
+    check(at("under") == held and int(rt.eval("TREK.Core.shieldPushes")) == 0,
+          f"weapons: the shields pushed {rt.eval('TREK.Core.shieldPushes')} of what the tractor beam was holding")
+    # It costs power while it is on, by the second.
+    net.pump(100)       # what moving her cost is charged by now
+    before = power()
+    net.pump(140)
+    spent = before - power()
+    rt.eval("SIM.renderFrame()")       # drawn, and the drawing must not throw
+    check(int(rt.eval("#TREK.PhaserFX.bolts")) >= 1, "weapons: the tractor beam is not drawn")
+
+    # Released: off when the trigger comes up, and nothing follows her after.
+    rt.run("SIM.mouse[0] = false; TREK.Torpedo.poll()")
+    net.pump(6)
+    check(ship(rt, "tractor") is None, "weapons: letting the trigger go did not release the beam")
+    check(abs(car("bulletY")) < 0.01 and int(rt.eval("TREK.Sky.propCount()")) == 0,
+          f"weapons: let go, the car is at {car('bulletY')} with {rt.eval('TREK.Sky.propCount()')} floor(s) left under it")
+    held = at("under")
+    rt.run("local v = TREK.Vehicle.ship(); v.x = v.x + 2")
+    net.pump(4)
+    check(at("under") == held and int(rt.eval("TREK.Tractor.count.zombies")) == 0,
+          "weapons: the dead still follow her with the beam off")
+    # The same two seconds with it off, so what it cost is its own and not
+    # the hover's.
+    before = power()
+    net.pump(140)
+    idle = before - power()
+    check(spent - idle >= float(C("Tractor.costPerSec")),
+          f"weapons: two seconds of tractor beam cost {spent} power and two without it {idle}")
+
+    # And it lets go by itself when she comes down.
+    rt.run("SIM.mouse[0] = true; TREK.Torpedo.poll()")
+    net.pump(6)
+    check(ship(rt, "tractor") == "pilot", "weapons: the beam would not engage a second time")
+    rt.run("SIM.mouse[0] = false; SIM.mouse[1] = false")
+    rt.run("TREK.Torpedo.tractorHeld = false")      # the client says nothing: the server must notice
+    rt.run('TREK.Server.endFlight("test")')
+    net.pump(6)
+    check(ship(rt, "tractor") is None, "weapons: the beam stayed on after she left the air")
+
+    for w in rt.warnings():
+        fail(f"weapons: {w}")
+    print("ship weapons: the wheel has a slice and a picture for each of torpedoes, phasers and tractor; phasers take eight round the reticle "
+          "and in the wedge for power per bolt, parked or flying; the tractor beam is held, in flight only, "
+          "carries the dead this machine simulates and costs power by the second")
 
 
 def medical():
@@ -8459,8 +9431,64 @@ def seat_exit():
           "holding the shuttle's seat -- the NullPointerException on the first "
           "frame aboard")
 
+    # --- the hull's own door, from the pilot's seat ----------------------
+    # Found in play, 2026-10-09: set her down, right-click her hull without
+    # getting out, *Board the shuttle*. Core.enter never looked for a seat, so
+    # the pilot was "put" on the pad still riding her: a NullPointerException
+    # a frame from the loot panel, put back on the pad on every update, and a
+    # black screen.
+    net.pump(200)
+    rt.run(f"TREK.Core.exit({P})")
+    net.pump(400)
+    if rt.eval("TREK.Vehicle.ship() ~= nil") is not True:
+        fail("seat exit: she is not there after stepping out, so the door from the seat cannot be tested")
+        return
+    seat(rt)
+    rt.run("SIM.inventoryRefreshes = 0; SIM.triggered = {}; SIM.log = {}")
+    rt.run(f"TREK.Menu.onEnter(nil, {P})")
+    net.pump(200)
+    check(rt.eval(f"TREK.Util.isAboard({P}:getX(), {P}:getY(), {P}:getZ())") is True,
+          "seat exit: the hull's door did not take a seated pilot aboard")
+    check(rt.eval(f"{P}.vehicle") is None,
+          "seat exit: through the hull's door from the seat, and still in the seat")
+    check("OnExitVehicle" in [str(x) for x in rt.eval("SIM.triggered").values()],
+          "seat exit: the hull's door from a seat never fired OnExitVehicle")
+    check(rt.eval("SIM.lootStale()") is False,
+          "seat exit: aboard from the seat with the loot panel still holding it")
+    # The rescue aboard takes a seat away too, and would cover for the door:
+    # so the door has to have done it, and the rescue never been needed.
+    put_back = int(rt.eval("""(function() local n = 0
+        for _, l in ipairs(SIM.log) do
+            if string.find(l, "put back on the pad", 1, true) then n = n + 1 end
+        end return n end)()"""))
+    check(put_back == 0,
+          f"seat exit: the seated pilot was put back on the pad {put_back} time(s) after boarding")
+
+    # --- a rescue that cannot succeed stops ------------------------------
+    # The same session: the pad would not hold them, and they were put back
+    # on it every update for ever. Whatever the cause, past its budget the
+    # rescue puts them outside by the ship instead, and says so once.
+    rt.run(f"""
+        realHold = TREK.Core.hold
+        TREK.Core.hold = function() end
+        local p = {P}
+        p.z, p.lastZ = 0, 0
+        SIM.log = {{}}
+    """)
+    net.pump(200)
+    rt.run("TREK.Core.hold = realHold")
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is False,
+          "seat exit: a pad that will not hold them keeps them in the void for ever")
+    lines = int(rt.eval("""(function() local n = 0
+        for _, l in ipairs(SIM.log) do
+            if string.find(l, "put back on the pad", 1, true) then n = n + 1 end
+        end return n end)()"""))
+    check(0 < lines <= 8, f"seat exit: the failing rescue logged {lines} line(s)")
+    stuck = [w for w in rt.warnings() if "would not hold" in w]
+    check(len(stuck) == 1, f"seat exit: the rescue giving up warned {len(stuck)} time(s)")
     for w in rt.warnings():
-        fail(f"seat exit: {w}")
+        if "would not hold" not in w:
+            fail(f"seat exit: {w}")
     print("seat exit: beaming up, going aft and walking up the ramp all leave "
           "the loot panel rebuilt from the cabin, not from beside the shuttle")
 
@@ -11044,6 +12072,123 @@ def marooned_edges():
           "ordinary world has no annotated maps and reads one as old news")
 
 
+def dev_teleport():
+    """The development tool (U.devMode): *Teleport to the shuttle* on every
+    right-click in a development session and in no other, to a marooned ship's
+    site before she is down and to her hatch after, and a server that is not
+    in one refuses whatever the client's menu did."""
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SandboxVars.TrekShuttle.StartState = 3")
+    rt.run("SIM.player('castaway', 10780.5, 9920.5, 0)")
+    net.start()
+    net.pump(120)
+    site = maroon_site(rt)
+    check(site is not None, "dev: no site was ever drawn")
+    if site is None:
+        return
+    sid, sx, sy = site
+    where = lambda: (float(rt.eval(f"{P}:getX()")), float(rt.eval(f"{P}:getY()")))
+
+    # --- not a development session: no option, and no move -------------------
+    check(rt.eval("TREK.Util.devMode()") is False, "dev: an ordinary session reads as development")
+    check("IGUI_TREK_DevToShuttle" not in ground_labels(rt),
+          "dev: the teleport is offered outside a development session")
+    rt.run(f"SIM.notes = {{}}; TREK.Menu.onDevToShuttle(nil, {P})")
+    net.pump(200)
+    x, y = where()
+    check("IGUI_TREK_DevOnly" in rt.notes() and abs(x - 10780.5) < 1 and abs(y - 9920.5) < 1,
+          f"dev: the server moved somebody outside a development session ({x},{y}; {rt.notes()})")
+    check(rt.eval("TREK.Core.moveWaiting()") is False, "dev: the refused move is still waiting")
+
+    # --- either switch makes one ---------------------------------------------
+    rt.run(r'SIM.mods = { "\\TrekShuttleDev" }')
+    check(rt.eval("TREK.Util.devMode()") is True, "dev: the deployed development copy is not one")
+    rt.run("SIM.mods = nil; SIM.debug = true")
+    check(rt.eval("TREK.Util.devMode()") is True, "dev: -debug is not a development session")
+
+    # --- the map: refused outside a session, given in one, and it reads -----
+    maps = lambda: int(rt.eval(f"""(function() local n = 0
+        for _, it in ipairs({P}.inventory.items) do
+            if TREK.Marooned.isMap(it) then n = n + 1 end
+        end return n end)()"""))
+    rt.run(f'SIM.debug = false; SIM.notes = {{}}; TREK.Menu.onDevMap(nil, {P})')
+    net.pump(4)
+    check(maps() == 0 and "IGUI_TREK_DevOnly" in rt.notes(),
+          f"dev: a map was handed out outside a development session ({rt.notes()})")
+    rt.run(f'SIM.debug = true; SIM.notes = {{}}; TREK.Menu.onDevMap(nil, {P})')
+    net.pump(4)
+    check(maps() == 1 and "IGUI_TREK_DevMapGiven" in rt.notes(),
+          f"dev: {maps()} annotated map(s) in the pockets after asking ({rt.notes()})")
+    rt.run("SIM.notes = {}; SIM.actionQueue = {}")
+    read_map(rt, net)
+    check(shuttle_contacts(rt) == 1 and any("IGUI_TREK_MaroonMap" in n for n in rt.notes()),
+          f"dev: the map that was given does not read as one ({rt.notes()})")
+
+    # --- to her site, with no combadge, and she is set down for them ---------
+    labels = ground_labels(rt)
+    check("IGUI_TREK_DevToShuttle" in labels and "IGUI_TREK_CallDown" not in labels,
+          f"dev: a castaway's ground offers {labels!r}")
+    check("IGUI_TREK_DevMap" in labels, f"dev: the ground offers no map ({labels!r})")
+    rt.run(f"SIM.notes = {{}}; TREK.Menu.onDevToShuttle(nil, {P})")
+    net.pump(400)
+    x, y = where()
+    ring = int(rt.eval("TREK.Config.Maroon.placeMax"))
+    check(abs(x - sx) <= ring and abs(y - sy) <= ring,
+          f"dev: sent to {x},{y}, and her site is {sx},{sy}")
+    check(ship(rt, "landed") is True, "dev: she was not set down round somebody sent to her site")
+    check(rt.eval(f"TREK.Marooned.linked({P})") is False,
+          "dev: the teleport gave the castaway a combadge")
+
+    # --- and to where she stands, once she does ------------------------------
+    hx, hy = int(ship(rt, "x")), int(ship(rt, "y"))
+    rt.run(f"local p = {P}; p.x, p.y = {hx} + 60.5, {hy} + 60.5")
+    net.pump(20)
+    rt.run(f"TREK.Menu.onDevToShuttle(nil, {P})")
+    net.pump(400)
+    x, y = where()
+    check(abs(x - hx) <= 8 and abs(y - hy) <= 8,
+          f"dev: sent to {x},{y}, and she stands at {hx},{hy}")
+    check(rt.eval(f"TREK.World.hullCovers({P}:getX(), {P}:getY(), 0)") is False,
+          "dev: the teleport put them inside her hull")
+
+    # --- two machines: the server's answer is the rule -----------------------
+    net = Net("mp", clients=("dev", "other"))
+    srv, A = net.server, net.clients["dev"]
+    for r in net.all():
+        r.run("SandboxVars.TrekShuttle.StartState = 3")
+    srv.run("SIM.player('dev', 10780.5, 9920.5, 0); SIM.player('other', 10800.5, 9920.5, 0)")
+    A.run("SIM.player('dev', 10780.5, 9920.5, 0)")
+    net.clients["other"].run("SIM.player('other', 10800.5, 9920.5, 0)")
+    net.start()
+    net.pump(120)
+    A.run("SIM.debug = true; SIM.notes = {}; TREK.Menu.onDevToShuttle(nil, SIM.players[1])")
+    net.pump(200)
+    ax = float(A.eval("SIM.players[1]:getX()"))
+    check("IGUI_TREK_DevOnly" in A.notes() and abs(ax - 10780.5) < 1,
+          f"dev mp: a server outside a development session let a client through ({ax}; {A.notes()})")
+    srv.run("SIM.debug = true")
+    A.run("SIM.notes = {}; TREK.Menu.onDevToShuttle(nil, SIM.players[1])")
+    net.pump(200)
+    site = maroon_site(srv)
+    ax, ay = float(A.eval("SIM.players[1]:getX()")), float(A.eval("SIM.players[1]:getY()"))
+    check(site is not None and abs(ax - site[1]) <= ring and abs(ay - site[2]) <= ring,
+          f"dev mp: with both in a development session the client went to {ax},{ay}, site {site}")
+    # Once she is found the map says so, and so does the tool.
+    srv.run("TREK.Util.state().maroonFound = true; TREK.Ship.commit()")
+    net.pump(4)
+    A.run("SIM.notes = {}; TREK.Menu.onDevMap(nil, SIM.players[1])")
+    net.pump(4)
+    has = lambda r: int(r.eval("""(function() local n = 0
+        for _, it in ipairs(SIM.players[1].inventory.items) do
+            if TREK.Marooned.isMap(it) then n = n + 1 end
+        end return n end)()"""))
+    check(has(A) == 1 and "IGUI_TREK_DevMapFound" in A.notes(),
+          f"dev mp: the client has {has(A)} map(s) and was told {A.notes()}")
+    print("dev teleport: offered and granted only in a development session, to her site and to her hatch")
+
+
 def marooned_mp():
     """Two players, marooned: the one who finds her has the menu and the beam,
     the other has neither until they have been aboard, and both machines know
@@ -11337,7 +12482,7 @@ def galley():
           "galley: the bus is not running in a lit ship")
     check(bus("fuel") == 10 and bus("condition") == 100,
           f"galley: the bus arrived with fuel {bus('fuel')} and condition {bus('condition')}")
-    check(rt.eval(f'SIM.spriteProps["{C("SkyTile")}"].GeneratorSound') == C("PowerBusSound"),
+    check(rt.eval(f'SIM.spriteProps["{C("InvisibleTile")}"].GeneratorSound') == C("PowerBusSound"),
           "galley: the bus would sound like a petrol generator")
     check(rt.eval(f"TREK.Util.isAboard(TREK.Util.at(TREK.Config.PowerBusSpot.x, "
                   f"TREK.Config.PowerBusSpot.y))") is False,
@@ -18601,14 +19746,14 @@ def sentry_multiplayer():
 
 
 SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabin_partial, starfleet_refit_mp, flight, flight_ascent,
-            flight_refused, flight_two_machines, flight_alone,
+            flight_refused, flight_two_machines, flight_helm, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
-            torpedoes, medical, medical_multiplayer, replicator,
+            torpedoes, ship_weapons, medical, medical_multiplayer, replicator,
             replicator_multiplayer, emh, emh_multiplayer, contacts,
             contact_map, contacts_multiplayer, probes, energy,
             energy_movement, energy_cabin, energy_shields, energy_emergency,
             energy_emergency_mp, cold_start, cold_start_edges,
-            cold_start_mp, marooned, marooned_edges, marooned_mp, wild_dilithium, galley,
+            cold_start_mp, marooned, marooned_edges, marooned_mp, dev_teleport, wild_dilithium, galley,
             energy_multiplayer, contact_world,
             contact_reveal, distress, ensign_world, ensign_edges,
             ensign_multiplayer, padd, padd_multiplayer, tapes, comms,

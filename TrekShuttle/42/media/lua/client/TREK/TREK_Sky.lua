@@ -13,8 +13,9 @@
     over rather than demolished, and the wheels have something to rest on, so
     the engine drives the ship and nothing here fights gravity.
 
-    The tile is vanilla: invisible_01_0, whose only two properties are
-    attachedFloor and solidfloor.
+    The tile is the mod's own (C.SkyTile): vanilla's invisible floor with
+    `transparentFloor` as well, so the ground under her can still be seen.
+    Up to 1.19.0 it was vanilla's, and the ground under her was black.
 
     Why a client lays it, when MULTIPLAYER.md says a client never edits the
     world. The plane is not the ship and it is not state: it is scenery and
@@ -124,6 +125,20 @@ end
 ---------------------------------------------------------------------------
 -- Laying and lifting
 ---------------------------------------------------------------------------
+--- Has the engine work out again whether one column is under a roof.
+---
+--- addFloor does this itself on the way in (IsoCell.checkHaveRoof, bci
+--- 254-266), which is what marks the ground under the plane as roofed: no sky
+--- light and no rain. Nothing does it on the way out, so every square she had
+--- ever flown over stayed roofed for the session. It walks the column from
+--- the top and asks each square for a solid floor, so with ours gone it
+--- comes out as it was before she passed.
+function Sky.unroof(x, y)
+    local cell = U.cell()
+    if not cell then return end
+    U.try("sky.unroof", function() cell:checkHaveRoof(x, y) end)
+end
+
 --- Puts one square of floor down, unless something is already there.
 local function layOne(x, y, z, place)
     local k = key(x, y, z)
@@ -192,6 +207,7 @@ local function liftOne(t, take)
         return true
     end)
     if not ok then return false end
+    Sky.unroof(t.x, t.y)
     Sky.stats.lifted = Sky.stats.lifted + 1
     return true
 end
@@ -208,6 +224,23 @@ function Sky.pave(cx, cy, level)
     if level < 1 then return end
     if job and job.x == cx and job.y == cy and job.level == level then return end
     job = { x = cx, y = cy, level = level, cursor = 0 }
+end
+
+--- Makes sure one square has floor this instant, ahead of the paving pass.
+--- True when it has.
+---
+--- The helm moves her by placing her (TREK_Flight, the helm in the air), up
+--- to a tile and a half in a tick, and the engine keeps her height only over
+--- a floor under her centre: the square she is about to be on has to have one
+--- before she is put there, not a pass later. False means the ground there
+--- is not loaded, and she must not go.
+function Sky.under(x, y, level)
+    x, y, level = math.floor(x), math.floor(y), math.floor(level)
+    if level < 1 then return true end
+    local k = key(x, y, level)
+    if laid[k] then return true end
+    layOne(x, y, level, U.batch("sky.addFloor"))
+    return laid[k] ~= nil
 end
 
 --- Lays the next slice, and chases anything still waiting to be lifted.
@@ -349,6 +382,58 @@ function Sky.columnHeld()
     return column ~= nil
 end
 
+---------------------------------------------------------------------------
+-- Props: one square of floor each, under something the tractor beam holds
+---------------------------------------------------------------------------
+-- A vehicle raised off the ground is in the same case she is: the engine
+-- zeroes its height wherever there is no floor under its centre at its level
+-- or the one below (BaseVehicle.update), and draws it, and collides it, on
+-- the ground. So a car the beam lifts gets one square of the sky's own floor
+-- under it, moved as it moves and taken up when it is let go.
+local props = {}   -- id -> { x, y, z, native }
+
+--- Puts prop `id` at one square and level, lifting where it was; a nil level
+--- takes it up. Returns true when that square has a floor now.
+function Sky.prop(id, x, y, level)
+    if level then
+        x, y, level = math.floor(x), math.floor(y), math.floor(level)
+        if level < 1 then level = nil end
+    end
+    local old = props[id]
+    if old and level and old.x == x and old.y == y and old.z == level then return true end
+    if old then
+        local take = U.batch("sky.removeFloor")
+        if not liftOne(old, take) then table.insert(pending, old) end
+        props[id] = nil
+    end
+    if not level then return false end
+
+    local sq = U.square(x, y, level, true)
+    if not sq then return false end
+    local floor = U.try("propFloor", function() return sq:getFloor() end)
+    if floor then
+        props[id] = { x = x, y = y, z = level, native = true }
+        return true
+    end
+    local place = U.batch("sky.addFloor")
+    local ok = place(function()
+        sq:addFloor(Sky.TILE)
+        sq:RecalcProperties()
+        sq:RecalcAllWithNeighbours(true)
+        return true
+    end)
+    if not ok then return false end
+    props[id] = { x = x, y = y, z = level }
+    Sky.stats.laid = Sky.stats.laid + 1
+    return true
+end
+
+function Sky.propCount()
+    local n = 0
+    for _ in pairs(props) do n = n + 1 end
+    return n
+end
+
 --- Takes the plane up and leaves the column. The descent does this at the
 --- top: the column one level down is what she is resting on (as far as the
 --- game's z is concerned) while the plane she is about to sink through goes.
@@ -424,7 +509,7 @@ function Sky.sweepArea(cx, cy, job)
         local d = list[i]
         local x, y = math.floor(cx) + d[1], math.floor(cy) + d[2]
         -- Never a roof -- the cabin's, her decks', her tubes', the station's --
-        -- which is the same tile (C.RoofTile).
+        -- which is the tile she used to fly on (C.RoofTile).
         local roofed = U.isInterior(x, y)
             or (TREK.Adirondack and TREK.Adirondack.locate(x, y) ~= nil)
         local sq = not roofed and U.square(x, y, level, false) or nil
@@ -433,7 +518,9 @@ function Sky.sweepArea(cx, cy, job)
         -- otherwise take six seconds to walk.
         if not sq then done = done - 0.9 end
         if sq then
-            local obj = U.findSprite(sq, Sky.TILE)
+            -- Ours, or what she flew on before she had her own (a floor is a
+            -- saved world object; C.SkyLegacyTile).
+            local obj = U.findSprite(sq, Sky.TILE) or U.findSprite(sq, C.SkyLegacyTile)
             if obj then
                 -- The same pair as liftOne, and for the same reason: without
                 -- it the floor goes and its shadow stays.
@@ -443,6 +530,7 @@ function Sky.sweepArea(cx, cy, job)
                     sq:RecalcAllWithNeighbours(true)
                     return true
                 end)
+                Sky.unroof(x, y)
                 Sky.stats.lifted = Sky.stats.lifted + 1
             end
         end
