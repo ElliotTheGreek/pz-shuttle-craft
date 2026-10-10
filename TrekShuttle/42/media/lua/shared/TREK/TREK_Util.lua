@@ -115,8 +115,52 @@ end
 -- Per-player facts (where *you* beamed up from) moved to the character's own
 -- mod data in schema 2. A single-player save keeps its old ship-wide return
 -- point so its player still has somewhere to beam back to (Ship.returnPoint).
+-- **Which ship** (SERVERS.md, personal shuttles). Ship 1 is the shared one
+-- and the only one there is unless a server gives players their own. Every
+-- function that reads "the ship" -- her state, where her cabin stands, which
+-- vehicle she is -- reads the ship this names, so the code that flies, lands
+-- and furnishes one shuttle does the same for any of them without knowing.
+--
+-- It is set for a length of work and put back, never left: the server sets
+-- it for one command (TREK_Net) and for each ship in turn on its timers
+-- (Ship.each); a client connected to a server sets it once a tick to the one
+-- ship that player is dealing with (Ship.mine). Single player has one ship
+-- and never sets it. The precedent is TREK_Power's P.using, for the same
+-- reason: a rule that depends on where somebody is standing, for the length
+-- of one piece of work.
+U.shipNow = 1
+
+--- The mod data key one ship's state lives under.
+function U.stateKey(id)
+    id = id or U.shipNow
+    if id == 1 then return C.StateKey end
+    return C.StateKey .. "_" .. tostring(id)
+end
+
+--- Runs fn as ship `id`, and puts the ship back however fn ends.
+function U.usingShip(id, fn, ...)
+    local was = U.shipNow
+    U.shipNow = id or 1
+    local ok, a, b, c = pcall(fn, ...)
+    U.shipNow = was
+    if not ok then error(a, 0) end
+    return a, b, c
+end
+
+--- The state of the ship in hand.
 function U.state()
-    local s = ModData.getOrCreate(C.StateKey)
+    return U.stateOf(U.shipNow)
+end
+
+--- The shared ship's state, whichever ship is in hand: where everything
+--- about the *world* is kept -- how it began, the Adirondack's and the field
+--- station's own stores, who has found her (TREK_Marooned).
+function U.world()
+    return U.stateOf(1)
+end
+
+function U.stateOf(id)
+    local s = ModData.getOrCreate(U.stateKey(id))
     -- A client's copy is whatever the server last sent. It is never migrated
     -- or repaired here, because doing so would be a client writing the ship.
     if isClient() then
@@ -232,11 +276,43 @@ function U.cellSize()
     return 256
 end
 
---- North-west corner of the cabin, in world squares.
-function U.cabinOrigin()
+--- North-west corner of a ship's cabin, in world squares: the ship in hand,
+--- or `id`. The shared ship's is where it always was; a personal shuttle's
+--- is its berth on the grid (C.FleetCell).
+function U.cabinOrigin(id)
+    id = id or U.shipNow
     local size = U.cellSize()
-    return C.InteriorCell.x * size + C.RoomOffset,
-           C.InteriorCell.y * size + C.RoomOffset
+    if id == 1 then
+        return C.InteriorCell.x * size + C.RoomOffset,
+               C.InteriorCell.y * size + C.RoomOffset
+    end
+    local slot = id - 2
+    return C.FleetCell.x * size + C.FleetOffset + (slot % C.FleetColumns) * C.FleetPitch,
+           C.FleetCell.y * size + C.FleetOffset + math.floor(slot / C.FleetColumns) * C.FleetPitch
+end
+
+local function inStrip(x, y, cx, cy)
+    local m = C.ClearMargin
+    return x >= cx - m and x <= cx + C.CabinW + m
+       and y >= cy - m and y <= cy + C.CabinL + m
+end
+
+--- Which ship's cabin these coordinates are in, its void margin included, or
+--- nil. Arithmetic on the grid: no berth is looked at but the one the
+--- coordinates fall on.
+function U.shipAt(x, y)
+    if not x or not y then return nil end
+    local cx, cy = U.cabinOrigin(1)
+    if inStrip(x, y, cx, cy) then return 1 end
+    local gx, gy = U.cabinOrigin(2)
+    local m = C.ClearMargin
+    local col = math.floor((x - gx + m) / C.FleetPitch)
+    local row = math.floor((y - gy + m) / C.FleetPitch)
+    if col < 0 or col >= C.FleetColumns or row < 0 then return nil end
+    local slot = row * C.FleetColumns + col
+    if slot >= C.FleetSlots then return nil end
+    if inStrip(x, y, gx + col * C.FleetPitch, gy + row * C.FleetPitch) then return slot + 2 end
+    return nil
 end
 
 --- Absolute position of an offset within the cabin.
@@ -255,12 +331,14 @@ end
 --- occupies, its void margin included. Deliberately ignores z: a player who
 --- has somehow ended up over the cabin on another level is still "inside" as
 --- far as menus and the phaser sweep are concerned.
+---
+--- **Any shuttle's cabin**, not only the one in hand: "is this somebody
+--- standing in a shuttle, off the map" is what nearly every caller means --
+--- where a probe is measured from, whether wild ground is real ground,
+--- whether a sentry may be set down. The few that mean *this* ship's crew
+--- ask U.aboardThis.
 function U.isInterior(x, y)
-    if not x or not y then return false end
-    local cx, cy = U.cabinOrigin()
-    local m = C.ClearMargin
-    return x >= cx - m and x <= cx + C.CabinW + m
-       and y >= cy - m and y <= cy + C.CabinL + m
+    return U.shipAt(x, y) ~= nil
 end
 
 function U.isInteriorPlayer(player)
@@ -268,12 +346,21 @@ function U.isInteriorPlayer(player)
     return U.isInterior(player:getX(), player:getY())
 end
 
---- True when a position is inside the cabin walls, not merely in its cell.
+--- True when a position is inside a cabin's walls, not merely in its cell.
 function U.isAboard(x, y, z)
-    if not U.isInterior(x, y) then return false end
+    local id = U.shipAt(x, y)
+    if not id then return false end
     if z and math.floor(z) ~= C.CabinZ then return false end
-    local cx, cy = U.cabinOrigin()
+    local cx, cy = U.cabinOrigin(id)
     return C.inShape(math.floor(x) - cx, math.floor(y) - cy)
+end
+
+--- True when this player is in the cabin of the ship in hand: one of *her*
+--- crew, for whoever is counting them -- is anybody still aboard her, is the
+--- patient in this sick bay, is an engineer aboard this ship.
+function U.aboardThis(player)
+    if not player then return false end
+    return U.shipAt(player:getX(), player:getY()) == U.shipNow
 end
 
 ---------------------------------------------------------------------------

@@ -1014,6 +1014,42 @@ end
 
 Events.OnTick.Add(serviceArrival)
 
+-- Every other landed shuttle's shields push the dead this client simulates
+-- as well (SERVERS.md, personal shuttles): a zombie is moved by the client
+-- that owns it or by nobody, whoever's ship it has walked up to. Each ship
+-- keeps its own count and its own report, and is billed for its own pushes.
+local otherShieldCounts = {}
+
+function Core.otherShields(player)
+    if not isClient() then return 0 end
+    local ships = 0
+    for _, id in ipairs(Ship.ids()) do
+        if id ~= U.shipNow then
+            local slot = otherShieldCounts[id]
+            if not slot then
+                slot = { pushes = 0, at = 0 }
+                otherShieldCounts[id] = slot
+            end
+            local pushes, at = Core.shieldPushes, Core.shieldReportAt
+            Core.shieldPushes, Core.shieldReportAt = slot.pushes, slot.at
+            U.try("shields.other", U.usingShip, id, function()
+                Core.repelZombies()
+                Core.reportShieldDraw(player)
+            end)
+            slot.pushes, slot.at = Core.shieldPushes, Core.shieldReportAt
+            Core.shieldPushes, Core.shieldReportAt = pushes, at
+            ships = ships + 1
+        end
+    end
+    return ships
+end
+
+--- The server has given this player a shuttle of their own.
+Net.onClient("shuttleIssued", function(args)
+    local player = U.player(0)
+    if player then U.note(player, getText("IGUI_TREK_ShuttleIssued"), 150, 220, 255) end
+end)
+
 Events.OnGameStart.Add(function()
     U.log("client ready (%s, v%s)", isClient() and "connected to a server" or "single player",
           C.Version)
@@ -1035,6 +1071,7 @@ Events.OnPlayerUpdate.Add(function(player)
         fieldTick = 0
         Core.repelZombies()
         Core.reportShieldDraw(player)
+        Core.otherShields(player)
     end
 end)
 

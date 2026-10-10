@@ -1258,6 +1258,22 @@ else:
     for name in VOID.STARS:
         if name not in tiles:
             failures.append(f"star tile {name} has no picture or no properties in the pack")
+    # The personal shuttles' berths (SERVERS.md): every cell one of them or
+    # its view touches is mapped, or a server that gives players a shuttle
+    # each gives them a cabin standing in a wood. Read out of the same
+    # TREK_Config.lua the Lua builds from, so a berth moved without
+    # regenerating the map fails here.
+    berths = VOID.fleet()
+    berth_cells = VOID.cells(berths)
+    if len(berth_cells) < 16:
+        failures.append(f"the berths cover {len(berth_cells)} cells: the grid has stopped being read")
+    for x, y in berth_cells:
+        for name in (f"{x}_{y}.lotheader", f"world_{x}_{y}.lotpack", f"chunkdata_{x}_{y}.bin"):
+            if not os.path.isfile(os.path.join(mapdir, name)):
+                failures.append(f"void map cell {x},{y} under the personal shuttles' berths has no "
+                                f"{name} (python tools/gen_void_map.py)")
+    if not (berths[1] > box[3] or berths[0] > box[2]):
+        failures.append("the personal shuttles' berths are within sight of the stars round the shared ship")
 
 # --- the Jefferies tubes' own guard --------------------------------------
 # A tube is walled only where it meets something that is not itself, so two

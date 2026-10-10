@@ -20233,6 +20233,470 @@ def rules_multiplayer():
 # <<< rules, rules_multiplayer
 
 
+# >>> fleet, fleet_off
+def fleet_net(names, sandbox, admin=()):
+    """A server and one client a name, each client holding its own character
+    and the server all of them -- the engine's arrangement."""
+    net = Net("mp", clients=names)
+    for rt in net.all():
+        rt.run(sandbox)
+    x = 2000.5
+    for name in names:
+        flag = "true" if name in admin else "false"
+        net.server.run(f"SIM.player('{name}', {x}, 2000.5, 0, {flag})")
+        net.clients[name].run(f"SIM.player('{name}', {x}, 2000.5, 0, {flag})")
+        others = ", ".join("{ name = '%s', getUsername = function(self) return self.name end }" % o
+                           for o in names if o != name)
+        net.clients[name].run("function getOnlinePlayers() return SIM.jlist({ SIM.players[1], %s }) end" % others)
+        x += 30
+    net.start()
+    return net
+
+
+def fleet():
+    """Personal shuttles (SERVERS.md): a ship each for the players a server
+    names, beside the shared one.
+
+    Three machines. Kira is listed and is given a shuttle; Odo is not and has
+    the shared one; Sisko is an admin. What has to hold, and each is a way two
+    ships could be one ship in disguise:
+
+      * **two cabins**: each player arrives in their own, the server builds
+        each where it stands, and neither is aboard the other's;
+      * **two stores**: a beam is paid for by the ship beamed to;
+      * **two hulls on one street**: each ship's pass leaves the other's
+        vehicle alone. One pass that took every other shuttle for a leftover
+        would delete them all;
+      * **whose is whose**: a personal shuttle is its owner's, then her crew's,
+        and an admin's; the hull under the cursor is the ship being asked;
+      * **what one ship says, only her crew hear.**
+    """
+    P = "SIM.players[1]"
+    SB = "SandboxVars.TrekShuttle"
+    net = fleet_net(("kira", "odo", "sisko"),
+                    f'{SB}.PersonalShuttles = 3; {SB}.PersonalShuttleUsers = "Kira"; '
+                    # Not what this is about, and four long moves in a row is one too many.
+                    f'{SB}.TransporterLimit = 2', admin=("sisko",))
+    srv = net.server
+    kira, odo, sisko = net.clients["kira"], net.clients["odo"], net.clients["sisko"]
+    net.pump(4)
+    PM = int(srv.eval("TREK.Config.PowerMax"))
+    st = lambda rt, id, f: rt.eval(f"TREK.Util.stateOf({id}).{f}")
+    mine = lambda rt: int(rt.eval("TREK.Ship.mine()"))
+
+    def where(rt, name=None):
+        who = P if name is None else (f"(function() for _, p in ipairs(SIM.players) do if p.name == '{name}' "
+                                      f"then return p end end end)()")
+        v = rt.eval(f"(function() local p = {who} return TREK.Util.shipAt(p.x, p.y) end)()")
+        return int(v) if v is not None else None
+
+    # --- nobody has one until the server's minute; then the listed do ----------
+    check(str(srv.eval("table.concat(TREK.Ship.ids(), ',')")) == "1", "fleet: there is a second ship before anybody is given one")
+    srv.fire("EveryOneMinute")
+    net.pump(6)
+    check(srv.eval('TREK.Ship.personalOf("kira")') == 2 and srv.eval('TREK.Ship.personalOf("odo")') is None
+          and srv.eval('TREK.Ship.personalOf("sisko")') is None,
+          "fleet: the server did not give the listed player, and only her, a shuttle")
+    check(st(srv, 2, "owner") == "kira" and st(srv, 2, "landed") is False and st(srv, 2, "commissioned") is True
+          and st(srv, 2, "power") == PM and st(srv, 2, "crystals") == 0
+          and st(srv, 2, "probes") == int(srv.eval("TREK.Config.PersonalProbes")),
+          "fleet: a personal shuttle is not issued overhead, commissioned, with one crystal's charge and no spares")
+    check(any("IGUI_TREK_ShuttleIssued" in n for n in kira.notes()) and not any("IGUI_TREK_ShuttleIssued" in n for n in odo.notes()),
+          f"fleet: the player given a shuttle was not told, or somebody else was ({kira.notes()}, {odo.notes()})")
+    for rt in (kira, odo, sisko):
+        check(rt.eval('TREK.Ship.personalOf("kira")') == 2 and st(rt, 2, "owner") == "kira",
+              f"fleet: {rt.name}'s machine has not got the register, or the new ship's state")
+    check(mine(kira) == 2 and mine(odo) == 1 and mine(sisko) == 1 and int(srv.eval("TREK.Ship.mine()")) == 1,
+          f"fleet: each machine's own ship is {mine(kira)}, {mine(odo)}, {mine(sisko)} -- kira's is hers and the rest the shared one")
+    srv.fire("EveryOneMinute")
+    net.pump(6)
+    check(int(srv.eval("TREK.Ship.fleet().next")) == 3 and str(srv.eval("table.concat(TREK.Ship.ids(), ',')")) == "1,2",
+          "fleet: a second minute gave somebody a second shuttle")
+    check(len([n for n in kira.notes() if "IGUI_TREK_ShuttleIssued" in n]) == 1,
+          "fleet: she is told she has been given a shuttle every minute")
+    # A ship nobody has is nobody's to name: a command about one is about
+    # the asker's own, and makes no ship.
+    odo.run(f'TREK.Net.send({P}, "setShields", {{ up = false, ship = 9 }})')
+    net.pump(6)
+    check(srv.eval('SIM.globalData["TREK_State_v1_9"]') is None and st(srv, 1, "shields") is False,
+          "fleet: a command naming a ship that does not exist made one, or went nowhere")
+    odo.run(f'TREK.Net.send({P}, "setShields", {{ up = true }})')
+    net.pump(6)
+    # The Adirondack's store is the world's, whichever ship is in hand.
+    srv.run('TREK.Util.usingShip(2, function() TREK.Power.pay(100, false, "adk") end)')
+    check(st(srv, 1, "adk.power") == PM - 100 and st(srv, 2, "adk") is None,
+          "fleet: a charge to the Adirondack on behalf of a shuttle's owner did not come out of her one store")
+
+    # --- the berths --------------------------------------------------------------
+    o = [srv.eval(f"{{ TREK.Util.cabinOrigin({i}) }}") for i in (1, 2, 3, 10)]
+    o = [(int(t[1]), int(t[2])) for t in o]
+    pitch = int(srv.eval("TREK.Config.FleetPitch"))
+    check(o[1] != o[0] and abs(o[2][0] - o[1][0]) == pitch and o[3][1] - o[1][1] == pitch,
+          f"fleet: the berths are not a grid a pitch apart ({o})")
+    check(min(abs(o[1][0] - o[0][0]), abs(o[1][1] - o[0][1])) >= 0 and
+          max(abs(o[1][0] - o[0][0]), abs(o[1][1] - o[0][1])) >= 110,
+          f"fleet: a personal cabin is within sight of the shared one ({o[0]}, {o[1]})")
+    for i, (x, y) in zip((1, 2, 3, 10), o):
+        check(srv.eval(f"TREK.Util.shipAt({x + 1}, {y + 1})") == i, f"fleet: berth {i}'s own deck is not ship {i}'s")
+    check(srv.eval(f"TREK.Util.shipAt({o[1][0] + pitch // 2}, {o[1][1]})") is None,
+          "fleet: the void between two berths is somebody's cabin")
+    last = int(srv.eval("TREK.Config.FleetSlots")) + 1
+    lx, ly = [int(v) for v in srv.eval(f"{{ TREK.Util.cabinOrigin({last}) }}").values()]
+    check(srv.eval(f"TREK.Util.shipAt({lx}, {ly})") == last
+          and srv.eval(f"TREK.Util.shipAt({lx}, {ly + pitch})") is None,
+          "fleet: the grid does not end at its last berth")
+    check(srv.eval(f"TREK.Util.isAboard({o[1][0] + 1}, {o[1][1] + 1}, TREK.Config.CabinZ)") is True
+          and srv.eval(f"(TREK.Util.usingShip(2, TREK.Util.at, 0, 0))") == o[1][0],
+          "fleet: a personal cabin's deck is not aboard, or is not where ship 2 builds")
+
+    # --- two cabins, two stores ----------------------------------------------------
+    kira.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(kira, "fleet, kira beaming up"):
+        return
+    check(where(kira) == 2 and where(srv, "kira") == 2, f"fleet: kira beamed up to ship {where(kira)}, not her own")
+    check(st(srv, 2, "built") is True and st(srv, 1, "built") is not True,
+          "fleet: her cabin was not built where it stands, or the shared one was built with nobody in it")
+    cost = float(srv.eval("TREK.Config.BeamCost"))
+    check(abs(float(st(srv, 2, "power")) - (PM - cost)) < 1e-6 and float(st(srv, 1, "power")) == PM,
+          f"fleet: her beam took {PM - float(st(srv, 2, 'power')):g} from her ship and "
+          f"{PM - float(st(srv, 1, 'power')):g} from the shared one")
+    check(kira.eval("TREK.Util.state().owner") == "kira" and abs(float(kira.eval("TREK.Power.reserve()")) - (PM - cost)) < 1e-6,
+          "fleet: aboard her own ship, her machine is reading another's state")
+    odo.run(f"TREK.Transport.beamUp({P})")
+    net.pump(210)
+    if died(odo, "fleet, odo beaming up"):
+        return
+    check(where(odo) == 1 and st(srv, 1, "built") is True, f"fleet: odo beamed up to ship {where(odo)}, not the shared one")
+    crew = lambda id, name: srv.eval(
+        f"(TREK.Util.usingShip({id}, TREK.Util.aboardThis, (function() for _, p in ipairs(SIM.players) do "
+        f"if p.name == '{name}' then return p end end end)()))")
+    check(crew(2, "kira") is True and crew(2, "odo") is False and crew(1, "odo") is True and crew(1, "kira") is False,
+          "fleet: somebody aft in one shuttle counts as the other's crew")
+    check(kira.eval("TREK.Core.arriving()") is False and odo.eval("TREK.Core.arriving()") is False,
+          "fleet: somebody is still held on their pad")
+    # Each cabin whole, and each machine's copy of its own: the second built
+    # is not short of what the first's record says was already placed.
+    count = lambda rt, id: int(rt.eval(f"""(TREK.Util.usingShip({id}, function()
+        local C, U = TREK.Config, TREK.Util
+        local n = 0
+        for ox = 0, C.CabinW do for oy = 0, C.CabinL do
+            local x, y = U.at(ox, oy)
+            n = n + #SIM.rawSquare(x, y, C.CabinZ).objects
+        end end
+        return n
+    end))"""))
+    check(count(srv, 1) == count(srv, 2) and count(srv, 2) > 20,
+          f"fleet: her cabin has {count(srv, 2)} fittings and the shared one {count(srv, 1)}")
+    check(count(kira, 2) == count(srv, 2) and count(odo, 1) == count(srv, 1),
+          "fleet: a client's copy of its own cabin is not the server's")
+    labels = aboard_menu(kira)
+    check("IGUI_TREK_CrewAdd|odo" in labels and "IGUI_TREK_CrewAdd|odo" not in aboard_menu(odo),
+          f"fleet: her owner's menu aboard does not offer her crew list, or the shared ship's does ({labels!r})")
+
+    # --- two hulls on one street -----------------------------------------------------
+    for rt in (kira, odo):
+        rt.run(f"TREK.Transport.beamDown({P})")
+    net.pump(240)
+    check(where(kira) is None and where(odo) is None, f"fleet: they did not beam down ({pos(kira)}, {pos(odo)})")
+    kx, ky = int(pos(kira)[0]), int(pos(kira)[1])
+    ox, oy = int(pos(odo)[0]), int(pos(odo)[1])
+    # The shared ship first. Each ship numbers its own vehicles from one, so
+    # both of these are vehicle 1, and hers is the second of them anybody
+    # looking by number alone would come to.
+    odo.run(f"TREK.Menu.onCallDown(nil, {P}, {ox + 4}, {oy}, 0)")
+    net.pump(40)
+    kira.run(f"TREK.Menu.onCallDown(nil, {P}, {kx + 4}, {ky}, 0)")
+    net.pump(40)
+    check(int(st(srv, 1, "vehicleId")) == int(st(srv, 2, "vehicleId")),
+          "fleet: the two ships' vehicles do not share a number -- the checks below prove less than they say")
+    check(st(srv, 2, "landed") is True and st(srv, 1, "landed") is True and int(shuttles(srv)) == 2,
+          f"fleet: two ships called down made {shuttles(srv)} shuttle(s) "
+          f"(shared landed: {st(srv, 1, 'landed')}, hers: {st(srv, 2, 'landed')})")
+    check(int(st(srv, 2, "x")) == kx + 4 and int(st(srv, 1, "x")) == ox + 4,
+          "fleet: each ship is not where its own player called it")
+    # Every ship's own pass, several times over: neither takes the other's
+    # vehicle for a leftover of its own.
+    net.pump(200)
+    check(int(shuttles(srv)) == 2 and st(srv, 2, "landed") is True and st(srv, 1, "landed") is True,
+          f"fleet: after their passes there are {shuttles(srv)} shuttle(s) -- one ship's pass removed the other's")
+    tags = str(srv.eval("(function() local o = {} for _, v in ipairs(SIM.vehicles) do if not v.removed then "
+                        "o[#o + 1] = tostring(TREK.Vehicle.fleetOf(v)) end end table.sort(o) return table.concat(o, ',') end)()"))
+    check(tags == "1,2", f"fleet: the two vehicles are tagged as ships {tags}")
+    # The shared ship's shields push the dead a client simulates even when
+    # that client is dealing with another ship, and she is billed for it.
+    sx, sy = int(st(srv, 1, "x")), int(st(srv, 1, "y"))
+    was = float(st(srv, 1, "power"))
+    kira.run(f'fleetZed = addZombiesInOutfit({sx + 3}, {sy}, 0, 1, "Generic01", 0):get(0)')
+    # Three pushes of her own ship's are waiting to be reported, and not yet due.
+    kira.run("TREK.Core.shieldPushes = 3; TREK.Core.shieldReportAt = getTimestampMs()")
+    kira.run(f"TREK.Core.otherShields({P})")
+    net.pump(8)
+    check(int(kira.eval("TREK.Core.shieldPushes")) == 3,
+          f"fleet: another ship's shields took her own ship's count with them ({kira.eval('TREK.Core.shieldPushes')})")
+    kira.run("TREK.Core.shieldPushes = 0")
+    gone = float(kira.eval(f"math.sqrt(TREK.Util.dist2(fleetZed:getX(), fleetZed:getY(), {sx}, {sy}))"))
+    check(gone > float(srv.eval("TREK.Config.FieldRadius")),
+          f"fleet: the shared ship's shields left one of the dead {gone:.1f} squares from her on a machine dealing with another ship")
+    check(abs(float(st(srv, 1, "power")) - (was - float(srv.eval("TREK.Config.ShieldPushCost")))) < 1e-6
+          and float(st(srv, 2, "power")) == float(st(kira, 2, "power")),
+          f"fleet: that push was not charged to the ship that made it ({was:g} -> {float(st(srv, 1, 'power')):g})")
+    kira.run("SIM.zombies = {}")
+    srv.run("SIM.zombies = {}")
+
+    # --- one of them flies, and the other does not --------------------------------------
+    # Her owner takes the pilot's seat of her own ship. The server knows whose
+    # seat it is by the vehicle's tag; her client, which cannot read one, by
+    # where each ship is recorded.
+    srv.run("""
+        TREK.Util.usingShip(2, function()
+            local v = TREK.Vehicle.ship()
+            for _, p in ipairs(SIM.players) do
+                if p.name == 'kira' and v then v.seats[0] = p p.vehicle = v end
+            end
+        end)
+    """)
+    kira.run(f"""
+        local v = TREK.Vehicle.ship()
+        if v then v.seats[0] = {P} {P}.vehicle = v end
+    """)
+    net.pump(4)
+    check(mine(kira) == 2 and srv.eval("TREK.Ship.contextFor((function() for _, p in ipairs(SIM.players) do "
+                                       "if p.name == 'kira' then return p end end end)(), {})") == 2,
+          "fleet: in her own pilot's seat, her machine or the server takes her for the shared ship's crew")
+    b1, b2 = float(st(srv, 1, "power")), float(st(srv, 2, "power"))
+    kira.run(f"TREK.Flight.takeOff({P})")
+    net.pump(460)
+    check(st(srv, 2, "flying") is True and st(srv, 1, "flying") is None and st(srv, 1, "landed") is True,
+          f"fleet: her take-off left hers flying={st(srv, 2, 'flying')} and the shared one flying={st(srv, 1, 'flying')}")
+    check(st(srv, 2, "pilot") == "kira" and int(shuttles(srv)) == 2,
+          "fleet: her flight has the wrong pilot, or cost somebody a shuttle")
+    # A ship being flown is a second behind her own record, and the other
+    # ship's may be the nearer: her pilot's machine holds to the ship it sat
+    # down in.
+    kira.run("local s = TREK.Util.stateOf(2) SIM.realX = s.x s.x = s.x + 900")
+    check(mine(kira) == 2, f"fleet: with her record lagging, her pilot's machine took her for ship {mine(kira)}")
+    kira.run("TREK.Util.stateOf(2).x = SIM.realX")
+    takeoff = float(srv.eval("TREK.Config.TakeoffCost"))
+    p1, p2 = float(st(srv, 1, "power")), float(st(srv, 2, "power"))
+    check(b2 - takeoff - 30 <= p2 <= b2 - takeoff + 1e-6 and p1 == b1,
+          f"fleet: her take-off ({takeoff:g}) was not paid for by her own ship alone "
+          f"(hers {b2:g} -> {p2:g}, the shared one {b1:g} -> {p1:g})")
+    for rt in (odo, sisko):
+        rt.run("SIM.notes = {}")
+    kira.run(f"TREK.Flight.land({P})")
+    net.pump(300)
+    check(st(srv, 2, "landed") is True and st(srv, 2, "flying") is None and st(srv, 1, "landed") is True,
+          "fleet: she did not come down, or brought the shared ship's record with her")
+    kira.run(f"""
+        local v = {P}.vehicle
+        if v then v.seats[0] = nil end
+        {P}.vehicle = nil
+    """)
+    srv.run("""
+        for _, p in ipairs(SIM.players) do
+            if p.name == 'kira' and p.vehicle then p.vehicle.seats[0] = nil p.vehicle = nil end
+        end
+    """)
+    net.pump(4)
+    kx, ky = int(st(srv, 2, "x")) - 4, int(st(srv, 2, "y"))
+
+    # --- whose is whose ----------------------------------------------------------------
+    can = lambda rt, id, name: rt.eval(
+        f"(TREK.Util.usingShip({id}, TREK.Ship.canUse, (function() for _, p in ipairs(SIM.players) do "
+        f"if p.name == '{name}' then return p end end end)()))")
+    check(can(srv, 2, "kira") is True and can(srv, 2, "odo") is False and can(srv, 2, "sisko") is True
+          and can(srv, 1, "kira") is True and can(srv, 1, "odo") is True,
+          "fleet: a personal shuttle is not its owner's and an admin's alone, or the shared one is no longer everybody's")
+    # Odo walks up to her hull and asks for its door: it is her ship he is
+    # asking, and it says no.
+    walk_to(odo, kx + 2.5, ky + 0.5)
+    net.pump(10)
+    odo.run("SIM.notes = {}")
+    labels = ground_labels(odo, 2, 0)
+    check("IGUI_TREK_ShipOf|kira" in labels and "IGUI_TREK_Enter" in labels,
+          f"fleet: her hull's menu, on another player's machine, reads {labels!r}")
+    odo.run(f"TREK.Menu.onShip(nil, {P}, 2, TREK.Menu.onEnter)")
+    net.pump(200)
+    check(where(odo) is None and any("IGUI_TREK_NotCrew" in n for n in odo.notes()),
+          f"fleet: a stranger walked aboard a personal shuttle, or was refused in silence ({odo.notes()})")
+    odo.run("TREK.Ship.select(nil)")
+    net.pump(2)
+    # Her owner makes him crew, from her own ship; the shared one's crew is untouched.
+    kira.run(f'TREK.Core.send({P}, "setCrew", {{ name = "odo", on = true }})')
+    net.pump(8)
+    check(st(srv, 2, "crew.odo") is True and st(srv, 1, "crew.odo") is None,
+          "fleet: her crew list did not take him, or the shared ship's did")
+    odo.run(f'TREK.Core.send({P}, "setCrew", {{ name = "sisko", on = true, ship = 2 }})')
+    net.pump(8)
+    check(st(srv, 2, "crew.sisko") is None, "fleet: somebody who is not her owner added to her crew")
+    check(str(odo.eval(f"table.concat(TREK.Ship.usable({P}), ',')")) == "1,2"
+          and str(kira.eval(f"table.concat(TREK.Ship.usable({P}), ',')")) == "2,1",
+          "fleet: the ships each may hail are not their own first and then the rest they may use")
+    labels = ground_labels(odo, 12, 6)
+    check("IGUI_TREK_Hail" in labels and "IGUI_TREK_ShipShared" in labels and "IGUI_TREK_ShipOf|kira" in labels,
+          f"fleet: with two ships to choose from, the ground menu offers {labels!r}")
+    odo.run(f"TREK.Menu.onShip(nil, {P}, 2, TREK.Menu.onEnter)")
+    net.pump(220)
+    check(where(odo) == 2 and mine(odo) == 2, f"fleet: her crewman walked aboard ship {where(odo)}, dealing with ship {mine(odo)}")
+    odo.run(f"SIM.notes = {{}}; TREK.Core.exit({P})")
+    net.pump(320)
+    check(where(odo) is None, f"fleet: her crewman could not step out again ({odo.notes()}, at {pos(odo)}, "
+                              f"dealing with {mine(odo)}, hers landed: {st(odo, 2, 'landed')})")
+
+    # --- nobody aboard *her*: she goes back up, whoever is aboard another -----------------
+    odo.run("TREK.Ship.select(1)")
+    net.pump(2)
+    px, py, pz = [float(v) for v in srv.eval("{ TREK.Util.padSpot() }").values()]
+    walk_to(odo, px, py, pz)
+    net.pump(4)
+    check(where(srv, "odo") == 1, "fleet: odo is not standing in the shared ship's cabin for the next check")
+    # He is her crew, and has her hailed -- and he is standing in the shared
+    # ship. Where somebody stands is the ship they are dealing with, on
+    # their own machine and on the server, whatever they last chose or say.
+    odo.run("TREK.Ship.select(2)")
+    net.pump(2)
+    check(mine(odo) == 1, f"fleet: standing in the shared ship's cabin, his machine is dealing with ship {mine(odo)}")
+    odo.run(f'TREK.Net.send({P}, "setShields", {{ up = false, ship = 2 }})')
+    net.pump(6)
+    check(st(srv, 1, "shields") is False and st(srv, 2, "shields") is not False,
+          "fleet: the server took a client's word for which ship it meant over where it stands")
+    odo.run(f'TREK.Net.send({P}, "setShields", {{ up = true }})')
+    odo.run("TREK.Ship.select(1)")
+    net.pump(6)
+    srv.run("TREK.Util.usingShip(2, function() local s = TREK.Util.state() "
+            "s.flying = true s.level = TREK.Config.flightLevel() s.pilot = 'kira' end)")
+    net.pump(60 * (int(srv.eval("TREK.Config.FlightPilotGrace")) + 3))
+    check(st(srv, 2, "flying") is None and st(srv, 2, "landed") is False,
+          "fleet: her crew gone, she stayed in the air because somebody was aft in another shuttle")
+    check(st(srv, 1, "landed") is True and int(shuttles(srv)) == 1,
+          "fleet: sending her back up took the shared ship with her")
+    walk_to(odo, ox + 0.5, oy + 6.5, 0)
+    net.pump(4)
+
+    # --- what one ship says, only her crew hear ------------------------------------------
+    for rt in (kira, odo, sisko):
+        rt.run("SIM.notes = {}")
+    srv.run("TREK.Util.usingShip(2, function() local s = TREK.Util.state() s.power = 0 s.crystals = 0 "
+            "TREK.Energy.powerChanged() end)")
+    net.pump(6)
+    check(st(srv, 2, "dark") is True and st(srv, 1, "dark") is not True, "fleet: her ship going dark darkened the shared one")
+    check(any("IGUI_TREK_PowerDown" in n for n in kira.notes()), f"fleet: her own machine did not hear her go dark ({kira.notes()})")
+    check(not any("IGUI_TREK_PowerDown" in n for n in odo.notes()) and not any("IGUI_TREK_PowerDown" in n for n in sisko.notes()),
+          f"fleet: machines dealing with the shared ship were told another ship had gone dark ({odo.notes()}, {sisko.notes()})")
+    check(kira.eval("TREK.Power.dark()") is True and odo.eval("TREK.Power.dark()") is False,
+          "fleet: each machine's gauge is not its own ship's")
+
+    # --- taken off the list, she is impounded --------------------------------------------
+    for rt in net.all():
+        rt.run(f'{SB}.PersonalShuttleUsers = "somebody else"')
+    check(can(srv, 2, "kira") is False and can(srv, 2, "odo") is False and can(srv, 2, "sisko") is True,
+          "fleet: a shuttle whose owner the server no longer lists is still hers, or her crew's, or not an admin's")
+    check(srv.eval('TREK.Ship.personalOf("kira")') == 2 and st(srv, 2, "owner") == "kira"
+          and can(srv, 1, "kira") is True,
+          "fleet: impounding her lost the record of whose she is, or shut her owner out of the shared ship")
+    kira.run("SIM.notes = {}")
+    kira.run(f"TREK.Transport.beamUp({P})")
+    net.pump(200)
+    check(where(kira) is None and any("IGUI_TREK_NotCrew" in n for n in kira.notes()),
+          f"fleet: her owner beamed up to an impounded shuttle, or was refused in silence ({kira.notes()})")
+    for rt in net.all():
+        rt.run(f'{SB}.PersonalShuttleUsers = "kira"')
+    check(can(srv, 2, "kira") is True and can(srv, 2, "odo") is True,
+          "fleet: back on the list, she is not her owner's and her crew's again")
+
+    # --- a world reload keeps the register ---------------------------------------------
+    srv.fire("OnInitGlobalModData", False)
+    net.pump(4)
+    check(srv.eval('TREK.Ship.personalOf("kira")') == 2 and st(srv, 2, "owner") == "kira",
+          "fleet: waking the world lost somebody's shuttle")
+
+    for name, c in net.clients.items():
+        check(c.eval("SIM.clientWorldEdit") is None,
+              f"fleet: {name} edited the world for something other than the sky plane")
+    for rt in net.all():
+        for w in rt.warnings():
+            fail(f"fleet ({rt.name}): {w}")
+    print("fleet: a shuttle each for the listed, issued once and told; berths on a grid out of sight of each other; "
+          "two cabins, two stores, two hulls on one street that leave each other alone, and one flown while the other stands; her owner, her crew and an "
+          "admin and nobody else, and nobody's but an admin's while her owner is off the list; the hull under the cursor "
+          "is the ship asked, and where somebody stands beats what they say; and one ship's power is her own crew's news")
+
+
+def fleet_off():
+    """Without the setting there is one ship, as there always was: nobody is
+    given a shuttle, in single player whatever the setting says, and on a
+    server that never asked."""
+    SB = "SandboxVars.TrekShuttle"
+    net = Net("sp")
+    rt = net.server
+    rt.run(f"SIM.player('owner', 2000.5, 2000.5, 0); {SB}.PersonalShuttles = 2")
+    net.start()
+    rt.fire("EveryOneMinute")
+    net.pump(6)
+    check(rt.eval('TREK.Ship.personalOf("owner")') is None and str(rt.eval("table.concat(TREK.Ship.ids(), ',')")) == "1"
+          and int(rt.eval("TREK.Ship.mine()")) == 1 and int(rt.eval("TREK.Util.shipNow")) == 1,
+          "fleet off: single player was given a second ship")
+    labels = ground_labels(rt, 12, 0)
+    check("IGUI_TREK_Hail" not in labels and "IGUI_TREK_Ship" not in labels,
+          f"fleet off: single player's ground menu names a ship ({labels!r})")
+    # A server's world opened in single player has the register in its save.
+    rt.run('local f = TREK.Ship.fleet() f.byOwner.owner = 2 f.owners["2"] = "owner" f.next = 3')
+    check(rt.eval('TREK.Ship.personalOf("owner")') is None and str(rt.eval("table.concat(TREK.Ship.ids(), ',')")) == "1"
+          and int(rt.eval(f"TREK.Ship.contextFor(SIM.players[1], {{ ship = 2 }})")) == 1,
+          "fleet off: single player took a server's register for a second ship of its own")
+
+    net = fleet_net(("kira", "odo"), f"{SB}.PersonalShuttles = 1")
+    srv = net.server
+    srv.fire("EveryOneMinute")
+    net.pump(6)
+    check(srv.eval('TREK.Ship.personalOf("kira")') is None and int(srv.eval("TREK.Ship.fleet().next")) == 2,
+          "fleet off: a server that gives nobody a shuttle gave one")
+    labels = ground_labels(net.clients["kira"], 12, 0)
+    check("IGUI_TREK_Hail" not in labels and "IGUI_TREK_Ship" not in labels and "IGUI_TREK_CallDown" in labels,
+          f"fleet off: with one ship the ground menu reads {labels!r}")
+    for rt in (srv, net.clients["kira"]):
+        rt.run(f"{SB}.PersonalShuttles = 2")
+    srv.fire("EveryOneMinute")
+    net.pump(6)
+    check(srv.eval('TREK.Ship.personalOf("kira")') == 2 and srv.eval('TREK.Ship.personalOf("odo")') == 3,
+          "fleet off: set to every player, somebody online has no shuttle")
+    for r in net.all():
+        for w in r.warnings():
+            fail(f"fleet off ({r.name}): {w}")
+
+    # --- somebody who joins later ----------------------------------------------------
+    # The server already has a fleet when this client's world loads. It is
+    # sent the register because it asks, and has to ask for each ship on it:
+    # nothing is going to change to send them.
+    net = Net("mp", clients=("kira", "late"))
+    srv, late = net.server, net.clients["late"]
+    for r in net.all():
+        r.run(f'{SB}.PersonalShuttles = 3; {SB}.PersonalShuttleUsers = "kira"')
+    srv.run("SIM.player('kira', 2000.5, 2000.5, 0); SIM.player('late', 2030.5, 2000.5, 0)")
+    net.clients["kira"].run("SIM.player('kira', 2000.5, 2000.5, 0)")
+    late.run("SIM.player('late', 2030.5, 2000.5, 0)")
+    for r in net.all():
+        r.load()
+        r.run("SIM.initRecordedMedia()")
+    srv.fire("OnInitGlobalModData", False)
+    srv.fire("EveryOneMinute")
+    check(srv.eval('TREK.Ship.personalOf("kira")') == 2, "fleet off: the server did not issue a shuttle before anybody joined")
+    net.queue.clear()          # everything it said, it said to nobody
+    for r in net.clients.values():
+        r.fire("OnInitGlobalModData", False)
+    net.pump(6)
+    check(late.eval('TREK.Ship.personalOf("kira")') == 2,
+          "fleet off: a client that joined later was never sent the register")
+    check(late.eval("TREK.Util.stateOf(2).owner") == "kira" and late.eval("TREK.Util.stateOf(2).landed") is False,
+          "fleet off: a client that joined later has the register and not the ships on it")
+    print("fleet off: one ship in single player whatever the setting or the save, one on a server that gives "
+          "none, a shuttle each the minute it gives them to everybody, and the whole fleet for somebody who joins later")
+
+
+# <<< fleet, fleet_off
+
+
 SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabin_partial, starfleet_refit_mp, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_helm, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -20248,7 +20712,7 @@ SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabi
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, phaser_clearing, phaser_clearing_mp, field_kit, field_kit_mp, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer, rules, rules_multiplayer)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer, rules, rules_multiplayer, fleet, fleet_off)
 
 
 def main():

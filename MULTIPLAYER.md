@@ -672,6 +672,44 @@ before and after every single item, because `instanceItem` answers nil for an
 obsolete item that slipped the filter and a container at capacity drops what
 it is handed, and from the server's side both look like success.
 
+### More than one ship (personal shuttles, 1.21.0)
+
+Built 2026-10-10 and not played. `SERVERS.md` is what a host reads; this is
+the split.
+
+A server may give players a shuttle each (sandbox *Personal shuttles*). Ship
+1 is the shared one and is everything this document describes; ship N is the
+same code run with a different ship **in hand**.
+
+| | |
+|---|---|
+| Which ship is in hand | `U.shipNow`, set for a length of work and put back (`U.usingShip`), the way `TREK_Power` sets a store for one command. `U.state()`, `U.cabinOrigin()` and `V.find()` all read it |
+| A ship's state | Its own global mod data key, `TREK_State_v1_<id>`; the shared ship keeps `TREK_State_v1`. One writer, published on change, as always |
+| Whose is whose | **Server**, the register `TREK_Fleet_v1`: written when a player is first given a shuttle and never otherwise. Every client holds it and every ship's state |
+| A command | **Server** decides which ship it is about (`Ship.contextFor`): where its own copy of the player stands or sits first, then the ship the client named, then their own. Only the commands `TREK_Server` names with `Net.aboutShip`; the channel, the Captain, a raid and a rescue are the world's and run as they always did |
+| The server's timers | Round the fleet (`Ship.each`): each ship's vehicle, cabin, cures, power and flight watchdog as that ship |
+| A client | Keeps the **one** ship its player is dealing with in hand, refreshed first thing every tick (`Ship.mine`): the cabin they stand in, the seat they sit in, the ship they chose, their own |
+| A vehicle's ship | **Server**, by a tag in the vehicle's mod data. A client cannot read it (*Vehicles*, above) and works it out once, from where each ship is recorded, as its player sits down |
+| What one ship tells everybody | Stamped with the ship; a client dealing with another lets the crew-only ones pass (`Net.crewOnly`) |
+| The world's own facts | With the shared ship (`U.world()`): how the world began, the Adirondack's and the field station's stores. The contacts, the channel, the clearance and the patterns have keys of their own and were never a ship's |
+
+Three things that would have been bugs, and each has a check in `fleet()`:
+
+- **Every pass took every other shuttle for a leftover.** `serviceVehicle`
+  removes a tagged shuttle whose id is not the ship's own: correct for one
+  ship, and with two it deletes the other one a second after it lands. A
+  pass looks only at vehicles tagged as its own ship.
+- **"Aboard" meant two things.** *Is this player standing in a shuttle, off
+  the map* (any cabin: where a probe is measured from) and *is this player
+  one of her crew* (this cabin: does she stay in the air). `U.isInterior`
+  and `U.aboardThis`.
+- **The Adirondack's store lives in the shared ship's state.** A charge to
+  it on behalf of a shuttle's owner has to come out of that one store, and
+  be published with it.
+
+Single player has one ship and none of this runs. A server that gives nobody
+a shuttle has a register with nothing in it, and `Ship.each` is one pass.
+
 ---
 
 ## Risks that only the game can settle
@@ -716,6 +754,16 @@ it is handed, and from the server's side both look like success.
     in nobody else's. It rides `sendAddItemToContainer` on their own
     inventory, which is what vanilla's ClientCommands.lua does, but on a
     real connection rather than a simulated one.
+15. **A second global mod data key per ship**, requested by a client that
+    has just been sent the register. The simulation agrees; the engine's
+    own `ModData.request` for a key made after the world began has not
+    been seen.
+16. **A string option on the sandbox page**, and one changed while the
+    server runs reaching every client's `SandboxVars`. The engine parses
+    the type (`CustomSandboxOptions.parseOption`); nobody has looked at
+    the page.
+17. **The creation screen of a client joining a server** having that
+    server's sandbox by the time its lists are filled.
 
 ---
 

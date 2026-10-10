@@ -401,7 +401,7 @@ function S.everyTenMinutes()
                     break
                 end
             end
-            if T.has(p, "spacesick") and inFlightAboard(p) then
+            if T.has(p, "spacesick") and U.usingShip(Ship.contextFor(p), inFlightAboard, p) then
                 more("STRESS", C.SpacesickStress)
                 more("UNHAPPINESS", C.SpacesickUnhappy)
             end
@@ -477,7 +477,11 @@ function S.everyMinute()
             -- Trill by it is.
             U.try("traits.enforce", S.enforce, p)
             U.try("traits.firstSight", S.firstSight, p)
-            if T.has(p, "android") then U.try("traits.android", S.serviceAndroid, p) end
+            -- As the ship they are aboard: an android asleep in their own
+            -- shuttle charges from its core, not the shared ship's.
+            if T.has(p, "android") then
+                U.try("traits.android", U.usingShip, Ship.contextFor(p), S.serviceAndroid, p)
+            end
         end
     end
 end

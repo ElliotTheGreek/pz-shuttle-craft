@@ -634,5 +634,10 @@
     "IGUI_TREK_AccNotListed": "You are not on the Adirondack's boarding list.",
     "IGUI_TREK_RuleTraitRemoved": "%1 is not allowed on this server. It has been taken off your character.",
     "IGUI_TREK_RuleProfessionRemoved": "%1 is not a posting on this server. You keep your skills.",
-    "IGUI_TREK_RuleSpeciesGiven": "Humans are not allowed on this server. You are %1 now."
+    "IGUI_TREK_RuleSpeciesGiven": "Humans are not allowed on this server. You are %1 now.",
+    "IGUI_TREK_ShuttleIssued": "A shuttle has been assigned to you. She is overhead: call her down, or beam up.",
+    "IGUI_TREK_ShipShared": "the shared shuttle",
+    "IGUI_TREK_ShipYours": "your shuttle",
+    "IGUI_TREK_ShipOf": "%1's shuttle",
+    "IGUI_TREK_Hail": "Hail another shuttle"
 }

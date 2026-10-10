@@ -112,6 +112,23 @@ def station():
     return (x0 + sx0 - VIEW, y0 + sy0 - VIEW, x0 + sx1 + VIEW, y0 + sy1 + VIEW)
 
 
+def fleet():
+    """The squares the personal shuttles' berths stand on (SERVERS.md), with
+    everything a player aboard one could see. **Black, not stars**: sixty-four
+    cabins' worth of starfield would be most of the map's size, and a berth
+    is a cabin with its hatch shut. Their cells are mapped so nothing grows
+    there, and every square of them is left empty."""
+    cfg = LUA / "TREK_Config.lua"
+    cx, cy = lua_number(cfg, r"C\.FleetCell\s*=\s*\{\s*x\s*=\s*(\d+),\s*y\s*=\s*(\d+)")
+    (off,) = lua_number(cfg, r"C\.FleetOffset\s*=\s*(\d+)")
+    (pitch,) = lua_number(cfg, r"C\.FleetPitch\s*=\s*(\d+)")
+    (cols,) = lua_number(cfg, r"C\.FleetColumns\s*=\s*(\d+)")
+    (slots,) = lua_number(cfg, r"C\.FleetSlots\s*=\s*(\d+)")
+    rows = (slots + cols - 1) // cols
+    x0, y0 = cx * CELL + off, cy * CELL + off
+    return (x0 - VIEW, y0 - VIEW, x0 + (cols - 1) * pitch + 16 + VIEW, y0 + (rows - 1) * pitch + 16 + VIEW)
+
+
 def space_box():
     cabin, ship = ships()
     return (min(cabin[0], ship[0]) - VIEW, min(cabin[1], ship[1]) - VIEW,
@@ -197,6 +214,10 @@ def main():
         if dark[0] <= box[2]:
             raise SystemExit("the field station %s is within sight of the stars %s" % (dark, box))
         todo += [c for c in cells(dark) if c not in todo]
+    berths = fleet()
+    if berths[1] <= box[3] and berths[0] <= box[2]:
+        raise SystemExit("the personal shuttles' berths %s are within sight of the stars %s" % (berths, box))
+    todo += [c for c in cells(berths) if c not in todo]
     (OUT / "map.info").write_text(MAP_INFO, encoding="utf-8", newline="\n")
     (OUT / "objects.lua").write_text("objects = {}\n", encoding="utf-8", newline="\n")
     size = 0

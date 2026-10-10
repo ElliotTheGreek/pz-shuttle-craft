@@ -48,7 +48,9 @@ def source(en):
     for name, keys in en.items():
         for k, v in keys.items():
             n += 1
-            check(isinstance(v, str) and v.strip() != "", "EN/%s %s is empty" % (name, k))
+            check(isinstance(v, str), "EN/%s %s is not text" % (name, k))
+            # Empty on purpose is allowed in the English, and nowhere else:
+            # no language translates it (T.fixed).
             check("%" not in T.PLACEHOLDER.sub("", v),
                   "EN/%s %s has a literal per-cent sign: the engine reads it as a placeholder" % (name, k))
             check("\n" not in v and "\t" not in v, "EN/%s %s has a line break or a tab" % (name, k))

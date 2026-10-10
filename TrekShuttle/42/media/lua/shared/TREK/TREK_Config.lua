@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.20.0"
+C.Version   = "1.21.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -84,6 +84,28 @@ C.VoidMap = "TrekShuttle"
 -- Offset of the cabin inside that cell, so nothing touches a cell edge; chunk
 -- seams make edge squares awkward to generate reliably.
 C.RoomOffset = 16
+
+---------------------------------------------------------------------------
+-- Personal shuttles (SERVERS.md)
+---------------------------------------------------------------------------
+-- A server may give players a shuttle each (sandbox *Personal shuttles*).
+-- Ship 1 is the shared one, where she always was; ship N has a cabin of its
+-- own on a grid of berths south of her, each as far from the next as the
+-- Adirondack's decks are from each other, so none is ever seen from another
+-- (JEFFERIES.md 5). The cells are mapped empty by tools/gen_void_map.py,
+-- which reads these numbers: change one and regenerate.
+--
+-- **A berth is for the life of the save.** It is where a cabin stands, with
+-- everything its owner keeps in it, so an id is given once and never reused.
+C.FleetKey     = "TREK_Fleet_v1"
+C.FleetCell    = { x = 96, y = 43 }
+C.FleetOffset  = 64
+C.FleetPitch   = 128
+C.FleetColumns = 8
+C.FleetSlots   = 64
+-- What a personal shuttle is issued with: one crystal's charge in the core,
+-- no spares, and these probes. Overhead, commissioned, waiting to be called.
+C.PersonalProbes = 2
 
 -- The cabin is one compartment on one storey. There is no deck stack, so
 -- none of the TARDIS's sideways-stepping is needed -- but the reason for it

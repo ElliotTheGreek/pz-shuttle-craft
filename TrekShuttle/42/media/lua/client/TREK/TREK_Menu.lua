@@ -178,16 +178,65 @@ function M.onSetCrew(_, player, name, on)
 end
 
 ---------------------------------------------------------------------------
+-- More than one shuttle (SERVERS.md, personal shuttles)
+---------------------------------------------------------------------------
+--- What a ship is called on this player's menu: theirs, the shared one, or
+--- somebody's by name.
+function M.shipLabel(id, player)
+    if id == 1 then return getText("IGUI_TREK_ShipShared") end
+    local owner = Ship.ownerOf(id)
+    if owner == Ship.usernameOf(player) then return getText("IGUI_TREK_ShipYours") end
+    return getText("IGUI_TREK_ShipOf", tostring(owner or "?"))
+end
+
+--- The ship whose hull covers this square, or nil. Any of them: a hull is
+--- there to be walked up to whoever it belongs to.
+function M.hullShipAt(x, y, z)
+    for _, id in ipairs(Ship.ids()) do
+        if U.usingShip(id, W.hullCovers, x, y, z) then return id end
+    end
+    return nil
+end
+
+--- Makes `id` the ship this player is dealing with, and then does `action`
+--- with it. Walking up to a shuttle and asking for its door is choosing it.
+function M.onShip(_, player, id, action)
+    Ship.select(id)
+    U.shipNow = Ship.mine(player)
+    if action then action(nil, player) end
+end
+
+--- Which shuttle the menu on the ground speaks to, where there is a choice.
+local function hailMenu(menu, player, worldobjects)
+    if not isClient() then return end
+    local usable = Ship.usable(player)
+    if #usable < 2 then return end
+    local sub = menu:addOption(getText("IGUI_TREK_Hail"), worldobjects, nil)
+    local hail = ISContextMenu:getNew(menu)
+    menu:addSubMenu(sub, hail)
+    for _, id in ipairs(usable) do
+        local option = hail:addOption(M.shipLabel(id, player), worldobjects, M.onShip, player, id, nil)
+        -- The one in hand is greyed: it is the answer to "which is it now".
+        if id == U.shipNow then option.notAvailable = true end
+    end
+end
+
+---------------------------------------------------------------------------
 -- Menu assembly
 ---------------------------------------------------------------------------
 --- Crew management, offered only where it means something: a server set to
 --- owner-and-crew access, to the owner or an admin.
 local function crewMenu(menu, player, worldobjects)
     if not isClient() then return end
-    if Ship.accessMode() ~= Ship.AccessCrew or not Ship.canManageCrew(player) then return end
+    -- The shared ship's crew means something only under owner-and-crew; a
+    -- personal shuttle's always does: nobody else may use it at all.
+    local personal = Ship.isPersonal()
+    if not personal and Ship.accessMode() ~= Ship.AccessCrew then return end
+    if not Ship.canManageCrew(player) then return end
 
     local s = Ship.get()
     local me = Ship.usernameOf(player)
+    local owner = personal and Ship.ownerOf(U.shipNow) or s.owner
     local sub = menu:addOption(getText("IGUI_TREK_Crew"), worldobjects, nil)
     local crew = ISContextMenu:getNew(menu)
     menu:addSubMenu(sub, crew)
@@ -195,7 +244,7 @@ local function crewMenu(menu, player, worldobjects)
     local any = false
     for _, other in ipairs(U.players()) do
         local name = Ship.usernameOf(other)
-        if name ~= me and name ~= s.owner then
+        if name ~= me and name ~= owner then
             any = true
             if s.crew and s.crew[name] then
                 crew:addOption(getText("IGUI_TREK_CrewRemove", name), worldobjects,
@@ -253,7 +302,11 @@ local function aboardMenu(context, player, worldobjects, test)
 end
 
 local function groundMenu(context, player, worldobjects, sq, test)
-    local onHull = W.hullCovers(sq:getX(), sq:getY(), sq:getZ())
+    -- Whose hull, if it is one: with more than one shuttle about, the one
+    -- under the cursor is the one being asked, not the one last hailed.
+    local there = M.hullShipAt(sq:getX(), sq:getY(), sq:getZ())
+    local onHull = there ~= nil
+    local ship = there or U.shipNow
 
     -- Somewhere a person could stand is somewhere worth *offering* to land,
     -- even when the footprint will not fit. The refusal is the point.
@@ -264,18 +317,24 @@ local function groundMenu(context, player, worldobjects, sq, test)
     if not onHull and not standable then return false end
     -- Marooned, and never yet aboard her (MAROONED.md): no combadge, so
     -- nothing to call her with. Her hull still has its door.
-    local linked = TREK.Marooned.linked(player)
+    local linked = U.usingShip(ship, TREK.Marooned.linked, player)
     if not linked and not onHull then return false end
     if test then return ISWorldObjectContextMenu.setTest() end
 
-    local sub = context:addOption(getText("IGUI_TREK_Name"), worldobjects, nil)
+    -- Named, where there is more than one to mean.
+    local title = getText("IGUI_TREK_Name")
+    if isClient() and #Ship.ids() > 1 then
+        title = title .. " (" .. M.shipLabel(ship, player) .. ")"
+    end
+    local sub = context:addOption(title, worldobjects, nil)
     local menu = ISContextMenu:getNew(context)
     context:addSubMenu(sub, menu)
 
     if onHull then
-        menu:addOption(getText("IGUI_TREK_Enter"), worldobjects, M.onEnter, player)
+        -- Every option on a hull is asked of *that* shuttle (M.onShip).
+        menu:addOption(getText("IGUI_TREK_Enter"), worldobjects, M.onShip, player, there, M.onEnter)
         if not linked then return true end
-        menu:addOption(getText("IGUI_TREK_Recall"), worldobjects, M.onRecall, player)
+        menu:addOption(getText("IGUI_TREK_Recall"), worldobjects, M.onShip, player, there, M.onRecall)
     else
         menu:addOption(getText("IGUI_TREK_CallDown"), worldobjects, M.onCallDown,
                        player, sq:getX(), sq:getY(), sq:getZ())
@@ -283,8 +342,9 @@ local function groundMenu(context, player, worldobjects, sq, test)
     -- Not offered at all on a server that has switched it off: there is
     -- nothing to learn from a refusal that will never change (SERVERS.md).
     if TREK.Rules.beamUp() then
-        menu:addOption(getText("IGUI_TREK_BeamUp"), worldobjects, M.onBeamUp, player)
+        menu:addOption(getText("IGUI_TREK_BeamUp"), worldobjects, M.onShip, player, ship, M.onBeamUp)
     end
+    if not onHull then hailMenu(menu, player, worldobjects) end
     return true
 end
 

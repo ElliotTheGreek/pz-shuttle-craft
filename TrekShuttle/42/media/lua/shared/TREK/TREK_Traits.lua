@@ -256,7 +256,7 @@ end
 --- What the ship's power costs, all told: less with an engineer aboard.
 function T.powerFactor()
     for _, p in ipairs(U.players()) do
-        if T.has(p, "sf_engineering") and U.isInteriorPlayer(p) then
+        if T.has(p, "sf_engineering") and U.aboardThis(p) then
             return C.EngineeringFactor
         end
     end

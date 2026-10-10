@@ -62,7 +62,8 @@ meshes, textures and icons are produced by scripts in `tools/`.
 | **The cabin** | Starfleet issue bow to stern (bulkheads, carpet, a stasis unit, a galley range and sink, a bunk, a biobed with its scanner arch) except for Lt. Shepard's 1993 television and her rack of tapes. |
 | **Stores** | The armoury, the sick bay's cabinet and the rations under the galley sink hold the ship's issue; the stasis unit, the range and the TV cabinet are left empty on purpose for you to fill. |
 | **Shields** | Nothing dead gets within ten tiles of the landed ship. They are shoved back, not killed: no free experience, no free loot. Raise and lower them at the helm. |
-| **A shared ship** | In multiplayer there is one shuttle for everyone. Server owners can limit it to its owner and crew. |
+| **A shared ship, or one each** | In multiplayer there is one shuttle for everyone, and a server can limit it to its owner and crew or to a list of players. A server can also give every player, or the players it names, a shuttle of their own with its own cabin, stores and power. |
+| **A server's own rules** | Two sandbox pages: beaming, flight, her weapons, shields, power use and the story's pace each have a switch; every species, trait and Starfleet profession can be switched off (aliens only, no aliens, or some); the ship in orbit can be closed, kept for a list of players, or renamed; and a lore pack replaces any of the mod's words with a server's own, in any language. `SERVERS.md`. |
 | **Bookmarks** | Log any position and set a course back to it later. |
 | **No fog at the helm** | The map is fully revealed while the helm is open, so you can aim at somewhere you have never been. Your ordinary map keeps its fog. |
 
@@ -95,7 +96,13 @@ player and the in-game Host settings add it for you; a dedicated server's
 log says `the 'TrekShuttle' map is not loaded`, and the view outside the cabin
 shows grass and trees.
 
-Twelve sandbox options, on the **Shuttlecraft** page:
+**[SERVERS.md](SERVERS.md) is the host's guide**: every setting, a shuttle
+for each player, who may board the ship in orbit, which species, traits and
+professions players may pick, renaming things, replacing the story with your
+own in any language, and what the log says when something is wrong.
+
+The sandbox has two pages, **Shuttlecraft** and **Shuttlecraft: roleplay**.
+The ones most servers meet first:
 
 | Option | Choices | Default |
 |---|---|---|
@@ -274,6 +281,9 @@ engine facts it rests on.
 | `tools/fieldstation_site.py` | Reads the vanilla map's rooms and tiles round the field station's hidden entrance and prints the stockroom square by square, with the server's own rule for where the breaker box may hang. |
 | `tools/gen_fuse_box.py` | The field station's breaker box, drawn: the picture the furniture sheet lays on a wall. |
 | `tools/luacheck.py` | Parses every Lua file through a real Lua VM. |
+| `tools/translations.py` | Holds a language against the English, and exports and imports the work of translating in checked pieces. |
+| `tools/make_lore_pack.py` | Makes a server's own lore pack: the mod's words as a small mod to edit and list after it. |
+| `tools/mutate.py` | Runs a list of mutations against chosen test sections, one at a time, asserting each applied. |
 | `tools/deploy_windows.py` | Copy the mod into the Zomboid mods folder as `TrekShuttleDev` and verify the copy. |
 | `tools/package_workshop.py` | Stage the Workshop upload (keeps the published item id). |
 | `tools/readtest.sh` | Pull the mod's own lines out of `console.txt`. |
@@ -295,6 +305,7 @@ python tests/test_multiplayer.py                    # single player and a server
 python tests/test_comms.py                          # the channel's dialogue tree
 python tests/test_crew.py                           # the crew's talk
 python tests/test_farming.py                        # recipes, crops and sinks
+python tests/test_translations.py                   # every language against the English
 ```
 
 `test_multiplayer.py` is the one worth knowing about: it loads every Lua file
@@ -341,8 +352,10 @@ interior plus `TREK_InteriorLayout.lua`.
 
 ## Known limits
 
-- **One shuttle per world.** In multiplayer the crew shares it; a second
-  ship is not supported.
+- **One shared shuttle per world**, and in single player one shuttle.
+  A server may give players one each beside it (`SERVERS.md`, *A shuttle
+  each*); a personal shuttle in flight is drawn at her height only on the
+  machines of the players dealing with her.
 - **Flight has been flown in single player at five storeys, and with two
   people at level 1.** The helm in the air (W A S D, Q and E) has been flown
   in single player only, and passengers firing has not been played.

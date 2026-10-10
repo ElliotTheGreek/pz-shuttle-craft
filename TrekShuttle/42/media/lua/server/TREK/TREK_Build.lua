@@ -1257,7 +1257,13 @@ end
 B.MadeKey = "TREK_CabinMade"
 
 --- Which of the cabin's fittings have been placed: "x,y,sprite" -> true.
-function B.made() return U.madeRecord(B.MadeKey, "cabin") end
+--- One record a ship: each has its own cabin.
+local function madeSection()
+    if U.shipNow == 1 then return "cabin" end
+    return "cabin" .. tostring(U.shipNow)
+end
+
+function B.made() return U.madeRecord(B.MadeKey, madeSection()) end
 
 local function furnishAuthoredInterior()
     local record = B.made()
@@ -2120,7 +2126,7 @@ function B.forceRebuild()
     -- Everything is gone, the player's things with it: every fitting is put
     -- back, whatever was taken before.
     local made = ModData.getOrCreate(B.MadeKey)
-    made.cabin = {}
+    made[madeSection()] = {}
 
     local wasDev = C.DevRestock
     C.DevRestock = true

@@ -220,7 +220,7 @@ function E.patients(asking)
     local site = asking ~= nil and placeOf(asking) or nil
     for _, p in ipairs(U.players()) do
         local alive = U.try("emh.alive", function() return p:isDead() end) == false
-        local here = (site and placeOf(p) == site) or (not site and U.isInteriorPlayer(p))
+        local here = (site and placeOf(p) == site) or (not site and U.aboardThis(p))
         if alive and here then
             local name = TREK.Ship.usernameOf(p)
             local row = { player = p, name = name, own = (name == mine) or nil }

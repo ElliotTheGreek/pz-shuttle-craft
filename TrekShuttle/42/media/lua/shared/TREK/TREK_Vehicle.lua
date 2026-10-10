@@ -60,12 +60,22 @@ function V.each(fn)
     end
 end
 
---- The loaded shuttle vehicle carrying this id, or nil.
+--- Which ship a shuttle vehicle belongs to, by the server's tag: 1 for the
+--- shared ship, and for a vehicle from before there were any others. Like
+--- the id, a client cannot read it (see V.ship).
+function V.fleetOf(vehicle)
+    local md = U.try("vehicleModData", function() return vehicle:getModData() end)
+    return md and tonumber(md.TREKFleet) or 1
+end
+
+--- The loaded shuttle vehicle carrying this id for the ship in hand, or nil.
+--- Each ship counts its own vehicles, so the id alone is not enough once
+--- there is more than one ship.
 function V.find(id)
     if not id then return nil end
     local found = nil
     V.each(function(v)
-        if not found and V.idOf(v) == id then found = v end
+        if not found and V.idOf(v) == id and V.fleetOf(v) == U.shipNow then found = v end
     end)
     return found
 end

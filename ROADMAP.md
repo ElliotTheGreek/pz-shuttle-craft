@@ -17,7 +17,9 @@ the detail.**
 
 ## 1. Where it stands
 
-**Version 1.9.0, build revision 29.** Workshop package staged, not published.
+**Version 1.21.0, build revision 36.** 1.20.0 is staged for the Workshop;
+1.21.0 (the server's rules, personal shuttles, the lore pack and the
+languages' tools, `SERVERS.md`) is built and not played.
 
 *Played* means somebody has used it in a real game. *Built* means static checks
 and the simulated server with two clients pass, and nobody has played it yet.
@@ -64,6 +66,9 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | Raids: Captain Titus's request, the outpost camp, the waves, home again | `RAIDS.md` | **Played** 2026-09-29 (it worked). The rework from that play (no pad, the dead beamed in all round and sprinting, the camp's core, replicator and Doctor real) is built and not yet seen |
 | Perimeter phaser sentry: set down, shoots the nearest of the dead one at a time, 25 shots, recharged at a core | `SENTRY.md` | Built 2026-09-29, not played. Three in the armoury need a new world; the replicator makes them in any |
 | Dedicated server | `MULTIPLAYER.md` | Loads cleanly; **nobody has played on it** |
+| A server's rules: switches for beaming, flight, weapons, shields, distress calls, installing and power use; lists of players for the shared shuttle and the ship in orbit, and *Closed*; every species, trait and profession switchable; the ship in orbit renamed | `SERVERS.md` | Built 2026-10-10, not played. The creation screen's lists and a string option on the sandbox page are the first things to see |
+| Personal shuttles: a ship each, own cabin, stores, power and flight | `SERVERS.md`, `MULTIPLAYER.md` | Built 2026-10-10, not played. **Needs a server and two people** |
+| Lore packs, and the languages | `SERVERS.md` | The tools are built; no language is translated yet |
 
 ---
 
@@ -125,7 +130,13 @@ live. The second machine is the Steam Deck (192.168.39.182). It needs
 `Zomboid/mods/TrekShuttle/` **copied by hand** after every change, because a
 server cannot push a local mod.
 
-Check, with two people:
+Check, with two people (and `SERVERS.md` for the server's own settings):
+- **personal shuttles** (`PersonalShuttles = 2`): each told they have one,
+  each beaming up to a cabin of their own, both called down on one street,
+  one flown while the other stands, a stranger refused at a hatch and let in
+  once made crew;
+- a species switched off: gone from the creation screen of a client joining,
+  and taken off a character who has it;
 - the shared cabin, and loot taken by one gone for the other;
 - *Owner and crew* access, and four fast beams saying *recharging* rather
   than kicking;

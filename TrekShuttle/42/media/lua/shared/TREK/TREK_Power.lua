@@ -185,6 +185,12 @@ end
 
 -- In every process, because the engine drains the power in every process.
 Events.EveryOneMinute.Add(function()
+    -- The authority goes round every ship's cabin; a client connected to a
+    -- server has the one its player is dealing with in hand already.
+    if not isClient() and TREK.Ship and TREK.Ship.each then
+        TREK.Ship.each(function() U.try("serviceDevices", P.serviceDevices) end)
+        return
+    end
     U.try("serviceDevices", P.serviceDevices)
 end)
 
@@ -294,6 +300,10 @@ local function box(pool)
     if TREK.Installations and TREK.Installations.idOfPool(name) then
         return TREK.Installations.box(name) or { power = 0, crystals = 0, dark = true }
     end
+    -- Her store and the station's are the world's, kept with the shared
+    -- ship whichever shuttle is in hand: a player who owns a shuttle of their
+    -- own is served by the same warp core aboard her as everybody else.
+    s = U.world()
     if type(s[name]) ~= "table" then
         -- A client that has not been sent hers yet reads an empty one: the
         -- reserve full, no spares, and not dark.

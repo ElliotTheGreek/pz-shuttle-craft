@@ -175,8 +175,10 @@ end
 -- powerChanged itself. This catches a change that came some other way, and
 -- gives a save from before this guide its flag on the first minute.
 Events.EveryOneMinute.Add(function()
-    U.try("powerChanged", E.powerChanged)
-    U.try("hover", E.serviceHover)
+    Ship.each(function()
+        U.try("powerChanged", E.powerChanged)
+        U.try("hover", E.serviceHover)
+    end)
 end)
 
 --- Holding five tonnes up is not free, moving or not (ENERGY.md 4.3, and the

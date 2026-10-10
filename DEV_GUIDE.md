@@ -28,9 +28,10 @@ python tests/test_multiplayer.py
 python tests/test_comms.py
 python tests/test_crew.py
 python tests/test_farming.py
+python tests/test_translations.py
 ```
 
-If all ten succeed you have a working setup. `test_layout.py` prints the cabin
+If all eleven succeed you have a working setup. `test_layout.py` prints the cabin
 floor plan with every fitting on it: the fastest way to see the shape of the
 thing.
 
@@ -55,7 +56,7 @@ changing anything that touches the world or the ship's state.
 ```sh
 # 1. edit, then always:
 python tools/luacheck.py TrekShuttle/42/media/lua
-python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py && python tests/test_helm.py && python tests/test_multiplayer.py && python tests/test_comms.py && python tests/test_crew.py && python tests/test_farming.py
+python tests/test_assets.py && python tests/test_stock.py && python tests/test_layout.py && python tests/test_helm.py && python tests/test_multiplayer.py && python tests/test_comms.py && python tests/test_crew.py && python tests/test_farming.py && python tests/test_translations.py
 
 # 2. install
 python tools/deploy_windows.py
@@ -107,6 +108,96 @@ a co-op guest, a dedicated server), and the mod decides where each piece runs:
 with two clients over a simulated network, and fails on a client edit, a
 command with no handler, a missing guard, or any `WARN` the mod logs. The
 local dedicated server (*Testing*, below) is how the engine side is checked.
+
+### "The ship" is the ship in hand
+
+**New in 1.21.0, with personal shuttles (`SERVERS.md`, `MULTIPLAYER.md`).**
+A server may give players a shuttle each, and all of them are flown, landed,
+furnished and powered by the code that was written for one. Nothing was
+rewritten to take a ship as an argument. Instead the three functions every
+file already went through read **which ship is in hand**:
+
+| | |
+|---|---|
+| `U.state()` | the state of ship `U.shipNow` (`U.stateOf(id)` for a named one) |
+| `U.cabinOrigin()`, `U.at()`, `U.padSpot()` | where *her* cabin stands |
+| `V.find()`, `V.ship()` | *her* vehicle |
+
+`U.usingShip(id, fn, ...)` sets it for a length of work and puts it back,
+which is `TREK_Power`'s `P.using` for a ship instead of a store. The server
+sets it for one command (`TREK_Net`, from `Ship.contextFor`) and for each
+ship in turn on its timers (`Ship.each`). A client connected to a server
+sets it once, first thing every tick, to the one ship its player is dealing
+with (`Ship.mine`). Single player has one ship and never sets it.
+
+What that asks of new code:
+
+- **A timer on the authority that is about a ship goes in `Ship.each`.** One
+  that is about the world (the probe log, the contacts, the channel) does
+  not, and runs as the shared ship. A new one in the wrong group either
+  serves only the shared shuttle or does the world's work once a ship.
+- **A command that is about a ship is named in `Net.aboutShip`.** One that
+  is not runs as the shared ship, whoever sent it.
+- **Working state kept in a file's own locals is per ship or it is shared.**
+  `waiting`, the tractor's holder and the emergency search were each one
+  variable and are each a table by ship now. A new `local job = nil` in
+  `TREK_Server.lua` is one job for the whole fleet: mean it.
+- **"Aboard" is two questions.** `U.isInterior`, `U.isAboard` and
+  `U.isInteriorPlayer` ask whether somebody is in *a* shuttle's cabin, off
+  the map: what a probe's origin, wild ground and a sentry mean.
+  `U.aboardThis(player)` asks whether they are one of *her* crew: what keeps
+  her in the air and who the Doctor can see.
+- **The world's facts are the shared ship's** (`U.world()`): how the world
+  began, and the Adirondack's and the field station's power, which live in
+  that state. Read through `U.state()` on behalf of a shuttle's owner they
+  would be a second Adirondack.
+- **What the server tells everybody about one ship** goes in `Net.crewOnly`
+  if only her crew should hear it.
+
+And one rule that predates all of it and bit at once:
+
+**A pass that tidies up "the ones that are not ours" deletes every
+neighbour the day there are two of us.** `serviceVehicle` removes any tagged
+shuttle whose id is not the ship's: a leftover, when there is one ship.
+With a second ship it was the other ship, removed a second after it landed
+and again every time it was called down. `fleet()` lands two on one street
+and runs both passes for this alone. Before making a second of anything,
+grep for the code that removes strays of it.
+
+### A harness call that returns three values is not equal to one
+
+**New in 1.21.0, and it failed three checks that were right.** `lupa` hands
+back a tuple when a Lua call returns more than one value, and
+`U.usingShip` returns three (its function's first three results), so
+`rt.eval("TREK.Util.usingShip(2, f)") is True` is false for a call that
+answered true. Put the call in parentheses, which is Lua for "the first
+value": `rt.eval("(TREK.Util.usingShip(2, f))")`. The same is true of
+`P.using`, and of anything else that forwards results.
+
+### Text is a key until the player's own machine reads it
+
+**New in 1.21.0, with the languages (`SERVERS.md`).** Three rules, each
+found by looking for what would be wrong in German rather than by a bug:
+
+- **The server sends a key, never a sentence.** A server's language is the
+  server's. `T.note(player, key, arg)` took an argument the server had
+  already put into words (`getText("UI_trait_trek_...")`): English on an
+  English server for a French player. The argument goes as its key and
+  `T.argText` translates it where it is read.
+- **Every file reads text through `TREK.Text.get`**, declared as
+  `local getText = TREK.Text.get` under its requires. That is where a
+  server's own name for the ship in orbit goes in, and `rules()` fails a
+  file that shows text the engine's way.
+- **A wrap that only knows about spaces draws Chinese out of the side of
+  the panel.** `TREK.Text.wrap` breaks a word wider than the line between
+  its characters; the four panels' own wraps call it. It asks whether
+  strings are bytes or characters by whether there is a `utf8` library
+  (stock Lua has one, Kahlua never has), not by measuring a letter typed
+  into the file: the answer must not depend on how the source was decoded.
+
+`tools/translations.py` is the rule book a translation is held to and
+`tests/test_translations.py` runs it, the English included: a source line
+with a literal per-cent sign cannot be translated into one without.
 
 ### Verify engine methods before calling them
 
@@ -3463,6 +3554,34 @@ gained a keyboard, a left stick and ground that has not streamed in
 were written; a change to the guard that no test could see was taken back
 out. **Not seen in game.**
 
+**The 2026-10-10 server release, 1.21.0** (`SERVERS.md`): what a host
+decides. Two sandbox pages read in one place (`TREK_Rules.lua`) for both
+sides, so the menu does not offer what the server refuses: switches for
+beaming up, flight, her weapons, shields, distress calls, installing and
+power use; lists of usernames for the shared shuttle and the ship in orbit,
+and *Closed*; every species, pickable trait and Starfleet profession
+switchable, left off the creation screen and taken off a character who has
+one anyway; the ship in orbit renamed. **Personal shuttles**: a ship each,
+by a ship *in hand* rather than a rewrite (the rule above, and
+`MULTIPLAYER.md`). **The languages**: every line read through `TREK_Text`,
+notes sent as keys, panels that wrap text with no spaces in it,
+`tools/translations.py` and `tests/test_translations.py`, and
+`tools/make_lore_pack.py` for a server's own words. No language is
+translated yet.
+
+Four test sections (`rules`, `rules_multiplayer`, `fleet`, `fleet_off`) and
+`tools/mutate.py`, the mutation harness as a tool at last. 107 mutations,
+one at a time: 97 caught at first; eight of the ten that were not were holes
+in the tests, each closed by a check that reaches the condition (a client
+that joins after the fleet exists, a client naming one ship while standing
+in another, two ships whose vehicles share a number, a single-player save
+with a server's register in it), and two were guards nothing could reach,
+deleted. **Nothing of it has been seen in game**, and three things rest on
+engine behaviour this mod had not used: a string sandbox option, a mod data
+key per ship requested after the world began, and the creation screen
+having a server's sandbox when it fills its lists (`MULTIPLAYER.md`, risks
+15 to 17).
+
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
 
@@ -3596,6 +3715,13 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_FarmSprites.lua      their growth spri
 TrekShuttle/42/media/lua/shared/TREK/TREK_FarmRecipes.lua      the brews' OnCreate
 TrekShuttle/42/media/lua/server/TREK/TREK_Farm.lua             the trays, tending, the dehydrator, the worm tank
 TrekShuttle/42/media/lua/client/TREK/TREK_FarmClient.lua       the crops put back before vanilla's sow menu
+TrekShuttle/42/media/lua/shared/TREK/TREK_Rules.lua            the server's rules: every sandbox option of 1.21.0, read once for both sides (SERVERS.md)
+TrekShuttle/42/media/lua/shared/TREK/TREK_Text.lua             every word the mod draws: the server's name for the ship in orbit, and wrapping in any language
+TrekShuttle/42/media/lua/client/TREK/TREK_CreationRules.lua    the creation screen's lists, less what the server has switched off
+tools/translations.py, tests/test_translations.py              a language held against the English; export and import in checked pieces
+tools/make_lore_pack.py                                        a server's own words, as a mod to list after this one
+tools/mutate.py                                                the mutation harness
+SERVERS.md                                                     the host's guide
 tests/pz_sim.lua, tests/test_multiplayer.py                    the simulated engine and network
 ```
 

@@ -71,6 +71,12 @@ def is_dev(key):
     return key.startswith("IGUI_TREK_Dev")
 
 
+def fixed(key, text):
+    """True for a key no language translates: a development line, or one the
+    English leaves empty on purpose (the camera's voice has no name)."""
+    return is_dev(key) or text.strip() == ""
+
+
 def load(path):
     raw = open(path, "rb").read()
     if raw.startswith(b"\xef\xbb\xbf"):
@@ -130,7 +136,7 @@ def check_folder(folder, en, complete, label):
     for name, keys in en.items():
         path = os.path.join(folder, name)
         if not os.path.isfile(path):
-            if complete and any(not is_dev(k) for k in keys):
+            if complete and any(not fixed(k, v) for k, v in keys.items()):
                 out.append("%s/%s is missing" % (label, name))
             continue
         try:
@@ -141,10 +147,10 @@ def check_folder(folder, en, complete, label):
         for k in got:
             if k not in keys:
                 out.append("%s/%s has %s, which the English does not" % (label, name, k))
-            elif is_dev(k):
-                out.append("%s/%s translates %s, a development line" % (label, name, k))
+            elif fixed(k, keys[k]):
+                out.append("%s/%s translates %s, which no language does" % (label, name, k))
         for k, src in keys.items():
-            if is_dev(k):
+            if fixed(k, src):
                 continue
             if k not in got:
                 if complete:
@@ -166,7 +172,7 @@ def missing(lang, en):
     for name, keys in en.items():
         path = os.path.join(TR, lang, name)
         got = load(path) if os.path.isfile(path) else {}
-        need = {k: v for k, v in keys.items() if not is_dev(k) and k not in got}
+        need = {k: v for k, v in keys.items() if not fixed(k, v) and k not in got}
         if need:
             out[name] = need
     return out
@@ -192,7 +198,7 @@ RULES = [
 
 def export(lang, out_dir, chars, everything, source):
     en = english()
-    todo = {name: {k: v for k, v in keys.items() if not is_dev(k)} for name, keys in en.items()} \
+    todo = {name: {k: v for k, v in keys.items() if not fixed(k, v)} for name, keys in en.items()} \
         if everything else missing(lang, en)
     os.makedirs(out_dir, exist_ok=True)
     for old in glob.glob(os.path.join(out_dir, "*.json")):
@@ -302,7 +308,7 @@ def main():
 
     if a.cmd == "status":
         en = english()
-        total = sum(1 for keys in en.values() for k in keys if not is_dev(k))
+        total = sum(1 for keys in en.values() for k, v in keys.items() if not fixed(k, v))
         for lang in LANGS:
             left = sum(len(x) for x in missing(lang, en).values())
             print("%-6s %-24s %5d of %d translated" % (lang, NAMES[lang], total - left, total))
