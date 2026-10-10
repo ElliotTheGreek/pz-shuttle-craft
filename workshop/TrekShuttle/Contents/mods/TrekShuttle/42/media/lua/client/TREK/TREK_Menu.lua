@@ -125,6 +125,22 @@ function M.onExit(_, player)
     Core.exit(player)
 end
 
+--- Development sessions only (U.devMode): to the shuttle, wherever she is.
+function M.onDevToShuttle(_, player)
+    local ok, why = TREK.Transport.devToShuttle(player)
+    if ok then return end
+    if why == "busy" then
+        busyNote(player)
+    elseif why == "nowhere" then
+        U.note(player, getText("IGUI_TREK_DevNoShuttle"), 255, 170, 90)
+    end
+end
+
+--- Development sessions only: an annotated map into the pockets, to read.
+function M.onDevMap(_, player)
+    Core.send(player, "devMap", {})
+end
+
 function M.onHelm(_, player)
     TREK.Travel.openHelm(player)
 end
@@ -265,6 +281,16 @@ end
 local function onPreFill(playerIndex, context, worldobjects, test)
     local player = U.player(playerIndex)
     if not player then return end
+
+    -- A development tool, on every right-click in a development session and
+    -- in no other: its own entry, because a marooned player who has never
+    -- been aboard has no Shuttlecraft menu to put it in.
+    if U.devMode() then
+        if test then return ISWorldObjectContextMenu.setTest() end
+        context:addOption(getText("IGUI_TREK_DevToShuttle"), worldobjects,
+                          M.onDevToShuttle, player)
+        context:addOption(getText("IGUI_TREK_DevMap"), worldobjects, M.onDevMap, player)
+    end
 
     if U.isInteriorPlayer(player) then
         return aboardMenu(context, player, worldobjects, test)

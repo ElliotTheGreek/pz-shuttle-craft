@@ -23,6 +23,7 @@ require "TREK/TREK_Ship"
 require "TREK/TREK_World"
 require "TREK/TREK_Vehicle"
 require "TREK/TREK_Core"
+require "TREK/TREK_Marooned"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -133,6 +134,36 @@ function T.beamDown(player, dest)
         -- before they arrive. Seen in game.
         begin(p, "down", x, y, z)
         U.log("beaming down to %d,%d", x, y)
+    end)
+    return true
+end
+
+--- A development tool (U.devMode): puts the player beside the shuttle,
+--- wherever she is and whether or not she knows them. On the ground that is
+--- where the hatch lets people out; a marooned ship nobody has loaded yet is
+--- still a record, so it is her site, and the server sets her down within
+--- C.Maroon.placeMax of it once they are standing there.
+---
+--- The arrival is a beam down's, for a beam down's reason: nothing there is
+--- loaded until they are.
+function T.devToShuttle(player)
+    if not player then return false, "no player" end
+    if busy() then return false, "busy" end
+    local s = Ship.get()
+    local x, y, z
+    if (s.landed or s.flying) and s.x and s.y and (s.x ~= 0 or s.y ~= 0) then
+        x, y, z = s.x, s.y + Core.STEP_OUT_OFFSET, s.flying and 0 or s.z
+    elseif s.marooned == true and s.commissioned == false then
+        local site = TREK.Marooned.site()
+        if site then x, y, z = site.x, site.y, 0 end
+    end
+    if not x then return false, "nowhere" end
+    x, y, z = math.floor(x), math.floor(y), math.floor(z or 0)
+
+    Core.requestMove(player, "devShuttle", function(p)
+        begin(p, "down", x, y, z)
+        U.log("dev: to the shuttle at %d,%d,%d (%s)", x, y, z,
+              (s.landed or s.flying) and "where she stands" or "her site, not yet set down")
     end)
     return true
 end

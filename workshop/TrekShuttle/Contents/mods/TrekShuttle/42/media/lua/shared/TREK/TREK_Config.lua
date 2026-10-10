@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.19.0"
+C.Version   = "1.20.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -301,9 +301,32 @@ C.TransporterRechargeSecs  = 150
 -- and no part of this mod has to fight gravity; and because the floor holds
 -- the ship up, nothing falls out of the sky when the pilot leaves the seat.
 --
--- The tile is vanilla. invisible_01_0's only two properties are attachedFloor
--- and solidfloor: a floor that is solid and cannot be seen.
-C.SkyTile = "invisible_01_0"
+-- Vanilla's invisible floor. invisible_01_0's only two properties are
+-- attachedFloor and solidfloor: a floor that is solid and cannot be seen.
+C.InvisibleTile = "invisible_01_0"
+
+-- The tile she flies on: the mod's own (tools/gen_adirondack_pack.py), the
+-- same floor with one property more, `transparentFloor`.
+--
+-- **Because a solid floor blacks out the ground under it** (the "set of
+-- black squares that follow her", 2026-10-09; the Heroes mod's flight met the
+-- same thing and read the engine for why). Between two levels the upper
+-- square having `solidfloor` and not `transparentFloor` blocks sight to the
+-- one below (IsoGridSquare.CalculateVisionBlocked, bci 145-183), and ground
+-- that cannot be seen is drawn black. PILOTING.md had it down as "what a
+-- floor is" and shrank the plane three times instead. The Heroes mod took
+-- its floor away; she cannot, because the engine keeps a vehicle's height
+-- only over a floor (BaseVehicle.update) and builds the physics she drives
+-- on from the square's own solidfloor (IsoChunk.calcPhysics). So the floor
+-- stays and says it can be seen through.
+--
+-- It carries solidfloor itself, and addFloor sets that on whatever sprite it
+-- is handed in any case (bci 197-203), so a world in which this tile somehow
+-- did not load would fly exactly as before, black squares and all.
+C.SkyTile = "trek_adirondack_01_47"
+-- What she flew on up to 1.19.0. A floor is a saved world object, so the
+-- sweep after a flight that ended badly looks for this one too.
+C.SkyLegacyTile = C.InvisibleTile
 
 -- The cabin's roof: the same tile, one storey above the deck. A square is
 -- indoors to the engine only with a room or a roof (IsoGridSquare
@@ -311,7 +334,7 @@ C.SkyTile = "invisible_01_0"
 -- somewhere above (IsoCell.checkHaveRoof, which addFloor runs). The cabin has
 -- neither, so it rained inside her and the rain soaked the crew (1.10.0).
 -- Invisible, so nothing is drawn over the deck.
-C.RoofTile = C.SkyTile
+C.RoofTile = C.InvisibleTile
 
 -- Bullet units per z level, read straight out of BaseVehicle.setDebugZ's
 -- bytecode: it computes fastfloor(origin.y / 2.4494900703430176). Three times
@@ -524,8 +547,44 @@ C.FlightLevelTolerance = 20
 -- 70 -- which is 42, so the top three steps all clamped to exactly the same
 -- number and the control appeared to do nothing at all. Anything the pilot can
 -- pick must be distinguishable from its neighbours or it is not a control.
-C.FlightSpeedSteps       = { 15, 30, 50, 70, 95, 120 }
+C.FlightSpeedSteps       = { 20, 40, 60, 80, 100, 120 }
 C.FlightSpeedDefaultStep = 3
+
+-- The helm in the air (TREK_Flight, PILOTING.md 2.5). Hovering, she is not
+-- driven any more: the pilot's machine places her every tick, as the take-off
+-- always has, so she goes where the keys say at once, sideways as readily as
+-- forwards, and turns on the spot. No wheels, no throttle, no momentum but
+-- the easing below. It is the Heroes mod's flyer (HERO_Sky.step) with a
+-- vehicle's transform where that has a character's position.
+--
+-- A speed step is still the number the helm shows, and `perUnit` is what one
+-- of it is in tiles a second: 1 / 3.6, a km/h, so the top step is 33 tiles a
+-- second and the default 17. On the ground the same number is still the
+-- vehicle's own top speed.
+C.Helm = {
+    perUnit    = 1 / 3.6,
+    -- How quickly her velocity and her turn reach what is asked, per second:
+    -- at 8 she has nine tenths of it in a little over a quarter of a second.
+    ease       = 8,
+    turnEase   = 10,
+    turn       = 120,       -- degrees a second, flat out
+    still      = 0.15,      -- tiles a second under which she has stopped
+    spinStill  = 1.5,       -- degrees a second under which she has stopped turning
+    -- After she stops she is held where she is for this long before the
+    -- plane has her again: a floor reaches the physics a beat after it
+    -- reaches the map (C.FlightSettleMs), and at these speeds the floor under
+    -- her is always new.
+    holdMs     = 700,
+    gap        = 0.25,      -- seconds: longer than this between two ticks was not a frame
+    stride     = 0.75,      -- tiles at a time: a floor is laid under every one
+    -- Her hull from her centre, and the squares she keeps clear of a wall at
+    -- her own level. Nothing collides any more, so this is the only thing
+    -- between her and a tower.
+    halfLength = 2.5,
+    halfBeam   = 1.5,
+    clearance  = 1,
+    deadzone   = 0.25,      -- the controller's left stick
+}
 
 -- On a server the vehicle speed limiter is the server owner's business, so the
 -- choice is capped by it. In single player there is nobody to protect and no
@@ -615,7 +674,13 @@ C.TorpedoSmokeRange = 9
 -- How far from the ship the pilot may put one, in tiles. Bounded because the
 -- target square arrives from a client and a client is a request, never a fact:
 -- without this, a crafted command is a mortar with map-wide reach.
-C.TorpedoMaxRange = 28
+--
+-- 60 since 2026-10-09 (it was 28; the author: "the max range should be much
+-- farther"). It is about what the screen shows zoomed out, which is the real
+-- limit: the target is a square under the reticle, and the server will not
+-- fire at ground that is not loaded. tests/test_multiplayer.py holds it
+-- under 64.
+C.TorpedoMaxRange = 60
 
 -- Between shots, in milliseconds, held on the ship rather than the player --
 -- there is one set of tubes, so two crew cannot take turns to halve it.
@@ -627,7 +692,55 @@ C.TorpedoCooldownMs = 6000
 -- fire ring reaches C.TorpedoRange + C.TorpedoFireRange (10), so at the old
 -- distance the pilot lit a fire they were sitting in and had to land in later.
 -- If either range grows, this must grow with it.
+--
+-- **On the ground only, since 2026-10-09.** In the air there is no minimum
+-- (the author: "no too close, we are in the air after all"): the blast is on
+-- the ground and she is C.flightLevel() storeys over it. Parked, she is in
+-- it, so a shot from the ground keeps this.
 C.TorpedoMinRange = 12
+
+-- The ship's weapons, in the order the wheel steps through them
+-- (TREK_VehicleMenu, TREK_Torpedo). Which one is armed is each pilot's own
+-- business and is not ship state.
+C.ShipWeapons = { "torpedo", "phaser", "tractor" }
+
+-- The ship's phasers (2026-10-09): a scatter of bolts, one to the head of
+-- each of up to `targets` of the dead, in the air or parked.
+--
+-- Who is hit: anything within `near` squares of the square under the
+-- reticle, and anything in the wedge from her to it -- inside the angle
+-- whose cosine is `cosHalf` (about twenty degrees either side) and no more
+-- than `past` squares beyond it -- nearest the reticle first.
+--
+-- **Aimed within `close` squares of her it is a ring round her and not a
+-- wedge** (the author, 2026-10-09: "in close range to clear zombies off
+-- near around the shuttle before getting out"): everything within `close`
+-- of the ship counts, behind her as well. Held, that is eight every
+-- `cooldownMs` until the ground round her is clear.
+--
+-- `cost` is power per bolt, taken from the ship's reserve; a shot that finds
+-- nobody costs nothing. `cooldownMs` is a debounce, not a reload.
+C.ShipPhaser = {
+    range = 40, targets = 8, cost = 5, damage = 200, cooldownMs = 350,
+    cosHalf = 0.94, past = 6, near = 3, close = 6,
+}
+
+-- The tractor beam (2026-10-09): in flight only. Everything within `radius`
+-- squares of the ground under her -- the dead, and other vehicles -- goes
+-- where she goes while the pilot holds it. `costPerSec` is power while it is
+-- on. The counts bound what one client will hold; `recaptureTicks` is how
+-- often it looks for more.
+--
+-- A vehicle it holds is raised `lift` of the way up to her (the author,
+-- 2026-10-09: "picked up to half the distance", after one would not cross a
+-- fence), so it clears what is on the ground.
+C.Tractor = {
+    radius = 5, costPerSec = 4, maxZombies = 60, maxCars = 4, recaptureTicks = 15,
+    lift = 0.5,
+    -- Named fields, as C.PhaserTint is: the beam's drawing reads .r .g .b,
+    -- and a list here drew nothing and threw twice a frame (2026-10-09).
+    tint = { r = 0.55, g = 0.80, b = 1.00 }, width = 3.0, beamTicks = 6,
+}
 
 -- Sandbox: 1 = Full (the torpedo burns), 2 = Blast only (damage, no fire).
 -- Read server-side in TREK_Server.lua. A server owner who wants the weapon

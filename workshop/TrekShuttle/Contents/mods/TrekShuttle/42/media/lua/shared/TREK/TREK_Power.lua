@@ -200,7 +200,7 @@ end)
 --- farming code sets a sprite property the same way (MOFarming.lua:91).
 function P.quietBus()
     return U.try("busSound", function()
-        getSprite(C.SkyTile):getProperties():set("GeneratorSound", C.PowerBusSound)
+        getSprite(C.InvisibleTile):getProperties():set("GeneratorSound", C.PowerBusSound)
         return true
     end) == true
 end

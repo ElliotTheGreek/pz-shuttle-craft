@@ -43,7 +43,10 @@
     **Mouse: hold right to aim, left click to fire.**
     **Controller: the right stick moves the reticle, R3 fires.**
 
-    Both only while at the controls and in the air. No mode, no arming step,
+    Both only from one of her seats, the pilot's or a passenger's: in the
+    air, or parked on the ground
+    (where there is a minimum range, because she is standing in the blast's
+    own level). No mode, no arming step,
     nothing to discover. The first version made it a radial-menu toggle and it
     failed in game in the quietest way available -- no error, no log line, the
     file loaded, and the pilot held right-click, clicked left and got silence.
@@ -96,6 +99,56 @@ local FLIGHT = "media/ui/TREK_TorpedoFlight.png"
 -- the ship's business.
 T.aimX, T.aimY = nil, nil          -- screen point
 T.lastFire = 0                     -- client-side, for the reticle only
+
+-- Which of the ship's weapons whoever is in this seat has armed
+-- (C.ShipWeapons): each has its own slice on the wheel (TREK_VehicleMenu),
+-- the reticle names it, and the same two buttons work all three. Their own,
+-- like the aim: the pilot and a passenger may have different ones armed.
+T.weapon = "torpedo"
+T.lastPhaser = 0                   -- client-side debounce, as T.lastFire is
+T.tractorHeld = false              -- this client has asked for the beam
+
+-- Written out whole, because an id assembled from parts is invisible to
+-- tests/test_assets.py (DEV_GUIDE, *A namespaced id is not namespaced
+-- everywhere*).
+local WEAPON_NAMES = {
+    torpedo = "IGUI_TREK_Weapon_torpedo",
+    phaser  = "IGUI_TREK_Weapon_phaser",
+    tractor = "IGUI_TREK_Weapon_tractor",
+}
+
+function T.weaponName(w)
+    return getText(WEAPON_NAMES[w or T.weapon] or WEAPON_NAMES.torpedo)
+end
+
+
+--- Lets go of the tractor beam, if this client is holding it.
+function T.releaseTractor(p)
+    if not T.tractorHeld then return false end
+    T.tractorHeld = false
+    p = p or U.try("torpedoPlayer", function() return getSpecificPlayer(0) end)
+    if p then Net.send(p, "tractor", { on = false }) end
+    return true
+end
+
+--- Arms one of her weapons, and says which. (Changing weapon lets the beam
+--- go by itself: T.poll releases it on any tick the tractor is not what is
+--- armed.) Anything that is not one of hers is refused: the wheel's slices are
+--- made from the same list, so this is only ever a caller's mistake.
+---
+--- It was one slice that stepped to the next (until 2026-10-10): three
+--- presses of the wheel to get back to the one just left, and no way to see
+--- the other two without stepping through them.
+function T.armWeapon(p, weapon)
+    local known = false
+    for _, w in ipairs(C.ShipWeapons) do
+        if w == weapon then known = true end
+    end
+    if not known then return T.weapon end
+    T.weapon = weapon
+    if p then U.note(p, getText("IGUI_TREK_WeaponArmed", T.weaponName()), 150, 220, 255) end
+    return T.weapon
+end
 
 local overlay = nil
 local leftWasDown = false          -- for the click edge; see T.poll
@@ -389,14 +442,28 @@ end
 --- measured against the shadow, not against the hull drawn five levels up.
 function T.aimDetail()
     local s = TREK.Ship.get()
-    if not s.flying then return "notFlying", {} end
+    if not s.flying and not s.landed then return "notFlying", {} end
+    -- The tractor beam is not aimed: it is what is under her.
+    if T.weapon == "tractor" then
+        if not s.flying then return "tractorGround", {} end
+        if s.tractor ~= nil then return "tractorOn", {} end
+        return "tractor", {}
+    end
     local x, y = T.targetSquare()
     if not x then return "noTarget", {} end
     local dx, dy = x - (s.x or 0), y - (s.y or 0)
     local dist = math.sqrt(dx * dx + dy * dy)
     local info = { dist = dist }
+    if T.weapon == "phaser" then
+        info.max = C.ShipPhaser.range
+        if dist > C.ShipPhaser.range then return "far", info end
+        -- A debounce and no more: it reads ready while the trigger is held.
+        return "ok", info
+    end
+    info.max = C.TorpedoMaxRange
     if dist > C.TorpedoMaxRange then return "far", info end
-    if dist < C.TorpedoMinRange then return "close", info end
+    -- Too close is the ground's rule: in the air she is over the blast.
+    if not s.flying and dist < C.TorpedoMinRange then return "close", info end
     local left = C.TorpedoCooldownMs - (getTimestampMs() - T.lastFire)
     if left > 0 then
         info.reloadMs = left
@@ -422,7 +489,13 @@ function T.reticleLabel(status, info)
         local secs = math.ceil((info.reloadMs or 0) / 100) / 10
         return getText("IGUI_TREK_Reticle_reloading", string.format("%.1f", secs))
     elseif status == "far" then
-        return getText("IGUI_TREK_Reticle_far", d, tostring(C.TorpedoMaxRange))
+        return getText("IGUI_TREK_Reticle_far", d, tostring(info.max or C.TorpedoMaxRange))
+    elseif status == "tractor" then
+        return getText("IGUI_TREK_Reticle_tractor")
+    elseif status == "tractorOn" then
+        return getText("IGUI_TREK_Reticle_tractorOn")
+    elseif status == "tractorGround" then
+        return getText("IGUI_TREK_Reticle_tractorGround")
     elseif status == "close" then
         return getText("IGUI_TREK_Reticle_close", d, tostring(C.TorpedoMinRange))
     elseif status == "noTarget" then
@@ -437,6 +510,7 @@ local REFUSAL_NOTES = {
     far       = "IGUI_TREK_TorpedoRange",
     close     = "IGUI_TREK_TorpedoTooClose",
     noTarget  = "IGUI_TREK_TorpedoNoTarget",
+    tractorGround = "IGUI_TREK_TractorNotFlying",
 }
 
 ---------------------------------------------------------------------------
@@ -445,9 +519,7 @@ local REFUSAL_NOTES = {
 local Overlay = ISUIElement:derive("TREKTorpedoOverlay")
 
 function Overlay:new()
-    local o = ISUIElement.new(self, 0, 0,
-        U.try("screenW", function() return getCore():getScreenWidth() end) or 800,
-        U.try("screenH", function() return getCore():getScreenHeight() end) or 600)
+    local o = ISUIElement.new(self, 0, 0, 1, 1)
     o.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
     return o
 end
@@ -458,11 +530,41 @@ end
 function Overlay:onMouseDown() return false end
 function Overlay:isMouseOver() return false end
 
+--- Covers the screen while somebody is aiming, and a corner of it otherwise.
+---
+--- The engine's "the mouse is over the UI" is the element's rectangle and
+--- nothing else (DEV_GUIDE, *An overlay that covers the screen takes the
+--- world's mouse away*). While aiming that is wanted: right mouse is held,
+--- and its release would otherwise open the world's menu over the reticle.
+--- The rest of the time it is not, and now that she fires from the ground
+--- the overlay is up whenever her pilot is seated, parked: screen-sized, it
+--- took every right-click on the world away from them. Nothing drawn here is
+--- clipped to the rectangle; every draw is at absolute screen coordinates.
+--- It stays wide for a moment after the button comes up, so the release
+--- itself still lands on it.
+local WIDE_LINGER = 15
+local wideFor = 0
+
+local function sizeOverlay(o, aiming)
+    if aiming then wideFor = WIDE_LINGER elseif wideFor > 0 then wideFor = wideFor - 1 end
+    local w, h = 1, 1
+    if wideFor > 0 then
+        w = U.try("screenW", function() return getCore():getScreenWidth() end) or 800
+        h = U.try("screenH", function() return getCore():getScreenHeight() end) or 600
+    end
+    if o.width ~= w or o.height ~= h then
+        U.try("torpedoOverlaySize", function() o:setWidth(w); o:setHeight(h) end)
+    end
+end
+
 local COLOURS = {
     ok        = { 0.45, 1.00, 0.55 },   -- LCARS green: she will fire
     reloading = { 1.00, 0.80, 0.40 },   -- gold: tubes not ready
     far       = { 1.00, 0.35, 0.35 },
     close     = { 1.00, 0.35, 0.35 },
+    tractor       = { 0.55, 0.80, 1.00 },
+    tractorOn     = { 0.45, 1.00, 0.55 },
+    tractorGround = { 1.00, 0.35, 0.35 },
     noTarget  = { 0.60, 0.60, 0.60 },
     notFlying = { 0.60, 0.60, 0.60 },
 }
@@ -557,6 +659,13 @@ function Overlay:render()
         self:drawTextCentre(label, sx + 1, ty + 1, 0, 0, 0, 0.8, UIFont.Small)
         self:drawTextCentre(label, sx, ty, c[1], c[2], c[3], 1.0, UIFont.Small)
     end)
+    -- And which weapon it is, over it: three share the one reticle.
+    U.try("torpedoWeaponLabel", function()
+        local name = T.weaponName()
+        local ty = sy - h / 2 - 16
+        self:drawTextCentre(name, sx + 1, ty + 1, 0, 0, 0, 0.8, UIFont.Small)
+        self:drawTextCentre(name, sx, ty, 0.85, 0.90, 1.0, 1.0, UIFont.Small)
+    end)
 end
 
 local function ensureOverlay()
@@ -571,16 +680,23 @@ end
 ---------------------------------------------------------------------------
 -- Arming and firing
 ---------------------------------------------------------------------------
---- True when this player is the one flying her, in the seat, in the air.
---- Everything below is gated on it so a passenger's mouse does nothing and a
---- parked shuttle cannot shell its own landing pad.
+--- True when this player is in one of her seats, any of the four: in the
+--- air, or parked on the ground. Everything below is gated on it, so the
+--- mouse of somebody standing beside her does nothing. What stops a parked
+--- shuttle shelling its own landing pad is the ground's minimum range.
+---
+--- **Any seat, since 2026-10-10** (it was the driver's alone): the pilot's
+--- hands are on the helm, and a crew of four with one trigger between them
+--- is three passengers. Each has their own reticle and their own choice of
+--- weapon; the tubes, the phasers' debounce and the one tractor beam are the
+--- ship's, and the server shares them out (TREK_Server).
 function T.atTheControls()
     local p = player()
     if not p then return false end
     local s = TREK.Ship.get()
-    if not s.flying then return false end
+    if not s.flying and not s.landed then return false end
     local F = TREK.Flight
-    if F and F.isPilot and not F.isPilot(p) then return false end
+    if F and F.isSeated and not F.isSeated(p) then return false end
     return true
 end
 
@@ -660,12 +776,15 @@ function T.poll()
 
     if not overlayWanted() then
         closeOverlay()
+        T.releaseTractor(player())
         leftWasDown = false
         return
     end
-    ensureOverlay()
+    local o = ensureOverlay()
 
     if not T.atTheControls() then
+        sizeOverlay(o, false)
+        T.releaseTractor(player())
         leftWasDown = false
         return
     end
@@ -675,9 +794,27 @@ function T.poll()
     U.try("torpedoAim", T.serviceAim)
 
     local aiming = T.aiming()
-    local down = fireHeld(player())
+    sizeOverlay(o, aiming)
+    local p = player()
+    local down = fireHeld(p)
 
-    if aiming and down and not leftWasDown then T.fire() end
+    if T.weapon == "tractor" then
+        -- Held, not clicked: on while the trigger is down, off when it comes
+        -- up or the aim does.
+        if aiming and down then
+            if not T.tractorHeld and not leftWasDown then T.engageTractor(p) end
+        else
+            T.releaseTractor(p)
+        end
+    else
+        T.releaseTractor(p)
+        if T.weapon == "phaser" then
+            -- Held as well: the debounce is the only thing between bolts.
+            if aiming and down then T.firePhasers(not leftWasDown) end
+        elseif aiming and down and not leftWasDown then
+            T.fire()
+        end
+    end
     leftWasDown = down
 end
 
@@ -705,7 +842,55 @@ function T.fire()
     U.log("torpedo requested at %d,%d,%d", x, y, z)
 end
 
+--- Asks for the ship's phasers at the square under the reticle. `edge` is
+--- true on the frame the trigger went down: a refusal is said then, and not
+--- on every frame it stays down.
+function T.firePhasers(edge)
+    if not T.atTheControls() then return end
+    local p = player()
+    if not p then return end
+    local now = getTimestampMs()
+    if now - T.lastPhaser < C.ShipPhaser.cooldownMs then return end
+    local status = T.aimStatus()
+    if status ~= "ok" then
+        local key = REFUSAL_NOTES[status]
+        if edge and key then U.note(p, getText(key), 255, 200, 120) end
+        return
+    end
+    local x, y, z = T.targetSquare()
+    if not x then return end
+    T.lastPhaser = now
+    Net.send(p, "firePhasers", { x = x, y = y, z = z })
+end
+
+--- Asks for the tractor beam. In flight only, and the reticle already says.
+function T.engageTractor(p)
+    if not T.atTheControls() or not p then return end
+    local status = T.aimStatus()
+    if status == "tractorGround" then
+        U.note(p, getText("IGUI_TREK_TractorNotFlying"), 255, 200, 120)
+        return
+    end
+    T.tractorHeld = true
+    Net.send(p, "tractor", { on = true })
+end
+
 Events.OnTick.Add(T.poll)
+
+Net.onClient("shipPhasers", function(args)
+    if not args.hits or not TREK.PhaserFX then return end
+    for _, h in pairs(args.hits) do
+        TREK.PhaserFX.boltAt({ x = args.x, y = args.y, z = args.level or 0,
+                               tx = h.x, ty = h.y, tz = h.z or 0 })
+    end
+    local p = player()
+    if not p then return end
+    local px = U.try("shipPhaser.hx", function() return p:getX() end)
+    local py = U.try("shipPhaser.hy", function() return p:getY() end)
+    if px and U.dist2(px, py, args.x, args.y) <= 60 * 60 then
+        U.try("shipPhaser.sound", function() p:playSoundLocal("TREK_PhaserPulse") end)
+    end
+end)
 
 Net.onClient("torpedoLaunched", function(args)
     -- Fired by anybody, including another pilot on a server: keep the local

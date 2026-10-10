@@ -1,12 +1,17 @@
 --[[ Shuttlecraft -- taking her up.
 
-    Flight here is *driving*. The shuttle is already a vehicle, TREK_Sky lays
-    an invisible floor at altitude, and vanilla does everything else: the
-    throttle, the steering, the controller and the Steam Deck, the seats and
-    seat switching, the camera, the position sync and the physics. There is no
-    input handling in this file and no per-tick transform, because there does
-    not need to be. All it does is put her up, put her down, keep her level and
-    watch.
+    The shuttle is a vehicle, TREK_Sky lays an invisible floor at altitude,
+    and vanilla does the seats and seat switching, the camera and the
+    position sync. On the ground she is driven, as any vehicle is.
+
+    **In the air she is flown by this file, not driven** (since 2026-10-10;
+    "the helm in the air" below, PILOTING.md 2.5). Until then flight was
+    driving on the sky plane: vanilla's throttle and steering, a truck's
+    turning circle and a truck's momentum, five storeys up. Now the pilot's
+    machine reads the keys and places her every tick, the way the take-off
+    always has: W A S D fly her and slide her sideways without turning her,
+    and with Shift held A and D turn her where she is. The plane is still
+    under her, and still what holds her up when nobody is flying her.
 
     Up and down is the whole of it: there is one flight altitude,
     C.FlightLevel, and no climb, no dive and no setAltitude command. See
@@ -134,6 +139,14 @@ function F.isPilot(player)
     local vehicle = U.try("playerVehicle", function() return player:getVehicle() end)
     if not V.isShuttle(vehicle) then return false end
     return U.try("isDriver", function() return vehicle:isDriver(player) end) == true
+end
+
+--- True when this player is in any of her seats. Her weapons are worked from
+--- all four (TREK_Torpedo); only flying her needs the driver's.
+function F.isSeated(player)
+    if not player then return false end
+    local vehicle = U.try("playerVehicle", function() return player:getVehicle() end)
+    return V.isShuttle(vehicle)
 end
 
 local function levelOf(vehicle)
@@ -424,6 +437,23 @@ end
 -- While a move is under way she is held by placement every tick, so gravity
 -- and the plane beneath play no part until she is let go.
 local moving = nil
+
+-- The helm in the air (below): which way she points, in degrees of yaw as
+-- setAngles takes them; her velocity in tiles a second and her turn in
+-- degrees a second; and until when she is held where she is after stopping.
+-- This machine's own, and nothing of it is ship state: every other machine
+-- sees where she is through the vehicle's own sync.
+local helm = { heading = nil, applied = nil, vx = 0, vy = 0, spin = 0,
+               lastMs = nil, holdUntil = 0 }
+
+--- Stops her where she is. `forget` drops her heading as well, so that it is
+--- read off her again the next time she is flown: on the ground she is
+--- driven, and the engine turns her.
+local function helmStop(forget)
+    helm.vx, helm.vy, helm.spin = 0, 0, 0
+    helm.holdUntil, helm.lastMs = 0, nil
+    if forget then helm.heading, helm.applied = nil, nil end
+end
 
 function F.moving()
     return moving ~= nil
@@ -722,6 +752,9 @@ Net.onClient("takeoffGranted", function(args)
         end
         F.applySpeed(vehicle)
         Core.send(player, "airborne", { level = level })
+        -- Said every time she goes up: in the air the keys are not a
+        -- vehicle's, and controls nobody has been told of are no controls.
+        U.note(player, getText("IGUI_TREK_HelmKeys"), 150, 220, 255)
         U.log("airborne at level %d", level)
     end
 end)
@@ -849,17 +882,20 @@ end
 
 --- The distance, in squares from her centre, to the first wall ahead of her
 --- at this level; nil for none within reach.
-function F.wallAhead(vehicle, level, dirX, dirY)
+function F.wallAhead(vehicle, level, dirX, dirY, reach, half)
     local cx = U.try("vx", function() return vehicle:getX() end)
     local cy = U.try("vy", function() return vehicle:getY() end)
     if not cx then return nil end
     -- Across her beam: the hull is three wide, so her centre line and a
-    -- square and a bit to either side.
+    -- square and a bit to either side. Going sideways it is her length that
+    -- leads, and the helm says so (`half`): five lines then, not three.
     local sideX, sideY = -dirY, dirX
-    for d = 1, C.GuardReach do
-        for side = -1, 1 do
-            local x = cx + dirX * d + sideX * side * 1.2
-            local y = cy + dirY * d + sideY * side * 1.2
+    half = half or 1.2
+    local n = half > 1.5 and 2 or 1
+    for d = 1, reach or C.GuardReach do
+        for side = -n, n do
+            local x = cx + dirX * d + sideX * side * half / n
+            local y = cy + dirY * d + sideY * side * half / n
             if blockedAt(x, y, level) then return d end
         end
     end
@@ -938,6 +974,269 @@ local function serviceEmergency(vehicle, x, y)
     Core.send(player, "touchdown", { x = x, y = y, z = 0 })
 end
 
+---------------------------------------------------------------------------
+-- The helm in the air
+---------------------------------------------------------------------------
+-- Hovering, she is placed, not driven: every tick the pilot's machine works
+-- out where the keys want her and puts her there with the call the take-off
+-- carries her up with (place, above). Nothing pushes her and nothing has to
+-- be overcome, so she answers at once, goes sideways as readily as forwards
+-- and turns where she is. The Heroes mod flies a character the same way
+-- (HERO_Sky.step); a vehicle differs in three things, each read:
+--
+--   * **she still needs her floor.** The engine keeps a vehicle's height only
+--     over a floor under its centre (BaseVehicle.update, bci 1429-1530), so
+--     the square she is about to be over is floored before she is put there
+--     (Sky.under), a stride at a time, and she does not go where that
+--     ground is not loaded;
+--   * **her height is held while she moves, and for C.Helm.holdMs after.**
+--     At these speeds the floor under her is always one the physics has not
+--     heard of yet (the climb's own lesson), so she is never let go onto it
+--     in passing. Placed at the height she rests at, she is where the plane
+--     would have her anyway. Standing still she is let go, and the plane has
+--     her, as it does when her pilot goes aft;
+--   * **where her nose points is one number, and it is this file's.**
+--     setAngles(0, yaw, 0) is Quaternionf.rotationXYZ: a pure yaw at any
+--     angle, level by construction. The trap in keepLevel is in *reading*
+--     the angles back, so the heading is read off her once, when she is
+--     first flown, and kept here after that. setWorldTransform writes the
+--     vehicle's own transform at once (bci 0-5), so the turn and the move
+--     made in one tick agree.
+--
+-- Which way is which, from the engine and not from a guess:
+-- BaseVehicle.getForwardVector is column 2 of her rotation, her own Z, and a
+-- yaw of h turns that to (sin h, cos h) in the map's x and y (Bullet's x and
+-- z are the map's x and y; TREK_Tractor moves cars by it). At 0 she points
+-- down the map, south; more yaw turns her toward east, which facing south is
+-- to her left. So **A with Shift is more yaw**, and her starboard side is
+-- (-cos h, sin h).
+--
+-- She collides with nothing now, so the wall test the obstacle guard slows
+-- her with is also what stops her: she keeps C.Helm.clearance squares
+-- between her hull and a wall at her own level, whichever way she is going.
+
+local function keyDown(name)
+    local k = U.try("helmKey", function() return getCore():getKey(name) end)
+    if not k or k <= 0 then return false end
+    return U.try("helmKeyDown", function() return isKeyDown(k) end) == true
+end
+
+local function unit(v) return math.max(-1, math.min(1, v)) end
+
+local function rawKeyDown(name)
+    return U.try("helmRawKey", function() return isKeyDown(Keyboard[name]) end) == true
+end
+
+local function shiftDown()
+    return U.try("helmShift", function()
+        return isKeyDown(Keyboard.KEY_LSHIFT) or isKeyDown(Keyboard.KEY_RSHIFT)
+    end) == true
+end
+
+--- What the pilot is asking of her: forward (1) or back (-1), to starboard
+--- (1) or port (-1), and a turn to port (1) or starboard (-1).
+---
+--- **Keyboard:** the game's own movement keys, whatever they are bound to.
+--- W and S fly her forward and back along her nose. A and D slide her
+--- sideways, and with Shift held they turn her instead. Q and E turn her
+--- with no Shift.
+---
+--- **Controller:** the left stick flies and slides her, and the bumpers turn
+--- her. The right stick is the reticle's and its click the trigger
+--- (TREK_Torpedo); the triggers are left to the vehicle.
+---
+--- Nothing while a chat line is being typed: a W in a sentence is not an
+--- order to the helm.
+function F.wanted(player)
+    if ISChat ~= nil and ISChat.focused == true then return 0, 0, 0 end
+    local fwd, strafe, turn = 0, 0, 0
+    if keyDown("Forward") then fwd = fwd + 1 end
+    if keyDown("Backward") then fwd = fwd - 1 end
+    local port, starboard = keyDown("Left"), keyDown("Right")
+    if shiftDown() then
+        turn = (port and 1 or 0) - (starboard and 1 or 0)
+    else
+        strafe = (starboard and 1 or 0) - (port and 1 or 0)
+    end
+    -- Q and E turn her as well, with no Shift (asked for, 2026-10-10): the
+    -- keys either side of W. In a vehicle they are the horn and the way
+    -- out, so in the air TREK_VehicleMenu keeps both of those quiet for
+    -- her pilot. The keys themselves, not a binding: there is none to ask.
+    if rawKeyDown("KEY_Q") then turn = turn + 1 end
+    if rawKeyDown("KEY_E") then turn = turn - 1 end
+
+    local num = player and U.try("helmPlayerNum", function() return player:getPlayerNum() end) or 0
+    local pad = JoypadState and JoypadState.players and JoypadState.players[num + 1] or nil
+    local id = pad and pad.id or nil
+    if id then
+        local ax = U.try("helmAxisX", function() return getJoypadMovementAxisX(id) end) or 0
+        local ay = U.try("helmAxisY", function() return getJoypadMovementAxisY(id) end) or 0
+        -- A radial dead zone, as the reticle's is: a stick resting a little
+        -- off centre must not creep her along one axis.
+        if math.sqrt(ax * ax + ay * ay) >= C.Helm.deadzone then
+            -- Up the stick is forward, and up is negative.
+            fwd, strafe = fwd - ay, strafe + ax
+        end
+        if U.try("helmLB", function() return isJoypadLBPressed(id) end) == true then turn = turn + 1 end
+        if U.try("helmRB", function() return isJoypadRBPressed(id) end) == true then turn = turn - 1 end
+    end
+
+    return unit(fwd), unit(strafe), unit(turn)
+end
+
+--- Her yaw, read off her: the one time the three angles are trusted, and
+--- read the way keepLevel reads them. A level ship is Rx(0) Ry(a) Rz(0) or
+--- Rx(180) Ry(a) Rz(180), and the second is a yaw of 180 - a.
+local function headingOf(vehicle)
+    local ax = U.try("angleX", function() return vehicle:getAngleX() end) or 0
+    local ay = U.try("angleY", function() return vehicle:getAngleY() end) or 0
+    if math.abs(ax) > 90 then return 180 - ay end
+    return ay
+end
+
+--- Her top speed in the air, in tiles a second: the helm's step, under the
+--- server's ceiling and the obstacle guard's.
+function F.tilesPerSecond()
+    local want = F.speed()
+    local cap = ceiling()
+    if cap and want > cap then want = cap end
+    if guard.capped and guard.capped < want then want = guard.capped end
+    return want * C.Helm.perUnit
+end
+
+--- What the helm has her doing: her heading, her velocity in tiles a second,
+--- and whether she is being held by it this tick. For the log and the tests.
+function F.helmState()
+    return helm.heading, helm.vx, helm.vy, getTimestampMs() < helm.holdUntil
+end
+
+local helmTransform = nil
+
+--- Turns her to a heading (nil leaves her as she is) and puts her (dx, dy)
+--- tiles on, at a height. "ok" for the reason F.lift answers it.
+local function steer(vehicle, heading, y, dx, dy)
+    return U.try("helmPlace", function()
+        -- Awake, or the body may not take the move (F.lift).
+        vehicle:setPhysicsActive(true, true)
+        if heading then vehicle:setAngles(0, heading, 0) end
+        helmTransform = helmTransform or Transform.new()
+        local t = helmTransform
+        vehicle:getWorldTransform(t)
+        local o = t:getOrigin()
+        -- The origin is not the map's x and y but that less the physics
+        -- world's own offset (setWorldTransform adds it back, bci 24-55), so
+        -- she is moved by a difference and never to a map position.
+        o:set(o:x() + dx, y, o:z() + dy)
+        vehicle:setWorldTransform(t)
+        return "ok"
+    end) == "ok"
+end
+
+--- One tick of the pilot flying her. True when she was placed: the helm has
+--- her, and nothing else should read a wrong height as a fall.
+local function serviceHelm(vehicle, level, player)
+    local H = C.Helm
+    local now = getTimestampMs()
+    local dt = (now - (helm.lastMs or now)) / 1000
+    helm.lastMs = now
+    -- Bounded: a slow frame is flown as a tenth of a second and no more. And
+    -- a gap is not a frame at all: a pause, a hitch, a move that had her (a
+    -- recovery carries her for a second with this not running). She goes
+    -- nowhere for one of those, where a tenth of a second at her top step is
+    -- three tiles in one tick.
+    if dt < 0 or dt > H.gap then dt = 0 elseif dt > 0.1 then dt = 0.1 end
+
+    if helm.heading == nil then
+        helm.heading = headingOf(vehicle)
+        helm.applied = helm.heading
+        U.log("helm: she is the pilot's to fly, on a heading of %d", math.floor(helm.heading + 0.5))
+    end
+
+    local fwd, strafe, turn = F.wanted(player)
+
+    -- The turn eases toward what is asked, so she swings and settles.
+    local k = math.min(1, H.turnEase * dt)
+    helm.spin = helm.spin + (turn * H.turn - helm.spin) * k
+    if turn == 0 and math.abs(helm.spin) < H.spinStill then helm.spin = 0 end
+    local heading = helm.heading + helm.spin * dt
+    if heading > 180 then heading = heading - 360 elseif heading <= -180 then heading = heading + 360 end
+    helm.heading = heading
+
+    local h = heading * RAD
+    local fx, fy = math.sin(h), math.cos(h)      -- her nose
+    local rx, ry = -fy, fx                       -- her starboard side
+    local wx, wy = fx * fwd + rx * strafe, fy * fwd + ry * strafe
+    local len = math.sqrt(wx * wx + wy * wy)
+    if len > 1 then wx, wy = wx / len, wy / len end
+
+    -- And so does her velocity: a quarter of a second to speed, and the same
+    -- to a stop.
+    local top = F.tilesPerSecond()
+    k = math.min(1, H.ease * dt)
+    helm.vx = helm.vx + (wx * top - helm.vx) * k
+    helm.vy = helm.vy + (wy * top - helm.vy) * k
+    local pace = math.sqrt(helm.vx * helm.vx + helm.vy * helm.vy)
+    if len == 0 and pace < H.still then helm.vx, helm.vy, pace = 0, 0, 0 end
+
+    if len > 0 or turn ~= 0 or pace > 0 or helm.spin ~= 0 then
+        helm.holdUntil = now + H.holdMs
+    elseif now >= helm.holdUntil then
+        -- Standing still, and the floor under her has had its beat: the
+        -- plane has her, as it always did.
+        return false
+    end
+
+    local cx = U.try("vx", function() return vehicle:getX() end)
+    local cy = U.try("vy", function() return vehicle:getY() end)
+    if not cx or not cy then return false end
+
+    local dx, dy = 0, 0
+    if pace > 0 then
+        local ux, uy = helm.vx / pace, helm.vy / pace
+        local dist = pace * dt
+        -- How much of her leads, the way she is going, and how wide she is
+        -- across it.
+        local along = math.abs(ux * fx + uy * fy)
+        local across = math.abs(ux * rx + uy * ry)
+        local lead = along * H.halfLength + across * H.halfBeam + H.clearance
+        local half = (along * H.halfBeam + across * H.halfLength) * 0.8
+        local wall = F.wallAhead(vehicle, level, ux, uy, math.ceil(lead + dist) + 1, half)
+        if wall then
+            local room = wall - lead
+            if room <= 0 then
+                dist, helm.vx, helm.vy = 0, 0, 0
+            elseif dist > room then
+                dist = room
+            end
+        end
+        -- A stride at a time, with floor under each before she is over it.
+        local strides = math.max(1, math.ceil(dist / H.stride))
+        local step = dist / strides
+        local gone = 0
+        for _ = 1, strides do
+            if step <= 0 then break end
+            local tx, ty = cx + ux * step, cy + uy * step
+            if not Sky.under(tx, ty, level) then
+                -- The ground there is not loaded: she waits for it.
+                helm.vx, helm.vy = 0, 0
+                break
+            end
+            cx, cy, gone = tx, ty, gone + step
+        end
+        dx, dy = ux * gone, uy * gone
+    end
+
+    local turned = nil
+    if helm.applied ~= heading then
+        turned = heading
+        helm.applied = heading
+    end
+    if not steer(vehicle, turned, restY(level), dx, dy) then return false end
+    -- The plane follows her this tick, not next: Sky.service runs after this.
+    Sky.pave(cx, cy, level)
+    return true
+end
+
 local function serviceFlight()
     if Ship.get().emergency ~= true then
         emergency.tick, emergency.askedAt, emergency.capped = 0, nil, false
@@ -945,6 +1244,7 @@ local function serviceFlight()
     if not F.flying() then
         recover.count, recover.at, recover.gaveUp = 0, nil, false
         guard.capped, guard.lastX, guard.dirX, guard.dirY = nil, nil, 0, 0
+        helmStop(true)
         return
     end
     -- A move under way owns the height; nothing here may fight it.
@@ -966,11 +1266,27 @@ local function serviceFlight()
     local got = levelOf(vehicle)
     Sky.keep(got)
 
+    -- The pilot flies her, on the machine that moves her and no other. A
+    -- passenger's keys are nothing, and so are a pilot's who has gone aft.
+    local owns = ownsPhysics(vehicle)
+    local held = false
+    if owns then
+        local pilot = U.player(0)
+        if F.isPilot(pilot) then
+            held = U.try("helm", serviceHelm, vehicle, level, pilot) == true
+        else
+            helmStop(false)
+        end
+    end
+
     -- A wrong height is put right -- by carrying her back up the way the
     -- take-off does, not by teleporting her there every tick. And only so
     -- many times: if the engine keeps refusing the height, she is left where
     -- she is and the pilot is told, rather than held in place for ever.
-    if got ~= level and ownsPhysics(vehicle) and not recover.gaveUp then
+    --
+    -- Not while the helm has her: it is holding her at her height itself,
+    -- and a recovery is a move, which takes the controls away for a second.
+    if got ~= level and owns and not held and not recover.gaveUp then
         local now = getTimestampMs()
         if recover.at == nil or now - recover.at >= C.FlightRecoverMs then
             recover.at = now

@@ -20,6 +20,7 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Marooned"
+require "TREK/TREK_Core"
 require "TREK/TREK_MapContacts"
 require "TREK/TREK_MapView"
 
@@ -95,6 +96,23 @@ Net.onClient("maroonMap", function(args)
     -- The ground round the mark is uncovered by TREK_MapContacts, as for any
     -- contact, on every client the mark is published to.
     TREK.MapView.showAt(player, args.x, args.y)
+end)
+
+--- The development tool's answer (TREK_Menu, *Give me the annotated map*).
+--- It says which of the three things reading it will do, because a map that
+--- reads as old news looks exactly like a broken one.
+Net.onClient("devMap", function(args)
+    local player = TREK.Core.lastAsker or U.player(0)
+    if not player then return end
+    local key = "IGUI_TREK_DevMapGiven"
+    if not args.given then
+        key = "IGUI_TREK_DevMapFailed"
+    elseif not args.site then
+        key = "IGUI_TREK_DevMapNoSite"
+    elseif args.found then
+        key = "IGUI_TREK_DevMapFound"
+    end
+    U.note(player, getText(key), 255, 170, 90)
 end)
 
 Net.onClient("maroonLinked", function(args)

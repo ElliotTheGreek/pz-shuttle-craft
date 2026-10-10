@@ -105,6 +105,10 @@ Events.OnPlayerUpdate.Add(function(player)
     Core.enter(player)
 end)
 
+function VM.onArmWeapon(player, weapon)
+    if TREK.Torpedo then TREK.Torpedo.armWeapon(player, weapon) end
+end
+
 function VM.onRecall(player)
     Core.send(player, "recall", {})
 end
@@ -162,6 +166,11 @@ local ICONS = {
     aboard  = "media/ui/TREK_Aboard.png",
     ascend  = "media/ui/TREK_Ascend.png",
     land    = "media/ui/TREK_Land.png",
+    -- One a weapon, by its name in C.ShipWeapons (tools/gen_weapon_icons.py,
+    -- from Gemini's raws in design/art/wheel).
+    torpedo = "media/ui/TREK_Weapon_torpedo.png",
+    phaser  = "media/ui/TREK_Weapon_phaser.png",
+    tractor = "media/ui/TREK_Weapon_tractor.png",
 }
 
 local function icon(key)
@@ -170,6 +179,16 @@ local function icon(key)
     return U.try("radialIcon:" .. key, function()
         return getTexture(path)
     end) or shipIcon()
+end
+
+-- No horn in the air: the horn's key is Q, which turns her to port
+-- (TREK_Flight, F.wanted), and a horn on every turn calls the dead from
+-- half a town away. On the ground it is a vehicle's horn, as ever.
+local baseHornStart = ISVehicleMenu.onHornStart
+function ISVehicleMenu.onHornStart(playerObj)
+    local vehicle = playerObj and playerObj:getVehicle()
+    if V.isShuttle(vehicle) and TREK.Flight and TREK.Flight.flying() then return end
+    return baseHornStart(playerObj)
 end
 
 -- The radial menu inside the vehicle.
@@ -208,6 +227,19 @@ function ISVehicleMenu.showRadialMenu(playerObj)
     menu:addSlice(getText("IGUI_TREK_BoardCabin"), icon("aboard"),
                   VM.onBoardFromSeat, playerObj)
 
+    -- Which weapon the two mouse buttons work: a slice each, with its own
+    -- picture, and the one that is armed says so. Firing itself is still hold
+    -- right, click left, with nothing to switch on -- this chooses. In every
+    -- seat: her weapons are worked from all four (TREK_Torpedo.atTheControls).
+    local W = TREK.Torpedo
+    if W and W.armWeapon then
+        for _, weapon in ipairs(C.ShipWeapons) do
+            local key = (weapon == W.weapon) and "IGUI_TREK_WeaponIsArmed" or "IGUI_TREK_WeaponArm"
+            menu:addSlice(getText(key, W.weaponName(weapon)), icon(weapon),
+                          VM.onArmWeapon, playerObj, weapon)
+        end
+    end
+    -- Taking her up and setting her down are the pilot's alone.
     local F = TREK.Flight
     if not F or not F.isPilot(playerObj) then return end
     if F.flying() then
@@ -428,7 +460,12 @@ function ISVehicleMenu.onExit(playerObj, seatFrom)
     -- exception is going aboard, which leaves the seat on purpose and is
     -- caught by the boarding watcher before the character can fall.
     if TREK.Flight and TREK.Flight.flying() and not boarding[playerObj] then
-        U.note(playerObj, getText("IGUI_TREK_SeatLocked"), 255, 170, 90)
+        -- Said to a passenger and not to her pilot: E is the way out of a
+        -- vehicle and also the helm's turn to starboard, and a note on
+        -- every turn would be a note the whole flight long.
+        if not TREK.Flight.isPilot(playerObj) then
+            U.note(playerObj, getText("IGUI_TREK_SeatLocked"), 255, 170, 90)
+        end
         return
     end
 

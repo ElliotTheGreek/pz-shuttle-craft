@@ -276,7 +276,14 @@ end
 function MS.onFillContainer(_, _, container)
     local s = U.state()
     if s.marooned ~= true or s.maroonFound == true then return false end
-    if not container or not holdsMap(container) then return false end
+    -- **The third argument is not always a container.** The engine raises
+    -- this event from more than one place, and from one of them it hands over
+    -- an ItemPickerJava$ItemPickerContainer, the loot table's own record: a
+    -- class Lua is not given, so any call on it throws, and the engine dumps
+    -- a stack trace for that whatever catches it (seen in play, 2026-10-09).
+    -- Asked by type first, which is safe on anything.
+    if not container or not instanceof(container, "ItemContainer") then return false end
+    if not holdsMap(container) then return false end
     local roll = U.try("maroonMapRoll", function() return ZombRand(100) end) or 100
     if roll >= C.Maroon.mapChance then return false end
     local before = U.try("maroonMapBefore", function() return container:getItems():size() end) or 0
@@ -324,6 +331,31 @@ Net.onServer("readShuttleMap", function(player, args)
               Ship.usernameOf(player), site.id)
     end
     Net.toClient(player, "maroonMap", { site = site.id, x = contact.x, y = contact.y })
+end)
+
+--- A development tool (U.devMode; TREK_Menu, *Give me the annotated map*):
+--- one annotated map into the asker's pockets, to read as a player would.
+--- The map itself is the ordinary item and is read by the ordinary handler
+--- above, so what it says is what this world's maps say -- old news included,
+--- once she has been found.
+Net.onServer("devMap", function(player)
+    if not U.devMode() then
+        Net.toClient(player, "denied", { why = "devOnly" })
+        return
+    end
+    local given = U.try("devMapGive", function()
+        local inv = player:getInventory()
+        local item = instanceItem(C.Maroon.mapItem)
+        if not inv or not item then return false end
+        inv:AddItem(item)
+        if isServer() then sendAddItemToContainer(inv, item) end
+        return true
+    end) == true
+    local s = U.state()
+    U.log("dev: an annotated map %s %s (site %s, found %s)", given and "given to" or "could not be made for",
+          Ship.usernameOf(player), tostring(s.maroonSite), tostring(s.maroonFound == true))
+    Net.toClient(player, "devMap", { given = given, site = s.maroonSite,
+                                     found = s.maroonFound == true })
 end)
 
 ---------------------------------------------------------------------------
