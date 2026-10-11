@@ -7,26 +7,24 @@
 One `flowdot agent` per chunk, several at once. The agent is FlowDot's own
 command-line agent, which answers with the model the CLI is signed in to
 (`flowdot providers list`; here OpenAI over OAuth). It is given the chunk's
-rules and lines in its request and writes its answer as a file beside the
-chunk, one line per key:
+rules and lines in its request and says its answer, one line per key:
 
     KEY<tab>translation
 
-and never JSON: the agent's file content travels inside a JSON action, and a
-model escaping JSON inside JSON drops a quote sooner or later, which loses the
-whole file. This turns the lines into `NNN_File.out.json`, and
+It uses no tool and writes no file. Asked to write one, the CLI (1.1.13)
+wants a prompt answered for a short file, which nobody is there to answer,
+and fails to parse its own action for a long one; and JSON for an answer
+means a model escaping JSON inside JSON, which drops a quote sooner or later.
+This reads the lines out of what the agent said into `NNN_File.out.json`, and
 `translations.py import` checks every one before anything reaches Translate/.
 What is refused or missing comes out of the next export alone.
 
-DIR is where the chunks and the agents' work live, and it is the agents'
-working directory: the CLI's permissions are kept per directory
-(DIR/.flowdot/policy), so what they are allowed is allowed there and nowhere
-else. They need three, once:
+DIR is where the chunks live, and it is the agents' working directory: the
+CLI's permissions are kept per directory (DIR/.flowdot/policy), so what they
+are allowed is allowed there and nowhere else. They need one, once:
 
     cd DIR
     flowdot permissions allow llm.call 'oauth/openai/<model>'
-    flowdot permissions allow tool read_file
-    flowdot permissions allow tool write_file
 """
 import argparse
 import glob
@@ -74,10 +72,11 @@ def request(chunk, out_name):
     if chunk.get("context"):
         lines += ["", "CONTEXT: " + str(chunk["context"])]
     lines += ["",
-              "HOW TO ANSWER: do not read any file. Make exactly one write_file call that creates the file %s, "
-              "then stop. Its content is plain text, NOT JSON: one line per key, in the same order, each line "
-              "being the key, one tab character, then the translation. Every key below must have a line. No "
-              "header, no blank lines, no quotation marks around the translation, no commentary." % out_name,
+              "HOW TO ANSWER: do not call any tool and do not read or write any file. Reply with the "
+              "translations themselves as your whole message, plain text and NOT JSON: one line per key, in the "
+              "same order, each line being the key, one tab character, then the translation. Every key below "
+              "must have a line. No header, no blank lines, no quotation marks around the translation, no "
+              "commentary.",
               "", "LINES (key, tab, English):"]
     lines += ["%s\t%s" % (k, v) for k, v in chunk["units"].items()]
     return "\n".join(lines)
@@ -124,7 +123,7 @@ def worker(jobs, root, timeout, tries, tally):
             try:
                 if os.path.exists(raw_path):
                     os.remove(raw_path)
-                r = subprocess.run(base + ["agent", "--no-web-search", "--no-code-analysis", "--max-iterations", "4",
+                r = subprocess.run(base + ["agent", "--no-web-search", "--no-code-analysis", "--max-iterations", "2",
                                            "--timeout", str(timeout), request(chunk, raw)],
                                    cwd=root, stdin=subprocess.DEVNULL, capture_output=True, text=True,
                                    encoding="utf-8", errors="replace", timeout=timeout * 60 + 60)
