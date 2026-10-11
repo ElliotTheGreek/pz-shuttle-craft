@@ -52,6 +52,15 @@ SHIP_CONTAINERS = sorted(n for n, p in tilecatalog.ours().items() if p.get("cont
 if len(SHIP_CONTAINERS) < 20:
     raise SystemExit(f"only {len(SHIP_CONTAINERS)} container tiles read from the tiledef")
 
+# How many skins the shuttle's vehicle script really has: the simulated
+# addVehicleDebug throws for one past the last, as a skin the engine has no
+# block for is a ship drawn as something nobody asked for.
+VEHICLE_SKINS = len(re.findall(r"^\s*skin\s*$", open(os.path.join(
+    ROOT, "TrekShuttle", "42", "media", "scripts", "vehicles", "trekshuttle_vehicle.txt"),
+    encoding="utf-8").read(), re.M))
+if VEHICLE_SKINS < 1:
+    raise SystemExit("no skin block read from trekshuttle_vehicle.txt")
+
 failures = []
 
 
@@ -124,6 +133,7 @@ class Runtime:
         for name in SHIP_CONTAINERS:
             ship[name] = True
         g.SIM.shipContainers = ship
+        g.SIM.vehicleSkins = VEHICLE_SKINS
 
     def load(self):
         # The game loads every .lua under media/lua, so the simulation has to
@@ -571,6 +581,20 @@ def shuttles(rt):
         end
         return n
     end)()""")
+
+
+def skins(rt):
+    """The skin of every shuttle vehicle there is, as "ship:skin", in ship order."""
+    return str(rt.eval("""(function()
+        local o = {}
+        for _, v in ipairs(SIM.vehicles) do
+            if not v.removed and v.script == "Base.TrekShuttleCraft" then
+                o[#o + 1] = tostring(TREK.Vehicle.fleetOf(v)) .. ":" .. tostring(v:getSkinIndex())
+            end
+        end
+        table.sort(o)
+        return table.concat(o, ",")
+    end)()"""))
 
 
 def ship_vehicle(rt):
@@ -11411,6 +11435,7 @@ def cold_start():
     net.pump(60)
     check(ship(rt, "landed") is True and ship(rt, "coldPlaced") is True,
           "cold start: the shuttle was never set down beside the player")
+    check(skins(rt) == "1:1", f"cold start: a ship left dark is in skin {skins(rt)}, not the fleet's worn")
     d = max(abs(ship(rt, "x") - 4000), abs(ship(rt, "y") - 4000))
     check(int(C("ColdPlaceMin")) <= d <= int(C("ColdPlaceMax")),
           f"cold start: she came down {d} squares from the player, not "
@@ -11863,6 +11888,7 @@ def marooned():
     net.pump(120)
     check(ship(rt, "landed") is True and ship(rt, "maroonPlaced") is True,
           "marooned: she was not set down when her ground loaded")
+    check(skins(rt) == "1:2", f"marooned: a ship lost and never commissioned is in skin {skins(rt)}, not the fleet's derelict")
     d = max(abs(ship(rt, "x") - sx), abs(ship(rt, "y") - sy))
     check(0 < d <= ring, f"marooned: she came down {d} squares from the site, not 1..{ring}")
     check((int(rt.eval(f"{c}.x")), int(rt.eval(f"{c}.y"))) == (ship(rt, "x"), ship(rt, "y"))
@@ -20423,6 +20449,9 @@ def fleet():
     tags = str(srv.eval("(function() local o = {} for _, v in ipairs(SIM.vehicles) do if not v.removed then "
                         "o[#o + 1] = tostring(TREK.Vehicle.fleetOf(v)) end end table.sort(o) return table.concat(o, ',') end)()"))
     check(tags == "1,2", f"fleet: the two vehicles are tagged as ships {tags}")
+    # And they can be told apart: the shared one in the fleet's livery, hers
+    # in the next, both kept.
+    check(skins(srv) == "1:0,2:3", f"fleet: the two hulls wear skins {skins(srv)}, not the fleet's and the next livery's")
     # The shared ship's shields push the dead a client simulates even when
     # that client is dealing with another ship, and she is billed for it.
     sx, sy = int(st(srv, 1, "x")), int(st(srv, 1, "y"))
@@ -20611,6 +20640,20 @@ def fleet():
     check(srv.eval('TREK.Ship.personalOf("kira")') == 2 and st(srv, 2, "owner") == "kira",
           "fleet: waking the world lost somebody's shuttle")
 
+    # --- her paint is an admin's to choose, and nobody else's -------------------
+    labels = ground_labels
+    check("IGUI_TREK_Paint" in labels(sisko) and "IGUI_TREK_Paint" not in labels(odo),
+          "fleet: the repaint is not on an admin's menu, or is on somebody else's")
+    odo.run(f'TREK.Net.send({P}, "paintHull", {{ skin = 5 }})')
+    net.pump(8)
+    check(st(srv, 1, "paint") is None and st(srv, 2, "paint") is None,
+          "fleet: somebody who is no admin had a shuttle repainted")
+    sisko.run(f'TREK.Net.send({P}, "paintHull", {{ skin = 5, ship = 2 }})')
+    net.pump(8)
+    check(st(srv, 2, "paint") == 5 and st(srv, 1, "paint") is None,
+          f"fleet: an admin's repaint of ship 2 left her paint at {st(srv, 2, 'paint')} and the shared one's at {st(srv, 1, 'paint')}")
+    check(int(srv.eval("TREK.Vehicle.skinFor(TREK.Util.stateOf(2), 2)")) == 5 and st(kira, 2, "paint") == 5,
+          "fleet: the ship's own skin is not the one she was repainted in, or her owner's machine was not told")
     for name, c in net.clients.items():
         check(c.eval("SIM.clientWorldEdit") is None,
               f"fleet: {name} edited the world for something other than the sky plane")
@@ -20697,6 +20740,88 @@ def fleet_off():
 # <<< fleet, fleet_off
 
 
+def hull_skins():
+    """One hull, many skins (tools/gen_shuttle.py; TREK_Vehicle.lua, V.skinFor).
+
+    Which skin a ship is set down in is arithmetic over what is already kept:
+    which ship she is, and what has happened to her. The cold start, marooned
+    and the fleet each check the vehicle the server really makes; this is the
+    whole table, and that no ship a server can have asks for a skin the
+    vehicle script has no block for."""
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('pilot', 4000.5, 4000.5, 0)")
+    net.start()
+    liveries, states = int(rt.eval("#TREK.Config.HullLiveries")), int(rt.eval("#TREK.Config.HullStates"))
+    check(liveries * states == VEHICLE_SKINS,
+          f"hull skins: the config has {liveries} liveries in {states} states and the vehicle script {VEHICLE_SKINS} skin blocks")
+    f = lambda s, i: int(rt.eval(f"TREK.Vehicle.skinFor({s}, {i})"))
+    table = {
+        "a ship commissioned from the start": ("{ commissioned = true }", 0),
+        "a save from before any of it": ("{}", 0),
+        "no state at all": ("nil", 0),
+        "a cold start, still dark": ("{ commissioned = false, coldStart = true }", 1),
+        "a cold start, commissioned": ("{ commissioned = true, coldStart = true }", 0),
+        "marooned, never found": ("{ commissioned = false, marooned = true }", 2),
+        "marooned, and flying again": ("{ commissioned = true, marooned = true }", 1),
+    }
+    for what, (s, state) in table.items():
+        check(f(s, 1) == state, f"hull skins: {what} is in skin {f(s, 1)} as the shared ship, not {state}")
+        check(f(s, 2) == states + state, f"hull skins: {what} is in skin {f(s, 2)} as ship 2, not {states + state}")
+    last = int(rt.eval("TREK.Config.FleetSlots")) + 1
+    seen = {f("{ commissioned = false, marooned = true }", i) for i in range(1, last + 1)}
+    check(max(seen) < VEHICLE_SKINS and min(seen) >= 0,
+          f"hull skins: a ship of a full fleet asks for skin {max(seen)} of {VEHICLE_SKINS}")
+    check(f("{}", liveries + 1) == 0 and f("{}", "nil") == 0,
+          "hull skins: the liveries do not come round again, or a ship with no number is not the shared one")
+    # And the simulated engine refuses what the real one has no block for.
+    refused = rt.eval(f"(pcall(addVehicleDebug, 'Base.TrekShuttleCraft', IsoDirections.N, {VEHICLE_SKINS}, SIM.rawSquare(4010, 4010, 0)))")
+    check(refused is False, "hull skins: the simulation made a vehicle in a skin one past the script's last")
+
+    # --- repainted: in single player it is the player's own world ---------------
+    P = "SIM.players[1]"
+    check(f("{ commissioned = false, marooned = true, paint = 7 }", 1) == 7 and f(f"{{ paint = {VEHICLE_SKINS} }}", 2) == states
+          and f("{ paint = 1.5 }", 1) == 0,
+          "hull skins: a ship's paint does not come before what she has earned, or one that is no skin is taken for one")
+    check("IGUI_TREK_Paint" in ground_labels(rt), "hull skins: the repaint is not on the ground menu in single player")
+    for label in ("IGUI_TREK_PaintEarned", "IGUI_TREK_Livery_survey", "IGUI_TREK_Hull_derelict"):
+        check(label in ground_labels(rt), f"hull skins: the repaint's menu has no {label}")
+    rt.run(f'TREK.Core.send({P}, "paintHull", {{ skin = 7 }})')
+    net.pump(8)
+    check(ship(rt, "paint") == 7 and ship(rt, "landed") is not True and "IGUI_TREK_PaintedLater" in rt.notes(),
+          f"hull skins: a ship overhead was not repainted for when she is next set down ({rt.notes()})")
+    rt.run(f'TREK.Core.send({P}, "land", {{ x = 4010, y = 4000, z = 0 }})')
+    net.pump(120)
+    check(ship(rt, "landed") is True and skins(rt) == "1:7", f"hull skins: called down, a repainted ship is in skin {skins(rt)}, not 7")
+    was = (ship(rt, "x"), ship(rt, "y"))
+    rt.run("SIM.notes = {}")
+    rt.run(f'TREK.Core.send({P}, "paintHull", {{ skin = 14 }})')
+    net.pump(8)
+    check(skins(rt) == "1:14" and int(shuttles(rt)) == 1 and (ship(rt, "x"), ship(rt, "y")) == was
+          and ship(rt, "landed") is True and ship_vehicle(rt) is not None and "IGUI_TREK_Painted" in rt.notes(),
+          f"hull skins: standing on the ground she was not set down again where she stood, in her new skin ({skins(rt)}, {rt.notes()})")
+    rt.run(f'TREK.Core.send({P}, "paintHull", {{ skin = {VEHICLE_SKINS} }})')
+    net.pump(8)
+    check(ship(rt, "paint") == 14 and skins(rt) == "1:14", "hull skins: a skin the script has no block for was taken")
+    # Not from under somebody sitting in her: the vehicle they are in would be
+    # taken out of the world. It is hers when she is next set down.
+    seat(rt)
+    sat = ship_vehicle(rt)
+    rt.run("SIM.notes = {}")
+    rt.run(f'TREK.Core.send({P}, "paintHull", {{ skin = 3 }})')
+    net.pump(8)
+    check(ship_vehicle(rt) == sat and skins(rt) == "1:14" and ship(rt, "paint") == 3 and "IGUI_TREK_PaintedLater" in rt.notes(),
+          f"hull skins: she was set down again in a new skin with somebody in her seat ({skins(rt)}, {rt.notes()})")
+    rt.run(f"local p = {P}; TREK.Vehicle.ship().seats[0] = nil; p.vehicle = nil")
+    rt.run(f'TREK.Core.send({P}, "paintHull", {{}})')
+    net.pump(8)
+    check(ship(rt, "paint") is None and skins(rt) == "1:0", f"hull skins: given back, she is in skin {skins(rt)}, not the one she has earned")
+    for w in rt.warnings():
+        fail(f"hull skins: {w}")
+    print(f"hull skins: {liveries} liveries in {states} states, {VEHICLE_SKINS} skin blocks; a ship's livery is which ship "
+          f"she is and her state what has happened to her")
+
+
 SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabin_partial, starfleet_refit_mp, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_helm, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -20712,7 +20837,7 @@ SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabi
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, phaser_clearing, phaser_clearing_mp, field_kit, field_kit_mp, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer, rules, rules_multiplayer, fleet, fleet_off)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer, rules, rules_multiplayer, fleet, fleet_off, hull_skins)
 
 
 def main():

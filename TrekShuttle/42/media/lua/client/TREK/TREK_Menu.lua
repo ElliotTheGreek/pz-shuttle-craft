@@ -47,6 +47,8 @@ local U = TREK.Util
 local Ship = TREK.Ship
 local W = TREK.World
 local Core = TREK.Core
+local V = TREK.Vehicle
+local Net = TREK.Net
 
 local M = {}
 TREK.Menu = M
@@ -301,6 +303,34 @@ local function aboardMenu(context, player, worldobjects, test)
     return true
 end
 
+function M.onPaint(_, player, id, skin)
+    M.onShip(nil, player, id, function(_, p) Core.send(p, "paintHull", { skin = skin }) end)
+end
+
+Net.onClient("hullPainted", function(args)
+    U.note(Core.lastAsker or U.player(0),
+           getText(args.now and "IGUI_TREK_Painted" or "IGUI_TREK_PaintedLater"), 150, 220, 255)
+end)
+
+--- Her hull, for somebody with the say (SERVERS.md): every livery in every
+--- state, and the one she has earned.
+local function paintMenu(menu, player, worldobjects, ship)
+    if not V.mayPaint(player) then return end
+    local top = menu:addOption(getText("IGUI_TREK_Paint"), worldobjects, nil)
+    local paints = ISContextMenu:getNew(menu)
+    menu:addSubMenu(top, paints)
+    paints:addOption(getText("IGUI_TREK_PaintEarned"), worldobjects, M.onPaint, player, ship, nil)
+    for i, livery in ipairs(C.HullLiveries) do
+        local row = paints:addOption(getText(V.LiveryText[livery]), worldobjects, nil)
+        local states = ISContextMenu:getNew(paints)
+        paints:addSubMenu(row, states)
+        for j, state in ipairs(C.HullStates) do
+            states:addOption(getText(V.StateText[state]), worldobjects, M.onPaint, player, ship,
+                             (i - 1) * #C.HullStates + j - 1)
+        end
+    end
+end
+
 local function groundMenu(context, player, worldobjects, sq, test)
     -- Whose hull, if it is one: with more than one shuttle about, the one
     -- under the cursor is the one being asked, not the one last hailed.
@@ -345,6 +375,7 @@ local function groundMenu(context, player, worldobjects, sq, test)
         menu:addOption(getText("IGUI_TREK_BeamUp"), worldobjects, M.onShip, player, ship, M.onBeamUp)
     end
     if not onHull then hailMenu(menu, player, worldobjects) end
+    paintMenu(menu, player, worldobjects, ship)
     return true
 end
 

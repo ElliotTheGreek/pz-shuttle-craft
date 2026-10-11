@@ -2564,7 +2564,7 @@ from a method whose name says it only reads.
 Meshes and textures are **generated, never hand-authored**:
 
 ```sh
-python tools/gen_shuttle.py TrekShuttle/42
+python tools/gen_shuttle.py                      # the hull, built in code, in eighteen skins (DESIGN.md, *The hull*); look at design/art/shuttle
 python tools/gen_helm.py    TrekShuttle/42   # the deleted helm console prop
 python tools/bake_phaser.py                      # the phaser mesh+texture from its TRELLIS raw (once; pip deps)
 python tools/gen_phaser.py  TrekShuttle/42       # the phaser: mesh, icon, review sheet, four sounds

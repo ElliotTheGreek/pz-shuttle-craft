@@ -2310,12 +2310,25 @@ function VehicleMT:permanentlyRemove()
     if isClient() then SIM.clientWorldEdit = (SIM.clientWorldEdit or 0) + 1 end
 end
 
+-- How many skin blocks the shuttle's vehicle script has: the harness counts
+-- them in the real file and sets this (tests/test_multiplayer.py).
+SIM.vehicleSkins = SIM.vehicleSkins or 1
+function VehicleMT:getSkinIndex() return self.skin or 0 end
+function VehicleMT:getSkinCount() return SIM.vehicleSkins end
+
 --- Spawns a vehicle, as build 42's addVehicleDebug does: on the server the
 --- game's vehicle sync then streams it to clients.
 function addVehicleDebug(script, dir, skin, sq)
     if isClient() then error("addVehicleDebug on a client") end
     if not sq then return nil end
+    -- The third argument goes to setSkinIndex, and the engine keeps it. One
+    -- past the script's last skin block is not a skin: the engine would draw
+    -- nothing it was asked for, so it is a fault here, before anything is made.
+    if type(skin) ~= "number" or skin < 0 or skin >= SIM.vehicleSkins or skin ~= math.floor(skin) then
+        error("addVehicleDebug: skin " .. tostring(skin) .. " is not one of the script's " .. SIM.vehicleSkins)
+    end
     local v = SIM.vehicle(script, sq.x + 0.5, sq.y + 0.5, sq.z)
+    v.skin = skin
     if isServer() then
         py_replicate("vehicle", { x = sq.x, y = sq.y, z = sq.z, script = script, simId = v.simId })
     end

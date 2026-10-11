@@ -414,8 +414,11 @@ end
 --- Spawns the shuttle vehicle on a square and makes it the ship.
 local function spawnVehicle(sq)
     local s = U.state()
+    -- Her skin is asked for here and kept by the engine (setSkinIndex, which
+    -- addVehicleDebug's third argument goes to): saved and sent with her.
+    local skin = V.skinFor(s, U.shipNow)
     local vehicle = U.try("addVehicle", function()
-        return addVehicleDebug(V.SCRIPT, IsoDirections.N, 0, sq)
+        return addVehicleDebug(V.SCRIPT, IsoDirections.N, skin, sq)
     end)
     if not vehicle then
         U.log("WARN could not spawn the shuttle vehicle at %d,%d,%d",
@@ -428,8 +431,10 @@ local function spawnVehicle(sq)
     -- Proof it is tagged: an untagged vehicle looks like a leftover to the
     -- sweep below, which is how the ship could come to delete itself.
     local tagged = V.idOf(vehicle)
-    U.log("shuttle vehicle %s spawned at %d,%d,%d",
-          tostring(tagged), sq:getX(), sq:getY(), sq:getZ())
+    U.log("shuttle vehicle %s spawned at %d,%d,%d: skin %d asked for, and the engine has her in skin %s of %s",
+          tostring(tagged), sq:getX(), sq:getY(), sq:getZ(), skin,
+          tostring(U.try("vehicleSkin", function() return vehicle:getSkinIndex() end)),
+          tostring(U.try("vehicleSkins", function() return vehicle:getSkinCount() end)))
     if tagged ~= s.vehicleId then
         U.log("WARN the shuttle vehicle could not be tagged; it will be left alone")
     end
@@ -3379,6 +3384,54 @@ function S.serviceProbe()
     end
 end
 
+--- Sets a ship that is standing on the ground down again where she stands,
+--- so that she wears the skin V.skinFor has for her now: a vehicle keeps the
+--- skin it was made in, and BaseVehicle.setSkinIndex writes one field on one
+--- machine and tells nobody. Not with anybody aboard her, and not in the
+--- air. She comes back facing north. Returns true when she was.
+function S.repaint()
+    local s = U.state()
+    if not s.landed or s.flying then return false end
+    local vehicle = V.find(s.vehicleId)
+    if not vehicle or crewAboard(vehicle) then return false end
+    local sq = U.square(s.x, s.y, s.z, false)
+    if not sq then return false end
+    removeVehicle(vehicle, "repainted")
+    if not spawnVehicle(sq) then
+        -- Nothing to stand where she stood: she is overhead, to be called down.
+        U.log("WARN repainting: the shuttle could not be set down again; she has gone back up")
+        s.landed = false
+        s.vehicleId = nil
+        return false
+    end
+    return true
+end
+
+--- Somebody with the say has her repainted (SERVERS.md; TREK_Menu, *Repaint
+--- her hull*): any skin the vehicle script has, or none, which gives her
+--- back the one she has earned. It is hers from the next time she is set
+--- down, and at once where she can be set down again as she stands.
+Net.onServer("paintHull", function(player, args)
+    if not V.mayPaint(player) then
+        deny(player, "access")
+        return
+    end
+    local s = U.state()
+    local skin = args.skin
+    if skin ~= nil then
+        skin = tonumber(skin)
+        if not skin or skin < 0 or skin >= #C.HullLiveries * #C.HullStates or skin ~= math.floor(skin) then
+            return
+        end
+    end
+    s.paint = skin
+    local now = S.repaint()
+    Ship.commit()
+    U.log("%s had ship %s repainted: skin %s, %s", Ship.usernameOf(player), tostring(U.shipNow),
+          tostring(V.skinFor(s, U.shipNow)), now and "at once" or "from when she is next set down")
+    Net.toClient(player, "hullPainted", { now = now })
+end)
+
 --- Design and diagnostic tools behind the debug console. Single player, or a
 --- server admin.
 Net.onServer("debug", function(player, args)
@@ -3733,7 +3786,7 @@ Net.aboutShip("boarded", "move", "land", "recall", "takeoff", "airborne", "setSp
               "removeBookmark", "setShields", "shieldDraw", "setCrew", "replicate", "loadCrystal",
               "takeCrystal", "storePattern", "scanCarried", "emhSummon", "emhDismiss", "emhLook",
               "emhTreat", "emhCure", "emhDetox", "emhAccept", "emhDecline", "launchProbe",
-              "buildProbe", "debug")
+              "buildProbe", "debug", "paintHull")
 
 --- One line per thing that can be wrong with the replicator, for
 --- TREK_Replicator() from the console.

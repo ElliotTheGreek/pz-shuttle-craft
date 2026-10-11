@@ -337,6 +337,43 @@ about the assets*. The mod's machines and the hull are **world models**
 (`.x` meshes plus textures), not tile sprites; the Adirondack's furniture is
 rendered into a tile pack (`ADIRONDACK.md`).
 
+### The hull: one mesh, many skins
+
+Since 1.22 the shuttle's hull is **built in code** (`tools/gen_shuttle.py`),
+the Mechs mod's way (`pz-mechs/ART.md` 6.5), and no longer the mesh an
+image-to-3D model made (`tools/assets/type6_shuttle`, kept). **Not seen in
+game.**
+
+- **A skin is a livery and a state of wear**: six liveries (`fleet`,
+  `sciences`, `ops`, `medical`, `tactical`, `survey`) by three states (`kept`,
+  `worn`, `derelict`), eighteen 512 sheets from one painted raw. The three
+  states of a livery read the same noise, so `worn` is where `derelict`
+  began. `design/art/shuttle/shuttle_skins.png` is the page to judge them on.
+- **The engine keeps which one a vehicle wears**, by its index in the vehicle
+  script's skin blocks: `C.HullLiveries` and `C.HullStates` are that order,
+  the generator and `tests/test_assets.py` hold all three together, and
+  **the order is appended to, never changed**.
+- **Which skin a ship is given is `V.skinFor`** (`TREK_Vehicle.lua`), worked
+  out each time she is set down from what is already kept: her livery is
+  which ship she is (the shared shuttle the fleet's, a personal shuttle the
+  next one round), and her state what has happened to her (never
+  commissioned: derelict where she was marooned, worn where she was left
+  dark; once marooned: worn for good). A vehicle keeps the skin it was made
+  in, so a change shows the next time she lands.
+- **An admin may repaint her** (`paintHull`, *Shuttlecraft ▸ Repaint her
+  hull*; `SERVERS.md`): `s.paint` comes before what she has earned, and
+  `S.repaint` sets a ship standing empty on the ground down again where she
+  stands, because `BaseVehicle.setSkinIndex` writes one field on one machine
+  and tells nobody. In single player the line is the player's own.
+- **`tools/hullkit.py` is the kit** (paint, weather, glass, the winding check,
+  a previewer that culls as the engine does): another small craft is a
+  generator of its own on top of it, with its own stations and sheet.
+- **Two meshes**: `TREK_Shuttle.x` is wound for the vehicle shader and
+  `TREK_ShuttleHull.x` for the world model old saves may still hold.
+- **Not built**: a hull that wears as it is flown or mends when repaired, a
+  host's or a player's choice of livery, vanilla's own rust and blood
+  overlays (the mask is black), and the cabin's walls matching her skin.
+
 An item's `Icon = X` resolves to `media/textures/Item_X.png`, and a missing
 one shows as a blank square and reports nothing. `tests/test_assets.py` checks
 every icon, mesh and texture the scripts name.

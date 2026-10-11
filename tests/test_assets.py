@@ -1171,6 +1171,28 @@ else:
     if ext and zs and abs(float(ext.group(3)) - (max(zs) - min(zs))) > 0.1:
         failures.append(f"vehicle extents length {ext.group(3)} does not match the hull "
                         f"mesh length {max(zs) - min(zs):.2f}; the seat chart will misalign")
+    # One hull, many skins: a block for each livery in each state, in the
+    # config's order, which is the index V.skinFor works out and the engine
+    # saves. A block short and a ship asks for a skin that is not there.
+    hull_cfg = open(os.path.join(MOD, "media", "lua", "shared", "TREK", "TREK_Config.lua"),
+                    encoding="utf-8").read()
+    lists = [re.findall(r'"(\w+)"', m.group(1)) if m else [] for m in (
+        re.search(r"^C\.%s\s*=\s*\{([^}]*)\}" % k, hull_cfg, re.M) for k in ("HullLiveries", "HullStates"))]
+    want = ["TREK_Shuttle" if (i, j) == (0, 0) else f"TREK_Shuttle_{a}_{b}"
+            for i, a in enumerate(lists[0]) for j, b in enumerate(lists[1])]
+    got = re.findall(r"^\s*skin\s*\{\s*texture\s*=\s*(\w+),\s*\}", vs, re.M)
+    if len(want) < 2:
+        failures.append("TREK_Config.lua: C.HullLiveries and C.HullStates were not read")
+    elif got != want:
+        failures.append(f"the vehicle's {len(got)} skin blocks are not the config's {len(lists[0])} liveries "
+                        f"in {len(lists[1])} states, in order (python tools/gen_shuttle.py)")
+    # The vehicle's hull is wound for the vehicle shader, so the world model
+    # has a mesh of its own: one mesh for both is one of them inside out.
+    items = open(os.path.join(MOD, "media", "scripts", "trekshuttle.txt"), encoding="utf-8").read()
+    if not re.search(r"model TrekShuttleHullModel\s*\{\s*mesh = TREK_ShuttleHull,", items):
+        failures.append("TrekShuttleHullModel does not draw TREK_ShuttleHull, the hull wound for a world model")
+    elif not os.path.isfile(os.path.join(MOD, "media", "models_X", "TREK_ShuttleHull.x")):
+        failures.append("media/models_X/TREK_ShuttleHull.x is missing (python tools/gen_shuttle.py)")
     seats = re.findall(r"^\s*passenger\s+(\w+)", vs, re.M)
     if len(seats) != 4:
         failures.append(f"the shuttle vehicle has {len(seats)} seats, not 4")

@@ -14,9 +14,12 @@ module TrekShuttle
         the ship down. Nothing in the engine ties those together, so change
         both or neither.  */
 
+    /*  TREK_ShuttleHull is the vehicle's hull wound the other way: the vehicle
+        shader and a world model disagree about which side of a face is its
+        front (tools/gen_shuttle.py writes both).  */
     model TrekShuttleHullModel
     {
-        mesh = TREK_Shuttle,
+        mesh = TREK_ShuttleHull,
         texture = TREK_Shuttle,
         scale = 1.0,
     }

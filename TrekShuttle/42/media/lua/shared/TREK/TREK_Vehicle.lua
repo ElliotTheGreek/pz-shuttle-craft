@@ -18,12 +18,64 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 
 TREK = TREK or {}
+local C = TREK.Config
 local U = TREK.Util
 
 local V = {}
 TREK.Vehicle = V
 
 V.SCRIPT = "Base.TrekShuttleCraft"
+
+--- Which skin a ship is set down in: an index into the vehicle script's skin
+--- blocks, a livery's three states together (C.HullLiveries, C.HullStates;
+--- tools/gen_shuttle.py). `s` is her state and `id` which ship she is.
+---
+--- **Nothing new is kept for it.** Her livery is which ship she is: the
+--- shared shuttle wears the fleet's, and a personal shuttle the next one
+--- round, so two set down on one street can be told apart. Her state is what
+--- has happened to her: a ship nobody has commissioned (ENERGY.md, the cold
+--- start) has been down and dark, a derelict where she was lost
+--- (MAROONED.md) and worn where she was only left; and a ship that was lost
+--- stays worn once she is flying again. A vehicle keeps the skin it was
+--- made in, so a change shows the next time she is set down.
+---
+--- **Unless somebody with the say has had her repainted** (`s.paint`: an
+--- admin on a server, the player in single player; SERVERS.md), which is
+--- hers until they give it back.
+function V.skinFor(s, id)
+    local liveries, states = #C.HullLiveries, #C.HullStates
+    local paint = s and tonumber(s.paint)
+    if paint and paint >= 0 and paint < liveries * states and paint == math.floor(paint) then
+        return paint
+    end
+    local livery = ((tonumber(id) or 1) - 1) % liveries
+    local state = 0
+    if s and s.commissioned == false then
+        state = s.marooned == true and 2 or 1
+    elseif s and s.marooned == true then
+        state = 1
+    end
+    return livery * states + math.min(state, states - 1)
+end
+
+--- May this player have her repainted? An admin on a server; in single
+--- player it is their world.
+function V.mayPaint(player)
+    if isClient() or isServer() then return TREK.Ship.isAdmin(player) end
+    return true
+end
+
+-- What each livery and state is called, written out whole: a key put
+-- together from parts is one no check can see.
+V.LiveryText = {
+    fleet = "IGUI_TREK_Livery_fleet", sciences = "IGUI_TREK_Livery_sciences",
+    ops = "IGUI_TREK_Livery_ops", medical = "IGUI_TREK_Livery_medical",
+    tactical = "IGUI_TREK_Livery_tactical", survey = "IGUI_TREK_Livery_survey",
+}
+V.StateText = {
+    kept = "IGUI_TREK_Hull_kept", worn = "IGUI_TREK_Hull_worn",
+    derelict = "IGUI_TREK_Hull_derelict",
+}
 
 --- True for a shuttle vehicle, the current one or not.
 function V.isShuttle(vehicle)

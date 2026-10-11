@@ -246,6 +246,14 @@ whoever launched it.
   server's log says so.
 - **Single player has one ship**, whatever this is set to.
 
+**Telling them apart.** Every shuttle is one hull in one of eighteen
+skins: six liveries (Fleet, Sciences, Operations, Medical, Tactical, Survey),
+each kept, worn or derelict. Nobody has to choose: the shared shuttle wears
+the fleet's and each personal shuttle the next livery round, so two on one
+street are not the same ship twice; and a ship that began dark is worn, one
+that was lost is a derelict until she is commissioned and worn after. See
+*Repainting a shuttle* below to choose for them.
+
 **Known limits, new in 1.21.0 and not yet played.**
 
 - A shuttle flying is drawn at her height on the machines of the players
@@ -255,6 +263,33 @@ whoever launched it.
 - The first cabin a player enters after a server restart is built as they
   arrive, like the shared one. A cabin nobody has stood in does not exist
   yet, and costs nothing.
+
+---
+
+## Repainting a shuttle
+
+New in 1.22, and **not yet played**. An admin has one more line on the
+ground menu: right-click the ground, or a shuttle's hull, then
+*Shuttlecraft ▸ Repaint her hull*, a livery, and a state. It is not a
+sandbox setting, because it is about one ship and not the server.
+
+- **Which ship.** The one the menu is speaking to: the hull under the
+  cursor, or the admin's own (*A shuttle each*, above). On a hull it is that
+  shuttle, whoever's she is.
+- **When it shows.** A shuttle standing on the ground with nobody aboard is
+  set down again where she stands, at once, facing north. One overhead, in
+  the air, or with somebody in her wears it the next time she is set down;
+  the admin is told which.
+- **It is hers until it is given back.** *As she has earned it* at the top
+  of that menu returns her to the skin the mod works out for her.
+- **Only an admin** sees the line or is listened to. In single player it is
+  the player's own world, and the line is always there.
+- **A reward, a rank, a faction.** This is how to hand a player a ship that
+  looks like something: give them a shuttle (`PersonalShuttleUsers`), then
+  repaint her. There is no setting yet that does it by itself.
+
+The server's log has a line for every repaint, and for every shuttle set
+down: `skin N asked for, and the engine has her in skin M of 18`.
 
 ---
 
@@ -475,9 +510,12 @@ comments, or GitHub.
 - **Per-player rules.** A species is allowed for everybody or nobody; there
   is no "only this player may be a Klingon". The lists are for who has a
   shuttle and who may board, not for who may be what.
-- **An admin's menu in the game.** Every rule is a sandbox setting, changed
-  from the game's own admin panel. There is no in-game tool for giving one
-  player a rank or a species.
+- **An admin's menu in the game**, but for one line: *Repaint her hull*,
+  above. Every rule is a sandbox setting, changed from the game's own admin
+  panel. There is no in-game tool for giving one player a rank, a species or
+  a second shuttle.
+- **A shuttle that wears as she is flown**, a livery a player picks for
+  themselves, or one a setting hands out.
 - **More than one shared shuttle**, or a personal shuttle with a different
   cabin from the rest.
 - **Change the story's structure from a setting.** Words, yes (a lore

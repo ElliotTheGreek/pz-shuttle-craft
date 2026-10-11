@@ -2057,6 +2057,14 @@ C.EmhOff  = 2
 -- The hull outside is a world model, defined in media/scripts/trekshuttle.txt.
 C.ExteriorItem = "TrekShuttle.TrekShuttleHull"
 
+-- **One hull, many skins** (tools/gen_shuttle.py, which is held to these two
+-- lists). The vehicle script has a skin block for each livery in each state,
+-- a livery's three states together, and the engine keeps which one a vehicle
+-- wears. V.skinFor (TREK_Vehicle.lua) says which a ship is given when she is
+-- set down. **The engine saves the index: append, never reorder.**
+C.HullLiveries = { "fleet", "sciences", "ops", "medical", "tactical", "survey" }
+C.HullStates = { "kept", "worn", "derelict" }
+
 -- The helm console. Not placed any more: it was a 70-weight static model
 -- standing in the cabin that did nothing at all. The helm panel opens from
 -- the aboard menu -- right-click anywhere aboard, Shuttlecraft, Helm -- and
