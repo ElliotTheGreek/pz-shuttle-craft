@@ -1186,6 +1186,36 @@ else:
     elif got != want:
         failures.append(f"the vehicle's {len(got)} skin blocks are not the config's {len(lists[0])} liveries "
                         f"in {len(lists[1])} states, in order (python tools/gen_shuttle.py)")
+    # **Every kind of ship** (C.Hulls) is the shuttle's vehicle under another
+    # name: its script is hers character for character but for the names and
+    # the skin blocks, which are its own liveries in each state, in order.
+    # A script that drifts from hers is a vehicle nobody has sat in.
+    hulls = re.findall(r'\{\s*id = "(\w+)", script = "Base\.(\w+)", sheet = "(\w+)", prefix = "(\w+)",\s*'
+                       r'name = "(\w+)", liveries = (C\.HullLiveries|\{[^}]*\}) \}', hull_cfg)
+    if len(hulls) < 3 or hulls[0][:3] != ("shuttle", "TrekShuttleCraft", "TREK_Shuttle"):
+        failures.append(f"TREK_Config.lua: C.Hulls read as {[h[0] for h in hulls]}; the first must be the shuttle")
+    vdir = os.path.dirname(vscript_path)
+    plain = re.sub(r"(?:        skin\n        \{\n            texture = \w+,\n        \}\n\n)+", "@SKINS@", vs[vs.index("module Base"):])
+    for hid, vname, sheet, prefix, name_key, liv in hulls[1:]:
+        liveries = re.findall(r'"(\w+)"', liv)
+        path = os.path.join(vdir, prefix.rstrip("_") + "_vehicle.txt")
+        if not os.path.isfile(path):
+            failures.append(f"a {hid} has no vehicle script {os.path.basename(path)} (python tools/gen_craft.py)")
+            continue
+        text = open(path, encoding="utf-8").read()
+        want = [sheet if (i, j) == (0, 0) else f"{sheet}_{a}_{b}" for i, a in enumerate(liveries) for j, b in enumerate(lists[1])]
+        got = re.findall(r"^\s*skin\s*\{\s*texture\s*=\s*(\w+),\s*\}", text, re.M)
+        if got != want or len(want) < 3:
+            failures.append(f"a {hid}'s {len(got)} skin blocks are not its {len(liveries)} liveries in {len(lists[1])} states, in order")
+        theirs = re.sub(r"(?:        skin\n        \{\n            texture = \w+,\n        \}\n\n)+", "@SKINS@", text[text.index("module Base"):])
+        if theirs != plain.replace("TrekShuttleCraft", vname).replace("TREK_Shuttle", sheet):
+            failures.append(f"a {hid}'s vehicle script is not the shuttle's under its own names (python tools/gen_craft.py)")
+        for rel in ([("models_X", sheet + ".x"), ("textures", sheet + "_mask.png"),
+                     ("ui", "vehicles", "seatui", prefix + "base_small.png"),
+                     ("ui", "vehicles", "mechanic overlay", prefix + "base.png")]
+                    + [("textures", t + ".png") for t in want]):
+            if not os.path.isfile(os.path.join(MOD, "media", *rel)):
+                failures.append(f"a {hid} has no media/{'/'.join(rel)} (python tools/gen_craft.py)")
     # The vehicle's hull is wound for the vehicle shader, so the world model
     # has a mesh of its own: one mesh for both is one of them inside out.
     items = open(os.path.join(MOD, "media", "scripts", "trekshuttle.txt"), encoding="utf-8").read()

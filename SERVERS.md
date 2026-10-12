@@ -136,6 +136,39 @@ asked first.
 | `EMH` *Emergency Medical Hologram* | 1 Full, 2 Off | 1 | The Doctor, and with him the only cure for a bite. There is no setting that keeps him and removes the cure. |
 | `Installations` *Installing machines in the world* | true, false | true | Off: no warp core, replicator or EMH kit can be installed in a building. Machines already standing stay and work, and may always be packed up. |
 
+### Cabins
+
+New in 1.22, and **not yet played**. What the inside of a ship is. **Each of
+these is read once, when a ship's cabin is first built, and that cabin is
+hers for good**: changing one later changes only cabins nobody has stood in
+yet. A cabin is lived in, and a setting must not move the locker somebody
+filled.
+
+| Setting | Values | Default | What it does |
+|---|---|---|---|
+| `CabinStyle` *Cabin style* | 1 Her hull's, 2 Any by chance, 3 Starfleet, 4 Klingon, 5 Vulcan | 1 | Whose hands built her bulkheads, her deck, her pad and every fitting. *Her hull's*: a Starfleet shuttle has a Starfleet cabin, a Klingon raider a Klingon one, a Vulcan ring ship a Vulcan one. |
+| `CabinLayout` *Cabin layout* | 1 Shuffled, 2 Standard | 1 | *Shuffled*: the four fittings along her port bulkhead (stasis unit, range, sink, sick bay cabinet) stand in an order of her own, one of twenty-four. *Standard*: every cabin is the same one. |
+| `CabinGalley` *Cabins have a galley* | on, off | on | The stasis unit, the range, and the ship's rations in the cupboard under the sink. Off: none of them. The replicator is `Replicator`'s to decide. |
+| `CabinWater` *Cabins have running water* | on, off | on | The sink makes its own water. Off: it is a dry cupboard. |
+| `CabinMedical` *Cabins have a sick bay* | on, off | on | The sick bay's cabinet with its Starfleet medical set, and the biobed. Off: neither. The Doctor is `EMH`'s to decide. |
+
+A Klingon's and a Vulcan's cabin are furnished with that people's own
+pieces: a forged-armour stasis unit, weapons rack, range, throne and
+surgeon's slab on dark plate and an oxblood deck; or bronze and sandstone
+cabinets, an arched bunk and a healer's bed on dark stone.
+
+Whatever the style, a cabin has the same things in it and each works as it
+does in Starfleet's: the armoury and its issue, the bunk, the tape rack and
+the television, the transporter pad, the warp core, the replicator and the
+Doctor's station. The three machines and the television are drawn as
+Starfleet's in every cabin.
+
+**What these do not do.** A cabin that was already standing when you
+installed 1.22 is the standard Starfleet one and stays so. An admin who
+refits a ship as another kind of hull (*Repainting a shuttle*, below) does
+not change the cabin she already has. **An admin can rebuild any cabin as
+any style, whenever they like**: *Rebuilding a cabin*, below.
+
 ### The campaign
 
 | Setting | Values | Default | What it does |
@@ -273,6 +306,11 @@ ground menu: right-click the ground, or a shuttle's hull, then
 *Shuttlecraft ▸ Repaint her hull*, a livery, and a state. It is not a
 sandbox setting, because it is about one ship and not the server.
 
+- **What kind of ship.** The same menu's first level is the kind: a
+  *Starfleet shuttle*, a *Klingon raider* (three liveries) or a *Vulcan ring
+  ship* (three). A kind is a hull: whichever she is, she seats four, flies,
+  lands on the same ground and has the same cabin, power and crew. Her kind
+  is hers until an admin changes it.
 - **Which ship.** The one the menu is speaking to: the hull under the
   cursor, or the admin's own (*A shuttle each*, above). On a hull it is that
   shuttle, whoever's she is.
@@ -290,6 +328,31 @@ sandbox setting, because it is about one ship and not the server.
 
 The server's log has a line for every repaint, and for every shuttle set
 down: `skin N asked for, and the engine has her in skin M of 18`.
+
+### Rebuilding a cabin
+
+The same menu has *Rebuild her cabin*, aboard her or on the ground: a style
+(*Starfleet*, *Klingon*, *Vulcan*), then *Standard layout* or *Shuffled
+layout*. With the hull's line above it, an admin can put together any craft
+the mod has: a Klingon raider with a Vulcan cabin, if that is the story.
+
+- **Nothing a player owns is lost.** Before the old fittings come out,
+  everything her lockers, stasis unit and cupboards held is put on her
+  transporter pad, and a tape in her television with it. What somebody
+  built aboard or dropped on her deck is not touched.
+- **The new cabin is stocked as a new ship's is**: its armoury, its rations
+  and its medical set are issued again. So a rebuild is also a second issue
+  of the ship's gear, lying beside the first on the pad. It is an admin's
+  tool; use it knowing that.
+- **Its amenities are the server's settings today** (*Cabins*, above), not
+  the ones the old cabin was built under.
+- **Shuffled is rolled again every time**: ask twice and she may be laid out
+  two ways.
+- **When it happens.** At once if anybody is aboard her. With nobody aboard
+  her cabin is not in the world to be rebuilt, so it waits, and is done the
+  moment somebody next boards; the admin is told which.
+- **Only an admin** sees the line or is listened to; in single player it is
+  the player's own.
 
 ---
 
@@ -514,6 +577,11 @@ comments, or GitHub.
   above. Every rule is a sandbox setting, changed from the game's own admin
   panel. There is no in-game tool for giving one player a rank, a species or
   a second shuttle.
+- **Change a cabin that has been built, by a setting**: its style, its
+  layout and its amenities are settled the first time somebody boards her.
+  An admin's *Rebuild her cabin* is the way.
+- **A cabin of a different size or plan** for a kind of ship, or a piece one
+  people has and another has not.
 - **A shuttle that wears as she is flown**, a livery a player picks for
   themselves, or one a setting hands out.
 - **More than one shared shuttle**, or a personal shuttle with a different

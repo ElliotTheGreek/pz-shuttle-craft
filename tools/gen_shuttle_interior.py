@@ -256,8 +256,12 @@ def cell(sheets, sheet, i):
     return im.crop((c * CW, r * CH, c * CW + CW, r * CH + CH))
 
 
-def render(path):
+def render(path, swap=None, title=None):
+    """`swap` draws the cabin in another set: a sheet's name for the one that stands in for it
+    (tools/gen_species_tiles.py). Vanilla's television is nobody's but Lt. Shepard's."""
     sheets = {}
+    swap = swap or {}
+    S1, S2 = swap.get(globals()["S1"], globals()["S1"]), swap.get(globals()["S2"], globals()["S2"])
     ox, oy = 64 * H + 64, 240
     canvas = Image.new("RGBA", (64 * (W + H) + 256, 32 * (W + H) + 440), (0, 0, 0, 255))
 
@@ -278,7 +282,7 @@ def render(path):
         p = PIECES[name]
         order = 3 if p["layer"] == "WallFurniture" else (2.5 if name == "television" else 2)
         for dx, dy, sheet, i in p["facings"][facing]:
-            layers.setdefault((x + dx, y + dy), []).append((order, cell(sheets, sheet, i)))
+            layers.setdefault((x + dx, y + dy), []).append((order, cell(sheets, swap.get(sheet, sheet), i)))
     for src, facing, x, y, h, front, z0, _, _ in MACHINES:
         layers.setdefault((x, y), []).append((2, machine_tile(src, facing, h, front, z0)))
     for (x, y) in sorted(layers, key=lambda k: (k[0] + k[1], k[0])):
@@ -286,7 +290,7 @@ def render(path):
             blit(img, x, y)
 
     d = ImageDraw.Draw(canvas)
-    d.text((16, 16), "The shuttle's cabin, Starfleet issue (INTERIOR_REFIT.md 9)",
+    d.text((16, 16), title or "The shuttle's cabin, Starfleet issue (INTERIOR_REFIT.md 9)",
            fill=(230, 230, 230, 255))
     os.makedirs(OUT, exist_ok=True)
     import gen_adirondack_sections as G

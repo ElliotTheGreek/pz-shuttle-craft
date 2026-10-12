@@ -136,6 +136,31 @@ option TrekShuttle.AccessUsers = {
     page = TrekRoleplay, translation = TrekShuttle.AccessUsers,
 }
 
+option TrekShuttle.CabinStyle = {
+    type = enum, numValues = 5, default = 1,
+    page = TrekRoleplay, translation = TrekShuttle.CabinStyle, valueTranslation = TrekShuttle.CabinStyle,
+}
+
+option TrekShuttle.CabinLayout = {
+    type = enum, numValues = 2, default = 1,
+    page = TrekRoleplay, translation = TrekShuttle.CabinLayout, valueTranslation = TrekShuttle.CabinLayout,
+}
+
+option TrekShuttle.CabinGalley = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.CabinGalley,
+}
+
+option TrekShuttle.CabinWater = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.CabinWater,
+}
+
+option TrekShuttle.CabinMedical = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.CabinMedical,
+}
+
 option TrekShuttle.PersonalShuttles = {
     type = enum, numValues = 3, default = 1,
     page = TrekRoleplay, translation = TrekShuttle.PersonalShuttles, valueTranslation = TrekShuttle.PersonalShuttles,

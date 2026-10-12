@@ -418,7 +418,7 @@ local function spawnVehicle(sq)
     -- addVehicleDebug's third argument goes to): saved and sent with her.
     local skin = V.skinFor(s, U.shipNow)
     local vehicle = U.try("addVehicle", function()
-        return addVehicleDebug(V.SCRIPT, IsoDirections.N, skin, sq)
+        return addVehicleDebug(V.hullOf(s).script, IsoDirections.N, skin, sq)
     end)
     if not vehicle then
         U.log("WARN could not spawn the shuttle vehicle at %d,%d,%d",
@@ -3417,19 +3417,48 @@ Net.onServer("paintHull", function(player, args)
         return
     end
     local s = U.state()
+    -- What kind of ship she is, if that is asked too: a skin is one of that
+    -- kind's, so the kind is settled first, and nothing is kept of a request
+    -- that names a kind there is not.
+    local hull = V.hullOf(s)
+    if args.hull ~= nil then
+        hull = V.hulls[args.hull]
+        if not hull then return end
+    end
     local skin = args.skin
     if skin ~= nil then
         skin = tonumber(skin)
-        if not skin or skin < 0 or skin >= #C.HullLiveries * #C.HullStates or skin ~= math.floor(skin) then
+        if not skin or skin < 0 or skin >= V.skinCount(hull) or skin ~= math.floor(skin) then
             return
         end
     end
+    s.hull = hull.id
     s.paint = skin
     local now = S.repaint()
     Ship.commit()
-    U.log("%s had ship %s repainted: skin %s, %s", Ship.usernameOf(player), tostring(U.shipNow),
-          tostring(V.skinFor(s, U.shipNow)), now and "at once" or "from when she is next set down")
+    U.log("%s had ship %s repainted: a %s in skin %s, %s", Ship.usernameOf(player), tostring(U.shipNow),
+          hull.id, tostring(V.skinFor(s, U.shipNow)), now and "at once" or "from when she is next set down")
     Net.toClient(player, "hullPainted", { now = now })
+end)
+
+--- Somebody with the say has a ship's cabin rebuilt (SERVERS.md; TREK_Menu,
+--- *Rebuild her cabin*): a style, and shuffled or standard. At once while
+--- her cabin is loaded, which is while anybody is aboard her; otherwise it
+--- waits in her state for whoever boards next.
+Net.onServer("refitCabin", function(player, args)
+    if not V.mayPaint(player) then
+        deny(player, "access")
+        return
+    end
+    local want = TREK.Interiors.make(args.style, args.shuffle == true, ZombRand)
+    if not want then return end
+    local s = U.state()
+    s.cabinWanted = want
+    local now = s.built == true and B.cabinLoaded() and B.refitInterior() == true
+    Ship.commit()
+    U.log("%s asked for ship %s's cabin as %s, %s: %s", Ship.usernameOf(player), tostring(U.shipNow), tostring(want.style),
+          args.shuffle == true and "shuffled" or "standard", now and "rebuilt" or "when it is next built")
+    Net.toClient(player, "cabinRefit", { now = now })
 end)
 
 --- Design and diagnostic tools behind the debug console. Single player, or a
@@ -3786,7 +3815,7 @@ Net.aboutShip("boarded", "move", "land", "recall", "takeoff", "airborne", "setSp
               "removeBookmark", "setShields", "shieldDraw", "setCrew", "replicate", "loadCrystal",
               "takeCrystal", "storePattern", "scanCarried", "emhSummon", "emhDismiss", "emhLook",
               "emhTreat", "emhCure", "emhDetox", "emhAccept", "emhDecline", "launchProbe",
-              "buildProbe", "debug", "paintHull")
+              "buildProbe", "debug", "paintHull", "refitCabin")
 
 --- One line per thing that can be wrong with the replicator, for
 --- TREK_Replicator() from the console.

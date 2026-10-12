@@ -856,4 +856,426 @@ seating
             }
         }
     }
+
+    tileset
+    {
+        name = trek_klingon_02,
+
+        /* bridge_chair: carpentry_01_39 */
+        tile
+        {
+            xy = 0 11,
+            position
+            {
+                id = W,
+                translate = -1212 0 0,
+            }
+        }
+
+        /* bridge_chair: carpentry_01_36 */
+        tile
+        {
+            xy = 7 10,
+            position
+            {
+                id = S,
+                translate = 0 0 807,
+            }
+        }
+
+        /* bridge_chair: carpentry_01_37 */
+        tile
+        {
+            xy = 1 11,
+            position
+            {
+                id = N,
+                translate = 0 0 -1312,
+            }
+        }
+
+        /* bridge_chair: carpentry_01_38 */
+        tile
+        {
+            xy = 6 10,
+            position
+            {
+                id = E,
+                translate = 846 0 0,
+            }
+        }
+
+        /* biobed: furniture_bedding_01_65 */
+        tile
+        {
+            xy = 2 14,
+            position
+            {
+                id = W,
+                translate = -2577 2495 703,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = E,
+                translate = 2989 2558 1204,
+            }
+        }
+
+        /* biobed: furniture_bedding_01_64 */
+        tile
+        {
+            xy = 3 14,
+            position
+            {
+                id = W,
+                translate = -2107 2580 -568,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = E,
+                translate = 2927 2770 219,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+        }
+
+        /* biobed: furniture_bedding_01_66 */
+        tile
+        {
+            xy = 0 14,
+            position
+            {
+                id = N,
+                translate = 982 2584 -2614,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = S,
+                translate = 1446 2859 2846,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+        }
+
+        /* biobed: furniture_bedding_01_67 */
+        tile
+        {
+            xy = 1 14,
+            position
+            {
+                id = N,
+                translate = -651 2526 -2649,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = S,
+                translate = 153 2869 2781,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+        }
+
+        /* bunk: furniture_bedding_01_65 */
+        tile
+        {
+            xy = 5 1,
+            position
+            {
+                id = W,
+                translate = -2577 2495 703,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = E,
+                translate = 2989 2558 1204,
+            }
+        }
+
+        /* bunk: furniture_bedding_01_66 */
+        tile
+        {
+            xy = 4 1,
+            position
+            {
+                id = N,
+                translate = 982 2584 -2614,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = S,
+                translate = 1446 2859 2846,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+        }
+    }
+
+    tileset
+    {
+        name = trek_vulcan_02,
+
+        /* bridge_chair: carpentry_01_39 */
+        tile
+        {
+            xy = 0 11,
+            position
+            {
+                id = W,
+                translate = -1212 0 0,
+            }
+        }
+
+        /* bridge_chair: carpentry_01_36 */
+        tile
+        {
+            xy = 7 10,
+            position
+            {
+                id = S,
+                translate = 0 0 807,
+            }
+        }
+
+        /* bridge_chair: carpentry_01_37 */
+        tile
+        {
+            xy = 1 11,
+            position
+            {
+                id = N,
+                translate = 0 0 -1312,
+            }
+        }
+
+        /* bridge_chair: carpentry_01_38 */
+        tile
+        {
+            xy = 6 10,
+            position
+            {
+                id = E,
+                translate = 846 0 0,
+            }
+        }
+
+        /* biobed: furniture_bedding_01_65 */
+        tile
+        {
+            xy = 2 14,
+            position
+            {
+                id = W,
+                translate = -2577 2495 703,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = E,
+                translate = 2989 2558 1204,
+            }
+        }
+
+        /* biobed: furniture_bedding_01_64 */
+        tile
+        {
+            xy = 3 14,
+            position
+            {
+                id = W,
+                translate = -2107 2580 -568,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = E,
+                translate = 2927 2770 219,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+        }
+
+        /* biobed: furniture_bedding_01_66 */
+        tile
+        {
+            xy = 0 14,
+            position
+            {
+                id = N,
+                translate = 982 2584 -2614,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = S,
+                translate = 1446 2859 2846,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+        }
+
+        /* biobed: furniture_bedding_01_67 */
+        tile
+        {
+            xy = 1 14,
+            position
+            {
+                id = N,
+                translate = -651 2526 -2649,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = S,
+                translate = 153 2869 2781,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+        }
+
+        /* bunk: furniture_bedding_01_65 */
+        tile
+        {
+            xy = 5 1,
+            position
+            {
+                id = W,
+                translate = -2577 2495 703,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = E,
+                translate = 2989 2558 1204,
+            }
+        }
+
+        /* bunk: furniture_bedding_01_66 */
+        tile
+        {
+            xy = 4 1,
+            position
+            {
+                id = N,
+                translate = 982 2584 -2614,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+
+            position
+            {
+                id = S,
+                translate = 1446 2859 2846,
+
+                properties
+                {
+                    BlockLeft = true,
+                    BlockRight = true,
+                }
+            }
+        }
+    }
 }

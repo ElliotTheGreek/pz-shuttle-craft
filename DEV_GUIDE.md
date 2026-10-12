@@ -2565,6 +2565,7 @@ Meshes and textures are **generated, never hand-authored**:
 
 ```sh
 python tools/gen_shuttle.py                      # the hull, built in code, in eighteen skins (DESIGN.md, *The hull*); look at design/art/shuttle
+python tools/gen_craft.py                        # the other kinds of ship: a Klingon raider, a Vulcan ring ship (after gen_shuttle; look at design/art/raider, vulcan)
 python tools/gen_helm.py    TrekShuttle/42   # the deleted helm console prop
 python tools/bake_phaser.py                      # the phaser mesh+texture from its TRELLIS raw (once; pip deps)
 python tools/gen_phaser.py  TrekShuttle/42       # the phaser: mesh, icon, review sheet, four sounds
@@ -2609,6 +2610,8 @@ python tools/gen_adirondack_tiles.py              # the Adirondack's structure s
 python tools/gen_fuse_box.py                      # the field station's breaker box, drawn (before the furniture)
 python tools/gen_adirondack_furniture.py          # her furniture, rendered into tiles (ADIRONDACK.md 7)
 python tools/gen_adirondack_crops.py              # the crops' growth sprites (FARMING.md)
+python tools/species_jobs.py fetch                # the Klingon and Vulcan cabins' concepts and meshes, from the ledger (tools/species_objects.py is the list)
+python tools/gen_species_tiles.py                 # those rendered into each people's two sheets (before the pack; look at design/art/shuttle_interior/cabin_*.png)
 python tools/gen_adirondack_pack.py               # her texture pack, tiledef and seating
 python tools/gen_shuttle_interior.py              # the shuttle's cabin: its .tbx, its picture, its reach check
 python tools/compose_adirondack.py                # the BuildingEd sections stacked into the ship

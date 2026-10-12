@@ -2313,8 +2313,11 @@ end
 -- How many skin blocks the shuttle's vehicle script has: the harness counts
 -- them in the real file and sets this (tests/test_multiplayer.py).
 SIM.vehicleSkins = SIM.vehicleSkins or 1
+-- And each other kind of ship's own script's, by its name.
+SIM.vehicleSkinsOf = SIM.vehicleSkinsOf or {}
+function SIM.skinsOf(script) return SIM.vehicleSkinsOf[script] or SIM.vehicleSkins end
 function VehicleMT:getSkinIndex() return self.skin or 0 end
-function VehicleMT:getSkinCount() return SIM.vehicleSkins end
+function VehicleMT:getSkinCount() return SIM.skinsOf(self.script) end
 
 --- Spawns a vehicle, as build 42's addVehicleDebug does: on the server the
 --- game's vehicle sync then streams it to clients.
@@ -2324,8 +2327,8 @@ function addVehicleDebug(script, dir, skin, sq)
     -- The third argument goes to setSkinIndex, and the engine keeps it. One
     -- past the script's last skin block is not a skin: the engine would draw
     -- nothing it was asked for, so it is a fault here, before anything is made.
-    if type(skin) ~= "number" or skin < 0 or skin >= SIM.vehicleSkins or skin ~= math.floor(skin) then
-        error("addVehicleDebug: skin " .. tostring(skin) .. " is not one of the script's " .. SIM.vehicleSkins)
+    if type(skin) ~= "number" or skin < 0 or skin >= SIM.skinsOf(script) or skin ~= math.floor(skin) then
+        error("addVehicleDebug: skin " .. tostring(skin) .. " is not one of " .. tostring(script) .. "'s " .. SIM.skinsOf(script))
     end
     local v = SIM.vehicle(script, sq.x + 0.5, sq.y + 0.5, sq.z)
     v.skin = skin

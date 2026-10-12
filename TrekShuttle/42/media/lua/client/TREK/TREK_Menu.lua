@@ -263,6 +263,35 @@ local function crewMenu(menu, player, worldobjects)
     end
 end
 
+function M.onCabin(_, player, id, style, shuffle)
+    M.onShip(nil, player, id, function(_, p) Core.send(p, "refitCabin", { style = style, shuffle = shuffle }) end)
+end
+
+Net.onClient("cabinRefit", function(args)
+    U.note(Core.lastAsker or U.player(0),
+           getText(args.now and "IGUI_TREK_CabinRebuilt" or "IGUI_TREK_CabinRebuiltLater"), 150, 220, 255)
+end)
+
+-- What each style of cabin is called, written out whole (TREK_Interiors).
+M.CabinText = { starfleet = "IGUI_TREK_CabinStyle_starfleet", klingon = "IGUI_TREK_CabinStyle_klingon",
+                vulcan = "IGUI_TREK_CabinStyle_vulcan" }
+
+--- Her cabin, for somebody with the say (SERVERS.md): every style, standard
+--- or shuffled again.
+local function cabinMenu(menu, player, worldobjects, ship)
+    if not V.mayPaint(player) then return end
+    local top = menu:addOption(getText("IGUI_TREK_Cabin"), worldobjects, nil)
+    local styles = ISContextMenu:getNew(menu)
+    menu:addSubMenu(top, styles)
+    for _, style in ipairs(TREK.Interiors.Styles) do
+        local row = styles:addOption(getText(M.CabinText[style.id]), worldobjects, nil)
+        local how = ISContextMenu:getNew(styles)
+        styles:addSubMenu(row, how)
+        how:addOption(getText("IGUI_TREK_CabinStandard"), worldobjects, M.onCabin, player, ship, style.id, false)
+        how:addOption(getText("IGUI_TREK_CabinShuffled"), worldobjects, M.onCabin, player, ship, style.id, true)
+    end
+end
+
 local function aboardMenu(context, player, worldobjects, test)
     if test then return ISWorldObjectContextMenu.setTest() end
     local s = Ship.get()
@@ -300,11 +329,12 @@ local function aboardMenu(context, player, worldobjects, test)
     menu:addOption(getText("IGUI_TREK_Sensors"), worldobjects, M.onSensors,
                    player)
     crewMenu(menu, player, worldobjects)
+    cabinMenu(menu, player, worldobjects, U.shipNow)
     return true
 end
 
-function M.onPaint(_, player, id, skin)
-    M.onShip(nil, player, id, function(_, p) Core.send(p, "paintHull", { skin = skin }) end)
+function M.onPaint(_, player, id, skin, hull)
+    M.onShip(nil, player, id, function(_, p) Core.send(p, "paintHull", { skin = skin, hull = hull }) end)
 end
 
 Net.onClient("hullPainted", function(args)
@@ -312,21 +342,26 @@ Net.onClient("hullPainted", function(args)
            getText(args.now and "IGUI_TREK_Painted" or "IGUI_TREK_PaintedLater"), 150, 220, 255)
 end)
 
---- Her hull, for somebody with the say (SERVERS.md): every livery in every
---- state, and the one she has earned.
+--- Her hull, for somebody with the say (SERVERS.md): every kind of ship in
+--- every livery and state, and the skin she has earned as the kind she is.
 local function paintMenu(menu, player, worldobjects, ship)
     if not V.mayPaint(player) then return end
     local top = menu:addOption(getText("IGUI_TREK_Paint"), worldobjects, nil)
-    local paints = ISContextMenu:getNew(menu)
-    menu:addSubMenu(top, paints)
-    paints:addOption(getText("IGUI_TREK_PaintEarned"), worldobjects, M.onPaint, player, ship, nil)
-    for i, livery in ipairs(C.HullLiveries) do
-        local row = paints:addOption(getText(V.LiveryText[livery]), worldobjects, nil)
-        local states = ISContextMenu:getNew(paints)
-        paints:addSubMenu(row, states)
-        for j, state in ipairs(C.HullStates) do
-            states:addOption(getText(V.StateText[state]), worldobjects, M.onPaint, player, ship,
-                             (i - 1) * #C.HullStates + j - 1)
+    local kinds = ISContextMenu:getNew(menu)
+    menu:addSubMenu(top, kinds)
+    kinds:addOption(getText("IGUI_TREK_PaintEarned"), worldobjects, M.onPaint, player, ship, nil, nil)
+    for _, hull in ipairs(C.Hulls) do
+        local kind = kinds:addOption(getText(hull.name), worldobjects, nil)
+        local paints = ISContextMenu:getNew(kinds)
+        kinds:addSubMenu(kind, paints)
+        for i, livery in ipairs(hull.liveries) do
+            local row = paints:addOption(getText(V.LiveryText[livery]), worldobjects, nil)
+            local states = ISContextMenu:getNew(paints)
+            paints:addSubMenu(row, states)
+            for j, state in ipairs(C.HullStates) do
+                states:addOption(getText(V.StateText[state]), worldobjects, M.onPaint, player, ship,
+                                 (i - 1) * #C.HullStates + j - 1, hull.id)
+            end
         end
     end
 end
@@ -376,6 +411,7 @@ local function groundMenu(context, player, worldobjects, sq, test)
     end
     if not onHull then hailMenu(menu, player, worldobjects) end
     paintMenu(menu, player, worldobjects, ship)
+    cabinMenu(menu, player, worldobjects, ship)
     return true
 end
 

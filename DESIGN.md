@@ -365,6 +365,48 @@ game.**
   `S.repaint` sets a ship standing empty on the ground down again where she
   stands, because `BaseVehicle.setSkinIndex` writes one field on one machine
   and tells nobody. In single player the line is the player's own.
+- **A kind of ship is a hull and nothing else** (`C.Hulls`, `s.hull`;
+  `tools/gen_craft.py`): a Klingon raider and a Vulcan ring ship, each the
+  shuttle's vehicle script character for character under its own names, with
+  a mesh and three liveries of its own. So each is sat in, flown and set
+  down as she is, on the same fifteen squares, and has her cabin; everything
+  that asks "is this a ship" asks `V.isShuttle`, which is true of every
+  kind. **A hull has to stand round the shuttle's four seats**
+  (`seats_inside`) and fit 3 by 5. A new kind is a hull in that file, a row
+  in `C.Hulls`, its texts, and nothing else. The admin's menu refits a ship
+  as any of them. **Not built**: a kind with a cabin, a footprint, seats or
+  flight of its own, and a ship given or found as anything but a shuttle.
+- **A cabin is the plan in a style, in an arrangement, with the amenities
+  its server allows** (`TREK_Interiors.lua`; `SERVERS.md`, *Cabins*), rolled
+  once at a ship's first build and kept in `s.cabin`. A style is a sheet's
+  name, and **each people's set is its own art**, made as the Adirondack's
+  is (`ADIRONDACK.md` 7): a concept for every piece, a mesh from the
+  concept, tiles from the mesh; bulkheads and decks from painted flat
+  materials. `tools/species_objects.py` is the list and every prompt,
+  `tools/species_jobs.py` the ledger, `tools/gen_species_tiles.py` the
+  render: each piece at the size of the Starfleet piece it stands in for and
+  **in that piece's cells**, so `tools/gen_adirondack_pack.py` gives it that
+  tile's properties, and a fitting works whoever built it and is still
+  found by its tag. The raws are kept (`design/art/species/`,
+  `tools/assets/species/`). (The first attempt was Starfleet's tiles in
+  other colours; the author: "so its just a tint? doesnt seem very good".)
+  A piece that came back wider than its square is made to fill its box
+  (`fill`), and one that came back lying the other way is turned (`FRONT`):
+  `python tools/gen_species_tiles.py fronts` is how that is looked at. An
+  arrangement is the order of the port bulkhead's four fittings. The
+  builder reads `L` as it always did: it is the cabin of the ship in hand.
+  **From the Mechs mod**: rolled once and hers (two of a kind are not the
+  same ship, and one ship is always herself); a set's tiles are appended and
+  never renumbered. **Not taken from it yet**: walls cut from her hull's own
+  sheet, so that her livery, her wear and her windows are inside as they
+  are outside; and a floor painted whole and cut into tiles.
+- **An admin may have a cabin rebuilt** (`refitCabin`, *Shuttlecraft ▸
+  Rebuild her cabin*; `B.refitInterior`): a migration, not a rebuild. Every
+  fitting and bulkhead the builder tagged comes out, what each container
+  held is handed back on the pad first (and the tape in the set), the deck
+  is given the new people's floor in place, and the new cabin is built and
+  stocked. With nobody aboard it is owed (`s.cabinWanted`) and
+  `B.cabinCurrent` says so until somebody boards.
 - **`tools/hullkit.py` is the kit** (paint, weather, glass, the winding check,
   a previewer that culls as the engine does): another small craft is a
   generator of its own on top of it, with its own stations and sheet.

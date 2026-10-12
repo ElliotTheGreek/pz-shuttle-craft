@@ -55,11 +55,19 @@ if len(SHIP_CONTAINERS) < 20:
 # How many skins the shuttle's vehicle script really has: the simulated
 # addVehicleDebug throws for one past the last, as a skin the engine has no
 # block for is a ship drawn as something nobody asked for.
-VEHICLE_SKINS = len(re.findall(r"^\s*skin\s*$", open(os.path.join(
-    ROOT, "TrekShuttle", "42", "media", "scripts", "vehicles", "trekshuttle_vehicle.txt"),
-    encoding="utf-8").read(), re.M))
+VEHICLES = os.path.join(ROOT, "TrekShuttle", "42", "media", "scripts", "vehicles")
+VEHICLE_SKINS = len(re.findall(r"^\s*skin\s*$", open(os.path.join(VEHICLES, "trekshuttle_vehicle.txt"),
+                                                     encoding="utf-8").read(), re.M))
 if VEHICLE_SKINS < 1:
     raise SystemExit("no skin block read from trekshuttle_vehicle.txt")
+# And every other kind of ship's, by its vehicle's full name.
+SKINS_OF = {}
+for _fn in sorted(os.listdir(VEHICLES)):
+    _text = open(os.path.join(VEHICLES, _fn), encoding="utf-8").read()
+    for _name in re.findall(r"^\s*vehicle\s+(\w+)", _text, re.M):
+        SKINS_OF["Base." + _name] = len(re.findall(r"^\s*skin\s*$", _text, re.M))
+if len(SKINS_OF) < 3 or min(SKINS_OF.values()) < 1:
+    raise SystemExit(f"the vehicle scripts read as {SKINS_OF}")
 
 failures = []
 
@@ -134,6 +142,10 @@ class Runtime:
             ship[name] = True
         g.SIM.shipContainers = ship
         g.SIM.vehicleSkins = VEHICLE_SKINS
+        of = self.lua.eval("{}")
+        for script, n in SKINS_OF.items():
+            of[script] = n
+        g.SIM.vehicleSkinsOf = of
 
     def load(self):
         # The game loads every .lua under media/lua, so the simulation has to
@@ -563,7 +575,7 @@ def hull_at(rt, x, y, z):
     """True when the ship stands here: its vehicle, or a hull from before it."""
     return rt.eval(f"""(function()
         for _, v in ipairs(SIM.vehicles) do
-            if not v.removed and v.script == "Base.TrekShuttleCraft"
+            if not v.removed and TREK.Vehicle.scripts[v.script]
                and math.floor(v.x) == {x} and math.floor(v.y) == {y} then
                 return true
             end
@@ -577,7 +589,7 @@ def shuttles(rt):
     return rt.eval("""(function()
         local n = 0
         for _, v in ipairs(SIM.vehicles) do
-            if not v.removed and v.script == "Base.TrekShuttleCraft" then n = n + 1 end
+            if not v.removed and TREK.Vehicle.scripts[v.script] then n = n + 1 end
         end
         return n
     end)()""")
@@ -588,9 +600,21 @@ def skins(rt):
     return str(rt.eval("""(function()
         local o = {}
         for _, v in ipairs(SIM.vehicles) do
-            if not v.removed and v.script == "Base.TrekShuttleCraft" then
+            if not v.removed and TREK.Vehicle.scripts[v.script] then
                 o[#o + 1] = tostring(TREK.Vehicle.fleetOf(v)) .. ":" .. tostring(v:getSkinIndex())
             end
+        end
+        table.sort(o)
+        return table.concat(o, ",")
+    end)()"""))
+
+
+def kinds(rt):
+    """The vehicle script of every ship's vehicle there is, in order."""
+    return str(rt.eval("""(function()
+        local o = {}
+        for _, v in ipairs(SIM.vehicles) do
+            if not v.removed and TREK.Vehicle.scripts[v.script] then o[#o + 1] = v.script end
         end
         table.sort(o)
         return table.concat(o, ",")
@@ -20652,6 +20676,10 @@ def fleet():
     net.pump(8)
     check(st(srv, 2, "paint") == 5 and st(srv, 1, "paint") is None,
           f"fleet: an admin's repaint of ship 2 left her paint at {st(srv, 2, 'paint')} and the shared one's at {st(srv, 1, 'paint')}")
+    odo.run(f'TREK.Net.send({P}, "refitCabin", {{ style = "klingon", shuffle = false }})')
+    net.pump(8)
+    check(st(srv, 1, "cabinWanted") is None and st(srv, 2, "cabinWanted") is None and "IGUI_TREK_Cabin" not in labels(odo)
+          and "IGUI_TREK_Cabin" in labels(sisko), "fleet: somebody who is no admin had a cabin rebuilt, or is offered it")
     check(int(srv.eval("TREK.Vehicle.skinFor(TREK.Util.stateOf(2), 2)")) == 5 and st(kira, 2, "paint") == 5,
           "fleet: the ship's own skin is not the one she was repainted in, or her owner's machine was not told")
     for name, c in net.clients.items():
@@ -20784,7 +20812,9 @@ def hull_skins():
           and f("{ paint = 1.5 }", 1) == 0,
           "hull skins: a ship's paint does not come before what she has earned, or one that is no skin is taken for one")
     check("IGUI_TREK_Paint" in ground_labels(rt), "hull skins: the repaint is not on the ground menu in single player")
-    for label in ("IGUI_TREK_PaintEarned", "IGUI_TREK_Livery_survey", "IGUI_TREK_Hull_derelict"):
+    for label in ("IGUI_TREK_PaintEarned", "IGUI_TREK_Livery_survey", "IGUI_TREK_Hull_derelict",
+                  "IGUI_TREK_HullType_shuttle", "IGUI_TREK_HullType_raider", "IGUI_TREK_HullType_vulcan",
+                  "IGUI_TREK_Livery_blood", "IGUI_TREK_Livery_slate"):
         check(label in ground_labels(rt), f"hull skins: the repaint's menu has no {label}")
     rt.run(f'TREK.Core.send({P}, "paintHull", {{ skin = 7 }})')
     net.pump(8)
@@ -20816,10 +20846,459 @@ def hull_skins():
     rt.run(f'TREK.Core.send({P}, "paintHull", {{}})')
     net.pump(8)
     check(ship(rt, "paint") is None and skins(rt) == "1:0", f"hull skins: given back, she is in skin {skins(rt)}, not the one she has earned")
+
+    # --- another kind of ship: the same ship, set down as another vehicle ---------
+    hulls = [(str(rt.eval(f"TREK.Config.Hulls[{i}].id")), str(rt.eval(f"TREK.Config.Hulls[{i}].script")),
+              int(rt.eval(f"TREK.Vehicle.skinCount(TREK.Config.Hulls[{i}])")))
+             for i in range(1, int(rt.eval("#TREK.Config.Hulls")) + 1)]
+    check(len(hulls) >= 3 and hulls[0][0] == "shuttle" and hulls[0][2] == VEHICLE_SKINS,
+          f"hull skins: the kinds of ship are {hulls}, and the first is not the shuttle with her {VEHICLE_SKINS} skins")
+    for hid, script, n in hulls:
+        check(SKINS_OF.get(script) == n, f"hull skins: a {hid} has {n} skins in the config and {SKINS_OF.get(script)} skin blocks in {script}")
+        seen = {int(rt.eval(f'TREK.Vehicle.skinFor({{ hull = "{hid}", commissioned = false, marooned = true }}, {i})')) for i in range(1, last + 1)}
+        check(max(seen) < n, f"hull skins: a {hid} of a full fleet asks for skin {max(seen)} of {n}")
+    check(str(rt.eval('TREK.Vehicle.hullOf({ hull = "galaxy" }).id')) == "shuttle" and str(rt.eval("TREK.Vehicle.hullOf(nil).id")) == "shuttle",
+          "hull skins: a ship of a kind this build has not got, or of none, is not a shuttle")
+    check(kinds(rt) == "Base.TrekShuttleCraft", f"hull skins: before any refit she is {kinds(rt)}")
+    for hid, script, n in hulls[1:]:
+        rt.run("SIM.notes = {}")
+        rt.run(f'TREK.Core.send({P}, "paintHull", {{ hull = "{hid}", skin = {n - 1} }})')
+        net.pump(8)
+        check(kinds(rt) == script and skins(rt) == f"1:{n - 1}" and ship(rt, "hull") == hid and int(shuttles(rt)) == 1
+              and ship(rt, "landed") is True and ship_vehicle(rt) is not None and "IGUI_TREK_Painted" in rt.notes(),
+              f"hull skins: refitted as a {hid} she is {kinds(rt)} in skin {skins(rt)} ({rt.notes()})")
+        check(rt.eval("TREK.Vehicle.isShuttle(TREK.Vehicle.ship())") is True and (ship(rt, "x"), ship(rt, "y")) == was,
+              f"hull skins: a {hid} is not the ship's vehicle, or is not where she stood")
+        # One past this kind's last skin is a skin of the shuttle's, and not of hers.
+        rt.run(f'TREK.Core.send({P}, "paintHull", {{ skin = {n} }})')
+        net.pump(8)
+        check(ship(rt, "paint") == n - 1 and skins(rt) == f"1:{n - 1}", f"hull skins: a {hid} took a skin her script has no block for")
+        rt.run(f'TREK.Core.send({P}, "paintHull", {{}})')
+        net.pump(8)
+        check(ship(rt, "hull") == hid and kinds(rt) == script and skins(rt) == "1:0",
+              f"hull skins: given back her paint, a {hid} is {kinds(rt)} in skin {skins(rt)}, not herself in the one she has earned")
+    rt.run(f'TREK.Core.send({P}, "paintHull", {{ hull = "galaxy", skin = 2 }})')
+    net.pump(8)
+    check(ship(rt, "hull") == hulls[-1][0] and ship(rt, "paint") is None, "hull skins: a kind of ship there is not was taken, or its skin kept")
+    # Called down again she is still what she was made: her kind is hers.
+    rt.run(f'TREK.Core.send({P}, "recall", {{}})')
+    net.pump(20)
+    rt.run(f'TREK.Core.send({P}, "land", {{ x = 4010, y = 4000, z = 0 }})')
+    net.pump(120)
+    check(ship(rt, "landed") is True and kinds(rt) == hulls[-1][1], f"hull skins: sent up and called down she came back as {kinds(rt)}")
+    # And through the menu itself, four levels down: the kind, the livery,
+    # the state. What it sends is what was picked.
+    ground_labels(rt)
+    picked = rt.eval("""(function()
+        local menu = nil
+        for _, o in ipairs(maroonCtx:all()) do if o.name == "IGUI_TREK_Paint" then menu = o.sub end end
+        for _, name in ipairs({ "IGUI_TREK_HullType_raider", "IGUI_TREK_Livery_blood" }) do
+            menu = menu and menu:find(name)
+            menu = menu and menu.sub
+        end
+        return menu ~= nil and menu:click("IGUI_TREK_Hull_worn")
+    end)()""")
+    net.pump(8)
+    check(picked is True and kinds(rt) == "Base.TrekRaider" and skins(rt) == "1:4" and ship(rt, "hull") == "raider",
+          f"hull skins: picked from the menu, a raider in blood red, worn, is {kinds(rt)} in skin {skins(rt)} (found: {picked})")
+    rt.run(f'TREK.Core.send({P}, "paintHull", {{ hull = "shuttle" }})')
+    net.pump(8)
+    check(kinds(rt) == "Base.TrekShuttleCraft" and skins(rt) == "1:0", f"hull skins: refitted as a shuttle again she is {kinds(rt)}")
     for w in rt.warnings():
         fail(f"hull skins: {w}")
     print(f"hull skins: {liveries} liveries in {states} states, {VEHICLE_SKINS} skin blocks; a ship's livery is which ship "
           f"she is and her state what has happened to her")
+
+
+def cabin_dump(rt):
+    """The cabin as it stands: (ox, oy) -> its floor's sprite and what is on it, each
+    (tag, sprite, things inside or None for no container, water or None)."""
+    packed = str(rt.eval("""(function()
+        local C, U = TREK.Config, TREK.Util
+        local out = {}
+        for ox = 0, C.CabinW + 1 do for oy = 0, C.CabinL + 1 do
+            local x, y = U.at(ox, oy)
+            local sq = SIM.rawSquare(x, y, C.CabinZ)
+            local floor = ""
+            pcall(function() floor = sq:getFloor():getSprite():getName() end)
+            local row = { ox .. "," .. oy, floor }
+            for _, o in ipairs(sq.objects) do
+                local tag = ""
+                pcall(function() tag = o:getModData().TREK or "" end)
+                row[#row + 1] = table.concat({ tostring(tag), tostring(o.spriteName),
+                    o.container and tostring(#o.container.items) or "-",
+                    o.fluid and tostring(o.fluid.amount) or "-" }, ":")
+            end
+            out[#out + 1] = table.concat(row, "|")
+        end end
+        return table.concat(out, "\\n")
+    end)()"""))
+    out = {}
+    for line in packed.split("\n"):
+        at, floor, *objs = line.split("|")
+        ox, oy = (int(v) for v in at.split(","))
+        things = []
+        for o in objs:
+            tag, sprite, items, water = o.split(":")
+            things.append((tag, sprite, None if items == "-" else int(items), None if water == "-" else float(water)))
+        out[(ox, oy)] = (floor, things)
+    return out
+
+
+def interiors():
+    """Whose cabin a ship has, and how it is laid out (TREK_Interiors.lua; SERVERS.md, *Cabins*).
+
+    A cabin is the standard plan in a style, in an arrangement, with the
+    amenities the server allows, rolled once at a ship's first build and
+    kept. What has to hold:
+
+      * **every cabin that can be rolled is one somebody can use**: all
+        twenty-four orders of the port bulkhead, in every style and with any
+        amenity off, name only tiles the mod has, with a container where the
+        plan wants one, every fitting worked from open deck and every open
+        square joined to the pad;
+      * **a style is the whole cabin**: its deck, its pad, its bulkheads and
+        every fitting but Lt. Shepard's television, and each still does what
+        it did: the sink runs, the lockers are stocked;
+      * **it is hers for good**: a setting changed afterwards, and a build
+        run again, move nothing;
+      * **a cabin standing before there was a choice is the standard one**;
+      * **absent settings are the mod as it was.**
+    """
+    import itertools
+    catalog = tilecatalog.tiles()
+    P = "SIM.players[1]"
+    SB = "SandboxVars.TrekShuttle"
+
+    def fresh(sandbox):
+        net = Net("sp")
+        rt = net.server
+        rt.run("SIM.player('tenant', 1000.5, 1000.5, 0)")
+        rt.run(sandbox)
+        net.start()
+        return net, rt
+
+    def plan(rt, record):
+        packed = str(rt.eval(f"""(function()
+            local p = TREK.Interiors.plan({record})
+            local out = {{ p.floor .. "|" .. p.wallW .. "|" .. p.wallN .. "|" .. p.pad }}
+            for _, e in ipairs(p.tiles) do
+                out[#out + 1] = table.concat({{ e.x, e.y, e.sprite, tostring(e.tag), tostring(e.container == true),
+                                               tostring(e.loot ~= nil or e.special ~= nil) }}, "|")
+            end
+            return table.concat(out, "\\n")
+        end)()"""))
+        head, *rows = packed.split("\n")
+        tiles = [(int(x), int(y), sprite, tag, c == "true", stock == "true")
+                 for x, y, sprite, tag, c, stock in (r.split("|") for r in rows)]
+        return head.split("|"), tiles
+
+    # --- every cabin that can be rolled -----------------------------------------
+    net, rt = fresh("")
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    W, H = int(C("CabinW")) + 1, int(C("CabinL")) + 1
+    pad = (int(C("Landing.x")), int(C("Landing.y")))
+    machines = [(int(C(f"{n}.x")), int(C(f"{n}.y"))) for n in ("ReplicatorSpot", "DilithiumSpot")]
+    doctor = (int(C("EmhSpot.x")), int(C("EmhSpot.y")))
+    styles = [str(rt.eval(f"TREK.Interiors.Styles[{i}].id")) for i in range(1, int(rt.eval("#TREK.Interiors.Styles")) + 1)]
+    check(styles[:3] == ["starfleet", "klingon", "vulcan"], f"interiors: the styles are {styles}; their order is the sandbox's numbering")
+    base_head, base = plan(rt, '{ style = "starfleet", west = "1234" }')
+    live = [(e["x"], e["y"], e["sprite"]) for e in (dict(t) for t in rt.eval(
+        '(function() local o = {} for i, e in ipairs((require "TREK/TREK_InteriorLayout").tiles) do '
+        'o[i] = { x = e.x, y = e.y, sprite = e.sprite } end return o end)()').values())]
+    check([t[:3] for t in base] == live and len(base) >= 12,
+          "interiors: the standard record's plan is not TREK_InteriorLayout.lua's, square for square")
+    orders = ["".join(p) for p in itertools.permutations("1234")]
+    walked = 0
+    for style in styles:
+        for west in orders:
+            for galley, water, medical in ((True, True, True), (False, True, True), (True, False, True),
+                                           (True, True, False), (False, False, False)):
+                if (galley, water, medical) != (True, True, True) and west not in ("1234", "4321", "2413"):
+                    continue
+                lua = lambda b: "true" if b else "false"
+                head, tiles = plan(rt, f'{{ style = "{style}", west = "{west}", galley = {lua(galley)}, '
+                                       f'water = {lua(water)}, medical = {lua(medical)} }}')
+                what = f"interiors: a {style} cabin in order {west} (galley {galley}, water {water}, sick bay {medical})"
+                walked += 1
+                blocked = set(machines)
+                for sprite in head:
+                    check(sprite in catalog and (style == "starfleet") == sprite.startswith("trek_adirondack_"),
+                          f"{what} is laid with {sprite}, which is not that people's or is no tile at all")
+                for x, y, sprite, tag, container, stock in tiles:
+                    props = catalog.get(sprite)
+                    if not check(props is not None, f"{what} names {sprite}, which is no tile"):
+                        continue
+                    theirs = sprite.startswith("trek_adirondack_") if style == "starfleet" else not sprite.startswith("trek_adirondack_")
+                    check(theirs or tag == "television", f"{what} has a {tag} that is {sprite}: another people's")
+                    check(0 <= x < W and 0 <= y < H and (x, y) != pad and (x, y) not in machines and (x, y) != doctor,
+                          f"{what} has its {tag} at {x},{y}: outside her, on the pad or on a machine's square")
+                    check(not container or "container" in props, f"{what} wants a container of {sprite} ({tag}), which holds nothing")
+                    check(not stock or container, f"{what} stocks its {tag}, which is no container")
+                    if "solid" in props or "solidtrans" in props:
+                        blocked.add((x, y))
+                # The port bulkhead: four squares, each with what the standard plan has together.
+                groups = {}
+                for x, y, sprite, tag, *_ in tiles:
+                    if x == 0 and 1 <= y <= 4:
+                        groups.setdefault(y, set()).add(tag)
+                std = {}
+                for x, y, sprite, tag, *_ in base:
+                    if x == 0 and 1 <= y <= 4:
+                        std.setdefault(y, set()).add(tag)
+                for slot in range(1, 5):
+                    want = set(std[int(west[slot - 1])])
+                    if not galley:
+                        want -= {"fridge", "oven"}
+                    if not medical:
+                        want -= {"medical"}
+                    if not water and "sink" in want:
+                        want = (want - {"sink"}) | {"cupboard"}
+                    check(groups.get(slot, set()) == want,
+                          f"{what} has {sorted(groups.get(slot, set()))} at 0,{slot}, not {sorted(want)}")
+                tags = {t[3] for t in tiles}
+                check(("fridge" in tags) == galley and ("oven" in tags) == galley and ("medical" in tags) == medical
+                      and ("biobed" in tags) == medical and ("sink" in tags) == water,
+                      f"{what} has {sorted(tags)}")
+                rations = [t for t in tiles if t[3] in ("sink", "cupboard")]
+                check(len(rations) == 1 and rations[0][5] == galley, f"{what}: the rations are not in the cupboard under the sink, or are there with no galley")
+                # Reach: every open square joined to the pad, and every fitting of the port
+                # bulkhead worked from the passage beside it.
+                open_ = {(x, y) for x in range(W) for y in range(H)} - blocked
+                seen, todo = {pad}, [pad]
+                while todo:
+                    x, y = todo.pop()
+                    for n in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                        if n in open_ and n not in seen:
+                            seen.add(n)
+                            todo.append(n)
+                check(open_ == seen, f"{what} has open deck nobody can walk to: {sorted(open_ - seen)}")
+                for y in range(1, 5):
+                    check((1, y) in seen, f"{what}: the passage at 1,{y} is not open deck")
+                check(len([n for n in ((pad[0] + 1, pad[1]), (pad[0] - 1, pad[1]), (pad[0], pad[1] - 1)) if n in seen]) >= 2,
+                      f"{what}: the pad has fewer than two ways off it")
+    check(walked >= 3 * (24 + 12), f"interiors: only {walked} cabins were walked")
+
+    # --- what a roll is: the server's rules, her hull, the dice --------------------
+    roll = lambda state, sandbox="": rt.eval(f"""(function() {sandbox}
+        local q = {{ 2, 0, 1, 0, 0, 0 }}
+        local c = TREK.Interiors.roll({state}, function(n) return math.min(table.remove(q, 1), n - 1) end)
+        return c.style .. "|" .. c.west .. "|" .. tostring(c.galley) .. tostring(c.water) .. tostring(c.medical) end)()""")
+    check(roll("{}") == "starfleet|1234|truetruetrue", f"interiors: with no settings at all a cabin is rolled as {roll('{}')}, not the one it always was")
+    check(roll('{ hull = "raider" }').startswith("klingon|1234") and roll('{ hull = "vulcan" }').startswith("vulcan|1234"),
+          "interiors: her hull's style is not a raider's Klingon or a ring ship's Vulcan")
+    check(roll("{}", f"{SB}.CabinLayout = 1") == "starfleet|3142|truetruetrue",
+          f"interiors: shuffled on the dice 2, 0, 1, 0 the port bulkhead is {roll('{}')}, not 3142")
+    check(roll('{ hull = "raider" }', f"{SB}.CabinStyle = 5").startswith("vulcan|") and roll("{}", f"{SB}.CabinStyle = 2; {SB}.CabinLayout = 2").startswith("vulcan|1234"),
+          "interiors: a style the server names, or any by chance on a roll of 2, is not that style")
+    check(roll("{}", f"{SB}.CabinStyle = 9") .startswith("starfleet|"), "interiors: a style past the last is not read as her hull's")
+    check(roll("{}", f"{SB}.CabinStyle = 1; {SB}.CabinGalley = false; {SB}.CabinMedical = false").endswith("|falsetruefalse"),
+          "interiors: the amenities a server has off are not off in a cabin rolled then")
+    check(rt.eval('TREK.Interiors.validWest("1123")') is False and rt.eval('TREK.Interiors.validWest("12345")') is False
+          and rt.eval('#TREK.Interiors.plan({ style = "vulcan", west = "1123" }).tiles') == len(base),
+          "interiors: an order that is no order is taken for one")
+
+    # --- a Klingon cabin, shuffled, built and lived in ------------------------------
+    net, rt = fresh(f"{SB}.CabinStyle = 4; {SB}.CabinLayout = 1")
+    rt.run("SIM.randQueue = { 2, 0, 1, 0 }")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "interiors, beaming up to a Klingon cabin"):
+        return
+    cabin = {k: ship(rt, f"cabin.{k}") for k in ("style", "west", "galley", "water", "medical")}
+    check(cabin == {"style": "klingon", "west": "3142", "galley": True, "water": True, "medical": True},
+          f"interiors: the first build rolled {cabin}")
+    head, tiles = plan(rt, "TREK.Util.state().cabin")
+
+    def standing(what, others=("trek_adirondack_",)):
+        dump = cabin_dump(rt)
+        missing = [f"{tag} ({sprite}) at {x},{y}" for x, y, sprite, tag, *_ in tiles
+                   if not any(o[1] == sprite for o in dump[(x, y)][1])]
+        check(not missing, f"interiors: {what}, the cabin is without {missing}")
+        floors = {dump[(x, y)][0] for x in range(W) for y in range(H) if (x, y) != pad}
+        check(floors == {head[0]} and dump[pad][0] == head[3], f"interiors: {what}, her deck is {sorted(floors)} and her pad {dump[pad][0]}")
+        walls = {o[1] for sq in dump.values() for o in sq[1] if o[0] == "wall"}
+        check(walls == {head[1], head[2]}, f"interiors: {what}, her bulkheads are {sorted(walls)}")
+        strays = sorted({o[1] for sq in dump.values() for o in sq[1] if o[1].startswith(others)}
+                        | {sq[0] for sq in dump.values() if sq[0].startswith(others)})
+        check(not strays, f"interiors: {what}, the cabin has another people's {strays} in it")
+        return dump
+
+    dump = standing("built")
+    for x, y, sprite, tag, container, stock in tiles:
+        here = [o for o in dump[(x, y)][1] if o[1] == sprite]
+        if stock and here:
+            check(here[0][2] is not None and here[0][2] > 0, f"interiors: the Klingon cabin's {tag} was not stocked")
+        if tag == "sink" and here:
+            check(here[0][3] is not None and here[0][3] > 0, "interiors: the Klingon cabin's sink holds no water")
+    check(not rt.warnings(), f"interiors: a Klingon cabin logged {rt.warnings()}")
+    # A setting changed afterwards and a build run again: hers, as it was.
+    before = {at: sorted(o[:2] for o in sq[1]) for at, sq in dump.items()}
+    stocked = sum(o[2] or 0 for sq in dump.values() for o in sq[1])
+    rt.run(f"{SB}.CabinStyle = 5; {SB}.CabinLayout = 2; {SB}.CabinGalley = false; {SB}.CabinMedical = false; SIM.randQueue = {{ 0, 0, 0, 0 }}")
+    # And the deck under her tenant's feet is the deck that was there: a pass
+    # that took another people's floor for something growing on the site
+    # would lift it and lay a new one, which nothing else here could see.
+    FLOORS = """(function(mark)
+        local C, U = TREK.Config, TREK.Util
+        local n = 0
+        for ox = -1, C.CabinW + 1 do for oy = -1, C.CabinL + 1 do
+            local x, y = U.at(ox, oy)
+            local f = SIM.rawSquare(x, y, C.CabinZ):getFloor()
+            if f and mark then f.wasThere = true elseif f and f.wasThere then n = n + 1 end
+        end end
+        return n end)"""
+    rt.run(FLOORS + "(true)")
+    laid = int(rt.eval(FLOORS + "(false)"))
+    rt.run("TREK.Util.state().rev = 0; TREK.Build.ensureCabin()")
+    net.pump(20)
+    # The cabin and the ring its walls stand on: every square of it was laid, and stayed.
+    check(laid == W * H + 2 * W + 2 * H and int(rt.eval(FLOORS + "(false)")) == laid,
+          f"interiors: a second build lifted {laid - int(rt.eval(FLOORS + '(false)'))} of {laid} square(s) of a Klingon deck and laid them again")
+    dump = standing("built again under other settings")
+    check({k: ship(rt, f"cabin.{k}") for k in cabin} == cabin, "interiors: a cabin was rolled a second time")
+    check({at: sorted(o[:2] for o in sq[1]) for at, sq in dump.items()} == before
+          and sum(o[2] or 0 for sq in dump.values() for o in sq[1]) == stocked,
+          "interiors: a second build moved a fitting, or stocked a container twice")
+
+    # --- rebuilt as another, by somebody with the say (SERVERS.md) -------------------
+    # She is lived in: a hammer of her tenant's is in a locker, and a second
+    # is lying on her deck. Neither is the builder's to lose.
+    PAD = """(function()
+        local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(C.Landing.x, C.Landing.y)
+        local n, hammers, watching = 0, 0, 0
+        for _, w in ipairs(SIM.rawSquare(x, y, C.CabinZ).worldObjects) do
+            n = n + 1
+            local ok, id = pcall(function() return w:getItem():getFullType() end)
+            if ok and id == "Base.Hammer" then hammers = hammers + 1 end
+            pcall(function() if w:getItem().modData.mine == "watching" then watching = watching + 1 end end)
+        end
+        return n .. "," .. hammers .. "," .. watching end)()"""
+    rt.run("""local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(C.PhaserRack.x, C.PhaserRack.y)
+        for _, o in ipairs(SIM.rawSquare(x, y, C.CabinZ).objects) do
+            if o.container then o:getContainer():AddItem(instanceItem("Base.Hammer")) end
+        end
+        local dx, dy = U.at(1, 2)
+        SIM.rawSquare(dx, dy, C.CabinZ):AddWorldInventoryItem(instanceItem("Base.Hammer"), 0.5, 0.5, 0)
+        -- And a tape is in the television: it is in no container at all.
+        for ox = 0, C.CabinW do for oy = 0, C.CabinL do
+            local tx, ty = U.at(ox, oy)
+            for _, o in ipairs(SIM.rawSquare(tx, ty, C.CabinZ).objects) do
+                if o.modData.TREK == "television" and o:getDeviceData() then
+                    local it = instanceItem("TrekShuttle.TrekTape")
+                    it.modData.mine = "watching"
+                    o:getDeviceData():addMediaItem(it)
+                    SIM.tapeLoaded = true
+                end
+            end
+        end end""")
+    check(rt.eval("SIM.tapeLoaded") is True, "interiors: the test never got a tape into her television")
+    held = sum(o[2] or 0 for sq in cabin_dump(rt).values() for o in sq[1])
+    check(str(rt.eval(PAD)) == "0,0,0" and held > stocked, f"interiors: before the rebuild her pad has {rt.eval(PAD)} on it and her lockers hold {held}")
+    check("IGUI_TREK_Cabin" in ground_labels(rt) and "IGUI_TREK_CabinStyle_vulcan" in ground_labels(rt)
+          and "IGUI_TREK_CabinShuffled" in ground_labels(rt), f"interiors: her cabin's rebuild is not on the menu aboard ({ground_labels(rt)})")
+    rt.run(f'TREK.Core.send({P}, "refitCabin", {{ style = "romulan", shuffle = true }})')
+    net.pump(8)
+    check(ship(rt, "cabin.style") == "klingon" and ship(rt, "cabinWanted") is None, "interiors: a cabin was asked for in a style there is not, and something was kept of it")
+    rt.run("SIM.notes = {}; SIM.randQueue = { 3, 2, 1, 0 }")
+    rt.run(f'TREK.Core.send({P}, "refitCabin", {{ style = "vulcan", shuffle = true }})')
+    net.pump(20)
+    cabin = {k: ship(rt, f"cabin.{k}") for k in ("style", "west", "galley", "water", "medical")}
+    # The amenities are the server's today, and it has since switched two off.
+    check(cabin == {"style": "vulcan", "west": "4321", "galley": False, "water": True, "medical": False}
+          and ship(rt, "cabinWanted") is None and "IGUI_TREK_CabinRebuilt" in rt.notes(),
+          f"interiors: rebuilt as a Vulcan's, shuffled, her cabin is {cabin} ({rt.notes()})")
+    head, tiles = plan(rt, "TREK.Util.state().cabin")
+    dump = standing("rebuilt as a Vulcan's", others=("trek_adirondack_", "trek_klingon_"))
+    tags = sorted(o[0] for sq in dump.values() for o in sq[1] if o[0] not in ("wall", ""))
+    check(tags == sorted(t[3] for t in tiles) + sorted(o[0] for sq in dump.values() for o in sq[1] if o[0] == "lamp"),
+          f"interiors: rebuilt, her fittings are {tags}: one of the old cabin's is still standing, or one of the new is missing")
+    on_pad, hammers, watching = (int(v) for v in str(rt.eval(PAD)).split(","))
+    check(on_pad == held + 1 and hammers == 1 and watching == 1,
+          f"interiors: {on_pad} thing(s) are on the pad for the {held} her lockers held and the tape in her set: "
+          f"{hammers} hammer(s) and {watching} tape(s) that was playing among them")
+    check(rt.eval("""(function() local C, U = TREK.Config, TREK.Util
+        local x, y = U.at(1, 2)
+        return #SIM.rawSquare(x, y, C.CabinZ).worldObjects end)()""") == 1, "interiors: what her tenant had dropped on her deck was taken up by the rebuild")
+    fresh_stock = [o for sq in dump.values() for o in sq[1] if o[0] == "armoury"]
+    check(len(fresh_stock) == 1 and fresh_stock[0][2] > 0, f"interiors: the rebuilt cabin's armoury is {fresh_stock}: not stocked as a new ship's is")
+    check(not rt.warnings(), f"interiors: a cabin rebuilt logged {rt.warnings()}")
+
+    # --- asked for from the ground, with nobody aboard: it waits -----------------------
+    net, rt = fresh("")
+    rt.run(f'TREK.Core.send({P}, "refitCabin", {{ style = "klingon", shuffle = false }})')
+    net.pump(8)
+    check(ship(rt, "cabinWanted.style") == "klingon" and ship(rt, "cabin") is None and "IGUI_TREK_CabinRebuiltLater" in rt.notes(),
+          f"interiors: a cabin asked for with nobody aboard was not kept for the next build ({rt.notes()})")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "interiors, beaming up to a cabin that was asked for"):
+        return
+    check(ship(rt, "cabin.style") == "klingon" and ship(rt, "cabin.west") == "1234" and ship(rt, "cabinWanted") is None,
+          f"interiors: the cabin that was waiting is {ship(rt, 'cabin.style')}, order {ship(rt, 'cabin.west')}")
+    head, tiles = plan(rt, "TREK.Util.state().cabin")
+    standing("built as the one that was asked for")
+    check(not rt.warnings(), f"interiors: a cabin that waited logged {rt.warnings()}")
+
+    # --- asked for from the ground, of a cabin that is built and has nobody in it -------
+    # She is current, so nothing would ever build her again: the asking has to.
+    net, rt = fresh("")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "interiors, beaming up before leaving her"):
+        return
+    rt.run(f"TREK.Transport.beamDown({P})")
+    net.pump(240)
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is False and rt.eval("TREK.Build.cabinLoaded()") is False
+          and rt.eval("TREK.Build.cabinCurrent()") is True,
+          "interiors: the test never left a built cabin with nobody in it")
+    rt.run("SIM.notes = {}")
+    rt.run(f'TREK.Core.send({P}, "refitCabin", {{ style = "vulcan", shuffle = false }})')
+    net.pump(8)
+    check(ship(rt, "cabin.style") == "starfleet" and ship(rt, "cabinWanted.style") == "vulcan"
+          and "IGUI_TREK_CabinRebuiltLater" in rt.notes() and rt.eval("TREK.Build.cabinCurrent()") is False,
+          f"interiors: asked of a built cabin nobody is in, it was not kept as owed ({rt.notes()})")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    check(ship(rt, "cabin.style") == "vulcan" and ship(rt, "cabinWanted") is None,
+          f"interiors: boarded again, the cabin that was owed is {ship(rt, 'cabin.style')}")
+    head, tiles = plan(rt, "TREK.Util.state().cabin")
+    standing("rebuilt when somebody boarded")
+    check(not rt.warnings(), f"interiors: a built cabin that was owed another logged {rt.warnings()}")
+
+    # --- every amenity off ---------------------------------------------------------
+    net, rt = fresh(f"{SB}.CabinGalley = false; {SB}.CabinWater = false; {SB}.CabinMedical = false")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "interiors, beaming up to a bare cabin"):
+        return
+    dump = cabin_dump(rt)
+    tags = {o[0] for sq in dump.values() for o in sq[1]}
+    check(not tags & {"fridge", "oven", "medical", "biobed", "sink"} and "cupboard" in tags and "armoury" in tags,
+          f"interiors: with every amenity off the cabin has {sorted(tags)}")
+    dry = [o for sq in dump.values() for o in sq[1] if o[0] == "cupboard"]
+    check(len(dry) == 1 and dry[0][2] == 0 and not dry[0][3], f"interiors: a dry cupboard is {dry}: stocked, or plumbed")
+    rt.run("TREK.Build.refillWater()")
+    net.pump(4)
+    check(not [o for sq in cabin_dump(rt).values() for o in sq[1] if o[3]], "interiors: a cabin with no water was topped up")
+    check(not rt.warnings(), f"interiors: a cabin with no amenities logged {rt.warnings()}")
+
+    # --- a cabin from before there was a choice --------------------------------------
+    net, rt = fresh("")
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(180)
+    if died(rt, "interiors, beaming up to an old cabin"):
+        return
+    before = {at: sorted(o[:2] for o in sq[1]) for at, sq in cabin_dump(rt).items()}
+    rt.run(f"TREK.Util.state().cabin = nil; TREK.Util.state().rev = 0; {SB}.CabinStyle = 4; {SB}.CabinLayout = 1; TREK.Build.ensureCabin()")
+    net.pump(20)
+    check(ship(rt, "cabin.style") == "starfleet" and ship(rt, "cabin.west") == "1234"
+          and {at: sorted(o[:2] for o in sq[1]) for at, sq in cabin_dump(rt).items()} == before,
+          "interiors: a cabin that was standing before there was a choice was rolled, or rebuilt as another")
+    print(f"interiors: {walked} cabins walked, every one usable; a style is the whole cabin and each fitting still works; "
+          "a cabin is rolled once and is hers under any later setting; and a cabin from before is the standard one")
 
 
 SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabin_partial, starfleet_refit_mp, flight, flight_ascent,
@@ -20837,7 +21316,7 @@ SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabi
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, phaser_clearing, phaser_clearing_mp, field_kit, field_kit_mp, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer, rules, rules_multiplayer, fleet, fleet_off, hull_skins)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer, rules, rules_multiplayer, fleet, fleet_off, hull_skins, interiors)
 
 
 def main():

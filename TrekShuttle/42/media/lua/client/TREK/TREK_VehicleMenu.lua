@@ -49,11 +49,14 @@ TREK.VehicleMenu = VM
 ---------------------------------------------------------------------------
 -- Seat chart
 ---------------------------------------------------------------------------
-if ISCarMechanicsOverlay and ISCarMechanicsOverlay.CarList then
-    ISCarMechanicsOverlay.CarList[V.SCRIPT] = { imgPrefix = "trekshuttle_", x = 10, y = 0 }
-end
-if ImageScale then
-    ImageScale["trekshuttle_"] = 1.0
+-- Every kind of ship has its own (C.Hulls): the chart is her hull from above.
+for _, hull in ipairs(C.Hulls) do
+    if ISCarMechanicsOverlay and ISCarMechanicsOverlay.CarList then
+        ISCarMechanicsOverlay.CarList[hull.script] = { imgPrefix = hull.prefix, x = 10, y = 0 }
+    end
+    if ImageScale then
+        ImageScale[hull.prefix] = 1.0
+    end
 end
 
 ---------------------------------------------------------------------------

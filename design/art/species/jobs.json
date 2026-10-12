@@ -1,0 +1,178 @@
+{
+ "klingon": {
+  "arms_locker": {
+   "concept_by": "gemini-3-pro-image-preview",
+   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/1d5286f9-a915-46bc-a03b-d6d7710810d2.jpg",
+   "mesh_request": "01a12df1-d309-7b30-ba6a-1ad4308ab532",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df1-d309-7b30-ba6a-1ad4308ab532",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0706/qnb6ReXvrBMs5y6HTg6Cg_model.glb"
+  },
+  "biobed": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06fd/Ln0KMLExrxfy5LI2gOv7__tfqkkI71.png",
+   "mesh_request": "01a12df4-4135-7b33-a062-624adbd70999",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-4135-7b33-a062-624adbd70999",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0717/VCQd0QuGx94Wed96_wkNU_model.glb"
+  },
+  "bridge_chair": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06fd/DDqO5ycaKeomWjDyn5mYb_q3CGy62S.png",
+   "mesh_request": "01a12df4-3dc7-7c91-8b77-48b3d73380fe",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-3dc7-7c91-8b77-48b3d73380fe",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0717/QBRkjVJ7RgPuFzdf_oO1o_model.glb"
+  },
+  "bunk": {
+   "concept_by": "gemini-3-pro-image-preview",
+   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/4d7e2398-88a9-43e3-afea-d67d495cda92.jpg",
+   "mesh_request": "01a12df1-cc90-7201-82cd-cccd774b1aa5",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df1-cc90-7201-82cd-cccd774b1aa5",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0706/3RIag4ikLg67_UKVf_Nwl_model.glb"
+  },
+  "deck": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06fe/PrYWbbiCHMo4qTU27prej_0VP5wNLq.png"
+  },
+  "galley_range": {
+   "concept_by": "gemini-3-pro-image-preview",
+   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/5e395895-03f0-4a50-90cb-b0077164fd7b.jpg",
+   "mesh_request": "01a12df1-d7bc-7550-a83c-596a99cf339c",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df1-d7bc-7550-a83c-596a99cf339c",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0709/-PDxZ7lrMDGXjloLn6Lty_model.glb"
+  },
+  "galley_sink": {
+   "concept_by": "gemini-3-pro-image-preview",
+   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/46f08f0c-6372-4507-8453-732a358ae293.jpg",
+   "mesh_request": "01a12df1-dc46-7581-ac14-71cb39718a01",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df1-dc46-7581-ac14-71cb39718a01",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0708/IFaG7d8Af5OCdyxtaw4BS_model.glb"
+  },
+  "medical_cabinet": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06fc/23w8E_b0QO2xJMrIc-0ZL_sTK3NYlR.png",
+   "mesh_request": "01a12df4-3ade-7570-8565-2e460c6fcb6f",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-3ade-7570-8565-2e460c6fcb6f",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0715/ztkgJqALo1a8Uais3LYo-_model.glb"
+  },
+  "science_display": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06fe/cb-ln4JAXlWVtg0bANEuq_yWkB1BcY.png"
+  },
+  "stasis_unit": {
+   "concept_by": "gemini-3-pro-image-preview",
+   "concept_url": "https://flowdot-user-images.s3.us-east-1.amazonaws.com/23/1196b5ef-5a4e-4824-bd98-fb9f53b11cb5.jpg",
+   "mesh_request": "01a12df1-c7cb-7020-85af-192490a3da98",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df1-c7cb-7020-85af-192490a3da98",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0704/xZAc7yyYRn65OI_S-s_Iq_model.glb"
+  },
+  "tape_rack": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06fd/fmnAxSFS8TVRj4PSGuUd-_ZoZneDYI.png",
+   "mesh_request": "01a12df4-477e-7482-8109-23e2371b7d97",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-477e-7482-8109-23e2371b7d97",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0718/ESix1PcWj1BZe1HP3U-8L_model.glb"
+  },
+  "tv_cabinet": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06fd/EjZ4CvqQAJZC9SjshKt7h_mFEu5yeH.png",
+   "mesh_request": "01a12df4-4c73-7e21-a192-a3f1aba6fc24",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-4c73-7e21-a192-a3f1aba6fc24",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0718/bG58B_MwJuiUoOgo7gJT7_model.glb"
+  },
+  "wall": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06fe/eq09kxBTq_Mn5zV4RyU3a_UVBbyJAM.png"
+  },
+  "wall_sconce": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06fe/x4OsMbnMwuShUXRyAyH8P_n9AvitTK.png"
+  }
+ },
+ "vulcan": {
+  "arms_locker": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06ff/X35gZN9YC_7SvCkqdbu7T_cS4uHM2W.png",
+   "mesh_request": "01a12df4-5bcb-7e31-baa3-8973e45148cb",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-5bcb-7e31-baa3-8973e45148cb",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0717/PELoBHgmfEBZ268zasqHy_model.glb"
+  },
+  "biobed": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae0700/Wgn3JFfg0JWv2t49rPkFF_mEogOX2X.png",
+   "mesh_request": "01a12df4-742a-7961-89e0-6cc03d59fe8e",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-742a-7961-89e0-6cc03d59fe8e",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae071a/LcqMcJzTtHnmUbcdRsEp4_model.glb"
+  },
+  "bridge_chair": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae0700/TnnJvM_ceafLlaZfwKnvK_lqvVAQgn.png",
+   "mesh_request": "01a12df4-6f77-7f53-8036-5ab64163cb0b",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-6f77-7f53-8036-5ab64163cb0b",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0719/oGE1_VMtBtADvoD3WMyyJ_model.glb"
+  },
+  "bunk": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06ff/tK2KVDgazeX7U0MebJ2kQ_dH435Hyk.png",
+   "mesh_request": "01a12df4-5595-7f72-b29a-c19ab191c001",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-5595-7f72-b29a-c19ab191c001",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae071a/yHn3qhf97tEQAdGN7HjT0_model.glb"
+  },
+  "deck": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae0718/3qcjT9-hvPGCS6B-rTlxQ_9vsnQStQ.png"
+  },
+  "galley_range": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06ff/aYchpowfx0-lsVQcT_BAw_NhGhSAdk.png",
+   "mesh_request": "01a12df4-6081-7452-bf15-26dc2d89448b",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-6081-7452-bf15-26dc2d89448b",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae071a/kqFj8K0ai0Y9ELU3mOntF_model.glb"
+  },
+  "galley_sink": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae0700/yez0nIWJM7_TU4Xm3B46d_3W6XrtAk.png",
+   "mesh_request": "01a12df4-652e-7a70-aab7-fbed21685f7d",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-652e-7a70-aab7-fbed21685f7d",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae071a/yokU3h2XFTsbVYCvqprjs_model.glb"
+  },
+  "medical_cabinet": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae0700/c7l--RjpZHLMRmscYDL4z_HhwsZe9k.png",
+   "mesh_request": "01a12df4-69ca-7683-8b3b-49739a08c18b",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-69ca-7683-8b3b-49739a08c18b",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0719/S7iwz6TM-WT-Tauoytzhc_model.glb"
+  },
+  "science_display": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae0701/A2TGRKB3rdTfsOSfl-bVp_4QfkJd3Y.png"
+  },
+  "stasis_unit": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae06ff/zXmiYFOioen4aZO8q5IOr_maFtMZuv.png",
+   "mesh_request": "01a12df4-5179-7342-ac6d-4c48ae77d6c8",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-5179-7342-ac6d-4c48ae77d6c8",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae0717/Rj1ZdMnxTPbnwCBfIlS27_model.glb"
+  },
+  "tape_rack": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae0701/DNeLSH9_6SKa9Ttmeu1y6_pp9rk4vs.png",
+   "mesh_request": "01a12df4-7980-7713-b0fa-8e5de35d146e",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-7980-7713-b0fa-8e5de35d146e",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae071a/lX16NXgYSQ-0aG32KRGej_model.glb"
+  },
+  "tv_cabinet": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae0701/pWWE7G9s0zybUymJCO3YS_xV4B5RhE.png",
+   "mesh_request": "01a12df4-7e75-7da1-ba0d-23b951d8a241",
+   "mesh_response_url": "https://queue.fal.run/fal-ai/trellis/requests/01a12df4-7e75-7da1-ba0d-23b951d8a241",
+   "mesh_url": "https://v3b.fal.media/files/b/0aae071d/esu_5tgWHpSQJ9aXjyL-i_model.glb"
+  },
+  "wall": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae0701/eeMaLzbOQwZH_ixyrLBhW_QsECSxiR.png"
+  },
+  "wall_sconce": {
+   "concept_by": "fal nano-banana",
+   "concept_url": "https://v3b.fal.media/files/b/0aae0701/mBUDZypWNWab1G4yTlaPE_UvfeIXJT.png"
+  }
+ }
+}

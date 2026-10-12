@@ -2065,6 +2065,22 @@ C.ExteriorItem = "TrekShuttle.TrekShuttleHull"
 C.HullLiveries = { "fleet", "sciences", "ops", "medical", "tactical", "survey" }
 C.HullStates = { "kept", "worn", "derelict" }
 
+-- **What kinds of ship there are.** A kind is a hull and nothing else: each
+-- is the shuttle's vehicle script under another name, with a mesh and
+-- liveries of its own (tools/gen_craft.py), so every kind is sat in, flown
+-- and set down as she is, on the same fifteen squares, and has her cabin.
+-- Which kind a ship is is `s.hull`, an id from this list; a ship with none
+-- is the first. `sheet` is her first skin's texture, `prefix` her seat
+-- chart's art, `name` what she is called on a menu. **Ids are saved.**
+C.Hulls = {
+    { id = "shuttle", script = "Base.TrekShuttleCraft", sheet = "TREK_Shuttle", prefix = "trekshuttle_",
+      name = "IGUI_TREK_HullType_shuttle", liveries = C.HullLiveries },
+    { id = "raider", script = "Base.TrekRaider", sheet = "TREK_Raider", prefix = "trekraider_",
+      name = "IGUI_TREK_HullType_raider", liveries = { "house", "blood", "night" } },
+    { id = "vulcan", script = "Base.TrekVulcan", sheet = "TREK_Vulcan", prefix = "trekvulcan_",
+      name = "IGUI_TREK_HullType_vulcan", liveries = { "bronze", "sand", "slate" } },
+}
+
 -- The helm console. Not placed any more: it was a 70-weight static model
 -- standing in the cabin that did nothing at all. The helm panel opens from
 -- the aboard menu -- right-click anywhere aboard, Shuttlecraft, Helm -- and

@@ -26,6 +26,24 @@ TREK.Vehicle = V
 
 V.SCRIPT = "Base.TrekShuttleCraft"
 
+-- Every kind of ship (C.Hulls), by its id and by its vehicle script.
+V.hulls, V.scripts = {}, {}
+for _, hull in ipairs(C.Hulls) do
+    V.hulls[hull.id] = hull
+    V.scripts[hull.script] = hull
+end
+
+--- What kind of ship this is: an entry of C.Hulls. A ship from before there
+--- were kinds, or of a kind this build has not got, is the first.
+function V.hullOf(s)
+    return (s and s.hull and V.hulls[s.hull]) or C.Hulls[1]
+end
+
+--- How many skins a kind of ship has.
+function V.skinCount(hull)
+    return #hull.liveries * #C.HullStates
+end
+
 --- Which skin a ship is set down in: an index into the vehicle script's skin
 --- blocks, a livery's three states together (C.HullLiveries, C.HullStates;
 --- tools/gen_shuttle.py). `s` is her state and `id` which ship she is.
@@ -43,7 +61,7 @@ V.SCRIPT = "Base.TrekShuttleCraft"
 --- admin on a server, the player in single player; SERVERS.md), which is
 --- hers until they give it back.
 function V.skinFor(s, id)
-    local liveries, states = #C.HullLiveries, #C.HullStates
+    local liveries, states = #V.hullOf(s).liveries, #C.HullStates
     local paint = s and tonumber(s.paint)
     if paint and paint >= 0 and paint < liveries * states and paint == math.floor(paint) then
         return paint
@@ -71,18 +89,22 @@ V.LiveryText = {
     fleet = "IGUI_TREK_Livery_fleet", sciences = "IGUI_TREK_Livery_sciences",
     ops = "IGUI_TREK_Livery_ops", medical = "IGUI_TREK_Livery_medical",
     tactical = "IGUI_TREK_Livery_tactical", survey = "IGUI_TREK_Livery_survey",
+    house = "IGUI_TREK_Livery_house", blood = "IGUI_TREK_Livery_blood",
+    night = "IGUI_TREK_Livery_night", bronze = "IGUI_TREK_Livery_bronze",
+    sand = "IGUI_TREK_Livery_sand", slate = "IGUI_TREK_Livery_slate",
 }
 V.StateText = {
     kept = "IGUI_TREK_Hull_kept", worn = "IGUI_TREK_Hull_worn",
     derelict = "IGUI_TREK_Hull_derelict",
 }
 
---- True for a shuttle vehicle, the current one or not.
+--- True for a ship's vehicle, of any kind, the current one or not.
 function V.isShuttle(vehicle)
     if not vehicle then return false end
-    return U.try("vehicleScriptName", function()
+    local script = U.try("vehicleScriptName", function()
         return vehicle:getScriptName()
-    end) == V.SCRIPT
+    end)
+    return script ~= nil and V.scripts[script] ~= nil
 end
 
 --- The id the server tagged a shuttle vehicle with, or nil.
