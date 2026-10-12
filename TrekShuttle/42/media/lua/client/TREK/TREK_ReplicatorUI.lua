@@ -348,7 +348,7 @@ function TREKReplicatorWindow:drawRow(y, entry, alt)
     self:drawText(cat, w - 150, y + 3, P.dim[1] * 1.3, P.dim[2] * 1.3,
                   P.dim[3] * 1.3, 1, UIFont.Small)
 
-    local text = known and tostring(item.cost)
+    local text = known and tostring(R.cost(item, 1))
                         or getText("IGUI_TREK_RepNoPatternShort")
     self:drawTextRight(text, w - 10, y + 3, right[1], right[2], right[3], 1, UIFont.Small)
     return y + entry.height

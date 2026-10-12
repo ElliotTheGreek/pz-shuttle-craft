@@ -46,6 +46,7 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Adirondack"
 require "TREK/TREK_Power"
+require "TREK/TREK_Rules"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -819,7 +820,7 @@ function AS.servicePowerBus(k)
     local fuel = U.try("adk.busFuel", function() return gen:getFuel() end) or max
     if max - fuel > 0.0001 and TREK.Energy then
         P.using(pool, function()
-            TREK.Energy.energize(nil, "galley", (max - fuel) * C.FuelToEnergy,
+            TREK.Energy.energize(nil, "galley", (max - fuel) * TREK.Rules.cost("FuelToEnergy"),
                                  { partial = true, silent = true })
         end)
     end

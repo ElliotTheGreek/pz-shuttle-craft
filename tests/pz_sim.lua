@@ -681,6 +681,9 @@ function SIM.container(capacity)
         return self.ownerName ~= nil and chr ~= nil and self.ownerName == chr.name
     end
     function c:getParent() return self.parentObject end
+    -- ItemContainer.getSourceGrid is a field read: the square the engine
+    -- filled the container on, and null for one nobody placed.
+    function c:getSourceGrid() return self.sourceGrid end
     function c:getItems() return jlist(self.items) end
     --- Takes one item back out. Real, not a no-op: the refit migration empties
     --- a doomed locker onto the deck, and a Remove that did nothing would let

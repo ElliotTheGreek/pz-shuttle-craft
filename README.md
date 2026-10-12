@@ -101,8 +101,14 @@ for each player, who may board the ship in orbit, which species, traits and
 professions players may pick, renaming things, replacing the story with your
 own in any language, and what the log says when something is wrong.
 
-The sandbox has two pages, **Shuttlecraft** and **Shuttlecraft: roleplay**.
-The ones most servers meet first:
+The sandbox has four pages, **Shuttlecraft**, **Shuttlecraft: balance**,
+**Shuttlecraft: content** and **Shuttlecraft: roleplay**. The balance page is
+how rare dilithium is (a town holds one to five crystals by default) and what
+everything costs, each as a number a host can move. The content page switches
+whole parts of the mod off: the shuttle, the ship in orbit, the field
+station, aliens, each weapon and each family of items, down to a server that
+wants only the bat'leth. `SERVERS.md` has every one. The ones most servers
+meet first:
 
 | Option | Choices | Default |
 |---|---|---|
@@ -113,8 +119,10 @@ The ones most servers meet first:
 | **Replicator** | *Patterns and energy*: it makes what the ship has scanned, and each one spends from a reserve that only dilithium refills. *Unrestricted*: anything in the catalogue, immediately, for nothing. *Off*: the machine is scenery, and says so. | Patterns and energy |
 | **Emergency Medical Hologram** | *Full*: the Doctor as designed, cure included. *Off*: the sick bay's station is inactive and says so. There is deliberately no setting that keeps him and removes the cure; a server owner who does not want the cure turns him off. | Full |
 | **Hover height** | *2, 3, 4, 5, 6 or 8 storeys*: how high she hovers in flight. Buildings with fewer storeys pass beneath her; anything taller is a wall she slows to a stop in front of. Raise it for Louisville's towers. | 5 storeys |
-| **How the shuttle starts** | *Cold start*: landed near the first player, dark, no spares, two probes. *Commissioned*: overhead, with a full crystal and three spares. *Marooned*: a cold start with the shuttle lost at one of six places, no Shuttlecraft menu or beaming until you have been aboard her, and annotated maps to find her by. Only a brand new world is affected. | Marooned |
-| **Dilithium in the wild** | *Plentiful*, *Scarce* or *None*: crystals lying on natural ground out in the county. | Scarce |
+| **How the shuttle starts** | *Cold start*: landed near the first player, dark, no spares, two probes. *Commissioned*: overhead, with a full crystal and one spare (the balance page's *Spare crystals*). *Marooned*: a cold start with the shuttle lost at one of six places, no Shuttlecraft menu or beaming until you have been aboard her, and annotated maps to find her by. Only a brand new world is affected. | Marooned |
+| **Dilithium in the wild** | *Plentiful*, *Scarce*, *Very rare* or *None*: crystals lying on natural ground out in the county. | Very rare |
+| **Dilithium in a town's loot** | The fewest and the most crystals all the containers of one town-sized district give up. | 1 to 5 |
+| **Cost: replicator, transporter, flight, shields, weapons, the Doctor, other systems** | Each a percentage of the mod's own prices: 100 as designed, 0 free, up to 1,000. | 100 |
 | **When the Adirondack first calls** | *Straight away*, *after a day*, *three days*, *a week* or *two weeks* after commissioning. | After a week |
 | **Phaser cutting** | *Trees and doors*, *Trees only* or *Off*. Somebody else's safehouse is refused either way. | Trees and doors |
 | **Hydroponics tend themselves** | *Yes*: the Adirondack's trays are watered and kept free of pests. *No*: they need tending like any crop. | Yes |
@@ -187,9 +195,10 @@ it costs nothing and you keep the lot.
 The reserve across the top is what a replication spends, and **nothing refills
 it for free**. It is a dilithium crystal burning in the warp core (the lit
 blue column standing in the port passage), and when it is spent the ship loads
-a spare by itself. One crystal is about a thousand bandages or two hundred
-hammers, so this is not a thing to ration; it is a thing to go and find, once
-in a long while, with the tricorder. The ship starts with three, the
+a spare by itself. One crystal is about two hundred bandages or forty
+hammers, and a town holds one to five of them, so it is a thing to spend with
+care and to go and find with the tricorder. (A server may make all of that
+gentler: `SERVERS.md`, *Balance*.) The ship starts with three, the
 replicator cannot make a fourth, and you put the ones you find in by
 right-clicking the core.
 

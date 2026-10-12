@@ -33,7 +33,7 @@ because they were broken* and `MULTIPLAYER.md` apply to every line.
 - **25 shots**, counted on the sentry itself. Its owner is told when it runs dry.
 - **Pick it up again** like anything lying on the ground. It keeps its count.
 - **Recharge it at a warp core** (the shuttle's, hers, the station's or an
-  installed one): *Recharge sentry (250 units)* on its right-click, from that
+  installed one): *Recharge sentry (750 units)* on its right-click, from that
   core's power, full again. Greyed away from one.
 - Everybody nearby sees the bolts and hears the shots.
 
@@ -92,7 +92,7 @@ because they were broken* and `MULTIPLAYER.md` apply to every line.
 
 All in `TREK_Config.lua`: `C.SentryCharges` (25), `C.SentryShotMs` (600),
 `C.SentryRange` (5), `C.SentryDamage` (100), `C.SentryArmMs` (3000),
-`C.SentryRechargeCost` (250), `C.SentryMax` (12 set down per server),
+`C.SentryRechargeCost` (750), `C.SentryMax` (12 set down per server),
 `C.SentryIssue` (3). The look: `tools/gen_sentry.py`, re-run, look at the
 sheet.
 

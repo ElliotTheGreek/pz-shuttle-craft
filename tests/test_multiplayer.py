@@ -5653,10 +5653,10 @@ def replicator():
               f"replicator: {item_id} is in the catalogue and should not be ({why})")
 
     # --- what things cost ---------------------------------------------------
-    check(rep_row(rt, "Base.Bandage") == 5,
-          f"replicator: a bandage costs {rep_row(rt, 'Base.Bandage')}, not 5")
-    check(rep_row(rt, "Base.Hammer") == 24,
-          f"replicator: a hammer costs {rep_row(rt, 'Base.Hammer')}, not 24")
+    check(rep_row(rt, "Base.Bandage") == 25,
+          f"replicator: a bandage costs {rep_row(rt, 'Base.Bandage')}, not 25")
+    check(rep_row(rt, "Base.Hammer") == 120,
+          f"replicator: a hammer costs {rep_row(rt, 'Base.Hammer')}, not 120")
     # A 60 kg generator would ask for 604 without the cap, which is most of a
     # full reserve for one appliance.
     check(rep_row(rt, "Base.Generator") == C("ReplicatorMaxCost"),
@@ -5742,8 +5742,8 @@ def replicator():
     check(carrying(rt, "Base.Hammer") == 2,
           f"replicator: the player holds {carrying(rt, 'Base.Hammer')} hammers "
           f"after scanning one and making one; it should be two")
-    check(before - rep_energy(rt) == 24,
-          f"replicator: a hammer cost {before - rep_energy(rt)} units, not 24")
+    check(before - rep_energy(rt) == 120,
+          f"replicator: a hammer cost {before - rep_energy(rt)} units, not 120")
     check(any("IGUI_TREK_RepMade" in n for n in rt.notes()),
           "replicator: it made something and said nothing")
     check(rt.eval('SIM.heardSound("TREK_Replicate")') is True,
@@ -5769,8 +5769,8 @@ def replicator():
     check(carrying(rt, "Base.Hammer") == 7,
           f"replicator: asked for 5 more and the player holds "
           f"{carrying(rt, 'Base.Hammer')} hammers rather than seven")
-    check(before - rep_energy(rt) == 24 * 5,
-          f"replicator: five hammers cost {before - rep_energy(rt)}, not {24 * 5}")
+    check(before - rep_energy(rt) == 120 * 5,
+          f"replicator: five hammers cost {before - rep_energy(rt)}, not {120 * 5}")
 
     # --- nothing refills it for free -----------------------------------------
     # It used to come back on the world's clock, which made the replicator a
@@ -5803,7 +5803,7 @@ def replicator():
           f"a crystal ({crystals_aboard(rt)} left of {spares})")
     # The 10 units left in the old crystal pay first and only the rest comes
     # out of the new one (ENERGY.md V1): a burn used to throw them away.
-    check(rep_energy(rt) == C("PowerMax") - (24 - 10),
+    check(rep_energy(rt) == C("PowerMax") - (120 - 10),
           f"replicator: after loading a crystal the reserve is "
           f"{rep_energy(rt)}, not a full {C('PowerMax')} less the part of the "
           f"hammer the old crystal could not pay")
@@ -6020,9 +6020,9 @@ def replicator():
     check(made == 1,
           f"replicator: five were asked for, the second one would not instance, "
           f"and {made} arrived -- the run is not being counted item by item")
-    check(before - rep_energy(rt) == 24 * made,
+    check(before - rep_energy(rt) == 120 * made,
           f"replicator: asked for 5, made {made}, and charged "
-          f"{before - rep_energy(rt)} rather than {24 * made}. The player pays "
+          f"{before - rep_energy(rt)} rather than {120 * made}. The player pays "
           f"for what arrived")
     check(any("IGUI_TREK_RepPartial" in n for n in rt.notes()),
           "replicator: a run that made one of five said nothing about it")
@@ -6792,7 +6792,7 @@ def replicator_multiplayer():
           f"replicator: the other player is holding "
           f"{carrying(stranger, 'Base.Hammer')} hammers -- the one they walked "
           f"in with, and nothing the owner asked the machine for")
-    check(before - rep_energy(srv) == 24,
+    check(before - rep_energy(srv) == 120,
           "replicator: the server did not charge for the hammer")
     check(rep_energy(owner) == rep_energy(srv) and rep_energy(stranger) == rep_energy(srv),
           "replicator: the reserve on the clients does not match the server's")
@@ -7603,6 +7603,11 @@ def probes():
     cost = int(rt.eval("TREK.Config.ProbeCost"))
     rack = lambda: int(rt.eval("TREK.Util.state().probes or 0"))
     reserve = lambda: int(rt.eval("math.floor(TREK.Power.reserve())"))
+    # This section was written when nine probes in ten found something and
+    # the dry limit was two, and it walks that streak launch by launch; it is
+    # the mechanism that is checked here, and balance() checks the server's
+    # own chance and how the limit stretches with it.
+    rt.run("SandboxVars.TrekShuttle.ProbeFind = 90")
 
     # --- an empty rack refuses a launch ------------------------------------
     check(rack() == 0, f"probes: a new ship starts with {rack()} probes, not 0")
@@ -7625,6 +7630,9 @@ def probes():
     # And the rack has a ceiling, so energy cannot simply be banked away.
     cap = int(rt.eval("TREK.Config.MaxProbes"))
     for _ in range(cap + 3):
+        # A crystal is three probes: the core is kept full, so that it is the
+        # rack that refuses and not the reserve.
+        rt.run("TREK.Util.state().power = TREK.Config.PowerMax")
         rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
         net.pump(4)
     check(rack() == cap,
@@ -7696,7 +7704,9 @@ def probes():
     # the next probe finds something whatever its roll says. The first
     # cold-start play drew four empties in a row, which is a campaign
     # stalled on luck.
-    dry = int(rt.eval("TREK.Config.ProbeDryLimit"))
+    dry = int(rt.eval("TREK.Rules.probeDryLimit()"))
+    check(dry == int(rt.eval("TREK.Config.ProbeDryLimit")),
+          f"probes: at nine finds in ten the dry limit is {dry}, not the one it was set at")
     for i in range(dry - 1):
         rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
         net.pump(10)
@@ -7854,6 +7864,7 @@ def probes():
         TREK.Ship.setReturnPoint(SIM.players[1], {HOME_X}, {HOME_Y}, 0)
         TREK.Probes.store().contacts = {{}}
         TREK.Probes.store().active = nil
+        s.power = TREK.Config.PowerMax
     """)
     rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
     rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
@@ -7885,6 +7896,7 @@ def probes():
         pd.returnX, pd.returnY, pd.returnZ = nil, nil, nil
         s.returnX, s.returnY, s.returnZ = nil, nil, nil
         TREK.Probes.store().active = nil
+        s.power = TREK.Config.PowerMax
     """)
     rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
     rt.run(f'TREK.Core.send({P}, "launchProbe", {{}})')
@@ -10623,14 +10635,14 @@ def energy_movement():
     PM = int(C("PowerMax"))
     reserve = lambda: float(rt.eval("TREK.Power.reserve()"))
 
-    # --- the outing still costs about a third of a crystal (3.5) -------------
+    # --- the outing costs most of a crystal (3.5; a third until 2026-10-12) ---
     outing = (C("LandCost") + C("TakeoffCost") + 500 * C("AirCostPerTile")
               + 60 * C("HoverCostPerMinute") + 50 * C("ShieldPushCost")
               + 100 * C("RepairCostPerPoint") + 4 * C("BeamCost")
               + C("EmhProjectCost") + C("EmhTreatCost"))
-    check(1500 <= outing <= 2100,
+    check(3500 <= outing <= 5000,
           f"energy movement: a typical outing costs {outing} units -- the author "
-          f"chose about three outings a crystal (1,500..2,100)")
+          f"chose about one outing a crystal (3,500..5,000)")
 
     # --- calling her down costs a landing, and a dark ship will not come ----
     energy_state(rt, 100, 0)
@@ -10832,7 +10844,7 @@ def energy_movement():
 
     for w in rt.warnings():
         fail(f"energy movement: {w}")
-    print("energy movement: an outing is a third of a crystal; landing, recall, "
+    print("energy movement: an outing is most of a crystal; landing, recall, "
           "take-off, beams, the engine's start, the odometer and the hover all pay; "
           "a dark ship's battery is flat, her tank dry and her engine stopped, and "
           "nothing that costs power moves her")
@@ -12451,8 +12463,8 @@ def wild_dilithium():
     check(rt.eval("TREK.Wild.oneIn()") == C("WildScarceOneIn")
           and int(C("WildScarceOneIn")) > int(C("WildPlentifulOneIn")), "wild: Scarce is not scarcer")
     rt.run("SandboxVars.TrekShuttle.WildDilithium = nil")
-    check(rt.eval("TREK.Wild.oneIn()") == C("WildScarceOneIn"),
-          "wild: an absent option is not the feature as designed, which is Scarce")
+    check(rt.eval("TREK.Wild.oneIn()") == C("WildVeryRareOneIn"),
+          "wild: an absent option is not the feature as designed, which is Very rare")
     rt.run("SandboxVars.TrekShuttle.WildDilithium = 3")
     rt.run(f"local p = {P}; p.x, p.y = 4000.5, 4000.5")
     net.pump(60)
@@ -12486,7 +12498,7 @@ def wild_dilithium():
         for w in r.warnings():
             fail(f"wild mp ({r.name}): {w}")
     print(f"wild: {found} crystals over {plots} plots of grass, once each and never "
-          f"again, none on a road or in the water, the sandbox's three settings, "
+          f"again, none on a road or in the water, the sandbox's settings, "
           f"and on two machines the crystals reach the client while the record stays home")
 
 
@@ -21301,6 +21313,619 @@ def interiors():
           "a cabin is rolled once and is hers under any later setting; and a cabin from before is the standard one")
 
 
+def lode_roll(rt, x, y, rolled):
+    """Rolls one container standing at x,y as the engine does, and answers how
+    many crystals and how many other things it holds afterwards."""
+    ids = ", ".join('"%s"' % r for r in rolled)
+    rt.run(f"""
+        lodeShelf = SIM.container(400)
+        lodeShelf.sourceGrid = {{ getX = function() return {x} end, getY = function() return {y} end }}
+        SIM.fillContainer(lodeShelf, {{ {ids} }})
+    """)
+    got = rt.eval("""(function()
+        local c, o = 0, 0
+        for _, it in ipairs(lodeShelf.items) do
+            if it.fullType == TREK.Config.DilithiumItem then c = c + 1 else o = o + 1 end
+        end
+        return c * 1000 + o
+    end)()""")
+    return int(got) // 1000, int(got) % 1000
+
+
+def balance():
+    """The balance page (SERVERS.md, *Balance*): how rare dilithium is and
+    what everything costs. Each setting is asked absent first, which is the
+    mod as designed, and then moved, and what it moves is read where it
+    lands: the ledger, the panel's own label, the container."""
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    R = lambda code: rt.eval(f"TREK.Rules.{code}")
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    SB = "SandboxVars.TrekShuttle"
+    PM = int(C("PowerMax"))
+    reserve = lambda: float(rt.eval("TREK.Power.reserve()"))
+    CRYSTAL = "TrekShuttle.TrekDilithium"
+
+    # --- every price, absent, is the mod's own ---------------------------------
+    names = [n for n in rt.eval("""(function()
+        local out = {}
+        for name in pairs(TREK.Rules.COST_OPTION) do table.insert(out, name) end
+        table.sort(out)
+        return table.concat(out, ",")
+    end)()""").split(",")]
+    check(len(names) >= 15, f"balance: only {len(names)} prices have a setting -- the list has moved")
+    for name in names:
+        check(C(name) is not None and float(C(name)) > 0,
+              f"balance: {name} has a setting and no price in TREK_Config")
+        asked = float(R(f'cost("{name}")'))
+        check(abs(asked - float(C(name))) < 1e-9,
+              f"balance: with no setting {name} costs {asked:g}, not the mod's own {C(name)}")
+    groups = sorted(set(rt.eval("""(function()
+        local out = {}
+        for _, option in pairs(TREK.Rules.COST_OPTION) do table.insert(out, option) end
+        return table.concat(out, ",")
+    end)()""").split(",")))
+    sandbox = open(os.path.join(LUA, "..", "sandbox-options.txt"), encoding="utf-8").read()
+    for option in groups + ["CostReplicator", "CostWeapons"]:
+        check(re.search(r"option TrekShuttle\.%s = \{\s*type = integer, min = 0, max = %d, default = 100,"
+                        % (option, int(R("COST_MAX"))), sandbox) is not None,
+              f"balance: {option} is not an option of 0 to {int(R('COST_MAX'))} that begins at 100")
+
+    # --- a group scales its own prices and nobody else's -------------------------
+    rt.run(f"{SB}.CostFlight = 200")
+    check(R('cost("LandCost")') == 2 * C("LandCost") and R('cost("AirCostPerTile")') == 2 * C("AirCostPerTile")
+          and R('cost("BeamCost")') == C("BeamCost") and R('cost("ProbeCost")') == C("ProbeCost"),
+          "balance: flight at 200 per cent did not double flight's prices and leave the rest")
+    rt.run(f"{SB}.CostFlight = 50; {SB}.CostTransporter = 1")
+    check(R('cost("GroundCostPerTile")') == C("GroundCostPerTile") / 2,
+          "balance: a price by the tile was rounded -- half of 1.5 is 0.75, and it is paid as that")
+    beam = R('cost("BeamCost")')
+    check(beam == 1, f"balance: a beam at 1 per cent costs {beam}, not the 1 nothing may go under")
+    rt.run(f"{SB}.CostTransporter = 0")
+    check(R('cost("BeamCost")') == 0, "balance: a beam at 0 per cent is not free")
+    check(R("whole(20, 0.01)") == 1 and R("whole(20, 0)") == 0 and R("whole(0, 3)") == 0,
+          "balance: a price a server has made tiny rounds away to nothing -- only 0 per cent is free")
+    rt.run(f"{SB}.CostSystems = 1000")
+    probe = R('cost("ProbeCost")')
+    energy_state(rt, PM, 3)
+    check(probe == 10 * C("ProbeCost") and probe > PM and rt.eval(f"TREK.Power.canPay({probe})") is False,
+          f"balance: a probe at ten times its price costs {probe}, and a ship with a full core "
+          f"and three spares is said to be able to pay it")
+    rt.run(f"{SB}.CostSystems = 5000; {SB}.CostMedical = -40; {SB}.CostShields = 'lots'")
+    check(R('costScale("CostSystems")') == 10 and R('costScale("CostMedical")') == 0
+          and R('costScale("CostShields")') == 1,
+          "balance: a percentage outside 0..1000 is not held to it, or one that is not a number is not 100")
+    rt.run(f"{SB}.CostFlight = nil; {SB}.CostTransporter = nil; {SB}.CostSystems = nil; "
+           f"{SB}.CostMedical = nil; {SB}.CostShields = nil")
+
+    # --- and the ledger is charged the server's price ---------------------------
+    energy_state(rt, PM, 0)
+    rt.run("TREK.Util.state().flying = true; TREK.Energy.serviceHover()")
+    check(abs(PM - reserve() - C("HoverCostPerMinute")) < 1e-6,
+          f"balance: a minute in the air took {PM - reserve():g}, not {C('HoverCostPerMinute')}")
+    rt.run(f"{SB}.CostFlight = 300")
+    energy_state(rt, PM, 0)
+    rt.run("TREK.Energy.serviceHover()")
+    check(abs(PM - reserve() - 3 * C("HoverCostPerMinute")) < 1e-6,
+          f"balance: at 300 per cent a minute in the air took {PM - reserve():g}")
+    rt.run(f"{SB}.CostFlight = 0")
+    energy_state(rt, PM, 0)
+    rt.run("TREK.Energy.serviceHover()")
+    check(reserve() == PM, f"balance: flight is free and a minute in the air took {PM - reserve():g}")
+    rt.run(f"{SB}.CostFlight = nil; TREK.Util.state().flying = false")
+
+    # --- a torpedo is paid for, and a ship that cannot pay does not fire ----------
+    rt.run(f"TREK.Menu.onCallDown(nil, {P}, 3004, 3000, 0)")
+    net.pump(40)
+    check(ship(rt, "landed") is True, "balance: she did not come down, so the torpedo checks nothing")
+    seat(rt)
+    sx, sy = int(ship(rt, "x")), int(ship(rt, "y"))
+    far = int(C("TorpedoMinRange")) + 4
+
+    def torpedo(dx):
+        rt.run("SIM.notes = {}; TREK.Util.state().torpedoAt = nil")
+        before = reserve()
+        rt.run(f'TREK.Net.send({P}, "fireTorpedo", {{ x = {sx + dx}, y = {sy}, z = 0 }})')
+        net.pump(4)
+        return before - reserve()
+
+    energy_state(rt, PM, 0)
+    launches = lambda: sum(1 for l in rt.logLines() if "torpedo away" in l)
+    n0 = launches()
+    took = torpedo(far)
+    check(launches() == n0 + 1 and abs(took - C("TorpedoCost")) < 1e-6,
+          f"balance: a torpedo took {took:g} of the reserve, not {C('TorpedoCost')} "
+          f"({launches() - n0} launched; {rt.notes()})")
+    took = torpedo(2)        # too close: refused, and a refusal is not a charge
+    check(launches() == n0 + 1 and took == 0,
+          f"balance: a torpedo that was refused for its range took {took:g}")
+    energy_state(rt, int(C("TorpedoCost")) - 1, 0)
+    took = torpedo(far)
+    check(launches() == n0 + 1 and took == 0 and any("IGUI_TREK_NoPower" in n for n in rt.notes()),
+          f"balance: a ship one unit short fired a torpedo, or said nothing ({rt.notes()})")
+    rt.run(f"{SB}.CostWeapons = 0")
+    took = torpedo(far)
+    check(launches() == n0 + 2 and took == 0, "balance: with her weapons free a torpedo was charged or not fired")
+    rt.run(f"{SB}.CostWeapons = nil")
+
+    # --- shields that cost nothing still need a ship with power -----------------------
+    v = "TREK.Vehicle.ship()"
+    rt.run(f"{SB}.CostShields = 0; TREK.Util.state().shields = true")
+    energy_state(rt, PM, 0)
+    rt.run(f"SIM.crash({v}, true, 30); TREK.Server.serviceVehicle()")
+    engine = rt.eval(f"SIM.partCondition({v}, 'Engine')")
+    check(engine == 100 and reserve() == PM,
+          f"balance: free shields left the engine at {engine} or took {PM - reserve():g} for mending it")
+    energy_state(rt, 0, 0)
+    rt.run("TREK.Energy.powerChanged()")
+    rt.run(f"SIM.crash({v}, true, 10); TREK.Server.serviceVehicle()")
+    check(rt.eval(f"SIM.partCondition({v}, 'Engine')") == 90,
+          "balance: with the shields free, a dark ship mended her crash damage")
+    rt.run(f"{SB}.CostShields = nil")
+    energy_state(rt, PM, 3)
+    rt.run("TREK.Energy.powerChanged()")
+    rt.run(f"local v = TREK.Vehicle.ship(); v.seats[0] = nil; {P}.vehicle = nil")
+
+    # A probe, through its own command: the reserve, and the note the player reads.
+    rt.run(f"TREK.Transport.beamUp({P})")
+    net.pump(260)
+    check(rt.eval(f"TREK.Util.isInteriorPlayer({P})") is True, "balance: nobody is aboard, so the probe checks nothing")
+    rt.run(f"{SB}.CostSystems = 50; SIM.notes = {{}}; local s = TREK.Util.state(); s.power = {PM}; s.crystals = 0; s.probes = 0")
+    rt.run(f'TREK.Core.send({P}, "buildProbe", {{}})')
+    net.pump(6)
+    half = int(C("ProbeCost")) // 2
+    check(int(ship(rt, "probes")) == 1 and abs(PM - reserve() - half) < 1e-6,
+          f"balance: at 50 per cent a probe took {PM - reserve():g} of the reserve, not {half} "
+          f"(probes aboard: {ship(rt, 'probes')})")
+    check(f"IGUI_TREK_PowerUsed|{half}" in rt.notes(),
+          f"balance: the player was not told the probe cost {half} ({rt.notes()})")
+    rt.run(f"{SB}.CostSystems = nil")
+
+    # --- the replicator's price is the server's, on the panel and at the charge --
+    rt.run('TREK.Replicator.catalogue()')
+    row = 'TREK.Replicator.row("Base.Hammer")'
+    check(rt.eval(f"{row} ~= nil"), "balance: the catalogue has no hammer, so the replicator checks nothing")
+    base = int(rt.eval(f"{row}.cost"))
+    check(base == int(rt.eval(f"TREK.Replicator.costOf({row}.weight)")) and base >= 5 * 4,
+          f"balance: a hammer is {base} as designed -- the replicator's prices are the old ones")
+    check(rt.eval(f"TREK.Replicator.cost({row}, 1)") == base and rt.eval(f"TREK.Replicator.cost({row}, 10)") == 10 * base,
+          "balance: with no setting a hammer does not cost what the catalogue says")
+    rt.run(f"{SB}.CostReplicator = 250")
+    want = int(base * 2.5 + 0.5)
+    check(rt.eval(f"TREK.Replicator.cost({row}, 1)") == want and rt.eval(f"TREK.Replicator.cost({row}, 5)") == 5 * want,
+          f"balance: at 250 per cent a hammer costs {rt.eval(f'TREK.Replicator.cost({row}, 1)')}, not {want}")
+    rt.run(f"{SB}.CostReplicator = 0")
+    check(rt.eval(f"TREK.Replicator.cost({row}, 10)") == 0, "balance: the replicator at 0 per cent is not free")
+    rt.run(f"{SB}.CostReplicator = nil")
+
+    # --- power use: the two that were added spend more ---------------------------
+    for mode, want in ((5, 200), (6, 400)):
+        rt.run(f"{SB}.PowerUse = {mode}")
+        energy_state(rt, PM, 0)
+        ok = rt.eval('(TREK.Energy.energize(nil, "test", 100, { silent = true }))')
+        check(ok is True and abs(PM - reserve() - want) < 1e-6,
+              f"balance: at power use {mode} a charge of 100 took {PM - reserve():g}, not {want}")
+    rt.run(f"{SB}.PowerUse = nil")
+    energy_state(rt, PM, 3)
+
+    # --- the cure: its crystals and its hours ----------------------------------------
+    check(int(R("cureCrystals()")) == int(C("EmhCureCrystals")) and R("cureHours()") == C("EmhCureHours"),
+          "balance: with no setting the cure is not the mod's own")
+    rt.run(f"{SB}.CureCrystals = 9; {SB}.CureHours = 0")
+    check(int(R("cureCrystals()")) == 5 and R("cureHours()") == 1, "balance: the cure's settings are not held to their range")
+    rt.run(f"{P}:getBodyDamage():setInfected(true)")
+    infected = rt.eval(f"TREK.Medical.isInfected({P}) or TREK.Medical.isBitten({P})")
+    if check(infected is True, "balance: the patient is not infected, so the cure checks nothing"):
+        rt.run(f"{SB}.CureCrystals = 2; local s = TREK.Util.state(); s.crystals = 1")
+        check(rt.eval(f"TREK.EMH.cureRefusal({P}, 'owner')") == "emhNoCrystal",
+              "balance: a cure that costs two crystals is offered to a ship with one")
+        rt.run(f"{SB}.CureCrystals = 0; local s = TREK.Util.state(); s.crystals = 0")
+        why = rt.eval(f"TREK.EMH.cureRefusal({P}, 'owner')")
+        check(why is None, f"balance: a cure that costs no crystal is refused a ship with none ({why})")
+        rt.run(f"{SB}.CureCrystals = 2; {SB}.CureHours = 30; local s = TREK.Util.state(); s.crystals = 3")
+        began = rt.eval(f"(TREK.Server.beginCure({P}, {P}, 'owner'))")
+        due = rt.eval("TREK.EMH.cures().owner")
+        check(began is True and int(ship(rt, "crystals")) == 1
+              and due is not None and abs(float(due) - float(rt.eval("TREK.EMH.worldHours()")) - 30) < 1e-6,
+              f"balance: a cure of two crystals and thirty hours left {ship(rt, 'crystals')} spare(s) and is due "
+              f"in {None if due is None else float(due) - float(rt.eval('TREK.EMH.worldHours()')):g} hours")
+        rt.run("TREK.EMH.cures().owner = nil")
+    rt.run(f"{SB}.CureCrystals = nil; {SB}.CureHours = nil")
+    energy_state(rt, PM, 3)
+
+    # --- probes that find dilithium, and the promise that stretches -----------------
+    check(abs(R("probeFind()") - C("ProbeFindChance")) < 1e-9 and C("ProbeFindChance") <= 0.5,
+          f"balance: with no setting a probe finds {R('probeFind()')} of the time")
+    for pct, limit in ((90, int(C("ProbeDryLimit"))), (30, 6), (10, 18), (100, 2)):
+        rt.run(f"{SB}.ProbeFind = {pct}")
+        check(R("probeDryLimit()") == limit,
+              f"balance: at {pct} in a hundred the dry limit is {R('probeDryLimit()')}, not {limit}")
+    rt.run(f"{SB}.ProbeFind = 0")
+    check(R("probeFind()") == 0 and R("probeDryLimit()") is None,
+          "balance: probes that never find are still promised a find")
+    rt.run(f"{SB}.ProbeFind = nil")
+    check(int(R("raidCrystal()")) == int(C("RaidCrystalChance")) and int(R("startCrystals()")) == int(C("DilithiumIssue")),
+          "balance: with no setting a raid's crystal or a new ship's spares are not the mod's own")
+    rt.run(f"{SB}.RaidCrystal = 250; {SB}.StartCrystals = 4.7")
+    check(R("raidCrystal()") == 100 and R("startCrystals()") == 4,
+          "balance: a raid's chance is not held to a hundred, or a ship is issued part of a crystal")
+    rt.run(f"{SB}.RaidCrystal = nil; {SB}.StartCrystals = nil")
+
+    # --- dilithium in the wild: very rare unless the server says ----------------------
+    rt.run(f"{SB}.WildDilithium = nil")
+    check(rt.eval("TREK.Wild.oneIn()") == C("WildVeryRareOneIn")
+          and int(C("WildVeryRareOneIn")) > int(C("WildScarceOneIn")),
+          "balance: an absent option is not Very rare, or Very rare is not the rarest")
+    for value, want in ((1, "WildPlentifulOneIn"), (2, "WildScarceOneIn"), (4, "WildVeryRareOneIn")):
+        rt.run(f"{SB}.WildDilithium = {value}")
+        check(rt.eval("TREK.Wild.oneIn()") == C(want), f"balance: wild dilithium at {value} is not {want}")
+    rt.run(f"{SB}.WildDilithium = 3")
+    check(rt.eval("TREK.Wild.oneIn()") is None, "balance: None still puts crystals in the wild")
+
+    # --- a town's loot: counted by district, and no more than its number ---------------
+    D = int(C("LootDistrict"))
+    lo, hi = int(C("LootCrystalsMin")), int(C("LootCrystalsMax"))
+    check((lo, hi) == (1, 5), f"balance: a town holds {lo} to {hi} as designed, not the author's one to five")
+    seen = set()
+    for dx in range(0, 12):
+        for dy in range(0, 12):
+            a = int(rt.eval(f"TREK.Lode.allowance({dx}, {dy})"))
+            check(lo <= a <= hi, f"balance: district {dx},{dy} is allowed {a}, outside {lo}..{hi}")
+            check(int(rt.eval(f"TREK.Lode.allowance({dx}, {dy})")) == a,
+                  f"balance: district {dx},{dy} gave two answers")
+            seen.add(a)
+    check(seen == set(range(lo, hi + 1)),
+          f"balance: 144 districts drew only {sorted(seen)} -- every number from {lo} to {hi} should turn up")
+
+    # Twelve crates in one district, a crystal rolled into each.
+    x0, y0 = 4 * D + 100, 6 * D + 100
+    allowed = int(rt.eval("TREK.Lode.allowance(4, 6)"))
+    kept = 0
+    for i in range(12):
+        crystals, others = lode_roll(rt, x0 + 7 * i, y0, [CRYSTAL, "Base.Hammer"])
+        kept += crystals
+        check(others == 1, f"balance: the count took a hammer out of crate {i}")
+    check(kept == allowed,
+          f"balance: twelve crates in a district allowed {allowed} gave up {kept} crystals")
+    # Several in one crate are each counted.
+    allowed2 = int(rt.eval("TREK.Lode.allowance(5, 6)"))
+    crystals, _ = lode_roll(rt, 5 * D + 10, 6 * D + 10, [CRYSTAL] * 8)
+    check(crystals == allowed2,
+          f"balance: a crate that rolled eight crystals kept {crystals} in a district allowed {allowed2} "
+          f"-- the district beside a spent one must still have its own")
+    # The far edge of the first district is still the first district.
+    crystals, _ = lode_roll(rt, 4 * D + D - 1, 6 * D + D - 1, [CRYSTAL])
+    check(crystals == 0, "balance: a spent district gave up another crystal at its far corner")
+    # Nothing rolled, nothing counted or touched.
+    crystals, others = lode_roll(rt, x0, y0, ["Base.Hammer", "Base.Saw"])
+    check((crystals, others) == (0, 2), "balance: a crate with no crystal in it was changed")
+
+    # The setting is the server's: raise it and a spent district has more to
+    # give, set both to nothing and no crate keeps one.
+    rt.run(f"{SB}.LootDilithiumMin = 9; {SB}.LootDilithiumMax = 9")
+    check(int(rt.eval("TREK.Lode.allowance(4, 6)")) == 9, "balance: a fewest and a most of nine is not nine")
+    got = sum(lode_roll(rt, x0 + i, y0 + 50, [CRYSTAL])[0] for i in range(12))
+    check(got == 9 - allowed,
+          f"balance: raised to nine, a district that had given up {allowed} gave {got} more, not {9 - allowed}")
+    rt.run(f"{SB}.LootDilithiumMin = 7; {SB}.LootDilithiumMax = 2")
+    lo2 = [int(rt.eval(f"TREK.Lode.allowance({dx}, 9)")) for dx in range(30)]
+    check(min(lo2) >= 2 and max(lo2) <= 7 and len(set(lo2)) > 1,
+          f"balance: a fewest above the most is not read as the range between them ({sorted(set(lo2))})")
+    rt.run(f"{SB}.LootDilithiumMin = 0; {SB}.LootDilithiumMax = 0")
+    crystals, _ = lode_roll(rt, 9 * D + 5, 9 * D + 5, [CRYSTAL, CRYSTAL])
+    check(crystals == 0, "balance: with none allowed a crate in an untouched district kept a crystal")
+    rt.run(f"{SB}.LootDilithiumMin = nil; {SB}.LootDilithiumMax = nil")
+
+    # A container that stands nowhere is somebody else's: left as rolled, and said once.
+    rt.run(f"""
+        lodeShelf = SIM.container(40)
+        SIM.fillContainer(lodeShelf, {{ "{CRYSTAL}" }})
+    """)
+    check(int(rt.eval("#lodeShelf.items")) == 1, "balance: a crystal was taken out of a container that is nowhere")
+    stray = [w for w in rt.warnings() if "stands nowhere" in w]
+    check(len(stray) == 1, f"balance: a container nowhere was not said once ({len(stray)} warnings)")
+
+    # A crate that rolled no crystal is no district's business: nothing is
+    # written down for it, wherever it stands.
+    lode_roll(rt, 20 * D + 5, 20 * D + 5, ["Base.Hammer"])
+    # The record is small, the server's, and one number a district.
+    count = int(rt.eval("(function() local n = 0 for _ in pairs(TREK.Lode.store().kept) do n = n + 1 end return n end)()"))
+    check(count == 3, f"balance: {count} districts are on record after crystals were rolled in three")
+
+    for w in rt.warnings():
+        if "stands nowhere" not in w:
+            fail(f"balance: {w}")
+    print("balance: every price absent is the mod's own, scaled by its group and nobody else's, whole on a button "
+          "and a fraction by the tile, charged to the ledger and shown on the note; the replicator's; power use "
+          "doubled; a torpedo paid for; the cure's crystals and hours; probes, raids and a new ship's spares; "
+          "Very rare in the wild; and a district's loot counted to its number")
+
+
+def balance_multiplayer():
+    """The balance page on a server: a client never rolls loot, so only the
+    server counts it, and both machines read the same price."""
+    net = Net("mp", clients=("ann",))
+    srv, A = net.server, net.clients["ann"]
+    srv.run("SIM.player('ann', 3000.5, 3000.5, 0)")
+    A.run("SIM.player('ann', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(8)
+    D = int(srv.eval("TREK.Config.LootDistrict"))
+    crystal = "TrekShuttle.TrekDilithium"
+    check(A.eval(f"SIM.fillContainer(SIM.container(40), {{ '{crystal}' }})") is False,
+          "balance mp: the simulated client rolled loot")
+    check(A.eval("TREK.Lode") is None, "balance mp: a client has the loot's count, which is the server's alone")
+    allowed = int(srv.eval("TREK.Lode.allowance(2, 2)"))
+    kept = sum(lode_roll(srv, 2 * D + 20 + i, 2 * D + 20, [crystal])[0] for i in range(8))
+    check(kept == allowed, f"balance mp: the server kept {kept} of eight rolled in a district allowed {allowed}")
+    for r in (srv, A):
+        r.run("SandboxVars.TrekShuttle.CostTransporter = 200")
+        check(r.eval('TREK.Rules.cost("BeamCost")') == 2 * r.eval("TREK.Config.BeamCost"),
+              f"balance mp ({r.name}): a beam at 200 per cent is not twice the price")
+        r.run("SandboxVars.TrekShuttle.CostTransporter = nil")
+        for w in r.warnings():
+            fail(f"balance mp ({r.name}): {w}")
+    print("balance mp: only the server counts a district's loot, and both machines read one price")
+
+
+def content():
+    """The content page (SERVERS.md, *Content*): what of the mod is in the
+    world at all. Every switch is asked absent first, which is on, and then
+    thrown, and what it stops is looked for where it would have appeared:
+    the menu, the server's answer, a locker, the replicator, a rolled crate."""
+    P = "SIM.players[1]"
+    net = Net("sp")
+    rt = net.server
+    rt.run("SIM.player('owner', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(5)
+    R = lambda code: rt.eval(f"TREK.Rules.{code}")
+    C = lambda n: rt.eval(f"TREK.Config.{n}")
+    SB = "SandboxVars.TrekShuttle"
+    sandbox = open(os.path.join(LUA, "..", "sandbox-options.txt"), encoding="utf-8").read()
+
+    # --- absent is on, and every switch is an option that begins on -------------
+    check(R("shuttles()") is True and R("adirondack()") is True and R("fieldStation()") is True
+          and R("aliens()") is True, "content: a world with no values has something switched off")
+    pairs_ = [p.split("=") for p in rt.eval("""(function()
+        local out = {}
+        for id, option in pairs(TREK.Rules.ITEM_OPTION) do table.insert(out, id .. "=" .. option) end
+        table.sort(out)
+        return table.concat(out, ",")
+    end)()""").split(",")]
+    options = sorted(set(o for _, o in pairs_))
+    check(len(pairs_) >= 60 and len(options) >= 20,
+          f"content: {len(pairs_)} items under {len(options)} switches -- the table has moved")
+    for item, option in pairs_:
+        check(R(f'itemAllowed("{item}")') is True, f"content: {item} is switched off in a world that never said so")
+    for option in options + ["Shuttles", "Adirondack", "FieldStation", "Aliens"]:
+        check(re.search(r"option TrekShuttle\.%s = \{\s*type = boolean, default = true,\s*page = TrekContent," % option,
+                        sandbox) is not None,
+              f"content: {option} is not a switch on the content page that begins on")
+    check(R('itemAllowed("TrekShuttle.TrekDilithium")') is True and R('itemAllowed("Base.Hammer")') is True,
+          "content: something with no switch is not allowed")
+    # One weapon, one switch: nobody loses the mek'leth for the bat'leth's sake.
+    weapons = [o for o in options if not o.startswith("Items")]
+    for option in weapons:
+        check(sum(1 for _, o in pairs_ if o == option) == 1, f"content: {option} switches more than one item")
+
+    # --- an item switched off is not issued, and its neighbours are --------------
+    BAT, MEK = "TrekShuttle.TrekBatleth", "TrekShuttle.TrekMekleth"
+    rt.run(f"{SB}.ItemBatleth = false")
+    check(R(f'itemAllowed("{BAT}")') is False and R(f'itemAllowed("{MEK}")') is True,
+          "content: the bat'leth's switch did not switch the bat'leth, or took the mek'leth with it")
+    rt.run(f"""
+        contentShelf = SIM.container(400)
+        contentLocker = {{ getContainer = function() return contentShelf end }}
+        local _, missing = TREK.Util.stockEach(contentLocker, {{ "{BAT}", "TrekShuttle.TrekPhaser" }}, 2)
+        contentMissing = missing
+    """)
+    held = lambda t: int(rt.eval(f"""(function()
+        local n = 0
+        for _, it in ipairs(contentShelf.items) do if it.fullType == "{t}" then n = n + 1 end end
+        return n
+    end)()"""))
+    check(held(BAT) == 0 and held("TrekShuttle.TrekPhaser") == 2,
+          f"content: a locker was issued {held(BAT)} bat'leths with the bat'leth off, and "
+          f"{held('TrekShuttle.TrekPhaser')} phasers")
+    check(int(rt.eval("#contentMissing")) == 0,
+          "content: the locker reports the bat'leth as missing -- it was never meant to land")
+    rt.run(f'TREK.Util.stock(contentLocker, {{ "{BAT}" }}, 3); TREK.Util.fill(contentLocker, {{ "{BAT}" }}, 0.5, 4)')
+    check(held(BAT) == 0, "content: stocking or filling by list got round the switch")
+    # The replicator: not in its catalogue, and back when the switch is.
+    check(rt.eval(f'TREK.Replicator.row("{BAT}")') is None and rt.eval('TREK.Replicator.row("Base.Hammer") ~= nil'),
+          "content: the replicator still lists the bat'leth, or lost the hammer")
+    rt.run(f"{SB}.ItemBatleth = true")
+    check(rt.eval(f'TREK.Replicator.row("{BAT}") ~= nil'),
+          "content: switched back on, the bat'leth did not come back to the replicator")
+    rt.run(f'TREK.Util.stock(contentLocker, {{ "{BAT}" }}, 1)')
+    check(held(BAT) == 1, "content: switched back on, a bat'leth is still not issued")
+    # A family goes together.
+    rt.run(f"{SB}.ItemsMedical = false")
+    check(R('itemAllowed("TrekShuttle.TrekHypospray")') is False and R('itemAllowed("TrekShuttle.TrekMedTricorder")') is False
+          and R('itemAllowed("TrekShuttle.TrekTricorder")') is True,
+          "content: the medical set's switch is not the hypospray's and the medical tricorder's alone")
+    rt.run(f"{SB}.ItemBatleth = nil; {SB}.ItemsMedical = nil")
+
+    # --- aliens ---------------------------------------------------------------------
+    check(R('speciesAllowed("vulcan")') is True and float(rt.eval("TREK.Borg.scale()")) > 0,
+          "content: there are no aliens to begin with")
+    before = R("creationSignature()")
+    rt.run(f"{SB}.Aliens = false")
+    check(R('speciesAllowed("vulcan")') is False and R('traitAllowed("klingon")') is False
+          and R('traitAllowed("spacesick")') is True and R("humansAllowed()") is True,
+          "content: with aliens off a species may be picked, or a human may not, or a trait went with them")
+    check(int(rt.eval("#TREK.Rules.allowedSpecies()")) == 0, "content: with aliens off some species are still allowed")
+    check(float(rt.eval("TREK.Borg.scale()")) == 0, "content: with aliens off the dead are still Borg")
+    check(R("creationSignature()") != before, "content: the creation screen cannot tell that aliens went")
+    check(R(f'itemAllowed("{BAT}")') is True, "content: aliens off took the bat'leth, which has its own switch")
+    rt.run(f"{SB}.Aliens = nil")
+
+    # --- the ship in orbit -------------------------------------------------------------
+    rt.run("local s = TREK.Util.state(); s.built = true; s.commissioned = true")
+    check(rt.eval("TREK.Missions.hearing()") is True and rt.eval("TREK.Config.commsNever()") is False,
+          "content: the ship in orbit is silent to begin with")
+    rt.run(f"{SB}.Adirondack = false")
+    check(int(rt.eval("TREK.Config.accessMode()")) == int(C("AccessClosed")),
+          "content: with the ship in orbit off she is not closed")
+    check(rt.eval("TREK.Config.commsNever()") is True, "content: with the ship in orbit off she still calls")
+    check(int(rt.eval("TREK.Config.raidsMode()")) == int(C("RaidsOff")), "content: with the ship in orbit off she still asks for raids")
+    check(rt.eval("TREK.Missions.hearing()") is False, "content: with the ship in orbit off her crew still call for help")
+    check(acc_refusal(rt) == "accClosed", f"content: with the ship in orbit off boarding is refused with {acc_refusal(rt)!r}")
+    rt.run(f"{SB}.Adirondack = nil")
+    check(int(rt.eval("TREK.Config.accessMode()")) != int(C("AccessClosed")) and rt.eval("TREK.Missions.hearing()") is True,
+          "content: the ship in orbit did not come back with her switch")
+
+    # --- the field station ----------------------------------------------------------------
+    # In Muldraugh's stockroom, where the box would be hung: a world of its
+    # own, because the ground has to be loaded for the server to look at all.
+    fs = Net("sp")
+    fs.server.run("SIM.player('solo', 10606.5, 9606.5, 0)")
+    fs.server.run(FS_STOCKROOM)
+    fs.server.run(f"{SB}.FieldStation = false")
+    fs.start()
+    fs.pump(40)
+    fs.server.run("TREK.FieldStationServer.service()")
+    check(fs.server.eval("TREK.FieldStationServer.record().x") is None,
+          "content: with the field station off its box was hung")
+    fs.server.run(f"{SB}.FieldStation = true; TREK.FieldStationServer.service()")
+    fs.pump(40)
+    check(fs.server.eval("TREK.FieldStationServer.record().x") is not None,
+          "content: the same stockroom with the station on has no box -- the check above proved nothing")
+
+    # --- no shuttle: no menu, no answer, nobody set down, nobody issued one ----------------
+    labels = ground_labels(rt, 12, 0)
+    check("IGUI_TREK_CallDown" in labels, f"content: the ground offers no shuttle to begin with ({labels!r})")
+    rt.run(f"{SB}.Shuttles = false; SIM.notes = {{}}")
+    labels = ground_labels(rt, 12, 0)
+    check("IGUI_TREK_" not in labels.replace("IGUI_TREK_Dev", ""),
+          f"content: with no shuttles the ground still offers {labels!r}")
+    rt.run(f'TREK.Core.send({P}, "move", {{ kind = "beamUp", token = 7701 }})')
+    net.pump(6)
+    check(any("IGUI_TREK_RuleShuttlesOff" in n for n in rt.notes()),
+          f"content: a beam up asked of a server with no shuttles said {rt.notes()}")
+    rt.run(f"SIM.notes = {{}}; TREK.Net.send({P}, 'land', {{ x = 3004, y = 3000, z = 0 }})")
+    net.pump(30)
+    check(ship(rt, "landed") is not True and any("IGUI_TREK_RuleShuttlesOff" in n for n in rt.notes()),
+          f"content: with no shuttles one was called down, or nothing was said ({rt.notes()})")
+    rt.run(f"{SB}.PersonalShuttles = 2")
+    check(R('hasPersonalShuttle("owner")') is False, "content: with no shuttles a player is still issued one")
+    rt.run(f"{SB}.PersonalShuttles = nil")
+    rt.run("local s = TREK.Util.state(); contentWas = { s.commissioned, s.landed, s.coldStart }; "
+           "s.commissioned, s.landed, s.coldStart = false, false, true")
+    check(rt.eval("TREK.ColdStart.needsPlacing()") is False, "content: with no shuttles a dark one is still set down")
+    rt.run(f"{SB}.Shuttles = true")
+    check(rt.eval("TREK.ColdStart.needsPlacing()") is True,
+          "content: the same ship with shuttles on is not set down -- the check above proved nothing")
+    rt.run("local s = TREK.Util.state(); s.commissioned, s.landed, s.coldStart = contentWas[1], contentWas[2], contentWas[3]")
+    # A distress call needs a shuttle to hear it.
+    rt.run(f"{SB}.Shuttles = false")
+    check(rt.eval("TREK.Missions.hearing()") is False, "content: with no shuttles a distress call is still heard")
+
+    # --- and then her things are in the world's loot ---------------------------------------
+    def roll(room, queue, rolled=("Base.Hammer",)):
+        ids = ", ".join('"%s"' % r for r in rolled)
+        rt.run(f"""
+            SIM.randQueue = {{ {queue} }}
+            contentCrate = SIM.container(400)
+            SIM.fillContainer(contentCrate, {{ {ids} }}, "{room}", "shelves")
+            SIM.randQueue = {{}}
+        """)
+        return [str(x) for x in rt.eval("""(function()
+            local out = {}
+            for _, it in ipairs(contentCrate.items) do
+                if it.fullType ~= "Base.Hammer" then table.insert(out, it.fullType) end
+            end
+            return table.concat(out, ",")
+        end)()""").split(",") if x]
+
+    chance = int(R("itemLoot()"))
+    check(chance == int(C("Salvage.chance")) and 0 < chance <= 10,
+          f"content: with no setting {chance} containers in a hundred hold one of her things")
+    weapons_pool = [str(x) for x in rt.eval('table.concat(TREK.Salvage.poolFor("gunstore"), ",")').split(",")]
+    check(BAT in weapons_pool and len(weapons_pool) >= 10, "content: a gun store's pool is not her armoury")
+    check(roll("gunstore", f"{chance - 1}, 0") == [weapons_pool[0]],
+          "content: a gun store's crate that rolled under the chance holds none of her armoury")
+    check(roll("gunstore", f"{chance}, 0") == [], "content: a crate that rolled the chance itself was given something")
+    check(roll("gunstore", "0, 4") == [weapons_pool[4]] and roll("gunstore", f"0, {len(weapons_pool) - 1}") == [weapons_pool[-1]],
+          "content: a gun store only ever gives the first thing in its pool")
+    check(roll("GunStore", "0, 0") == [weapons_pool[0]], "content: a room's name is not read whatever its capitals")
+    check(roll("bedroom", "0, 0") == [] and roll("", "0, 0") == [],
+          "content: a room that is nobody's pool was given something")
+    # "Maybe all they want is the bat'leth": every other weapon off.
+    for option in weapons:
+        rt.run(f"{SB}.{option} = false")
+    rt.run(f"{SB}.ItemBatleth = true; {SB}.ItemLoot = 100")
+    for pick in (0, 5, 11):
+        check(roll("gunstore", f"99, {pick}") == [BAT],
+              f"content: with only the bat'leth allowed a gun store gave {roll('gunstore', f'99, {pick}')}")
+    rt.run(f"{SB}.ItemBatleth = false")
+    check(roll("gunstore", "0, 0") == [], "content: a pool with everything switched off still gave something")
+    rt.run("""
+        SIM.randQueue = { 0, 0 }
+        SIM.fillContainer(SIM.container(40), { "Base.Hammer" }, "gunstore", "shelves")
+    """)
+    check(int(rt.eval("#SIM.randQueue")) == 2,
+          "content: a pool with nothing allowed in it was rolled for and picked from all the same")
+    rt.run("SIM.randQueue = {}")
+    for option in weapons:
+        rt.run(f"{SB}.{option} = nil")
+    rt.run(f"{SB}.ItemLoot = 0")
+    check(roll("gunstore", "0, 0") == [], "content: at no chance at all a crate was given something")
+    rt.run(f"{SB}.ItemLoot = 100; {SB}.Shuttles = true")
+    check(roll("gunstore", "0, 0") == [], "content: with a shuttle to issue them, her things are in the world's loot as well")
+    rt.run(f"{SB}.ItemLoot = nil; {SB}.Shuttles = nil")
+
+    for w in rt.warnings():
+        fail(f"content: {w}")
+    print("content: every switch absent is on; an item off is not issued, stocked, filled or replicated and its "
+          "neighbours are; aliens, the ship in orbit and the field station each gone with theirs; no shuttle is no "
+          "menu, no answer, nobody set down and nobody issued one; and then her things are in the world's loot, "
+          "the bat'leth alone if that is all a server wants")
+
+
+def content_multiplayer():
+    """The content page on a server: the server refuses and the client does
+    not offer, each from its own copy of the same setting, and only the
+    server puts anything in a rolled container."""
+    net = Net("mp", clients=("ann",))
+    srv, A = net.server, net.clients["ann"]
+    srv.run("SIM.player('ann', 3000.5, 3000.5, 0)")
+    A.run("SIM.player('ann', 3000.5, 3000.5, 0)")
+    net.start()
+    net.pump(8)
+    P = "SIM.players[1]"
+    check("IGUI_TREK_CallDown" in ground_labels(A, 12, 0), "content mp: the client's ground offers no shuttle to begin with")
+    for r in net.all():
+        r.run("SandboxVars.TrekShuttle.Shuttles = false; SandboxVars.TrekShuttle.ItemLoot = 100")
+    labels = ground_labels(A, 12, 0)
+    check("IGUI_TREK_" not in labels.replace("IGUI_TREK_Dev", ""),
+          f"content mp: with no shuttles the client's ground offers {labels!r}")
+    A.run(f'SIM.notes = {{}}; TREK.Core.send({P}, "move", {{ kind = "beamUp", token = 7702 }})')
+    net.pump(8)
+    check(any("IGUI_TREK_RuleShuttlesOff" in n for n in A.notes()),
+          f"content mp: the server's refusal reached the client as {A.notes()}")
+    check(A.eval("TREK.Salvage") is None, "content mp: a client has the salvage, which is the server's alone")
+    check(A.eval("SIM.fillContainer(SIM.container(40), { 'Base.Hammer' }, 'gunstore', 'shelves')") is False,
+          "content mp: the simulated client rolled loot")
+    srv.run("""
+        SIM.randQueue = { 0, 0 }
+        contentCrate = SIM.container(400)
+        SIM.fillContainer(contentCrate, { "Base.Hammer" }, "gunstore", "shelves")
+        SIM.randQueue = {}
+    """)
+    check(int(srv.eval("#contentCrate.items")) == 2, "content mp: the server put nothing of hers in a gun store's crate")
+    for r in net.all():
+        for w in r.warnings():
+            fail(f"content mp ({r.name}): {w}")
+    print("content mp: no shuttle is not offered on the client and refused by the server in words, and only the "
+          "server salvages")
+
+
 SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabin_partial, starfleet_refit_mp, flight, flight_ascent,
             flight_refused, flight_two_machines, flight_helm, flight_alone,
             flight_endings, seat_exit, hover_call_down, ground_cockpit,
@@ -21316,7 +21941,8 @@ SECTIONS = (static, migration, single_player, refit, starfleet_refit, fresh_cabi
             comms_missed, comms_multiplayer, comms_story, transcripts,
             transcripts_multiplayer, phaser, phaser_multiplayer, phaser_clearing, phaser_clearing_mp, field_kit, field_kit_mp, armoury, map_dot, map_view, traits, traits_multiplayer, species_look, creation_look,
             adirondack, adirondack_multiplayer, fieldstation, fieldstation_multiplayer, building, installations, installations_multiplayer, jefferies, jefferies_multiplayer, crew, crew_multiplayer, captain, captain_multiplayer, farming,
-            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer, rules, rules_multiplayer, fleet, fleet_off, hull_skins, interiors)
+            contraband, contraband_multiplayer, speed_check, cabin_roof, adk_roof, adk_roof_mp, phaser_charge_mp, deck_lights, borg, access, access_multiplayer, raids, raids_multiplayer, shoulder_lamp, beam, beam_multiplayer, sentry, sentry_multiplayer, multiplayer, rules, rules_multiplayer, fleet, fleet_off, hull_skins, interiors,
+            balance, balance_multiplayer, content, content_multiplayer)
 
 
 def main():

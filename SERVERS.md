@@ -1,9 +1,10 @@
 # The Shuttlecraft on a server
 
 For whoever runs a server with the **Shuttlecraft** mod: what to install,
-every setting and what it really does, who gets a shuttle of their own, who
-may board the ship in orbit, which species, traits and professions your
-players may pick, how to rename things and replace the story with your own,
+every setting and what it really does, how rare dilithium is and what
+everything costs, switching whole parts of the mod off (the shuttle, the
+ship in orbit, aliens, any weapon), who gets a shuttle of their own, who may board the ship in
+orbit, which species, traits and professions your players may pick, how to rename things and replace the story with your own,
 and the languages the mod speaks. `README.md` is what a player gets; this is
 what a host gets.
 
@@ -14,7 +15,9 @@ Everything here is in the mod itself (Workshop **3801178990**, Mod ID
 the mod's simulated server with two and three clients
 (`tests/test_multiplayer.py`, sections `rules`, `rules_multiplayer`, `fleet`
 and `fleet_off`), with every rule checked from both ends. None of the
-settings added in 1.21.0 has been played on a real server yet. `ROADMAP.md`
+settings added in 1.21.0 has been played on a real server yet, and the
+balance and content pages (sections `balance` and `content`) have not been
+played at all. `ROADMAP.md`
 section 1 says which of the mod's systems have been.
 
 ---
@@ -60,7 +63,8 @@ an ordinary account.
 
 ## The settings
 
-The sandbox has two pages, **Shuttlecraft** and **Shuttlecraft: roleplay**.
+The sandbox has four pages, **Shuttlecraft**, **Shuttlecraft: balance**,
+**Shuttlecraft: content** and **Shuttlecraft: roleplay**.
 In a server's `<name>_SandboxVars.lua` they are one table, `TrekShuttle`. The
 numbers are what goes in that file; the first column of each table is the
 name to use. Every one of them can also be changed from the admin panel's
@@ -72,11 +76,27 @@ TrekShuttle = {
     -- Shuttlecraft
     Access = 1, TransporterLimit = 1, SpeedCheck = 1, TorpedoFire = 1,
     Replicator = 1, EMH = 1, FlightHeight = 4, CommsFirstDay = 4,
-    StartState = 3, WildDilithium = 2, PhaserCutting = 1, HydroponicsWater = 1,
+    StartState = 3, PhaserCutting = 1, HydroponicsWater = 1,
     Borg = 1, CaptainTruth = 2, AdirondackAccess = 1, AdirondackRescues = 3,
     Raids = 3, RaidSize = 2,
     BeamUp = true, Flight = true, ShipWeapons = 1, Shields = true,
-    DistressCalls = true, Installations = true, PowerUse = 1,
+    DistressCalls = true, Installations = true,
+    -- Shuttlecraft: balance
+    LootDilithiumMin = 1, LootDilithiumMax = 5, WildDilithium = 4,
+    ProbeFind = 30, RaidCrystal = 10, StartCrystals = 1,
+    PowerUse = 1, CostReplicator = 100, CostTransporter = 100, CostFlight = 100,
+    CostShields = 100, CostWeapons = 100, CostMedical = 100, CostSystems = 100,
+    CureCrystals = 1, CureHours = 12,
+    -- Shuttlecraft: content
+    Shuttles = true, Adirondack = true, FieldStation = true, Aliens = true,
+    ItemLoot = 3,
+    ItemBatleth = true, ItemMekleth = true, ItemLirpa = true, ItemUshaanTor = true,
+    ItemPhaser = true, ItemPhaserRifle = true, ItemKlingonDisruptor = true,
+    ItemKlingonRifle = true, ItemRomulanDisruptor = true, ItemPolaronRifle = true,
+    ItemCardassianPhaser = true, ItemSentry = true,
+    ItemsMedical = true, ItemsInstruments = true, ItemsUniforms = true,
+    ItemsFieldKit = true, ItemsFood = true, ItemsDrinks = true,
+    ItemsContraband = true, ItemsFarming = true, ItemsKits = true,
     -- Shuttlecraft: roleplay
     AccessUsers = "", PersonalShuttles = 1, PersonalShuttleUsers = "",
     AdirondackUsers = "", AdirondackName = "Adirondack",
@@ -131,10 +151,191 @@ asked first.
 | `Shields` *Shields* | true, false | true | Off: a landed shuttle has no shields, and the helm cannot raise them. |
 | `FlightHeight` *Hover height* | 1 two storeys, 2 three, 3 four, 4 five, 5 six, 6 eight | 4 | How high a shuttle hovers. Anything taller is a wall she stops in front of. |
 | `PhaserCutting` *Phaser cutting* | 1 Trees, doors and ground, 2 Trees and ground, 3 Off | 1 | What a hand phaser cuts. Somebody else's safehouse door is refused whatever this says. |
-| `PowerUse` *Power use* | 1 Normal, 2 Half, 3 A quarter, 4 None | 1 | How fast dilithium is used, by every ship and machine. *None*: a ship with power never runs down; a dark one still needs its first crystal. Menus show the normal cost; the note after a charge says what was really taken. |
 | `Replicator` *Replicator* | 1 Patterns and energy, 2 Unrestricted, 3 Off | 1 | *Unrestricted* makes anything, for nothing. *Off*: the machines are scenery and say so. |
 | `EMH` *Emergency Medical Hologram* | 1 Full, 2 Off | 1 | The Doctor, and with him the only cure for a bite. There is no setting that keeps him and removes the cure. |
 | `Installations` *Installing machines in the world* | true, false | true | Off: no warp core, replicator or EMH kit can be installed in a building. Machines already standing stay and work, and may always be packed up. |
+
+### Balance
+
+New in 1.22, and **not yet played**. The third page: how much dilithium
+there is in the world, and what the ship charges for everything she does.
+The defaults are the mod as its author plays it, which is hard: **a town
+holds one to five crystals, and a crystal is about one outing with the
+shuttle.** Every number below is yours to move. A percentage is of the mod's
+own price: 100 is as designed, 50 half, 200 double, 0 free.
+
+**How much dilithium there is.** A crystal is 5,000 units of power, and
+nothing aboard makes one.
+
+| Setting | Values | Default | What it does |
+|---|---|---|---|
+| `LootDilithiumMin` *Dilithium in a town's loot: fewest* | 0 to 50 | 1 | The county is counted in districts 1,500 squares across, about a town each (Muldraugh, Rosewood, Riverside and March Ridge are one apiece; Louisville is half a dozen). All the containers of one district, between them, give up a number of crystals between this and the most, drawn once for each district when the world is made. |
+| `LootDilithiumMax` *Dilithium in a town's loot: most* | 0 to 50 | 5 | The most. Both at 0: no crystal is ever found in a container. Both the same: every district has exactly that many. |
+| `WildDilithium` *Dilithium in the wild* | 1 Plentiful, 2 Scarce, 3 None, 4 Very rare | 4 | Crystals on natural ground, placed as players first load it. *Plentiful* is one to about 28 by 28 squares of field or wood, *Scarce* one to 55 by 55, *Very rare* one to 350 by 350. |
+| `ProbeFind` *Probes that find dilithium* | 0 to 100 per cent | 30 | How many probes in a hundred come back with a dilithium fix. A save's first probe always finds something, and a long run of empty ones is followed by a find (six at 30, two at 90). At 0 only that first probe finds any. |
+| `RaidCrystal` *Raid crates with a crystal* | 0 to 100 per cent | 10 | The chance a raid's outpost has a crystal in one of its crates. |
+| `StartCrystals` *Spare crystals at a commissioned start* | 0 to 10 | 1 | The spares in the warp core of a shuttle that starts *Commissioned*, beside the one burning. A cold, marooned or personal shuttle has none. Read once, when her cabin is first built. |
+
+What the loot settings really do, since they are the ones that matter most:
+
+- **Where a crystal is found has not changed**: a jeweller's gem case, a pawn
+  shop, an electronics store, a mechanic's shelves, a tool crate. The loot
+  tables still roll them. The server counts each one as it is rolled and
+  takes back any past the district's number before a player sees the
+  container, so the part of a town the crew reach first is where its
+  crystals are.
+- **It is a ceiling the loot is expected to reach, not a promise.** A real
+  town has hundreds of containers that can roll a crystal and will reach its
+  number. A crossroads with one garage may never reach 1.
+- **Loot respawn does not bring them back.** A district that has given up
+  its number gives up no more, whatever is rolled there later.
+- **A change is for what is still to be found.** Raise the most and
+  districts already emptied have more to give; lower it and nothing already
+  found is taken away. A world that had the mod before 1.22 keeps the
+  crystals already lying in its containers.
+- **The server's log counts them**: `[TREK] lode: a dilithium crystal is in a
+  container at X,Y -- 2 of 4 for district 7,6`.
+
+**What everything costs.** Each group is a percentage of the mod's own
+prices, and the menus and panels show the price your setting gives.
+
+| Setting | Default | What it scales, and the price at 100 |
+|---|---|---|
+| `CostReplicator` *Cost: replicator* | 100 | Every replication, by the item's weight: a bandage 25, a tin of beans 60, a hammer 120, a shotgun 220, nothing over 1,500. |
+| `CostTransporter` *Cost: transporter* | 100 | A beam, each way, each person: 75. The hatch is always free. |
+| `CostFlight` *Cost: flight and driving* | 100 | Calling her down 400, sending her up 150, starting her engine 50, taking off 300, a square driven 1.5, a square flown 4, a game minute in the air 3. |
+| `CostShields` *Cost: shields* | 100 | A zombie pushed away 5, a point of crash damage mended 3. |
+| `CostWeapons` *Cost: ship's weapons* | 100 | A photon torpedo 250, a bolt of her phasers 15, a second of the tractor beam 10. Hand phasers draw nothing from the ship. |
+| `CostMedical` *Cost: the Doctor* | 100 | Projecting him 300, a treatment 100, a detox 400, the biofilter screening 150. |
+| `CostSystems` *Cost: other systems* | 100 | Fabricating a probe 1,500, recharging a perimeter sentry 750, an android's charge, the galley's fridge and range. |
+| `PowerUse` *Power use* | 1 Normal | 1 Normal, 2 Half, 3 A quarter, 4 None, 5 Double, 6 Four times: everything at once, on top of the groups above. *None*: a ship with power never runs down; a dark one still needs its first crystal. This one is applied as the charge is taken, so menus show the price before it and the note after a charge says what was really spent. |
+| `CureCrystals` *Crystals a cure costs* | 1 | 0 to 5 spare crystals for the Doctor's cure for infection, spent when it starts. |
+| `CureHours` *Hours a cure takes* | 12 | 1 to 168 game hours the patient stays aboard. |
+
+Each takes effect at once, for the next charge. A price is never under 1
+unless you made it 0. One you have raised past the 5,000 a crystal holds is
+one no ship can pay, and is refused with its numbers.
+
+**What the defaults add up to.** An outing (call her down, take off, fly 500
+squares, hover an hour, fifty zombies off the shields, a scrape mended, four
+beams, the Doctor and one treatment) is about 4,100 units of a crystal's
+5,000. Before 1.22 it was 1,800, a replicated hammer was 24 and a torpedo
+was free.
+
+**The mod as it was before 1.22**, for a server that liked it:
+
+```lua
+LootDilithiumMin = 50, LootDilithiumMax = 50, WildDilithium = 2,
+ProbeFind = 90, RaidCrystal = 25, StartCrystals = 3,
+CostReplicator = 20, CostTransporter = 33, CostFlight = 40, CostShields = 40,
+CostWeapons = 33, CostMedical = 30, CostSystems = 17,
+```
+
+(`CostWeapons` cannot make only the torpedo free again; 0 frees her phasers
+and the tractor with it.)
+
+**What the balance page does not reach**: how much one crystal holds, what a
+hand phaser, a hypospray or a sentry can do, what a new cabin's armoury is
+issued, and the Adirondack's own stores. See *What the mod does not do*.
+
+### Content
+
+New in 1.22, and **not yet played**. The fourth page: what of the mod is in
+your world at all. Every switch is a tick box, on by default, and **a switch
+you throw stops what is new and takes nothing away**: what a player already
+holds, and a hull or a breaker box already standing, stay.
+
+**The big four.**
+
+| Setting | Off |
+|---|---|
+| `Shuttles` *Shuttles* | There is no shuttle on the server. None is set down (cold or marooned), none is issued to a player, nobody has the Shuttlecraft menu, and every command about one is refused: *There are no shuttles on this server.* Anybody aboard one when you throw it may still beam down or step out. A hull left on the ground stays as scenery. |
+| `Adirondack` *The ship in orbit* | The U.S.S. Adirondack is not there: nobody boards her but an admin, she never calls a PADD, and there are no distress calls, rescues or raids. The same as `AdirondackAccess = 4`, `CommsFirstDay = 6`, `DistressCalls = false` and `Raids = 1` at once. |
+| `FieldStation` *Field station* | No breaker box is hung in Muldraugh, and the station under it cannot be entered. |
+| `Aliens` *Aliens* | No alien species for any character (as all ten species switched off: *Who your players may be*, below), and none of the dead are Borg. Humans are then allowed whatever `SpeciesHuman` says. |
+
+They are separate on purpose. The shuttle's transporter is the way up to the
+ship in orbit, so with `Shuttles` off she is out of reach whatever her own
+switch says; the field station has its own way in and stays.
+
+**Items.** Each weapon has a switch of its own, and everything else goes by
+family.
+
+| Setting | What it switches |
+|---|---|
+| `ItemBatleth`, `ItemMekleth`, `ItemLirpa`, `ItemUshaanTor` | The four blades, one each. |
+| `ItemPhaser`, `ItemPhaserRifle` | The hand phaser, and the rifle. |
+| `ItemKlingonDisruptor`, `ItemKlingonRifle`, `ItemRomulanDisruptor`, `ItemPolaronRifle`, `ItemCardassianPhaser` | The alien arms, one each. |
+| `ItemSentry` | The perimeter phaser sentry. |
+| `ItemsMedical` | The hypospray, the dermal regenerator, the medical tricorder. |
+| `ItemsInstruments` | The tricorder, the PADD, the shoulder lamp. |
+| `ItemsUniforms` | The six uniforms, the field pack, the holster. |
+| `ItemsFieldKit` | The engineer's satchel, its five tools, the stem bolts. |
+| `ItemsFood`, `ItemsDrinks` | The ration pack and the galley's dishes; its drinks. |
+| `ItemsContraband` | Ketracel-white, felicium, Trellium-D, cordrazine, the Ktarian game, latinum, the three bottles. |
+| `ItemsFarming` | The seeds of the seven hydroponics crops. |
+| `ItemsKits` | The warp core, replicator and EMH station kits. |
+
+What "off" means for an item:
+
+- **A new cabin's lockers are not issued it**, nor the ship in orbit's
+  stores, nor a raid's crates. A cabin already built keeps what it was
+  stocked with: a cabin is stocked once.
+- **No replicator makes it.** It leaves the catalogue at once, and comes
+  back when the switch does.
+- **It is not found in the world's loot** (next).
+- **Nothing is taken from anybody.** A bat'leth in a player's hands is
+  theirs.
+- **Not reached**: what a profession starts a character with on the
+  creation screen (a Starfleet officer's uniform), the phaser the ship's own
+  guns are modelled on, and anything another mod hands out.
+
+Dilithium, tapes, the PADD's story pieces, the pattern enhancers and the
+installed machines themselves have no switch: they are the mod's workings,
+not its equipment.
+
+**Her things without her.**
+
+| Setting | Values | Default | What it does |
+|---|---|---|---|
+| `ItemLoot` *Items in the world's loot* | 0 to 100 per cent | 3 | **Only with `Shuttles` off**, so that there is no ship to issue them. The chance that a container in a fitting kind of room holds one of the items you have left on. |
+
+Where: weapons and the sentry in gun stores, police, army and security
+stores and pawn shops; the medical set in pharmacies and hospitals; the
+field kit, the instruments and the three installation kits in tool stores,
+garages and mechanics'; uniforms in clothing stores and laundries; bottles
+in bars and liquor stores; ration packs in groceries and restaurant
+kitchens; seeds in garden and farm stores; contraband in motel rooms. One
+item to a container at most, picked evenly from what is allowed there. With
+a shuttle on the server none of this happens: her lockers are the source.
+
+**Only the bat'leth**
+
+```lua
+Shuttles = false, Adirondack = false, FieldStation = false, Aliens = false,
+ItemLoot = 5,
+ItemMekleth = false, ItemLirpa = false, ItemUshaanTor = false,
+ItemPhaser = false, ItemPhaserRifle = false, ItemKlingonDisruptor = false,
+ItemKlingonRifle = false, ItemRomulanDisruptor = false, ItemPolaronRifle = false,
+ItemCardassianPhaser = false, ItemSentry = false,
+ItemsMedical = false, ItemsInstruments = false, ItemsUniforms = false,
+ItemsFieldKit = false, ItemsFood = false, ItemsDrinks = false,
+ItemsContraband = false, ItemsFarming = false, ItemsKits = false,
+WildDilithium = 3, LootDilithiumMin = 0, LootDilithiumMax = 0,
+```
+
+One gun-store or police-locker container in twenty then holds a bat'leth,
+and nothing else of the mod is in the world. (The last line takes the
+crystals out too: with no ship and no kits there is nothing to burn them
+in.)
+
+**Ships, and no aliens**: `Aliens = false`, and the four alien-made blades
+and the five alien arms off if you mean their things as well.
+
+**The items and the species, and no ships**: `Shuttles = false,
+Adirondack = false, FieldStation = false`. The installation kits turn up in
+tool stores, so a crew can still build a replicator at home and feed it the
+crystals they find.
 
 ### Cabins
 
@@ -173,8 +374,7 @@ any style, whenever they like**: *Rebuilding a cabin*, below.
 
 | Setting | Values | Default | What it does |
 |---|---|---|---|
-| `StartState` *How the shuttle starts* | 1 Cold start, 2 Commissioned, 3 Marooned | 3 | The shared shuttle, in a **new** world only. *Cold*: landed near the first player, dark. *Commissioned*: overhead, powered, three spares. *Marooned*: dark, lost at one of six places, and nobody has a Shuttlecraft menu until they have walked aboard her (`MAROONED.md`). |
-| `WildDilithium` *Dilithium in the wild* | 1 Plentiful, 2 Scarce, 3 None | 2 | Crystals on natural ground, placed as players first load it. |
+| `StartState` *How the shuttle starts* | 1 Cold start, 2 Commissioned, 3 Marooned | 3 | The shared shuttle, in a **new** world only. *Cold*: landed near the first player, dark. *Commissioned*: overhead, powered, with the spares `StartCrystals` gives her (*Balance*). *Marooned*: dark, lost at one of six places, and nobody has a Shuttlecraft menu until they have walked aboard her (`MAROONED.md`). |
 | `DistressCalls` *Distress calls* | true, false | true | Off: the ship hears none, so there is nobody to rescue. Rank and the default Adirondack clearance both come from rescues: with this off, set `AdirondackAccess` to 2 or 4. |
 | `CommsFirstDay` *When the Adirondack first calls* | 1 Straight away, 2 a day, 3 three days, 4 a week, 5 two weeks, 6 Never | 4 | *Never*: Lt. Shepard does not call. A crew may still hail her, and the story is where it would have been. |
 | `Raids` *Raids* | 1 Off, 2 Rare, 3 Normal, 4 Frequent | 3 | How often Captain Titus asks for help with the pattern buffer (`RAIDS.md`). |
@@ -484,12 +684,22 @@ PersonalShuttles = 2, Flight = false, ShipWeapons = 3, BeamUp = true,
 ShipWeapons = 3, TorpedoFire = 2, PhaserCutting = 3, Shields = false,
 ```
 
-**A hard server**
+**A hard server**: the defaults are one already. Harder still:
 
 ```lua
-StartState = 3, WildDilithium = 2, PowerUse = 1, Replicator = 1,
+StartState = 3, Replicator = 1,
+LootDilithiumMin = 0, LootDilithiumMax = 2, WildDilithium = 3, ProbeFind = 15,
+CostReplicator = 200, PowerUse = 5,
 BeamUp = false,                 -- find her, walk to her, call her down
 AdirondackAccess = 1, AdirondackRescues = 4, Borg = 3, RaidSize = 3,
+```
+
+**A relaxed server**: the ship as a convenience, not a budget.
+
+```lua
+StartState = 2, StartCrystals = 3, WildDilithium = 2,
+LootDilithiumMin = 5, LootDilithiumMax = 12, ProbeFind = 75,
+PowerUse = 3,                   -- a quarter of every price
 ```
 
 **A building server**
@@ -556,8 +766,12 @@ The mod's lines in `server-console.txt` and a client's `console.txt` start
 | `[TREK] rules: <name> had no species and humans are not allowed; they are <species> now` | A species given. |
 | `[TREK] creation: the server's rules applied ...` (client) | The creation screen left your switched-off choices off its lists. |
 | `[TREK] <name> now owns the shuttle` | The shared shuttle's first user, under `Access = 2`. |
-| `[TREK] power: <what> refused -- N needed, M left` | A ship could not pay for something. `PowerUse` scales what N takes. |
+| `[TREK] power: <what> refused -- N needed, M left` | A ship could not pay for something. N is the price your balance page gives; `PowerUse` scales what it takes. |
+| `[TREK] lode: a dilithium crystal is in a container at X,Y -- 2 of 4 for district 7,6` | A crystal rolled into loot and kept: the second of the four that district will ever give up. |
+| `[TREK] core: the ship is issued N spare crystal(s)` | `StartCrystals`, read as a commissioned shuttle's cabin was first built. |
+| `[TREK] salvage: TrekShuttle.TrekBatleth is in a container in a gunstore` | `Shuttles` is off and `ItemLoot` put one of the mod's things into rolled loot. |
 
+A player told *There are no shuttles on this server* met `Shuttles = false`.
 A player told *You are not on this shuttle's crew* is on the wrong side of
 `Access`, or asked a personal shuttle that is not theirs. One told *the
 Adirondack is taking nobody aboard* met `AdirondackAccess = 4`; *not on her
@@ -570,6 +784,14 @@ comments, or GitHub.
 
 ## What the mod does not do
 
+- **Balance past the balance page.** How much a crystal holds (5,000), a
+  hand phaser that never runs out, a hypospray that refills itself, a
+  sentry's twenty-five shots, what the armoury of a new cabin is issued, and
+  the fifty crystals the ship in orbit starts with are the mod's own and
+  have no setting yet.
+- **Take back what a switch stops.** Switching an item, the shuttle or the
+  field station off stops new ones; it removes nothing already in the
+  world or in a player's hands.
 - **Per-player rules.** A species is allowed for everybody or nobody; there
   is no "only this player may be a Klingon". The lists are for who has a
   shuttle and who may board, not for who may be what.

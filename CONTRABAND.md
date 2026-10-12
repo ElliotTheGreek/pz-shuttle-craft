@@ -26,7 +26,7 @@ and it needs a new world (the hideouts' crates are stocked once, ever).
 
 The cures:
 
-- **The Doctor's detox.** A fourth button on his panel, *Detox (100 units)*.
+- **The Doctor's detox.** A fourth button on his panel, *Detox (400 units)*.
   Every habit at once, for reserve units. Yourself at once; anybody else only
   if they say yes, like every other thing he does. His findings list the
   habits by name: *DEPENDENT: FELICIUM, THE GAME*.
@@ -155,7 +155,7 @@ made before this has its stash already.
 4. **The Game.** *Play the Game*: a progress bar, then the note and a drop in
    boredom. Four more: each note says it was not quite as good.
 5. **The Doctor.** At the Adirondack's EMH (or the shuttle's): *DEPENDENT:*
-   on the findings, *Detox (100 units)* live, pressed, and gone.
+   on the findings, *Detox (400 units)* live, pressed, and gone.
 6. **The flashing light.** Play once, right-click a PADD: *Run the
    flashing-light program*.
 7. **The reel.** Into a television: the programme reel plays, with its title.

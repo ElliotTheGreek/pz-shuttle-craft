@@ -119,7 +119,7 @@ C.LegacyEmhSpot = { x = 2, y = 4 }
 C.EmhMenuSpots = { {2,3}, {3,2}, {3,3}, {2,4}, {3,4} }
 C.EmhRange = 2
 
-C.EmhTreatCost    = 25
+C.EmhTreatCost    = 100     -- 25 until 2026-10-12; all three are a server's to change (SERVERS.md, Balance)
 C.EmhCureCrystals = 1
 C.EmhCureHours    = 12
 ```
@@ -486,7 +486,7 @@ The panel includes:
 - reserve and crystal counts;
 - Treat;
 - Cure the infection;
-- Detox (`C.EmhDetoxCost`, 100 units): every contraband habit at once, with
+- Detox (`C.EmhDetoxCost`, 400 units): every contraband habit at once, with
   the patient's habits named on the findings (*DEPENDENT: ...*);
 - Full readout;
 - Dismiss.

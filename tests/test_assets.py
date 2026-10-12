@@ -1417,6 +1417,37 @@ if os.path.isfile(dilithium_lua) and os.path.isfile(proc):
 else:
     checked_dists = 0
 
+# --- the rooms the mod's things are salvaged from ------------------------
+# C.Salvage (TREK_Salvage.lua) names rooms by the name the engine hands
+# OnFillContainer, which is the key vanilla's Distributions.lua files a room
+# under. A name the game does not have never matches a container, and the
+# things meant for it are simply never found: the dilithium tables' failure,
+# one file along.
+_salvage = re.search(r"C\.Salvage = \{(.*?)\n\}\n", _cfg, re.S)
+dist = os.path.join(PZ, "lua", "server", "Items", "Distributions.lua")
+if _salvage and os.path.isfile(dist):
+    salvage_rooms = [r for block in re.findall(r"rooms = \{(.*?)\}", _salvage.group(1), re.S)
+                     for r in re.findall(r'"(\w+)"', block)]
+    vanilla_rooms = set(re.findall(r"^(?:	| {4})(\w+)\s*=\s*\{",
+                                   open(dist, encoding="utf-8", errors="replace").read(), re.M))
+    if len(salvage_rooms) < 10:
+        failures.append(f"only {len(salvage_rooms)} salvage rooms were read out of "
+                        f"TREK_Config.lua -- the pattern has stopped matching, so "
+                        f"this check proves nothing")
+    if len(vanilla_rooms) < 100:
+        failures.append(f"only {len(vanilla_rooms)} rooms were read out of "
+                        f"Distributions.lua -- the pattern has stopped matching, so "
+                        f"this check proves nothing")
+    if len(set(salvage_rooms)) != len(salvage_rooms):
+        failures.append("C.Salvage names a room twice: the second pool replaces the first")
+    for name in salvage_rooms:
+        if name not in vanilla_rooms:
+            failures.append(f"C.Salvage names the room {name!r}, which the installed "
+                            f"game's Distributions.lua does not have -- nothing is "
+                            f"ever found there")
+elif not _salvage:
+    failures.append("C.Salvage was not found in TREK_Config.lua")
+
 # --- traits and professions (TRAITS.md) ----------------------------------
 # The registry, the script and the files the engine goes looking for by path.
 # Each is a way for a trait to exist on paper and do nothing in game.

@@ -103,10 +103,14 @@ The pattern set is published separately, and only when it changes.
 
 ### What a replication costs
 
-`C.ReplicatorBaseCost` (4) plus `C.ReplicatorWeightCost` (10) per kilogram,
-rounded, floored at 1 and capped by `C.ReplicatorMaxCost` (150). So a bandage
-is 5, a tin of beans 12, a hammer 24, a shotgun 44, and a 60 kg generator is
-the cap rather than the 604 the formula would otherwise ask for.
+`C.ReplicatorBaseCost` (20) plus `C.ReplicatorWeightCost` (50) per kilogram,
+rounded, floored at 1 and capped by `C.ReplicatorMaxCost` (1,500). So a bandage
+is 25, a tin of beans 60, a hammer 120, a shotgun 220, and a 60 kg generator is
+the cap rather than the 3,020 the formula would otherwise ask for. **Five times
+what they were until the balance pass of 2026-10-12** (4, 10 and 150), and a
+server scales the result with *Cost: replicator* (`TREK.Replicator.cost`,
+`SERVERS.md`): the catalogue's `row.cost` is the price as designed, and the
+panel and the charge both ask `R.cost`.
 
 Weight because it is the one number every item in the game has, and because
 it is roughly what the thing *is*. There is no per-item table and there
@@ -137,7 +141,8 @@ cost model was chosen to avoid. The reserve is now one crystal, burning:
 | `C.CoreRange` | how close you stand to work it. The replicator's number, deliberately: two fixtures a pace apart with different reaches would read as a bug |
 | `C.CrystalScanRadius` | **20** tiles, against the lifesign sweep's 40 |
 
-Five thousand is **a thousand bandages, or two hundred hammers**, and that is
+Five thousand was **a thousand bandages, or two hundred hammers** (two hundred
+bandages, or forty hammers, since the balance pass of 2026-10-12), and that is
 the feel of the whole system: the interesting part is the trip out to find
 one, not rationing the last forty units. A crystal that ran out in an
 afternoon would turn every replication into a sum.

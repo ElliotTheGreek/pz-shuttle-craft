@@ -701,6 +701,9 @@ end
 --- contents before and after is the only answer that cannot lie.
 local function addVerified(container, id)
     if not container or not id then return false end
+    -- Sandbox *Content*: a thing the server has switched off is not issued,
+    -- whichever locker's list it is on (TREK_Rules, loaded after this file).
+    if TREK.Rules and not TREK.Rules.itemAllowed(id) then return false end
     local before = sizeOf(container)
 
     local function attempt(way)
@@ -897,7 +900,9 @@ function U.stockEach(obj, list, copies)
 
     local missing = {}
     for _, id in ipairs(list) do
-        if not present[id] then table.insert(missing, id) end
+        -- What the server switched off was never meant to land.
+        local wanted = not TREK.Rules or TREK.Rules.itemAllowed(id)
+        if wanted and not present[id] then table.insert(missing, id) end
     end
     return present, missing
 end

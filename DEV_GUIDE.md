@@ -164,6 +164,29 @@ and again every time it was called down. `fleet()` lands two on one street
 and runs both passes for this alone. Before making a second of anything,
 grep for the code that removes strays of it.
 
+### A price is asked, never read
+
+**New with the balance page (2026-10-12; `SERVERS.md`, *Balance*).** What
+anything costs is `TREK.Rules.cost("LandCost")`: the number in `TREK_Config`
+times the server's percentage for its group (`R.COST_OPTION`). Both sides ask
+it, so a menu shows the price the server will charge. Three things it asks of
+new code:
+
+- **A new price is a `C.*` number, a row in `R.COST_OPTION`, and nothing
+  reads the `C.*` number but `TREK_Rules`.** `balance()` walks the table and
+  fails a price with no number behind it; a price read straight from
+  `TREK_Config` is one a server cannot move, and a menu that reads it shows
+  a number the server will not charge.
+- **A price can be nothing.** The ledger takes no charge of zero
+  (`E.energize` answers true and pays nothing), so anything that measures
+  what it did by what was paid (the shields' repair, the android's charge)
+  divides by the price and has to ask first whether there is one.
+- **A loot table cannot be a setting.** It is merged before the sandbox can
+  be asked. What a server decides about loot is decided at the roll
+  (`OnFillContainer`: `TREK_Lode` for a district's crystals, as
+  `TREK_MaroonedServer` for the maps), where the item is counted and taken
+  back out before the container is sent to anybody.
+
 ### A harness call that returns three values is not equal to one
 
 **New in 1.21.0, and it failed three checks that were right.** `lupa` hands
@@ -3585,6 +3608,43 @@ key per ship requested after the world began, and the creation screen
 having a server's sandbox when it fills its lists (`MULTIPLAYER.md`, risks
 15 to 17).
 
+**The 2026-10-12 balance pass** (`SERVERS.md`, *Balance*): the author's
+"dial back how overpowered the mod is". A third sandbox page. Dilithium:
+a district of the county (1,500 squares, about a town) gives up one to
+five crystals in loot whatever its containers roll, counted at the roll
+(`TREK_Lode.lua`); *Very rare* in the wild, the new default; three probes in
+ten find one, and a probe is 1,500; one spare at a commissioned start, not
+three. Prices: about one outing a crystal where it was three, the
+replicator five times dearer, a torpedo no longer free, and seven groups a
+server scales from nothing to ten times (`TREK.Rules.cost`), with *Power
+use* gaining *Double* and *Four times*. The cure's crystals and hours are
+settings. `balance()` and `balance_multiplayer()`. **Not seen in game**, and
+the count rests on `OnFillContainer` and on a container knowing its square
+(`getParent`, `getSourceGrid`), as the annotated maps rest on the first.
+**Not built**: a setting for what a crystal holds, the hand phaser's
+endless charge (it chambers 9mm, so a phaser that could run dry would take
+a player's bullets), the hypospray's and the sentry's own numbers, and what
+a new cabin's armoury is issued.
+
+**The 2026-10-12 content page** (`SERVERS.md`, *Content*): the author's
+"shut off ships altogether or aliens altogether or certain items; maybe all
+they want is the bat'leth". Four switches (`Shuttles`, `Adirondack`,
+`FieldStation`, `Aliens`), one for each weapon and one for each family of
+items (`R.ITEM_OPTION`), all read in `TREK_Rules`. **Off stops what is new
+and takes nothing away.** An item is stopped where the mod makes one:
+`addVerified` in `TREK_Util` (every locker, crate and store is stocked
+through it), the replicator's catalogue (built again when a switch moves),
+and the world's loot. The shuttle is stopped at `mayUse` on the server and
+the ground menu on the client; leaving her never comes through either. The
+ship in orbit is her own three readers answering closed, never and off.
+With no shuttle to issue them, `TREK_Salvage.lua` puts allowed things into
+rolled containers by room (`C.Salvage`, sandbox `ItemLoot`), at the roll as
+the crystals are counted. `content()` and `content_multiplayer()`. **Not
+seen in game.** **Not reached**: a profession's starting uniform on the
+creation screen, the wheel's slices in a seat of a shuttle left standing
+(the server refuses them), and the breaker box's own menu on a station
+switched off after it was found.
+
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.
 
@@ -3621,6 +3681,8 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_Medical.lua          treatment, doses,
 TrekShuttle/42/media/lua/shared/TREK/TREK_EMH.lua              the Doctor's rules, shared so the panel and the ship agree
 TrekShuttle/42/media/lua/shared/TREK/TREK_Replicator.lua       the item catalogue, patterns, what a thing costs
 TrekShuttle/42/media/lua/server/Items/TrekDilithium.lua        where crystals spawn in the world
+TrekShuttle/42/media/lua/server/TREK/TREK_Lode.lua             how many of them a district's loot gives up (SERVERS.md, Balance)
+TrekShuttle/42/media/lua/server/TREK/TREK_Salvage.lua          the mod's things in rolled loot, on a server with no shuttle (SERVERS.md, Content)
 TrekShuttle/42/media/lua/client/TREK/TREK_ReplicatorUI.lua     the replicator panel and its menus
 TrekShuttle/42/media/lua/client/TREK/TREK_WarpCore.lua         the warp core's menu: load a crystal, take one back
 TrekShuttle/42/media/lua/client/TREK/TREK_MedKit.lua           the medical set: menus, panels, the sweep
@@ -3718,7 +3780,7 @@ TrekShuttle/42/media/lua/shared/TREK/TREK_FarmSprites.lua      their growth spri
 TrekShuttle/42/media/lua/shared/TREK/TREK_FarmRecipes.lua      the brews' OnCreate
 TrekShuttle/42/media/lua/server/TREK/TREK_Farm.lua             the trays, tending, the dehydrator, the worm tank
 TrekShuttle/42/media/lua/client/TREK/TREK_FarmClient.lua       the crops put back before vanilla's sow menu
-TrekShuttle/42/media/lua/shared/TREK/TREK_Rules.lua            the server's rules: every sandbox option of 1.21.0, read once for both sides (SERVERS.md)
+TrekShuttle/42/media/lua/shared/TREK/TREK_Rules.lua            the server's rules: every sandbox option since 1.21.0, and what everything costs, read once for both sides (SERVERS.md)
 TrekShuttle/42/media/lua/shared/TREK/TREK_Text.lua             every word the mod draws: the server's name for the ship in orbit, and wrapping in any language
 TrekShuttle/42/media/lua/client/TREK/TREK_CreationRules.lua    the creation screen's lists, less what the server has switched off
 tools/translations.py, tests/test_translations.py              a language held against the English; export and import in checked pieces

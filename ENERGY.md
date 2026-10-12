@@ -242,6 +242,17 @@ and "last crystal burning" when a spare is burned and none is left.
 
 ### 3.5 Costs
 
+> **The balance pass of 2026-10-12 raised every price below**, at the
+> author's word ("much more aggressive"), and made each one a server's to
+> scale: `TREK.Rules.cost(name)` is what both sides ask, a group's percentage
+> on the sandbox's balance page times the `C.*` number (`SERVERS.md`,
+> *Balance*). The table and the outing below are the design as it was built,
+> **about three outings a crystal**; the numbers in force are in
+> `TREK_Config.lua`, and come to **about one outing a crystal** (4,130 of
+> 5,000: beam 75, call down 400, send up 150, start 50, take off 300, ground
+> 1.5 and air 4 a tile, hover 3 a minute, a push 5, a point mended 3, the
+> Doctor 300 and 100, a probe 1,500). A torpedo, free until then, is 250.
+
 Every number is a `C.*` constant in `TREK_Config.lua`, and each carries a
 comment saying where it came from. These are **starting values, meant to be
 tuned in play.**
@@ -303,8 +314,8 @@ only the replicator drew power, so a crystal almost never ran out.
 - about ten is roughly a third (flight about 0.6 / tile).
 
 The test in `test_multiplayer.py` that prices this outing and asserts it
-lands between 1,500 and 2,100 is what keeps a later tweak from quietly
-changing the feel.
+lands in a band (3,500 to 5,000 since 2026-10-12; 1,500 to 2,100 before) is
+what keeps a later tweak from quietly changing the feel.
 
 ### 3.6 Commits
 

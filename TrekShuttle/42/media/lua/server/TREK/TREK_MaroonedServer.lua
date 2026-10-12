@@ -116,6 +116,7 @@ local tried = 0
 --- own reason (CS.needsPlacing): a dark ship that lost her vehicle is put
 --- back where the maps say she is.
 function MS.needsPlacing()
+    if TREK.Rules and not TREK.Rules.shuttles() then return false end
     local s = U.state()
     return s.marooned == true and s.commissioned == false and s.landed ~= true
            and s.maroonSite ~= nil
@@ -274,6 +275,8 @@ end
 --- 0-18), so this runs on the authority only, and the event is raised as
 --- its last act, before the container's contents are sent to anybody.
 function MS.onFillContainer(_, _, container)
+    -- No shuttle on this server: a map to her would point at nothing.
+    if TREK.Rules and not TREK.Rules.shuttles() then return false end
     local s = U.state()
     if s.marooned ~= true or s.maroonFound == true then return false end
     -- **The third argument is not always a container.** The engine raises

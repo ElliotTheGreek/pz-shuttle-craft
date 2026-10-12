@@ -31,6 +31,7 @@ require "TREK/TREK_Access"
 require "TREK/TREK_Adirondack"
 require "TREK/TREK_FieldStation"
 require "TREK/TREK_EMH"
+require "TREK/TREK_Rules"
 require "TREK/TREK_Text"
 
 -- What this file shows is read through TREK_Text: the server's own name for
@@ -411,7 +412,7 @@ Net.onServer("accessScreen", function(player)
     if why then deny(player, why) return end
     why = Ac.screenRefusal(player)
     if why then deny(player, why) return end
-    if not TREK.Energy.energize(player, "screen", C.ScreenCost, { why = "emhNoPower" }) then
+    if not TREK.Energy.energize(player, "screen", TREK.Rules.cost("ScreenCost"), { why = "emhNoPower" }) then
         return
     end
     if Ac.sampleNeeded() and not take(player, C.NanoprobeItem, 1) then

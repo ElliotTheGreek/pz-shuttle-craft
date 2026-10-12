@@ -24,6 +24,7 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Power"
+require "TREK/TREK_Rules"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -187,7 +188,7 @@ end)
 --- is section 7's case.
 function E.serviceHover()
     if U.state().flying ~= true then return false end
-    E.energize(nil, "hover", C.HoverCostPerMinute, { partial = true, silent = true })
+    E.energize(nil, "hover", TREK.Rules.cost("HoverCostPerMinute"), { partial = true, silent = true })
     return true
 end
 

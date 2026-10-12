@@ -375,7 +375,7 @@ server's, set by validated commands, exactly like everything else.
 | `TrekShuttle.FlightHeight` | 2, 3, 4, 5, 6 or 8 storeys | 5 storeys |
 | `TrekShuttle.CommsFirstDay` | Straight away / a day / three days / a week / two weeks | A week |
 | `TrekShuttle.StartState` | Cold start / Commissioned | Cold start |
-| `TrekShuttle.WildDilithium` | Plentiful / Scarce / None | Plentiful |
+| `TrekShuttle.WildDilithium` | Plentiful / Scarce / None / Very rare | Very rare (since 2026-10-12; the balance page is `SERVERS.md`'s) |
 | `TrekShuttle.PhaserCutting` | Trees and doors / Trees only / Off | Trees and doors |
 | `TrekShuttle.HydroponicsWater` | Yes / No | Yes |
 

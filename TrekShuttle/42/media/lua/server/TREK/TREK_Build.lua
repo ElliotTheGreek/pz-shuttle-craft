@@ -39,6 +39,7 @@ require "TREK/TREK_InteriorLayout"
 local Interiors = require "TREK/TREK_Interiors"
 local L = setmetatable({}, { __index = function(_, k) return Interiors.layout()[k] end })
 require "TREK/TREK_Power"
+require "TREK/TREK_Rules"
 -- For the square the replicator stands on: one file owns that lookup, and it
 -- is a constant now rather than a tag in the layout.
 require "TREK/TREK_Replicator"
@@ -1232,7 +1233,7 @@ function B.servicePowerBus(bill)
     local max = U.try("busMax", function() return gen:getMaxFuel() end) or 10
     local fuel = U.try("busFuel", function() return gen:getFuel() end) or max
     if bill and max - fuel > 0.0001 then
-        TREK.Energy.energize(nil, "galley", (max - fuel) * C.FuelToEnergy,
+        TREK.Energy.energize(nil, "galley", (max - fuel) * TREK.Rules.cost("FuelToEnergy"),
                              { partial = true, silent = true })
     end
     if fuel < max then U.try("busRefuel", function() gen:setFuel(max) end) end
@@ -1666,8 +1667,9 @@ local function furnishCore()
 
     local s = U.state()
     if s.crystals == nil then
-        s.crystals = C.DilithiumIssue
-        U.log("core: the ship is issued %d spare crystal(s)", C.DilithiumIssue)
+        -- Sandbox *Spare crystals at a commissioned start* (SERVERS.md).
+        s.crystals = TREK.Rules.startCrystals()
+        U.log("core: the ship is issued %d spare crystal(s)", s.crystals)
     end
 
     if B.coresAt(sq) > 0 then

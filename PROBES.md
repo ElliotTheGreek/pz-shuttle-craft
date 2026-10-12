@@ -59,7 +59,7 @@ a probe in flight nowhere to show progress.
 
 | | | |
 |---|---|---|
-| `C.ProbeCost` | 250 | to **fabricate** one; a crystal is 5000, so twenty probes |
+| `C.ProbeCost` | 1500 | to **fabricate** one; a crystal is 5000, so three probes (250 and twenty until the balance pass of 2026-10-12; a server scales it with *Cost: other systems*, `SERVERS.md`) |
 | `C.MaxProbes` | 8 | so energy cannot be banked until the decision goes away |
 | `C.ContactRevealRadius` | 120 | squares of map uncovered around a contact |
 | `C.ContactPlaceRadius` | 6 | how far the ship will look for ground to put it on |
@@ -172,7 +172,7 @@ one launch in three finds nothing, and the only trace of that was a line in
 never happened looked identical, and the first person to play it reported
 the feature as broken, correctly. There is a note on arrival and a line on the
 panel now, and **the first probe of a save is guaranteed**, because a new crew
-whose opening launch costs 250 units and an hour of game time and reports
+whose opening launch costs a probe and an hour of game time and reports
 nothing has been taught the wrong thing about their ship.
 
 **"Inside the world" is not "loaded", and neither is "somewhere there is

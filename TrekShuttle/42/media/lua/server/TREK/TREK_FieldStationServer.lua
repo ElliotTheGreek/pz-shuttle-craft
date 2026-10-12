@@ -225,6 +225,9 @@ end
 --- The look that runs while anybody is near the store: choose the square
 --- the first time, then keep the wall right.
 function FSS.service()
+    -- Sandbox *Field station*, off: no box is hung. One already on the wall
+    -- stays there, and opens on nothing.
+    if TREK.Rules and not TREK.Rules.fieldStation() then return nil end
     local rec = FSS.record()
     local site = C.FieldStation
     local x, y, z = rec.x or site.x, rec.y or site.y, rec.z or site.z
@@ -260,6 +263,10 @@ Net.onServer("stationOpen", function(player)
     if not player or U.try("fs.dead", function() return player:isDead() end) ~= false then return end
     local rec = FSS.record()
     if not rec.x then return end
+    if TREK.Rules and not TREK.Rules.fieldStation() then
+        Net.toClient(player, "denied", { why = "stationOff" })
+        return
+    end
     -- Measured here, on this machine's copy of them: a client is a request.
     if not FS.playerInReach(player) then
         Net.toClient(player, "denied", { why = "stationFar" })

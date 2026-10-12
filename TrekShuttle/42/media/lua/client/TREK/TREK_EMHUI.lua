@@ -44,6 +44,7 @@ require "TREK/TREK_Core"
 require "TREK/TREK_Helm"
 require "TREK/TREK_MedKit"
 require "TREK/TREK_Access"
+require "TREK/TREK_Rules"
 require "TREK/TREK_Text"
 
 -- What this file shows is read through TREK_Text: the server's own name for
@@ -511,7 +512,7 @@ function TREKEMHWindow:render()
     end
     self.treatBtn.title = treatWhy
         and getText(M.BUTTON_TEXT[treatWhy] or "IGUI_TREK_EmhBtnWell")
-        or getText("IGUI_TREK_EmhTreat", tostring(C.EmhTreatCost))
+        or getText("IGUI_TREK_EmhTreat", tostring(E.treatCost()))
     self.treatBtn.enable = not off and treatWhy == nil
 
     local cureWhy = blocked
@@ -522,7 +523,7 @@ function TREKEMHWindow:render()
             local found = self:found()
             if found and not found.infected then
                 cureWhy = "emhNotInfected"
-            elseif TREK.Power.crystals(TREK.Power.poolOf(self.player)) < C.EmhCureCrystals then
+            elseif TREK.Power.crystals(TREK.Power.poolOf(self.player)) < TREK.Rules.cureCrystals() then
                 cureWhy = "emhNoCrystal"
             elseif row and E.cureDue(row.name) then
                 cureWhy = "emhCuring"
@@ -531,7 +532,7 @@ function TREKEMHWindow:render()
     end
     self.cureBtn.title = cureWhy
         and getText(M.BUTTON_TEXT[cureWhy] or "IGUI_TREK_EmhBtnNotInfected")
-        or getText("IGUI_TREK_EmhCure", tostring(C.EmhCureCrystals))
+        or getText("IGUI_TREK_EmhCure", tostring(TREK.Rules.cureCrystals()))
     self.cureBtn.enable = not off and cureWhy == nil
 
     local detoxWhy = blocked
@@ -545,7 +546,7 @@ function TREKEMHWindow:render()
     end
     self.detoxBtn.title = detoxWhy
         and getText(M.BUTTON_TEXT[detoxWhy] or "IGUI_TREK_EmhBtnClean")
-        or getText("IGUI_TREK_EmhDetox", tostring(C.EmhDetoxCost))
+        or getText("IGUI_TREK_EmhDetox", tostring(TREK.Rules.cost("EmhDetoxCost")))
     self.detoxBtn.enable = not off and detoxWhy == nil
 
     -- The screening is always the player's own: another crewman's sample and
@@ -560,7 +561,7 @@ function TREKEMHWindow:render()
     end
     self.screenBtn.title = screenWhy
         and getText(M.BUTTON_TEXT[screenWhy] or "IGUI_TREK_EmhBtnScreenDone")
-        or getText("IGUI_TREK_EmhScreen", tostring(C.ScreenCost))
+        or getText("IGUI_TREK_EmhScreen", tostring(TREK.Rules.cost("ScreenCost")))
     self.screenBtn.enable = not off and screenWhy == nil
 
     -- The full readout is vanilla's health panel at doctor level, opened on
@@ -911,8 +912,8 @@ end)
 TREK.Net.onClient("emhCureStarted", function(args)
     local player = U.player(0)
     if not player then return end
-    says("IGUI_TREK_EmhStayAboard", tostring(args.hours or C.EmhCureHours))
-    note(player, "IGUI_TREK_EmhCureStarted", tostring(args.hours or C.EmhCureHours))
+    says("IGUI_TREK_EmhStayAboard", tostring(args.hours or TREK.Rules.cureHours()))
+    note(player, "IGUI_TREK_EmhCureStarted", tostring(args.hours or TREK.Rules.cureHours()))
     refreshWindow()
 end)
 

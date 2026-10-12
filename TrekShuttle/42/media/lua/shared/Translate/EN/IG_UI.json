@@ -669,5 +669,7 @@
     "IGUI_TREK_ShipShared": "the shared shuttle",
     "IGUI_TREK_ShipYours": "your shuttle",
     "IGUI_TREK_ShipOf": "%1's shuttle",
-    "IGUI_TREK_Hail": "Hail another shuttle"
+    "IGUI_TREK_Hail": "Hail another shuttle",
+    "IGUI_TREK_RuleShuttlesOff": "There are no shuttles on this server.",
+    "IGUI_TREK_RuleStationOff": "The field station is closed on this server."
 }

@@ -25,14 +25,16 @@
     that is transmitted whole cannot hold a list that grows* is why it is not
     in the ship state.
 
-    Sandbox `TrekShuttle.WildDilithium`: Plentiful, Scarce (the default
-    since 2026-10-07, the author's call) or None. Authority only.
+    Sandbox `TrekShuttle.WildDilithium`: Plentiful, Scarce, None or Very
+    rare (the default since the balance pass of 2026-10-12, the author's
+    call; Scarce before it). Authority only.
 ]]
 
 if isClient() then return end
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+require "TREK/TREK_Rules"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -43,14 +45,7 @@ TREK.Wild = Wild
 
 --- The plots-per-crystal the server owner chose, or nil for none.
 function Wild.oneIn()
-    local ok, v = pcall(function()
-        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.WildDilithium
-    end)
-    v = ok and tonumber(v) or nil
-    if v == C.WildNone then return nil end
-    if v == C.WildPlentiful then return C.WildPlentifulOneIn end
-    -- Scarce, and an absent value: the feature as designed.
-    return C.WildScarceOneIn
+    return TREK.Rules.wildOneIn()
 end
 
 --- The store: a salt for this world, and every plot already visited.

@@ -18,6 +18,7 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Sentry"
+require "TREK/TREK_Rules"
 require "TREK/TREK_PhaserFX"
 require "TREK/TREK_Text"
 
@@ -89,7 +90,7 @@ function SU.fillInventoryMenu(playerNum, context, items)
             local why = SU.refusal(player)
             if why then grey(opt, why) end
             if left < C.SentryCharges then
-                local r = context:addOption(getText("IGUI_TREK_SentryRecharge", tostring(C.SentryRechargeCost)),
+                local r = context:addOption(getText("IGUI_TREK_SentryRecharge", tostring(TREK.Rules.cost("SentryRechargeCost"))),
                                             player, SU.recharge, it)
                 if not (TREK.Power and TREK.Power.inReachOf(player)) then grey(r, "IGUI_TREK_SentryNoCoreTip") end
             end

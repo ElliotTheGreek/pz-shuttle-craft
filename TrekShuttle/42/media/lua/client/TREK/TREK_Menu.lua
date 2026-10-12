@@ -100,8 +100,9 @@ end
 function M.onCallDown(_, player, x, y, z)
     -- Refused here first when the ship plainly cannot pay (ENERGY.md 4.1); the
     -- server checks again, and is the one that charges.
-    if TREK.Power.dark() or not TREK.Power.canPay(C.LandCost) then
-        U.note(player, getText("IGUI_TREK_NoPowerFor", tostring(C.LandCost),
+    local landCost = TREK.Rules.cost("LandCost")
+    if TREK.Power.dark() or not TREK.Power.canPay(landCost) then
+        U.note(player, getText("IGUI_TREK_NoPowerFor", tostring(landCost),
                                tostring(math.floor(TREK.Power.reserve()))), 255, 170, 90)
         return
     end
@@ -367,6 +368,9 @@ local function paintMenu(menu, player, worldobjects, ship)
 end
 
 local function groundMenu(context, player, worldobjects, sq, test)
+    -- Sandbox *Shuttles*, off: there is no shuttle to ask, on the ground or
+    -- at a hull left standing from before (SERVERS.md, *Content*).
+    if not TREK.Rules.shuttles() then return false end
     -- Whose hull, if it is one: with more than one shuttle about, the one
     -- under the cursor is the one being asked, not the one last hailed.
     local there = M.hullShipAt(sq:getX(), sq:getY(), sq:getZ())

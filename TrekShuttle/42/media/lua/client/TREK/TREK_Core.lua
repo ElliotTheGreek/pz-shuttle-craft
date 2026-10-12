@@ -114,6 +114,8 @@ local DENIALS = {
     weaponsOff    = "IGUI_TREK_RuleWeaponsOff",
     shieldsOff    = "IGUI_TREK_RuleShieldsOff",
     instOff       = "IGUI_TREK_RuleInstOff",
+    shuttlesOff   = "IGUI_TREK_RuleShuttlesOff",
+    stationOff    = "IGUI_TREK_RuleStationOff",
     accClosed     = "IGUI_TREK_AccClosed",
     accNotListed  = "IGUI_TREK_AccNotListed",
     -- Marooned (MAROONED.md): no combadge until they have been aboard.

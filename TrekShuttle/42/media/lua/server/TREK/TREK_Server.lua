@@ -89,6 +89,12 @@ end
 --- Common gate for anything that changes or moves the ship.
 local function mayUse(player)
     if not alive(player) then return false end
+    -- Sandbox *Shuttles* (SERVERS.md, *Content*): there is no shuttle here.
+    -- Leaving one never comes through this, so nobody is shut in.
+    if not Rules.shuttles() then
+        deny(player, "shuttlesOff")
+        return false
+    end
     if not Ship.canUse(player) then
         deny(player, "access")
         return false
@@ -309,11 +315,18 @@ function S.shieldRepair(vehicle)
         if id and id ~= "GasTank" and id ~= "Battery" then
             local cond = U.try("partCond", function() return part:getCondition() end) or 100
             if cond < 100 then
-                local cost = (100 - cond) * C.RepairCostPerPoint
-                local _, paid = TREK.Energy.energize(nil, "repair", cost,
-                    { partial = true, silent = true, noCommit = true })
-                paid = paid or 0
-                local to = math.min(100, cond + math.floor(paid / C.RepairCostPerPoint + 1e-6))
+                -- Sandbox *Cost: shields* at nothing mends for nothing: the
+                -- ledger takes no charge of zero, so there is no payment to
+                -- measure the mending by, and a dark ship mends nothing.
+                local each = Rules.cost("RepairCostPerPoint")
+                local to = 100
+                if each > 0 then
+                    local _, paid = TREK.Energy.energize(nil, "repair", (100 - cond) * each,
+                        { partial = true, silent = true, noCommit = true })
+                    to = math.min(100, cond + math.floor((paid or 0) / each + 1e-6))
+                elseif TREK.Power.dark() then
+                    to = cond
+                end
                 if to > cond then
                     U.try("partMend", function()
                         part:setCondition(to)
@@ -370,7 +383,7 @@ function S.engineEdge(vehicle)
     engineWas[id] = running
     if running and not was then
         local driver = U.try("engineDriver", function() return vehicle:getDriver() end)
-        TREK.Energy.energize(driver, "engine", C.EngineStartCost, { partial = true })
+        TREK.Energy.energize(driver, "engine", Rules.cost("EngineStartCost"), { partial = true })
         return true
     end
     return false
@@ -759,7 +772,7 @@ function S.serviceVehicle()
                 -- Partial and silent: nobody asked for it, and a ship too low
                 -- to pay still must not hang in the sky for ever. What a
                 -- dark ship does instead is ENERGY.md section 7.
-                TREK.Energy.energize(nil, "recall", C.RecallCost,
+                TREK.Energy.energize(nil, "recall", Rules.cost("RecallCost"),
                                      { partial = true, silent = true, noCommit = true })
                 S.endFlight("nobody is aboard her", true)
                 return
@@ -785,7 +798,7 @@ function S.serviceVehicle()
         if s.x and s.y and (x ~= s.x or y ~= s.y) then
             local d = math.sqrt(U.dist2(x, y, s.x, s.y))
             if d <= C.OdometerMaxJump then
-                local rate = s.flying and C.AirCostPerTile or C.GroundCostPerTile
+                local rate = Rules.cost(s.flying and "AirCostPerTile" or "GroundCostPerTile")
                 TREK.Energy.energize(nil, s.flying and "fly" or "drive",
                                      d * rate, { partial = true, silent = true,
                                                  noCommit = true })
@@ -1135,7 +1148,7 @@ local function movesFrom(player, where)
     if where == "decks" then return A.onShip(player) end
     local FS = TREK.FieldStation
     if where == "stationPanel" then
-        return FS ~= nil and FS.found() and FS.playerInReach(player)
+        return FS ~= nil and Rules.fieldStation() and FS.found() and FS.playerInReach(player)
     end
     if where == "stationLift" then
         if not A.onStation(player) then return false end
@@ -1191,8 +1204,8 @@ Net.onServer("move", function(player, args)
     -- so neither refusal costs the other: a ship too short of power to beam
     -- keeps the player's charge, and a transporter still recharging keeps the
     -- ship's power. `kind` in the denial drops the client's waiting move.
-    local energy = rule.energy and C[rule.energy] or 0
-    local need = math.max(energy, rule.check and C[rule.check] or 0)
+    local energy = rule.energy and Rules.cost(rule.energy) or 0
+    local need = math.max(energy, rule.check and Rules.cost(rule.check) or 0)
     -- The emergency descent from orbit is free (ENERGY.md 7.3): the ship takes
     -- herself down with the crew, and the only thing she has is no power.
     if kind == "descend" and U.state().emergency ~= nil then need = 0 end
@@ -1290,10 +1303,11 @@ Net.onServer("land", function(player, args)
     -- is known to be clear, so a refusal never drops her where she hangs.
     local s = U.state()
     local emergency = s.emergency ~= nil
-    if not emergency and not TREK.Power.canPay(C.LandCost) then
+    local landCost = Rules.cost("LandCost")
+    if not emergency and not TREK.Power.canPay(landCost) then
         Net.toClient(player, "landingRefused", {
             why = "noPower", x = x, y = y, z = z,
-            need = C.LandCost, have = math.floor(TREK.Power.reserve()),
+            need = landCost, have = math.floor(TREK.Power.reserve()),
         })
         return
     end
@@ -1315,7 +1329,7 @@ Net.onServer("land", function(player, args)
             Ship.commit()
             U.log("power: the emergency landing is down at %d,%d,%d", x, y, z)
         else
-            TREK.Energy.energize(player, "land", C.LandCost)
+            TREK.Energy.energize(player, "land", landCost)
         end
         Net.toClient(player, "landed", { x = x, y = y, z = z })
     else
@@ -1328,13 +1342,14 @@ Net.onServer("recall", function(player)
     if not mayUse(player) or not linked(player) then return end
     -- A dark ship cannot go up: a landed one stays landed, and says why.
     local s = U.state()
-    if s.landed and not TREK.Power.canPay(C.RecallCost) then
-        TREK.Energy.energize(player, "recall", C.RecallCost)
+    local recallCost = Rules.cost("RecallCost")
+    if s.landed and not TREK.Power.canPay(recallCost) then
+        TREK.Energy.energize(player, "recall", recallCost)
         return
     end
     local ok, why = S.recall()
     if ok then
-        TREK.Energy.energize(player, "recall", C.RecallCost)
+        TREK.Energy.energize(player, "recall", recallCost)
         Net.toClient(player, "recalled", {})
     elseif why then
         deny(player, why)
@@ -1393,8 +1408,8 @@ Net.onServer("takeoff", function(player)
     end
     -- Checked here and spent at `airborne`, once she is really up, so a
     -- climb that gives up costs nothing (ENERGY.md 4.4).
-    if not TREK.Power.canPay(C.TakeoffCost) then
-        TREK.Energy.energize(player, "takeoff", C.TakeoffCost)
+    if not TREK.Power.canPay(Rules.cost("TakeoffCost")) then
+        TREK.Energy.energize(player, "takeoff", Rules.cost("TakeoffCost"))
         return
     end
     claim(player)
@@ -1433,7 +1448,7 @@ Net.onServer("airborne", function(player, args)
     s.skyAt = { x = s.x, y = s.y, level = level }
     -- Partial: if the ship went dark between the take-off and now, she is
     -- airborne and dark, which is ENERGY.md section 7's case, not this one's.
-    TREK.Energy.energize(player, "takeoff", C.TakeoffCost,
+    TREK.Energy.energize(player, "takeoff", Rules.cost("TakeoffCost"),
                          { partial = true, noCommit = true })
     Ship.commit()
     U.log("shuttle airborne at %d,%d level %d, flown by %s",
@@ -1707,6 +1722,13 @@ Net.onServer("fireTorpedo", function(player, args)
         return
     end
 
+    -- Paid at the launch, once everything that could refuse it has: a shot
+    -- that was never fired costs nothing (sandbox *Cost: ship's weapons*).
+    if not TREK.Energy.energize(player, "torpedo", Rules.cost("TorpedoCost"),
+                                { noCommit = true }) then
+        return
+    end
+
     -- The warhead is instanced at detonation, not here: it is a specification
     -- the trap copies, it is worth nothing in between, and instancing it a
     -- second early only widens the window in which it could go missing.
@@ -1836,7 +1858,7 @@ Net.onServer("firePhasers", function(player, args)
     -- Checked whole and refused with its numbers; paid in silence, because a
     -- note a shot would be a note three times a second (the move handler's
     -- pattern).
-    local need = P.cost * #found
+    local need = P.cost * Rules.costScale("CostWeapons") * #found
     if not TREK.Power.canPay(need) then
         TREK.Energy.energize(player, "phasers", need)
         return
@@ -1873,6 +1895,11 @@ end)
 -- same split as the shields' push and the sky plane.
 local tractors = {}   -- ship -> { player, paidAt } while it is on, server-local
 
+--- A second of the tractor on this server (sandbox *Cost: ship's weapons*).
+function S.tractorCost()
+    return C.Tractor.costPerSec * Rules.costScale("CostWeapons")
+end
+
 function S.tractorOff(why)
     local s = U.state()
     local was = s.tractor
@@ -1901,8 +1928,8 @@ Net.onServer("tractor", function(player, args)
         return
     end
     if s.tractor then return end
-    if not TREK.Power.canPay(C.Tractor.costPerSec) then
-        TREK.Energy.energize(player, "tractor", C.Tractor.costPerSec)
+    if not TREK.Power.canPay(S.tractorCost()) then
+        TREK.Energy.energize(player, "tractor", S.tractorCost())
         return
     end
     tractors[U.shipNow] = { player = player, paidAt = getTimestampMs() }
@@ -1925,11 +1952,11 @@ function S.serviceTractor()
     local now = getTimestampMs()
     if now - tractor.paidAt >= 1000 then
         tractor.paidAt = now
-        if not TREK.Power.canPay(C.Tractor.costPerSec) then
-            TREK.Energy.energize(tractor.player, "tractor", C.Tractor.costPerSec)
+        if not TREK.Power.canPay(S.tractorCost()) then
+            TREK.Energy.energize(tractor.player, "tractor", S.tractorCost())
             return S.tractorOff("no power")
         end
-        TREK.Energy.energize(tractor.player, "tractor", C.Tractor.costPerSec, { silent = true })
+        TREK.Energy.energize(tractor.player, "tractor", S.tractorCost(), { silent = true })
     end
 end
 
@@ -2029,7 +2056,7 @@ Net.onServer("shieldDraw", function(player, args)
     if U.dist2(px, py, s.x, s.y) > reach * reach then return end
 
     shieldReports[name] = now
-    TREK.Energy.energize(nil, "shields", n * C.ShieldPushCost,
+    TREK.Energy.energize(nil, "shields", n * Rules.cost("ShieldPushCost"),
                          { partial = true, silent = true })
 end)
 
@@ -2581,7 +2608,7 @@ Net.onServer("emhSummon", function(player)
     local s = U.state()
     if s.emh ~= true then
         -- Projecting him costs power; putting him away is free (ENERGY.md 6).
-        if not TREK.Energy.energize(player, "emhProject", C.EmhProjectCost,
+        if not TREK.Energy.energize(player, "emhProject", Rules.cost("EmhProjectCost"),
                                     { why = "emhNoPower", noCommit = true }) then
             return
         end
@@ -2683,7 +2710,7 @@ Net.onServer("emhCure", function(player, args)
     end
 
     if name ~= Ship.usernameOf(player) then
-        offer(player, patient, name, "cure", C.EmhCureCrystals)
+        offer(player, patient, name, "cure", Rules.cureCrystals())
         return
     end
     S.beginCure(player, patient, name)
@@ -2692,11 +2719,12 @@ end)
 --- The detox (CONTRABAND.md): every habit gone, for reserve units.
 --- Yourself at once; anybody else only if they say yes.
 local function detoxBody(asker, patient, name)
-    if TREK.Power.canPay(C.EmhDetoxCost) then
-        if not TREK.Energy.energize(asker, "emhDetox", C.EmhDetoxCost, { silent = true }) then
+    local cost = Rules.cost("EmhDetoxCost")
+    if TREK.Power.canPay(cost) then
+        if not TREK.Energy.energize(asker, "emhDetox", cost, { silent = true }) then
             return false
         end
-    elseif not TREK.Energy.energize(asker, "emhDetox", C.EmhDetoxCost,
+    elseif not TREK.Energy.energize(asker, "emhDetox", cost,
                                     { why = "emhNoPower" }) then
         return false
     end
@@ -2705,7 +2733,7 @@ local function detoxBody(asker, patient, name)
     if asker ~= patient then
         Net.toClient(asker, "emhDetoxed", { who = name, n = n })
     end
-    U.log("emh: detoxed %s -- %d habit(s), %d unit(s) spent", name, n, C.EmhDetoxCost)
+    U.log("emh: detoxed %s -- %d habit(s), %d unit(s) spent", name, n, cost)
     return true
 end
 
@@ -2721,7 +2749,7 @@ Net.onServer("emhDetox", function(player, args)
     end
 
     if name ~= Ship.usernameOf(player) then
-        offer(player, patient, name, "detox", C.EmhDetoxCost)
+        offer(player, patient, name, "detox", Rules.cost("EmhDetoxCost"))
         return
     end
     detoxBody(player, patient, name)
@@ -2734,22 +2762,24 @@ end)
 --- is the whole weight of the twelve hours: walking out of the cabin halfway
 --- through costs it.
 function S.beginCure(player, patient, name)
-    if TREK.Power.crystals() < C.EmhCureCrystals then
+    -- Sandbox *Crystals a cure costs* and *Hours a cure takes* (SERVERS.md).
+    local crystals, hours = Rules.cureCrystals(), Rules.cureHours()
+    if TREK.Power.crystals() < crystals then
         deny(player, "emhNoCrystal")
         return false
     end
-    for _ = 1, C.EmhCureCrystals do
+    for _ = 1, crystals do
         if not TREK.Power.takeCrystal() then
             deny(player, "emhNoCrystal")
             return false
         end
     end
 
-    local due = EMH.worldHours() + C.EmhCureHours
+    local due = EMH.worldHours() + hours
     EMH.cures()[name] = due
     Ship.commit()
 
-    Net.toClient(patient, "emhCureStarted", { hours = C.EmhCureHours })
+    Net.toClient(patient, "emhCureStarted", { hours = hours })
     U.log("emh: a cure has begun for %s -- due at world hour %.1f, %d spare "
           .. "crystal(s) left", name, due, TREK.Power.crystals())
     return true
@@ -3083,7 +3113,7 @@ Net.onServer("buildProbe", function(player, args)
 
     -- The ledger burns a spare crystal when the reserve is short, which is
     -- the whole reason a crystal is worth carrying.
-    if not TREK.Energy.energize(player, "probe", C.ProbeCost,
+    if not TREK.Energy.energize(player, "probe", Rules.cost("ProbeCost"),
                                 { why = "probeNoPower", noCommit = true }) then
         return
     end
@@ -3306,16 +3336,20 @@ function S.serviceProbe()
     -- start's guaranteed opening (ENERGY.md 10.5), and every probe after
     -- the first is a fair roll.
     --
-    -- And never more than C.ProbeDryLimit empty ones in a row: the first
-    -- cold-start play drew four, which is a campaign stalled on luck.
+    -- And never more than a dry limit of empty ones in a row: the first
+    -- cold-start play drew four, which is a campaign stalled on luck. Both
+    -- the chance and the limit are the server's (sandbox *Probes that find
+    -- dilithium*); at no chance at all there is no limit, and only a save's
+    -- opening probe finds anything.
     local s = U.state()
     local found
-    if not s.probeEverFound or (s.probeDry or 0) >= C.ProbeDryLimit then
+    local dryLimit = Rules.probeDryLimit()
+    if not s.probeEverFound or (dryLimit and (s.probeDry or 0) >= dryLimit) then
         found = true
     else
         found = (U.try("probeRoll", function()
             return ZombRand(100)
-        end) or 0) < math.floor(C.ProbeFindChance * 100)
+        end) or 0) < math.floor(Rules.probeFind() * 100 + 0.5)
     end
     s.probeDry = found and 0 or (s.probeDry or 0) + 1
 
@@ -3941,8 +3975,8 @@ function S.emhReport()
           .. "a treatment costs %d, a cure costs %d crystal and %d hours, "
           .. "%d cure(s) running",
           modeName, math.floor(TREK.Power.reserve()), C.PowerMax,
-          TREK.Power.crystals(), C.EmhTreatCost, C.EmhCureCrystals,
-          C.EmhCureHours, waiting)
+          TREK.Power.crystals(), EMH.treatCost(), Rules.cureCrystals(),
+          Rules.cureHours(), waiting)
     return B.emhReport()
 end
 

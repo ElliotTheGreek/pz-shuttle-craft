@@ -321,8 +321,13 @@ function S.serviceAndroid(player)
     if asleep and aboard(player) and not P.dark() then
         local want = math.min(100 - now, C.AndroidChargePerHour / 60)
         if want > 0 then
-            local paid = P.pay(want * C.AndroidChargeCost, true)
-            now = now + paid / C.AndroidChargeCost
+            -- Sandbox *Cost: other systems*; at nothing the charge is free.
+            local each = Rules.cost("AndroidChargeCost")
+            if each > 0 then
+                now = now + P.pay(want * each, true) / each
+            else
+                now = now + want
+            end
         end
     end
     now = math.max(0, math.min(100, now))

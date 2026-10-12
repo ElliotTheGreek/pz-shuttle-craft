@@ -32,6 +32,7 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Sentry"
+require "TREK/TREK_Rules"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -169,7 +170,7 @@ Net.onServer("rechargeSentry", function(player, args)
         return
     end
     if SN.charges(item) >= C.SentryCharges then return end
-    if not TREK.Energy.energize(player, "sentry", C.SentryRechargeCost) then return end
+    if not TREK.Energy.energize(player, "sentry", TREK.Rules.cost("SentryRechargeCost")) then return end
     U.try("sentry.fill", function() item:getModData()[C.SentryChargesKey] = C.SentryCharges end)
     if isServer() then
         U.try("sentry.syncFill", function() syncItemModData(player, item) end)
