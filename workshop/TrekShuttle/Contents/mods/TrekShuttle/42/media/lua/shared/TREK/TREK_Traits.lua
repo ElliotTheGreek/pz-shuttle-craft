@@ -20,6 +20,11 @@
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Net"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C, U, Net = TREK.Config, TREK.Util, TREK.Net
@@ -131,6 +136,17 @@ function T.adjust(character, adj)
     end
 end
 
+--- A note's argument as the reader sees it. **A translation key is
+--- translated where it is read**, not where it was sent from: a server's
+--- language is the server's, and the name of a trait belongs in the
+--- player's (SERVERS.md, *Languages*). Anything else is shown as it is.
+function T.argText(arg)
+    if arg == nil then return nil end
+    local text = tostring(arg)
+    if text:sub(1, 3) == "UI_" or text:sub(1, 5) == "IGUI_" then return getText(text) end
+    return text
+end
+
 --- A halo note for one character, from the authority.
 function T.note(character, key, arg, r, g, b)
     if isServer() then
@@ -138,7 +154,7 @@ function T.note(character, key, arg, r, g, b)
             who = U.try("traits.who", function() return character:getUsername() end),
             key = key, arg = arg, r = r, g = g, b = b })
     elseif not isClient() then
-        U.note(character, getText(key, arg and tostring(arg) or nil), r, g, b)
+        U.note(character, getText(key, T.argText(arg)), r, g, b)
     end
 end
 
@@ -240,7 +256,7 @@ end
 --- What the ship's power costs, all told: less with an engineer aboard.
 function T.powerFactor()
     for _, p in ipairs(U.players()) do
-        if T.has(p, "sf_engineering") and U.isInteriorPlayer(p) then
+        if T.has(p, "sf_engineering") and U.aboardThis(p) then
             return C.EngineeringFactor
         end
     end

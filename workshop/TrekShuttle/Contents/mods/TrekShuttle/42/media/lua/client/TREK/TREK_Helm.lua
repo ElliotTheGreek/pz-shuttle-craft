@@ -43,6 +43,11 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Power"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -531,6 +536,10 @@ end
 -- Controls
 ---------------------------------------------------------------------------
 function TREKHelmWindow:onShields()
+    if TREK.Rules and not TREK.Rules.shields() then
+        U.note(self.player, getText("IGUI_TREK_RuleShieldsOff"), 255, 170, 90)
+        return
+    end
     local up = not U.shieldsUp()
     TREK.Core.send(self.player, "setShields", { up = up })
     U.note(self.player, getText(up and "IGUI_TREK_ShieldsUp" or "IGUI_TREK_ShieldsDown"),

@@ -3,7 +3,7 @@ VERSION = 1,
 /***** SHUTTLECRAFT *****/
 
 option TrekShuttle.Access = {
-    type = enum, numValues = 2, default = 1,
+    type = enum, numValues = 3, default = 1,
     page = TrekShuttle, translation = TrekShuttle.Access, valueTranslation = TrekShuttle.Access,
 }
 
@@ -38,18 +38,13 @@ option TrekShuttle.FlightHeight = {
 }
 
 option TrekShuttle.CommsFirstDay = {
-    type = enum, numValues = 5, default = 4,
+    type = enum, numValues = 6, default = 4,
     page = TrekShuttle, translation = TrekShuttle.CommsFirstDay, valueTranslation = TrekShuttle.CommsFirstDay,
 }
 
 option TrekShuttle.StartState = {
     type = enum, numValues = 3, default = 3,
     page = TrekShuttle, translation = TrekShuttle.StartState, valueTranslation = TrekShuttle.StartState,
-}
-
-option TrekShuttle.WildDilithium = {
-    type = enum, numValues = 3, default = 2,
-    page = TrekShuttle, translation = TrekShuttle.WildDilithium, valueTranslation = TrekShuttle.WildDilithium,
 }
 
 option TrekShuttle.PhaserCutting = {
@@ -73,7 +68,7 @@ option TrekShuttle.CaptainTruth = {
 }
 
 option TrekShuttle.AdirondackAccess = {
-    type = enum, numValues = 3, default = 1,
+    type = enum, numValues = 4, default = 1,
     page = TrekShuttle, translation = TrekShuttle.AdirondackAccess, valueTranslation = TrekShuttle.AdirondackAccess,
 }
 
@@ -90,4 +85,422 @@ option TrekShuttle.Raids = {
 option TrekShuttle.RaidSize = {
     type = enum, numValues = 3, default = 2,
     page = TrekShuttle, translation = TrekShuttle.RaidSize, valueTranslation = TrekShuttle.RaidSize,
+}
+
+/***** WHAT THE SHIP MAY DO (SERVERS.md) *****/
+
+option TrekShuttle.BeamUp = {
+    type = boolean, default = true,
+    page = TrekShuttle, translation = TrekShuttle.BeamUp,
+}
+
+option TrekShuttle.Flight = {
+    type = boolean, default = true,
+    page = TrekShuttle, translation = TrekShuttle.Flight,
+}
+
+option TrekShuttle.ShipWeapons = {
+    type = enum, numValues = 3, default = 1,
+    page = TrekShuttle, translation = TrekShuttle.ShipWeapons, valueTranslation = TrekShuttle.ShipWeapons,
+}
+
+option TrekShuttle.Shields = {
+    type = boolean, default = true,
+    page = TrekShuttle, translation = TrekShuttle.Shields,
+}
+
+option TrekShuttle.DistressCalls = {
+    type = boolean, default = true,
+    page = TrekShuttle, translation = TrekShuttle.DistressCalls,
+}
+
+option TrekShuttle.Installations = {
+    type = boolean, default = true,
+    page = TrekShuttle, translation = TrekShuttle.Installations,
+}
+
+/***** BALANCE: how rare dilithium is, and what everything costs (SERVERS.md) *****/
+
+option TrekShuttle.LootDilithiumMin = {
+    type = integer, min = 0, max = 50, default = 1,
+    page = TrekBalance, translation = TrekShuttle.LootDilithiumMin,
+}
+
+option TrekShuttle.LootDilithiumMax = {
+    type = integer, min = 0, max = 50, default = 5,
+    page = TrekBalance, translation = TrekShuttle.LootDilithiumMax,
+}
+
+option TrekShuttle.WildDilithium = {
+    type = enum, numValues = 4, default = 4,
+    page = TrekBalance, translation = TrekShuttle.WildDilithium, valueTranslation = TrekShuttle.WildDilithium,
+}
+
+option TrekShuttle.ProbeFind = {
+    type = integer, min = 0, max = 100, default = 30,
+    page = TrekBalance, translation = TrekShuttle.ProbeFind,
+}
+
+option TrekShuttle.RaidCrystal = {
+    type = integer, min = 0, max = 100, default = 10,
+    page = TrekBalance, translation = TrekShuttle.RaidCrystal,
+}
+
+option TrekShuttle.StartCrystals = {
+    type = integer, min = 0, max = 10, default = 1,
+    page = TrekBalance, translation = TrekShuttle.StartCrystals,
+}
+
+option TrekShuttle.PowerUse = {
+    type = enum, numValues = 6, default = 1,
+    page = TrekBalance, translation = TrekShuttle.PowerUse, valueTranslation = TrekShuttle.PowerUse,
+}
+
+option TrekShuttle.CostReplicator = {
+    type = integer, min = 0, max = 1000, default = 100,
+    page = TrekBalance, translation = TrekShuttle.CostReplicator,
+}
+
+option TrekShuttle.CostTransporter = {
+    type = integer, min = 0, max = 1000, default = 100,
+    page = TrekBalance, translation = TrekShuttle.CostTransporter,
+}
+
+option TrekShuttle.CostFlight = {
+    type = integer, min = 0, max = 1000, default = 100,
+    page = TrekBalance, translation = TrekShuttle.CostFlight,
+}
+
+option TrekShuttle.CostShields = {
+    type = integer, min = 0, max = 1000, default = 100,
+    page = TrekBalance, translation = TrekShuttle.CostShields,
+}
+
+option TrekShuttle.CostWeapons = {
+    type = integer, min = 0, max = 1000, default = 100,
+    page = TrekBalance, translation = TrekShuttle.CostWeapons,
+}
+
+option TrekShuttle.CostMedical = {
+    type = integer, min = 0, max = 1000, default = 100,
+    page = TrekBalance, translation = TrekShuttle.CostMedical,
+}
+
+option TrekShuttle.CostSystems = {
+    type = integer, min = 0, max = 1000, default = 100,
+    page = TrekBalance, translation = TrekShuttle.CostSystems,
+}
+
+option TrekShuttle.CureCrystals = {
+    type = integer, min = 0, max = 5, default = 1,
+    page = TrekBalance, translation = TrekShuttle.CureCrystals,
+}
+
+option TrekShuttle.CureHours = {
+    type = integer, min = 1, max = 168, default = 12,
+    page = TrekBalance, translation = TrekShuttle.CureHours,
+}
+
+/***** CONTENT: what of the mod is in the world at all (SERVERS.md) *****/
+
+option TrekShuttle.Shuttles = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.Shuttles,
+}
+
+option TrekShuttle.Adirondack = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.Adirondack,
+}
+
+option TrekShuttle.FieldStation = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.FieldStation,
+}
+
+option TrekShuttle.Aliens = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.Aliens,
+}
+
+option TrekShuttle.ItemLoot = {
+    type = integer, min = 0, max = 100, default = 3,
+    page = TrekContent, translation = TrekShuttle.ItemLoot,
+}
+
+option TrekShuttle.ItemBatleth = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemBatleth,
+}
+
+option TrekShuttle.ItemMekleth = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemMekleth,
+}
+
+option TrekShuttle.ItemLirpa = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemLirpa,
+}
+
+option TrekShuttle.ItemUshaanTor = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemUshaanTor,
+}
+
+option TrekShuttle.ItemPhaser = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemPhaser,
+}
+
+option TrekShuttle.ItemPhaserRifle = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemPhaserRifle,
+}
+
+option TrekShuttle.ItemKlingonDisruptor = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemKlingonDisruptor,
+}
+
+option TrekShuttle.ItemKlingonRifle = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemKlingonRifle,
+}
+
+option TrekShuttle.ItemRomulanDisruptor = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemRomulanDisruptor,
+}
+
+option TrekShuttle.ItemPolaronRifle = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemPolaronRifle,
+}
+
+option TrekShuttle.ItemCardassianPhaser = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemCardassianPhaser,
+}
+
+option TrekShuttle.ItemSentry = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemSentry,
+}
+
+option TrekShuttle.ItemsMedical = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemsMedical,
+}
+
+option TrekShuttle.ItemsInstruments = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemsInstruments,
+}
+
+option TrekShuttle.ItemsUniforms = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemsUniforms,
+}
+
+option TrekShuttle.ItemsFieldKit = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemsFieldKit,
+}
+
+option TrekShuttle.ItemsFood = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemsFood,
+}
+
+option TrekShuttle.ItemsDrinks = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemsDrinks,
+}
+
+option TrekShuttle.ItemsContraband = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemsContraband,
+}
+
+option TrekShuttle.ItemsFarming = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemsFarming,
+}
+
+option TrekShuttle.ItemsKits = {
+    type = boolean, default = true,
+    page = TrekContent, translation = TrekShuttle.ItemsKits,
+}
+
+/***** ROLEPLAY: who has what, and what it is called (SERVERS.md) *****/
+
+option TrekShuttle.AccessUsers = {
+    type = string, default = ,
+    page = TrekRoleplay, translation = TrekShuttle.AccessUsers,
+}
+
+option TrekShuttle.CabinStyle = {
+    type = enum, numValues = 5, default = 1,
+    page = TrekRoleplay, translation = TrekShuttle.CabinStyle, valueTranslation = TrekShuttle.CabinStyle,
+}
+
+option TrekShuttle.CabinLayout = {
+    type = enum, numValues = 2, default = 1,
+    page = TrekRoleplay, translation = TrekShuttle.CabinLayout, valueTranslation = TrekShuttle.CabinLayout,
+}
+
+option TrekShuttle.CabinGalley = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.CabinGalley,
+}
+
+option TrekShuttle.CabinWater = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.CabinWater,
+}
+
+option TrekShuttle.CabinMedical = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.CabinMedical,
+}
+
+option TrekShuttle.PersonalShuttles = {
+    type = enum, numValues = 3, default = 1,
+    page = TrekRoleplay, translation = TrekShuttle.PersonalShuttles, valueTranslation = TrekShuttle.PersonalShuttles,
+}
+
+option TrekShuttle.PersonalShuttleUsers = {
+    type = string, default = ,
+    page = TrekRoleplay, translation = TrekShuttle.PersonalShuttleUsers,
+}
+
+option TrekShuttle.AdirondackUsers = {
+    type = string, default = ,
+    page = TrekRoleplay, translation = TrekShuttle.AdirondackUsers,
+}
+
+option TrekShuttle.AdirondackName = {
+    type = string, default = Adirondack,
+    page = TrekRoleplay, translation = TrekShuttle.AdirondackName,
+}
+
+option TrekShuttle.SpeciesHuman = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.SpeciesHuman,
+}
+
+option TrekShuttle.SpeciesVulcan = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.SpeciesVulcan,
+}
+
+option TrekShuttle.SpeciesKlingon = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.SpeciesKlingon,
+}
+
+option TrekShuttle.SpeciesAndorian = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.SpeciesAndorian,
+}
+
+option TrekShuttle.SpeciesBetazoid = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.SpeciesBetazoid,
+}
+
+option TrekShuttle.SpeciesTrill = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.SpeciesTrill,
+}
+
+option TrekShuttle.SpeciesBajoran = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.SpeciesBajoran,
+}
+
+option TrekShuttle.SpeciesTalaxian = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.SpeciesTalaxian,
+}
+
+option TrekShuttle.SpeciesOrion = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.SpeciesOrion,
+}
+
+option TrekShuttle.SpeciesAndroid = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.SpeciesAndroid,
+}
+
+option TrekShuttle.SpeciesExBorg = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.SpeciesExBorg,
+}
+
+option TrekShuttle.TraitTransporterPhobia = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.TraitTransporterPhobia,
+}
+
+option TrekShuttle.TraitRealFoodOnly = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.TraitRealFoodOnly,
+}
+
+option TrekShuttle.TraitSpacesick = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.TraitSpacesick,
+}
+
+option TrekShuttle.TraitStarfleetAcademy = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.TraitStarfleetAcademy,
+}
+
+option TrekShuttle.TraitHoloHistorian = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.TraitHoloHistorian,
+}
+
+option TrekShuttle.TraitTurboliftPhobia = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.TraitTurboliftPhobia,
+}
+
+option TrekShuttle.ProfessionCommand = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.ProfessionCommand,
+}
+
+option TrekShuttle.ProfessionHelm = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.ProfessionHelm,
+}
+
+option TrekShuttle.ProfessionEngineer = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.ProfessionEngineer,
+}
+
+option TrekShuttle.ProfessionSecurity = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.ProfessionSecurity,
+}
+
+option TrekShuttle.ProfessionMedical = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.ProfessionMedical,
+}
+
+option TrekShuttle.ProfessionScience = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.ProfessionScience,
+}
+
+option TrekShuttle.ProfessionSurvey = {
+    type = boolean, default = true,
+    page = TrekRoleplay, translation = TrekShuttle.ProfessionSurvey,
 }

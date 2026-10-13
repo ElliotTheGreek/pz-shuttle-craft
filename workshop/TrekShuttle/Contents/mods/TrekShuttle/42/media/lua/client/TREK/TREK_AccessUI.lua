@@ -15,6 +15,11 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Access"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -36,6 +41,8 @@ AU.TIPS = {
     accNeedThree     = "IGUI_TREK_AccNeedThree",
     accDeployOutside = "IGUI_TREK_AccDeployOutside",
     accDeployRoom    = "IGUI_TREK_AccDeployRoom",
+    accClosed        = "IGUI_TREK_AccClosed",
+    accNotListed     = "IGUI_TREK_AccNotListed",
 }
 
 --- A refusal's words, with the numbers the trust one needs.

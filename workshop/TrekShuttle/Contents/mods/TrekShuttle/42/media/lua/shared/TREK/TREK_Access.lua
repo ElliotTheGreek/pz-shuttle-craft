@@ -23,6 +23,7 @@
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+require "TREK/TREK_Rules"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -143,9 +144,28 @@ function Ac.screened(player)
     return md[isClient() and C.ScreenMirrorKey or C.ScreenKey] == true
 end
 
+--- Why the server's rules keep this player off her, or nil: the sandbox has
+--- her closed, or names who may board and not them. Admins are exempt.
+function Ac.barred(player)
+    local R, Ship = TREK.Rules, TREK.Ship
+    if not R or not player then return nil end
+    local closed = Ac.mode() == C.AccessClosed
+    local name = Ship and Ship.usernameOf(player) or nil
+    if not closed and R.adirondackListed(name) then return nil end
+    if Ship and Ship.isAdmin(player) then return nil end
+    return closed and "accClosed" or "accNotListed"
+end
+
 --- Why this player may not beam to the Adirondack, or nil. The order is the
 --- order the story asks: the crew first, then the lock, then the Doctor.
 function Ac.refusal(player)
+    -- The server's own rules first (SERVERS.md): closed to everybody, or a
+    -- list this player is not on. Both come before a world that was already
+    -- visiting her.
+    local why = Ac.barred(player)
+    if why then return why end
+    -- Closed, and not barred: an admin, who has nothing to earn.
+    if Ac.mode() == C.AccessClosed then return nil end
     if Ac.open() then return nil end
     if not Ac.trustMet() then return "accTrust" end
     if Ac.rescuesOnly() then return nil end

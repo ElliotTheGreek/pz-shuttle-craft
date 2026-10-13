@@ -19,11 +19,17 @@ if isServer() then return end
 
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
+require "TREK/TREK_Rules"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Vehicle"
 require "TREK/TREK_Net"
 require "TREK/TREK_Core"
 require "TREK/TREK_Flight"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 -- Vanilla's vehicle menus are wrapped below, so they must exist first rather
 -- than by the luck of load order.
 require "Vehicles/ISUI/ISVehicleMenu"
@@ -43,11 +49,14 @@ TREK.VehicleMenu = VM
 ---------------------------------------------------------------------------
 -- Seat chart
 ---------------------------------------------------------------------------
-if ISCarMechanicsOverlay and ISCarMechanicsOverlay.CarList then
-    ISCarMechanicsOverlay.CarList[V.SCRIPT] = { imgPrefix = "trekshuttle_", x = 10, y = 0 }
-end
-if ImageScale then
-    ImageScale["trekshuttle_"] = 1.0
+-- Every kind of ship has its own (C.Hulls): the chart is her hull from above.
+for _, hull in ipairs(C.Hulls) do
+    if ISCarMechanicsOverlay and ISCarMechanicsOverlay.CarList then
+        ISCarMechanicsOverlay.CarList[hull.script] = { imgPrefix = hull.prefix, x = 10, y = 0 }
+    end
+    if ImageScale then
+        ImageScale[hull.prefix] = 1.0
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -104,6 +113,15 @@ Events.OnPlayerUpdate.Add(function(player)
     Core.refreshInventoryUI()
     Core.enter(player)
 end)
+
+--- True when this server arms her with `weapon` (sandbox *Ship's weapons*).
+--- The tractor beam is not a weapon and is always there.
+function VM.weaponAllowed(weapon)
+    local R = TREK.Rules
+    if weapon == "torpedo" then return R.torpedoes() end
+    if weapon == "phaser" then return R.shipPhasers() end
+    return true
+end
 
 function VM.onArmWeapon(player, weapon)
     if TREK.Torpedo then TREK.Torpedo.armWeapon(player, weapon) end
@@ -234,9 +252,12 @@ function ISVehicleMenu.showRadialMenu(playerObj)
     local W = TREK.Torpedo
     if W and W.armWeapon then
         for _, weapon in ipairs(C.ShipWeapons) do
-            local key = (weapon == W.weapon) and "IGUI_TREK_WeaponIsArmed" or "IGUI_TREK_WeaponArm"
-            menu:addSlice(getText(key, W.weaponName(weapon)), icon(weapon),
-                          VM.onArmWeapon, playerObj, weapon)
+            -- Only what this server arms her with (SERVERS.md).
+            if VM.weaponAllowed(weapon) then
+                local key = (weapon == W.weapon) and "IGUI_TREK_WeaponIsArmed" or "IGUI_TREK_WeaponArm"
+                menu:addSlice(getText(key, W.weaponName(weapon)), icon(weapon),
+                              VM.onArmWeapon, playerObj, weapon)
+            end
         end
     end
     -- Taking her up and setting her down are the pilot's alone.
@@ -251,7 +272,7 @@ function ISVehicleMenu.showRadialMenu(playerObj)
         -- *only* way, nobody could guess it, and the feature read as broken.
         -- The controller route still has to be built (TREK_Torpedo.lua), and
         -- when it is, it belongs on the stick and not behind a menu.
-    elseif Ship.get().landed then
+    elseif Ship.get().landed and TREK.Rules.flight() then
         menu:addSlice(getText("IGUI_TREK_TakeOff"), icon("ascend"), VM.onTakeOff, playerObj)
     end
 end

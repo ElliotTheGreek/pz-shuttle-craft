@@ -31,6 +31,11 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Captain"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -79,7 +84,7 @@ local function promote(player)
         return false
     end
     TS.setRank(player, now)
-    T.note(player, "IGUI_TREK_Promoted", getText("UI_trait_trek_" .. C.Ranks[now]),
+    T.note(player, "IGUI_TREK_Promoted", "UI_trait_trek_" .. C.Ranks[now],
            255, 220, 120)
     U.log("captain: promoted %s to %s", tostring(nameOf(player)), C.Ranks[now])
     return true

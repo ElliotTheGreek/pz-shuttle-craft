@@ -334,6 +334,9 @@ function S.schedule(at)
     local d = Cm.store()
     if d.call then return nil end
     if not d.day0 then return nil end
+    -- Sandbox *When the Adirondack first calls: Never*. Hailing her is the
+    -- crew's own doing and is not asked here.
+    if C.commsNever() then return nil end
     if d.lastEnd and at < d.lastEnd + C.CommsGapHours then return nil end
     for _, id in ipairs(Cm.tree().order) do
         if S.eligible(id, at) then

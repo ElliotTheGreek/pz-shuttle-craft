@@ -185,6 +185,12 @@ end
 
 -- In every process, because the engine drains the power in every process.
 Events.EveryOneMinute.Add(function()
+    -- The authority goes round every ship's cabin; a client connected to a
+    -- server has the one its player is dealing with in hand already.
+    if not isClient() and TREK.Ship and TREK.Ship.each then
+        TREK.Ship.each(function() U.try("serviceDevices", P.serviceDevices) end)
+        return
+    end
     U.try("serviceDevices", P.serviceDevices)
 end)
 
@@ -294,6 +300,10 @@ local function box(pool)
     if TREK.Installations and TREK.Installations.idOfPool(name) then
         return TREK.Installations.box(name) or { power = 0, crystals = 0, dark = true }
     end
+    -- Her store and the station's are the world's, kept with the shared
+    -- ship whichever shuttle is in hand: a player who owns a shuttle of their
+    -- own is served by the same warp core aboard her as everybody else.
+    s = U.world()
     if type(s[name]) ~= "table" then
         -- A client that has not been sent hers yet reads an empty one: the
         -- reserve full, no spares, and not dark.
@@ -486,9 +496,17 @@ end
 
 --- True when the ship could pay `cost` now.
 function P.canPay(cost, pool)
-    cost = cost or 0
+    cost = (cost or 0) * P.scale()
     if cost <= 0 then return true end
     return cost <= P.available(pool)
+end
+
+--- What a unit asked for takes out of the store: the sandbox's *Power use*
+--- (SERVERS.md). 1 as designed; 0 and a lit ship never runs down. A dark one
+--- is still dark: this scales a spend, and a ship with nothing spends nothing.
+function P.scale()
+    local R = TREK.Rules
+    return R and R.powerScale() or 1
 end
 
 --- Pays `cost`, burning a spare if the reserve runs out part-way. Authority
@@ -513,23 +531,29 @@ function P.pay(cost, partial, pool)
     -- and energize reports what this returns -- so the note says the truth.
     if TREK.Traits then cost = cost * TREK.Traits.powerFactor() end
 
+    -- **What is taken and what is reported are two numbers** under the
+    -- sandbox's *Power use*: `take` comes out of the store, and the caller
+    -- is answered in the units it asked for, so "paid in full" still means
+    -- the whole cost and a continuous drain still knows how far it got.
+    local scale = P.scale()
+    local take = cost * scale
     local s = box(pool)
     local have = P.reserve(pool)
-    if cost <= have then
-        s.power = have - cost
+    if take <= have then
+        s.power = have - take
         settle(pool)
         return cost
     end
     -- Run the old crystal dry, then burn a fresh one for the rest.
     s.power = 0
-    local paid = have
+    local taken = have
     if P.burnCrystal(pool) then
-        local rest = math.min(cost - paid, P.reserve(pool))
+        local rest = math.min(take - taken, P.reserve(pool))
         s.power = P.reserve(pool) - rest
-        paid = paid + rest
+        taken = taken + rest
     end
     settle(pool)
-    return paid
+    return taken / scale
 end
 
 --- True when the ship's own numbers say it has no power at all: less than one

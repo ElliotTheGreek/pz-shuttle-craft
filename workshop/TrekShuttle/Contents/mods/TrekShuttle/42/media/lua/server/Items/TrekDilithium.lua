@@ -19,6 +19,14 @@
     were raised fourfold (2026-09-24): a jeweller's case is now the likeliest
     place in town, and a tool crate a fair bet rather than a long shot.
 
+    **These weights say where, and no longer how many.** Since the balance
+    pass of 2026-10-12 a district of the county gives up one to five crystals
+    whatever its containers roll: server/TREK/TREK_Lode.lua counts each one as
+    the engine rolls it and takes back what is past the server's number. A
+    table cannot do that itself, because it is merged before the sandbox can
+    be asked. So a weight here is how soon a district's crystals turn up, and
+    in which kind of place.
+
     This file lives in server/Items/ rather than server/TREK/ because that is
     where the engine looks for distribution code, and it deliberately does not
     `require` any of the mod's own files: it runs at world generation, and a

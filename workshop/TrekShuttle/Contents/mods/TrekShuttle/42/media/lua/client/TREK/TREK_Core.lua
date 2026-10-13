@@ -26,6 +26,11 @@ require "TREK/TREK_Ship"
 require "TREK/TREK_World"
 require "TREK/TREK_Probes"
 require "TREK/TREK_Power"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -103,6 +108,16 @@ end
 -- nothing, which is the one thing TREK_Menu.lua's own header forbids.
 local DENIALS = {
     access        = "IGUI_TREK_NotCrew",
+    -- What a server has switched off or kept for some (SERVERS.md).
+    beamUpOff     = "IGUI_TREK_RuleBeamUpOff",
+    flightOff     = "IGUI_TREK_RuleFlightOff",
+    weaponsOff    = "IGUI_TREK_RuleWeaponsOff",
+    shieldsOff    = "IGUI_TREK_RuleShieldsOff",
+    instOff       = "IGUI_TREK_RuleInstOff",
+    shuttlesOff   = "IGUI_TREK_RuleShuttlesOff",
+    stationOff    = "IGUI_TREK_RuleStationOff",
+    accClosed     = "IGUI_TREK_AccClosed",
+    accNotListed  = "IGUI_TREK_AccNotListed",
     -- Marooned (MAROONED.md): no combadge until they have been aboard.
     noBadge       = "IGUI_TREK_NoBadge",
     -- A development tool asked of a server that is not in a development
@@ -1001,6 +1016,42 @@ end
 
 Events.OnTick.Add(serviceArrival)
 
+-- Every other landed shuttle's shields push the dead this client simulates
+-- as well (SERVERS.md, personal shuttles): a zombie is moved by the client
+-- that owns it or by nobody, whoever's ship it has walked up to. Each ship
+-- keeps its own count and its own report, and is billed for its own pushes.
+local otherShieldCounts = {}
+
+function Core.otherShields(player)
+    if not isClient() then return 0 end
+    local ships = 0
+    for _, id in ipairs(Ship.ids()) do
+        if id ~= U.shipNow then
+            local slot = otherShieldCounts[id]
+            if not slot then
+                slot = { pushes = 0, at = 0 }
+                otherShieldCounts[id] = slot
+            end
+            local pushes, at = Core.shieldPushes, Core.shieldReportAt
+            Core.shieldPushes, Core.shieldReportAt = slot.pushes, slot.at
+            U.try("shields.other", U.usingShip, id, function()
+                Core.repelZombies()
+                Core.reportShieldDraw(player)
+            end)
+            slot.pushes, slot.at = Core.shieldPushes, Core.shieldReportAt
+            Core.shieldPushes, Core.shieldReportAt = pushes, at
+            ships = ships + 1
+        end
+    end
+    return ships
+end
+
+--- The server has given this player a shuttle of their own.
+Net.onClient("shuttleIssued", function(args)
+    local player = U.player(0)
+    if player then U.note(player, getText("IGUI_TREK_ShuttleIssued"), 150, 220, 255) end
+end)
+
 Events.OnGameStart.Add(function()
     U.log("client ready (%s, v%s)", isClient() and "connected to a server" or "single player",
           C.Version)
@@ -1022,6 +1073,7 @@ Events.OnPlayerUpdate.Add(function(player)
         fieldTick = 0
         Core.repelZombies()
         Core.reportShieldDraw(player)
+        Core.otherShields(player)
     end
 end)
 

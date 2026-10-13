@@ -68,6 +68,7 @@
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Power"
+require "TREK/TREK_Rules"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -164,6 +165,8 @@ local function admissible(id, module, obsolete, hidden)
     if obsolete or hidden then return false end
     if module and C.ReplicatorSkipModules[module] then return false end
     if C.ReplicatorBlocked[id] then return false end
+    -- Sandbox *Content*: what the server has switched off is not made here.
+    if not TREK.Rules.itemAllowed(id) then return false end
     return true
 end
 
@@ -173,8 +176,14 @@ end
 --- thousand items, and a method name that does not exist throws out of Java
 --- with a full stack trace *per call*. That is thousands of dumps, which
 --- locks the game hard enough to look like a crash.
+local builtFor = nil      -- the item switches the catalogue was built under
 local function build()
-    if rows then return end
+    -- Built again when a server changes what is allowed: a switch is read
+    -- while the server runs, and a catalogue built once would go on offering
+    -- what was switched off, or never offer what was switched back on.
+    local switches = TREK.Rules.itemSignature()
+    if rows and builtFor == switches then return end
+    builtFor = switches
     rows, byId, categories, byCategory = {}, {}, {}, {}
 
     local list = U.try("getAllItems", function() return getAllItems() end)
@@ -367,11 +376,15 @@ function R.energy()
     return TREK.Power.reserve()
 end
 
---- What `count` of this row costs. Free when the sandbox says so.
+--- What `count` of this row costs on this server. Free when the sandbox
+--- says so, and scaled by its *Cost: replicator* otherwise: each one a whole
+--- number, so ten cost ten times what one does. The catalogue keeps the
+--- price as designed (row.cost); this is the only place it becomes a charge.
 function R.cost(row, count)
     if not row then return 0 end
     if R.isFree() then return 0 end
-    return row.cost * (count or 1)
+    local each = TREK.Rules.whole(row.cost, TREK.Rules.costScale("CostReplicator"))
+    return each * (count or 1)
 end
 
 --- True when `count` is one of the quantities the panel offers. The server

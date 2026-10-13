@@ -34,6 +34,7 @@ require "TREK/TREK_Ship"
 require "TREK/TREK_Power"
 require "TREK/TREK_Medical"
 require "TREK/TREK_Contraband"
+require "TREK/TREK_Rules"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -220,7 +221,7 @@ function E.patients(asking)
     local site = asking ~= nil and placeOf(asking) or nil
     for _, p in ipairs(U.players()) do
         local alive = U.try("emh.alive", function() return p:isDead() end) == false
-        local here = (site and placeOf(p) == site) or (not site and U.isInteriorPlayer(p))
+        local here = (site and placeOf(p) == site) or (not site and U.aboardThis(p))
         if alive and here then
             local name = TREK.Ship.usernameOf(p)
             local row = { player = p, name = name, own = (name == mine) or nil }
@@ -283,9 +284,9 @@ function E.refusal(player)
     return nil
 end
 
---- What a treatment costs from the reserve.
+--- What a treatment costs from the reserve, on this server.
 function E.treatCost()
-    return C.EmhTreatCost
+    return TREK.Rules.cost("EmhTreatCost")
 end
 
 --- Why a **treatment** would be refused for this patient, or nil.
@@ -381,7 +382,7 @@ function E.cureRefusal(patient, username)
         return "emhNotInfected"
     end
     if username and E.cureDue(username) then return "emhCuring" end
-    if TREK.Power.crystals() < C.EmhCureCrystals then return "emhNoCrystal" end
+    if TREK.Power.crystals() < TREK.Rules.cureCrystals() then return "emhNoCrystal" end
     return nil
 end
 

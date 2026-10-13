@@ -31,6 +31,7 @@ require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Raids"
 require "TREK/TREK_Access"
+require "TREK/TREK_Rules"
 require "TREK/TREK_Adirondack"
 require "TREK/TREK_World"
 require "TREK/TREK_Installations"
@@ -548,7 +549,7 @@ function S.buildCamp(raid, cx, cy, z)
             if c then c:setExplored(true) end
         end)
     end
-    local crystalAt = roll(100) < C.RaidCrystalChance and (roll(#C.OutpostCrates) + 1) or nil
+    local crystalAt = roll(100) < TREK.Rules.raidCrystal() and (roll(#C.OutpostCrates) + 1) or nil
     for i, p in ipairs(C.OutpostCrates) do
         placeTile(cx + p[1], cy + p[2], z, C.OutpostCrateSprite, function(o) stockCrate(o, i == crystalAt) end)
     end

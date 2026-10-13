@@ -44,6 +44,11 @@ require "TREK/TREK_Replicator"
 require "TREK/TREK_Power"
 require "TREK/TREK_Core"
 require "TREK/TREK_Helm"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -343,7 +348,7 @@ function TREKReplicatorWindow:drawRow(y, entry, alt)
     self:drawText(cat, w - 150, y + 3, P.dim[1] * 1.3, P.dim[2] * 1.3,
                   P.dim[3] * 1.3, 1, UIFont.Small)
 
-    local text = known and tostring(item.cost)
+    local text = known and tostring(R.cost(item, 1))
                         or getText("IGUI_TREK_RepNoPatternShort")
     self:drawTextRight(text, w - 10, y + 3, right[1], right[2], right[3], 1, UIFont.Small)
     return y + entry.height

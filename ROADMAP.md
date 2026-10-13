@@ -17,7 +17,7 @@ the detail.**
 
 ## 1. Where it stands
 
-**Version 1.21.0, build revision 36.** 1.20.0 is staged for the Workshop;
+**Version 1.22.0, build revision 36.** 1.22.0 is staged for the Workshop (2026-10-13), unplayed;
 1.21.0 (the server's rules, personal shuttles, the lore pack and the
 languages' tools, `SERVERS.md`) is built and not played.
 

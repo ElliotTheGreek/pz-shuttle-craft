@@ -31,6 +31,12 @@ require "TREK/TREK_Access"
 require "TREK/TREK_Adirondack"
 require "TREK/TREK_FieldStation"
 require "TREK/TREK_EMH"
+require "TREK/TREK_Rules"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -406,7 +412,7 @@ Net.onServer("accessScreen", function(player)
     if why then deny(player, why) return end
     why = Ac.screenRefusal(player)
     if why then deny(player, why) return end
-    if not TREK.Energy.energize(player, "screen", C.ScreenCost, { why = "emhNoPower" }) then
+    if not TREK.Energy.energize(player, "screen", TREK.Rules.cost("ScreenCost"), { why = "emhNoPower" }) then
         return
     end
     if Ac.sampleNeeded() and not take(player, C.NanoprobeItem, 1) then
@@ -531,7 +537,7 @@ local function resolve(job, found, hold)
             local TS, Cap = TREK.TraitsServer, TREK.Captain
             if TS and Cap and TREK.Traits and Cap.promotionDue(p) then
                 TREK.Traits.note(p, "IGUI_TREK_PromotionDue",
-                                 getText("UI_trait_trek_" .. C.Ranks[TS.earnedRank(p)]), 255, 220, 120)
+                                 "UI_trait_trek_" .. C.Ranks[TS.earnedRank(p)], 255, 220, 120)
             end
         end
     end

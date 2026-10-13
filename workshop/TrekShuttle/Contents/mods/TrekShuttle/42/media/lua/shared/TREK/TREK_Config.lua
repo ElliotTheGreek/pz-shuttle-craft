@@ -15,7 +15,7 @@ TREK = TREK or {}
 local C = {}
 TREK.Config = C
 
-C.Version   = "1.20.0"
+C.Version   = "1.22.0"
 -- The key predates multiplayer and is kept so single-player saves carry over;
 -- the table inside is migrated by U.state() (schema 2).
 C.StateKey  = "TREK_State_v1"
@@ -84,6 +84,28 @@ C.VoidMap = "TrekShuttle"
 -- Offset of the cabin inside that cell, so nothing touches a cell edge; chunk
 -- seams make edge squares awkward to generate reliably.
 C.RoomOffset = 16
+
+---------------------------------------------------------------------------
+-- Personal shuttles (SERVERS.md)
+---------------------------------------------------------------------------
+-- A server may give players a shuttle each (sandbox *Personal shuttles*).
+-- Ship 1 is the shared one, where she always was; ship N has a cabin of its
+-- own on a grid of berths south of her, each as far from the next as the
+-- Adirondack's decks are from each other, so none is ever seen from another
+-- (JEFFERIES.md 5). The cells are mapped empty by tools/gen_void_map.py,
+-- which reads these numbers: change one and regenerate.
+--
+-- **A berth is for the life of the save.** It is where a cabin stands, with
+-- everything its owner keeps in it, so an id is given once and never reused.
+C.FleetKey     = "TREK_Fleet_v1"
+C.FleetCell    = { x = 96, y = 43 }
+C.FleetOffset  = 64
+C.FleetPitch   = 128
+C.FleetColumns = 8
+C.FleetSlots   = 64
+-- What a personal shuttle is issued with: one crystal's charge in the core,
+-- no spares, and these probes. Overhead, commissioned, waiting to be called.
+C.PersonalProbes = 2
 
 -- The cabin is one compartment on one storey. There is no deck stack, so
 -- none of the TARDIS's sideways-stepping is needed -- but the reason for it
@@ -686,6 +708,11 @@ C.TorpedoMaxRange = 60
 -- there is one set of tubes, so two crew cannot take turns to halve it.
 C.TorpedoCooldownMs = 6000
 
+-- What a torpedo takes from the reserve (sandbox *Cost: ship's weapons*). It
+-- was free until the balance pass of 2026-10-12, and a weapon that levels a
+-- street for nothing was the cheapest thing aboard.
+C.TorpedoCost = 250
+
 -- The blast is centred on the ground, so a torpedo fired at your own shadow
 -- would catch the ship. **Raised from 4 to 12 when the fire was turned on**,
 -- and the arithmetic is the reason: the blast is C.TorpedoRange (7) and the
@@ -721,7 +748,7 @@ C.ShipWeapons = { "torpedo", "phaser", "tractor" }
 -- `cost` is power per bolt, taken from the ship's reserve; a shot that finds
 -- nobody costs nothing. `cooldownMs` is a debounce, not a reload.
 C.ShipPhaser = {
-    range = 40, targets = 8, cost = 5, damage = 200, cooldownMs = 350,
+    range = 40, targets = 8, cost = 15, damage = 200, cooldownMs = 350,
     cosHalf = 0.94, past = 6, near = 3, close = 6,
 }
 
@@ -735,7 +762,7 @@ C.ShipPhaser = {
 -- 2026-10-09: "picked up to half the distance", after one would not cross a
 -- fence), so it clears what is on the ground.
 C.Tractor = {
-    radius = 5, costPerSec = 4, maxZombies = 60, maxCars = 4, recaptureTicks = 15,
+    radius = 5, costPerSec = 10, maxZombies = 60, maxCars = 4, recaptureTicks = 15,
     lift = 0.5,
     -- Named fields, as C.PhaserTint is: the beam's drawing reads .r .g .b,
     -- and a list here drew nothing and threw twice a frame (2026-10-09).
@@ -1250,9 +1277,10 @@ C.CoreRange = 2
 C.CoreMenuSpots = { {2,3}, {1,3}, {1,2}, {2,2} }
 
 -- What a new ship is issued with, on top of the crystal it arrives burning.
--- Three is enough to teach the player what they are for and not enough to
--- skip the hunt.
-C.DilithiumIssue = 3
+-- It was three until the balance pass of 2026-10-12, when a town came to
+-- hold one to five: three spares was a town's worth handed over at the
+-- door. Sandbox *Spare crystals at a commissioned start*.
+C.DilithiumIssue = 1
 
 ---------------------------------------------------------------------------
 -- Power
@@ -1274,25 +1302,29 @@ C.DevicePower = 1.0
 C.PowerAmber = 0.25
 C.PowerRed = 0.10
 
--- What everything costs (ENERGY.md 3.5). **Starting values, meant to be tuned
--- in play.** They were set so one crystal buys about three outings, the
--- author's choice on 2026-09-24: an outing (call her down, take off, fly
--- about 500 tiles, hover an hour, push fifty zombies, mend a scrape, four
--- beams, the Doctor and one treatment) comes to about 1,800 units, and
--- tests/test_multiplayer.py fails if a later tweak moves that outside
--- 1,500..2,100. Flight is more than half of every outing, so AirCostPerTile
--- is the lever: about 4 is one outing a crystal, about 0.6 is ten.
-C.BeamCost = 25             -- each beam, either direction, per person
-C.LandCost = 150            -- calling her down, or the helm's take-her-down
-C.RecallCost = 50           -- sending her up, by hand or when the crew leave
-C.EngineStartCost = 25      -- the engine catching, charged on the start edge
-C.TakeoffCost = 100         -- checked at take-off, spent once she is up
-C.GroundCostPerTile = 0.5   -- driving on the ground
-C.AirCostPerTile = 2        -- moving in the air
-C.HoverCostPerMinute = 1    -- holding five tonnes up, moving or not
-C.ShieldPushCost = 2        -- each zombie the shields push
-C.RepairCostPerPoint = 1    -- each condition point the shields mend
-C.EmhProjectCost = 100      -- bringing the Doctor up; putting him away is free
+-- What everything costs (ENERGY.md 3.5). **One crystal buys about one
+-- outing**, the author's choice on 2026-10-12 ("much more aggressive"): an
+-- outing (call her down, take off, fly about 500 tiles, hover an hour, push
+-- fifty zombies, mend a scrape, four beams, the Doctor and one treatment)
+-- comes to about 4,100 units, and tests/test_multiplayer.py fails if a later
+-- tweak moves that outside 3,500..5,000. It was about three outings a
+-- crystal, at 1,800, from 2026-09-24 until then. Flight is half of every
+-- outing, so AirCostPerTile is the lever.
+--
+-- These are the mod as designed. A server scales them by the group on the
+-- sandbox's balance page (TREK.Rules.cost, SERVERS.md), so **nothing reads
+-- one of these numbers directly but TREK_Rules**.
+C.BeamCost = 75             -- each beam, either direction, per person
+C.LandCost = 400            -- calling her down, or the helm's take-her-down
+C.RecallCost = 150          -- sending her up, by hand or when the crew leave
+C.EngineStartCost = 50      -- the engine catching, charged on the start edge
+C.TakeoffCost = 300         -- checked at take-off, spent once she is up
+C.GroundCostPerTile = 1.5   -- driving on the ground
+C.AirCostPerTile = 4        -- moving in the air
+C.HoverCostPerMinute = 3    -- holding five tonnes up, moving or not
+C.ShieldPushCost = 5        -- each zombie the shields push
+C.RepairCostPerPoint = 3    -- each condition point the shields mend
+C.EmhProjectCost = 300      -- bringing the Doctor up; putting him away is free
 
 -- The odometer ignores a move longer than this in one vehicle pass (a second
 -- of game time). A respawn, a landing move or a teleport is not a journey,
@@ -1326,11 +1358,11 @@ C.PowerBusTag = "powerbus"
 -- 20-square reach of every appliance.
 C.PowerBusSpot = { x = -1, y = 2 }
 -- What one unit of generator fuel costs the reserve. The fridge and the bus
--- itself burn about 0.15 fuel a game hour, so this is about 3 units an hour,
--- 72 a day: a crystal keeps the galley cold for two months of game time on
--- its own. Only billed while the cabin is loaded -- which is also the only
--- time the engine burns any.
-C.FuelToEnergy = 20
+-- itself burn about 0.15 fuel a game hour, so this is about 7.5 units an
+-- hour, 180 a day: a crystal keeps the galley cold for four weeks of game
+-- time on its own. Only billed while the cabin is loaded -- which is also
+-- the only time the engine burns any.
+C.FuelToEnergy = 50
 -- The sound prefix the bus's sprite is given, so the engine plays
 -- TrekBusLoop and friends rather than a petrol generator's hum and clunk.
 C.PowerBusSound = "TrekBus"
@@ -1354,6 +1386,54 @@ C.WildScarce = 2
 C.WildNone = 3
 C.WildPlentifulOneIn = 12
 C.WildScarceOneIn = 48
+-- Very rare, the default since the balance pass of 2026-10-12: one crystal
+-- to about 350 by 350 squares of field or wood, so the countryside holds a
+-- handful where a town's loot holds one to five (C.LootCrystalsMin). The
+-- fourth value, after None, so a server's saved 1..3 mean what they meant.
+C.WildVeryRare = 4
+C.WildVeryRareOneIn = 2000
+
+-- The mod's things in the world's loot (server/TREK/TREK_Salvage.lua), on a
+-- server with no shuttle to issue them: sandbox `TrekShuttle.Shuttles` off.
+-- `chance` is the per cent of fitting containers that hold one (sandbox
+-- `ItemLoot`), and a room's name is the engine's own, the key vanilla's
+-- Distributions.lua files it under; tests/test_assets.py holds every one
+-- against the installed game. Only what a person could carry off a shelf:
+-- no dishes that would have spoiled since 1993.
+C.Salvage = {
+    chance = 3,
+    places = {
+        { rooms = { "gunstore", "gunstorestorage", "policestorage", "armystorage",
+                    "armysurplus", "pawnshop", "security" },
+          items = { "TrekShuttle.TrekBatleth", "TrekShuttle.TrekMekleth", "TrekShuttle.TrekLirpa", "TrekShuttle.TrekUshaanTor", "TrekShuttle.TrekPhaser", "TrekShuttle.TrekPhaserRifle", "TrekShuttle.TrekKlingonDisruptor", "TrekShuttle.TrekKlingonRifle", "TrekShuttle.TrekRomulanDisruptor", "TrekShuttle.TrekPolaronRifle", "TrekShuttle.TrekCardassianPhaser", "TrekShuttle.TrekSentry" } },
+        { rooms = { "medical", "pharmacy", "pharmacystorage", "hospitalroom" },
+          items = { "TrekShuttle.TrekHypospray", "TrekShuttle.TrekDermalRegen", "TrekShuttle.TrekMedTricorder" } },
+        { rooms = { "toolstore", "garagestorage", "mechanic" },
+          items = { "TrekShuttle.TrekFieldKit", "TrekShuttle.TrekTricorder", "TrekShuttle.TrekPADD", "TrekShuttle.TrekShoulderLamp", "TrekShuttle.TrekWarpCoreKit", "TrekShuttle.TrekReplicatorKit", "TrekShuttle.TrekEMHKit" } },
+        { rooms = { "clothingstore", "laundry" },
+          items = { "TrekShuttle.TrekUniformDutyCommand", "TrekShuttle.TrekUniformDutyOperations", "TrekShuttle.TrekUniformDutyScience", "TrekShuttle.TrekUniformDressCommand", "TrekShuttle.TrekUniformDressOperations", "TrekShuttle.TrekUniformDressScience", "TrekShuttle.TrekBackpack", "TrekShuttle.TrekHolster" } },
+        { rooms = { "bar", "liquorstore" },
+          items = { "TrekShuttle.TrekRomulanAle", "TrekShuttle.TrekBloodwine", "TrekShuttle.TrekAndorianAle", "TrekShuttle.TrekKanar", "TrekShuttle.TrekSaurianBrandy", "TrekShuttle.TrekAldebaranWhiskey" } },
+        { rooms = { "grocery", "restaurantkitchen" },
+          items = { "TrekShuttle.TrekRationPack" } },
+        { rooms = { "gardenstore", "farmstorage" },
+          items = { "TrekShuttle.TrekTeaSeed", "TrekShuttle.TrekBergamotSeed", "TrekShuttle.TrekKlingonCoffeeSeed", "TrekShuttle.TrekPlomeekSeed", "TrekShuttle.TrekLeolaSeed", "TrekShuttle.TrekAndorianTuberSeed", "TrekShuttle.TrekHasperatSeed" } },
+        { rooms = { "motelroom" },
+          items = { "TrekShuttle.TrekKetracelWhite", "TrekShuttle.TrekFelicium", "TrekShuttle.TrekTrelliumD", "TrekShuttle.TrekKtarianGame", "TrekShuttle.TrekLatinumStrip" } },
+    },
+}
+
+-- Dilithium in a town's loot (server/TREK/TREK_Lode.lua), sandbox
+-- `TrekShuttle.LootDilithiumMin` and `LootDilithiumMax`. The county is cut
+-- into districts this many squares across -- Muldraugh, Rosewood, Riverside
+-- and March Ridge are each about one, West Point one or two, Louisville half
+-- a dozen -- and every container in a district between them gives up a
+-- number of crystals between the fewest and the most, drawn once a world.
+-- The author, 2026-10-12: "far more rare, like 1 to 5 for an entire town".
+C.LootKey = "TREK_Lode_v1"
+C.LootDistrict = 1500
+C.LootCrystalsMin = 1
+C.LootCrystalsMax = 5
 -- How far around each player on foot the ground is looked at, in squares.
 C.WildScanRadius = 40
 
@@ -1526,9 +1606,15 @@ C.ReplicatorMenuMargin = 1
 -- game has and it is roughly what the thing *is*: a bandage is 5, a tin of
 -- beans 12, a hammer 24, a shotgun 44. The cap stops a generator (60 kg)
 -- asking for six hundred.
-C.ReplicatorBaseCost   = 4
-C.ReplicatorWeightCost = 10
-C.ReplicatorMaxCost    = 150
+--
+-- Five times what they were until the balance pass of 2026-10-12 (4, 10 and
+-- 150: a bandage 5, a hammer 24), when a crystal made two hundred hammers.
+-- Now a bandage is 25, a tin of beans 60, a hammer 120, a shotgun 220 and
+-- the cap 1,500. Sandbox *Cost: replicator* scales what comes out of this
+-- (TREK.Replicator.cost).
+C.ReplicatorBaseCost   = 20
+C.ReplicatorWeightCost = 50
+C.ReplicatorMaxCost    = 1500
 
 -- What the panel offers per press. A quantity field is what makes the energy
 -- budget do its work in one decision rather than in ten clicks.
@@ -1576,8 +1662,12 @@ C.ContactKey = "TREK_Contacts_v1"
 -- into an event: "three probes aboard" is a state a player can plan around,
 -- where "830 units of reserve" is arithmetic they have to do first.
 --
--- One crystal is 5000, so a crystal is twenty probes.
-C.ProbeCost = 250
+-- One crystal is 5000, so a crystal is three probes, and at C.ProbeFindChance
+-- three probes find about one crystal: a probe is how a crew with power find
+-- the next crystal, and not a way to turn one into several. It was 250, at
+-- nine finds in ten, until the balance pass of 2026-10-12: twenty probes and
+-- a dozen crystals out of every crystal.
+C.ProbeCost = 1500
 
 -- How many fabricated probes the ship will hold. A cap so that a crew who
 -- have nothing else to spend energy on cannot bank a hundred of them and
@@ -1628,11 +1718,21 @@ C.ProbeBearingTries = 24
 -- probes in a row after the opening one -- a 1.5% streak, but a design that
 -- can do that to somebody will. Now that everything aboard runs on the
 -- crystal, a probe is how the crew eat: 0.9, and C.ProbeDryLimit below.
-C.ProbeFindChance = 0.9
+--
+-- And 0.3 since the balance pass of 2026-10-12, with the probe's price up to
+-- match (C.ProbeCost): sandbox *Probes that find dilithium*. The opening
+-- probe of a save still always finds, and the dark ship's recovery probe
+-- (ENERGY.md 10.6) is what a cold start cannot be stalled without.
+C.ProbeFindChance = 0.3
 
 -- After this many empty probes in a row, the next one always finds
 -- something. Not a hidden pity timer for its own sake: an honest empty report
 -- is still a real outcome, but a streak of them is a campaign stalled on luck.
+--
+-- **This is the wait at nine finds in ten**, the chance it was set for.
+-- TREK.Rules.probeDryLimit stretches it as a find is made rarer (six at the
+-- default three in ten), or the promise would hand out more than the
+-- setting allows.
 C.ProbeDryLimit = 2
 
 -- Of the probes that find something once first contact has happened, how
@@ -1979,13 +2079,14 @@ C.EmhOfferMs = 30000
 --
 -- **Supplies are infinite; power is not.** There is nothing to restock, no
 -- doses and no dressings -- which is what ROADMAP.md asks for -- and the
--- limit is the same dilithium the replicator burns. At 25 against a crystal's
--- 5000 that is two hundred treatments to a crystal: unlimited in play, and
--- honest about what he runs on. The Doctor will not come up at all on an
+-- limit is the same dilithium the replicator burns. At 100 against a crystal's
+-- 5000 that is fifty treatments to a crystal (it was 25, and two hundred,
+-- until the balance pass of 2026-10-12): plenty, and honest about what he
+-- runs on. The Doctor will not come up at all on an
 -- empty reserve, which is what four separate comments in this repository
 -- already promised ("a crew with no crystals has a galley fixture and a
 -- hologram that will not switch on").
-C.EmhTreatCost = 25
+C.EmhTreatCost = 100
 
 -- What the cure costs: **one whole crystal**, not units.
 --
@@ -2034,6 +2135,30 @@ C.EmhOff  = 2
 ---------------------------------------------------------------------------
 -- The hull outside is a world model, defined in media/scripts/trekshuttle.txt.
 C.ExteriorItem = "TrekShuttle.TrekShuttleHull"
+
+-- **One hull, many skins** (tools/gen_shuttle.py, which is held to these two
+-- lists). The vehicle script has a skin block for each livery in each state,
+-- a livery's three states together, and the engine keeps which one a vehicle
+-- wears. V.skinFor (TREK_Vehicle.lua) says which a ship is given when she is
+-- set down. **The engine saves the index: append, never reorder.**
+C.HullLiveries = { "fleet", "sciences", "ops", "medical", "tactical", "survey" }
+C.HullStates = { "kept", "worn", "derelict" }
+
+-- **What kinds of ship there are.** A kind is a hull and nothing else: each
+-- is the shuttle's vehicle script under another name, with a mesh and
+-- liveries of its own (tools/gen_craft.py), so every kind is sat in, flown
+-- and set down as she is, on the same fifteen squares, and has her cabin.
+-- Which kind a ship is is `s.hull`, an id from this list; a ship with none
+-- is the first. `sheet` is her first skin's texture, `prefix` her seat
+-- chart's art, `name` what she is called on a menu. **Ids are saved.**
+C.Hulls = {
+    { id = "shuttle", script = "Base.TrekShuttleCraft", sheet = "TREK_Shuttle", prefix = "trekshuttle_",
+      name = "IGUI_TREK_HullType_shuttle", liveries = C.HullLiveries },
+    { id = "raider", script = "Base.TrekRaider", sheet = "TREK_Raider", prefix = "trekraider_",
+      name = "IGUI_TREK_HullType_raider", liveries = { "house", "blood", "night" } },
+    { id = "vulcan", script = "Base.TrekVulcan", sheet = "TREK_Vulcan", prefix = "trekvulcan_",
+      name = "IGUI_TREK_HullType_vulcan", liveries = { "bronze", "sand", "slate" } },
+}
 
 -- The helm console. Not placed any more: it was a 70-weight static model
 -- standing in the cabin that did nothing at all. The helm panel opens from
@@ -2250,7 +2375,7 @@ C.SentryDamage = 100
 C.SentryArmMs = 3000
 -- Recharged from the ship's power at a warp core -- the shuttle's, hers, the
 -- station's or an installed one -- for this much of the reserve, full.
-C.SentryRechargeCost = 250
+C.SentryRechargeCost = 750
 -- How many a server keeps working at once, all players together.
 C.SentryMax = 12
 -- Where its bolt leaves it: this far up a level, the emitter on its mast.
@@ -2415,6 +2540,19 @@ C.CommsFirstContactDay = 7
 -- (TREK_Comms.day). "Straight away" is also how a player reaches the
 -- channel in a fresh world without a debug console.
 C.CommsFirstDays = { 0, 1, 3, 7, 14 }
+-- The sixth value is *Never*: she does not call. The calendar runs as it does
+-- for a week, so a crew who hail her find the story where it would have been.
+C.CommsFirstNever = 6
+
+--- True when the sandbox says the Adirondack never calls (SERVERS.md).
+function C.commsNever()
+    -- Sandbox *The ship in orbit*, off: she is not there to call.
+    if TREK.Rules and not TREK.Rules.adirondack() then return true end
+    local ok, v = pcall(function()
+        return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.CommsFirstDay
+    end)
+    return ok and tonumber(v) == C.CommsFirstNever
+end
 
 function C.commsFirstDay()
     local ok, v = pcall(function()
@@ -2474,14 +2612,17 @@ C.ScreenKey = "TREKScreened"
 C.ScreenMirrorKey = "TREKScreenedSeen"
 
 -- Sandbox *Adirondack access*: 1 earned (every key), 2 open from the start,
--- 3 rescues only. An absent value is the feature as designed.
-C.AccessEarned, C.AccessOpen, C.AccessRescuesOnly = 1, 2, 3
+-- 3 rescues only, 4 closed to everybody but an admin (SERVERS.md). An absent
+-- value is the feature as designed.
+C.AccessEarned, C.AccessOpen, C.AccessRescuesOnly, C.AccessClosed = 1, 2, 3, 4
 function C.accessMode()
+    -- Sandbox *The ship in orbit*, off: closed, whatever the access says.
+    if TREK.Rules and not TREK.Rules.adirondack() then return C.AccessClosed end
     local ok, v = pcall(function()
         return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.AdirondackAccess
     end)
     v = ok and tonumber(v) or nil
-    if v == 1 or v == 2 or v == 3 then return v end
+    if v == 1 or v == 2 or v == 3 or v == 4 then return v end
     return C.AccessEarned
 end
 
@@ -2525,7 +2666,7 @@ C.LockBeaconVolume = 60
 C.LockLiftHours = 0.5
 
 -- The Doctor's biofilter screening, in reserve units.
-C.ScreenCost = 50
+C.ScreenCost = 150
 
 ---------------------------------------------------------------------------
 -- Raids: when the pattern buffer overflows (RAIDS.md)
@@ -2543,6 +2684,8 @@ C.RaidZedKey = "TREKRaid"
 -- the feature as designed.
 C.RaidsOff, C.RaidsRare, C.RaidsNormal, C.RaidsFrequent = 1, 2, 3, 4
 function C.raidsMode()
+    -- A raid is the Adirondack's request: with her switched off, none.
+    if TREK.Rules and not TREK.Rules.adirondack() then return C.RaidsOff end
     local ok, v = pcall(function() return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.Raids end)
     v = ok and tonumber(v) or nil
     if v == 1 or v == 2 or v == 3 or v == 4 then return v end
@@ -2657,7 +2800,7 @@ C.RaidLoot = {
     "TrekShuttle.TrekRationPack",
 }
 -- The chance, in per cent, that one crate holds a dilithium crystal.
-C.RaidCrystalChance = 25
+C.RaidCrystalChance = 10
 -- Where a raider is put down, from the camp's centre.
 C.OutpostStand = { 0, 0 }
 
@@ -2750,7 +2893,7 @@ C.TrillPerks = { "Cooking", "Doctor", "Electricity", "Mechanics", "MetalWelding"
 C.AndroidChargeKey      = "TREKCharge"
 C.AndroidDrainPerHour   = 100 / 36
 C.AndroidChargePerHour  = 10
-C.AndroidChargeCost     = 2       -- reserve units per point
+C.AndroidChargeCost     = 5       -- reserve units per point
 C.AndroidLowCharge      = 25      -- below this: tired and slow
 C.AndroidFlatFatigue    = 0.95    -- at nothing: exhausted
 C.AndroidLowFatigue     = 0.6
@@ -2884,7 +3027,7 @@ C.ContrabandNagHours = 1
 -- The Doctor's detox: every habit gone, in one treatment, for reserve units.
 -- Four treatments' worth -- dearer than a dressing, a long way short of a
 -- crystal, because it cures a misery rather than a death.
-C.EmhDetoxCost = 100
+C.EmhDetoxCost = 400
 
 -- Never replicated. The fiction is that a replicator refuses narcotics; the
 -- game is that the hideouts are the only place any of it comes from.

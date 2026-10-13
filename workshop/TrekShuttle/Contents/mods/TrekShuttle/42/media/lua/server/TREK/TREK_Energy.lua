@@ -24,6 +24,7 @@ require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Ship"
 require "TREK/TREK_Power"
+require "TREK/TREK_Rules"
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -161,8 +162,10 @@ function E.energize(player, what, cost, opts)
     E.thresholds(sparesBefore)
     if not opts.noCommit then Ship.commit() end
     if player and not opts.silent and paid > 0 then
+        -- What really left the store, which the sandbox's *Power use* may
+        -- have made less than what was asked (SERVERS.md).
         Net.toClient(player, "energized", {
-            what = what, cost = math.ceil(paid), left = math.floor(P.reserve()),
+            what = what, cost = math.ceil(paid * P.scale()), left = math.floor(P.reserve()),
         })
     end
     E.powerChanged()
@@ -173,8 +176,10 @@ end
 -- powerChanged itself. This catches a change that came some other way, and
 -- gives a save from before this guide its flag on the first minute.
 Events.EveryOneMinute.Add(function()
-    U.try("powerChanged", E.powerChanged)
-    U.try("hover", E.serviceHover)
+    Ship.each(function()
+        U.try("powerChanged", E.powerChanged)
+        U.try("hover", E.serviceHover)
+    end)
 end)
 
 --- Holding five tonnes up is not free, moving or not (ENERGY.md 4.3, and the
@@ -183,7 +188,7 @@ end)
 --- is section 7's case.
 function E.serviceHover()
     if U.state().flying ~= true then return false end
-    E.energize(nil, "hover", C.HoverCostPerMinute, { partial = true, silent = true })
+    E.energize(nil, "hover", TREK.Rules.cost("HoverCostPerMinute"), { partial = true, silent = true })
     return true
 end
 

@@ -35,7 +35,13 @@ require "TREK/TREK_Core"
 require "TREK/TREK_Net"
 require "TREK/TREK_Probes"
 require "TREK/TREK_Power"
+require "TREK/TREK_Rules"
 require "TREK/TREK_Helm"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -237,9 +243,10 @@ function TREKProbeWindow:prerender()
     local rack = s.probes or 0
     local active = P.active()
 
-    self.buildBtn.title = getText("IGUI_TREK_ProbeBuild", tostring(C.ProbeCost))
+    local probeCost = TREK.Rules.cost("ProbeCost")
+    self.buildBtn.title = getText("IGUI_TREK_ProbeBuild", tostring(probeCost))
     self.buildBtn.enable = rack < C.MaxProbes
-                           and math.floor(TREK.Power.reserve()) >= C.ProbeCost
+                           and math.floor(TREK.Power.reserve()) >= probeCost
 
     self.launchBtn.title = getText("IGUI_TREK_ProbeLaunchBtn")
     self.launchBtn.enable = active == nil and rack > 0

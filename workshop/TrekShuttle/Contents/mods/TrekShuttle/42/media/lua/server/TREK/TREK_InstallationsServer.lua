@@ -262,6 +262,12 @@ end
 ---------------------------------------------------------------------------
 Net.onServer("installMachine", function(player, args)
     if not alive(player) then return end
+    -- Sandbox *Installing machines in the world* (SERVERS.md). Dismantling
+    -- is never asked: what stands may always be packed up.
+    if TREK.Rules and not TREK.Rules.installations() then
+        deny(player, "instOff")
+        return
+    end
     local kind = args.kind
     local kit = IN.Kits[kind]
     if not kit then return end

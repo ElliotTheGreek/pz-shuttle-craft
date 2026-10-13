@@ -41,6 +41,8 @@ TREK.Borg = B
 --- The sandbox's scale on the two chances: 1 as police, 2 scarce, 3 common,
 --- 4 none.
 function B.scale()
+    -- Sandbox *Aliens*, off: none, whatever the Borg's own setting says.
+    if TREK.Rules and not TREK.Rules.aliens() then return 0 end
     local ok, v = pcall(function() return SandboxVars.TrekShuttle and SandboxVars.TrekShuttle.Borg end)
     v = ok and tonumber(v) or 1
     return C.BorgScale[v] or C.BorgScale[1]

@@ -16,6 +16,11 @@ require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Net"
 require "TREK/TREK_Traits"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 local U = TREK.Util
 local Net = TREK.Net
@@ -41,6 +46,6 @@ end)
 Net.onClient("traitNote", function(args)
     local p = whom(args.who)
     if not p or not args.key then return end
-    U.note(p, getText(args.key, args.arg and tostring(args.arg) or nil),
+    U.note(p, getText(args.key, T.argText(args.arg)),
            args.r, args.g, args.b)
 end)

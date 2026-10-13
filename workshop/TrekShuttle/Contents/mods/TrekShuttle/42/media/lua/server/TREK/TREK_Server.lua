@@ -25,6 +25,7 @@ if isClient() then return end
 require "TREK/TREK_Config"
 require "TREK/TREK_Util"
 require "TREK/TREK_Net"
+require "TREK/TREK_Rules"
 require "TREK/TREK_Ship"
 require "TREK/TREK_World"
 require "TREK/TREK_Vehicle"
@@ -49,6 +50,7 @@ local V = TREK.Vehicle
 local B = TREK.Build
 local Rep = TREK.Replicator
 local Probes = TREK.Probes
+local Rules = TREK.Rules
 
 local S = {}
 TREK.Server = S
@@ -87,6 +89,12 @@ end
 --- Common gate for anything that changes or moves the ship.
 local function mayUse(player)
     if not alive(player) then return false end
+    -- Sandbox *Shuttles* (SERVERS.md, *Content*): there is no shuttle here.
+    -- Leaving one never comes through this, so nobody is shut in.
+    if not Rules.shuttles() then
+        deny(player, "shuttlesOff")
+        return false
+    end
     if not Ship.canUse(player) then
         deny(player, "access")
         return false
@@ -107,6 +115,8 @@ end
 --- becomes its owner. On a hosted game that is naturally the host.
 local function claim(player)
     if not isServer() then return end
+    -- (A personal shuttle is issued with its owner, S.commission, so this
+    -- never writes one: there is no test for which ship is in hand.)
     local s = U.state()
     if s.owner then return end
     s.owner = Ship.usernameOf(player)
@@ -211,7 +221,13 @@ end
 local function prepareVehicle(vehicle, id)
     U.try("vehicleRepair", function() vehicle:repair() end)
     U.try("vehicleHotwire", function() vehicle:cheatHotwire(true, false) end)
-    U.try("vehicleTag", function() vehicle:getModData().TREKShipId = id end)
+    U.try("vehicleTag", function()
+        local md = vehicle:getModData()
+        md.TREKShipId = id
+        -- Whose she is, once there is more than one ship (V.fleetOf). Left
+        -- off the shared ship's, which every older save's already lacks.
+        if U.shipNow ~= 1 then md.TREKFleet = U.shipNow end
+    end)
     -- After repair(), which fills the tank and charges the battery for
     -- nothing (ENERGY.md V4): a dark ship has to come out of it flat.
     S.powerVehicle(vehicle)
@@ -299,11 +315,18 @@ function S.shieldRepair(vehicle)
         if id and id ~= "GasTank" and id ~= "Battery" then
             local cond = U.try("partCond", function() return part:getCondition() end) or 100
             if cond < 100 then
-                local cost = (100 - cond) * C.RepairCostPerPoint
-                local _, paid = TREK.Energy.energize(nil, "repair", cost,
-                    { partial = true, silent = true, noCommit = true })
-                paid = paid or 0
-                local to = math.min(100, cond + math.floor(paid / C.RepairCostPerPoint + 1e-6))
+                -- Sandbox *Cost: shields* at nothing mends for nothing: the
+                -- ledger takes no charge of zero, so there is no payment to
+                -- measure the mending by, and a dark ship mends nothing.
+                local each = Rules.cost("RepairCostPerPoint")
+                local to = 100
+                if each > 0 then
+                    local _, paid = TREK.Energy.energize(nil, "repair", (100 - cond) * each,
+                        { partial = true, silent = true, noCommit = true })
+                    to = math.min(100, cond + math.floor((paid or 0) / each + 1e-6))
+                elseif TREK.Power.dark() then
+                    to = cond
+                end
                 if to > cond then
                     U.try("partMend", function()
                         part:setCondition(to)
@@ -338,6 +361,12 @@ end
 -- a world load does to it anyway.
 local engineWas = {}
 
+--- A vehicle's key in a table kept across ships: each ship counts its own
+--- vehicles from one, so the id alone is two ships' vehicle.
+local function vehicleKey(vehicle)
+    return tostring(U.shipNow) .. ":" .. tostring(V.idOf(vehicle) or 0)
+end
+
 --- Charges the engine's start, on its false-to-true edge (ENERGY.md 4.2).
 ---
 --- Watched rather than requested: the engine's state is decided on the
@@ -346,7 +375,7 @@ local engineWas = {}
 --- starting her is a thing they did. A dark ship never gets this far: the
 --- flat battery refused the start.
 function S.engineEdge(vehicle)
-    local id = V.idOf(vehicle) or 0
+    local id = vehicleKey(vehicle)
     local running = U.try("engineRunning", function()
         return vehicle:isEngineRunning()
     end) == true
@@ -354,7 +383,7 @@ function S.engineEdge(vehicle)
     engineWas[id] = running
     if running and not was then
         local driver = U.try("engineDriver", function() return vehicle:getDriver() end)
-        TREK.Energy.energize(driver, "engine", C.EngineStartCost, { partial = true })
+        TREK.Energy.energize(driver, "engine", Rules.cost("EngineStartCost"), { partial = true })
         return true
     end
     return false
@@ -398,8 +427,11 @@ end
 --- Spawns the shuttle vehicle on a square and makes it the ship.
 local function spawnVehicle(sq)
     local s = U.state()
+    -- Her skin is asked for here and kept by the engine (setSkinIndex, which
+    -- addVehicleDebug's third argument goes to): saved and sent with her.
+    local skin = V.skinFor(s, U.shipNow)
     local vehicle = U.try("addVehicle", function()
-        return addVehicleDebug(V.SCRIPT, IsoDirections.N, 0, sq)
+        return addVehicleDebug(V.hullOf(s).script, IsoDirections.N, skin, sq)
     end)
     if not vehicle then
         U.log("WARN could not spawn the shuttle vehicle at %d,%d,%d",
@@ -412,8 +444,10 @@ local function spawnVehicle(sq)
     -- Proof it is tagged: an untagged vehicle looks like a leftover to the
     -- sweep below, which is how the ship could come to delete itself.
     local tagged = V.idOf(vehicle)
-    U.log("shuttle vehicle %s spawned at %d,%d,%d",
-          tostring(tagged), sq:getX(), sq:getY(), sq:getZ())
+    U.log("shuttle vehicle %s spawned at %d,%d,%d: skin %d asked for, and the engine has her in skin %s of %s",
+          tostring(tagged), sq:getX(), sq:getY(), sq:getZ(), skin,
+          tostring(U.try("vehicleSkin", function() return vehicle:getSkinIndex() end)),
+          tostring(U.try("vehicleSkins", function() return vehicle:getSkinCount() end)))
     if tagged ~= s.vehicleId then
         U.log("WARN the shuttle vehicle could not be tagged; it will be left alone")
     end
@@ -561,7 +595,8 @@ end
 function crewAboard(vehicle)
     for _, p in ipairs(U.players()) do
         if U.try("crewDead", function() return p:isDead() end) == false then
-            if U.isInteriorPlayer(p) then return true end
+            -- Her own cabin: somebody aft in another shuttle is not her crew.
+            if U.aboardThis(p) then return true end
             -- **getSeat answers -1 for somebody not in the vehicle**, never
             -- nil (BaseVehicle.getSeat, bci 27: iconst_m1). `~= nil` counted
             -- every living player near a hovering shuttle as seated in her,
@@ -646,6 +681,10 @@ function S.serviceVehicle()
     local ours = s.landed or s.flying
     local others = {}
     V.each(function(vehicle)
+        -- Another ship's vehicle is that ship's to keep or clear: it is seen
+        -- on that ship's own pass (Ship.each). Without this every pass took
+        -- every other shuttle for a leftover and removed it.
+        if V.fleetOf(vehicle) ~= U.shipNow then return end
         local id = V.idOf(vehicle)
         if ours and id and id == s.vehicleId then
             found = vehicle
@@ -661,6 +700,7 @@ function S.serviceVehicle()
             s.vehicleId = s.vehicleSerial
             U.try("adoptVehicle", function()
                 vehicle:getModData().TREKShipId = s.vehicleId
+                if U.shipNow ~= 1 then vehicle:getModData().TREKFleet = U.shipNow end
             end)
             U.log("adopted the shuttle vehicle at %d,%d as the ship",
                   math.floor(vehicle:getX()), math.floor(vehicle:getY()))
@@ -732,7 +772,7 @@ function S.serviceVehicle()
                 -- Partial and silent: nobody asked for it, and a ship too low
                 -- to pay still must not hang in the sky for ever. What a
                 -- dark ship does instead is ENERGY.md section 7.
-                TREK.Energy.energize(nil, "recall", C.RecallCost,
+                TREK.Energy.energize(nil, "recall", Rules.cost("RecallCost"),
                                      { partial = true, silent = true, noCommit = true })
                 S.endFlight("nobody is aboard her", true)
                 return
@@ -758,7 +798,7 @@ function S.serviceVehicle()
         if s.x and s.y and (x ~= s.x or y ~= s.y) then
             local d = math.sqrt(U.dist2(x, y, s.x, s.y))
             if d <= C.OdometerMaxJump then
-                local rate = s.flying and C.AirCostPerTile or C.GroundCostPerTile
+                local rate = Rules.cost(s.flying and "AirCostPerTile" or "GroundCostPerTile")
                 TREK.Energy.energize(nil, s.flying and "fly" or "drive",
                                      d * rate, { partial = true, silent = true,
                                                  noCommit = true })
@@ -826,6 +866,69 @@ function S.serviceVehicle()
         s.missingChecks = nil
         Ship.commit()
     end
+end
+
+---------------------------------------------------------------------------
+-- Personal shuttles (SERVERS.md)
+---------------------------------------------------------------------------
+--- Gives `name` a shuttle of their own: the next berth, a ship's state with
+--- one crystal's charge and no spares, overhead and waiting to be called.
+--- Returns its id, the one they already had, or nil when every berth is
+--- taken.
+---
+--- **Once, for the life of the save.** A berth is where a cabin stands with
+--- everything its owner keeps in it; a player the server later takes off its
+--- list keeps the cabin and loses the use of it (S.serviceFleet does not ask
+--- again, and Ship.canUse is the owner's while the register says so).
+function S.commission(name)
+    local f = Ship.fleet()
+    if f.byOwner[name] then return f.byOwner[name] end
+    local id = f.next
+    if id - 1 > C.FleetSlots then
+        U.warnOnce("fleetFull", "every one of the " .. tostring(C.FleetSlots)
+                   .. " shuttle berths is taken; " .. tostring(name) .. " has none")
+        return nil
+    end
+    f.next = id + 1
+    f.byOwner[name] = id
+    f.owners[tostring(id)] = name
+    U.usingShip(id, function()
+        local s = U.state()
+        s.owner = name
+        s.personal = true
+        s.landed = false
+        -- Written out, never left to a first read: a missing reserve reads
+        -- as a full crystal, and a missing count is issued the shared
+        -- ship's three spares (furnishCore).
+        s.commissioned = true
+        s.dark = false
+        s.power = C.PowerMax
+        s.crystals = 0
+        s.probes = C.PersonalProbes
+        Ship.commit()
+    end)
+    Ship.publishFleet()
+    U.log("fleet: %s has a shuttle of their own, ship %d, overhead", name, id)
+    return id
+end
+
+--- Every player online who is due a shuttle and has none gets one, and is
+--- told. Once a game minute; in single player there is one ship and this
+--- does nothing.
+function S.serviceFleet()
+    if not isServer() then return 0 end
+    local issued = 0
+    for _, p in ipairs(U.players()) do
+        local name = Ship.usernameOf(p)
+        if alive(p) and Rules.hasPersonalShuttle(name) and not Ship.personalOf(name) then
+            local id = S.commission(name)
+            if id then
+                issued = issued + 1
+                Net.toClient(p, "shuttleIssued", { ship = id })
+            end
+        end
+    end
+    return issued
 end
 
 ---------------------------------------------------------------------------
@@ -921,8 +1024,17 @@ end
 -- Who is aboard
 ---------------------------------------------------------------------------
 -- username -> true, for players who have reported themselves aboard and are
--- waiting for the cabin. Cleared once they have been told it is ready.
-local waiting = {}
+-- waiting for the cabin. Cleared once they have been told it is ready. One
+-- table a ship: each has its own cabin to wait for.
+local waitingByShip = {}
+local function waitingHere()
+    local w = waitingByShip[U.shipNow]
+    if not w then
+        w = {}
+        waitingByShip[U.shipNow] = w
+    end
+    return w
+end
 
 local function playerNamed(name)
     for _, p in ipairs(U.players()) do
@@ -931,10 +1043,11 @@ local function playerNamed(name)
     return nil
 end
 
---- True when any player is standing in the cabin's cell.
+--- True when any player is standing in the cabin's cell: the cabin of the
+--- ship in hand.
 local function anyoneAboard()
     for _, p in ipairs(U.players()) do
-        if U.isInteriorPlayer(p) then return true end
+        if U.aboardThis(p) then return true end
     end
     return false
 end
@@ -942,6 +1055,7 @@ end
 --- Builds the cabin for players waiting aboard, once its chunks are loaded
 --- around them, and tells them when it is ready.
 local function serviceWaiting()
+    local waiting = waitingHere()
     -- The game's Lua (Kahlua) has no `next`; pairs is how to ask "empty?".
     local any = false
     for _ in pairs(waiting) do any = true break end
@@ -968,7 +1082,7 @@ end
 Net.onServer("boarded", function(player)
     if not alive(player) then return end
     claim(player)
-    waiting[Ship.usernameOf(player)] = true
+    waitingHere()[Ship.usernameOf(player)] = true
     serviceWaiting()
 end)
 
@@ -1034,7 +1148,7 @@ local function movesFrom(player, where)
     if where == "decks" then return A.onShip(player) end
     local FS = TREK.FieldStation
     if where == "stationPanel" then
-        return FS ~= nil and FS.found() and FS.playerInReach(player)
+        return FS ~= nil and Rules.fieldStation() and FS.found() and FS.playerInReach(player)
     end
     if where == "stationLift" then
         if not A.onStation(player) then return false end
@@ -1056,6 +1170,12 @@ Net.onServer("move", function(player, args)
     end
     if kind == "beamUp" and not TREK.Marooned.linked(player) then
         deny(player, "noBadge", { kind = kind })
+        return
+    end
+    -- Sandbox *Beaming up from the ground* (SERVERS.md). Beaming down is
+    -- never asked: nobody is shut in a ship somebody else sent up.
+    if kind == "beamUp" and not Rules.beamUp() then
+        deny(player, "beamUpOff", { kind = kind })
         return
     end
     if rule.access and not mayUse(player) then return end
@@ -1084,8 +1204,8 @@ Net.onServer("move", function(player, args)
     -- so neither refusal costs the other: a ship too short of power to beam
     -- keeps the player's charge, and a transporter still recharging keeps the
     -- ship's power. `kind` in the denial drops the client's waiting move.
-    local energy = rule.energy and C[rule.energy] or 0
-    local need = math.max(energy, rule.check and C[rule.check] or 0)
+    local energy = rule.energy and Rules.cost(rule.energy) or 0
+    local need = math.max(energy, rule.check and Rules.cost(rule.check) or 0)
     -- The emergency descent from orbit is free (ENERGY.md 7.3): the ship takes
     -- herself down with the crew, and the only thing she has is no power.
     if kind == "descend" and U.state().emergency ~= nil then need = 0 end
@@ -1183,10 +1303,11 @@ Net.onServer("land", function(player, args)
     -- is known to be clear, so a refusal never drops her where she hangs.
     local s = U.state()
     local emergency = s.emergency ~= nil
-    if not emergency and not TREK.Power.canPay(C.LandCost) then
+    local landCost = Rules.cost("LandCost")
+    if not emergency and not TREK.Power.canPay(landCost) then
         Net.toClient(player, "landingRefused", {
             why = "noPower", x = x, y = y, z = z,
-            need = C.LandCost, have = math.floor(TREK.Power.reserve()),
+            need = landCost, have = math.floor(TREK.Power.reserve()),
         })
         return
     end
@@ -1208,7 +1329,7 @@ Net.onServer("land", function(player, args)
             Ship.commit()
             U.log("power: the emergency landing is down at %d,%d,%d", x, y, z)
         else
-            TREK.Energy.energize(player, "land", C.LandCost)
+            TREK.Energy.energize(player, "land", landCost)
         end
         Net.toClient(player, "landed", { x = x, y = y, z = z })
     else
@@ -1221,13 +1342,14 @@ Net.onServer("recall", function(player)
     if not mayUse(player) or not linked(player) then return end
     -- A dark ship cannot go up: a landed one stays landed, and says why.
     local s = U.state()
-    if s.landed and not TREK.Power.canPay(C.RecallCost) then
-        TREK.Energy.energize(player, "recall", C.RecallCost)
+    local recallCost = Rules.cost("RecallCost")
+    if s.landed and not TREK.Power.canPay(recallCost) then
+        TREK.Energy.energize(player, "recall", recallCost)
         return
     end
     local ok, why = S.recall()
     if ok then
-        TREK.Energy.energize(player, "recall", C.RecallCost)
+        TREK.Energy.energize(player, "recall", recallCost)
         Net.toClient(player, "recalled", {})
     elseif why then
         deny(player, why)
@@ -1268,6 +1390,11 @@ end
 --- lifting, because build 42's server runs no vehicle physics at all.
 Net.onServer("takeoff", function(player)
     if not mayUse(player) then return end
+    -- Sandbox *Flight* (SERVERS.md).
+    if not Rules.flight() then
+        deny(player, "flightOff")
+        return
+    end
     local s = U.state()
     if s.flying then return end
     if not s.landed then
@@ -1281,8 +1408,8 @@ Net.onServer("takeoff", function(player)
     end
     -- Checked here and spent at `airborne`, once she is really up, so a
     -- climb that gives up costs nothing (ENERGY.md 4.4).
-    if not TREK.Power.canPay(C.TakeoffCost) then
-        TREK.Energy.energize(player, "takeoff", C.TakeoffCost)
+    if not TREK.Power.canPay(Rules.cost("TakeoffCost")) then
+        TREK.Energy.energize(player, "takeoff", Rules.cost("TakeoffCost"))
         return
     end
     claim(player)
@@ -1321,7 +1448,7 @@ Net.onServer("airborne", function(player, args)
     s.skyAt = { x = s.x, y = s.y, level = level }
     -- Partial: if the ship went dark between the take-off and now, she is
     -- airborne and dark, which is ENERGY.md section 7's case, not this one's.
-    TREK.Energy.energize(player, "takeoff", C.TakeoffCost,
+    TREK.Energy.energize(player, "takeoff", Rules.cost("TakeoffCost"),
                          { partial = true, noCommit = true })
     Ship.commit()
     U.log("shuttle airborne at %d,%d level %d, flown by %s",
@@ -1539,6 +1666,11 @@ end
 
 Net.onServer("fireTorpedo", function(player, args)
     if not mayUse(player) then return end
+    -- Sandbox *Ship's weapons* (SERVERS.md).
+    if not Rules.torpedoes() then
+        deny(player, "weaponsOff")
+        return
+    end
     local s = U.state()
     -- In the air, or parked with somebody in one of her seats (since
     -- 2026-10-09; she used to fire only in flight). Overhead she is not in
@@ -1587,6 +1719,13 @@ Net.onServer("fireTorpedo", function(player, args)
     if not sq then
         deny(player, "torpedoNoGround")
         U.log("torpedo: no loaded square at %d,%d,%d -- not fired", x, y, z)
+        return
+    end
+
+    -- Paid at the launch, once everything that could refuse it has: a shot
+    -- that was never fired costs nothing (sandbox *Cost: ship's weapons*).
+    if not TREK.Energy.energize(player, "torpedo", Rules.cost("TorpedoCost"),
+                                { noCommit = true }) then
         return
     end
 
@@ -1681,6 +1820,10 @@ local phaserWeapon = nil
 
 Net.onServer("firePhasers", function(player, args)
     if not mayUse(player) then return end
+    if not Rules.shipPhasers() then
+        deny(player, "weaponsOff")
+        return
+    end
     local s = U.state()
     if not s.flying and not s.landed then
         deny(player, "notFlying")
@@ -1715,7 +1858,7 @@ Net.onServer("firePhasers", function(player, args)
     -- Checked whole and refused with its numbers; paid in silence, because a
     -- note a shot would be a note three times a second (the move handler's
     -- pattern).
-    local need = P.cost * #found
+    local need = P.cost * Rules.costScale("CostWeapons") * #found
     if not TREK.Power.canPay(need) then
         TREK.Energy.energize(player, "phasers", need)
         return
@@ -1750,12 +1893,17 @@ end)
 -- whoever in her seats is holding it), and what it costs. What it holds is each client's own to move: a
 -- client simulates its own zombies and the driver's client the physics, the
 -- same split as the shields' push and the sky plane.
-local tractor = nil   -- { player, paidAt } while it is on, server-local
+local tractors = {}   -- ship -> { player, paidAt } while it is on, server-local
+
+--- A second of the tractor on this server (sandbox *Cost: ship's weapons*).
+function S.tractorCost()
+    return C.Tractor.costPerSec * Rules.costScale("CostWeapons")
+end
 
 function S.tractorOff(why)
     local s = U.state()
     local was = s.tractor
-    tractor = nil
+    tractors[U.shipNow] = nil
     if was == nil then return false end
     s.tractor = nil
     Ship.commit()
@@ -1780,11 +1928,11 @@ Net.onServer("tractor", function(player, args)
         return
     end
     if s.tractor then return end
-    if not TREK.Power.canPay(C.Tractor.costPerSec) then
-        TREK.Energy.energize(player, "tractor", C.Tractor.costPerSec)
+    if not TREK.Power.canPay(S.tractorCost()) then
+        TREK.Energy.energize(player, "tractor", S.tractorCost())
         return
     end
-    tractor = { player = player, paidAt = getTimestampMs() }
+    tractors[U.shipNow] = { player = player, paidAt = getTimestampMs() }
     s.tractor = Ship.usernameOf(player)
     Ship.commit()
     U.log("tractor: engaged by %s", s.tractor)
@@ -1796,6 +1944,7 @@ end)
 function S.serviceTractor()
     local s = U.state()
     if s.tractor == nil then return end
+    local tractor = tractors[U.shipNow]
     if not tractor then return S.tractorOff("nobody is holding it") end
     if not s.flying then return S.tractorOff("she is not in the air") end
     local _, seated = seatedIn(tractor.player)
@@ -1803,11 +1952,11 @@ function S.serviceTractor()
     local now = getTimestampMs()
     if now - tractor.paidAt >= 1000 then
         tractor.paidAt = now
-        if not TREK.Power.canPay(C.Tractor.costPerSec) then
-            TREK.Energy.energize(tractor.player, "tractor", C.Tractor.costPerSec)
+        if not TREK.Power.canPay(S.tractorCost()) then
+            TREK.Energy.energize(tractor.player, "tractor", S.tractorCost())
             return S.tractorOff("no power")
         end
-        TREK.Energy.energize(tractor.player, "tractor", C.Tractor.costPerSec, { silent = true })
+        TREK.Energy.energize(tractor.player, "tractor", S.tractorCost(), { silent = true })
     end
 end
 
@@ -1861,6 +2010,11 @@ end)
 
 Net.onServer("setShields", function(player, args)
     if not mayUse(player) then return end
+    -- Sandbox *Shields* (SERVERS.md): none to raise.
+    if not Rules.shields() then
+        deny(player, "shieldsOff")
+        return
+    end
     U.state().shields = args.up == true
     Ship.commit()
 end)
@@ -1902,7 +2056,7 @@ Net.onServer("shieldDraw", function(player, args)
     if U.dist2(px, py, s.x, s.y) > reach * reach then return end
 
     shieldReports[name] = now
-    TREK.Energy.energize(nil, "shields", n * C.ShieldPushCost,
+    TREK.Energy.energize(nil, "shields", n * Rules.cost("ShieldPushCost"),
                          { partial = true, silent = true })
 end)
 
@@ -2454,7 +2608,7 @@ Net.onServer("emhSummon", function(player)
     local s = U.state()
     if s.emh ~= true then
         -- Projecting him costs power; putting him away is free (ENERGY.md 6).
-        if not TREK.Energy.energize(player, "emhProject", C.EmhProjectCost,
+        if not TREK.Energy.energize(player, "emhProject", Rules.cost("EmhProjectCost"),
                                     { why = "emhNoPower", noCommit = true }) then
             return
         end
@@ -2556,7 +2710,7 @@ Net.onServer("emhCure", function(player, args)
     end
 
     if name ~= Ship.usernameOf(player) then
-        offer(player, patient, name, "cure", C.EmhCureCrystals)
+        offer(player, patient, name, "cure", Rules.cureCrystals())
         return
     end
     S.beginCure(player, patient, name)
@@ -2565,11 +2719,12 @@ end)
 --- The detox (CONTRABAND.md): every habit gone, for reserve units.
 --- Yourself at once; anybody else only if they say yes.
 local function detoxBody(asker, patient, name)
-    if TREK.Power.canPay(C.EmhDetoxCost) then
-        if not TREK.Energy.energize(asker, "emhDetox", C.EmhDetoxCost, { silent = true }) then
+    local cost = Rules.cost("EmhDetoxCost")
+    if TREK.Power.canPay(cost) then
+        if not TREK.Energy.energize(asker, "emhDetox", cost, { silent = true }) then
             return false
         end
-    elseif not TREK.Energy.energize(asker, "emhDetox", C.EmhDetoxCost,
+    elseif not TREK.Energy.energize(asker, "emhDetox", cost,
                                     { why = "emhNoPower" }) then
         return false
     end
@@ -2578,7 +2733,7 @@ local function detoxBody(asker, patient, name)
     if asker ~= patient then
         Net.toClient(asker, "emhDetoxed", { who = name, n = n })
     end
-    U.log("emh: detoxed %s -- %d habit(s), %d unit(s) spent", name, n, C.EmhDetoxCost)
+    U.log("emh: detoxed %s -- %d habit(s), %d unit(s) spent", name, n, cost)
     return true
 end
 
@@ -2594,7 +2749,7 @@ Net.onServer("emhDetox", function(player, args)
     end
 
     if name ~= Ship.usernameOf(player) then
-        offer(player, patient, name, "detox", C.EmhDetoxCost)
+        offer(player, patient, name, "detox", Rules.cost("EmhDetoxCost"))
         return
     end
     detoxBody(player, patient, name)
@@ -2607,22 +2762,24 @@ end)
 --- is the whole weight of the twelve hours: walking out of the cabin halfway
 --- through costs it.
 function S.beginCure(player, patient, name)
-    if TREK.Power.crystals() < C.EmhCureCrystals then
+    -- Sandbox *Crystals a cure costs* and *Hours a cure takes* (SERVERS.md).
+    local crystals, hours = Rules.cureCrystals(), Rules.cureHours()
+    if TREK.Power.crystals() < crystals then
         deny(player, "emhNoCrystal")
         return false
     end
-    for _ = 1, C.EmhCureCrystals do
+    for _ = 1, crystals do
         if not TREK.Power.takeCrystal() then
             deny(player, "emhNoCrystal")
             return false
         end
     end
 
-    local due = EMH.worldHours() + C.EmhCureHours
+    local due = EMH.worldHours() + hours
     EMH.cures()[name] = due
     Ship.commit()
 
-    Net.toClient(patient, "emhCureStarted", { hours = C.EmhCureHours })
+    Net.toClient(patient, "emhCureStarted", { hours = hours })
     U.log("emh: a cure has begun for %s -- due at world hour %.1f, %d spare "
           .. "crystal(s) left", name, due, TREK.Power.crystals())
     return true
@@ -2820,7 +2977,7 @@ TREK.Energy.onPowerUp(busFollows)
 -- Every game hour: bill what the bus burned, refuel and mend it. The engine
 -- burns fuel hourly too, so this is the same cadence as the thing it pays for.
 Events.EveryHours.Add(function()
-    U.try("powerBus", busFollows)
+    Ship.each(function() U.try("powerBus", busFollows) end)
 end)
 
 ---------------------------------------------------------------------------
@@ -2956,7 +3113,7 @@ Net.onServer("buildProbe", function(player, args)
 
     -- The ledger burns a spare crystal when the reserve is short, which is
     -- the whole reason a crystal is worth carrying.
-    if not TREK.Energy.energize(player, "probe", C.ProbeCost,
+    if not TREK.Energy.energize(player, "probe", Rules.cost("ProbeCost"),
                                 { why = "probeNoPower", noCommit = true }) then
         return
     end
@@ -3179,16 +3336,20 @@ function S.serviceProbe()
     -- start's guaranteed opening (ENERGY.md 10.5), and every probe after
     -- the first is a fair roll.
     --
-    -- And never more than C.ProbeDryLimit empty ones in a row: the first
-    -- cold-start play drew four, which is a campaign stalled on luck.
+    -- And never more than a dry limit of empty ones in a row: the first
+    -- cold-start play drew four, which is a campaign stalled on luck. Both
+    -- the chance and the limit are the server's (sandbox *Probes that find
+    -- dilithium*); at no chance at all there is no limit, and only a save's
+    -- opening probe finds anything.
     local s = U.state()
     local found
-    if not s.probeEverFound or (s.probeDry or 0) >= C.ProbeDryLimit then
+    local dryLimit = Rules.probeDryLimit()
+    if not s.probeEverFound or (dryLimit and (s.probeDry or 0) >= dryLimit) then
         found = true
     else
         found = (U.try("probeRoll", function()
             return ZombRand(100)
-        end) or 0) < math.floor(C.ProbeFindChance * 100)
+        end) or 0) < math.floor(Rules.probeFind() * 100 + 0.5)
     end
     s.probeDry = found and 0 or (s.probeDry or 0) + 1
 
@@ -3257,6 +3418,83 @@ function S.serviceProbe()
     end
 end
 
+--- Sets a ship that is standing on the ground down again where she stands,
+--- so that she wears the skin V.skinFor has for her now: a vehicle keeps the
+--- skin it was made in, and BaseVehicle.setSkinIndex writes one field on one
+--- machine and tells nobody. Not with anybody aboard her, and not in the
+--- air. She comes back facing north. Returns true when she was.
+function S.repaint()
+    local s = U.state()
+    if not s.landed or s.flying then return false end
+    local vehicle = V.find(s.vehicleId)
+    if not vehicle or crewAboard(vehicle) then return false end
+    local sq = U.square(s.x, s.y, s.z, false)
+    if not sq then return false end
+    removeVehicle(vehicle, "repainted")
+    if not spawnVehicle(sq) then
+        -- Nothing to stand where she stood: she is overhead, to be called down.
+        U.log("WARN repainting: the shuttle could not be set down again; she has gone back up")
+        s.landed = false
+        s.vehicleId = nil
+        return false
+    end
+    return true
+end
+
+--- Somebody with the say has her repainted (SERVERS.md; TREK_Menu, *Repaint
+--- her hull*): any skin the vehicle script has, or none, which gives her
+--- back the one she has earned. It is hers from the next time she is set
+--- down, and at once where she can be set down again as she stands.
+Net.onServer("paintHull", function(player, args)
+    if not V.mayPaint(player) then
+        deny(player, "access")
+        return
+    end
+    local s = U.state()
+    -- What kind of ship she is, if that is asked too: a skin is one of that
+    -- kind's, so the kind is settled first, and nothing is kept of a request
+    -- that names a kind there is not.
+    local hull = V.hullOf(s)
+    if args.hull ~= nil then
+        hull = V.hulls[args.hull]
+        if not hull then return end
+    end
+    local skin = args.skin
+    if skin ~= nil then
+        skin = tonumber(skin)
+        if not skin or skin < 0 or skin >= V.skinCount(hull) or skin ~= math.floor(skin) then
+            return
+        end
+    end
+    s.hull = hull.id
+    s.paint = skin
+    local now = S.repaint()
+    Ship.commit()
+    U.log("%s had ship %s repainted: a %s in skin %s, %s", Ship.usernameOf(player), tostring(U.shipNow),
+          hull.id, tostring(V.skinFor(s, U.shipNow)), now and "at once" or "from when she is next set down")
+    Net.toClient(player, "hullPainted", { now = now })
+end)
+
+--- Somebody with the say has a ship's cabin rebuilt (SERVERS.md; TREK_Menu,
+--- *Rebuild her cabin*): a style, and shuffled or standard. At once while
+--- her cabin is loaded, which is while anybody is aboard her; otherwise it
+--- waits in her state for whoever boards next.
+Net.onServer("refitCabin", function(player, args)
+    if not V.mayPaint(player) then
+        deny(player, "access")
+        return
+    end
+    local want = TREK.Interiors.make(args.style, args.shuffle == true, ZombRand)
+    if not want then return end
+    local s = U.state()
+    s.cabinWanted = want
+    local now = s.built == true and B.cabinLoaded() and B.refitInterior() == true
+    Ship.commit()
+    U.log("%s asked for ship %s's cabin as %s, %s: %s", Ship.usernameOf(player), tostring(U.shipNow), tostring(want.style),
+          args.shuffle == true and "shuffled" or "standard", now and "rebuilt" or "when it is next built")
+    Net.toClient(player, "cabinRefit", { now = now })
+end)
+
 --- Design and diagnostic tools behind the debug console. Single player, or a
 --- server admin.
 Net.onServer("debug", function(player, args)
@@ -3310,14 +3548,16 @@ end)
 
 -- The server's own search for somewhere to put her down (7.2), resumed each
 -- vehicle pass. Server-local: a restart simply searches again.
-local emergencySearch = nil
+-- One of each a ship (SERVERS.md, personal shuttles): two shuttles may go
+-- dark over two towns.
+local emergencySearches = {}
 -- When the crew were last asked to take her down from orbit (7.3).
-local descendAskedAt = nil
+local descendAskedAts = {}
 
---- The first living player standing in the cabin, or nil.
+--- The first living player standing in her cabin, or nil.
 local function firstAboard()
     for _, p in ipairs(U.players()) do
-        if U.isInteriorPlayer(p) and alive(p) then return p end
+        if U.aboardThis(p) and alive(p) then return p end
     end
     return nil
 end
@@ -3347,6 +3587,7 @@ function S.emergencyDescend(now)
     local p = firstAboard()
     if not p then return false end
     local clock = getTimestampMs()
+    local descendAskedAt = descendAskedAts[U.shipNow]
     if not now and descendAskedAt and clock - descendAskedAt < C.EmergencyDescendRetryMs then
         return false
     end
@@ -3354,7 +3595,7 @@ function S.emergencyDescend(now)
         s.emergency = "descend"
         Ship.commit()
     end
-    descendAskedAt = clock
+    descendAskedAts[U.shipNow] = clock
     local args = {}
     if airborne then args = { x = s.x, y = s.y, z = s.z or 0 } end
     Net.toClient(p, "emergencyDescend", args)
@@ -3366,7 +3607,7 @@ end
 --- The moment the ship goes dark: which emergency, if any, this is.
 function S.beginEmergency()
     local s = U.state()
-    emergencySearch = nil
+    emergencySearches[U.shipNow] = nil
     if s.flying then
         s.emergency = true
         Ship.commit()
@@ -3385,7 +3626,7 @@ end
 TREK.Energy.onPowerDown(function() S.beginEmergency() end)
 TREK.Energy.onPowerUp(function()
     local s = U.state()
-    emergencySearch = nil
+    emergencySearches[U.shipNow] = nil
     if s.emergency ~= nil then
         s.emergency = nil
         Ship.commit()
@@ -3410,7 +3651,7 @@ function S.serviceEmergency(vehicle)
     local s = U.state()
     if s.emergency ~= true or not s.flying then return false end
     if vehicle and U.try("emergencyDriver", function() return vehicle:getDriver() end) then
-        emergencySearch = nil
+        emergencySearches[U.shipNow] = nil
         return false
     end
     local x, y = s.x, s.y
@@ -3423,14 +3664,16 @@ function S.serviceEmergency(vehicle)
         return false
     end
 
+    local emergencySearch = emergencySearches[U.shipNow]
     if not emergencySearch or emergencySearch.x ~= x or emergencySearch.y ~= y then
         emergencySearch = { x = x, y = y, z = 0, cursor = 0 }
+        emergencySearches[U.shipNow] = emergencySearch
     end
     local sq = W.searchSlice(emergencySearch)
     if not sq then return false end
 
     local tx, ty = sq:getX(), sq:getY()
-    emergencySearch = nil
+    emergencySearches[U.shipNow] = nil
     s.emergency = nil
     S.endFlight("emergency landing")
     local ok, why = S.land(tx, ty, 0, nil)
@@ -3469,23 +3712,9 @@ end
 -- Every tick while anyone is waiting: they are standing over nothing until the
 -- cabin exists, and each tick of delay is a tick they can fall. With nobody
 -- waiting the check is one empty table walk.
-local vehicleTick = 0
-Events.OnTick.Add(function()
-    U.try("serviceWaiting", serviceWaiting)
-    -- Every tick, because a torpedo is in the air for well under a second and
-    -- anything slower would make the impact visibly late for its own flight.
-    -- With nothing in the air it is a length check on an empty table.
-    U.try("serviceTorpedoes", S.serviceTorpedoes)
-    U.try("serviceTractor", S.serviceTractor)
-    vehicleTick = vehicleTick + 1
-    if vehicleTick >= 60 then
-        vehicleTick = 0
-        U.try("serviceVehicle", S.serviceVehicle)
-    end
-end)
-
-Events.EveryOneMinute.Add(function()
-    -- The ticker above is the fast path; this is the one every setup is
+--- Each ship's own upkeep, once a game minute, as that ship (Ship.each).
+local function minuteForShip()
+    -- The ticker below is the fast path; this is the one every setup is
     -- certain to run, so a build can never be stranded waiting.
     U.try("serviceWaiting", serviceWaiting)
     U.try("sweepGhosts", S.sweepGhosts)
@@ -3493,13 +3722,6 @@ Events.EveryOneMinute.Add(function()
     -- cabin-loaded branch on purpose: a patient who has left the ship has to
     -- lose their treatment whether or not anybody is aboard to see it.
     U.try("serviceCures", S.serviceCures)
-    -- Outside the cabin-loaded branch on purpose, like the cures: a probe is
-    -- a logical job with no world object behind it, and it must keep flying
-    -- whether or not anybody is aboard to watch it.
-    U.try("serviceProbe", S.serviceProbe)
-    -- Contacts become crystals only when somebody goes and looks, so this
-    -- runs wherever the players are rather than only near the ship.
-    U.try("serviceContacts", S.serviceContacts)
     U.try("emergencyDescend", S.serviceEmergencyDescend)
     -- A build that could not finish -- the Starfleet refit waits for every
     -- square round an old cabin to load -- is finished here, with somebody
@@ -3524,6 +3746,38 @@ Events.EveryOneMinute.Add(function()
             U.try("clearMargin", B.clearLoadedSurroundings)
         end
     end
+end
+
+local vehicleTick = 0
+Events.OnTick.Add(function()
+    -- Every tick, because a torpedo is in the air for well under a second and
+    -- anything slower would make the impact visibly late for its own flight.
+    -- With nothing in the air it is a length check on an empty table.
+    U.try("serviceTorpedoes", S.serviceTorpedoes)
+    vehicleTick = vehicleTick + 1
+    local vehicles = vehicleTick >= 60
+    if vehicles then vehicleTick = 0 end
+    -- Round the fleet (SERVERS.md, personal shuttles): one ship in single
+    -- player and on a server that gives nobody their own.
+    Ship.each(function()
+        U.try("serviceWaiting", serviceWaiting)
+        U.try("serviceTractor", S.serviceTractor)
+        if vehicles then U.try("serviceVehicle", S.serviceVehicle) end
+    end)
+end)
+
+Events.EveryOneMinute.Add(function()
+    -- Who has a shuttle of their own, before anything is asked of it.
+    U.try("serviceFleet", S.serviceFleet)
+    Ship.each(minuteForShip)
+    -- Outside the cabin-loaded branch on purpose, like the cures: a probe is
+    -- a logical job with no world object behind it, and it must keep flying
+    -- whether or not anybody is aboard to watch it. The probe log and the
+    -- contacts are the world's, one of each however many ships there are.
+    U.try("serviceProbe", S.serviceProbe)
+    -- Contacts become crystals only when somebody goes and looks, so this
+    -- runs wherever the players are rather than only near the ship.
+    U.try("serviceContacts", S.serviceContacts)
 end)
 
 Events.EveryTenMinutes.Add(function()
@@ -3537,7 +3791,7 @@ end)
 
 -- The schema migration runs on the authority as soon as the world's data is
 -- there, and is published, so no client ever sees a schema 1 table.
-Events.OnInitGlobalModData.Add(function()
+local function wakeShip(id)
     local s = U.state()
     -- Flight never survives a world load. Nothing about a vehicle's physics is
     -- saved, so a world that shut down with the ship in the air reopens with
@@ -3565,10 +3819,20 @@ Events.OnInitGlobalModData.Add(function()
         s.emh = nil
     end
     Ship.commit()
+    if id ~= 1 then
+        U.log("ship %d (%s's) ready: landed=%s built=%s rev=%s", id, tostring(Ship.ownerOf(id)),
+              tostring(s.landed), tostring(s.built), tostring(s.rev))
+        return
+    end
     U.log("ship authority ready (%s, v%s, build %d): landed=%s built=%s rev=%s owner=%s, " ..
           "beams limited=%s", isServer() and "server" or "single player", C.Version,
           C.BuildRev, tostring(s.landed), tostring(s.built), tostring(s.rev),
           tostring(s.owner), tostring(S.chargesLimited()))
+end
+
+Events.OnInitGlobalModData.Add(function()
+    Ship.each(wakeShip)
+    Ship.publishFleet()
     S.checkVoidMap()
 
     -- The ship knows its own stores. Run on every start rather than once, so
@@ -3577,6 +3841,15 @@ Events.OnInitGlobalModData.Add(function()
     local seeded = U.try("seedPatterns", Rep.seedDefaults) or 0
     if seeded > 0 then Rep.publish() end
 end)
+
+-- Every command above is about one ship, and runs as the ship its player is
+-- dealing with (TREK_Net, Ship.contextFor).
+Net.aboutShip("boarded", "move", "land", "recall", "takeoff", "airborne", "setSpeed", "touchdown",
+              "fireTorpedo", "firePhasers", "tractor", "setCourse", "clearCourse", "addBookmark",
+              "removeBookmark", "setShields", "shieldDraw", "setCrew", "replicate", "loadCrystal",
+              "takeCrystal", "storePattern", "scanCarried", "emhSummon", "emhDismiss", "emhLook",
+              "emhTreat", "emhCure", "emhDetox", "emhAccept", "emhDecline", "launchProbe",
+              "buildProbe", "debug", "paintHull", "refitCabin")
 
 --- One line per thing that can be wrong with the replicator, for
 --- TREK_Replicator() from the console.
@@ -3702,8 +3975,8 @@ function S.emhReport()
           .. "a treatment costs %d, a cure costs %d crystal and %d hours, "
           .. "%d cure(s) running",
           modeName, math.floor(TREK.Power.reserve()), C.PowerMax,
-          TREK.Power.crystals(), C.EmhTreatCost, C.EmhCureCrystals,
-          C.EmhCureHours, waiting)
+          TREK.Power.crystals(), EMH.treatCost(), Rules.cureCrystals(),
+          Rules.cureHours(), waiting)
     return B.emhReport()
 end
 

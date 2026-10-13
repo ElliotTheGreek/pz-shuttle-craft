@@ -27,6 +27,11 @@ require "TREK/TREK_Core"
 require "TREK/TREK_Padd"
 require "TREK/TREK_Contraband"
 require "TREK/TREK_ContrabandActions"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config

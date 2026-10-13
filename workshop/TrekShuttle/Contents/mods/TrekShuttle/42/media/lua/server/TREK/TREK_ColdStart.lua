@@ -157,6 +157,8 @@ end
 --- first player again, which is the same answer the first time gave.
 --- `s.coldPlaced` is kept as a record, for the log and the tests.
 function CS.needsPlacing()
+    -- Sandbox *Shuttles*, off: no shuttle is set down anywhere.
+    if TREK.Rules and not TREK.Rules.shuttles() then return false end
     local s = U.state()
     -- A marooned ship is set down on her site, never beside anybody.
     return s.coldStart == true and s.commissioned == false and s.landed ~= true

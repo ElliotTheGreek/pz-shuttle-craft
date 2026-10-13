@@ -25,6 +25,11 @@ require "TREK/TREK_Ship"
 require "TREK/TREK_Captain"
 require "TREK/TREK_Core"
 require "TREK/TREK_Helm"
+require "TREK/TREK_Text"
+
+-- What this file shows is read through TREK_Text: the server's own name for
+-- the ship in orbit goes into it (SERVERS.md).
+local getText = TREK.Text.get
 
 TREK = TREK or {}
 local C = TREK.Config
@@ -326,19 +331,7 @@ end
 ---------------------------------------------------------------------------
 --- Breaks a line into pieces that fit `width`, by word.
 function M.wrap(text, width)
-    local tm = getTextManager()
-    local out, current = {}, ""
-    for word in string.gmatch(tostring(text or ""), "%S+") do
-        local try = (current == "") and word or (current .. " " .. word)
-        if tm:MeasureStringX(UIFont.Small, try) <= width then
-            current = try
-        else
-            if current ~= "" then table.insert(out, current) end
-            current = word
-        end
-    end
-    if current ~= "" then table.insert(out, current) end
-    return out
+    return TREK.Text.wrap(text, UIFont.Small, width)
 end
 
 local portraitTex, portraitTried = nil, false
