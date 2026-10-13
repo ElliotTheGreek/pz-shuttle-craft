@@ -64,8 +64,16 @@ TITLE = "Star Trek: Starfleet Shuttlecraft (Build 42)"
 DESCRIPTION = (ROOT / "workshop" / "description.txt").read_text(
     encoding="utf-8").splitlines()
 
-# Steam refuses or truncates a Workshop description longer than this.
-DESCRIPTION_LIMIT = 8000
+# Steam allows 8000, and **the game's uploader adds to what it sends**
+# (SteamWorkshopItem.getSubmitDescription: "Workshop ID: ", "Mod ID: " and
+# "Map Folder: " lines). At 8000 here every upload from 2026-09-29 to
+# 2026-10-13 went up whole and was then refused with Steam's result 8,
+# *Invalid Parameter*, which the game shows as nothing much: seven uploads,
+# 1.14 to 1.22, and the Workshop still had 1.13. The last that worked was the
+# last before the void map moved to common/ and gave the uploader a Map
+# Folder line to add. Steam's own log says which it was:
+# Steam/logs/workshop_log.txt, "Upload finished for workshop item ... : OK".
+DESCRIPTION_LIMIT = 7850
 
 
 def png_dimensions(path):

@@ -15,7 +15,7 @@ A Starfleet cabin: helm, galley, running water, bunk, biobed, sick bay, replicat
 - Everything she does runs on the dilithium crystal in her warp core. An on-screen gauge shows what is left; at zero she goes dark. Load crystals by right-clicking the core.
 
 THE U.S.S. ADIRONDACK
-A working starship in orbit. Earn your way aboard (bring her crew home, recover three pattern enhancers, hold a transporter lock and pass the Doctor's biofilter, or open her from the start in the sandbox), then ride the turbolifts between five decks: the Bridge, the Lounge, Galley and crew quarters, the Transporter Room and Sickbay, Main Engineering, and Hydroponics. She has a crew: officers of every division and several species walk to their posts, sit, and talk about the ship, the county and you.
+A working starship in orbit. Earn your way aboard (bring her crew home, recover three pattern enhancers, hold a transporter lock and pass the Doctor's biofilter, or open her from the start in the sandbox), then ride the turbolifts between five decks, from the Bridge to Hydroponics. She has a crew: officers of every division and several species walk to their posts, sit, and talk about the ship, the county and you.
 
 CAPTAIN TITUS
 Sit down with the Adirondack's captain on her bridge and ask what happened here. She tells you what the ship knows as the story unfolds, and keeps one thing back until you have earned it.
@@ -30,7 +30,7 @@ STARFLEET AT HOME
 Install a warp core, a replicator and an EMH station in any house from kits (right-click the kit: Install here). Load the core with dilithium and everything within 25 squares runs on it. The ship's replicator makes the kits. Dismantle packs a machine back up.
 
 BUILD ABOARD
-Build and place what you like in the shuttle, on the Adirondack and in the field station, and move their furniture like vanilla's. Anywhere else, phasers clear a plot of stumps, boulders and bushes, and the engineer's field kit's Starfleet tools replace vanilla's, weigh less and never wear out, with self-sealing stem bolts for nails.
+Build and place what you like in the shuttle, on the Adirondack and in the field station, and move their furniture like vanilla's. Anywhere else, phasers clear stumps, boulders and bushes, and the engineer's field kit's tools replace vanilla's, weigh less and never wear out.
 
 HYDROPONICS
 Grow seven alien crops on Deck 5 (tea, bergamot, Klingon coffee, plomeek, leola root, Andorian tuber and hasperat peppers) and cook Earl Grey, Raktajino, plomeek soup, leola root stew and hasperat from scratch. Feed the serpent worm tanks and they breed: five worms and a bowl make live gagh.
