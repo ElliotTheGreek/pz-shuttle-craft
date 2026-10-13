@@ -661,5 +661,7 @@
     "IGUI_TREK_ShipShared": "das gemeinsame Shuttle",
     "IGUI_TREK_ShipYours": "dein Shuttle",
     "IGUI_TREK_ShipOf": "Shuttle von %1",
-    "IGUI_TREK_Hail": "Anderes Shuttle rufen"
+    "IGUI_TREK_Hail": "Anderes Shuttle rufen",
+    "IGUI_TREK_RuleShuttlesOff": "Auf diesem Server gibt es keine Shuttles.",
+    "IGUI_TREK_RuleStationOff": "Die Außenstation ist auf diesem Server geschlossen."
 }
