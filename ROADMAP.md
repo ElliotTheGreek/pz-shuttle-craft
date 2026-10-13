@@ -17,9 +17,15 @@ the detail.**
 
 ## 1. Where it stands
 
-**Version 1.22.0, build revision 36.** 1.22.0 is staged for the Workshop (2026-10-13), unplayed;
-1.21.0 (the server's rules, personal shuttles, the lore pack and the
-languages' tools, `SERVERS.md`) is built and not played.
+**Version 1.22.0, build revision 36. 1.22.0 is on the Workshop**, uploaded
+2026-10-13 (Steam's log: `Upload finished for workshop item 3801178990 :
+OK`). It is the first upload Steam took since 1.13 on 2026-09-28: the seven
+between went up and were refused (`DEV_GUIDE.md`, *An upload the game says
+nothing about may not have happened*), so subscribers went from 1.13 to
+1.22 in one step. 1.21.0 and 1.22.0 (the server's rules, personal shuttles,
+the lore pack, kinds of ship and their cabins, the balance and content
+pages, 27 languages; `SERVERS.md`) are **published and not played**, against
+2.4's own rule, at the author's call.
 
 *Played* means somebody has used it in a real game. *Built* means static checks
 and the simulated server with two clients pass, and nobody has played it yet.

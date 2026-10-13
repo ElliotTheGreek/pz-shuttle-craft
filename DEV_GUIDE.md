@@ -187,6 +187,28 @@ new code:
   `TREK_MaroonedServer` for the maps), where the item is counted and taken
   back out before the container is sent to anybody.
 
+### An upload the game says nothing about may not have happened
+
+**Found 2026-10-13, two weeks late.** Seven Workshop uploads, 1.14 to 1.22,
+each sent every file and were then refused by Steam with result 8, *Invalid
+Parameter*. The game showed nothing worth noticing, each release was
+written up here as staged or live, and the Workshop had 1.13 the whole time.
+
+The listing was held to Steam's 8,000 characters, and the game's uploader
+adds its own `Workshop ID:`, `Mod ID:` and `Map Folder:` lines to what it
+sends. The last upload Steam took was the last before the void map moved to
+`common/` and gave it a Map Folder line. `tools/package_workshop.py` holds
+the listing to 7,850 now (the sewers mod found the same number the same
+way).
+
+- **Read Steam's verdict, not the game's.**
+  `Steam/logs/workshop_log.txt` ends an upload with `Upload finished for
+  workshop item 3801178990 : OK` or with the reason. It is one grep.
+- **And look at the page.** The item's *Change Notes* on Steam carry the
+  date of the last upload Steam took.
+- It is *A check that nobody reads is a log line* again, from outside the
+  mod: the failure was written down every time, in a file nobody opened.
+
 ### A harness call that returns three values is not equal to one
 
 **New in 1.21.0, and it failed three checks that were right.** `lupa` hands
