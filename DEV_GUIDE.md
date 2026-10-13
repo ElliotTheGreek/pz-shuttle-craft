@@ -3592,8 +3592,8 @@ by a ship *in hand* rather than a rewrite (the rule above, and
 `MULTIPLAYER.md`). **The languages**: every line read through `TREK_Text`,
 notes sent as keys, panels that wrap text with no spaces in it,
 `tools/translations.py` and `tests/test_translations.py`, and
-`tools/make_lore_pack.py` for a server's own words. No language is
-translated yet.
+`tools/make_lore_pack.py` for a server's own words. No language was
+translated then; all 27 are since 2026-10-12 (below).
 
 Four test sections (`rules`, `rules_multiplayer`, `fleet`, `fleet_off`) and
 `tools/mutate.py`, the mutation harness as a tool at last. 107 mutations,
@@ -3644,6 +3644,17 @@ seen in game.** **Not reached**: a profession's starting uniform on the
 creation screen, the wheel's slices in a seat of a shuttle left standing
 (the server refuses them), and the breaker box's own menu on a station
 switched off after it was found.
+
+**The 2026-10-12 languages**: all 27 of the game's, each all 11,801
+lines, by FlowDot CLI agents (`tools/translate_agent.py`, one language at a
+time so each lands as it finishes), every line held against the English by
+`tools/translations.py`. Two things the run taught. **A text reworded in
+English is stale in every language and nothing says so**: the tools fill
+only what is missing, so the five tooltips the balance page reworded were
+taken out of the twelve languages already done and asked for again. And
+**a label can be refused for its width for ever**: Polish for the speed
+anti-cheat came back 42 wide three times and is one line by hand. **Not
+seen in game, and not read by a speaker of any of them.**
 
 **Next up** is `ROADMAP.md` section 2: play the backlog in a fresh world, the
 two-player session on the dedicated server, then publish.

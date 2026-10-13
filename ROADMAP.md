@@ -68,7 +68,9 @@ and the simulated server with two clients pass, and nobody has played it yet.
 | Dedicated server | `MULTIPLAYER.md` | Loads cleanly; **nobody has played on it** |
 | A server's rules: switches for beaming, flight, weapons, shields, distress calls, installing and power use; lists of players for the shared shuttle and the ship in orbit, and *Closed*; every species, trait and profession switchable; the ship in orbit renamed | `SERVERS.md` | Built 2026-10-10, not played. The creation screen's lists and a string option on the sandbox page are the first things to see |
 | Personal shuttles: a ship each, own cabin, stores, power and flight | `SERVERS.md`, `MULTIPLAYER.md` | Built 2026-10-10, not played. **Needs a server and two people** |
-| Lore packs, and the languages | `SERVERS.md` | The tools are built; no language is translated yet |
+| Lore packs, and the languages | `SERVERS.md` | All 27 of the game's languages are translated (2026-10-12, by FlowDot CLI agents, `tools/translate_agent.py`) and pass `tests/test_translations.py`. **Not seen in game, and not read by a speaker of any of them** |
+| The balance page: a town's loot gives up one to five crystals, Very rare in the wild, about one outing a crystal, seven cost groups a server scales | `SERVERS.md` *Balance* | Built 2026-10-12, not played. The loot count rests on `OnFillContainer` |
+| The content page: the shuttle, the ship in orbit, the field station, aliens, each weapon and each family of items switched off; her things in the world's loot when she is | `SERVERS.md` *Content* | Built 2026-10-12, not played |
 
 ---
 

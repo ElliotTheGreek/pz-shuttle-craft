@@ -723,9 +723,12 @@ Each player sees their own game language, for everything the mod shows.
 Nothing needs setting on the server. The game falls back to English key by
 key, so a line a language does not have yet is in English, never missing.
 
-`python tools/translations.py status` says how much of each of the game's 27
-languages the mod carries, and `python tests/test_translations.py` holds
-every one it carries against the English: every key there, the same
+**The mod carries all 27 of the game's languages**, machine-translated
+(2026-10-12) and not yet read by a speaker of each: see the last paragraph
+of this section if a line is wrong in yours.
+`python tools/translations.py status` says how much of each the mod carries,
+and `python tests/test_translations.py` holds every one against the
+English: every key there, the same
 placeholders, every button short enough to be a button.
 
 **What the server writes is put into words by the player's machine.** A
